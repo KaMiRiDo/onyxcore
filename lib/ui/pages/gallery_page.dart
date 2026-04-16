@@ -409,16 +409,16 @@ class _GalleryPageState extends State<GalleryPage> {
                 _buildSidebarItem(Icons.videocam_outlined, "Videos", p.join(_homePath, "Videos")),
                 _buildSidebarItem(Icons.delete_outline, "Trash", p.join(_homePath, '.local/share/Trash/files')),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                   child: Text("OTHER LOCATIONS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted, letterSpacing: 1.2)),
                 ),
                 _buildSidebarItem(Icons.dns_outlined, "Network", ""),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                   child: Text("CLOUD STORAGE", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMuted, letterSpacing: 1.2)),
                 ),
                 _buildCloudItem("Alex's Cloud", "Connected"),
@@ -574,7 +574,7 @@ class _GalleryPageState extends State<GalleryPage> {
         },
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: isActive ? Colors.white.withOpacity(0.05) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
