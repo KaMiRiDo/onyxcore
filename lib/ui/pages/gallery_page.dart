@@ -82,6 +82,17 @@ class _GalleryPageState extends State<GalleryPage> {
 
   Future<void> _loadDirectory() async {
     setState(() => _isLoading = true);
+    
+    // Handle Virtual Paths (Recent, Starred, etc.)
+    if (_currentPath.startsWith('virtual:')) {
+      setState(() {
+        _items.clear();
+        _isLoading = false;
+        _totalSizeBytes = 0;
+      });
+      return;
+    }
+
     final dir = Directory(_currentPath);
     if (!await dir.exists()) {
       _currentPath = _homePath;
@@ -434,8 +445,8 @@ class _GalleryPageState extends State<GalleryPage> {
               padding: EdgeInsets.zero,
               children: [
                 _buildSidebarItem(Icons.home, "Home", _homePath),
-                _buildSidebarItem(Icons.access_time, "Recent", ""),
-                _buildSidebarItem(Icons.star_outline, "Starred", ""),
+                _buildSidebarItem(Icons.access_time, "Recent", "virtual:recent"),
+                _buildSidebarItem(Icons.star_outline, "Starred", "virtual:starred"),
                 _buildSidebarItem(Icons.description_outlined, "Documents", p.join(_homePath, "Documents")),
                 _buildSidebarItem(Icons.download_outlined, "Downloads", p.join(_homePath, "Downloads")),
                 _buildSidebarItem(Icons.music_note_outlined, "Music", p.join(_homePath, "Music")),
@@ -777,7 +788,10 @@ class _GalleryPageState extends State<GalleryPage> {
 
   Widget _buildMainContent() {
     if (_items.isEmpty) {
-      return const Center(child: Text("This folder is empty", style: TextStyle(color: AppTheme.textMuted)));
+      String message = "This folder is empty";
+      if (_currentPath == 'virtual:recent') message = "No recent files found";
+      if (_currentPath == 'virtual:starred') message = "No starred items yet";
+      return Center(child: Text(message, style: const TextStyle(color: AppTheme.textMuted)));
     }
 
     final zoom = _currentZoom;
