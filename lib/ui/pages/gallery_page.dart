@@ -66,6 +66,10 @@ class _GalleryPageState extends State<GalleryPage> {
   final List<String> _history = [];
   int _historyIndex = -1;
   String? _hoveredPath;
+  int? _selectionAnchorIndex;
+  final Map<String, double> _folderZooms = {};
+  
+  double get _currentZoom => _folderZooms[_currentPath] ?? 0.9;
 
   @override
   void initState() {
@@ -200,13 +204,32 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 
   void _onItemTap(_GalleryItem item) {
+    final int currentIndex = _items.indexOf(item);
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    final bool isShift = keys.contains(LogicalKeyboardKey.shiftLeft) || keys.contains(LogicalKeyboardKey.shiftRight);
+    final bool isCtrl = keys.contains(LogicalKeyboardKey.controlLeft) || keys.contains(LogicalKeyboardKey.controlRight);
+
     setState(() {
-      if (_selectedPaths.contains(item.entity.path)) {
-        _selectedPaths.remove(item.entity.path);
+      if (isShift && _selectionAnchorIndex != null) {
+        // Range selection (Additive as per user request)
+        final start = math.min(_selectionAnchorIndex!, currentIndex);
+        final end = math.max(_selectionAnchorIndex!, currentIndex);
+        for (int i = start; i <= end; i++) {
+          _selectedPaths.add(_items[i].entity.path);
+        }
+      } else if (isCtrl) {
+        // Individual toggle
+        if (_selectedPaths.contains(item.entity.path)) {
+          _selectedPaths.remove(item.entity.path);
+        } else {
+          _selectedPaths.add(item.entity.path);
+        }
+        _selectionAnchorIndex = currentIndex;
       } else {
-        // Desktop single-select: usually clears others unless Ctrl/Shift but for now let's just toggle
+        // Single exclusive select
         _selectedPaths.clear();
         _selectedPaths.add(item.entity.path);
+        _selectionAnchorIndex = currentIndex;
       }
       _isSelectionMode = _selectedPaths.isNotEmpty;
     });
@@ -248,6 +271,7 @@ class _GalleryPageState extends State<GalleryPage> {
     setState(() {
       _selectedPaths.clear();
       _isSelectionMode = false;
+      _selectionAnchorIndex = null;
     });
   }
 
@@ -343,33 +367,43 @@ class _GalleryPageState extends State<GalleryPage> {
         },
         SingleActivator(LogicalKeyboardKey.delete): () => _handleDelete(permanent: false),
         SingleActivator(LogicalKeyboardKey.delete, shift: true): () => _handleDelete(permanent: true),
+        // Folder-Specific Zoom Controls
+        SingleActivator(LogicalKeyboardKey.equal, control: true): () => setState(() => _folderZooms[_currentPath] = (_currentZoom + 0.1).clamp(0.5, 2.5)),
+        SingleActivator(LogicalKeyboardKey.minus, control: true): () => setState(() => _folderZooms[_currentPath] = (_currentZoom - 0.1).clamp(0.5, 2.5)),
+        SingleActivator(LogicalKeyboardKey.numpadAdd, control: true): () => setState(() => _folderZooms[_currentPath] = (_currentZoom + 0.1).clamp(0.5, 2.5)),
+        SingleActivator(LogicalKeyboardKey.numpadSubtract, control: true): () => setState(() => _folderZooms[_currentPath] = (_currentZoom - 0.1).clamp(0.5, 2.5)),
+        SingleActivator(LogicalKeyboardKey.digit0, control: true): () => setState(() => _folderZooms[_currentPath] = 0.9),
       },
       child: Focus(
         autofocus: true,
-        child: Scaffold(
-        backgroundColor: AppTheme.background,
-        body: Row(
-          children: [
-            _buildSidebar(),
-            Expanded(
-              child: Column(
-                children: [
-                  _buildTopBar(),
-                  _buildActionBar(),
-                  Expanded(
-                    child: _isLoading 
-                      ? const Center(child: CircularProgressIndicator())
-                      : _buildMainContent(),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _deselectAll,
+          child: Scaffold(
+            backgroundColor: AppTheme.background,
+            body: Row(
+              children: [
+                _buildSidebar(),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _buildTopBar(),
+                      _buildActionBar(),
+                      Expanded(
+                        child: _isLoading 
+                          ? const Center(child: CircularProgressIndicator())
+                          : _buildMainContent(),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildSidebar() {
     return Container(
@@ -746,21 +780,15 @@ class _GalleryPageState extends State<GalleryPage> {
       return const Center(child: Text("This folder is empty", style: TextStyle(color: AppTheme.textMuted)));
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    int crossAxisCount = 8;
-    if (screenWidth < 1400) crossAxisCount = 7;
-    if (screenWidth < 1200) crossAxisCount = 6;
-    if (screenWidth < 1000) crossAxisCount = 5;
-    if (screenWidth < 800) crossAxisCount = 4;
-    if (screenWidth < 600) crossAxisCount = 3;
+    final zoom = _currentZoom;
 
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 24,
-        mainAxisExtent: 210,
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 180 * zoom,
+        mainAxisSpacing: 16 * zoom,
+        crossAxisSpacing: 24 * zoom,
+        mainAxisExtent: 215 * zoom,
       ),
       itemCount: _items.length,
       itemBuilder: (context, index) {
@@ -772,7 +800,8 @@ class _GalleryPageState extends State<GalleryPage> {
   Widget _buildItemCard(_GalleryItem item) {
     final bool isSelected = _selectedPaths.contains(item.entity.path);
     final bool isHovered = _hoveredPath == item.entity.path;
-
+    final zoom = _currentZoom;
+    
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredPath = item.entity.path),
       onExit: (_) => setState(() => _hoveredPath = null),
@@ -795,26 +824,27 @@ class _GalleryPageState extends State<GalleryPage> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               SizedBox(
-                height: 120,
+                height: 120 * zoom,
                 child: Center(
-                  child: _buildItemPreview(item),
+                  child: _buildItemPreview(item, zoom),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4 * zoom),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
                   _truncateMiddle(item.title),
                   textAlign: TextAlign.center,
-                  maxLines: 3,
+                  maxLines: zoom < 0.8 ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     color: Colors.white,
-                    fontSize: 13,
+                    fontSize: 13 * (zoom < 1 ? zoom.clamp(0.85, 1.0) : (zoom > 1.2 ? 1.1 : 1.0)),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8 * zoom),
             ],
           ),
         ),
@@ -822,20 +852,20 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
-  Widget _buildItemPreview(_GalleryItem item) {
+  Widget _buildItemPreview(_GalleryItem item, double zoom) {
     if (item.type == _ItemType.folder) {
       final config = _getFolderConfig(item.title);
-      return _buildArchivalIcon(config.icon, config.colors, hasTab: true);
+      return _buildArchivalIcon(config.icon, config.colors, zoom, hasTab: true);
     } else if (item.type == _ItemType.image) {
       final isSvg = item.title.toLowerCase().endsWith('.svg');
-      if (isSvg) return _buildSvgIcon('assets/icons/image.svg', isVertical: false);
+      if (isSvg) return _buildSvgIcon('assets/icons/image.svg', zoom, isVertical: false);
       
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.file(
           File(item.entity.path),
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/image.svg', isVertical: false),
+          errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/image.svg', zoom, isVertical: false),
         ),
       );
     } else if (item.type == _ItemType.video) {
@@ -851,46 +881,46 @@ class _GalleryPageState extends State<GalleryPage> {
               ? Image.file(
                   File(thumbnailPath),
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/video.svg', isVertical: false),
+                  errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/video.svg', zoom, isVertical: false),
                 )
-              : _buildSvgIcon('assets/icons/video.svg', isVertical: false),
+              : _buildSvgIcon('assets/icons/video.svg', zoom, isVertical: false),
           ),
           if (hasThumbnail)
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(8 * zoom),
               decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-              child: const Icon(Icons.play_arrow_rounded, size: 24, color: Colors.white),
+              child: Icon(Icons.play_arrow_rounded, size: 24 * zoom, color: Colors.white),
             ),
         ],
       );
     } else {
-      return _buildFileFallback(item);
+      return _buildFileFallback(item, zoom);
     }
   }
 
-  Widget _buildFileFallback(_GalleryItem item) {
+  Widget _buildFileFallback(_GalleryItem item, double zoom) {
     final name = item.title.toLowerCase();
     final ext = p.extension(name);
     
     // Custom SVG Mappings (Priority)
     if (name.contains('readme')) {
-      return _buildSvgIcon('assets/icons/readme.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/readme.svg', zoom, isVertical: true);
     } else if (['.exe', '.sh', '.bin', '.appimage', '.deb', '.rpm'].contains(ext) || name == 'starup' || name == 'startup') {
-      return _buildSvgIcon('assets/icons/exe.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/exe.svg', zoom, isVertical: true);
     } else if (ext == '.doc' || ext == '.docx' || ext == '.odt') {
-      return _buildSvgIcon('assets/icons/doc.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/doc.svg', zoom, isVertical: true);
     } else if (ext == '.pdf') {
-      return _buildSvgIcon('assets/icons/pdf.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/pdf.svg', zoom, isVertical: true);
     } else if (ext == '.xlsx' || ext == '.xls' || ext == '.csv' || ext == '.ods') {
-      return _buildSvgIcon('assets/icons/spreadsheet.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/spreadsheet.svg', zoom, isVertical: true);
     } else if (ext == '.ppt' || ext == '.pptx' || ext == '.odp') {
-      return _buildSvgIcon('assets/icons/presentation.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/presentation.svg', zoom, isVertical: true);
     } else if (['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma', '.opus'].contains(ext)) {
-      return _buildSvgIcon('assets/icons/audio.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/audio.svg', zoom, isVertical: true);
     } else if (ext == '.zip' || ext == '.rar' || ext == '.7z' || ext == '.tar' || ext == '.gz') {
-      return _buildSvgIcon('assets/icons/zip.svg', isVertical: false);
+      return _buildSvgIcon('assets/icons/zip.svg', zoom, isVertical: false);
     } else if (ext == '.txt' || ext == '.md' || ext == '.log') {
-      return _buildSvgIcon('assets/icons/txt.svg', isVertical: false);
+      return _buildSvgIcon('assets/icons/txt.svg', zoom, isVertical: false);
     }
 
     // Default Material Theme Style Fallback
@@ -902,19 +932,19 @@ class _GalleryPageState extends State<GalleryPage> {
       isVertical = true;
     }
 
-    return _buildArchivalIcon(config.icon, config.colors, isVertical: isVertical);
+    return _buildArchivalIcon(config.icon, config.colors, zoom, isVertical: isVertical);
   }
 
-  Widget _buildSvgIcon(String assetPath, {required bool isVertical}) {
+  Widget _buildSvgIcon(String assetPath, double zoom, {required bool isVertical}) {
     // Scaling adjustments for perceived weight
-    double scale = 1.0;
+    double weightScale = 1.0;
     if (assetPath.contains('pdf.svg') || assetPath.contains('txt.svg') || assetPath.contains('audio.svg')) {
-      scale = 1.15; // 15% increase for smaller looking icons
+      weightScale = 1.15; // 15% increase for smaller looking icons
     }
 
     return SizedBox(
-      width: (isVertical ? 90 : 110) * scale,
-      height: (isVertical ? 120 : 110) * scale,
+      width: (isVertical ? 90 : 110) * zoom * weightScale,
+      height: (isVertical ? 120 : 110) * zoom * weightScale,
       child: SvgPicture.asset(
         assetPath,
         fit: BoxFit.contain,
@@ -923,10 +953,10 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 
   // Helper for stylized archival icons (both Square Folders and Vertical Docs)
-  Widget _buildArchivalIcon(IconData icon, List<Color> colors, {bool hasTab = false, bool isVertical = false}) {
+  Widget _buildArchivalIcon(IconData icon, List<Color> colors, double zoom, {bool hasTab = false, bool isVertical = false}) {
     return SizedBox(
-      width: isVertical ? 90 : 110,
-      height: isVertical ? 120 : 110,
+      width: (isVertical ? 90 : 110) * zoom,
+      height: (isVertical ? 120 : 110) * zoom,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
@@ -934,13 +964,13 @@ class _GalleryPageState extends State<GalleryPage> {
           if (hasTab)
             Positioned(
               top: 0,
-              left: 10,
+              left: 10 * zoom,
               child: Container(
-                width: 38,
-                height: 14,
+                width: 38 * zoom,
+                height: 14 * zoom,
                 decoration: BoxDecoration(
                   color: colors.first.withOpacity(0.9),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(6 * zoom)),
                 ),
               ),
             ),
@@ -948,7 +978,7 @@ class _GalleryPageState extends State<GalleryPage> {
             bottom: 0,
             left: 0,
             right: 0,
-            top: hasTab ? 10 : 0,
+            top: (hasTab ? 10 : 0) * zoom,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -956,13 +986,13 @@ class _GalleryPageState extends State<GalleryPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12 * zoom),
                 boxShadow: [
-                  BoxShadow(color: colors.first.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: colors.first.withOpacity(0.3), blurRadius: 10 * zoom, offset: Offset(0, 4 * zoom)),
                 ],
               ),
               child: Center(
-                child: Icon(icon, color: Colors.white, size: isVertical ? 48 : 42),
+                child: Icon(icon, color: Colors.white, size: (isVertical ? 48 : 42) * zoom),
               ),
             ),
           ),
