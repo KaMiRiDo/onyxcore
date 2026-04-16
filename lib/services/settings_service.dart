@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as p;
 
 class SettingsService extends ChangeNotifier {
   static final SettingsService _instance = SettingsService._internal();
@@ -245,6 +247,14 @@ class SettingsService extends ChangeNotifier {
   void setVaultUnlocked(bool value) {
     _isVaultUnlocked = value;
     notifyListeners();
+  }
+
+  // ——— Thumbnail Management ———
+  String getThumbnailPath(String videoPath) {
+    final String hash = videoPath.hashCode.toString();
+    final String fileName = p.basename(videoPath);
+    final String cacheDir = "${Platform.environment['HOME']}/.cache/onyxcore/thumbnails";
+    return "$cacheDir/${hash}_$fileName.jpg";
   }
 
   // Use a dedicated static helper for Isolate serialization

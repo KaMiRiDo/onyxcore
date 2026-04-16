@@ -621,14 +621,11 @@ class _GalleryPageState extends State<GalleryPage> {
     if (screenWidth < 750) crossAxisCount = 4;
     if (screenWidth < 500) crossAxisCount = 3;
 
-    return GridView.builder(
+    return MasonryGridView.count(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 20,
-        crossAxisSpacing: 20,
-        childAspectRatio: 0.85,
-      ),
+      crossAxisCount: crossAxisCount,
+      mainAxisSpacing: 32,
+      crossAxisSpacing: 32,
       itemCount: _items.length,
       itemBuilder: (context, index) {
         return _buildItemCard(_items[index]);
@@ -644,43 +641,32 @@ class _GalleryPageState extends State<GalleryPage> {
         onTap: () => _onItemTap(item),
         onLongPress: () => _toggleSelection(item),
         child: Container(
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceBase,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isSelected ? AppTheme.magenta : Colors.white.withOpacity(0.05), width: 1.0),
-            boxShadow: [
-              if (isSelected)
-                BoxShadow(
-                  color: AppTheme.violet.withOpacity(0.15),
-                  blurRadius: 30,
-                  spreadRadius: -10,
-                ),
-            ],
+            color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Center(child: _buildItemPreview(item)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildItemPreview(item),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  _truncateMiddle(item.title),
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  style: GoogleFonts.manrope(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      _truncateMiddle(item.title),
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.visible,
-                      style: AppTheme.labelStyle,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 8),
+            ],
           ),
         ),
       ),
@@ -690,26 +676,83 @@ class _GalleryPageState extends State<GalleryPage> {
   Widget _buildItemPreview(_GalleryItem item) {
     if (item.type == _ItemType.folder) {
       final config = _getFolderConfig(item.title);
-      return _buildArchivalIcon(config.icon, config.colors);
+      return _buildArchivalIcon(config.icon, config.colors, hasTab: true);
+    } else if (item.type == _ItemType.image) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(
+          File(item.entity.path),
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _buildFileFallback(item),
+        ),
+      );
+    } else if (item.type == _ItemType.video) {
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              File(_settingsService.getThumbnailPath(item.entity.path)),
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => _buildFileFallback(item),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+            child: const Icon(Icons.play_arrow_rounded, size: 24, color: Colors.white),
+          ),
+        ],
+      );
     } else {
-      final config = _getFileConfig(item.title);
-      return _buildArchivalIcon(config.icon, config.colors);
+      return _buildFileFallback(item);
     }
   }
 
-  // Helper to build the standardized folder/file icon
-  Widget _buildArchivalIcon(IconData icon, List<Color> colors) {
+  Widget _buildFileFallback(_GalleryItem item) {
+    final ext = p.extension(item.title).toLowerCase();
+    
+    // Categorical Vertical Icons
+    if (ext == '.zip' || ext == '.rar') {
+      return _buildVerticalFileIcon(Icons.inventory_2_rounded, [const Color(0xFF26A69A), const Color(0xFF00897B)], "ZIP");
+    } else if (ext == '.pdf') {
+      return _buildVerticalFileIcon(Icons.picture_as_pdf_rounded, [Colors.white, Colors.white70], "PDF", iconColor: Colors.redAccent);
+    } else if (ext == '.xlsx' || ext == '.csv') {
+      return _buildVerticalFileIcon(Icons.table_chart_rounded, [const Color(0xFF43A047), const Color(0xFF2E7D32)], "XLS");
+    } else if (['.mp3', '.wav', '.flac', '.m4a'].contains(ext)) {
+      return _buildVerticalFileIcon(Icons.music_note_rounded, [const Color(0xFFAB47BC), const Color(0xFF8E24AA)], "AUD");
+    }
+
+    final config = _getFileConfig(item.title);
+    return _buildArchivalIcon(config.icon, config.colors);
+  }
+
+  // Helper for the square folder icon
+  Widget _buildArchivalIcon(IconData icon, List<Color> colors, {bool hasTab = false}) {
     return SizedBox(
       width: 110,
-      height: 80,
+      height: 110,
       child: Stack(
         children: [
-          // Folder/File Shape Body
+          if (hasTab)
+            Positioned(
+              top: 0,
+              left: 10,
+              child: Container(
+                width: 38,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: colors.first.withOpacity(0.9),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                ),
+              ),
+            ),
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            top: 10,
+            top: hasTab ? 10 : 0,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -717,18 +760,52 @@ class _GalleryPageState extends State<GalleryPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
-                child: Icon(
-                  icon, 
-                  size: 32, 
-                  color: Colors.black.withOpacity(0.55),
-                ),
+                child: Icon(icon, size: 36, color: Colors.black.withOpacity(0.5)),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Helper for the tall vertical categorical file icons
+  Widget _buildVerticalFileIcon(IconData icon, List<Color> colors, String? label, {Color? iconColor}) {
+    return SizedBox(
+      width: 90,
+      height: 120,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Icon(icon, size: 40, color: iconColor ?? Colors.black.withOpacity(0.5)),
+            ),
+            if (label != null)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Text(
+                  label,
+                  style: GoogleFonts.manrope(
+                    color: (iconColor != null) ? Colors.black : Colors.black.withOpacity(0.4),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
