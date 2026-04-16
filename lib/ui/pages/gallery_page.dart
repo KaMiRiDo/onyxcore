@@ -3,12 +3,14 @@ import 'dart:ui';
 import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../theme.dart';
 import 'video_player_page.dart';
 import 'image_viewer_page.dart';
@@ -56,15 +58,21 @@ class _GalleryPageState extends State<GalleryPage> {
   bool _isLoading = true;
   int _totalSizeBytes = 0;
 
-  // Processing state
   bool _isProcessing = false;
   String _processingMessage = "";
   double _processingProgress = 0.0;
+
+  // Navigation & History
+  final List<String> _history = [];
+  int _historyIndex = -1;
+  String? _hoveredPath;
 
   @override
   void initState() {
     super.initState();
     _currentPath = widget.initialPath ?? _homePath;
+    _history.add(_currentPath);
+    _historyIndex = 0;
     _loadDirectory();
   }
 
@@ -98,9 +106,9 @@ class _GalleryPageState extends State<GalleryPage> {
           _totalSizeBytes += stat.size as int;
           final ext = p.extension(entity.path).toLowerCase();
           _ItemType type = _ItemType.other;
-          if (['.jpg', '.jpeg', '.png', '.webp', '.gif'].contains(ext)) {
+          if (['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.svg', '.bmp', '.tiff'].contains(ext)) {
             type = _ItemType.image;
-          } else if (['.mp4', '.mkv', '.mov', '.avi'].contains(ext)) {
+          } else if (['.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.3gp'].contains(ext)) {
             type = _ItemType.video;
           }
 
@@ -157,49 +165,153 @@ class _GalleryPageState extends State<GalleryPage> {
     if (mounted) setState(() {});
   }
 
-  void _navigateTo(String path) {
+  void _navigateTo(String path, {bool isHistoryAction = false}) {
+    if (_currentPath == path) return;
+
     setState(() {
       _currentPath = path;
       _selectedPaths.clear();
       _isSelectionMode = false;
+      
+      if (!isHistoryAction) {
+        // Clear forward history and add new path
+        if (_historyIndex < _history.length - 1) {
+          _history.removeRange(_historyIndex + 1, _history.length);
+        }
+        _history.add(path);
+        _historyIndex = _history.length - 1;
+      }
     });
     _loadDirectory();
   }
 
+  void _goBack() {
+    if (_historyIndex > 0) {
+      _historyIndex--;
+      _navigateTo(_history[_historyIndex], isHistoryAction: true);
+    }
+  }
+
+  void _goForward() {
+    if (_historyIndex < _history.length - 1) {
+      _historyIndex++;
+      _navigateTo(_history[_historyIndex], isHistoryAction: true);
+    }
+  }
+
   void _onItemTap(_GalleryItem item) {
-    if (_isSelectionMode) {
-      setState(() {
-        if (_selectedPaths.contains(item.entity.path)) {
-          _selectedPaths.remove(item.entity.path);
-        } else {
-          _selectedPaths.add(item.entity.path);
+    setState(() {
+      if (_selectedPaths.contains(item.entity.path)) {
+        _selectedPaths.remove(item.entity.path);
+      } else {
+        // Desktop single-select: usually clears others unless Ctrl/Shift but for now let's just toggle
+        _selectedPaths.clear();
+        _selectedPaths.add(item.entity.path);
+      }
+      _isSelectionMode = _selectedPaths.isNotEmpty;
+    });
+  }
+
+  void _onItemDoubleTap(_GalleryItem item) {
+    if (item.type == _ItemType.folder) {
+      _navigateTo(item.entity.path);
+    } else if (item.type == _ItemType.image) {
+      final images = _items.where((i) => i.type == _ItemType.image).toList();
+      final initialIndex = images.indexOf(item);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ImageViewerPage(
+            imagePaths: images.map<String>((i) => i.entity.path).toList(),
+            initialIndex: initialIndex,
+          ),
+        ),
+      ).then((_) => _loadDirectory());
+    } else if (item.type == _ItemType.video) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VideoPlayerPage(videoPath: item.entity.path),
+        ),
+      ).then((_) => _loadDirectory());
+    }
+  }
+
+  void _selectAll() {
+    setState(() {
+      _selectedPaths = _items.map((i) => i.entity.path).toSet();
+      _isSelectionMode = true;
+    });
+  }
+
+  void _deselectAll() {
+    setState(() {
+      _selectedPaths.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  Future<void> _handleDelete({required bool permanent}) async {
+    if (_selectedPaths.isEmpty) return;
+
+    if (permanent) {
+      final confirm = await _showVibrantConfirmDialog(
+        title: "Permanent Delete",
+        message: "Are you sure you want to permanently delete ${_selectedPaths.length} item(s)? This action cannot be undone.",
+        actionLabel: "Eliminate",
+      );
+      if (confirm == true) {
+        for (var path in _selectedPaths) {
+          final file = File(path);
+          if (file.existsSync()) file.deleteSync(recursive: true);
         }
-        if (_selectedPaths.isEmpty) _isSelectionMode = false;
-      });
+        _loadDirectory();
+      }
     } else {
-      if (item.type == _ItemType.folder) {
-        _navigateTo(item.entity.path);
-      } else if (item.type == _ItemType.image) {
-        final images = _items.where((i) => i.type == _ItemType.image).toList();
-        final initialIndex = images.indexOf(item);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ImageViewerPage(
-              imagePaths: images.map<String>((i) => i.entity.path).toList(),
-              initialIndex: initialIndex,
+      // Simulate Move to Trash
+      final trashDir = Directory(p.join(_homePath, '.local/share/Trash/files'));
+      if (!trashDir.existsSync()) trashDir.createSync(recursive: true);
+      
+      for (var path in _selectedPaths) {
+        final entity = File(path);
+        if (entity.existsSync()) {
+          final newPath = p.join(trashDir.path, p.basename(path));
+          entity.renameSync(newPath);
+        }
+      }
+      _loadDirectory();
+    }
+  }
+
+  Future<bool?> _showVibrantConfirmDialog({required String title, required String message, required String actionLabel}) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F0F0F),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: AppTheme.violet.withOpacity(0.2))),
+        title: Text(title, style: GoogleFonts.manrope(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(message, style: GoogleFonts.manrope(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("Cancel", style: TextStyle(color: Colors.white60)),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(actionLabel, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
             ),
           ),
-        ).then((_) => _loadDirectory());
-      } else if (item.type == _ItemType.video) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => VideoPlayerPage(videoPath: item.entity.path),
-          ),
-        ).then((_) => _loadDirectory());
-      }
-    }
+        ],
+      ),
+    );
   }
 
   void _toggleSelection(_GalleryItem item) {
@@ -216,28 +328,48 @@ class _GalleryPageState extends State<GalleryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: Row(
-        children: [
-          _buildSidebar(),
-          Expanded(
-            child: Column(
-              children: [
-                _buildTopBar(),
-                _buildActionBar(),
-                Expanded(
-                  child: _isLoading 
-                    ? const Center(child: CircularProgressIndicator())
-                    : _buildMainContent(),
-                ),
-              ],
+    return CallbackShortcuts(
+      bindings: {
+        SingleActivator(LogicalKeyboardKey.backspace): () => _goBack(),
+        SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () => _goBack(),
+        SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () => _goForward(),
+        SingleActivator(LogicalKeyboardKey.escape): () => _deselectAll(),
+        SingleActivator(LogicalKeyboardKey.keyA, control: true): () => _selectAll(),
+        SingleActivator(LogicalKeyboardKey.enter): () {
+          if (_selectedPaths.length == 1) {
+            final item = _items.firstWhere((i) => i.entity.path == _selectedPaths.first);
+            _onItemDoubleTap(item);
+          }
+        },
+        SingleActivator(LogicalKeyboardKey.delete): () => _handleDelete(permanent: false),
+        SingleActivator(LogicalKeyboardKey.delete, shift: true): () => _handleDelete(permanent: true),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+        backgroundColor: AppTheme.background,
+        body: Row(
+          children: [
+            _buildSidebar(),
+            Expanded(
+              child: Column(
+                children: [
+                  _buildTopBar(),
+                  _buildActionBar(),
+                  Expanded(
+                    child: _isLoading 
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildMainContent(),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSidebar() {
     return Container(
@@ -275,7 +407,7 @@ class _GalleryPageState extends State<GalleryPage> {
                 _buildSidebarItem(Icons.music_note_outlined, "Music", p.join(_homePath, "Music")),
                 _buildSidebarItem(Icons.image_outlined, "Pictures", p.join(_homePath, "Pictures")),
                 _buildSidebarItem(Icons.videocam_outlined, "Videos", p.join(_homePath, "Videos")),
-                _buildSidebarItem(Icons.delete_outline, "Trash", ""),
+                _buildSidebarItem(Icons.delete_outline, "Trash", p.join(_homePath, '.local/share/Trash/files')),
                 
                 const SizedBox(height: 32),
                 const Padding(
@@ -616,16 +748,20 @@ class _GalleryPageState extends State<GalleryPage> {
 
     final screenWidth = MediaQuery.of(context).size.width;
     int crossAxisCount = 8;
-    if (screenWidth < 1300) crossAxisCount = 7;
+    if (screenWidth < 1400) crossAxisCount = 7;
+    if (screenWidth < 1200) crossAxisCount = 6;
     if (screenWidth < 1000) crossAxisCount = 5;
-    if (screenWidth < 750) crossAxisCount = 4;
-    if (screenWidth < 500) crossAxisCount = 3;
+    if (screenWidth < 800) crossAxisCount = 4;
+    if (screenWidth < 600) crossAxisCount = 3;
 
-    return MasonryGridView.count(
+    return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-      crossAxisCount: crossAxisCount,
-      mainAxisSpacing: 32,
-      crossAxisSpacing: 32,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 24,
+        mainAxisExtent: 210,
+      ),
       itemCount: _items.length,
       itemBuilder: (context, index) {
         return _buildItemCard(_items[index]);
@@ -635,23 +771,36 @@ class _GalleryPageState extends State<GalleryPage> {
 
   Widget _buildItemCard(_GalleryItem item) {
     final bool isSelected = _selectedPaths.contains(item.entity.path);
+    final bool isHovered = _hoveredPath == item.entity.path;
+
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hoveredPath = item.entity.path),
+      onExit: (_) => setState(() => _hoveredPath = null),
       child: GestureDetector(
         onTap: () => _onItemTap(item),
-        onLongPress: () => _toggleSelection(item),
+        onDoubleTap: () => _onItemDoubleTap(item),
         child: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+            color: isSelected 
+                ? AppTheme.violet.withOpacity(0.12) 
+                : (isHovered ? Colors.white.withOpacity(0.04) : Colors.transparent),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent),
+            border: Border.all(
+              color: isSelected ? AppTheme.violet.withOpacity(0.2) : Colors.transparent,
+              strokeAlign: BorderSide.strokeAlignOutside,
+            ),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              _buildItemPreview(item),
-              const SizedBox(height: 8),
+              SizedBox(
+                height: 120,
+                child: Center(
+                  child: _buildItemPreview(item),
+                ),
+              ),
+              const SizedBox(height: 4),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
@@ -678,31 +827,40 @@ class _GalleryPageState extends State<GalleryPage> {
       final config = _getFolderConfig(item.title);
       return _buildArchivalIcon(config.icon, config.colors, hasTab: true);
     } else if (item.type == _ItemType.image) {
+      final isSvg = item.title.toLowerCase().endsWith('.svg');
+      if (isSvg) return _buildSvgIcon('assets/icons/image.svg', isVertical: false);
+      
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.file(
           File(item.entity.path),
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _buildFileFallback(item),
+          errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/image.svg', isVertical: false),
         ),
       );
     } else if (item.type == _ItemType.video) {
+      final thumbnailPath = _settingsService.getThumbnailPath(item.entity.path);
+      final hasThumbnail = File(thumbnailPath).existsSync();
+      
       return Stack(
         alignment: Alignment.center,
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.file(
-              File(_settingsService.getThumbnailPath(item.entity.path)),
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => _buildFileFallback(item),
+            child: hasThumbnail 
+              ? Image.file(
+                  File(thumbnailPath),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/video.svg', isVertical: false),
+                )
+              : _buildSvgIcon('assets/icons/video.svg', isVertical: false),
+          ),
+          if (hasThumbnail)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+              child: const Icon(Icons.play_arrow_rounded, size: 24, color: Colors.white),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded, size: 24, color: Colors.white),
-          ),
         ],
       );
     } else {
@@ -711,21 +869,49 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 
   Widget _buildFileFallback(_GalleryItem item) {
-    final ext = p.extension(item.title).toLowerCase();
+    final name = item.title.toLowerCase();
+    final ext = p.extension(name);
     
-    // Categorical Vertical Icons
-    if (ext == '.zip' || ext == '.rar') {
-      return _buildVerticalFileIcon(Icons.inventory_2_rounded, [const Color(0xFF26A69A), const Color(0xFF00897B)], "ZIP");
+    // Categorical SVG Mappings according to Phase 24 plans
+    if (name.contains('readme')) {
+      return _buildSvgIcon('assets/icons/readme.svg', isVertical: true);
+    } else if (['.exe', '.sh', '.bin', '.appimage', '.deb', '.rpm'].contains(ext) || name == 'starup' || name == 'startup') {
+      return _buildSvgIcon('assets/icons/exe.svg', isVertical: true);
+    } else if (ext == '.doc' || ext == '.docx' || ext == '.odt') {
+      return _buildSvgIcon('assets/icons/doc.svg', isVertical: true);
+    } else if (ext == '.zip' || ext == '.rar' || ext == '.7z' || ext == '.tar' || ext == '.gz') {
+      return _buildSvgIcon('assets/icons/zip.svg', isVertical: false);
+    } else if (['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma', '.opus'].contains(ext)) {
+      return _buildSvgIcon('assets/icons/audio.svg', isVertical: true);
     } else if (ext == '.pdf') {
-      return _buildVerticalFileIcon(Icons.picture_as_pdf_rounded, [Colors.white, Colors.white70], "PDF", iconColor: Colors.redAccent);
-    } else if (ext == '.xlsx' || ext == '.csv') {
-      return _buildVerticalFileIcon(Icons.table_chart_rounded, [const Color(0xFF43A047), const Color(0xFF2E7D32)], "XLS");
-    } else if (['.mp3', '.wav', '.flac', '.m4a'].contains(ext)) {
-      return _buildVerticalFileIcon(Icons.music_note_rounded, [const Color(0xFFAB47BC), const Color(0xFF8E24AA)], "AUD");
+      return _buildSvgIcon('assets/icons/pdf.svg', isVertical: true);
+    } else if (ext == '.xlsx' || ext == '.xls' || ext == '.csv' || ext == '.ods') {
+      return _buildSvgIcon('assets/icons/spreadsheet.svg', isVertical: true);
+    } else if (ext == '.ppt' || ext == '.pptx' || ext == '.odp') {
+      return _buildSvgIcon('assets/icons/presentation.svg', isVertical: true);
+    } else if (ext == '.txt' || ext == '.md' || ext == '.log') {
+      return _buildSvgIcon('assets/icons/txt.svg', isVertical: false);
     }
 
     final config = _getFileConfig(item.title);
     return _buildArchivalIcon(config.icon, config.colors);
+  }
+
+  Widget _buildSvgIcon(String assetPath, {required bool isVertical}) {
+    // Scaling adjustments for perceived weight
+    double scale = 1.0;
+    if (assetPath.contains('pdf.svg') || assetPath.contains('txt.svg') || assetPath.contains('audio.svg')) {
+      scale = 1.15; // 15% increase for smaller looking icons
+    }
+
+    return SizedBox(
+      width: (isVertical ? 90 : 110) * scale,
+      height: (isVertical ? 120 : 110) * scale,
+      child: SvgPicture.asset(
+        assetPath,
+        fit: BoxFit.contain,
+      ),
+    );
   }
 
   // Helper for the square folder icon
