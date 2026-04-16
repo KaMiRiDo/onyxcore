@@ -872,29 +872,37 @@ class _GalleryPageState extends State<GalleryPage> {
     final name = item.title.toLowerCase();
     final ext = p.extension(name);
     
-    // Categorical SVG Mappings according to Phase 24 plans
+    // Custom SVG Mappings (Priority)
     if (name.contains('readme')) {
       return _buildSvgIcon('assets/icons/readme.svg', isVertical: true);
     } else if (['.exe', '.sh', '.bin', '.appimage', '.deb', '.rpm'].contains(ext) || name == 'starup' || name == 'startup') {
       return _buildSvgIcon('assets/icons/exe.svg', isVertical: true);
     } else if (ext == '.doc' || ext == '.docx' || ext == '.odt') {
       return _buildSvgIcon('assets/icons/doc.svg', isVertical: true);
-    } else if (ext == '.zip' || ext == '.rar' || ext == '.7z' || ext == '.tar' || ext == '.gz') {
-      return _buildSvgIcon('assets/icons/zip.svg', isVertical: false);
-    } else if (['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma', '.opus'].contains(ext)) {
-      return _buildSvgIcon('assets/icons/audio.svg', isVertical: true);
     } else if (ext == '.pdf') {
       return _buildSvgIcon('assets/icons/pdf.svg', isVertical: true);
     } else if (ext == '.xlsx' || ext == '.xls' || ext == '.csv' || ext == '.ods') {
       return _buildSvgIcon('assets/icons/spreadsheet.svg', isVertical: true);
     } else if (ext == '.ppt' || ext == '.pptx' || ext == '.odp') {
       return _buildSvgIcon('assets/icons/presentation.svg', isVertical: true);
+    } else if (['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma', '.opus'].contains(ext)) {
+      return _buildSvgIcon('assets/icons/audio.svg', isVertical: true);
+    } else if (ext == '.zip' || ext == '.rar' || ext == '.7z' || ext == '.tar' || ext == '.gz') {
+      return _buildSvgIcon('assets/icons/zip.svg', isVertical: false);
     } else if (ext == '.txt' || ext == '.md' || ext == '.log') {
       return _buildSvgIcon('assets/icons/txt.svg', isVertical: false);
     }
 
+    // Default Material Theme Style Fallback
     final config = _getFileConfig(item.title);
-    return _buildArchivalIcon(config.icon, config.colors);
+    
+    // Code/Data/Config usually vertical unless it's a 'package/container' style
+    bool isVertical = true;
+    if (['.json', '.yaml', '.yml', '.toml', '.xml', '.dart', '.py', '.java', '.c', '.cpp', '.js', '.ts', '.go', '.rs'].contains(ext)) {
+      isVertical = true;
+    }
+
+    return _buildArchivalIcon(config.icon, config.colors, isVertical: isVertical);
   }
 
   Widget _buildSvgIcon(String assetPath, {required bool isVertical}) {
@@ -914,12 +922,14 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
-  // Helper for the square folder icon
-  Widget _buildArchivalIcon(IconData icon, List<Color> colors, {bool hasTab = false}) {
+  // Helper for stylized archival icons (both Square Folders and Vertical Docs)
+  Widget _buildArchivalIcon(IconData icon, List<Color> colors, {bool hasTab = false, bool isVertical = false}) {
     return SizedBox(
-      width: 110,
-      height: 110,
+      width: isVertical ? 90 : 110,
+      height: isVertical ? 120 : 110,
       child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
           if (hasTab)
             Positioned(
@@ -947,9 +957,12 @@ class _GalleryPageState extends State<GalleryPage> {
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(color: colors.first.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
               ),
               child: Center(
-                child: Icon(icon, size: 36, color: Colors.black.withOpacity(0.5)),
+                child: Icon(icon, color: Colors.white, size: isVertical ? 48 : 42),
               ),
             ),
           ),
@@ -1018,69 +1031,141 @@ class _GalleryPageState extends State<GalleryPage> {
   _FolderConfig _getFileConfig(String name) {
     final ext = p.extension(name).toLowerCase();
     
-    // Mapping from target UI
-    if (ext == ".mp4" || ext == ".mov" || ext == ".mkv") {
-      return _FolderConfig(Icons.movie_creation_rounded, [const Color(0xFFFF5252), const Color(0xFFFF1744)]);
+    // Developer & Language Files (Vibrant Gradient Mapping)
+    if (ext == ".dart") {
+      return _FolderConfig(Icons.code_rounded, [const Color(0xFF01579B), const Color(0xFF00B0FF)]);
     }
-    if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp") {
-      return _FolderConfig(Icons.image_rounded, [const Color(0xFF69F0AE), const Color(0xFF00E676)]);
+    if (ext == ".py") {
+      return _FolderConfig(Icons.terminal_rounded, [const Color(0xFF3776AB), const Color(0xFFFFD43B)]); // Python Blue/Gold
+    }
+    if (ext == ".java") {
+      return _FolderConfig(Icons.coffee_rounded, [const Color(0xFFE76F00), const Color(0xFFFFAB40)]); // Java Orange
+    }
+    if (ext == ".js" || ext == ".ts") {
+      return _FolderConfig(Icons.javascript_rounded, [const Color(0xFFFFD600), const Color(0xFFFFEA00)]);
+    }
+    if (ext == ".go") {
+      return _FolderConfig(Icons.bolt_rounded, [const Color(0xFF00ADD8), const Color(0xFF5DC9E2)]);
+    }
+    if (ext == ".rs") {
+      return _FolderConfig(Icons.build_circle_rounded, [const Color(0xFFDEA584), const Color(0xFFE8E8E8)]);
+    }
+    if (ext == ".cpp" || ext == ".c" || ext == ".h") {
+      return _FolderConfig(Icons.settings_suggest_rounded, [const Color(0xFF00599C), const Color(0xFF004482)]);
+    }
+    if (ext == ".yaml" || ext == ".yml") {
+      return _FolderConfig(Icons.settings_input_component_rounded, [const Color(0xFFFF1744), const Color(0xFFFF5252)]);
+    }
+    if (ext == ".json") {
+      return _FolderConfig(Icons.data_object_rounded, [const Color(0xFFFFD600), const Color(0xFFFFEB3B)]);
+    }
+    if (ext == ".xml" || ext == ".html" || ext == ".css") {
+      return _FolderConfig(Icons.html_rounded, [const Color(0xFFFF6D00), const Color(0xFFFFAB40)]);
+    }
+    if (ext == ".lock") {
+      return _FolderConfig(Icons.lock_rounded, [const Color(0xFF607D8B), const Color(0xFFB0BEC5)]);
+    }
+    if (ext == ".sh" || ext == ".bat" || ext == ".bin") {
+      return _FolderConfig(Icons.terminal_rounded, [const Color(0xFF1B5E20), const Color(0xFF4CAF50)]);
+    }
+
+    // Media & Docs
+    if (ext == ".mp4" || ext == ".mov" || ext == ".mkv" || ext == ".webm") {
+      return _FolderConfig(Icons.movie_creation_rounded, [const Color(0xFFD32F2F), const Color(0xFFFF5252)]);
+    }
+    if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" || ext == ".heic") {
+      return _FolderConfig(Icons.image_rounded, [const Color(0xFF2E7D32), const Color(0xFF69F0AE)]);
     }
     if (ext == ".pdf") {
-      return _FolderConfig(Icons.picture_as_pdf_rounded, [const Color(0xFF448AFF), const Color(0xFF2979FF)]);
+      return _FolderConfig(Icons.picture_as_pdf_rounded, [const Color(0xFF1565C0), const Color(0xFF448AFF)]);
     }
     if (ext == ".xlsx" || ext == ".csv") {
-      return _FolderConfig(Icons.table_chart_rounded, [const Color(0xFF00C853), const Color(0xFF00E676)]);
+      return _FolderConfig(Icons.table_chart_rounded, [const Color(0xFF00C853), const Color(0xFF69F0AE)]);
     }
-    if (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar") {
-      return _FolderConfig(Icons.inventory_2_rounded, [const Color(0xFFFF9100), const Color(0xFFFFAB40)]);
+    if (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz") {
+      return _FolderConfig(Icons.inventory_2_rounded, [const Color(0xFFFF6F00), const Color(0xFFFFAB40)]);
     }
-    if (ext == ".mp3" || ext == ".wav" || ext == ".flac") {
-      return _FolderConfig(Icons.music_note_rounded, [const Color(0xFFE040FB), const Color(0xFFD500F9)]);
+    if (ext == ".mp3" || ext == ".wav" || ext == ".flac" || ext == ".aac") {
+      return _FolderConfig(Icons.music_note_rounded, [const Color(0xFF7B1FA2), const Color(0xFFE040FB)]);
     }
-    if (ext == ".txt" || ext == ".md") {
-      return _FolderConfig(Icons.description_rounded, [const Color(0xFF40C4FF), const Color(0xFF00B0FF)]);
+    if (ext == ".txt" || ext == ".md" || ext == ".log" || ext == ".env") {
+      return _FolderConfig(Icons.description_rounded, [const Color(0xFF0277BD), const Color(0xFF40C4FF)]);
     }
     
-    return _FolderConfig(Icons.insert_drive_file_rounded, [const Color(0xFF90A4AE), const Color(0xFF78909C)]);
+    return _FolderConfig(Icons.insert_drive_file_rounded, [const Color(0xFF546E7A), const Color(0xFF90A4AE)]);
   }
 
   _FolderConfig _getFolderConfig(String name) {
     final lowName = name.toLowerCase();
     
-    // Exact mapping from target UI
-    if (lowName.contains("drive")) {
-      return _FolderConfig(Icons.storage_rounded, [const Color(0xFF00C2FF), const Color(0xFF007BFF)]);
+    // Platform & OS logos (Vibrant Mapping)
+    if (lowName == "android") {
+      return _FolderConfig(Icons.android_rounded, [const Color(0xFF1B5E20), const Color(0xFF3DDC84)]);
     }
-    if (lowName.contains("android")) {
-      return _FolderConfig(Icons.android_rounded, [const Color(0xFF3DDC84), const Color(0xFF00C853)]);
+    if (lowName == "ios") {
+      return _FolderConfig(Icons.apple_rounded, [const Color(0xFF424242), const Color(0xFFBDBDBD)]);
+    }
+    if (lowName == "macos") {
+      return _FolderConfig(Icons.desktop_mac_rounded, [const Color(0xFF0277BD), const Color(0xFFBBDEFB)]);
+    }
+    if (lowName == "linux") {
+      return _FolderConfig(Icons.terminal_rounded, [const Color(0xFF212121), const Color(0xFF424242)]);
+    }
+    if (lowName == "windows") {
+      return _FolderConfig(Icons.window_rounded, [const Color(0xFF01579B), const Color(0xFF00A4EF)]);
+    }
+    if (lowName == "web" || lowName == "www") {
+      return _FolderConfig(Icons.language_rounded, [const Color(0xFF0277BD), const Color(0xFF4FC3F7)]);
+    }
+
+    // Project & Dev Categories
+    if (lowName == "lib" || lowName == "src") {
+      return _FolderConfig(Icons.code_rounded, [const Color(0xFF0D47A1), const Color(0xFF42A5F5)]);
+    }
+    if (lowName == "test" || lowName == "tests") {
+      return _FolderConfig(Icons.science_rounded, [const Color(0xFF1B5E20), const Color(0xFF66BB6A)]);
+    }
+    if (lowName == "assets" || lowName == "res" || lowName == "resource") {
+      return _FolderConfig(Icons.collections_bookmark_rounded, [const Color(0xFFFF6F00), const Color(0xFFFFD54F)]);
+    }
+    if (lowName == "build" || lowName == "bin" || lowName == "dist") {
+      return _FolderConfig(Icons.inventory_2_rounded, [const Color(0xFF455A64), const Color(0xFFB0BEC5)]);
+    }
+    if (lowName == ".git") {
+      return _FolderConfig(Icons.account_tree_rounded, [const Color(0xFFD32F2F), const Color(0xFFF05032)]);
+    }
+    if (lowName == ".vscode" || lowName == ".idea" || lowName == "config" || lowName == "settings") {
+      return _FolderConfig(Icons.settings_rounded, [const Color(0xFF005A9E), const Color(0xFF007ACC)]);
+    }
+    if (lowName == "logs" || lowName == "log") {
+      return _FolderConfig(Icons.description_rounded, [const Color(0xFF37474F), const Color(0xFF78909C)]);
+    }
+
+    // Standard Locations
+    if (lowName.contains("drive")) {
+      return _FolderConfig(Icons.storage_rounded, [const Color(0xFF01579B), const Color(0xFF00C2FF)]);
     }
     if (lowName.contains("desktop")) {
-      return _FolderConfig(Icons.desktop_windows_rounded, [const Color(0xFFFFD54F), const Color(0xFFFFA000)]);
+      return _FolderConfig(Icons.desktop_windows_rounded, [const Color(0xFFE65100), const Color(0xFFFFD54F)]);
     }
     if (lowName.contains("document")) {
-      return _FolderConfig(Icons.article_rounded, [const Color(0xFF9575CD), const Color(0xFF673AB7)]);
+      return _FolderConfig(Icons.article_rounded, [const Color(0xFF4527A0), const Color(0xFF9575CD)]);
     }
     if (lowName.contains("download")) {
-      return _FolderConfig(Icons.file_download_rounded, [const Color(0xFF4FC3F7), const Color(0xFF0288D1)]);
+      return _FolderConfig(Icons.file_download_rounded, [const Color(0xFF01579B), const Color(0xFF4FC3F7)]);
     }
     if (lowName.contains("music")) {
-      return _FolderConfig(Icons.library_music_rounded, [const Color(0xFFF06292), const Color(0xFFE91E63)]);
+      return _FolderConfig(Icons.library_music_rounded, [const Color(0xFFC2185B), const Color(0xFFF06292)]);
     }
     if (lowName.contains("picture")) {
-      return _FolderConfig(Icons.photo_library_rounded, [const Color(0xFFFFB74D), const Color(0xFFF57C00)]);
+      return _FolderConfig(Icons.photo_library_rounded, [const Color(0xFFE65100), const Color(0xFFFFB74D)]);
     }
     if (lowName.contains("video")) {
-      return _FolderConfig(Icons.movie_creation_rounded, [const Color(0xFFFF7043), const Color(0xFFD84315)]);
-    }
-    if (lowName.contains("snap")) {
-      return _FolderConfig(Icons.view_in_ar_rounded, [const Color(0xFFBA68C8), const Color(0xFF8E24AA)]);
-    }
-    if (lowName.contains("public")) {
-      return _FolderConfig(Icons.cloud_done_rounded, [const Color(0xFF4DB6AC), const Color(0xFF00897B)]);
+      return _FolderConfig(Icons.movie_creation_rounded, [const Color(0xFFBF360C), const Color(0xFFFF7043)]);
     }
     
-    // Generic Folder (Yellow/Gold)
-    return _FolderConfig(Icons.folder_rounded, [const Color(0xFFFFC107), const Color(0xFFFFA000)]);
+    // Generic Folder (Vibrant Gold)
+    return _FolderConfig(Icons.folder_rounded, [const Color(0xFFFFA000), const Color(0xFFFFD54F)]);
   }
 
   // Actions
