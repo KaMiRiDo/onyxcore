@@ -54,6 +54,14 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 
+# OnyxCore Requirements:
+# 1. libmpv-dev: Required by media_kit for native video playback.
+# 2. mpv: Recommended for broad codec support.
+# 3. ffmpeg: Required for background media processing and thumbnails.
+#
+# On Debian/Ubuntu: sudo apt install libmpv-dev mpv ffmpeg
+pkg_check_modules(MPV IMPORTED_TARGET mpv)
+
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 

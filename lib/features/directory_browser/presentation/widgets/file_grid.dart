@@ -5,8 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
-import 'package:onyxcore/features/image_viewer/presentation/pages/image_viewer_page.dart';
-import 'package:onyxcore/features/video_player/presentation/pages/video_player_page.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
@@ -109,36 +107,9 @@ class _FileGridState extends ConsumerState<FileGrid> {
       return;
     }
 
-    if (item.type == FileItemType.image) {
-      final imageItems =
-          items.where((i) => i.type == FileItemType.image).toList();
-      final imageIndex = imageItems.indexWhere((i) => i.path == item.path);
-
-      Navigator.push<bool>(
-        context,
-        MaterialPageRoute<bool>(
-          builder: (_) => ImageViewerPage(
-            imagePaths: imageItems.map((i) => i.path).toList(),
-            initialIndex: imageIndex >= 0 ? imageIndex : 0,
-          ),
-        ),
-      ).then((deleted) {
-        if (deleted == true) {
-          ref.read(directoryItemsProvider.notifier).refresh();
-        }
-      });
+    if (item.type == FileItemType.image || item.type == FileItemType.video) {
+      ref.read(previewFileProvider.notifier).state = item;
       return;
-    }
-
-    if (item.type == FileItemType.video) {
-      Navigator.push<dynamic>(
-        context,
-        MaterialPageRoute<dynamic>(
-          builder: (_) => VideoPlayerPage(videoPath: item.path),
-        ),
-      ).then((_) {
-        ref.read(directoryItemsProvider.notifier).refresh();
-      });
     }
   }
 }

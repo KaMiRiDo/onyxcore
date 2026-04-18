@@ -63,6 +63,9 @@ final currentZoomProvider = Provider<double>((ref) {
   return zooms[path] ?? 0.8;
 });
 
+/// The currently previewed file (inline preview mode).
+final previewFileProvider = StateProvider<FileItem?>((ref) => null);
+
 /// Whether the current path is a virtual path (recent, starred).
 final isVirtualPathProvider = Provider<bool>((ref) {
   final String path = ref.watch(currentPathProvider);

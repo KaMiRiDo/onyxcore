@@ -10,6 +10,8 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/action_
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/preview_container.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 
 /// Main gallery page — slim orchestrator that composes all widgets.
@@ -32,13 +34,19 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final previewFile = ref.watch(previewFileProvider);
+
     return CallbackShortcuts(
       bindings: _buildKeyBindings(),
       child: Focus(
         autofocus: true,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => ref.read(selectionProvider.notifier).deselectAll(),
+          onTap: () {
+            ref.read(selectionProvider.notifier).deselectAll();
+            // Optional: clicking background also closes preview?
+            // ref.read(previewFileProvider.notifier).state = null;
+          },
           child: Scaffold(
             backgroundColor: AppColors.background,
             body: Row(
@@ -46,10 +54,18 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
                 const Sidebar(),
                 Expanded(
                   child: Column(
-                    children: const [
-                      TopBar(),
-                      ActionBar(),
-                      Expanded(child: FileGrid()),
+                    children: [
+                      const TopBar(),
+                      Expanded(
+                        child: previewFile != null
+                            ? PreviewContainer(item: previewFile)
+                            : Column(
+                                children: const [
+                                  ActionBar(),
+                                  Expanded(child: FileGrid()),
+                                ],
+                              ),
+                      ),
                     ],
                   ),
                 ),

@@ -169,6 +169,7 @@ class Sidebar extends ConsumerWidget {
   }
 
   void _navigate(WidgetRef ref, String path) {
+    ref.read(previewFileProvider.notifier).state = null;
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).navigateTo(path);
     ref.read(currentPathProvider.notifier).state = path;

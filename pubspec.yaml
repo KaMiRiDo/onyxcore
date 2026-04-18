@@ -22,8 +22,12 @@ dependencies:
   equatable: ^2.0.7
   watcher: ^1.2.1
 
-  # Media Processing
-  video_player: ^2.8.6
+  # Media Processing (Linux Native)
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
+  desktop_multi_window: ^0.3.0
+  window_manager: ^0.5.1
 
 dev_dependencies:
   flutter_test:
