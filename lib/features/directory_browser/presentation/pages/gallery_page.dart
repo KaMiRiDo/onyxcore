@@ -145,7 +145,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
   void _zoom(double delta) {
     final String path = ref.read(currentPathProvider);
     final zooms = Map<String, double>.from(ref.read(zoomProvider));
-    final current = zooms[path] ?? 0.9;
+    final current = zooms[path] ?? 0.8;
     zooms[path] = (current + delta).clamp(0.5, 2.0);
     ref.read(zoomProvider.notifier).state = zooms;
   }
@@ -153,7 +153,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
   void _resetZoom() {
     final String path = ref.read(currentPathProvider);
     final zooms = Map<String, double>.from(ref.read(zoomProvider));
-    zooms[path] = 0.9;
+    zooms[path] = 0.8;
     ref.read(zoomProvider.notifier).state = zooms;
   }
 }

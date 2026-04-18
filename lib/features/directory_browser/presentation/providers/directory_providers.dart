@@ -53,14 +53,14 @@ final currentPathProvider = StateProvider<String>((ref) {
   return Platform.environment['HOME'] ?? '/';
 });
 
-/// Per-folder zoom levels. Default 0.9x.
+/// Per-folder zoom levels. Default 0.8x.
 final zoomProvider = StateProvider<Map<String, double>>((ref) => {});
 
 /// Current zoom for the active folder.
 final currentZoomProvider = Provider<double>((ref) {
   final String path = ref.watch(currentPathProvider);
   final Map<String, double> zooms = ref.watch(zoomProvider);
-  return zooms[path] ?? 0.9;
+  return zooms[path] ?? 0.8;
 });
 
 /// Whether the current path is a virtual path (recent, starred).

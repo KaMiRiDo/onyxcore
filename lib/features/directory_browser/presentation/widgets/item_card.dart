@@ -208,6 +208,7 @@ class ItemCard extends StatelessWidget {
             right: 0,
             top: (hasTab ? 10 : 0) * zoom,
             child: Container(
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: colors,
@@ -219,8 +220,30 @@ class ItemCard extends StatelessWidget {
                   BoxShadow(color: colors.first.withOpacity(0.3), blurRadius: 10 * zoom, offset: Offset(0, 4 * zoom)),
                 ],
               ),
-              child: Center(
-                child: Icon(icon, color: Colors.white, size: (isVertical ? 48 : 42) * zoom),
+              child: Stack(
+                children: [
+                  if (hasTab)
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.white.withOpacity(0.25), Colors.black.withOpacity(0.15)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  Center(
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: (isVertical ? 48 : 42) * zoom,
+                      shadows: [
+                        if (hasTab)
+                          Shadow(color: Colors.black.withOpacity(0.25), blurRadius: 6 * zoom, offset: Offset(0, 2 * zoom)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
