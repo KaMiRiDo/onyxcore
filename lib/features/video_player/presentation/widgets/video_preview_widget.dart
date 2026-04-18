@@ -48,6 +48,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
   Timer? _volumeOverlayTimer;
   DateTime? _lastManualHide;
   StreamSubscription? _trackSubscription;
+  StreamSubscription? _completedSubscription;
 
   final FocusNode _focusNode = FocusNode();
 
@@ -91,6 +92,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
       _fetchFps();
     });
 
+    _completedSubscription = player.stream.completed.listen((completed) {
+      if (completed && widget.isStandalone) {
+        windowManager.close();
+      }
+    });
+
     _startHideTimer();
     _fetchFps(); // Initial fetch
     
@@ -126,6 +133,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
     _fastSeekTimer?.cancel();
     _volumeTimer?.cancel();
     _volumeOverlayTimer?.cancel();
+    _trackSubscription?.cancel();
+    _completedSubscription?.cancel();
     _focusNode.dispose();
     if (!widget.isStandalone) {
       player.dispose();
