@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
-import 'ui/theme.dart';
-import 'ui/pages/gallery_page.dart';
-import 'services/settings_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app.dart';
+import 'features/settings/presentation/providers/settings_providers.dart';
+
+/// Application entry point.
+///
+/// Initializes SharedPreferences before launching the app wrapped
+/// in Riverpod's ProviderScope for global state management.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize settings
-  final settingsService = SettingsService();
-  await settingsService.init();
-  
-  runApp(const OnyxCoreApp());
-}
 
-class OnyxCoreApp extends StatelessWidget {
-  const OnyxCoreApp({super.key});
+  final prefs = await SharedPreferences.getInstance();
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'OnyxCore Multimedia Manager',
-      theme: AppTheme.theme,
-      home: const GalleryPage(),
-    );
-  }
+  runApp(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+      child: const OnyxCoreApp(),
+    ),
+  );
 }

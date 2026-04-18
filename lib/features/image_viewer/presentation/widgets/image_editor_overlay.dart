@@ -2,8 +2,6 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 enum Direction { top, bottom, left, right }
@@ -181,7 +179,6 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
                               const SizedBox(height: 48),
                               _buildPremiumCancelButton(() {
                                 setState(() => _isCancelled = true);
-                                FFmpegKit.cancel();
                               }),
                             ],
                           ),
@@ -546,9 +543,8 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
       if (filter.isNotEmpty) filter += ",";
       filter += "crop=${realW.toInt()}:${realH.toInt()}:${realX.toInt()}:${realY.toInt()}";
 
-      final String cmd = '-i "$inputPath" -vf "$filter" "$outputPath" -y';
-      final session = await FFmpegKit.execute(cmd);
-      final returnCode = await session.getReturnCode();
+      final String cmd = 'ffmpeg -i "$inputPath" -vf "$filter" "$outputPath" -y';
+      final result = await Process.run('bash', ['-c', cmd]);
 
       if (_isCancelled) {
         // Delete temp if it was replace mode
@@ -558,7 +554,7 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
         return;
       }
 
-      if (ReturnCode.isSuccess(returnCode)) {
+      if (result.exitCode == 0) {
         if (!saveCopy) {
           await inputFile.delete();
           await File(outputPath).rename(inputPath);

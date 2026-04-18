@@ -1,0 +1,54 @@
+import '../entities/app_settings.dart';
+
+/// Abstract interface for settings persistence.
+///
+/// Data layer implements this with SharedPreferences.
+abstract class SettingsRepository {
+  /// Load all settings from persistent storage.
+  Future<AppSettings> load();
+
+  /// Update the auto-play-next setting.
+  Future<void> setAutoPlayNext({required bool value});
+
+  /// Update the snapshot filename prefix.
+  Future<void> setSnapshotPrefix(String value);
+
+  /// Update the double-tap seek seconds.
+  Future<void> setDoubleTapSeekSeconds(int value);
+
+  // ——— Gallery Sorting ———
+
+  /// Get the sort key for a specific folder path.
+  String getFolderSort(String path);
+
+  /// Set the sort key for a specific folder path.
+  Future<void> setFolderSort(String path, String sortKey);
+
+  // ——— Gallery Pinning ———
+
+  /// Get the list of pinned folder paths (ordered).
+  List<String> get pinnedFolders;
+
+  /// Check if a folder is pinned.
+  bool isFolderPinned(String path);
+
+  /// Toggle pin state for multiple folders.
+  Future<void> togglePinFolders(List<String> paths);
+
+  /// Move a pinned folder up in the order.
+  Future<void> movePinUp(String path);
+
+  /// Move a pinned folder down in the order.
+  Future<void> movePinDown(String path);
+
+  /// Remove pinned folders that no longer exist at their expected path.
+  Future<void> removeMissingPinnedFolders(
+    String currentPath,
+    List<String> validFolders,
+  );
+
+  // ——— Thumbnail Management ———
+
+  /// Generate the deterministic cache path for a video thumbnail.
+  String getThumbnailPath(String videoPath);
+}

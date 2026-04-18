@@ -1,0 +1,113 @@
+import 'dart:io';
+import 'dart:isolate';
+
+import 'package:path/path.dart' as p;
+
+import '../../../../core/utils/file_type_classifier.dart';
+import '../../domain/entities/file_item.dart';
+
+/// Data source for local file system operations.
+///
+/// Runs directory listing in a separate isolate to avoid main-thread jank.
+class LocalFileDatasource {
+  /// List directory contents in an isolate, returning sorted [FileItem]s.
+  Future<List<FileItem>> listDirectory(String path) async {
+    return Isolate.run(() => _listDirectorySync(path));
+  }
+
+  /// Create a new folder.
+  Future<void> createFolder(String parentPath, String name) async {
+    await Directory(p.join(parentPath, name)).create();
+  }
+
+  /// Delete items permanently.
+  Future<void> deleteItemsPermanent(List<String> paths) async {
+    for (final path in paths) {
+      final type = FileSystemEntity.typeSync(path);
+      if (type == FileSystemEntityType.directory) {
+        await Directory(path).delete(recursive: true);
+      } else if (type != FileSystemEntityType.notFound) {
+        await File(path).delete();
+      }
+    }
+  }
+
+  /// Move items to the system trash (~/.local/share/Trash/files).
+  Future<void> moveToTrash(List<String> paths) async {
+    final home = Platform.environment['HOME'] ?? '/';
+    final trashDir = Directory(p.join(home, '.local/share/Trash/files'));
+    if (!trashDir.existsSync()) {
+      await trashDir.create(recursive: true);
+    }
+
+    for (final path in paths) {
+      final entity = File(path);
+      if (entity.existsSync()) {
+        final baseName = p.basename(path);
+        var newPath = p.join(trashDir.path, baseName);
+
+        // Handle duplicate filenames in trash
+        var counter = 1;
+        while (File(newPath).existsSync() || Directory(newPath).existsSync()) {
+          final ext = p.extension(baseName);
+          final nameWithoutExt = p.basenameWithoutExtension(baseName);
+          newPath = p.join(trashDir.path, '${nameWithoutExt}_$counter$ext');
+          counter++;
+        }
+
+        entity.renameSync(newPath);
+      }
+    }
+  }
+
+  /// Synchronous directory listing (runs inside an isolate).
+  static List<FileItem> _listDirectorySync(String path) {
+    final dir = Directory(path);
+    if (!dir.existsSync()) return [];
+
+    final folders = <FileItem>[];
+    final files = <FileItem>[];
+
+    try {
+      final entities = dir.listSync();
+
+      for (final entity in entities) {
+        final name = p.basename(entity.path);
+        if (name.startsWith('.')) continue; // Skip dotfiles
+
+        final stat = entity.statSync();
+
+        if (entity is Directory) {
+          folders.add(FileItem(
+            path: entity.path,
+            name: name,
+            type: FileItemType.folder,
+            modified: stat.modified,
+          ));
+        } else if (entity is File) {
+          final ext = p.extension(entity.path).toLowerCase();
+          final type = classifyFileType(ext);
+          
+          final isExec = stat.modeString().contains('x');
+
+          files.add(FileItem(
+            path: entity.path,
+            name: name,
+            type: type,
+            modified: stat.modified,
+            sizeBytes: stat.size,
+            isExecutable: isExec,
+          ));
+        }
+      }
+    } catch (_) {
+      return [];
+    }
+
+    // Sort: folders by date desc, then files by date desc
+    folders.sort((a, b) => b.modified.compareTo(a.modified));
+    files.sort((a, b) => b.modified.compareTo(a.modified));
+
+    return [...folders, ...files];
+  }
+}

@@ -1,10 +1,17 @@
 import 'dart:io';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../widgets/image_editor_overlay.dart';
 
+/// Image viewer page — migrated from original with Android-specific APIs removed.
+///
+/// Removed: SystemChrome.setEnabledSystemUIMode (Android-only),
+/// Removed: SafeArea widgets (no status bars on Linux desktop).
 class ImageViewerPage extends StatefulWidget {
   final List<String> imagePaths;
   final int initialIndex;
@@ -39,8 +46,6 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
-
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _fetchResolution(_currentIndex);
   }
 
@@ -50,7 +55,6 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
     for (final ctrl in _transformControllers.values) {
       ctrl.dispose();
     }
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
@@ -162,10 +166,10 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
       final int h = frame.image.height;
       frame.image.dispose();
       codec.dispose();
-      
+
       final double mp = (w * h) / 1000000.0;
       final String mpStr = mp.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
-      
+
       if (mounted) {
         setState(() {
           _resolutions[index] = "$w x $h ( ${mpStr}MP )";
@@ -197,7 +201,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
         if (await file.exists()) {
           await file.delete();
         }
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Image deleted")),
@@ -232,8 +236,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
     final path = widget.imagePaths[_currentIndex];
     final file = File(path);
     final directory = file.parent;
-    
-    // For universal file manager, let's just use a local 'Sort' folder in the current directory
+
     final sortDir = Directory("${directory.path}/Sort");
 
     try {
@@ -243,9 +246,9 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
 
       final fileName = path.split('/').last;
       final destPath = "${sortDir.path}/$fileName";
-      
+
       await file.rename(destPath);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -302,7 +305,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
           _buildPageView(),
 
           if (_showOverlays) _buildTopBanner(),
-          
+
           if (_showOverlays) _buildResolutionBadge(),
 
           if (_showOverlays) _buildBottomActions(),
@@ -341,14 +344,14 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
       ),
     ),
   );
-}
+  }
 
   Widget _buildResolutionBadge() {
     final label = _resolutions[_currentIndex];
     if (label == null) return const SizedBox.shrink();
 
     return Positioned(
-      top: MediaQuery.of(context).padding.top + 70,
+      top: 70,
       left: 16,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -360,7 +363,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
         child: Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF00E5FF),
+            color: AppColors.cyan,
             fontSize: 11,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.0,
@@ -410,7 +413,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
             File(path),
             key: ValueKey("$path-$_editTimestamp"),
             fit: BoxFit.contain,
-            cacheWidth: 1600, 
+            cacheWidth: 1600,
             errorBuilder: (ctx, err, stack) => const Center(
               child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
             ),
@@ -430,16 +433,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
     } catch (_) {}
     final dateStr = DateFormat("MMM dd, yyyy").format(date).toUpperCase();
     final sizeBytes = file.existsSync() ? file.lengthSync() : 0;
-    String sizeText = "";
-    if (sizeBytes > 1024 * 1024 * 1024) {
-      sizeText = "${(sizeBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB";
-    } else if (sizeBytes > 1024 * 1024) {
-      sizeText = "${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB";
-    } else if (sizeBytes > 1024) {
-      sizeText = "${(sizeBytes / 1024).toStringAsFixed(1)} KB";
-    } else {
-      sizeText = "$sizeBytes B";
-    }
+    final sizeText = bytesToHumanReadable(sizeBytes);
 
     return Positioned(
       top: 0,
@@ -458,54 +452,51 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
             stops: [0.0, 0.6, 1.0],
           ),
         ),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context, _deleted),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      shape: BoxShape.circle,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context, _deleted),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      fileName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fileName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 2),
+                    Text(
+                      '$dateStr  •  $sizeText  •  ${_currentIndex + 1}/${widget.imagePaths.length}',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.0,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$dateStr  •  $sizeText  •  ${_currentIndex + 1}/${widget.imagePaths.length}',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -530,56 +521,52 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
             stops: [0.0, 0.6, 1.0],
           ),
         ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                _buildBlurredButton(
-                  onTap: _deleteCurrentImage,
-                  color: Colors.red.withOpacity(0.2),
-                  borderColor: Colors.red.withOpacity(0.4),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        "Delete",
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+          child: Row(
+            children: [
+              _buildBlurredButton(
+                onTap: _deleteCurrentImage,
+                color: Colors.red.withOpacity(0.2),
+                borderColor: Colors.red.withOpacity(0.4),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      "Delete",
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                _buildBlurredButton(
-                  onTap: () => setState(() => _isEditing = true),
-                  color: Colors.white.withOpacity(0.05),
-                  borderColor: Colors.white.withOpacity(0.1),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.edit_outlined, color: Color(0xFF00E5FF), size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Edit",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+              ),
+              const SizedBox(width: 12),
+              _buildBlurredButton(
+                onTap: () => setState(() => _isEditing = true),
+                color: Colors.white.withOpacity(0.05),
+                borderColor: Colors.white.withOpacity(0.1),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.edit_outlined, color: AppColors.cyan, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Edit",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -588,7 +575,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
 
   Widget _buildFloatingButtons() {
     return Positioned(
-      bottom: 24 + MediaQuery.of(context).padding.bottom,
+      bottom: 24,
       right: 20,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -602,8 +589,8 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
             onTap: _pickCurrentImage,
             isCircle: true,
             padding: const EdgeInsets.all(14),
-            color: const Color(0xFF00BCD4).withOpacity(0.6),
-            borderColor: const Color(0xFF00BCD4).withOpacity(0.8),
+            color: AppColors.teal.withOpacity(0.6),
+            borderColor: AppColors.teal.withOpacity(0.8),
             child: const Icon(Icons.check_circle_outline, color: Colors.white, size: 28),
           ),
         ],
@@ -672,9 +659,9 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.7),
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF00BCD4).withOpacity(0.6), width: 1),
+              border: Border.all(color: AppColors.teal.withOpacity(0.6), width: 1),
             ),
-            child: const Icon(Icons.zoom_out_map, color: Color(0xFF00E5FF), size: 18),
+            child: const Icon(Icons.zoom_out_map, color: AppColors.cyan, size: 18),
           ),
         ),
       ],

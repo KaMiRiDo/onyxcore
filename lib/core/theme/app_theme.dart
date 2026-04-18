@@ -1,24 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'app_colors.dart';
+
+/// Central design system for the OnyxCore application.
+///
+/// Provides the ThemeData configuration, signature gradient,
+/// and typography constants for the Onyx Monolith aesthetic.
 class AppTheme {
-  // Onyx Monolith Core Palette
-  static const Color background = Color(0xFF050505);
-  static const Color surfaceBase = Color(0xFF0A0A0A);
-  static const Color borderColor = Color(0x26484848); // rgba(72, 72, 72, 0.15)
-  
-  // Signature Gradient Colors
-  static const Color magenta = Color(0xFFE845C9);
-  static const Color violet = Color(0xFF8A3FFC);
-  static const Color indigo = Color(0xFF4A25E1);
-  
-  // Text Colors
-  static const Color textBody = Colors.white;
-  static const Color textMuted = Color(0xFF6B7280);
-  
+  const AppTheme._();
+
   // Signature Gradient
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [magenta, violet, indigo],
+    colors: [AppColors.magenta, AppColors.violet, AppColors.indigo],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -27,36 +21,35 @@ class AppTheme {
   static TextStyle get headlineStyle => GoogleFonts.manrope(
     fontSize: 24,
     fontWeight: FontWeight.w800,
-    letterSpacing: -0.48, // -0.02em
-    color: textBody,
+    letterSpacing: -0.48,
+    color: AppColors.textBody,
   );
 
   static TextStyle get labelStyle => GoogleFonts.manrope(
     fontSize: 13,
     fontWeight: FontWeight.w800,
     letterSpacing: 1.0,
-    color: textBody,
+    color: AppColors.textBody,
   );
 
   static TextStyle get technicalStyle => GoogleFonts.manrope(
     fontSize: 13,
     fontWeight: FontWeight.w500,
-    color: textMuted,
+    color: AppColors.textMuted,
   );
 
   static ThemeData get theme {
     return ThemeData(
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: background,
+      scaffoldBackgroundColor: AppColors.background,
       textTheme: GoogleFonts.manropeTextTheme().apply(
-        bodyColor: textBody,
-        displayColor: textBody,
+        bodyColor: AppColors.textBody,
+        displayColor: AppColors.textBody,
       ),
       colorScheme: const ColorScheme.dark(
-        primary: violet,
-        secondary: magenta,
-        surface: surfaceBase,
-        background: background,
+        primary: AppColors.violet,
+        secondary: AppColors.magenta,
+        surface: AppColors.surfaceBase,
       ),
       iconTheme: const IconThemeData(color: Colors.white70),
     );
