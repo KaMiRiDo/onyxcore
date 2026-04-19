@@ -93,7 +93,16 @@ class ItemCard extends StatelessWidget {
       return _buildArchivalIcon(config.icon, config.colors, hasTab: true);
     } else if (item.type == FileItemType.image) {
       final isSvg = item.name.toLowerCase().endsWith('.svg');
-      if (isSvg) return _buildSvgIcon('assets/icons/image.svg', isVertical: false);
+      if (isSvg) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SvgPicture.file(
+            File(item.path),
+            fit: BoxFit.contain,
+            placeholderBuilder: (context) => _buildSvgIcon('assets/icons/image_placeholder.svg', isVertical: false),
+          ),
+        );
+      }
       
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),

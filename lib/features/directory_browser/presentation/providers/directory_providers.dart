@@ -66,6 +66,9 @@ final currentZoomProvider = Provider<double>((ref) {
 /// The currently previewed file (inline preview mode).
 final previewFileProvider = StateProvider<FileItem?>((ref) => null);
 
+/// Global visibility state for the inline preview HUD.
+final previewHudVisibleProvider = StateProvider<bool>((ref) => true);
+
 /// Whether the current path is a virtual path (recent, starred).
 final isVirtualPathProvider = Provider<bool>((ref) {
   final String path = ref.watch(currentPathProvider);

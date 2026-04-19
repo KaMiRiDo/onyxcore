@@ -67,6 +67,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
       windowManager.addListener(this);
       windowManager.setPreventClose(true);
       windowManager.maximize();
+      // Initialize title bar style for standalone mode
+      windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     }
     
     player = Player();
@@ -117,14 +119,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
 
   Future<void> _toggleFullscreen() async {
     final isFullScreen = await windowManager.isFullScreen();
-    final newFullScreen = !isFullScreen;
-    await windowManager.setFullScreen(newFullScreen);
-    if (newFullScreen) {
+    final willBeFullScreen = !isFullScreen;
+    
+    await windowManager.setFullScreen(willBeFullScreen);
+    if (willBeFullScreen) {
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
       setState(() {
         _isControlsVisible = false;
         _hideTimer?.cancel();
       });
     } else {
+      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
       // Reveal controls when exiting fullscreen (returning to system UI)
       _onInteraction(forceShow: true);
     }
@@ -305,13 +310,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
       } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
         if (widget.isStandalone) {
           _toggleFullscreen();
-        } else {
-          // In preview mode, 'F' just toggles UI visibility for a clean look
-          _toggleControls(isKeyboard: true);
         }
+        // Preview 'F' is now handled by PreviewContainer globally
       } else if (event.logicalKey == LogicalKeyboardKey.keyW && HardwareKeyboard.instance.isControlPressed) {
-        ref.read(previewFileProvider.notifier).state = null;
-        ref.read(navigationProvider.notifier).goBack();
       }
     } else if (event is KeyUpEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
@@ -340,6 +341,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
 
   @override
   Widget build(BuildContext context) {
+    final isGlobalHudVisible = widget.windowId == null ? ref.watch(previewHudVisibleProvider) : true;
+    final isVisible = _isControlsVisible && isGlobalHudVisible;
+
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -349,6 +353,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
       },
       child: GestureDetector(
         onTap: () => _focusNode.requestFocus(),
+        onDoubleTap: !widget.isStandalone ? _openInNewWindow : null,
         child: Container(
           color: Colors.black,
           child: Stack(
@@ -406,7 +411,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
                 right: 0,
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 300),
-                  opacity: _isControlsVisible ? 1.0 : 0.0,
+                  opacity: isVisible ? 1.0 : 0.0,
                   child: StreamBuilder<int?>(
                     stream: player.stream.width,
                     builder: (context, _) {
@@ -433,9 +438,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
                 bottom: 0,
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 300),
-                  opacity: _isControlsVisible ? 1.0 : 0.0,
+                  opacity: isVisible ? 1.0 : 0.0,
                   child: IgnorePointer(
-                    ignoring: !_isControlsVisible,
+                    ignoring: !isVisible,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                       decoration: BoxDecoration(

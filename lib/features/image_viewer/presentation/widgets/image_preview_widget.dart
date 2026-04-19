@@ -11,6 +11,7 @@ import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({
@@ -119,21 +120,31 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     _startHideTimer();
   }
 
-  Future<void> _toggleDecorations() async {
-    setState(() {
-      _isWindowDecorated = !_isWindowDecorated;
-    });
+  Future<void> _toggleFullscreen() async {
+    final isFullScreen = await windowManager.isFullScreen();
+    final willBeFullScreen = !isFullScreen;
     
-    if (_isWindowDecorated) {
-      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
-    } else {
+    await windowManager.setFullScreen(willBeFullScreen);
+    
+    if (willBeFullScreen) {
       await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+    } else {
+      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
     }
+    
     _onInteraction();
   }
 
   Future<void> _loadMetadata() async {
     try {
+      final isSvg = widget.item.path.toLowerCase().endsWith('.svg');
+      if (isSvg) {
+        setState(() {
+          _metadata = 'Vector Graphic • Scalable';
+        });
+        return;
+      }
+
       final bytes = await File(widget.item.path).readAsBytes();
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
@@ -187,6 +198,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
 
   @override
   Widget build(BuildContext context) {
+    final isGlobalHudVisible = widget.windowId == null ? ref.watch(previewHudVisibleProvider) : true;
+    final isVisible = _isControlsVisible && isGlobalHudVisible;
+
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -196,14 +210,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
           
           if (event.logicalKey == LogicalKeyboardKey.keyF) {
             if (widget.windowId != null) {
-              _toggleDecorations();
-            } else {
-              setState(() {
-                _isControlsVisible = !_isControlsVisible;
-                if (_isControlsVisible) _startHideTimer();
-              });
+              _toggleFullscreen();
+              return KeyEventResult.handled;
             }
-            return KeyEventResult.handled;
+            // Preview 'F' is now handled by PreviewContainer globally
           }
           
           if (ctrl) {
@@ -215,6 +225,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
               return KeyEventResult.handled;
             } else if (event.logicalKey == LogicalKeyboardKey.digit0) {
               _setZoom(1.0);
+              return KeyEventResult.handled;
+            }
+          }
+
+          // Navigation Back Shortcuts (Preview Mode only)
+          if (widget.windowId == null) {
+            final isAltPressed = HardwareKeyboard.instance.isAltPressed;
+            if (event.logicalKey == LogicalKeyboardKey.backspace || 
+                (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft)) {
+              ref.read(previewFileProvider.notifier).state = null;
               return KeyEventResult.handled;
             }
           }
@@ -249,6 +269,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                         });
                       }
                     },
+                    onDoubleTap: widget.windowId == null ? _openInNewWindow : null,
                     child: Center(
                       child: Hero(
                         tag: widget.item.path,
@@ -261,11 +282,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                               0, 0, 1, 0, _brightness * 255,
                               0, 0, 0, 1, 0,
                             ]),
-                            child: Image.file(
-                              File(widget.item.path),
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.high,
-                            ),
+                            child: widget.item.path.toLowerCase().endsWith('.svg')
+                                ? SvgPicture.file(
+                                    File(widget.item.path),
+                                    fit: BoxFit.contain,
+                                  )
+                                : Image.file(
+                                    File(widget.item.path),
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.high,
+                                  ),
                           ),
                         ),
                       ),
@@ -281,7 +307,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                 right: 0,
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 300),
-                  opacity: _isControlsVisible ? 1.0 : 0.0,
+                  opacity: isVisible ? 1.0 : 0.0,
                   child: ViewerTopBar(
                     title: widget.item.name,
                     metadata: _metadata,
@@ -301,7 +327,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
               ),
 
               // Editing Bottom Panel
-              if (_isEditing)
+              if (_isEditing && isVisible)
                 Positioned(
                   bottom: 0,
                   left: 0,
