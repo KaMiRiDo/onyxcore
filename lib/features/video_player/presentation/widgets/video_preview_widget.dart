@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/window_controller_extension.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 
 class VideoPreviewWidget extends ConsumerStatefulWidget {
   const VideoPreviewWidget({
@@ -398,7 +399,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
                 ),
               ),
 
-              // Top HUD (Title & Metadata)
+              // Top HUD (Standardized)
               Positioned(
                 top: 0,
                 left: 0,
@@ -406,75 +407,21 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 300),
                   opacity: _isControlsVisible ? 1.0 : 0.0,
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.item.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            StreamBuilder<int?>(
-                              stream: player.stream.width,
-                              builder: (context, _) {
-                                final state = player.state;
-                                final res = '${state.height}p';
-                                final fpsString = _fps != null ? ' • ${_fps!.toInt()} FPS' : '';
-                                return Text(
-                                  '$res$fpsString',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                        const Spacer(),
-                        if (!widget.isStandalone) ...[
-                          IconButton(
-                            onPressed: _openInNewWindow,
-                            icon: const Icon(Icons.open_in_new, color: Colors.white, size: 20),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.white.withOpacity(0.1),
-                              padding: const EdgeInsets.all(12),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        if (!widget.isStandalone)
-                          Consumer(
-                            builder: (context, ref, child) {
-                              return IconButton(
-                                onPressed: () => ref.read(previewFileProvider.notifier).state = null,
-                                icon: const Icon(Icons.close, color: Colors.white, size: 24),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.white.withOpacity(0.1),
-                                  padding: const EdgeInsets.all(12),
-                                ),
-                              );
-                            },
-                          ),
-                      ],
-                    ),
+                  child: StreamBuilder<int?>(
+                    stream: player.stream.width,
+                    builder: (context, _) {
+                      final state = player.state;
+                      final res = (state.height ?? 0) > 0 ? '${state.height}p' : 'Loading...';
+                      final fpsString = _fps != null ? ' • ${_fps!.toInt()} FPS' : '';
+                      
+                      return ViewerTopBar(
+                        title: widget.item.name,
+                        metadata: '$res$fpsString',
+                        isStandalone: widget.isStandalone,
+                        onPopOut: _openInNewWindow,
+                        onClose: () => ref.read(previewFileProvider.notifier).state = null,
+                      );
+                    },
                   ),
                 ),
               ),
