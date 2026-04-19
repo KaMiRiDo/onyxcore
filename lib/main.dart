@@ -13,10 +13,13 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'dart:convert';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:onyxcore/features/video_player/presentation/pages/standalone_video_player.dart';
+import 'package:onyxcore/core/window_management/secondary_window_app.dart';
+import 'package:onyxcore/core/window_management/window_controller_extension.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Unified initialization for all engine instances (main and secondary)
   await windowManager.ensureInitialized();
   MediaKit.ensureInitialized();
 
@@ -27,17 +30,15 @@ void main(List<String> args) async {
     debugPrint('[Main] Received window arguments: $arguments');
     try {
       final map = jsonDecode(arguments) as Map<String, dynamic>;
-      if (map.containsKey('file')) {
-        runApp(
-          StandaloneVideoPlayerApp(
-            windowId: windowController.windowId,
-            arguments: map,
-          ),
-        );
-        return;
-      }
+      runApp(
+        SecondaryWindowApp(
+          windowId: windowController.windowId,
+          arguments: map,
+        ),
+      );
+      return;
     } catch (e) {
-      debugPrint('Error parsing window arguments: $e');
+      debugPrint('[Main] Error parsing window arguments: $e');
     }
   }
 

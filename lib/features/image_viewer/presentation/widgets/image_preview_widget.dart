@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 class ImagePreviewWidget extends StatelessWidget {
-  const ImagePreviewWidget({required this.item, super.key});
+  const ImagePreviewWidget({
+    required this.item, 
+    this.windowId,
+    super.key,
+  });
 
   final FileItem item;
+  final String? windowId;
 
   @override
   Widget build(BuildContext context) {

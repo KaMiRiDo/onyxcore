@@ -1,0 +1,137 @@
+import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+
+/// Generic entry point for secondary viewer windows.
+/// 
+/// This app routes to the correct viewer based on [WindowParams] 
+/// and handles high-level window lifecycle events.
+class SecondaryWindowApp extends StatefulWidget {
+  final String windowId;
+  final Map<String, dynamic> arguments;
+
+  const SecondaryWindowApp({
+    super.key,
+    required this.windowId,
+    required this.arguments,
+  });
+
+  @override
+  State<SecondaryWindowApp> createState() => _SecondaryWindowAppState();
+}
+
+class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowListener {
+  late WindowParams params;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    // Prevent immediate close to allow persistent hiding behavior
+    windowManager.setPreventClose(true);
+    
+    _initParams();
+    _setupIpc();
+  }
+
+  void _initParams() {
+    try {
+      params = WindowParams.fromJson(widget.arguments);
+      _initialized = true;
+    } catch (e) {
+      debugPrint('[SecondaryWindowApp] Error parsing arguments: $e');
+    }
+  }
+
+  void _setupIpc() async {
+    final controller = await WindowController.fromCurrentEngine();
+    controller.setWindowMethodHandler((call) async {
+      if (call.method == 'load_media') {
+        debugPrint('[SecondaryWindowApp] IPC Load requested: ${call.arguments}');
+        try {
+          // Robustly normalize IPC arguments to Map<String, dynamic>
+          final normalizedArgs = jsonDecode(jsonEncode(call.arguments)) as Map<String, dynamic>;
+          final newParams = WindowParams.fromJson(normalizedArgs);
+          setState(() {
+            params = newParams;
+          });
+        } catch (e) {
+          debugPrint('[SecondaryWindowApp] Error parsing IPC params: $e');
+        }
+      }
+      return 'ok';
+    });
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowClose() async {
+    // Persistent viewer architecture: Hide instead of destroy
+    debugPrint('[SecondaryWindowApp] Window close requested. Hiding window.');
+    await windowManager.hide();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return const MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    return ProviderScope(
+      child: MaterialApp(
+        title: params.file.name,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.theme,
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: _buildViewer(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildViewer() {
+    switch (params.viewerType) {
+      case ViewerType.video:
+        final startMs = params.initParams['startPositionMs'] as int?;
+        return VideoPreviewWidget(
+          key: ValueKey(params.file.path),
+          item: params.file,
+          initialPosition: startMs != null ? Duration(milliseconds: startMs) : null,
+          isStandalone: true,
+          windowId: widget.windowId,
+        );
+      case ViewerType.image:
+        return ImagePreviewWidget(
+          key: ValueKey(params.file.path),
+          item: params.file,
+          windowId: widget.windowId,
+        );
+      default:
+        return Center(
+          child: Text(
+            'Unsupported viewer type: ${params.viewerType}',
+            style: const TextStyle(color: Colors.white),
+          ),
+        );
+    }
+  }
+}

@@ -16,18 +16,23 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'dart:convert';
+import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/core/window_management/window_controller_extension.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 
 class VideoPreviewWidget extends ConsumerStatefulWidget {
   const VideoPreviewWidget({
     required this.item, 
     this.initialPosition,
     this.isStandalone = false,
+    this.windowId,
     super.key,
   });
 
   final FileItem item;
   final Duration? initialPosition;
   final bool isStandalone;
+  final String? windowId;
 
   @override
   ConsumerState<VideoPreviewWidget> createState() => _VideoPreviewWidgetState();
@@ -41,6 +46,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
   bool _showRemainingTime = false;
   bool _isVolumeOverlayVisible = false;
   bool _isSeekingToInitial = false;
+  bool _isClosing = false;
   double? _fps;
   Timer? _hideTimer;
   Timer? _fastSeekTimer;
@@ -56,9 +62,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
   void initState() {
     super.initState();
     if (widget.isStandalone) {
-      // Start the pop-out window in a maximized state by default
+      // Standardize standalone window behavior
+      windowManager.addListener(this);
+      windowManager.setPreventClose(true);
       windowManager.maximize();
-      // No listener needed as GTK handles closure naturally
     }
     
     player = Player();
@@ -122,12 +129,24 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
     }
   }
 
-  // onWindowClose removal - relying on standard widget lifecycle for stability
+  @override
+  void onWindowClose() async {
+    if (_isClosing || !widget.isStandalone) return;
+    
+    // In Persistent Viewer architecture, we just pause and hide.
+    // The SecondaryWindowApp handles the actual hide logic via windowManager.
+    debugPrint('[VideoPlayer] standalone hiding triggered.');
+    try {
+      await player.pause();
+    } catch (e) {
+      debugPrint('[VideoPlayer] Error pausing on hide: $e');
+    }
+  }
 
   @override
   void dispose() {
     if (widget.isStandalone) {
-      // No listener to remove anymore
+      windowManager.removeListener(this);
     }
     _hideTimer?.cancel();
     _fastSeekTimer?.cancel();
@@ -223,32 +242,27 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
   Future<void> _openInNewWindow() async {
     final position = player.state.position.inMilliseconds;
     
-    // Prepare arguments
-    final args = {
-      'file': {
-        'name': widget.item.name,
-        'path': widget.item.path,
-        'sizeBytes': widget.item.sizeBytes,
-        'modified': widget.item.modified.millisecondsSinceEpoch,
+    // Pause immediately to avoid dual-playback audio overlap
+    await player.pause();
+    
+    final windowParams = WindowParams(
+      viewerType: ViewerType.video,
+      file: widget.item,
+      initParams: {
+        'startPositionMs': position,
       },
-      'position': position,
-    };
+    );
 
     try {
-      // Create new window
-      final window = await WindowController.create(
-        WindowConfiguration(arguments: jsonEncode(args)),
-      );
-      
-      // Window is hidden at launch by default in 0.3.0, call show.
-      await window.show();
+      // Use the singleton manager to handle persistent window logic
+      await PersistentViewerManager.openMedia(windowParams);
 
-      // Close current preview
       if (mounted) {
         ref.read(previewFileProvider.notifier).state = null;
       }
     } catch (e) {
-      debugPrint('Error opening new window: $e');
+      debugPrint('Error opening persistent viewer: $e');
+      await player.play(); // Rescue playback on failure
     }
   }
 
@@ -275,6 +289,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
   }
 
   void _handleKeyEvent(KeyEvent event) {
+    if (_isClosing) return;
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.space) {
         player.playOrPause();
