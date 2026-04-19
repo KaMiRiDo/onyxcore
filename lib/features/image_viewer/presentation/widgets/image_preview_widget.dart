@@ -335,35 +335,32 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                   child: _buildEditingPanel(),
                 ),
 
-              // Centered Floating True Glass Text (OSD) - Turbo Matte Frost
+              // Zoom Level Indicator (Bottom Right)
               if (_showZoomIndicator)
-                Positioned.fill(
-                  child: Center(
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 150),
-                      opacity: _showZoomIndicator ? 1.0 : 0.0,
-                      child: ClipRect(
-                        child: ShaderMask(
-                          blendMode: BlendMode.srcIn,
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Colors.white, Colors.white],
-                          ).createShader(bounds),
-                          child: BackdropFilter(
-                            filter: ui.ImageFilter.blur(sigmaX: 200, sigmaY: 200),
-                            child: Container(
-                              color: Colors.transparent,
-                              child: Center(
-                                child: Text(
-                                  '${(_currentScale * 100).toInt()}%',
-                                  style: GoogleFonts.outfit(
-                                    // Turbo Matte: Increased to 0.4 for definitive visibility
-                                    color: Colors.white.withOpacity(0.4),
-                                    fontSize: 140,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -6.0,
-                                  ),
-                                ),
-                              ),
+                Positioned(
+                  bottom: 32,
+                  right: 32,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _showZoomIndicator ? 1.0 : 0.0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Text(
+                            '${(_currentScale * 100).toInt()}%',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ),
