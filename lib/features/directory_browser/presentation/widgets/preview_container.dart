@@ -31,9 +31,12 @@ class PreviewContainer extends ConsumerWidget {
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
+            final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+
             if (event.logicalKey == LogicalKeyboardKey.backspace || 
-                (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft)) {
-              // Standard global navigation: Back from any preview
+                (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft) ||
+                (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyW)) {
+              // Standard global navigation: Close any preview
               ref.read(previewFileProvider.notifier).state = null;
               
               // Restore standard window mode and HUD visibility

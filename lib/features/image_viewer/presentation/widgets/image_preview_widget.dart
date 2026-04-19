@@ -79,7 +79,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
 
   void _startZoomTimer() {
     _zoomTimer?.cancel();
-    _zoomTimer = Timer(const Duration(seconds: 2), () {
+    _zoomTimer = Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
         setState(() => _showZoomIndicator = false);
       }
@@ -335,31 +335,42 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                   child: _buildEditingPanel(),
                 ),
 
-              // Zoom Level Indicator
-              Positioned(
-                bottom: 32,
-                right: 32,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 300),
-                  opacity: _showZoomIndicator ? 1.0 : 0.0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
-                    ),
-                    child: Text(
-                      '${(_currentScale * 100).toInt()}%',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+              // Centered Floating True Glass Text (OSD) - Turbo Matte Frost
+              if (_showZoomIndicator)
+                Positioned.fill(
+                  child: Center(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 150),
+                      opacity: _showZoomIndicator ? 1.0 : 0.0,
+                      child: ClipRect(
+                        child: ShaderMask(
+                          blendMode: BlendMode.srcIn,
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [Colors.white, Colors.white],
+                          ).createShader(bounds),
+                          child: BackdropFilter(
+                            filter: ui.ImageFilter.blur(sigmaX: 200, sigmaY: 200),
+                            child: Container(
+                              color: Colors.transparent,
+                              child: Center(
+                                child: Text(
+                                  '${(_currentScale * 100).toInt()}%',
+                                  style: GoogleFonts.outfit(
+                                    // Turbo Matte: Increased to 0.4 for definitive visibility
+                                    color: Colors.white.withOpacity(0.4),
+                                    fontSize: 140,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -6.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
