@@ -118,12 +118,14 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
           initialPosition: startMs != null ? Duration(milliseconds: startMs) : null,
           isStandalone: true,
           windowId: widget.windowId,
+          parentWindowId: params.parentWindowId,
         );
       case ViewerType.image:
         return ImagePreviewWidget(
           key: ValueKey(params.file.path),
           item: params.file,
           windowId: widget.windowId,
+          parentWindowId: params.parentWindowId,
         );
       default:
         return Center(

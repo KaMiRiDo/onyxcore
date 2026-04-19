@@ -12,14 +12,15 @@ import 'package:onyxcore/features/video_player/presentation/widgets/video_volume
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import 'dart:convert';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/window_controller_extension.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'dart:convert';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 class VideoPreviewWidget extends ConsumerStatefulWidget {
   const VideoPreviewWidget({
@@ -27,6 +28,7 @@ class VideoPreviewWidget extends ConsumerStatefulWidget {
     this.initialPosition,
     this.isStandalone = false,
     this.windowId,
+    this.parentWindowId,
     super.key,
   });
 
@@ -34,6 +36,7 @@ class VideoPreviewWidget extends ConsumerStatefulWidget {
   final Duration? initialPosition;
   final bool isStandalone;
   final String? windowId;
+  final String? parentWindowId;
 
   @override
   ConsumerState<VideoPreviewWidget> createState() => _VideoPreviewWidgetState();
@@ -136,6 +139,21 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
   }
 
   @override
+  void didUpdateWidget(VideoPreviewWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.path != widget.item.path) {
+      // Safely swap media: pause first, then open new media
+      player.pause().then((_) {
+        player.open(Media(widget.item.path));
+        _fetchFps();
+        if (mounted) {
+          _focusNode.requestFocus();
+        }
+      });
+    }
+  }
+
+  @override
   void onWindowClose() async {
     if (_isClosing || !widget.isStandalone) return;
     
@@ -161,9 +179,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
     _trackSubscription?.cancel();
     _completedSubscription?.cancel();
     _focusNode.dispose();
-    if (!widget.isStandalone) {
-      player.dispose();
-    }
+    player.dispose();
     super.dispose();
   }
 
@@ -337,6 +353,38 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
 
   void _stopFastSeek() {
     _fastSeekTimer?.cancel();
+  }
+
+  void _navigateMedia(bool forward) {
+    if (widget.windowId != null) {
+      // 1. Standalone Mode: Send reverse IPC to Main Window (Window 0)
+      final payload = jsonEncode({
+        'direction': forward ? 'next' : 'prev',
+        'currentPath': widget.item.path,
+        'type': 'video',
+        'targetWindowId': widget.windowId!,
+      });
+      WindowController.fromWindowId(widget.parentWindowId ?? '0').invokeMethod('request_navigation', payload);
+    } else {
+      // 2. Inline Mode: Local Riverpod state update
+      final items = ref.read(directoryItemsProvider).value ?? [];
+      if (items.isEmpty) return;
+
+      final mediaItems = items.where((i) => i.type == FileItemType.video).toList();
+      if (mediaItems.isEmpty) return;
+
+      final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path);
+      if (currentIndex == -1) return;
+
+      int nextIndex;
+      if (forward) {
+        nextIndex = (currentIndex + 1) % mediaItems.length;
+      } else {
+        nextIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+      }
+
+      ref.read(previewFileProvider.notifier).state = mediaItems[nextIndex];
+    }
   }
 
   @override
@@ -527,6 +575,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
                               
                               // Center cluster
                               IconButton(
+                                onPressed: () => _navigateMedia(false),
+                                icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
+                                tooltip: 'Previous Video',
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
                                 onPressed: () => player.seek(player.state.position - const Duration(seconds: 10)),
                                 icon: const Icon(Icons.replay_10, color: Colors.white, size: 20),
                               ),
@@ -567,6 +621,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
                               IconButton(
                                 onPressed: () => player.seek(player.state.position + const Duration(seconds: 10)),
                                 icon: const Icon(Icons.forward_10, color: Colors.white, size: 20),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: () => _navigateMedia(true),
+                                icon: const Icon(Icons.skip_next, color: Colors.white, size: 24),
+                                tooltip: 'Next Video',
                               ),
                               
                               const Spacer(),

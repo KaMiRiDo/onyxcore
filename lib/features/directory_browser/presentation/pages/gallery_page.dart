@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
@@ -11,7 +15,6 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs
 import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/preview_container.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 
 /// Main gallery page — slim orchestrator that composes all widgets.
@@ -29,6 +32,76 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final String currentPath = ref.read(currentPathProvider);
       ref.read(navigationProvider.notifier).initialize(currentPath);
+      _setupReverseIpc();
+    });
+  }
+
+  @override
+  void dispose() {
+    _clearReverseIpc();
+    super.dispose();
+  }
+
+  void _clearReverseIpc() async {
+    try {
+      final controller = await WindowController.fromCurrentEngine();
+      controller.setWindowMethodHandler(null);
+    } catch (e) {
+      debugPrint('[Main] Error clearing IPC handler: $e');
+    }
+  }
+
+  void _setupReverseIpc() async {
+    final controller = await WindowController.fromCurrentEngine();
+    controller.setWindowMethodHandler((call) async {
+      if (call.method == 'request_navigation') {
+        debugPrint('[Main] Navigation request received: ${call.arguments}');
+        try {
+          final data = jsonDecode(call.arguments as String);
+          final String direction = data['direction'];
+          final String currentPath = data['currentPath'];
+          final String typeStr = data['type'] as String;
+          final String targetWindowId = data['targetWindowId'].toString();
+          
+          final self = await WindowController.fromCurrentEngine();
+          final String selfId = self.windowId;
+
+          final items = ref.read(directoryItemsProvider).value ?? [];
+          if (items.isEmpty) return 'error: no items';
+
+          // Filter by requested media type
+          final targetType = typeStr == 'video' ? FileItemType.video : FileItemType.image;
+          final mediaItems = items.where((i) => i.type == targetType).toList();
+          
+          if (mediaItems.isEmpty) return 'error: no media items';
+
+          final currentIndex = mediaItems.indexWhere((i) => i.path == currentPath);
+          if (currentIndex == -1) return 'error: current item not found';
+
+          int nextIndex;
+          if (direction == 'next') {
+            nextIndex = (currentIndex + 1) % mediaItems.length;
+          } else {
+            nextIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+          }
+
+          final nextItem = mediaItems[nextIndex];
+          
+          // Command the sub-window to load the new item
+          final params = WindowParams(
+            viewerType: nextItem.type == FileItemType.video ? ViewerType.video : ViewerType.image,
+            file: nextItem,
+            parentWindowId: selfId,
+          );
+
+          await WindowController.fromWindowId(targetWindowId).invokeMethod('load_media', params.toJson());
+          return 'ok';
+        } catch (e) {
+          debugPrint('[Main] IPC Navigation Error: $e');
+          return 'error: $e';
+        }
+      }
+      return null;
     });
   }
 

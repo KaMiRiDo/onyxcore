@@ -13,11 +13,13 @@ enum ViewerType {
 class WindowParams {
   final ViewerType viewerType;
   final FileItem file;
+  final String? parentWindowId;
   final Map<String, dynamic> initParams;
 
   const WindowParams({
     required this.viewerType,
     required this.file,
+    this.parentWindowId,
     this.initParams = const {},
   });
 
@@ -31,6 +33,7 @@ class WindowParams {
       'modified': file.modified.millisecondsSinceEpoch,
       'type': file.type.name,
     },
+    'parentWindowId': parentWindowId,
     'initParams': initParams,
   };
 
@@ -52,6 +55,7 @@ class WindowParams {
           orElse: () => FileItemType.other,
         ),
       ),
+      parentWindowId: json['parentWindowId'] as String?,
       initParams: json['initParams'] as Map<String, dynamic>,
     );
   }

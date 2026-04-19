@@ -12,6 +12,23 @@ class PersistentViewerManager {
   /// If the window doesn't exist, it creates it; otherwise, it sends an IPC reload signal.
   static Future<void> openMedia(WindowParams params) async {
     try {
+      // 1. Fetch current window ID as String
+      String? currentId;
+      try {
+        final currentController = await WindowController.fromCurrentEngine();
+        currentId = currentController.windowId;
+      } catch (e) {
+        debugPrint('[PersistentViewerManager] Could not fetch current window ID: $e');
+      }
+
+      // Ensure params has the parent ID
+      final effectiveParams = WindowParams(
+        viewerType: params.viewerType,
+        file: params.file,
+        parentWindowId: currentId ?? params.parentWindowId,
+        initParams: params.initParams,
+      );
+
       // 1. Check if we already have a window that is still alive
       bool needsCreation = true;
       if (_viewerWindowId != null) {
@@ -25,7 +42,7 @@ class PersistentViewerManager {
         debugPrint('[PersistentViewerManager] Creating new viewer window...');
         final window = await WindowController.create(
           WindowConfiguration(
-            arguments: params.encode(),
+            arguments: effectiveParams.encode(),
           ),
         );
         _viewerWindowId = window.windowId;
@@ -35,7 +52,7 @@ class PersistentViewerManager {
         final controller = WindowController.fromWindowId(_viewerWindowId!);
         
         // Signal the existing window to load new media
-        await controller.invokeMethod('load_media', params.toJson());
+        await controller.invokeMethod('load_media', effectiveParams.toJson());
         
         // Ensure it comes to foreground
         await controller.show();

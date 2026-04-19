@@ -10,18 +10,23 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'dart:convert';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({
     required this.item, 
     this.windowId,
+    this.parentWindowId,
     super.key,
   });
 
   final FileItem item;
   final String? windowId;
+  final String? parentWindowId;
 
   @override
   ConsumerState<ImagePreviewWidget> createState() => _ImagePreviewWidgetState();
@@ -180,6 +185,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     await windowManager.hide();
   }
 
+  @override
+  void didUpdateWidget(ImagePreviewWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.path != widget.item.path) {
+      _loadMetadata();
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
+    }
+  }
+
   Future<void> _openInNewWindow() async {
     final windowParams = WindowParams(
       viewerType: ViewerType.image,
@@ -193,6 +209,38 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       }
     } catch (e) {
       debugPrint('Error opening persistent image viewer: $e');
+    }
+  }
+
+  void _navigateMedia(bool forward) {
+    if (widget.windowId != null) {
+      // 1. Standalone Mode: Send reverse IPC to Main Window (Window 0)
+      final payload = jsonEncode({
+        'direction': forward ? 'next' : 'prev',
+        'currentPath': widget.item.path,
+        'type': 'image',
+        'targetWindowId': widget.windowId!,
+      });
+      WindowController.fromWindowId(widget.parentWindowId ?? '0').invokeMethod('request_navigation', payload);
+    } else {
+      // 2. Inline Mode: Local Riverpod state update
+      final items = ref.read(directoryItemsProvider).value ?? [];
+      if (items.isEmpty) return;
+
+      final mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.isEmpty) return;
+
+      final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path);
+      if (currentIndex == -1) return;
+
+      int nextIndex;
+      if (forward) {
+        nextIndex = (currentIndex + 1) % mediaItems.length;
+      } else {
+        nextIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+      }
+
+      ref.read(previewFileProvider.notifier).state = mediaItems[nextIndex];
     }
   }
 
@@ -225,6 +273,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
               return KeyEventResult.handled;
             } else if (event.logicalKey == LogicalKeyboardKey.digit0) {
               _setZoom(1.0);
+              return KeyEventResult.handled;
+            }
+          }
+
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+            _navigateMedia(true);
+            return KeyEventResult.handled;
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+            // Check if Alt is NOT pressed (Alt+Left is Back)
+            if (!HardwareKeyboard.instance.isAltPressed) {
+              _navigateMedia(false);
               return KeyEventResult.handled;
             }
           }
