@@ -7,8 +7,14 @@ abstract class SettingsRepository {
   /// Load all settings from persistent storage.
   Future<AppSettings> load();
 
+  /// Save all settings in a single batch.
+  Future<void> saveSettings(AppSettings settings);
+
   /// Update the auto-play-next setting.
   Future<void> setAutoPlayNext({required bool value});
+
+  /// Update the show-hidden-files setting.
+  Future<void> setShowHiddenFiles({required bool value});
 
   /// Update the snapshot filename prefix.
   Future<void> setSnapshotPrefix(String value);

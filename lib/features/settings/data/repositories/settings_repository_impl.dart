@@ -36,17 +36,35 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
     return AppSettings(
       autoPlayNext: _prefs.getBool('autoPlayNext') ?? false,
+      showHiddenFiles: _prefs.getBool('showHiddenFiles') ?? false,
       snapshotPrefix: _prefs.getString('snapshotPrefix') ?? 'snapshot',
       doubleTapSeekSeconds: _prefs.getInt('doubleTapSeekSeconds') ?? 10,
       pinnedFolders: List<String>.from(_pinnedFolders),
       gallerySortSettings: Map<String, String>.from(_gallerySortSettings),
     );
+
+  }
+
+  @override
+  Future<void> saveSettings(AppSettings settings) async {
+    await _prefs.setBool('autoPlayNext', settings.autoPlayNext);
+    await _prefs.setBool('showHiddenFiles', settings.showHiddenFiles);
+    await _prefs.setString('snapshotPrefix', settings.snapshotPrefix);
+    await _prefs.setInt('doubleTapSeekSeconds', settings.doubleTapSeekSeconds);
+    // pinnedFolders and gallerySortSettings are currently managed via specific methods,
+    // but we can include them here for a full sync if needed.
   }
 
   @override
   Future<void> setAutoPlayNext({required bool value}) async {
     await _prefs.setBool('autoPlayNext', value);
   }
+
+  @override
+  Future<void> setShowHiddenFiles({required bool value}) async {
+    await _prefs.setBool('showHiddenFiles', value);
+  }
+
 
   @override
   Future<void> setSnapshotPrefix(String value) async {

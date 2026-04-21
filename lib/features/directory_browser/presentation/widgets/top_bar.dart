@@ -8,6 +8,8 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+
 
 /// Top bar with breadcrumbs, search, and settings — pixel-perfect replica of original _buildTopBar().
 class TopBar extends ConsumerWidget {
@@ -50,9 +52,10 @@ class TopBar extends ConsumerWidget {
           ),
           const SizedBox(width: 16),
           IconButton(
-            onPressed: () {},
+            onPressed: () => SettingsDialog.show(context),
             icon: const Icon(Icons.settings, color: Colors.white70, size: 20),
           ),
+
         ],
       ),
     );

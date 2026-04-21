@@ -8,6 +8,7 @@ import 'package:equatable/equatable.dart';
 class AppSettings extends Equatable {
   const AppSettings({
     this.autoPlayNext = false,
+    this.showHiddenFiles = false,
     this.snapshotPrefix = 'snapshot',
     this.doubleTapSeekSeconds = 10,
     this.pinnedFolders = const [],
@@ -16,6 +17,9 @@ class AppSettings extends Equatable {
 
   /// Whether to automatically play the next video in the playlist.
   final bool autoPlayNext;
+
+  /// Whether to show hidden files (starting with .) in the file manager.
+  final bool showHiddenFiles;
 
   /// Prefix for snapshot filenames (e.g., "snapshot_1234567890.png").
   final String snapshotPrefix;
@@ -31,6 +35,7 @@ class AppSettings extends Equatable {
 
   AppSettings copyWith({
     bool? autoPlayNext,
+    bool? showHiddenFiles,
     String? snapshotPrefix,
     int? doubleTapSeekSeconds,
     List<String>? pinnedFolders,
@@ -38,6 +43,7 @@ class AppSettings extends Equatable {
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
+      showHiddenFiles: showHiddenFiles ?? this.showHiddenFiles,
       snapshotPrefix: snapshotPrefix ?? this.snapshotPrefix,
       doubleTapSeekSeconds: doubleTapSeekSeconds ?? this.doubleTapSeekSeconds,
       pinnedFolders: pinnedFolders ?? this.pinnedFolders,
@@ -48,6 +54,7 @@ class AppSettings extends Equatable {
   @override
   List<Object?> get props => [
     autoPlayNext,
+    showHiddenFiles,
     snapshotPrefix,
     doubleTapSeekSeconds,
     pinnedFolders,

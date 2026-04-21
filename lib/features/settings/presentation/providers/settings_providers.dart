@@ -38,6 +38,12 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> setShowHiddenFiles({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setShowHiddenFiles(value: value);
+    ref.invalidateSelf();
+  }
+
   Future<void> setSnapshotPrefix(String value) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.setSnapshotPrefix(value);
@@ -47,6 +53,12 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
   Future<void> setDoubleTapSeekSeconds(int value) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.setDoubleTapSeekSeconds(value);
+    ref.invalidateSelf();
+  }
+
+  Future<void> saveSettings(AppSettings settings) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.saveSettings(settings);
     ref.invalidateSelf();
   }
 }
