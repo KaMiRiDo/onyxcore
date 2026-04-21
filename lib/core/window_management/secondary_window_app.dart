@@ -8,6 +8,7 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
 
 /// Generic entry point for secondary viewer windows.
 /// 
@@ -122,6 +123,13 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
         );
       case ViewerType.image:
         return ImagePreviewWidget(
+          key: ValueKey(params.file.path),
+          item: params.file,
+          windowId: widget.windowId,
+          parentWindowId: params.parentWindowId,
+        );
+      case ViewerType.markdown:
+        return MarkdownPreviewWidget(
           key: ValueKey(params.file.path),
           item: params.file,
           windowId: widget.windowId,

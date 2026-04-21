@@ -2,7 +2,7 @@
 ///
 /// This file is intentionally Flutter-free so it can be used inside
 /// background isolates for directory listing.
-enum FileItemType { folder, image, video, other }
+enum FileItemType { folder, image, video, document, other }
 
 /// Image file extensions recognized by the application.
 const kImageExtensions = [
@@ -19,10 +19,14 @@ const kAudioExtensions = [
   '.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma', '.opus',
 ];
 
-/// Classifies a file extension into a [FileItemType].
-FileItemType classifyFileType(String extension) {
+/// Classifies a filename into a [FileItemType].
+FileItemType classifyFileType(String name) {
+  final extension = name.contains('.') ? '.${name.split('.').last}' : '';
   final ext = extension.toLowerCase();
   if (kImageExtensions.contains(ext)) return FileItemType.image;
   if (kVideoExtensions.contains(ext)) return FileItemType.video;
+  if (ext == '.md' || name.toLowerCase().startsWith('readme')) {
+    return FileItemType.document;
+  }
   return FileItemType.other;
 }

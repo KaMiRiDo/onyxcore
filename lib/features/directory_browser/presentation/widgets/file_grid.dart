@@ -107,7 +107,9 @@ class _FileGridState extends ConsumerState<FileGrid> {
       return;
     }
 
-    if (item.type == FileItemType.image || item.type == FileItemType.video) {
+    if (item.type == FileItemType.image || 
+        item.type == FileItemType.video || 
+        item.type == FileItemType.document) {
       ref.read(previewFileProvider.notifier).state = item;
       return;
     }

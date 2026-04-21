@@ -6,6 +6,7 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 enum ViewerType {
   video,
   image,
+  markdown,
   unsupported,
 }
 

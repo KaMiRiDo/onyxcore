@@ -7,6 +7,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
+import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:window_manager/window_manager.dart';
@@ -61,7 +62,9 @@ class PreviewContainer extends ConsumerWidget {
         child: GestureDetector(
           onDoubleTap: () async {
             final windowParams = WindowParams(
-              viewerType: item.type == FileItemType.video ? ViewerType.video : ViewerType.image,
+              viewerType: item.type == FileItemType.video 
+                  ? ViewerType.video 
+                  : (item.type == FileItemType.document ? ViewerType.markdown : ViewerType.image),
               file: item,
             );
             await PersistentViewerManager.openMedia(windowParams);
@@ -85,6 +88,8 @@ class PreviewContainer extends ConsumerWidget {
       return ImagePreviewWidget(item: item);
     } else if (item.type == FileItemType.video) {
       return VideoPreviewWidget(item: item);
+    } else if (item.type == FileItemType.document) {
+      return MarkdownPreviewWidget(item: item);
     }
     return const Center(
       child: Text(

@@ -70,7 +70,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
           if (items.isEmpty) return 'error: no items';
 
           // Filter by requested media type
-          final targetType = typeStr == 'video' ? FileItemType.video : FileItemType.image;
+          final targetType = typeStr == 'video' 
+              ? FileItemType.video 
+              : (typeStr == 'document' ? FileItemType.document : FileItemType.image);
           final mediaItems = items.where((i) => i.type == targetType).toList();
           
           if (mediaItems.isEmpty) return 'error: no media items';

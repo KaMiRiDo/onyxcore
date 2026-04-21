@@ -83,8 +83,7 @@ class LocalFileDatasource {
             modified: stat.modified,
           ));
         } else if (entity is File) {
-          final ext = p.extension(entity.path).toLowerCase();
-          final type = classifyFileType(ext);
+          final type = classifyFileType(name);
           
           final isExec = stat.modeString().contains('x');
 
