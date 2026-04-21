@@ -84,6 +84,8 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
   @override
   Future<List<FileItem>> build() async {
     final String path = ref.watch(currentPathProvider);
+    final settingsAsync = ref.watch(settingsProvider);
+    final showHidden = settingsAsync.value?.showHiddenFiles ?? false;
 
     // Handle virtual paths
     if (path.startsWith('virtual:')) {
@@ -114,6 +116,11 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
     // Generate metadata async (aspect ratios)
     _generateMetadataAsync(items);
+
+    // Filter hidden files if setting is disabled
+    if (!showHidden) {
+      return items.where((item) => !item.name.startsWith('.')).toList();
+    }
 
     return items;
   }

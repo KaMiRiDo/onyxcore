@@ -73,8 +73,6 @@ class LocalFileDatasource {
 
       for (final entity in entities) {
         final name = p.basename(entity.path);
-        if (name.startsWith('.')) continue; // Skip dotfiles
-
         final stat = entity.statSync();
 
         if (entity is Directory) {
