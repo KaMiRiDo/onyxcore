@@ -89,7 +89,7 @@ class PreviewContainer extends ConsumerWidget {
     } else if (item.type == FileItemType.video) {
       return VideoPreviewWidget(item: item);
     } else if (item.type == FileItemType.document) {
-      return MarkdownPreviewWidget(item: item);
+      return MarkdownPreviewWidget(key: ValueKey(item.path), item: item);
     }
     return const Center(
       child: Text(
