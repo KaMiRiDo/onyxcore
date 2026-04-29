@@ -149,7 +149,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
                     ),
                   ],
                 ),
-                const TaskProgressOverlay(),
+
               ],
             ),
           ),
