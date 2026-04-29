@@ -51,26 +51,51 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
       await datasource.moveToTrash(paths);
     }
 
-    // Invalidate cache for all affected parent directories
-    final parents = paths.map((p) {
-      final lastSlash = p.lastIndexOf('/');
-      return lastSlash > 0 ? p.substring(0, lastSlash) : '/';
-    }).toSet();
-
-    for (final parent in parents) {
-      cache.invalidate(parent);
-    }
+    _invalidateParents(paths);
   }
 
   @override
   Future<void> moveToTrash(List<String> paths) async {
     await datasource.moveToTrash(paths);
+    _invalidateParents(paths);
+  }
 
+  @override
+  Future<void> trashItems(List<String> paths) async {
+    await datasource.trashItems(paths);
+    _invalidateParents(paths);
+  }
+
+  @override
+  Future<void> copyItems(List<String> sources, String destination) async {
+    await datasource.copyItems(sources, destination);
+    cache.invalidate(destination);
+  }
+
+  @override
+  Future<void> moveItems(List<String> sources, String destination) async {
+    await datasource.moveItems(sources, destination);
+    cache.invalidate(destination);
+    _invalidateParents(sources);
+  }
+
+  @override
+  Future<void> renameItem(String path, String newName) async {
+    await datasource.renameItem(path, newName);
+    _invalidateParents([path]);
+  }
+
+  @override
+  Future<void> bulkRename(List<String> paths, {String? prefix, String? baseName}) async {
+    await datasource.bulkRename(paths, prefix: prefix, baseName: baseName);
+    _invalidateParents(paths);
+  }
+
+  void _invalidateParents(List<String> paths) {
     final parents = paths.map((p) {
       final lastSlash = p.lastIndexOf('/');
       return lastSlash > 0 ? p.substring(0, lastSlash) : '/';
     }).toSet();
-
     for (final parent in parents) {
       cache.invalidate(parent);
     }

@@ -127,6 +127,9 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
   /// Generates image aspect ratios in the background.
   Future<void> _generateMetadataAsync(List<FileItem> items) async {
+    // Defer execution to avoid synchronous state mutation during the build phase
+    await Future.delayed(Duration.zero);
+    
     final mediaDatasource = ref.read(mediaMetadataDatasourceProvider);
     var changed = false;
 

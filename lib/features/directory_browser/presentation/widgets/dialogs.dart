@@ -68,15 +68,53 @@ Future<String?> showInputDialog({
   required String hint,
   String? initialValue,
 }) async {
-  final controller = TextEditingController(text: initialValue);
-
-  final result = await showDialog<String>(
+  return showDialog<String>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (context) => _InputDialog(
+      title: title,
+      hint: hint,
+      initialValue: initialValue,
+    ),
+  );
+}
+
+class _InputDialog extends StatefulWidget {
+  final String title;
+  final String hint;
+  final String? initialValue;
+
+  const _InputDialog({
+    required this.title,
+    required this.hint,
+    this.initialValue,
+  });
+
+  @override
+  State<_InputDialog> createState() => _InputDialogState();
+}
+
+class _InputDialogState extends State<_InputDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
       backgroundColor: const Color(0xFF1A1A1A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(
-        title,
+        widget.title,
         style: GoogleFonts.manrope(
           fontSize: 18,
           fontWeight: FontWeight.w700,
@@ -84,11 +122,11 @@ Future<String?> showInputDialog({
         ),
       ),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         autofocus: true,
         style: GoogleFonts.manrope(color: Colors.white),
         decoration: InputDecoration(
-          hintText: hint,
+          hintText: widget.hint,
           hintStyle: GoogleFonts.manrope(color: Colors.white30),
           enabledBorder: UnderlineInputBorder(
             borderSide: BorderSide(color: AppColors.violet.withOpacity(0.5)),
@@ -111,7 +149,7 @@ Future<String?> showInputDialog({
           ),
         ),
         TextButton(
-          onPressed: () => Navigator.pop(context, controller.text.trim()),
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
           child: Text(
             "Create",
             style: GoogleFonts.manrope(
@@ -121,9 +159,6 @@ Future<String?> showInputDialog({
           ),
         ),
       ],
-    ),
-  );
-
-  controller.dispose();
-  return result;
+    );
+  }
 }

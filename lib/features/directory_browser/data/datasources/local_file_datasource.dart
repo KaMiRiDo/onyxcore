@@ -60,6 +60,98 @@ class LocalFileDatasource {
     }
   }
 
+  /// Use native 'gio trash' for standard Linux behavior.
+  Future<void> trashItems(List<String> paths) async {
+    for (final path in paths) {
+      final result = await Process.run('gio', ['trash', path]);
+      if (result.exitCode != 0) {
+        throw Exception('gio trash failed for $path');
+      }
+    }
+  }
+
+  /// Copy files and folders.
+  Future<void> copyItems(List<String> sources, String destination) async {
+    for (final source in sources) {
+      final name = p.basename(source);
+      final destPath = p.join(destination, name);
+      
+      final type = FileSystemEntity.typeSync(source);
+      if (type == FileSystemEntityType.directory) {
+        await _copyDirectory(Directory(source), Directory(destPath));
+      } else if (type == FileSystemEntityType.file) {
+        await File(source).copy(destPath);
+      }
+    }
+  }
+
+  /// Move files and folders (Rename).
+  Future<void> moveItems(List<String> sources, String destination) async {
+    for (final source in sources) {
+      final name = p.basename(source);
+      final destPath = p.join(destination, name);
+      final type = FileSystemEntity.typeSync(source);
+      if (type == FileSystemEntityType.directory) {
+        await Directory(source).rename(destPath);
+      } else if (type == FileSystemEntityType.file) {
+        await File(source).rename(destPath);
+      }
+    }
+  }
+
+  /// Helper to copy directory recursively
+  Future<void> _copyDirectory(Directory source, Directory destination) async {
+    await destination.create(recursive: true);
+    await for (final entity in source.list(recursive: false)) {
+      final name = p.basename(entity.path);
+      final destPath = p.join(destination.path, name);
+      if (entity is Directory) {
+        await _copyDirectory(entity, Directory(destPath));
+      } else if (entity is File) {
+        await entity.copy(destPath);
+      }
+    }
+  }
+
+  /// Rename single item.
+  Future<void> renameItem(String path, String newName) async {
+    final parent = p.dirname(path);
+    final newPath = p.join(parent, newName);
+    final type = FileSystemEntity.typeSync(path);
+    if (type == FileSystemEntityType.directory) {
+      await Directory(path).rename(newPath);
+    } else {
+      await File(path).rename(newPath);
+    }
+  }
+
+  /// Bulk rename logic.
+  Future<void> bulkRename(List<String> paths, {String? prefix, String? baseName}) async {
+    for (int i = 0; i < paths.length; i++) {
+      final path = paths[i];
+      final dirname = p.dirname(path);
+      final originalName = p.basename(path);
+      final ext = p.extension(path);
+      
+      String newName;
+      if (prefix != null) {
+        newName = "$prefix$originalName";
+      } else if (baseName != null) {
+        newName = "$baseName\_${i + 1}$ext";
+      } else {
+        continue;
+      }
+      
+      final newPath = p.join(dirname, newName);
+      final type = FileSystemEntity.typeSync(path);
+      if (type == FileSystemEntityType.directory) {
+        await Directory(path).rename(newPath);
+      } else {
+        await File(path).rename(newPath);
+      }
+    }
+  }
+
   /// Synchronous directory listing (runs inside an isolate).
   static List<FileItem> _listDirectorySync(String path) {
     final dir = Directory(path);

@@ -1,16 +1,23 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:path/path.dart' as p;
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+
 /// Individual file/folder card — pixel-perfect replica of original _buildItemCard().
-/// Wrapped in RepaintBoundary for rendering performance.
-class ItemCard extends StatelessWidget {
+class ItemCard extends ConsumerStatefulWidget {
   const ItemCard({
     required this.item,
     required this.zoom,
@@ -31,97 +38,176 @@ class ItemCard extends StatelessWidget {
   final ValueChanged<bool> onHoverChanged;
 
   @override
+  ConsumerState<ItemCard> createState() => _ItemCardState();
+}
+
+class _ItemCardState extends ConsumerState<ItemCard> {
+  Timer? _hoverTimer;
+
+  @override
+  void dispose() {
+    _hoverTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: MouseRegion(
-        onEnter: (_) => onHoverChanged(true),
-        onExit: (_) => onHoverChanged(false),
-        child: GestureDetector(
-          onTap: onTap,
-          onDoubleTap: onDoubleTap,
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.violet.withOpacity(0.12)
-                  : (isHovered ? Colors.white.withOpacity(0.04) : Colors.transparent),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isSelected
-                    ? AppColors.violet.withOpacity(0.2)
-                    : Colors.transparent,
-                strokeAlign: BorderSide.strokeAlignOutside,
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                // Preview area — fixed height matching original
-                SizedBox(
-                  height: 120 * zoom,
-                  child: Center(
-                    child: _buildItemPreview(),
-                  ),
-                ),
-                SizedBox(height: 8 * zoom),
-                // Title
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    _truncateMiddle(item.name),
-                    maxLines: zoom < 0.8 ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13 * (zoom < 1 ? zoom.clamp(0.85, 1.0) : (zoom > 1.2 ? 1.1 : 1.0)),
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
+    Widget cardContent = Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: widget.isSelected
+            ? AppColors.violet.withOpacity(0.12)
+            : (widget.isHovered ? Colors.white.withOpacity(0.04) : Colors.transparent),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: widget.isSelected
+              ? AppColors.violet.withOpacity(0.2)
+              : Colors.transparent,
+          strokeAlign: BorderSide.strokeAlignOutside,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 120 * widget.zoom,
+            child: Center(
+              child: _buildItemPreview(),
             ),
           ),
+          SizedBox(height: 8 * widget.zoom),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              _truncateMiddle(widget.item.name),
+              maxLines: widget.zoom < 0.8 ? 1 : 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(
+                fontSize: 13 * (widget.zoom < 1 ? widget.zoom.clamp(0.85, 1.0) : (widget.zoom > 1.2 ? 1.1 : 1.0)),
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // DND Logic
+    final isFolder = widget.item.type == FileItemType.folder;
+    
+    final Widget draggableWidget = Draggable<List<String>>(
+      data: widget.isSelected 
+          ? ref.read(selectionProvider).selectedPaths.toList()
+          : [widget.item.path],
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.7,
+          child: Transform.scale(
+            scale: 0.8,
+            child: cardContent,
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: cardContent,
+      ),
+      onDragStarted: () {
+        if (!widget.isSelected) {
+          ref.read(selectionProvider.notifier).selectMultiple([widget.item.path], isCtrl: false);
+        }
+      },
+      child: cardContent,
+    );
+
+    Widget result = draggableWidget;
+
+    if (isFolder) {
+      result = DragTarget<List<String>>(
+        onWillAcceptWithDetails: (details) {
+          if (details.data.contains(widget.item.path)) return false;
+          
+          _hoverTimer?.cancel();
+          _hoverTimer = Timer(const Duration(milliseconds: 700), () {
+            ref.read(navigationProvider.notifier).navigateTo(widget.item.path);
+            ref.read(currentPathProvider.notifier).state = widget.item.path;
+          });
+          return true;
+        },
+        onLeave: (_) {
+          _hoverTimer?.cancel();
+        },
+        onAcceptWithDetails: (details) async {
+          _hoverTimer?.cancel();
+          final repo = ref.read(directoryRepositoryProvider);
+          final taskId = ref.read(taskProvider.notifier).addTask(
+            title: 'Moving Files',
+            subtitle: '${details.data.length} items to ${widget.item.name}',
+          );
+          try {
+            await repo.moveItems(details.data, widget.item.path);
+            ref.read(taskProvider.notifier).completeTask(taskId);
+            ref.read(directoryItemsProvider.notifier).refresh();
+            ref.read(selectionProvider.notifier).deselectAll();
+          } catch (e) {
+            ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+          }
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isOver = candidateData.isNotEmpty;
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isOver ? AppColors.violet.withOpacity(0.1) : null,
+            ),
+            child: draggableWidget,
+          );
+        },
+      );
+    }
+
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: (_) => widget.onHoverChanged(true),
+        onExit: (_) => widget.onHoverChanged(false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          onDoubleTap: widget.onDoubleTap,
+          child: result,
         ),
       ),
     );
   }
 
   Widget _buildItemPreview() {
-    if (item.type == FileItemType.folder) {
-      final config = getFolderIconConfig(item.name);
+    if (widget.item.type == FileItemType.folder) {
+      final config = getFolderIconConfig(widget.item.name);
       return _buildArchivalIcon(config.icon, config.colors, hasTab: true);
-    } else if (item.type == FileItemType.image) {
-      final isSvg = item.name.toLowerCase().endsWith('.svg');
+    } else if (widget.item.type == FileItemType.image) {
+      final isSvg = widget.item.name.toLowerCase().endsWith('.svg');
       if (isSvg) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: SvgPicture.file(
-            File(item.path),
+            File(widget.item.path),
             fit: BoxFit.contain,
-            placeholderBuilder: (context) => _buildSvgIcon('assets/icons/image_placeholder.svg', isVertical: false),
           ),
         );
       }
-      
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.file(
-          File(item.path),
+          File(widget.item.path),
           fit: BoxFit.contain,
           cacheWidth: 300,
-          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-            if (wasSynchronouslyLoaded) return child;
-            if (frame == null) {
-              return _buildSvgIcon('assets/icons/image_placeholder.svg', isVertical: false);
-            }
-            return child;
-          },
           errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/image.svg', isVertical: false),
         ),
       );
-    } else if (item.type == FileItemType.video) {
-        // We lack thumbnail previews temporarily, just show video svg
+    } else if (widget.item.type == FileItemType.video) {
       return _buildSvgIcon('assets/icons/video.svg', isVertical: false);
     } else {
       return _buildFileFallback();
@@ -129,71 +215,31 @@ class ItemCard extends StatelessWidget {
   }
 
   Widget _buildFileFallback() {
-    final name = item.name.toLowerCase();
+    final name = widget.item.name.toLowerCase();
     final ext = name.split('.').length > 1 ? '.${name.split('.').last}' : '';
-    
-    // Custom SVG Mappings (Priority)
     if (name.contains('readme') || ext == '.md') {
       return _buildSvgIcon('assets/icons/readme.svg', isVertical: true);
-    } else if (['.exe', '.sh', '.bin', '.appimage', '.deb', '.rpm'].contains(ext) || name == 'starup' || name == 'startup') {
+    } else if (['.exe', '.sh', '.bin', '.appimage', '.deb', '.rpm'].contains(ext)) {
       return _buildSvgIcon('assets/icons/exe.svg', isVertical: true);
-    } else if (ext == '.doc' || ext == '.docx' || ext == '.odt') {
-      return _buildSvgIcon('assets/icons/doc.svg', isVertical: true);
-    } else if (ext == '.pdf') {
-      return _buildSvgIcon('assets/icons/pdf.svg', isVertical: true);
-    } else if (ext == '.xlsx' || ext == '.xls' || ext == '.csv' || ext == '.ods') {
-      return _buildSvgIcon('assets/icons/spreadsheet.svg', isVertical: true);
-    } else if (ext == '.ppt' || ext == '.pptx' || ext == '.odp') {
-      return _buildSvgIcon('assets/icons/presentation.svg', isVertical: true);
-    } else if (['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma', '.opus'].contains(ext)) {
-      return _buildSvgIcon('assets/icons/audio.svg', isVertical: true);
-    } else if (ext == '.zip' || ext == '.rar' || ext == '.7z' || ext == '.tar' || ext == '.gz') {
+    } else if (ext == '.zip' || ext == '.rar' || ext == '.7z') {
       return _buildSvgIcon('assets/icons/zip.svg', isVertical: false);
-    } else if (ext == '.txt' || ext == '.log') {
-      return _buildSvgIcon('assets/icons/txt.svg', isVertical: false);
     }
-
-    // Default Material Theme Style Fallback
-    final config = getFileIconConfig(item.name);
-    
-    if (config.icon == Icons.insert_drive_file_rounded) {
-      if (item.isExecutable) {
-        return _buildSvgIcon('assets/icons/exe.svg', isVertical: true);
-      }
-      return _buildSvgIcon('assets/icons/unknown_file.svg', isVertical: true);
-    }
-    
-    // Code/Data/Config usually vertical unless it's a 'package/container' style
-    bool isVertical = true;
-    if (['.json', '.yaml', '.yml', '.toml', '.xml', '.dart', '.py', '.java', '.c', '.cpp', '.js', '.ts', '.go', '.rs'].contains(ext)) {
-      isVertical = true;
-    }
-
-    return _buildArchivalIcon(config.icon, config.colors, isVertical: isVertical);
+    final config = getFileIconConfig(widget.item.name);
+    return _buildArchivalIcon(config.icon, config.colors, isVertical: true);
   }
 
   Widget _buildSvgIcon(String assetPath, {required bool isVertical}) {
-    // Scaling adjustments for perceived weight
-    double weightScale = 1.0;
-    if (assetPath.contains('pdf.svg') || assetPath.contains('txt.svg') || assetPath.contains('audio.svg')) {
-      weightScale = 1.15; // 15% increase for smaller looking icons
-    }
-
     return SizedBox(
-      width: (isVertical ? 90 : 110) * zoom * weightScale,
-      height: (isVertical ? 120 : 110) * zoom * weightScale,
-      child: SvgPicture.asset(
-        assetPath,
-        fit: BoxFit.contain,
-      ),
+      width: (isVertical ? 90 : 110) * widget.zoom,
+      height: (isVertical ? 120 : 110) * widget.zoom,
+      child: SvgPicture.asset(assetPath, fit: BoxFit.contain),
     );
   }
 
-  // Helper for stylized archival icons (both Square Folders and Vertical Docs)
   Widget _buildArchivalIcon(IconData icon, List<Color> colors, {bool hasTab = false, bool isVertical = false}) {
     return SizedBox(
-      width: (isVertical ? 90 : 110) * zoom,
-      height: (isVertical ? 120 : 110) * zoom,
+      width: (isVertical ? 90 : 110) * widget.zoom,
+      height: (isVertical ? 120 : 110) * widget.zoom,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
@@ -201,13 +247,13 @@ class ItemCard extends StatelessWidget {
           if (hasTab)
             Positioned(
               top: 0,
-              left: 10 * zoom,
+              left: 10 * widget.zoom,
               child: Container(
-                width: 38 * zoom,
-                height: 14 * zoom,
+                width: 38 * widget.zoom,
+                height: 14 * widget.zoom,
                 decoration: BoxDecoration(
                   color: colors.first.withOpacity(0.9),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(6 * zoom)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(6 * widget.zoom)),
                 ),
               ),
             ),
@@ -215,44 +261,14 @@ class ItemCard extends StatelessWidget {
             bottom: 0,
             left: 0,
             right: 0,
-            top: (hasTab ? 10 : 0) * zoom,
+            top: (hasTab ? 10 : 0) * widget.zoom,
             child: Container(
-              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: colors,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12 * zoom),
-                boxShadow: [
-                  BoxShadow(color: colors.first.withOpacity(0.3), blurRadius: 10 * zoom, offset: Offset(0, 4 * zoom)),
-                ],
+                gradient: LinearGradient(colors: colors),
+                borderRadius: BorderRadius.circular(12 * widget.zoom),
               ),
-              child: Stack(
-                children: [
-                  if (hasTab)
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.white.withOpacity(0.25), Colors.black.withOpacity(0.15)],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                    ),
-                  Center(
-                    child: Icon(
-                      icon,
-                      color: Colors.white,
-                      size: (isVertical ? 48 : 42) * zoom,
-                      shadows: [
-                        if (hasTab)
-                          Shadow(color: Colors.black.withOpacity(0.25), blurRadius: 6 * zoom, offset: Offset(0, 2 * zoom)),
-                      ],
-                    ),
-                  ),
-                ],
+              child: Center(
+                child: Icon(icon, color: Colors.white, size: (isVertical ? 48 : 42) * widget.zoom),
               ),
             ),
           ),
@@ -263,15 +279,6 @@ class ItemCard extends StatelessWidget {
 
   String _truncateMiddle(String title, {int maxLength = 50}) {
     if (title.length <= maxLength) return title;
-    final extIndex = title.lastIndexOf('.');
-    var ext = '';
-    var base = title;
-    if (extIndex != -1 && (title.length - extIndex) <= 8) {
-      ext = title.substring(extIndex);
-      base = title.substring(0, extIndex);
-    }
-    final startChars = maxLength - ext.length - 3;
-    if (startChars <= 10) return '${title.substring(0, maxLength - 3)}...';
-    return '${base.substring(0, startChars)}...$ext';
+    return '${title.substring(0, 25)}...${title.substring(title.length - 10)}';
   }
 }

@@ -50,11 +50,26 @@ class SelectionNotifier extends Notifier<SelectionState> {
         anchorIndex: currentIndex,
       );
     } else {
-      // Single exclusive select
       state = SelectionState(
         selectedPaths: {allPaths[currentIndex]},
         isSelectionMode: true,
         anchorIndex: currentIndex,
+      );
+    }
+  }
+
+  /// Select multiple paths (used for rubber-band selection).
+  void selectMultiple(List<String> paths, {bool isCtrl = false}) {
+    if (isCtrl) {
+      final newSelection = Set<String>.from(state.selectedPaths)..addAll(paths);
+      state = state.copyWith(
+        selectedPaths: newSelection,
+        isSelectionMode: newSelection.isNotEmpty,
+      );
+    } else {
+      state = state.copyWith(
+        selectedPaths: paths.toSet(),
+        isSelectionMode: paths.isNotEmpty,
       );
     }
   }
@@ -70,6 +85,18 @@ class SelectionNotifier extends Notifier<SelectionState> {
   /// Clear all selection.
   void deselectAll() {
     state = SelectionState.empty;
+  }
+
+  /// Remove specific paths from selection.
+  void deselect(List<String> paths) {
+    final newSelection = Set<String>.from(state.selectedPaths);
+    for (final p in paths) {
+      newSelection.remove(p);
+    }
+    state = state.copyWith(
+      selectedPaths: newSelection,
+      isSelectionMode: newSelection.isNotEmpty,
+    );
   }
 }
 

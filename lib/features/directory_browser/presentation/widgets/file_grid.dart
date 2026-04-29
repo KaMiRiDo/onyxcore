@@ -9,6 +9,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
@@ -29,7 +30,7 @@ class _FileGridState extends ConsumerState<FileGrid> {
     final selection = ref.watch(selectionProvider);
     final String currentPath = ref.watch(currentPathProvider);
 
-    return itemsAsync.when(
+    final content = itemsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(
         child: Text(
@@ -73,6 +74,44 @@ class _FileGridState extends ConsumerState<FileGrid> {
               },
             );
           },
+        );
+      },
+    );
+
+    if (currentPath.startsWith('virtual:')) return content;
+
+    return DragTarget<List<String>>(
+      onWillAcceptWithDetails: (details) {
+        // Can't drop if current path is virtual or if all items are already in currentPath
+        return !details.data.every((path) {
+          final parts = (path.endsWith('/') ? path.substring(0, path.length - 1) : path).split('/');
+          final parent = parts.take(parts.length > 1 ? parts.length - 1 : 0).join('/');
+          final curr = currentPath.endsWith('/') ? currentPath.substring(0, currentPath.length - 1) : currentPath;
+          return parent == curr;
+        });
+      },
+      onAcceptWithDetails: (details) async {
+        final repo = ref.read(directoryRepositoryProvider);
+        final taskId = ref.read(taskProvider.notifier).addTask(
+          title: 'Moving Files',
+          subtitle: '${details.data.length} items to current folder',
+        );
+        try {
+          await repo.moveItems(details.data, currentPath);
+          ref.read(taskProvider.notifier).completeTask(taskId);
+          ref.read(directoryItemsProvider.notifier).refresh();
+          ref.read(selectionProvider.notifier).deselectAll();
+        } catch (e) {
+          ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isOver = candidateData.isNotEmpty;
+        return Container(
+          decoration: BoxDecoration(
+            color: isOver ? AppColors.violet.withOpacity(0.05) : null,
+          ),
+          child: content,
         );
       },
     );

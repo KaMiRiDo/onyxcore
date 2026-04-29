@@ -21,6 +21,21 @@ abstract class DirectoryRepository {
   /// (~/.local/share/Trash/files).
   Future<void> moveToTrash(List<String> paths);
 
+  /// Copy items from [sources] to [destination] folder.
+  Future<void> copyItems(List<String> sources, String destination);
+
+  /// Move items from [sources] to [destination] folder (Cut & Paste).
+  Future<void> moveItems(List<String> sources, String destination);
+
+  /// Rename a single item.
+  Future<void> renameItem(String path, String newName);
+
+  /// Rename multiple items using prefix or numbering.
+  Future<void> bulkRename(List<String> paths, {String? prefix, String? baseName});
+
+  /// Specialized Linux trash operation using 'gio'.
+  Future<void> trashItems(List<String> paths);
+
   /// Watch a directory for file system changes via inotify.
   Stream<FileChangeEvent> watchDirectory(String path);
 }

@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:async';
+import 'package:path/path.dart' as p;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,9 +10,9 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
-
 
 /// Top bar with breadcrumbs, search, and settings — pixel-perfect replica of original _buildTopBar().
 class TopBar extends ConsumerWidget {
@@ -84,6 +87,12 @@ class TopBar extends ConsumerWidget {
         final isLast = index == parts.length - 1;
         final isFileName = previewFileName != null && isLast;
 
+        String targetPath = '';
+        if (!currentPath.startsWith('virtual:') && !isFileName) {
+          final targetRel = parts.sublist(0, index + 1).join('/');
+          targetPath = targetRel.replaceFirst('Home', homePath);
+        }
+
         return Row(
           children: [
             if (index > 0)
@@ -91,34 +100,120 @@ class TopBar extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
               ),
-            InkWell(
-              onTap: () {
-                if (!isFileName) {
-                  ref.read(previewFileProvider.notifier).state = null;
-                  
-                  if (currentPath.startsWith('virtual:')) {
-                    // Do nothing or re-set virtual path
-                  } else {
-                    final targetRel = parts.sublist(0, index + 1).join('/');
-                    final targetPath = targetRel.replaceFirst('Home', homePath);
-                    ref.read(selectionProvider.notifier).deselectAll();
-                    ref.read(navigationProvider.notifier).navigateTo(targetPath);
-                    ref.read(currentPathProvider.notifier).state = targetPath;
-                  }
-                }
-              },
-              child: _buildGradientText(
-                name,
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: (isLast && !isFileName) || isFileName ? FontWeight.w800 : FontWeight.w500,
-                  color: Colors.white,
-                ),
-              ),
+            BreadcrumbSegment(
+              name: name,
+              isLast: isLast,
+              isFileName: isFileName,
+              targetPath: targetPath,
             ),
           ],
         );
       }).toList(),
+    );
+  }
+}
+
+class BreadcrumbSegment extends ConsumerStatefulWidget {
+  const BreadcrumbSegment({
+    required this.name,
+    required this.isLast,
+    required this.isFileName,
+    required this.targetPath,
+    super.key,
+  });
+
+  final String name;
+  final bool isLast;
+  final bool isFileName;
+  final String targetPath;
+
+  @override
+  ConsumerState<BreadcrumbSegment> createState() => _BreadcrumbSegmentState();
+}
+
+class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
+  Timer? _hoverTimer;
+
+  @override
+  void dispose() {
+    _hoverTimer?.cancel();
+    super.dispose();
+  }
+
+  void _navigate() {
+    if (!widget.isFileName) {
+      ref.read(previewFileProvider.notifier).state = null;
+      
+      if (widget.targetPath.isNotEmpty) {
+        ref.read(selectionProvider.notifier).deselectAll();
+        ref.read(navigationProvider.notifier).navigateTo(widget.targetPath);
+        ref.read(currentPathProvider.notifier).state = widget.targetPath;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textWidget = InkWell(
+      onTap: _navigate,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: _buildGradientText(
+          widget.name,
+          style: GoogleFonts.manrope(
+            fontSize: 15,
+            fontWeight: (widget.isLast && !widget.isFileName) || widget.isFileName ? FontWeight.w800 : FontWeight.w500,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+
+    if (widget.targetPath.isEmpty || widget.isFileName || widget.isLast) {
+      return textWidget;
+    }
+
+    return DragTarget<List<String>>(
+      onWillAcceptWithDetails: (details) {
+        // Can't drop into itself
+        if (details.data.every((path) => p.dirname(path) == widget.targetPath)) return false;
+
+        _hoverTimer?.cancel();
+        _hoverTimer = Timer(const Duration(milliseconds: 700), () {
+          _navigate();
+        });
+        return true;
+      },
+      onLeave: (_) {
+        _hoverTimer?.cancel();
+      },
+      onAcceptWithDetails: (details) async {
+        _hoverTimer?.cancel();
+        final repo = ref.read(directoryRepositoryProvider);
+        final taskId = ref.read(taskProvider.notifier).addTask(
+          title: 'Moving Files',
+          subtitle: '${details.data.length} items to ${widget.name}',
+        );
+        try {
+          await repo.moveItems(details.data, widget.targetPath);
+          ref.read(taskProvider.notifier).completeTask(taskId);
+          ref.read(directoryItemsProvider.notifier).refresh();
+          ref.read(selectionProvider.notifier).deselectAll();
+        } catch (e) {
+          ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isOver = candidateData.isNotEmpty;
+        return Container(
+          decoration: BoxDecoration(
+            color: isOver ? AppColors.violet.withOpacity(0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: textWidget,
+        );
+      },
     );
   }
 
