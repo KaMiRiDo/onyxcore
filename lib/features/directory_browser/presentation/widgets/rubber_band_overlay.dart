@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'item_card.dart';
@@ -23,15 +24,22 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
   Offset? _startPoint;
   Offset? _currentPoint;
   bool _isDragging = false;
+  Set<String> _initialSelection = {};
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onPanStart: (details) {
+        final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
+                .contains(LogicalKeyboardKey.controlLeft) ||
+            HardwareKeyboard.instance.logicalKeysPressed
+                .contains(LogicalKeyboardKey.controlRight);
+
         setState(() {
           _startPoint = details.localPosition;
           _currentPoint = details.localPosition;
           _isDragging = true;
+          _initialSelection = isCtrl ? ref.read(selectionProvider).selectedPaths.toSet() : {};
         });
       },
       onPanUpdate: (details) {
@@ -39,11 +47,14 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
           setState(() {
             _currentPoint = details.localPosition;
           });
+          if (_startPoint != null && _currentPoint != null) {
+            _updateInteractiveSelection(Rect.fromPoints(_startPoint!, _currentPoint!));
+          }
         }
       },
       onPanEnd: (details) {
         if (_isDragging && _startPoint != null && _currentPoint != null) {
-          _finalizeSelection(Rect.fromPoints(_startPoint!, _currentPoint!));
+          _updateInteractiveSelection(Rect.fromPoints(_startPoint!, _currentPoint!));
         }
         setState(() {
           _isDragging = false;
@@ -68,8 +79,8 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
     );
   }
 
-  void _finalizeSelection(Rect selectionRect) {
-    final List<String> paths = [];
+  void _updateInteractiveSelection(Rect selectionRect) {
+    final List<String> currentRectPaths = [];
     final RenderBox? overlayBox = context.findRenderObject() as RenderBox?;
     if (overlayBox == null) return;
 
@@ -83,7 +94,7 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
           final localItemRect = (itemPos - origin) & renderBox.size;
           
           if (selectionRect.overlaps(localItemRect)) {
-            paths.add((element.widget as ItemCard).item.path);
+            currentRectPaths.add((element.widget as ItemCard).item.path);
           }
         }
       }
@@ -92,9 +103,8 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
 
     context.visitChildElements(visitor);
     
-    if (paths.isNotEmpty) {
-      ref.read(selectionProvider.notifier).selectMultiple(paths, isCtrl: true);
-    }
+    final combined = Set<String>.from(_initialSelection)..addAll(currentRectPaths);
+    ref.read(selectionProvider.notifier).selectMultiple(combined.toList(), isCtrl: false);
   }
 }
 
