@@ -42,35 +42,58 @@ class _StorageIndicatorState extends State<StorageIndicator> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Storage ($percentLabel)',
-                style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-              ),
-              Text(
-                '$usedLabel / $totalLabel',
-                style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-              ),
-            ],
+          Text(
+            'SYSTEM STORAGE',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: Colors.white.withOpacity(0.3),
+              letterSpacing: 1.1,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Container(
-            height: 6,
+            height: 4,
+            width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(3),
+              color: const Color(0xFF222222),
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.05),
+                width: 0.5,
+              ),
             ),
             child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
               widthFactor: fraction.clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
                   gradient: AppTheme.primaryGradient,
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                percentLabel,
+                style: const TextStyle(
+                  fontSize: 11, 
+                  color: Colors.white70, 
+                  fontWeight: FontWeight.bold
+                ),
+              ),
+              Text(
+                '$usedLabel of $totalLabel',
+                style: TextStyle(
+                  fontSize: 10, 
+                  color: Colors.white.withOpacity(0.4)
+                ),
+              ),
+            ],
           ),
         ],
       ),

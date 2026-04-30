@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/theme/app_theme.dart';
 
 /// Cloud storage section item — pixel-perfect replica of original _buildCloudItem().
 class CloudItem extends StatelessWidget {
@@ -7,50 +10,34 @@ class CloudItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                'https://i.pravatar.cc/150?u=alex',
-                width: 32,
-                height: 32,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white12,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.person, size: 18, color: Colors.white38),
-                ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              image: const DecorationImage(
+                image: NetworkImage('https://i.pravatar.cc/150?u=alex'),
+                fit: BoxFit.cover,
+              ),
+              border: Border.all(color: Colors.white10, width: 1),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "Alex Smith",
+              style: TextStyle(
+                fontFamily: 'Manrope',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    "Alex's Cloud",
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Connected',
-                    style: TextStyle(fontSize: 11, color: Colors.greenAccent),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

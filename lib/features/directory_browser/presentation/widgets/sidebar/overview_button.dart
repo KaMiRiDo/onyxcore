@@ -13,7 +13,7 @@ class OverviewButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         width: double.infinity,
-        height: 50,
+        height: 40,
         decoration: BoxDecoration(
           gradient: AppTheme.primaryGradient,
           borderRadius: BorderRadius.circular(12),

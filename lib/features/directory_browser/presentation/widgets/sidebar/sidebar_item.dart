@@ -14,6 +14,8 @@ class SidebarItem extends StatelessWidget {
     required this.path,
     required this.isActive,
     required this.onTap,
+    this.progress,
+    this.onEject,
     super.key,
   });
 
@@ -22,9 +24,33 @@ class SidebarItem extends StatelessWidget {
   final String path;
   final bool isActive;
   final VoidCallback onTap;
+  final VoidCallback? onEject;
+  final double? progress;
 
   @override
   Widget build(BuildContext context) {
+    Widget labelWidget = isActive
+        ? ShaderMask(
+            shaderCallback: (bounds) =>
+                AppTheme.primaryGradient.createShader(bounds),
+            child: Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: Colors.white,
+              ),
+            ),
+          )
+        : Text(
+            label,
+            style: GoogleFonts.manrope(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+          );
+
     Widget content = Row(
       children: [
         isActive
@@ -36,28 +62,43 @@ class SidebarItem extends StatelessWidget {
             : Icon(icon, color: AppColors.textMuted, size: 20),
         const SizedBox(width: 16),
         Expanded(
-          child: isActive
-              ? ShaderMask(
-                  shaderCallback: (bounds) =>
-                      AppTheme.primaryGradient.createShader(bounds),
-                  child: Text(
-                    label,
-                    style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: Colors.white,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              labelWidget,
+              if (progress != null) ...[
+                const SizedBox(height: 4),
+                Container(
+                  height: 3,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progress!.clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(1.5),
+                      ),
                     ),
                   ),
-                )
-              : Text(
-                  label,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
                 ),
+              ],
+            ],
+          ),
         ),
+        if (onEject != null)
+          IconButton(
+            icon: const Icon(Icons.eject_outlined, size: 16, color: AppColors.textMuted),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: onEject,
+            hoverColor: Colors.white10,
+          ),
       ],
     );
 
@@ -65,23 +106,13 @@ class SidebarItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.white.withOpacity(0.05) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: isActive ? Border.all(color: Colors.white.withOpacity(0.05)) : null,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: const BoxDecoration(
+            color: Colors.transparent,
           ),
-          child: isActive
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: content,
-                  ),
-                )
-              : content,
+          child: content,
         ),
       ),
     );

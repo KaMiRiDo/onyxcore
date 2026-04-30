@@ -22,6 +22,7 @@ dependencies:
   equatable: ^2.0.7
   watcher: ^1.2.1
   flutter_markdown: ^0.7.1
+  path: ^1.9.0
 
   # Media Processing (Linux Native)
   media_kit: ^1.2.6

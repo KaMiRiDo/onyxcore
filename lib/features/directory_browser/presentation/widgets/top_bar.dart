@@ -14,6 +14,8 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/task_
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/core/widgets/task_progress_overlay.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
 
 /// Top bar with breadcrumbs, search, and settings — pixel-perfect replica of original _buildTopBar().
 class TopBar extends ConsumerWidget {
@@ -24,6 +26,7 @@ class TopBar extends ConsumerWidget {
     final String currentPath = ref.watch(currentPathProvider);
     final previewFile = ref.watch(previewFileProvider);
     final String homePath = Platform.environment['HOME'] ?? '/';
+    final devices = ref.watch(deviceProvider).value ?? [];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
@@ -32,7 +35,7 @@ class TopBar extends ConsumerWidget {
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: _buildBreadcrumbs(ref, currentPath, homePath, previewFile?.name),
+              child: _buildBreadcrumbs(ref, currentPath, homePath, previewFile?.name, devices),
             ),
           ),
           const SizedBox(width: 24),
@@ -66,34 +69,83 @@ class TopBar extends ConsumerWidget {
     );
   }
 
-  Widget _buildBreadcrumbs(WidgetRef ref, String currentPath, String homePath, String? previewFileName) {
+  Widget _buildBreadcrumbs(WidgetRef ref, String currentPath, String homePath, String? previewFileName, List<Device> devices) {
     // Basic segments calculation
-    List<String> parts = [];
+    List<MapEntry<String, String>> parts = []; // List of name to path mappings
+
     if (currentPath.startsWith('virtual:')) {
       final label = currentPath.replaceFirst('virtual:', '');
-      parts.add(label.isNotEmpty ? '${label[0].toUpperCase()}${label.substring(1)}' : label);
-    } else {
+      final name = label.isNotEmpty ? '${label[0].toUpperCase()}${label.substring(1)}' : label;
+      parts.add(MapEntry(name, currentPath));
+    } else if (currentPath.startsWith(homePath)) {
+      // Prioritize User Home labeling
       final relPath = currentPath.replaceFirst(homePath, 'Home');
-      parts = relPath.split('/').where((s) => s.isNotEmpty).toList();
+      final subParts = relPath.split('/').where((s) => s.isNotEmpty).toList();
+      
+      String accumulated = homePath;
+      parts.add(MapEntry('Home', homePath));
+      
+      // The first part is 'Home', so we skip it in subParts if it's there (it shouldn't be due to replaceFirst)
+      for (final sub in subParts) {
+        if (sub == 'Home') continue;
+        // Reconstruct the real path for each segment
+        // We need to find where this segment is in the real currentPath
+        final subIndex = currentPath.indexOf('/$sub', accumulated.length - 1);
+        if (subIndex != -1) {
+          accumulated = currentPath.substring(0, subIndex + sub.length + 1);
+          if (accumulated.endsWith('/')) accumulated = accumulated.substring(0, accumulated.length - 1);
+          parts.add(MapEntry(sub, accumulated));
+        } else {
+          // Fallback if index matching fails
+          accumulated = p.join(accumulated, sub);
+          parts.add(MapEntry(sub, accumulated));
+        }
+      }
+    } else {
+      // Find the most specific device that matches the path
+      Device? matchingDevice;
+      for (final device in devices) {
+        if (currentPath.startsWith(device.path)) {
+          if (matchingDevice == null || device.path.length > matchingDevice.path.length) {
+            matchingDevice = device;
+          }
+        }
+      }
+
+      if (matchingDevice != null) {
+        parts.add(MapEntry(matchingDevice.name, matchingDevice.path));
+        final subPath = currentPath.substring(matchingDevice.path.length);
+        final subParts = subPath.split('/').where((s) => s.isNotEmpty).toList();
+        
+        String accumulatedPath = matchingDevice.path;
+        for (final pPart in subParts) {
+          accumulatedPath = p.join(accumulatedPath, pPart);
+          parts.add(MapEntry(pPart, accumulatedPath));
+        }
+      } else {
+        // Fallback for unexpected paths
+        final splitParts = currentPath.split('/').where((s) => s.isNotEmpty).toList();
+        String accumulatedPath = '/';
+        parts.add(const MapEntry('File System', '/'));
+        for (final pPart in splitParts) {
+          accumulatedPath = p.join(accumulatedPath, pPart);
+          parts.add(MapEntry(pPart, accumulatedPath));
+        }
+      }
     }
 
     // Add filename if in preview mode
     if (previewFileName != null) {
-      parts.add(StringUtils.truncateMiddle(previewFileName, maxLength: 32));
+      parts.add(MapEntry(StringUtils.truncateMiddle(previewFileName, maxLength: 32), ''));
     }
 
     return Row(
       children: parts.asMap().entries.map((entry) {
         final index = entry.key;
-        final name = entry.value;
+        final name = entry.value.key;
+        final targetPath = entry.value.value;
         final isLast = index == parts.length - 1;
         final isFileName = previewFileName != null && isLast;
-
-        String targetPath = '';
-        if (!currentPath.startsWith('virtual:') && !isFileName) {
-          final targetRel = parts.sublist(0, index + 1).join('/');
-          targetPath = targetRel.replaceFirst('Home', homePath);
-        }
 
         return Row(
           children: [
