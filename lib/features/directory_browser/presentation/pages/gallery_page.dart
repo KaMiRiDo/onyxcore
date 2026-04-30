@@ -1,6 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -117,46 +119,105 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
       }
       return null;
     });
-  }
-
-  @override
+  }  @override
   Widget build(BuildContext context) {
     return CallbackShortcuts(
       bindings: _buildKeyBindings(),
       child: Focus(
         focusNode: _focusNode,
         autofocus: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            _focusNode.requestFocus();
-            ref.read(selectionProvider.notifier).deselectAll();
+        child: Listener(
+          onPointerUp: (event) {
+            if (ref.read(isDraggingProvider)) {
+              Future.microtask(() {
+                ref.read(isDraggingProvider.notifier).state = false;
+                ref.read(draggingPathsProvider.notifier).state = {};
+              });
+            }
           },
-          child: Scaffold(
-            backgroundColor: AppColors.background,
-            body: Stack(
-              children: [
-                Row(
-                  children: [
-                    const Sidebar(),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          const TopBar(),
-                          _buildContent(),
-                        ],
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              _focusNode.requestFocus();
+              ref.read(selectionProvider.notifier).deselectAll();
+            },
+            child: Scaffold(
+              backgroundColor: AppColors.background,
+              body: Stack(
+                children: [
+                  Row(
+                    children: [
+                      const Sidebar(),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            const TopBar(),
+                            _buildContent(),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-
-              ],
+                    ],
+                  ),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final isDragging = ref.watch(isDraggingProvider);
+                      if (!isDragging) return const SizedBox.shrink();
+                      
+                      return Positioned(
+                        top: 12,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: RepaintBoundary(
+                            child: DragTarget<List<String>>(
+                              onAccept: (_) {
+                                ref.read(isDraggingProvider.notifier).state = false;
+                              },
+                              builder: (context, candidateData, rejectedData) {
+                                final isOver = candidateData.isNotEmpty;
+                                return ClipOval(
+                                  clipBehavior: Clip.antiAliasWithSaveLayer,
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: isOver 
+                                            ? Colors.red.withOpacity(0.6) 
+                                            : Colors.white.withOpacity(0.08),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isOver ? Colors.white : Colors.white10,
+                                          width: 1.5, // Slightly thicker for definition
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          isOver ? Icons.delete_forever : Icons.close,
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
-  }
+  } 
 
   Widget _buildContent() {
     final previewFile = ref.watch(previewFileProvider);

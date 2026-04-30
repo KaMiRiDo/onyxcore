@@ -38,7 +38,7 @@ class _StorageIndicatorState extends State<StorageIndicator> {
     final totalLabel = usage?.totalHuman ?? '2.0 TB';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.only(left: 24, right: 24, top: 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -43,6 +43,20 @@ void main(List<String> args) async {
   }
 
   final prefs = await SharedPreferences.getInstance();
+  
+  // Configure window options for a seamless, titlebar-less experience
+  WindowOptions windowOptions = const WindowOptions(
+    size: Size(1280, 720),
+    center: true,
+    backgroundColor: Colors.transparent,
+    skipTaskbar: false,
+    titleBarStyle: TitleBarStyle.hidden,
+  );
+  
+  await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
 
   runApp(
     ProviderScope(

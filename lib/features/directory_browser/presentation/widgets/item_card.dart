@@ -52,7 +52,12 @@ class _ItemCardState extends ConsumerState<ItemCard> {
 
   @override
   Widget build(BuildContext context) {
-    Widget cardContent = Container(
+    final draggingPaths = ref.watch(draggingPathsProvider);
+    final isSourceDragging = draggingPaths.contains(widget.item.path);
+
+    Widget cardContent = Opacity(
+      opacity: isSourceDragging ? 0.3 : 1.0,
+      child: Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: widget.isSelected
@@ -92,7 +97,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           ),
         ],
       ),
-    );
+    ));
 
     // DND Logic
     final isFolder = widget.item.type == FileItemType.folder;
@@ -101,24 +106,68 @@ class _ItemCardState extends ConsumerState<ItemCard> {
       data: widget.isSelected 
           ? ref.read(selectionProvider).selectedPaths.toList()
           : [widget.item.path],
-      dragAnchorStrategy: pointerDragAnchorStrategy,
-      feedback: Material(
-        color: Colors.transparent,
-        child: Opacity(
-          opacity: 0.7,
-          child: Transform.scale(
-            scale: 0.8,
-            child: cardContent,
+      dragAnchorStrategy: (Draggable<Object> draggable, BuildContext context, Offset position) {
+        return const Offset(0, 0); // Position cursor at top-left of the miniature container
+      },
+      feedback: RepaintBoundary(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Center(
+                child: _buildItemPreview(scale: 0.4),
+              ),
+            ),
           ),
         ),
       ),
       childWhenDragging: Opacity(
         opacity: 0.3,
-        child: cardContent,
+        // If it's already dimmed via isSourceDragging, don't double dip
+        child: isSourceDragging ? (cardContent as Opacity).child : cardContent,
       ),
       onDragStarted: () {
-        if (!widget.isSelected) {
-          ref.read(selectionProvider.notifier).selectMultiple([widget.item.path], isCtrl: false);
+        if (mounted) {
+          final paths = widget.isSelected 
+              ? ref.read(selectionProvider).selectedPaths 
+              : {widget.item.path};
+          ref.read(draggingPathsProvider.notifier).state = paths;
+          ref.read(isDraggingProvider.notifier).state = true;
+          if (!widget.isSelected) {
+            ref.read(selectionProvider.notifier).selectMultiple([widget.item.path], isCtrl: false);
+          }
+        }
+      },
+      onDragCompleted: () {
+        if (mounted) {
+          ref.read(isDraggingProvider.notifier).state = false;
+          ref.read(draggingPathsProvider.notifier).state = {};
+        }
+      },
+      onDragEnd: (_) {
+        if (mounted) {
+          ref.read(isDraggingProvider.notifier).state = false;
+          ref.read(draggingPathsProvider.notifier).state = {};
+        }
+      },
+      onDraggableCanceled: (_, __) {
+        if (mounted) {
+          ref.read(isDraggingProvider.notifier).state = false;
+          ref.read(draggingPathsProvider.notifier).state = {};
         }
       },
       child: cardContent,
@@ -132,7 +181,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           if (details.data.contains(widget.item.path)) return false;
           
           _hoverTimer?.cancel();
-          _hoverTimer = Timer(const Duration(milliseconds: 700), () {
+          _hoverTimer = Timer(const Duration(milliseconds: 1000), () {
             ref.read(navigationProvider.notifier).navigateTo(widget.item.path);
             ref.read(currentPathProvider.notifier).state = widget.item.path;
           });
@@ -170,9 +219,15 @@ class _ItemCardState extends ConsumerState<ItemCard> {
       );
     }
 
+    final isDragging = ref.watch(isDraggingProvider);
+
     return RepaintBoundary(
       child: MouseRegion(
-        onEnter: (_) => widget.onHoverChanged(true),
+        onEnter: (_) {
+          if (!isDragging) {
+            widget.onHoverChanged(true);
+          }
+        },
         onExit: (_) => widget.onHoverChanged(false),
         child: GestureDetector(
           onTap: widget.onTap,
@@ -183,10 +238,10 @@ class _ItemCardState extends ConsumerState<ItemCard> {
     );
   }
 
-  Widget _buildItemPreview() {
+  Widget _buildItemPreview({double? scale}) {
     if (widget.item.type == FileItemType.folder) {
       final config = getFolderIconConfig(widget.item.name);
-      return _buildArchivalIcon(config.icon, config.colors, hasTab: true);
+      return _buildArchivalIcon(config.icon, config.colors, hasTab: true, scale: scale);
     } else if (widget.item.type == FileItemType.image) {
       final isSvg = widget.item.name.toLowerCase().endsWith('.svg');
       if (isSvg) {
@@ -204,42 +259,49 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           File(widget.item.path),
           fit: BoxFit.contain,
           cacheWidth: 300,
-          errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/image.svg', isVertical: false),
+          errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/image.svg', isVertical: false, scale: scale),
         ),
       );
     } else if (widget.item.type == FileItemType.video) {
-      return _buildSvgIcon('assets/icons/video.svg', isVertical: false);
+      return _buildSvgIcon('assets/icons/video.svg', isVertical: false, scale: scale);
     } else {
-      return _buildFileFallback();
+      return _buildFileFallback(scale: scale);
     }
   }
 
-  Widget _buildFileFallback() {
+  Widget _buildFileFallback({double? scale}) {
     final name = widget.item.name.toLowerCase();
     final ext = name.split('.').length > 1 ? '.${name.split('.').last}' : '';
     if (name.contains('readme') || ext == '.md') {
-      return _buildSvgIcon('assets/icons/readme.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/readme.svg', isVertical: true, scale: scale);
     } else if (['.exe', '.sh', '.bin', '.appimage', '.deb', '.rpm'].contains(ext)) {
-      return _buildSvgIcon('assets/icons/exe.svg', isVertical: true);
+      return _buildSvgIcon('assets/icons/exe.svg', isVertical: true, scale: scale);
     } else if (ext == '.zip' || ext == '.rar' || ext == '.7z') {
-      return _buildSvgIcon('assets/icons/zip.svg', isVertical: false);
+      return _buildSvgIcon('assets/icons/zip.svg', isVertical: false, scale: scale);
     }
     final config = getFileIconConfig(widget.item.name);
-    return _buildArchivalIcon(config.icon, config.colors, isVertical: true);
+    return _buildArchivalIcon(config.icon, config.colors, isVertical: true, scale: scale);
   }
 
-  Widget _buildSvgIcon(String assetPath, {required bool isVertical}) {
+  Widget _buildSvgIcon(String assetPath, {required bool isVertical, double? scale}) {
+    final s = scale ?? widget.zoom;
     return SizedBox(
-      width: (isVertical ? 90 : 110) * widget.zoom,
-      height: (isVertical ? 120 : 110) * widget.zoom,
+      width: (isVertical ? 90 : 110) * s,
+      height: (isVertical ? 120 : 110) * s,
       child: SvgPicture.asset(assetPath, fit: BoxFit.contain),
     );
   }
 
-  Widget _buildArchivalIcon(IconData icon, List<Color> colors, {bool hasTab = false, bool isVertical = false}) {
+  String _truncateMiddle(String title, {int maxLength = 50}) {
+    if (title.length <= maxLength) return title;
+    return '${title.substring(0, 25)}...${title.substring(title.length - 10)}';
+  }
+
+  Widget _buildArchivalIcon(IconData icon, List<Color> colors, {bool hasTab = false, bool isVertical = false, double? scale}) {
+    final s = scale ?? widget.zoom;
     return SizedBox(
-      width: (isVertical ? 90 : 110) * widget.zoom,
-      height: (isVertical ? 120 : 110) * widget.zoom,
+      width: (isVertical ? 90 : 110) * s,
+      height: (isVertical ? 120 : 110) * s,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
@@ -247,13 +309,13 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           if (hasTab)
             Positioned(
               top: 0,
-              left: 10 * widget.zoom,
+              left: 10 * s,
               child: Container(
-                width: 38 * widget.zoom,
-                height: 14 * widget.zoom,
+                width: 38 * s,
+                height: 14 * s,
                 decoration: BoxDecoration(
                   color: colors.first.withOpacity(0.9),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(6 * widget.zoom)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(6 * s)),
                 ),
               ),
             ),
@@ -261,24 +323,19 @@ class _ItemCardState extends ConsumerState<ItemCard> {
             bottom: 0,
             left: 0,
             right: 0,
-            top: (hasTab ? 10 : 0) * widget.zoom,
+            top: (hasTab ? 10 : 0) * s,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(colors: colors),
-                borderRadius: BorderRadius.circular(12 * widget.zoom),
+                borderRadius: BorderRadius.circular(12 * s),
               ),
               child: Center(
-                child: Icon(icon, color: Colors.white, size: (isVertical ? 48 : 42) * widget.zoom),
+                child: Icon(icon, color: Colors.white, size: (isVertical ? 48 : 42) * s),
               ),
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _truncateMiddle(String title, {int maxLength = 50}) {
-    if (title.length <= maxLength) return title;
-    return '${title.substring(0, 25)}...${title.substring(title.length - 10)}';
   }
 }

@@ -63,6 +63,12 @@ final currentZoomProvider = Provider<double>((ref) {
   return zooms[path] ?? 0.8;
 });
 
+/// Global state for drag-and-drop operations.
+final isDraggingProvider = StateProvider<bool>((ref) => false);
+
+/// The paths currently being dragged.
+final draggingPathsProvider = StateProvider<Set<String>>((ref) => {});
+
 /// The currently previewed file (inline preview mode).
 final previewFileProvider = StateProvider<FileItem?>((ref) => null);
 

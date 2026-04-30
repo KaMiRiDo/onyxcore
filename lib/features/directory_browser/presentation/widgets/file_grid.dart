@@ -63,6 +63,7 @@ class _FileGridState extends ConsumerState<FileGrid> {
           itemBuilder: (context, index) {
             final item = items[index];
             return ItemCard(
+              key: ValueKey(item.path),
               item: item,
               zoom: zoom,
               isSelected: selection.selectedPaths.contains(item.path),

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
@@ -42,18 +43,20 @@ class Sidebar extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Brand Logo — "ONYXCORE" all caps, gradient, no icon
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ShaderMask(
-              shaderCallback: (bounds) =>
-                  AppTheme.primaryGradient.createShader(bounds),
-              child: Text(
-                'ONYXCORE',
-                style: GoogleFonts.manrope(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 1.5,
+          DragToMoveArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ShaderMask(
+                shaderCallback: (bounds) =>
+                    AppTheme.primaryGradient.createShader(bounds),
+                child: Text(
+                  'ONYXCORE',
+                  style: GoogleFonts.manrope(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -61,97 +64,109 @@ class Sidebar extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // Navigation Items
-          SidebarItem(
-            icon: Icons.home,
-            label: 'Home',
-            path: home,
-            isActive: currentPath == home,
-            onTap: () => _navigate(ref, home),
-          ),
-          SidebarItem(
-            icon: Icons.desktop_windows_outlined,
-            label: 'Desktop',
-            path: '$home/Desktop',
-            isActive: currentPath == '$home/Desktop',
-            onTap: () => _navigate(ref, '$home/Desktop'),
-          ),
-          SidebarItem(
-            icon: Icons.description_outlined,
-            label: 'Documents',
-            path: '$home/Documents',
-            isActive: currentPath == '$home/Documents',
-            onTap: () => _navigate(ref, '$home/Documents'),
-          ),
-          SidebarItem(
-            icon: Icons.music_note_outlined,
-            label: 'Music',
-            path: '$home/Music',
-            isActive: currentPath == '$home/Music',
-            onTap: () => _navigate(ref, '$home/Music'),
-          ),
-          SidebarItem(
-            icon: Icons.image_outlined,
-            label: 'Pictures',
-            path: '$home/Pictures',
-            isActive: currentPath == '$home/Pictures',
-            onTap: () => _navigate(ref, '$home/Pictures'),
-          ),
-          SidebarItem(
-            icon: Icons.videocam_outlined,
-            label: 'Videos',
-            path: '$home/Videos',
-            isActive: currentPath == '$home/Videos',
-            onTap: () => _navigate(ref, '$home/Videos'),
-          ),
-          SidebarItem(
-            icon: Icons.download_outlined,
-            label: 'Downloads',
-            path: '$home/Downloads',
-            isActive: currentPath == '$home/Downloads',
-            onTap: () => _navigate(ref, '$home/Downloads'),
-          ),
-          SidebarItem(
-            icon: Icons.access_time,
-            label: 'Recent',
-            path: 'virtual:recent',
-            isActive: currentPath == 'virtual:recent',
-            onTap: () => _navigate(ref, 'virtual:recent'),
-          ),
-          SidebarItem(
-            icon: Icons.storage_outlined,
-            label: 'File System',
-            path: '/',
-            isActive: currentPath == '/',
-            onTap: () => _navigate(ref, '/'),
-          ),
-          SidebarItem(
-            icon: Icons.delete_outline,
-            label: 'Trash',
-            path: '$home/.local/share/Trash/files',
-            isActive: currentPath == '$home/.local/share/Trash/files',
-            onTap: () => _navigate(ref, '$home/.local/share/Trash/files'),
+          const SizedBox(height: 24),
+ 
+          // Scrollable Navigation Area
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SidebarItem(
+                    icon: Icons.home,
+                    label: 'Home',
+                    path: home,
+                    isActive: currentPath == home,
+                    onTap: () => _navigate(ref, home),
+                  ),
+                  SidebarItem(
+                    icon: Icons.desktop_windows_outlined,
+                    label: 'Desktop',
+                    path: '$home/Desktop',
+                    isActive: currentPath == '$home/Desktop',
+                    onTap: () => _navigate(ref, '$home/Desktop'),
+                  ),
+                  SidebarItem(
+                    icon: Icons.description_outlined,
+                    label: 'Documents',
+                    path: '$home/Documents',
+                    isActive: currentPath == '$home/Documents',
+                    onTap: () => _navigate(ref, '$home/Documents'),
+                  ),
+                  SidebarItem(
+                    icon: Icons.music_note_outlined,
+                    label: 'Music',
+                    path: '$home/Music',
+                    isActive: currentPath == '$home/Music',
+                    onTap: () => _navigate(ref, '$home/Music'),
+                  ),
+                  SidebarItem(
+                    icon: Icons.image_outlined,
+                    label: 'Pictures',
+                    path: '$home/Pictures',
+                    isActive: currentPath == '$home/Pictures',
+                    onTap: () => _navigate(ref, '$home/Pictures'),
+                  ),
+                  SidebarItem(
+                    icon: Icons.videocam_outlined,
+                    label: 'Videos',
+                    path: '$home/Videos',
+                    isActive: currentPath == '$home/Videos',
+                    onTap: () => _navigate(ref, '$home/Videos'),
+                  ),
+                  SidebarItem(
+                    icon: Icons.download_outlined,
+                    label: 'Downloads',
+                    path: '$home/Downloads',
+                    isActive: currentPath == '$home/Downloads',
+                    onTap: () => _navigate(ref, '$home/Downloads'),
+                  ),
+                  SidebarItem(
+                    icon: Icons.access_time,
+                    label: 'Recent',
+                    path: 'virtual:recent',
+                    isActive: currentPath == 'virtual:recent',
+                    onTap: () => _navigate(ref, 'virtual:recent'),
+                  ),
+                  SidebarItem(
+                    icon: Icons.storage_outlined,
+                    label: 'File System',
+                    path: '/',
+                    isActive: currentPath == '/',
+                    onTap: () => _navigate(ref, '/'),
+                  ),
+                  SidebarItem(
+                    icon: Icons.delete_outline,
+                    label: 'Trash',
+                    path: '$home/.local/share/Trash/files',
+                    isActive: currentPath == '$home/.local/share/Trash/files',
+                    onTap: () => _navigate(ref, '$home/.local/share/Trash/files'),
+                  ),
+
+                  const SizedBox(height: 16),
+                  _buildSectionLabel('DEVICES'),
+                  DevicesSection(
+                    currentPath: currentPath,
+                    onNavigate: (path) => _navigate(ref, path),
+                  ),
+
+                  const SizedBox(height: 16),
+                  _buildSectionLabel('CLOUD STORAGE'),
+                  CloudItem(),
+                  SidebarItem(
+                    icon: Icons.add_circle_outline,
+                    label: 'Add Account',
+                    path: '',
+                    isActive: false,
+                    onTap: () {},
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
           ),
 
-          const SizedBox(height: 16),
-          _buildSectionLabel('DEVICES'),
-          DevicesSection(
-            currentPath: currentPath,
-            onNavigate: (path) => _navigate(ref, path),
-          ),
-
-          const SizedBox(height: 16),
-          _buildSectionLabel('CLOUD STORAGE'),
-          CloudItem(),
-          SidebarItem(
-            icon: Icons.add_circle_outline,
-            label: 'Add Account',
-            path: '',
-            isActive: false,
-            onTap: () {},
-          ),
-          const SizedBox(height: 16),
-
-          const Spacer(),
           const StorageIndicator(),
           const SizedBox(height: 16),
           const OverviewButton(),

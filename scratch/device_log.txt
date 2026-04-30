@@ -1,0 +1,28 @@
+2026-04-30 08:21:28.442161: Starting device detection...
+2026-04-30 08:21:30.136118: DEBUG: Checking device nvme0n1p3 with mountpoint "/"
+2026-04-30 08:21:30.136323: Adding device: File System at / (original name: nvme0n1p3)
+2026-04-30 08:21:30.136752: DEBUG: Checking device nvme0n1p4 with mountpoint "/home"
+2026-04-30 08:21:30.136881: Adding device: Home at /home (original name: nvme0n1p4)
+2026-04-30 08:21:30.137132: DEBUG: Checking device nvme0n1p6 with mountpoint "/boot/efi"
+2026-04-30 08:21:30.137312: Adding device: nvme0n1p6 at /boot/efi (original name: nvme0n1p6)
+2026-04-30 20:11:31.025524: Starting device detection...
+2026-04-30 20:11:32.789418: DEBUG: Checking device nvme0n1p3 with mountpoint "/"
+2026-04-30 20:11:32.789680: Adding device: File System at / (original name: nvme0n1p3)
+2026-04-30 20:11:32.790237: DEBUG: Checking device nvme0n1p4 with mountpoint "/home"
+2026-04-30 20:11:32.790397: Adding device: Home at /home (original name: nvme0n1p4)
+2026-04-30 20:11:32.790559: DEBUG: Checking device nvme0n1p6 with mountpoint "/boot/efi"
+2026-04-30 20:11:32.790853: Adding device: nvme0n1p6 at /boot/efi (original name: nvme0n1p6)
+2026-04-30 20:50:32.179195: Starting device detection...
+2026-04-30 20:50:34.005220: DEBUG: Checking device nvme0n1p3 with mountpoint "/"
+2026-04-30 20:50:34.005473: Adding device: File System at / (original name: nvme0n1p3)
+2026-04-30 20:50:34.005851: DEBUG: Checking device nvme0n1p4 with mountpoint "/home"
+2026-04-30 20:50:34.006048: Adding device: Home at /home (original name: nvme0n1p4)
+2026-04-30 20:50:34.006233: DEBUG: Checking device nvme0n1p6 with mountpoint "/boot/efi"
+2026-04-30 20:50:34.006689: Adding device: nvme0n1p6 at /boot/efi (original name: nvme0n1p6)
+2026-04-30 21:14:57.286780: Starting device detection...
+2026-04-30 21:14:59.138462: DEBUG: Checking device nvme0n1p3 with mountpoint "/"
+2026-04-30 21:14:59.138689: Adding device: File System at / (original name: nvme0n1p3)
+2026-04-30 21:14:59.139148: DEBUG: Checking device nvme0n1p4 with mountpoint "/home"
+2026-04-30 21:14:59.139346: Adding device: Home at /home (original name: nvme0n1p4)
+2026-04-30 21:14:59.139499: DEBUG: Checking device nvme0n1p6 with mountpoint "/boot/efi"
+2026-04-30 21:14:59.139843: Adding device: nvme0n1p6 at /boot/efi (original name: nvme0n1p6)
