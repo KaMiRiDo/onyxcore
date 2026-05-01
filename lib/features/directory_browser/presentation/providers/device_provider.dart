@@ -1,91 +1,115 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/device.dart';
 import 'package:onyxcore/core/utils/logger.dart';
 
-final deviceProvider = FutureProvider<List<Device>>((ref) async {
-  try {
-    log('Starting device detection...');
-    final result = await Process.run('lsblk', ['--json', '-o', 'NAME,MOUNTPOINT,SIZE,FSUSED,FSSIZE,TYPE,LABEL,MODEL']);
-    if (result.exitCode != 0) return [];
+/// StreamProvider that polls for connected storage devices every 2 seconds.
+final deviceProvider = StreamProvider<List<Device>>((ref) {
+  final controller = StreamController<List<Device>>();
+  
+  Timer? timer;
 
-    final data = jsonDecode(result.stdout as String) as Map<String, dynamic>;
-    final List<Device> devices = [];
+  Future<void> updateDevices() async {
+    try {
+      // Use --bytes for raw sizes, -p for full paths, --json for easy parsing
+      final result = await Process.run('lsblk', [
+        '--json', 
+        '--bytes',
+        '-p',
+        '-o', 'NAME,MOUNTPOINT,SIZE,FSUSED,FSSIZE,TYPE,LABEL,MODEL,RM'
+      ]);
+      
+      if (result.exitCode != 0) {
+        if (!controller.isClosed) controller.add([]);
+        return;
+      }
 
-    void parseDevices(List<dynamic> list) {
-      for (var item in list) {
-        final mountpoint = item['mountpoint'] as String?;
-        final name = (item['label'] ?? item['model'] ?? item['name'] ?? 'Unknown Device') as String;
-        final fssize = item['fssize'] as String?;
-        final fsused = item['fsused'] as String?;
+      final data = jsonDecode(result.stdout as String) as Map<String, dynamic>;
+      final List<Device> devices = [];
 
-        // Filter for meaningful user partitions/disks
-        if (mountpoint != null && 
-            !mountpoint.startsWith('/snap') && 
-            mountpoint != '[SWAP]') {
-          
-          double usage = 0.0;
-          if (fssize != null && fsused != null) {
-            try {
-              final used = _parseSize(fsused);
-              final total = _parseSize(fssize);
-              if (total > 0) usage = used / total;
-            } catch (_) {}
+      void parseDevices(List<dynamic> list) {
+        for (var item in list) {
+          final mountpoint = item['mountpoint'] as String?;
+          final name = (item['label'] ?? item['model'] ?? item['name'] ?? 'Unknown Device') as String;
+          final fssizeStr = item['fssize']?.toString();
+          final fsusedStr = item['fsused']?.toString();
+          final isRemovable = (item['rm'] == true || item['rm'] == 1 || item['rm'] == "1");
+
+          // Filter for meaningful user partitions/disks that are mounted
+          if (mountpoint != null && 
+              !mountpoint.startsWith('/snap') && 
+              mountpoint != '[SWAP]') {
+            
+            double usage = 0.0;
+            if (fssizeStr != null && fsusedStr != null) {
+              final used = double.tryParse(fsusedStr) ?? 0.0;
+              final total = double.tryParse(fssizeStr) ?? 0.0;
+              if (total > 0) usage = (used / total).clamp(0.0, 1.0);
+            }
+
+            String displayName = name;
+            final mp = mountpoint.trim();
+            
+            if (mp == '/') {
+              displayName = 'File System';
+            } else if (mp == '/home' || mp.startsWith('/home/') || mp.contains('/home/')) {
+              // Usually we don't want to show home separately if it's part of the main FS,
+              // but if it's a separate mount, we can show it as 'Home'.
+              if (mp == '/home') displayName = 'Home';
+            } else if (item['label'] != null && (item['label'] as String).isNotEmpty) {
+              displayName = item['label'] as String;
+            }
+
+            devices.add(Device(
+              id: (item['name'] ?? '') as String,
+              name: displayName,
+              path: mountpoint,
+              size: _formatSize(double.tryParse(item['size']?.toString() ?? '0') ?? 0),
+              usage: usage,
+              isRemovable: isRemovable || mountpoint.startsWith('/media') || mountpoint.startsWith('/run/media'),
+            ));
           }
 
-          String displayName = name;
-          final mp = mountpoint.trim();
-          log('DEBUG: Checking device $name with mountpoint "$mp"');
-          
-          if (mp == '/') {
-            displayName = 'File System';
-          } else if (mp == '/home' || mp.startsWith('/home/') || mp.contains('/home/')) {
-            displayName = 'Home';
-          } else if (item['label'] != null && (item['label'] as String).isNotEmpty) {
-            displayName = item['label'] as String;
+          if (item['children'] != null) {
+            parseDevices(item['children'] as List<dynamic>);
           }
-
-          log('Adding device: $displayName at $mountpoint (original name: $name)');
-          devices.add(Device(
-            name: displayName,
-            path: mountpoint,
-            size: (item['size'] ?? '') as String,
-            usage: usage,
-            isRemovable: mountpoint.startsWith('/media') || mountpoint.startsWith('/run/media'),
-          ));
-        }
-
-        if (item['children'] != null) {
-          parseDevices(item['children'] as List<dynamic>);
         }
       }
-    }
 
-    if (data['blockdevices'] != null) {
-      parseDevices(data['blockdevices'] as List<dynamic>);
-    }
+      if (data['blockdevices'] != null) {
+        parseDevices(data['blockdevices'] as List<dynamic>);
+      }
 
-    return devices;
-  } catch (e) {
-    return [];
+      if (!controller.isClosed) controller.add(devices);
+    } catch (e) {
+      log('Error detecting devices: $e');
+      if (!controller.isClosed) controller.add([]);
+    }
   }
+
+  // Initial update
+  updateDevices();
+
+  // Poll every 2 seconds
+  timer = Timer.periodic(const Duration(seconds: 2), (_) => updateDevices());
+
+  ref.onDispose(() {
+    timer?.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
 });
 
-double _parseSize(String sizeStr) {
-  final regExp = RegExp(r'^([\d.]+)([KMGTP]?)$');
-  final match = regExp.firstMatch(sizeStr.toUpperCase());
-  if (match == null) return 0.0;
-
-  final value = double.tryParse(match.group(1)!) ?? 0.0;
-  final unit = match.group(2);
-
-  switch (unit) {
-    case 'K': return value * 1024;
-    case 'M': return value * 1024 * 1024;
-    case 'G': return value * 1024 * 1024 * 1024;
-    case 'T': return value * 1024 * 1024 * 1024 * 1024;
-    case 'P': return value * 1024 * 1024 * 1024 * 1024 * 1024;
-    default: return value;
+String _formatSize(double bytes) {
+  if (bytes <= 0) return '0 B';
+  const suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  var i = 0;
+  while (bytes >= 1024 && i < suffixes.length - 1) {
+    bytes /= 1024;
+    i++;
   }
+  return '${bytes.toStringAsFixed(1)} ${suffixes[i]}';
 }

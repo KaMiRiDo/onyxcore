@@ -46,9 +46,9 @@ class VideoVolumeOverlay extends StatelessWidget {
                   trackShape: _GradientRectSliderTrackShape(),
                 ),
                 child: Slider(
-                  value: volume,
+                  value: volume.clamp(0.0, 200.0),
                   min: 0,
-                  max: 100,
+                  max: 200,
                   onChanged: onVolumeChanged,
                 ),
               ),

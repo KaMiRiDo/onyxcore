@@ -296,12 +296,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
   }
 
   void _startVolumeAdjustment({required bool isIncrease}) {
-    player.setVolume((player.state.volume + (isIncrease ? 5 : -5)).clamp(0, 100));
+    player.setVolume((player.state.volume + (isIncrease ? 5 : -5)).clamp(0, 200));
     _showVolumeOverlay();
     
     _volumeTimer?.cancel();
     _volumeTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      player.setVolume((player.state.volume + (isIncrease ? 2 : -2)).clamp(0, 100));
+      player.setVolume((player.state.volume + (isIncrease ? 2 : -2)).clamp(0, 200));
       _showVolumeOverlay();
     });
   }
@@ -409,6 +409,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
               // Interaction Trigger Zone (Full Viewport)
               Positioned.fill(
                 child: MouseRegion(
+                  cursor: isVisible ? MouseCursor.defer : SystemMouseCursors.none,
                   onEnter: (_) => _onInteraction(),
                   onHover: (_) => _onInteraction(),
                   child: Stack(
@@ -640,7 +641,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
                                     icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up, color: Colors.white70, size: 24),
                                   ),
                                   SizedBox(
-                                    width: 80,
+                                    width: 100,
                                     child: StreamBuilder<double>(
                                       stream: player.stream.volume,
                                       builder: (context, snapshot) {
@@ -648,14 +649,15 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget> with Wi
                                         return SliderTheme(
                                           data: SliderTheme.of(context).copyWith(
                                             trackHeight: 2,
-                                            activeTrackColor: Colors.white,
+                                            activeTrackColor: volume > 100 ? Colors.orange : Colors.white,
                                             inactiveTrackColor: Colors.white.withOpacity(0.2),
                                             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 3),
                                             overlayShape: const RoundSliderOverlayShape(overlayRadius: 6),
                                           ),
                                           child: Slider(
-                                            value: volume,
-                                            max: 100,
+                                            value: volume.clamp(0.0, 200.0),
+                                            min: 0,
+                                            max: 200,
                                             onChanged: (v) => player.setVolume(v),
                                           ),
                                         );

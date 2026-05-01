@@ -1,0 +1,48 @@
+        if (items.isEmpty) {
+          final isSearchActive = ref.watch(isSearchActiveProvider);
+          final query = ref.watch(searchQueryProvider);
+          
+          if (isSearchActive && query.isNotEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(Icons.folder_outlined, size: 120, color: Colors.white.withOpacity(0.05)),
+                      Icon(Icons.search, size: 60, color: Colors.white.withOpacity(0.1)),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'No Results Found',
+                    style: GoogleFonts.manrope(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No matches in "${p.basename(currentPath)}"',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      color: Colors.white38,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          String message = 'This folder is empty';
+          if (currentPath == 'virtual:recent') message = 'No recent files found';
+          if (currentPath == 'virtual:starred') message = 'No starred items yet';
+          return Center(
+            child: Text(
+              message,
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
+          );
+        }

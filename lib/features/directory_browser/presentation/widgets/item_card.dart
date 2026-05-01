@@ -85,11 +85,11 @@ class _ItemCardState extends ConsumerState<ItemCard> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               _truncateMiddle(widget.item.name),
-              maxLines: widget.zoom < 0.8 ? 1 : 2,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
-                fontSize: 13 * (widget.zoom < 1 ? widget.zoom.clamp(0.85, 1.0) : (widget.zoom > 1.2 ? 1.1 : 1.0)),
+                fontSize: 13 * (widget.zoom < 1 ? widget.zoom.clamp(0.8, 1.0) : (widget.zoom > 1.2 ? 1.1 : 1.0)),
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
@@ -264,6 +264,8 @@ class _ItemCardState extends ConsumerState<ItemCard> {
       );
     } else if (widget.item.type == FileItemType.video) {
       return _buildSvgIcon('assets/icons/video.svg', isVertical: false, scale: scale);
+    } else if (widget.item.type == FileItemType.audio) {
+      return _buildSvgIcon('assets/icons/audio.svg', isVertical: false, scale: scale);
     } else {
       return _buildFileFallback(scale: scale);
     }
@@ -292,9 +294,11 @@ class _ItemCardState extends ConsumerState<ItemCard> {
     );
   }
 
-  String _truncateMiddle(String title, {int maxLength = 50}) {
+  String _truncateMiddle(String title, {int maxLength = 35}) {
     if (title.length <= maxLength) return title;
-    return '${title.substring(0, 25)}...${title.substring(title.length - 10)}';
+    final startLength = (maxLength * 0.6).floor();
+    final endLength = (maxLength * 0.3).floor();
+    return '${title.substring(0, startLength)}...${title.substring(title.length - endLength)}';
   }
 
   Widget _buildArchivalIcon(IconData icon, List<Color> colors, {bool hasTab = false, bool isVertical = false, double? scale}) {

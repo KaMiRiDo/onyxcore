@@ -33,9 +33,14 @@ class DevicesSection extends ConsumerWidget {
                 progress: device.usage,
                 onEject: device.isRemovable
                     ? () async {
-                        await Process.run(
-                            'udisksctl', ['unmount', '-b', device.path]);
-                        ref.invalidate(deviceProvider);
+                        try {
+                          // Unmount the block device
+                          await Process.run('udisksctl', ['unmount', '-b', device.id]);
+                          // Optionally power off/eject for USB drives
+                          await Process.run('udisksctl', ['power-off', '-b', device.id]);
+                        } catch (e) {
+                          debugPrint('Eject error: $e');
+                        }
                       }
                     : null,
                 onTap: () => onNavigate(device.path),

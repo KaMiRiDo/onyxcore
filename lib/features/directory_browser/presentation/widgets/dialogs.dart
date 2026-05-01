@@ -40,6 +40,7 @@ Future<bool> showVibrantConfirmDialog({
           ),
         ),
         TextButton(
+          autofocus: true,
           onPressed: () => Navigator.pop(context, true),
           style: TextButton.styleFrom(
             backgroundColor: confirmColor.withOpacity(0.15),

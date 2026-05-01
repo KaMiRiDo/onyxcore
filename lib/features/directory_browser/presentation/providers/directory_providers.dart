@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
@@ -75,6 +76,18 @@ final previewFileProvider = StateProvider<FileItem?>((ref) => null);
 /// Global visibility state for the inline preview HUD.
 final previewHudVisibleProvider = StateProvider<bool>((ref) => true);
 
+/// Current search query.
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
+/// Whether search mode is active in TopBar.
+final isSearchActiveProvider = StateProvider<bool>((ref) => false);
+
+/// Whether location editing mode is active in TopBar.
+final isLocationEditingProvider = StateProvider<bool>((ref) => false);
+
+/// Current error message for path editing.
+final pathErrorProvider = StateProvider<String?>((ref) => null);
+
 /// Whether the current path is a virtual path (recent, starred).
 final isVirtualPathProvider = Provider<bool>((ref) {
   final String path = ref.watch(currentPathProvider);
@@ -93,9 +106,11 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     final settingsAsync = ref.watch(settingsProvider);
     final showHidden = settingsAsync.value?.showHiddenFiles ?? false;
 
-    // Handle virtual paths
+    // Handle virtual paths (allow filtering if data exists)
     if (path.startsWith('virtual:')) {
-      return [];
+      if (path != 'virtual:recent' && path != 'virtual:starred') {
+        return [];
+      }
     }
 
     // Ensure directory exists
@@ -122,11 +137,6 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
     // Generate metadata async (aspect ratios)
     _generateMetadataAsync(items);
-
-    // Filter hidden files if setting is disabled
-    if (!showHidden) {
-      return items.where((item) => !item.name.startsWith('.')).toList();
-    }
 
     return items;
   }
@@ -169,3 +179,31 @@ final directoryItemsProvider =
     AsyncNotifierProvider<DirectoryItemsNotifier, List<FileItem>>(
   DirectoryItemsNotifier.new,
 );
+
+/// Filters directory items based on the current search query and settings.
+final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref) {
+  final itemsAsync = ref.watch(directoryItemsProvider);
+  final query = ref.watch(searchQueryProvider).toLowerCase();
+  final settingsAsync = ref.watch(settingsProvider);
+  final showHidden = settingsAsync.value?.showHiddenFiles ?? false;
+  
+  return itemsAsync.whenData((items) {
+    var filtered = items;
+    
+    // Filter hidden files
+    if (!showHidden) {
+      filtered = filtered.where((item) => !item.name.startsWith(".")).toList();
+    }
+    
+    // Filter by search query
+    if (query.isNotEmpty) {
+      filtered = filtered.where((item) => item.name.toLowerCase().contains(query)).toList();
+    }
+    
+    return filtered;
+  });
+});
+
+final isRefreshingProvider = StateProvider<bool>((ref) => false);
+final refreshCountProvider = StateProvider<int>((ref) => 0);
+final mainFocusNodeProvider = Provider<FocusNode>((ref) => FocusNode());

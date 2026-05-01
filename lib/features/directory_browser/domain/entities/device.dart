@@ -1,4 +1,5 @@
 class Device {
+  final String id; // System identifier (e.g., /dev/sdb1)
   final String name;
   final String path;
   final String size;
@@ -6,6 +7,7 @@ class Device {
   final bool isRemovable;
 
   Device({
+    required this.id,
     required this.name,
     required this.path,
     required this.size,

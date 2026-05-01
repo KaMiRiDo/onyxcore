@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
@@ -36,11 +37,12 @@ class GalleryPage extends ConsumerStatefulWidget {
 }
 
 class _GalleryPageState extends ConsumerState<GalleryPage> {
-  final FocusNode _focusNode = FocusNode();
+  late final FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
+    _focusNode = ref.read(mainFocusNodeProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final String currentPath = ref.read(currentPathProvider);
       ref.read(navigationProvider.notifier).initialize(currentPath);
@@ -86,9 +88,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
           // Filter by requested media type
           final targetType = typeStr == 'video' 
               ? FileItemType.video 
-              : (typeStr == 'document' ? FileItemType.document : FileItemType.image);
+              : (typeStr == "document" ? FileItemType.document : FileItemType.image);
           final mediaItems = items.where((i) => i.type == targetType).toList();
-          
+      
           if (mediaItems.isEmpty) return 'error: no media items';
 
           final currentIndex = mediaItems.indexWhere((i) => i.path == currentPath);
@@ -121,8 +123,12 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
     });
   }  @override
   Widget build(BuildContext context) {
+    // Watch search state at the top level to ensure rebuilds of shortcuts
+    final isSearchActive = ref.watch(isSearchActiveProvider);
+    final isLocationEditing = ref.watch(isLocationEditingProvider);
+    
     return CallbackShortcuts(
-      bindings: _buildKeyBindings(),
+      bindings: _buildKeyBindings(isSearchActive, isLocationEditing),
       child: Focus(
         focusNode: _focusNode,
         autofocus: true,
@@ -228,7 +234,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
     return Expanded(
       child: Column(
         children: [
-          const ActionBar(),
+          // const ActionBar(), // Removed panel
           Expanded(
             child: RubberBandOverlay(
               child: const FileGrid(),
@@ -239,10 +245,11 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
     );
   }
 
-  Map<ShortcutActivator, VoidCallback> _buildKeyBindings() {
+  Map<ShortcutActivator, VoidCallback> _buildKeyBindings(bool isSearchActive, bool isLocationEditing) {
     return {
       // Basic Navigation
-      const SingleActivator(LogicalKeyboardKey.backspace): _goBack,
+      if (!isSearchActive && !isLocationEditing)
+        const SingleActivator(LogicalKeyboardKey.backspace): _goBack,
       const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _goBack,
       const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): _goForward,
 
@@ -273,10 +280,72 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
           () => _zoom(-0.1),
       const SingleActivator(LogicalKeyboardKey.digit0, control: true):
           _resetZoom,
+      
+      // Global Shortcuts
+      const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(!isSearchActive),
+      const SingleActivator(LogicalKeyboardKey.keyR, control: true): _refresh,
+      const SingleActivator(LogicalKeyboardKey.keyD, alt: true): () {
+        if (!isSearchActive) {
+          ref.read(isLocationEditingProvider.notifier).update((state) => !state);
+        }
+      },
+
+      // Item Opening
+      if (!isLocationEditing) ...{
+        const SingleActivator(LogicalKeyboardKey.enter): _handleEnter,
+        const SingleActivator(LogicalKeyboardKey.numpadEnter): _handleEnter,
+      },
     };
   }
 
+  void _toggleSearch(bool active) {
+    if (active) {
+      ref.read(isLocationEditingProvider.notifier).state = false;
+    }
+    ref.read(isSearchActiveProvider.notifier).state = active;
+  }
+
+  void _refresh() async {
+    debugPrint("Refresh triggered via Ctrl+R");
+    ref.read(refreshCountProvider.notifier).update((state) => state + 1);
+    ref.read(isRefreshingProvider.notifier).state = true;
+    ref.read(directoryItemsProvider.notifier).refresh();
+    // Subtle blink duration
+    await Future.delayed(const Duration(milliseconds: 150));
+    ref.read(isRefreshingProvider.notifier).state = false;
+  }
+
+  void _handleEnter() {
+    final selection = ref.read(selectionProvider);
+    if (selection.selectedPaths.length != 1) return;
+
+    final selectedPath = selection.selectedPaths.first;
+    final itemsAsync = ref.read(filteredDirectoryItemsProvider);
+    
+    itemsAsync.whenData((items) {
+      try {
+        final item = items.firstWhere((i) => i.path == selectedPath);
+        _openItem(item);
+      } catch (e) {
+        // Item not found in current view (maybe hidden?)
+      }
+    });
+  }
+
+  void _openItem(FileItem item) {
+    if (item.type == FileItemType.folder) {
+      ref.read(selectionProvider.notifier).deselectAll();
+      ref.read(navigationProvider.notifier).navigateTo(item.path);
+      ref.read(currentPathProvider.notifier).state = item.path;
+    } else if (item.type == FileItemType.image || 
+               item.type == FileItemType.video || 
+               item.type == FileItemType.document) {
+      ref.read(previewFileProvider.notifier).state = item;
+    }
+  }
+
   void _goBack() {
+    ref.read(isSearchActiveProvider.notifier).state = false;
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goBack();
     final nav = ref.read(navigationProvider);
@@ -286,6 +355,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
   }
 
   void _goForward() {
+    ref.read(isSearchActiveProvider.notifier).state = false;
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goForward();
     final nav = ref.read(navigationProvider);
@@ -376,23 +446,36 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
   Future<void> _handleDelete({required bool permanent}) async {
     final selection = ref.read(selectionProvider);
     if (selection.selectedPaths.isEmpty) return;
+
+    final currentPath = ref.read(currentPathProvider);
+    final home = Platform.environment['HOME'] ?? '/';
+    final trashPath = '$home/.local/share/Trash/files';
+    
+    // If we are in trash, every delete is permanent
+    final isDeletingFromTrash = currentPath == trashPath;
+    final effectivelyPermanent = permanent || isDeletingFromTrash;
     
     final count = selection.selectedPaths.length;
-    final confirmed = await showVibrantConfirmDialog(
-      context: context,
-      title: permanent ? 'Delete Permanently' : 'Move to Trash',
-      message: permanent 
-          ? 'Permanently delete $count item(s)? This cannot be undone.'
-          : 'Move $count item(s) to Trash?',
-      confirmLabel: permanent ? 'Delete' : 'Move to Trash',
-      confirmColor: permanent ? AppColors.error : AppColors.violet,
-    );
+    bool confirmed = false;
+    if (effectivelyPermanent) {
+      confirmed = await showVibrantConfirmDialog(
+        context: context,
+        title: 'Delete Permanently',
+        message: effectivelyPermanent && !permanent 
+            ? 'Delete $count item(s) from Trash? This will permanently remove them.'
+            : 'Permanently delete $count item(s)? This cannot be undone.',
+        confirmLabel: 'Delete',
+        confirmColor: AppColors.error,
+      );
+    } else {
+      confirmed = true;
+    }
 
     if (!confirmed) return;
 
     final repo = ref.read(directoryRepositoryProvider);
     try {
-      if (permanent) {
+      if (effectivelyPermanent) {
         await repo.deleteItems(selection.selectedPaths.toList(), permanent: true);
       } else {
         try {
@@ -451,8 +534,11 @@ class _GalleryPageState extends ConsumerState<GalleryPage> {
     );
     if (name != null && name.isNotEmpty) {
       final repo = ref.read(directoryRepositoryProvider);
+      final newFolderPath = p.join(currentPath, name);
       await repo.createFolder(currentPath, name);
       await ref.read(directoryItemsProvider.notifier).refresh();
+      // Auto-select the new folder
+      ref.read(selectionProvider.notifier).selectMultiple([newFolderPath]);
     }
   }
 

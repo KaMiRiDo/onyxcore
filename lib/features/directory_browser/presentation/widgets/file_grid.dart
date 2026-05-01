@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import "package:path/path.dart" as p;
 
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
@@ -22,24 +24,146 @@ class FileGrid extends ConsumerStatefulWidget {
 
 class _FileGridState extends ConsumerState<FileGrid> {
   String? _hoveredPath;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = ref.read(mainFocusNodeProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final itemsAsync = ref.watch(directoryItemsProvider);
+    final itemsAsync = ref.watch(filteredDirectoryItemsProvider);
     final zoom = ref.watch(currentZoomProvider);
     final selection = ref.watch(selectionProvider);
     final String currentPath = ref.watch(currentPathProvider);
+    final refreshCount = ref.watch(refreshCountProvider);
 
-    final content = itemsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Text(
-          'Error: $error',
-          style: const TextStyle(color: AppColors.textMuted),
+    final isRefreshing = ref.watch(isRefreshingProvider);
+
+    final content = AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: isRefreshing ? 0.2 : 1.0,
+      curve: Curves.easeInOut,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        child: itemsAsync.when(
+        loading: () => Center(
+          key: const ValueKey('loading'),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.violet.withOpacity(0.4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Reading disk...',
+                style: GoogleFonts.manrope(
+                  color: Colors.white24,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      data: (items) {
-        if (items.isEmpty) {
+        error: (error, _) => Center(
+          key: const ValueKey('error'),
+          child: Text(
+            'Error: $error',
+            style: const TextStyle(color: AppColors.textMuted),
+          ),
+        ),
+        data: (items) {
+          if (items.isEmpty) {
+            final isSearchActive = ref.watch(isSearchActiveProvider);
+            final query = ref.watch(searchQueryProvider);
+            
+            if (isSearchActive && query.isNotEmpty) {
+              return Center(
+                key: const ValueKey('no-results'),
+                child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(40),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.02),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    ),
+                    child: ShaderMask(
+                      shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
+                      child: const Icon(
+                        Icons.manage_search_rounded,
+                        size: 80,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'No Results Found',
+                    style: GoogleFonts.manrope(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.manrope(
+                        fontSize: 16,
+                        color: Colors.white38,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      children: [
+                        const TextSpan(text: 'No matches for "'),
+                        TextSpan(
+                          text: query,
+                          style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: '" in ${p.basename(currentPath)}'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  OutlinedButton(
+                    onPressed: () {
+                      ref.read(isSearchActiveProvider.notifier).state = false;
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      'Clear Search',
+                      style: GoogleFonts.manrope(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           String message = 'This folder is empty';
           if (currentPath == 'virtual:recent') message = 'No recent files found';
           if (currentPath == 'virtual:starred') message = 'No starred items yet';
@@ -51,8 +175,9 @@ class _FileGridState extends ConsumerState<FileGrid> {
           );
         }
 
-        return GridView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          return GridView.builder(
+            key: ValueKey('grid-refreshed-$refreshCount'),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 180 * zoom,
             mainAxisSpacing: 16 * zoom,
@@ -77,7 +202,9 @@ class _FileGridState extends ConsumerState<FileGrid> {
           },
         );
       },
-    );
+    ),
+  ),
+);
 
     if (currentPath.startsWith('virtual:')) return content;
 
@@ -129,6 +256,7 @@ class _FileGridState extends ConsumerState<FileGrid> {
         HardwareKeyboard.instance.logicalKeysPressed
             .contains(LogicalKeyboardKey.controlRight);
 
+    ref.read(mainFocusNodeProvider).requestFocus();
     ref.read(selectionProvider.notifier).onItemTap(
           currentIndex: index,
           allPaths: items.map((i) => i.path).toList(),
