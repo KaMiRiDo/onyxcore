@@ -58,6 +58,15 @@ class SelectionNotifier extends Notifier<SelectionState> {
     }
   }
 
+  /// Select a single path.
+  void select(String path) {
+    final newSelection = Set<String>.from(state.selectedPaths)..add(path);
+    state = state.copyWith(
+      selectedPaths: newSelection,
+      isSelectionMode: true,
+    );
+  }
+
   /// Select multiple paths (used for rubber-band selection).
   void selectMultiple(List<String> paths, {bool isCtrl = false}) {
     if (isCtrl) {

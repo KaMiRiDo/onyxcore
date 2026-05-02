@@ -38,6 +38,11 @@ class DirectoryCache<T> {
   /// Invalidate a specific cache entry.
   void invalidate(String key) => _cache.remove(key);
 
+  /// Invalidate a key and all its descendants.
+  void invalidateRecursive(String key) {
+    _cache.removeWhere((k, _) => k == key || k.startsWith(key + '/'));
+  }
+
   /// Invalidate all cache entries.
   void invalidateAll() => _cache.clear();
 

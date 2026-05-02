@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -13,8 +14,13 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
 
 /// Individual file/folder card — pixel-perfect replica of original _buildItemCard().
 class ItemCard extends ConsumerStatefulWidget {
@@ -43,6 +49,21 @@ class ItemCard extends ConsumerStatefulWidget {
 
 class _ItemCardState extends ConsumerState<ItemCard> {
   Timer? _hoverTimer;
+  final GlobalKey _cardKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(itemKeysProvider.notifier).update((state) {
+          final newState = Map<String, GlobalKey>.from(state);
+          newState[widget.item.path] = _cardKey;
+          return newState;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -58,6 +79,8 @@ class _ItemCardState extends ConsumerState<ItemCard> {
     Widget cardContent = Opacity(
       opacity: isSourceDragging ? 0.3 : 1.0,
       child: Container(
+      width: double.infinity,
+      height: double.infinity,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: widget.isSelected
@@ -230,12 +253,162 @@ class _ItemCardState extends ConsumerState<ItemCard> {
         },
         onExit: (_) => widget.onHoverChanged(false),
         child: GestureDetector(
+          key: _cardKey,
+          behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
           onDoubleTap: widget.onDoubleTap,
+          onSecondaryTapUp: (details) {
+            if (!widget.isSelected) {
+              widget.onTap();
+            }
+            _showContextMenu(context, details.globalPosition);
+          },
           child: result,
         ),
       ),
     );
+  }
+
+  void _showContextMenu(BuildContext context, Offset position) {
+    final selection = ref.read(selectionProvider).selectedPaths.toList();
+    final paths = selection.isEmpty ? [widget.item.path] : selection;
+
+    final menuItems = [
+      if (paths.length == 1) ...[
+        ContextMenuItem(
+          title: 'Open',
+          onTap: widget.onDoubleTap,
+        ),
+        ContextMenuItem.divider(),
+      ],
+      ContextMenuItem(
+        title: 'Cut',
+        shortcut: 'Ctrl+X',
+        onTap: () {
+          ref.read(clipboardProvider.notifier).cut(paths);
+        },
+      ),
+      ContextMenuItem(
+        title: 'Copy',
+        shortcut: 'Ctrl+C',
+        onTap: () {
+          ref.read(clipboardProvider.notifier).copy(paths);
+        },
+      ),
+      ContextMenuItem.divider(),
+      ContextMenuItem(
+        title: 'Rename...',
+        shortcut: 'F2',
+        onTap: () async {
+          if (paths.length == 1) {
+            final existingNames = ref.read(filteredDirectoryItemsProvider).value?.map((i) => i.name).toList() ?? [];
+            RenamePopover.show(
+              context: context,
+              position: position,
+              paths: paths,
+              existingNames: existingNames,
+              onClose: () => ref.read(mainFocusNodeProvider).requestFocus(),
+              onRename: (result) async {
+                final repo = ref.read(directoryRepositoryProvider);
+                try {
+                  if (result is String) {
+                    final newPath = await repo.renameItem(paths.first, result);
+                    ref.read(selectionProvider.notifier).deselectAll();
+                    ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+                  }
+                  ref.read(directoryItemsProvider.notifier).refresh();
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
+                } finally {
+                  ref.read(mainFocusNodeProvider).requestFocus();
+                }
+              },
+            );
+          } else {
+            final result = await showDialog(
+              context: context,
+              builder: (context) => RenameDialog(paths: paths),
+            );
+
+            if (result == null) {
+              ref.read(mainFocusNodeProvider).requestFocus();
+              return;
+            }
+
+            final repo = ref.read(directoryRepositoryProvider);
+            try {
+              if (result is String) {
+                final newPath = await repo.renameItem(paths.first, result);
+                ref.read(selectionProvider.notifier).deselectAll();
+                ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+              } else if (result is Map) {
+                final mode = result['mode'] as RenameMode;
+                final value = result['value'] as String;
+                List<String> newPaths = [];
+                if (mode == RenameMode.prefix) {
+                  newPaths = await repo.bulkRename(paths, prefix: value);
+                } else {
+                  newPaths = await repo.bulkRename(paths, baseName: value);
+                }
+                ref.read(selectionProvider.notifier).deselectAll();
+                ref.read(selectionProvider.notifier).selectMultiple(newPaths);
+              }
+              ref.read(directoryItemsProvider.notifier).refresh();
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
+            } finally {
+              ref.read(mainFocusNodeProvider).requestFocus();
+            }
+          }
+        },
+      ),
+      ContextMenuItem(
+        title: 'Compress...',
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compression coming soon.')));
+        },
+      ),
+      ContextMenuItem(
+        title: 'Move to Trash',
+        shortcut: 'Delete',
+        isDestructive: true,
+        onTap: () async {
+          final repo = ref.read(directoryRepositoryProvider);
+          try {
+            await repo.deleteItems(paths, permanent: false);
+            ref.read(selectionProvider.notifier).deselectAll();
+            ref.read(directoryItemsProvider.notifier).refresh();
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+          }
+        },
+      ),
+      if (paths.length == 1) ...[
+        ContextMenuItem.divider(),
+        ContextMenuItem(
+          title: 'Open in Terminal',
+          onTap: () {
+            final targetDir = widget.item.type == FileItemType.folder 
+                ? widget.item.path 
+                : p.dirname(widget.item.path);
+            Process.run('gnome-terminal', ['--working-directory=$targetDir']);
+          },
+        ),
+      ],
+      ContextMenuItem.divider(),
+      ContextMenuItem(
+        title: 'Properties',
+        shortcut: 'Alt+Return',
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (context) => PropertiesDialog(paths: paths),
+          );
+        },
+      ),
+    ];
+
+    ContextMenu.show(context, position, menuItems);
   }
 
   Widget _buildItemPreview({double? scale}) {

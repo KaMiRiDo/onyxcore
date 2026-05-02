@@ -15,6 +15,8 @@ class OnyxCoreApp extends StatefulWidget {
 }
 
 class _OnyxCoreAppState extends State<OnyxCoreApp> with WindowListener {
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
@@ -31,14 +33,21 @@ class _OnyxCoreAppState extends State<OnyxCoreApp> with WindowListener {
 
   @override
   void onWindowClose() async {
-    debugPrint('[OnyxCoreApp] Main window closing. Terminating process...');
-    // Forcefully kill the entire process tree to clean up all secondary windows.
-    exit(0);
+    // If a dialog is open (like properties or rename), close the dialog instead of the app
+    final context = navigatorKey.currentContext;
+    if (context != null && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      debugPrint('[OnyxCoreApp] Main window closing. Terminating process...');
+      // Forcefully kill the entire process tree to clean up all secondary windows.
+      exit(0);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'OnyxCore',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,

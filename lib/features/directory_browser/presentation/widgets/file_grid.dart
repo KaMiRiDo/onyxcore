@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,9 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/navig
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/error_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
 class FileGrid extends ConsumerStatefulWidget {
@@ -22,14 +26,29 @@ class FileGrid extends ConsumerStatefulWidget {
   ConsumerState<FileGrid> createState() => _FileGridState();
 }
 
-class _FileGridState extends ConsumerState<FileGrid> {
+
+class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver {
   String? _hoveredPath;
   late final FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _focusNode = ref.read(mainFocusNodeProvider);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached || state == AppLifecycleState.hidden) {
+      ref.read(taskProvider.notifier).cancelAllTasks();
+    }
   }
 
   @override
@@ -210,7 +229,6 @@ class _FileGridState extends ConsumerState<FileGrid> {
 
     return DragTarget<List<String>>(
       onWillAcceptWithDetails: (details) {
-        // Can't drop if current path is virtual or if all items are already in currentPath
         return !details.data.every((path) {
           final parts = (path.endsWith('/') ? path.substring(0, path.length - 1) : path).split('/');
           final parent = parts.take(parts.length > 1 ? parts.length - 1 : 0).join('/');
@@ -220,12 +238,82 @@ class _FileGridState extends ConsumerState<FileGrid> {
       },
       onAcceptWithDetails: (details) async {
         final repo = ref.read(directoryRepositoryProvider);
+        final sources = details.data;
+        
         final taskId = ref.read(taskProvider.notifier).addTask(
           title: 'Moving Files',
-          subtitle: '${details.data.length} items to current folder',
+          subtitle: '${sources.length} items to current folder',
         );
+
         try {
-          await repo.moveItems(details.data, currentPath);
+          ref.read(selectionProvider.notifier).deselectAll();
+
+          for (int i = 0; i < sources.length; i++) {
+            if (ref.read(taskProvider.notifier).isTaskCancelled(taskId)) break;
+
+            final source = sources[i];
+            final name = p.basename(source);
+            final destPath = p.join(currentPath, name);
+            final isFolder = Directory(source).existsSync();
+
+            final absSource = p.canonicalize(source);
+            final absDest = p.canonicalize(destPath);
+            final typeStr = isFolder ? 'folder' : 'file';
+
+            if (absSource == absDest || absSource.startsWith(absDest + p.separator)) {
+              await showDialog(
+                context: context,
+                builder: (context) => ErrorDialog(
+                  title: 'You cannot move a $typeStr over itself.',
+                  message: 'The source $typeStr would be overwritten by the destination.',
+                ),
+              );
+              continue;
+            }
+
+            // check if destination is inside source (circular inclusion)
+            if (absDest.startsWith(absSource + p.separator)) {
+              await showDialog(
+                context: context,
+                builder: (context) => ErrorDialog(
+                  title: 'You cannot move a $typeStr into itself.',
+                  message: 'The destination is inside the source $typeStr.',
+                ),
+              );
+              continue;
+            }
+
+            String finalDestPath = destPath;
+
+            if (File(destPath).existsSync() || Directory(destPath).existsSync()) {
+              final resolution = await ref.read(conflictProvider.notifier).resolveConflict(
+                fileName: name,
+                destinationPath: destPath,
+                isFolder: isFolder,
+                context: context,
+              );
+
+              if (resolution == ConflictResolution.skip) {
+                continue;
+              } else if (resolution == ConflictResolution.rename) {
+                final ext = p.extension(name);
+                final base = p.basenameWithoutExtension(name);
+                var counter = 1;
+                var newName = "$base($counter)$ext";
+                while (File(p.join(currentPath, newName)).existsSync() || 
+                       Directory(p.join(currentPath, newName)).existsSync()) {
+                  counter++;
+                  newName = "$base($counter)$ext";
+                }
+                finalDestPath = p.join(currentPath, newName);
+              }
+            }
+
+            await repo.moveItemTo(source, finalDestPath);
+            ref.read(selectionProvider.notifier).select(finalDestPath);
+            ref.read(taskProvider.notifier).updateProgress(taskId, (i + 1) / sources.length);
+          }
+
           ref.read(taskProvider.notifier).completeTask(taskId);
           ref.read(directoryItemsProvider.notifier).refresh();
           ref.read(selectionProvider.notifier).deselectAll();

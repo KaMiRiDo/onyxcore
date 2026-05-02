@@ -207,3 +207,6 @@ final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref
 final isRefreshingProvider = StateProvider<bool>((ref) => false);
 final refreshCountProvider = StateProvider<int>((ref) => 0);
 final mainFocusNodeProvider = Provider<FocusNode>((ref) => FocusNode());
+
+/// Global registry of ItemCard GlobalKeys to find their positions for popovers (like Rename).
+final itemKeysProvider = StateProvider<Map<String, GlobalKey>>((ref) => {});

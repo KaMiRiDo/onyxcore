@@ -24,18 +24,27 @@ abstract class DirectoryRepository {
   /// Copy items from [sources] to [destination] folder.
   Future<void> copyItems(List<String> sources, String destination);
 
+  /// Copy a single item from [source] to the exact [destinationPath].
+  Future<void> copyItemTo(String source, String destinationPath);
+
   /// Move items from [sources] to [destination] folder (Cut & Paste).
   Future<void> moveItems(List<String> sources, String destination);
 
-  /// Rename a single item.
-  Future<void> renameItem(String path, String newName);
+  /// Move a single item from [source] to the exact [destinationPath].
+  Future<void> moveItemTo(String source, String destinationPath);
 
-  /// Rename multiple items using prefix or numbering.
-  Future<void> bulkRename(List<String> paths, {String? prefix, String? baseName});
+  /// Rename a single item. Returns the new path.
+  Future<String> renameItem(String path, String newName);
+
+  /// Rename multiple items using prefix or numbering. Returns the new paths.
+  Future<List<String>> bulkRename(List<String> paths, {String? prefix, String? baseName});
 
   /// Specialized Linux trash operation using 'gio'.
   Future<void> trashItems(List<String> paths);
 
   /// Watch a directory for file system changes via inotify.
   Stream<FileChangeEvent> watchDirectory(String path);
+
+  /// Manually invalidate cache for a path.
+  void invalidateCache(String path, {bool recursive = false});
 }

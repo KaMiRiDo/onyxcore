@@ -1,3 +1,5 @@
+import 'package:path/path.dart' as p;
+
 import '../../../../core/cache/directory_cache.dart';
 import '../../../../core/platform/directory_watcher.dart';
 import '../../domain/entities/file_item.dart';
@@ -73,22 +75,46 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   }
 
   @override
+  Future<void> copyItemTo(String source, String destinationPath) async {
+    await datasource.copyItemTo(source, destinationPath);
+    cache.invalidateRecursive(destinationPath);
+    cache.invalidate(p.dirname(destinationPath));
+  }
+
+  @override
   Future<void> moveItems(List<String> sources, String destination) async {
     await datasource.moveItems(sources, destination);
     cache.invalidate(destination);
+    for (final source in sources) {
+      cache.invalidateRecursive(source);
+    }
     _invalidateParents(sources);
   }
 
   @override
-  Future<void> renameItem(String path, String newName) async {
-    await datasource.renameItem(path, newName);
-    _invalidateParents([path]);
+  Future<void> moveItemTo(String source, String destinationPath) async {
+    await datasource.moveItemTo(source, destinationPath);
+    cache.invalidateRecursive(source);
+    cache.invalidateRecursive(destinationPath);
+    cache.invalidate(p.dirname(destinationPath));
   }
 
   @override
-  Future<void> bulkRename(List<String> paths, {String? prefix, String? baseName}) async {
-    await datasource.bulkRename(paths, prefix: prefix, baseName: baseName);
+  Future<String> renameItem(String path, String newName) async {
+    final newPath = await datasource.renameItem(path, newName);
+    cache.invalidateRecursive(path);
+    _invalidateParents([path]);
+    return newPath;
+  }
+
+  @override
+  Future<List<String>> bulkRename(List<String> paths, {String? prefix, String? baseName}) async {
+    final newPaths = await datasource.bulkRename(paths, prefix: prefix, baseName: baseName);
+    for (final path in paths) {
+      cache.invalidateRecursive(path);
+    }
     _invalidateParents(paths);
+    return newPaths;
   }
 
   void _invalidateParents(List<String> paths) {
@@ -105,5 +131,14 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   Stream<FileChangeEvent> watchDirectory(String path) {
     watcher.watch(path);
     return watcher.events;
+  }
+
+  @override
+  void invalidateCache(String path, {bool recursive = false}) {
+    if (recursive) {
+      cache.invalidateRecursive(path);
+    } else {
+      cache.invalidate(path);
+    }
   }
 }

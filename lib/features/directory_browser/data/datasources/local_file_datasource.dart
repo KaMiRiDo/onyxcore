@@ -75,14 +75,52 @@ class LocalFileDatasource {
     for (final source in sources) {
       final name = p.basename(source);
       final destPath = p.join(destination, name);
-      
-      final type = FileSystemEntity.typeSync(source);
-      if (type == FileSystemEntityType.directory) {
-        await _copyDirectory(Directory(source), Directory(destPath));
-      } else if (type == FileSystemEntityType.file) {
-        await File(source).copy(destPath);
+      await copyItemTo(source, destPath);
+    }
+  }
+
+  /// Copy a single item to a specific destination path.
+  Future<void> copyItemTo(String source, String destinationPath) async {
+    final absSource = p.canonicalize(source);
+    final absDest = p.canonicalize(destinationPath);
+    if (absSource == absDest) return;
+
+    final sourceType = FileSystemEntity.typeSync(absSource);
+    final isDir = sourceType == FileSystemEntityType.directory;
+    final isSourceInsideDest = absSource.startsWith(absDest + p.separator);
+    
+    String actualSource = absSource;
+    Directory? tempDir;
+
+    // If source is inside dest, copying would be lost when dest is deleted.
+    // Move to temp first.
+    if (isSourceInsideDest) {
+      tempDir = Directory.systemTemp.createTempSync('onyx_copy_tmp_');
+      actualSource = p.join(tempDir.path, p.basename(absSource));
+      if (isDir) {
+        await _copyDirectory(Directory(absSource), Directory(actualSource));
+      } else {
+        await File(absSource).copy(actualSource);
       }
     }
+
+    // For "Replace" to work, we must delete the existing destination if it exists
+    final destType = FileSystemEntity.typeSync(absDest);
+    if (destType != FileSystemEntityType.notFound) {
+      if (destType == FileSystemEntityType.directory) {
+        await Directory(absDest).delete(recursive: true);
+      } else {
+        await File(absDest).delete();
+      }
+    }
+
+    if (isDir) {
+      await _copyDirectory(Directory(actualSource), Directory(absDest));
+    } else {
+      await File(actualSource).copy(absDest);
+    }
+
+    if (tempDir != null) await tempDir.delete(recursive: true);
   }
 
   /// Move files and folders (Rename).
@@ -90,13 +128,62 @@ class LocalFileDatasource {
     for (final source in sources) {
       final name = p.basename(source);
       final destPath = p.join(destination, name);
-      final type = FileSystemEntity.typeSync(source);
-      if (type == FileSystemEntityType.directory) {
-        await Directory(source).rename(destPath);
-      } else if (type == FileSystemEntityType.file) {
-        await File(source).rename(destPath);
+      await moveItemTo(source, destPath);
+    }
+  }
+
+  /// Move a single item to a specific destination path.
+  Future<void> moveItemTo(String source, String destinationPath) async {
+    final absSource = p.canonicalize(source);
+    final absDest = p.canonicalize(destinationPath);
+    if (absSource == absDest) return;
+
+    final sourceType = FileSystemEntity.typeSync(absSource);
+    final isDir = sourceType == FileSystemEntityType.directory;
+    final isSourceInsideDest = absSource.startsWith(absDest + p.separator);
+    
+    String actualSource = absSource;
+    Directory? tempDir;
+
+    // CRITICAL: If moving a child to replace its parent, isolation is mandatory.
+    if (isSourceInsideDest) {
+      tempDir = Directory.systemTemp.createTempSync('onyx_move_tmp_');
+      actualSource = p.join(tempDir.path, p.basename(absSource));
+      if (isDir) {
+        await Directory(absSource).rename(actualSource);
+      } else {
+        await File(absSource).rename(actualSource);
       }
     }
+
+    // For "Replace" to work, we must delete the existing destination if it exists
+    final destType = FileSystemEntity.typeSync(absDest);
+    if (destType != FileSystemEntityType.notFound) {
+      if (destType == FileSystemEntityType.directory) {
+        await Directory(absDest).delete(recursive: true);
+      } else {
+        await File(absDest).delete();
+      }
+    }
+
+    try {
+      if (isDir) {
+        await Directory(actualSource).rename(absDest);
+      } else {
+        await File(actualSource).rename(absDest);
+      }
+    } catch (e) {
+      // Fallback for cross-partition moves (Copy + Delete)
+      if (isDir) {
+        await _copyDirectory(Directory(actualSource), Directory(absDest));
+        await Directory(actualSource).delete(recursive: true);
+      } else {
+        await File(actualSource).copy(absDest);
+        await File(actualSource).delete();
+      }
+    }
+
+    if (tempDir != null) await tempDir.delete(recursive: true);
   }
 
   /// Helper to copy directory recursively
@@ -113,8 +200,8 @@ class LocalFileDatasource {
     }
   }
 
-  /// Rename single item.
-  Future<void> renameItem(String path, String newName) async {
+  /// Rename single item. Returns the new path.
+  Future<String> renameItem(String path, String newName) async {
     final parent = p.dirname(path);
     final newPath = p.join(parent, newName);
     final type = FileSystemEntity.typeSync(path);
@@ -123,10 +210,12 @@ class LocalFileDatasource {
     } else {
       await File(path).rename(newPath);
     }
+    return newPath;
   }
 
-  /// Bulk rename logic.
-  Future<void> bulkRename(List<String> paths, {String? prefix, String? baseName}) async {
+  /// Bulk rename logic. Returns the new paths.
+  Future<List<String>> bulkRename(List<String> paths, {String? prefix, String? baseName}) async {
+    final newPaths = <String>[];
     for (int i = 0; i < paths.length; i++) {
       final path = paths[i];
       final dirname = p.dirname(path);
@@ -149,7 +238,9 @@ class LocalFileDatasource {
       } else {
         await File(path).rename(newPath);
       }
+      newPaths.add(newPath);
     }
+    return newPaths;
   }
 
   /// Synchronous directory listing (runs inside an isolate).

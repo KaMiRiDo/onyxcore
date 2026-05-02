@@ -10,6 +10,7 @@ class FileTask {
   final double progress; // 0.0 to 1.0
   final FileTaskStatus status;
   final String? errorMessage;
+  final bool isCancelled;
 
   const FileTask({
     required this.id,
@@ -18,6 +19,7 @@ class FileTask {
     this.progress = 0.0,
     this.status = FileTaskStatus.running,
     this.errorMessage,
+    this.isCancelled = false,
   });
 
   FileTask copyWith({
@@ -26,6 +28,7 @@ class FileTask {
     double? progress,
     FileTaskStatus? status,
     String? errorMessage,
+    bool? isCancelled,
   }) {
     return FileTask(
       id: id,
@@ -34,6 +37,7 @@ class FileTask {
       progress: progress ?? this.progress,
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
+      isCancelled: isCancelled ?? this.isCancelled,
     );
   }
 }
@@ -81,6 +85,19 @@ class TaskNotifier extends Notifier<List<FileTask>> {
       }
       return task;
     }).toList();
+  }
+
+  void cancelAllTasks() {
+    state = state.map((task) {
+      if (task.status == FileTaskStatus.running) {
+        return task.copyWith(isCancelled: true, status: FileTaskStatus.error, errorMessage: 'Cancelled');
+      }
+      return task;
+    }).toList();
+  }
+
+  bool isTaskCancelled(String id) {
+    return state.any((t) => t.id == id && t.isCancelled);
   }
 
   void removeTask(String id) {

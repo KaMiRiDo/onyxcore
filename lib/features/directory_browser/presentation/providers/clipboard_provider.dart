@@ -7,6 +7,9 @@ class ClipboardState {
   final FileOperationType type;
   final List<String> paths;
 
+  bool get isCut => type == FileOperationType.cut;
+  bool get isCopy => type == FileOperationType.copy;
+
   const ClipboardState({
     this.type = FileOperationType.none,
     this.paths = const [],
