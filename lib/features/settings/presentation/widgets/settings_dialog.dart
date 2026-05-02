@@ -324,6 +324,43 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   },
                 ),
               ),
+              _buildSettingTile(
+                title: 'Max concurrent tasks',
+                subtitle: 'Maximum number of background file operations running simultaneously',
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: DropdownButton<int>(
+                    value: (settings.maxConcurrentTasks < 1 || settings.maxConcurrentTasks > 10) 
+                        ? 3 
+                        : settings.maxConcurrentTasks,
+                    dropdownColor: const Color(0xFF1A1A1A),
+                    underline: const SizedBox.shrink(),
+                    isDense: true,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                    items: List.generate(10, (i) => i + 1)
+                        .map((v) => DropdownMenuItem(
+                              value: v,
+                              child: Text('$v'),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _draftSettings = _draftSettings!.copyWith(maxConcurrentTasks: value);
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
               const SizedBox(height: 40),
               _buildSectionHeader('Sync', _generalKeys['Sync']!),
               _buildEmptySection('Sync settings and cloud integration options will appear here.'),

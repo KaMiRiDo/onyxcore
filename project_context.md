@@ -9,16 +9,16 @@
 *   **Target**: Linux Desktop natively
 *   **Framework**: Flutter & Dart
 *   **State Management**: Riverpod (Providers, AsyncNotifiers)
-*   **Key Packages**: `flutter_svg` (vector graphics), `google_fonts` (typography), `desktop_multi_window` (multi-window IPC), `flutter_markdown` (docs viewer), native isolating tools (`dart:isolate`).
+*   **Key Packages**: `flutter_svg` (vector graphics), `google_fonts` (typography), `desktop_multi_window` (multi-window IPC), `flutter_markdown` (docs viewer), native isolating tools (`dart:isolate`), `uuid` (task tracking), `shared_preferences` (settings & history).
 </overview>
 
 <conventions>
 ## Architectural Conventions
 *   **Feature-First Clean Architecture**: Strict decoupling of `domain`, `data`, and `presentation` layers within distinctly scoped feature folders (`directory_browser`, `image_viewer`, `video_player`, `settings`).
 *   **Isolate-Driven I/O**: Operations that could cause frame drops or UI freezing (such as reading fat directories, `statSync` POSIX permission checks, and heavy image thumbnail decoding) are explicitly offloaded to background threads (`Isolate.run` and `Image.file(frameBuilder)`).
-*   **State Decoupling**: Riverpod logic is split into highly modular files inside the `presentation/providers/` directories (e.g., separating `navigation_notifier`, `selection_notifier`, `conflict_provider`, and `directory_providers`).
+*   **Concurrent Task Management**: File operations (Copy/Move) are managed by a centralized `TaskProvider` supporting configurable concurrency limits (default 3), a "Pending" queue, and real-time ETA calculation.
+*   **Task History Persistence**: Completed and failed tasks are automatically serialized to `~/.config/onyxcore/task_history.json` for persistent audit logs, categorized by date.
 *   **Theme Centralization**: Hardcoded UI coloring is prohibited outside of core presentation exceptions; the UI relies strictly on `AppColors` and customized gradients constructed via `AppTheme`.
-*   **Safe Background Tasks**: Background file operations are tracked via `TaskProvider` and include safety hooks (`WidgetsBindingObserver`) to cancel operations immediately if the application is closed or detached.
 </conventions>
 
 <architecture>
@@ -37,19 +37,20 @@ lib/
 └── features/
     ├── directory_browser/
     │   ├── data/         # Background isolates for I/O, storage repositories
-    │   ├── domain/       # Immutable data models (FileItem, SelectionState)
+    │   ├── domain/       # Immutable data models (FileItem, SelectionState, FileTask)
     │   └── presentation/ 
-    │       ├── pages/    # Master Gallery with sequential paste loops
-    │       ├── providers/# Selection, Task, Clipboard, and Conflict management
-    │       └── widgets/  # Grid Engine, Context Menu, Properties, and Dialogs
+    │       ├── pages/    # Master Gallery with integrated Side Panel layout
+    │       ├── providers/# Selection, Task, History, Clipboard, and Conflict management
+    │       └── widgets/  
+    │           ├── background_panel.dart # Expandable side panel for task management
+    │           ├── background_processes_button.dart # Pie-chart progress indicator
+    │           ├── file_grid.dart        # Main grid engine with drag-and-drop
+    │           ├── sidebar/              # Nav sidebar with filtered device detection
+    │           └── task_tile.dart        # Real-time task status with log buffering
     ├── image_viewer/
-    │   └── presentation/ # Full-bleed image previewer & FFmpeg editing overlay
     ├── settings/
-    │   ├── data/         
-    │   ├── domain/       
-    │   └── presentation/ # Configuration providers
+    │   └── presentation/ # Configuration UI (Concurrency, Hidden files, etc.)
     └── video_player/
-        └── presentation/ # Dedicated video playback routing endpoints
 ```
 </architecture>
 
@@ -58,23 +59,21 @@ lib/
 
 | Feature Sector | Component / Module | Status | Notes |
 | :--- | :--- | :--- | :--- |
-| **Directory Browser** | UI Layout & Scaling | ✅ Full | Fluid responsive grid, zoom behaviors (default 0.9x baseline), sidebar orchestration. |
-| **Directory Browser** | Iconography Engine | ✅ Full | Custom SVG file classification, directory depth styling, POSIX tracking. |
-| **Directory Browser** | Selection System | ✅ Full | Additive (`Ctrl`), range (`Shift`), global deselect, and **Auto-selection on Paste/Create**. |
-| **Directory Browser** | Data & Caching | ✅ Full | Isolated `statSync`, real-time `inotify` watchers, LRU caching, show hidden folders toggle. |
-| **Directory Browser** | File Operations | ✅ Full | **Recursive Copy/Move/Rename** with real-time sequential conflict resolution. |
-| **Directory Browser** | Conflict System | ✅ Full | Queue-based `ConflictProvider`, non-dismissible `ConflictDialog` with keyboard navigation. |
-| **Directory Browser** | Error Handling | ✅ Full | `ErrorDialog` for self-overwrite and circular inclusion detection (parent-child blocking). |
-| **Document Viewer** | Markdown Preview | ✅ Full | `flutter_markdown` integrated, functional standalone documentation viewer. |
-| **Image Viewer** | High-Res Preview | ✅ Full | Fast sync pipelines, Next/Prev navigation support. |
-| **Image Viewer** | Editor Overlay | ✅ Full | FFmpeg-based free-style crop and rotation processing (Replace & Save Copy). |
-| **Multimedia** | Multi-Window Player | ✅ Full | Multi-window IPC playback, independent HUD toggling ('F'), auto-closure on finish. |
-| **Settings** | Configuration UI | ✅ Full | Integrated settings overlay with markdown viewer toggles and hidden folder configurations. |
-| **Cloud Services** | Sidebar Integrations | 🔲 Placeholder | Visual elements exist ("Alex's Cloud"), backend networking absent. |
+| **Directory Browser** | UI Layout & Scaling | ✅ Full | Responsive grid with **inline Side Panel** for background processes. |
+| **Directory Browser** | Selection System | ✅ Full | Additive (`Ctrl`), range (`Shift`), and rubber-band selection. |
+| **Directory Browser** | File Operations | ✅ Full | **Concurrent Copy/Move** with real-time logs and individual cancellation. |
+| **Task Management** | Background Panel | ✅ Full | Side panel (25% width) with active tasks and history sub-views. |
+| **Task Management** | Progress Button | ✅ Full | Pie-chart style TopBar button with success/error state transitions. |
+| **Task Management** | History Logs | ✅ Full | Persistent JSON storage with date-based sectioning and log detail drill-down. |
+| **Conflict System** | Conflict Handling | ✅ Full | Queue-based `ConflictProvider` with overwrite/skip/auto-rename logic. |
+| **Sidebar** | Navigation | ✅ Full | Filtered list; removed redundant 'File System'/'Home' from Devices section. |
+| **Image Viewer** | Editor Overlay | ✅ Full | FFmpeg-based crop/rotation with "Replace" and "Save Copy" support. |
+| **Settings** | Configuration | ✅ Full | Configurable **Max Concurrent Tasks** (1-10) and hidden file toggles. |
 </current_state>
 
 <roadmap>
 ## Unresolved Gaps & Roadmap
-1.  **TFLite Integration**: Solidify the background worker required to boot up the Neural Image Assessment (NIMA) model, run manual clarity scans on imagery, and hydrate the UI seamlessly.
-2.  **Cloud Backend**: Implement the networking layer for sidebar cloud service providers (Google Drive/Dropbox integration).
+1.  **TFLite Integration**: Implement Neural Image Assessment (NIMA) for automated clarity/aesthetic scanning.
+2.  **Cloud Backend**: Networking layer for Google Drive/Dropbox sidebar integrations.
+3.  **Search Refinement**: Implement global file search indexing for instant results across massive directory trees.
 </roadmap>

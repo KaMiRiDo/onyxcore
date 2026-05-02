@@ -41,6 +41,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       doubleTapSeekSeconds: _prefs.getInt('doubleTapSeekSeconds') ?? 10,
       pinnedFolders: List<String>.from(_pinnedFolders),
       gallerySortSettings: Map<String, String>.from(_gallerySortSettings),
+      maxConcurrentTasks: _prefs.getInt('maxConcurrentTasks') ?? 3,
     );
 
   }
@@ -51,6 +52,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setBool('showHiddenFiles', settings.showHiddenFiles);
     await _prefs.setString('snapshotPrefix', settings.snapshotPrefix);
     await _prefs.setInt('doubleTapSeekSeconds', settings.doubleTapSeekSeconds);
+    await _prefs.setInt('maxConcurrentTasks', settings.maxConcurrentTasks);
     // pinnedFolders and gallerySortSettings are currently managed via specific methods,
     // but we can include them here for a full sync if needed.
   }

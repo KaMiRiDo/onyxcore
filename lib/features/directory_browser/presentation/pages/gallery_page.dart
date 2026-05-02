@@ -33,7 +33,9 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/error_d
 import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
-import 'package:onyxcore/core/widgets/task_progress_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
 
 /// Main gallery page — slim orchestrator that composes all widgets.
 class GalleryPage extends ConsumerStatefulWidget {
@@ -205,7 +207,14 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                         child: Column(
                           children: [
                             const TopBar(),
-                            _buildContent(),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Expanded(child: _buildContentInner()),
+                                  const BackgroundPanel(),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -243,7 +252,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: isOver ? Colors.white : Colors.white10,
-                                          width: 1.5, // Slightly thicker for definition
+                                          width: 1.5,
                                         ),
                                       ),
                                       child: Center(
@@ -265,6 +274,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                   ),
                 ],
               ),
+
             ),
           ),
         ),
@@ -289,6 +299,24 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           ),
         ],
       ),
+    );
+  }
+
+  /// Same as _buildContent but without the Expanded wrapper (for inline Row layout).
+  Widget _buildContentInner() {
+    final previewFile = ref.watch(previewFileProvider);
+    if (previewFile != null) {
+      return PreviewContainer(item: previewFile);
+    }
+    
+    return Column(
+      children: [
+        Expanded(
+          child: RubberBandOverlay(
+            child: const FileGrid(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -334,6 +362,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
       // Global Shortcuts
       const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(!isSearchActive),
       const SingleActivator(LogicalKeyboardKey.keyR, control: true): _refresh,
+      const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
+        ref.read(backgroundPanelOpenProvider.notifier).update((state) => !state);
+      },
       const SingleActivator(LogicalKeyboardKey.keyD, alt: true): () {
         if (!isSearchActive) {
           ref.read(isLocationEditingProvider.notifier).update((state) => !state);
@@ -459,6 +490,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     final String taskId = ref.read(taskProvider.notifier).addTask(
       title: clipboard.isCut ? 'Moving Files' : 'Copying Files',
       subtitle: '${clipboard.paths.length} items to ${p.basename(targetDir)}',
+      totalCount: clipboard.paths.length,
     );
 
     try {
@@ -551,27 +583,43 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           }
         }
 
+        final operationVerb = clipboard.isCut ? 'Moving' : 'Copying';
+        ref.read(taskProvider.notifier).addLog(taskId, '$operationVerb $name...');
+        ref.read(taskProvider.notifier).updateCurrentItem(taskId, name);
+
         if (clipboard.isCut) {
           await repo.moveItemTo(source, finalDestPath);
         } else {
           await repo.copyItemTo(source, finalDestPath);
         }
 
+        ref.read(taskProvider.notifier).addLog(taskId, 'Completed: $name');
+
         // Select the newly pasted item if we are still in the destination folder
         if (ref.read(currentPathProvider) == targetDir) {
           ref.read(selectionProvider.notifier).select(finalDestPath);
         }
 
+        ref.read(taskProvider.notifier).updateItemCounts(taskId, i + 1, clipboard.paths.length);
         ref.read(taskProvider.notifier).updateProgress(taskId, (i + 1) / clipboard.paths.length);
       }
 
       ref.read(taskProvider.notifier).completeTask(taskId);
+      // Save to history
+      final completedTask = ref.read(taskProvider).firstWhere((t) => t.id == taskId);
+      ref.read(taskHistoryProvider.notifier).addEntry(completedTask);
       ref.read(directoryItemsProvider.notifier).refresh();
       if (clipboard.isCut) {
         ref.read(clipboardProvider.notifier).clear();
       }
     } catch (e) {
+      ref.read(taskProvider.notifier).addLog(taskId, 'ERROR: $e');
       ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+      // Save failed task to history
+      try {
+        final failedTask = ref.read(taskProvider).firstWhere((t) => t.id == taskId);
+        ref.read(taskHistoryProvider.notifier).addEntry(failedTask);
+      } catch (_) {}
     }
   }
 

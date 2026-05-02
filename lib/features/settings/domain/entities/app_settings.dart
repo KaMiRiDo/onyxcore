@@ -13,6 +13,7 @@ class AppSettings extends Equatable {
     this.doubleTapSeekSeconds = 10,
     this.pinnedFolders = const [],
     this.gallerySortSettings = const {},
+    this.maxConcurrentTasks = 3,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -33,6 +34,9 @@ class AppSettings extends Equatable {
   /// Per-folder sort settings (path → sortKey).
   final Map<String, String> gallerySortSettings;
 
+  /// Maximum number of simultaneous background tasks.
+  final int maxConcurrentTasks;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -40,6 +44,7 @@ class AppSettings extends Equatable {
     int? doubleTapSeekSeconds,
     List<String>? pinnedFolders,
     Map<String, String>? gallerySortSettings,
+    int? maxConcurrentTasks,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -48,6 +53,7 @@ class AppSettings extends Equatable {
       doubleTapSeekSeconds: doubleTapSeekSeconds ?? this.doubleTapSeekSeconds,
       pinnedFolders: pinnedFolders ?? this.pinnedFolders,
       gallerySortSettings: gallerySortSettings ?? this.gallerySortSettings,
+      maxConcurrentTasks: maxConcurrentTasks ?? this.maxConcurrentTasks,
     );
   }
 
@@ -59,5 +65,6 @@ class AppSettings extends Equatable {
     doubleTapSeekSeconds,
     pinnedFolders,
     gallerySortSettings,
+    maxConcurrentTasks,
   ];
 }

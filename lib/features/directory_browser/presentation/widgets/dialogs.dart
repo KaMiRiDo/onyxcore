@@ -163,3 +163,70 @@ class _InputDialogState extends State<_InputDialog> {
     );
   }
 }
+
+/// A reusable confirmation dialog with destructive/normal styling.
+class ConfirmDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String confirmText;
+  final bool isDestructive;
+
+  const ConfirmDialog({
+    required this.title,
+    required this.message,
+    this.confirmText = 'Confirm',
+    this.isDestructive = false,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final confirmColor = isDestructive ? AppColors.error : AppColors.violet;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        title,
+        style: GoogleFonts.manrope(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      content: Text(
+        message,
+        style: GoogleFonts.manrope(fontSize: 14, color: Colors.white70),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(
+            'Cancel',
+            style: GoogleFonts.manrope(
+              color: Colors.white38,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        TextButton(
+          autofocus: true,
+          onPressed: () => Navigator.pop(context, true),
+          style: TextButton.styleFrom(
+            backgroundColor: confirmColor.withOpacity(0.15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: Text(
+            confirmText,
+            style: GoogleFonts.manrope(
+              color: confirmColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

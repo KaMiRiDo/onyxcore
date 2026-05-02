@@ -17,6 +17,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/item_ca
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/error_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
 class FileGrid extends ConsumerStatefulWidget {
@@ -243,6 +244,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
         final taskId = ref.read(taskProvider.notifier).addTask(
           title: 'Moving Files',
           subtitle: '${sources.length} items to current folder',
+          totalCount: sources.length,
         );
 
         try {
@@ -309,16 +311,30 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
               }
             }
 
+            ref.read(taskProvider.notifier).addLog(taskId, 'Moving $name...');
+            ref.read(taskProvider.notifier).updateCurrentItem(taskId, name);
+
             await repo.moveItemTo(source, finalDestPath);
+            ref.read(taskProvider.notifier).addLog(taskId, 'Completed: $name');
             ref.read(selectionProvider.notifier).select(finalDestPath);
+            ref.read(taskProvider.notifier).updateItemCounts(taskId, i + 1, sources.length);
             ref.read(taskProvider.notifier).updateProgress(taskId, (i + 1) / sources.length);
           }
 
           ref.read(taskProvider.notifier).completeTask(taskId);
+          try {
+            final completedTask = ref.read(taskProvider).firstWhere((t) => t.id == taskId);
+            ref.read(taskHistoryProvider.notifier).addEntry(completedTask);
+          } catch (_) {}
           ref.read(directoryItemsProvider.notifier).refresh();
           ref.read(selectionProvider.notifier).deselectAll();
         } catch (e) {
+          ref.read(taskProvider.notifier).addLog(taskId, 'ERROR: $e');
           ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+          try {
+            final failedTask = ref.read(taskProvider).firstWhere((t) => t.id == taskId);
+            ref.read(taskHistoryProvider.notifier).addEntry(failedTask);
+          } catch (_) {}
         }
       },
       builder: (context, candidateData, rejectedData) {

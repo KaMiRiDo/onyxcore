@@ -20,11 +20,21 @@ class DevicesSection extends ConsumerWidget {
 
     return devicesAsync.when(
       data: (devices) {
-        if (devices.isEmpty) return const SizedBox.shrink();
+        final home = Platform.environment['HOME'] ?? '/';
+        final filteredDevices = devices.where((d) {
+          final path = d.path;
+          final name = d.name.toLowerCase();
+          return path != '/' && 
+                 path != home && 
+                 name != 'home' && 
+                 name != 'file system';
+        }).toList();
+        
+        if (filteredDevices.isEmpty) return const SizedBox.shrink();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: devices.map((device) => SidebarItem(
+          children: filteredDevices.map((device) => SidebarItem(
                 icon: Icons.storage_outlined,
                 label: device.name,
                 path: device.path,

@@ -13,7 +13,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/navig
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
-import 'package:onyxcore/core/widgets/task_progress_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
@@ -334,12 +334,16 @@ class _TopBarState extends ConsumerState<TopBar> {
                 
                 const SizedBox(width: 16),
                 
-                _buildActionIcon(
-                  icon: Icons.settings,
-                  onPressed: () => SettingsDialog.show(context),
+                Tooltip(
+                  message: 'Settings',
+                  waitDuration: const Duration(milliseconds: 500),
+                  child: _buildActionIcon(
+                    icon: Icons.settings,
+                    onPressed: () => SettingsDialog.show(context),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                const TaskProgressButton(),
+                const BackgroundProcessesButton(),
                 const SizedBox(width: 16),
                 const WindowButtons(),
               ],
