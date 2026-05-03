@@ -48,6 +48,26 @@ class NavigationNotifier extends Notifier<NavigationState> {
     final newIndex = state.historyIndex + 1;
     state = state.copyWith(historyIndex: newIndex);
   }
+
+  /// Handle device ejection by finding the last visited path outside the device.
+  String? handleEject(String ejectedDevicePath) {
+    final history = state.history;
+    int targetIndex = -1;
+
+    // Scan backwards from current index to find the first path not on this device
+    for (int i = state.historyIndex - 1; i >= 0; i--) {
+      if (!history[i].startsWith(ejectedDevicePath)) {
+        targetIndex = i;
+        break;
+      }
+    }
+
+    if (targetIndex != -1) {
+      state = state.copyWith(historyIndex: targetIndex);
+      return state.currentPath;
+    }
+    return null;
+  }
 }
 
 /// Provider for the navigation notifier.

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
@@ -27,6 +28,7 @@ class _BackgroundProcessesButtonState
   
   bool _showingCompletionTick = false;
   bool _hadErrorSinceLastOpen = false;
+  bool _callbackRegistered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +48,7 @@ class _BackgroundProcessesButtonState
       }
     });
 
+
     // Track errors
     if (hasErrors) {
       _hadErrorSinceLastOpen = true;
@@ -58,7 +61,6 @@ class _BackgroundProcessesButtonState
 
     // Detect transition to all-completed
     ref.listen(taskProvider, (prev, next) {
-      final prevNotifier = ref.read(taskProvider.notifier);
       final prevHadRunning = (prev ?? []).any((t) =>
           t.status == FileTaskStatus.running ||
           t.status == FileTaskStatus.pending);
@@ -68,13 +70,11 @@ class _BackgroundProcessesButtonState
       final nowHasCompleted = next.any((t) =>
           t.status == FileTaskStatus.completed);
 
-      if (prevHadRunning && !nowHasRunning && nowHasCompleted && !prevNotifier.hasErrors) {
+      if (prevHadRunning && !nowHasRunning && nowHasCompleted && !ref.read(taskProvider.notifier).hasErrors) {
         setState(() => _showingCompletionTick = true);
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) {
             setState(() => _showingCompletionTick = false);
-            // Clear finished tasks from the active list
-            ref.read(taskProvider.notifier).clearFinished();
           }
         });
       }
@@ -168,9 +168,9 @@ class _BackgroundProcessesButtonState
       return CustomPaint(
         size: const Size(size, size),
         painter: _PieProgressPainter(
-          progress: totalProgress,
-          strokeColor: Colors.white,
-          backgroundColor: Colors.white.withOpacity(0.1),
+          progress: totalProgress.clamp(0.01, 1.0), // Show at least a sliver if running
+          strokeColor: AppColors.violet,
+          backgroundColor: Colors.white.withOpacity(0.05),
         ),
       );
     }

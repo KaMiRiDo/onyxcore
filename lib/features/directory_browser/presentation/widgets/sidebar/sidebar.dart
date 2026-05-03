@@ -129,13 +129,7 @@ class Sidebar extends ConsumerWidget {
                     isActive: currentPath == 'virtual:recent',
                     onTap: () => _navigate(ref, 'virtual:recent'),
                   ),
-                  SidebarItem(
-                    icon: Icons.storage_outlined,
-                    label: 'File System',
-                    path: '/',
-                    isActive: currentPath == '/',
-                    onTap: () => _navigate(ref, '/'),
-                  ),
+
                   SidebarItem(
                     icon: Icons.delete_outline,
                     label: 'Trash',

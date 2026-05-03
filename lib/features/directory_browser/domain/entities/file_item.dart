@@ -13,6 +13,7 @@ class FileItem extends Equatable {
     this.thumbnailPath,
     this.imageAspectRatio,
     this.isExecutable = false,
+    this.hasWritePermission = true,
   });
 
   final String path;
@@ -23,6 +24,7 @@ class FileItem extends Equatable {
   final String? thumbnailPath;
   final double? imageAspectRatio;
   final bool isExecutable;
+  final bool hasWritePermission;
 
   /// Creates a copy with optional field overrides.
   FileItem copyWith({
@@ -34,6 +36,7 @@ class FileItem extends Equatable {
     String? thumbnailPath,
     double? imageAspectRatio,
     bool? isExecutable,
+    bool? hasWritePermission,
   }) {
     return FileItem(
       path: path ?? this.path,
@@ -44,9 +47,10 @@ class FileItem extends Equatable {
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
       imageAspectRatio: imageAspectRatio ?? this.imageAspectRatio,
       isExecutable: isExecutable ?? this.isExecutable,
+      hasWritePermission: hasWritePermission ?? this.hasWritePermission,
     );
   }
 
   @override
-  List<Object?> get props => [path, name, type, modified, sizeBytes, thumbnailPath, imageAspectRatio, isExecutable];
+  List<Object?> get props => [path, name, type, modified, sizeBytes, thumbnailPath, imageAspectRatio, isExecutable, hasWritePermission];
 }

@@ -99,8 +99,29 @@ class _ItemCardState extends ConsumerState<ItemCard> {
         children: [
           SizedBox(
             height: 120 * widget.zoom,
-            child: Center(
-              child: _buildItemPreview(),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                _buildItemPreview(),
+                if (!widget.item.hasWritePermission)
+                  Positioned(
+                    top: 8 * widget.zoom,
+                    right: 8 * widget.zoom,
+                    child: Container(
+                      padding: EdgeInsets.all(4 * widget.zoom),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8 * widget.zoom),
+                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      child: Icon(
+                        Icons.lock,
+                        size: 14 * widget.zoom,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           SizedBox(height: 8 * widget.zoom),
@@ -219,6 +240,9 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           final taskId = ref.read(taskProvider.notifier).addTask(
             title: 'Moving Files',
             subtitle: '${details.data.length} items to ${widget.item.name}',
+            totalCount: details.data.length,
+            sourcePaths: details.data,
+            targetPath: widget.item.path,
           );
           try {
             await repo.moveItems(details.data, widget.item.path);
@@ -312,9 +336,25 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                 final repo = ref.read(directoryRepositoryProvider);
                 try {
                   if (result is String) {
-                    final newPath = await repo.renameItem(paths.first, result);
-                    ref.read(selectionProvider.notifier).deselectAll();
-                    ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+                    final oldPath = paths.first;
+                    final taskId = ref.read(taskProvider.notifier).addTask(
+                      title: 'Renaming item',
+                      subtitle: '${p.basename(oldPath)} -> $result',
+                      sourcePaths: [oldPath],
+                      isLight: true,
+                    );
+                    try {
+                      final newPath = await repo.renameItem(oldPath, result, 
+                        taskId: taskId,
+                        onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+                      );
+                      ref.read(selectionProvider.notifier).deselectAll();
+                      ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+                      ref.read(taskProvider.notifier).completeTask(taskId);
+                    } catch (e) {
+                      ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+                      rethrow;
+                    }
                   }
                   ref.read(directoryItemsProvider.notifier).refresh();
                 } catch (e) {
@@ -338,17 +378,53 @@ class _ItemCardState extends ConsumerState<ItemCard> {
             final repo = ref.read(directoryRepositoryProvider);
             try {
               if (result is String) {
-                final newPath = await repo.renameItem(paths.first, result);
-                ref.read(selectionProvider.notifier).deselectAll();
-                ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+                final oldPath = paths.first;
+                final taskId = ref.read(taskProvider.notifier).addTask(
+                  title: 'Renaming item',
+                  subtitle: '${p.basename(oldPath)} -> $result',
+                  sourcePaths: [oldPath],
+                  isLight: true,
+                );
+                try {
+                  final newPath = await repo.renameItem(oldPath, result, 
+                    taskId: taskId,
+                    onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+                  );
+                  ref.read(selectionProvider.notifier).deselectAll();
+                  ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+                  ref.read(taskProvider.notifier).completeTask(taskId);
+                } catch (e) {
+                  ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+                  rethrow;
+                }
               } else if (result is Map) {
                 final mode = result['mode'] as RenameMode;
                 final value = result['value'] as String;
                 List<String> newPaths = [];
-                if (mode == RenameMode.prefix) {
-                  newPaths = await repo.bulkRename(paths, prefix: value);
-                } else {
-                  newPaths = await repo.bulkRename(paths, baseName: value);
+                final taskId = ref.read(taskProvider.notifier).addTask(
+                  title: 'Bulk renaming ${paths.length} items',
+                  subtitle: mode == RenameMode.prefix ? 'Prefix: $value' : 'Index: $value',
+                  sourcePaths: paths,
+                  isLight: true,
+                );
+                try {
+                  if (mode == RenameMode.prefix) {
+                    newPaths = await repo.bulkRename(paths, 
+                      prefix: value, 
+                      taskId: taskId,
+                      onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+                    );
+                  } else {
+                    newPaths = await repo.bulkRename(paths, 
+                      baseName: value, 
+                      taskId: taskId,
+                      onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+                    );
+                  }
+                  ref.read(taskProvider.notifier).completeTask(taskId);
+                } catch (e) {
+                  ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+                  rethrow;
                 }
                 ref.read(selectionProvider.notifier).deselectAll();
                 ref.read(selectionProvider.notifier).selectMultiple(newPaths);
@@ -373,12 +449,28 @@ class _ItemCardState extends ConsumerState<ItemCard> {
         shortcut: 'Delete',
         isDestructive: true,
         onTap: () async {
+          final taskId = ref.read(taskProvider.notifier).addTask(
+            title: 'Moving ${paths.length} items to Trash',
+            subtitle: 'Trash',
+            sourcePaths: paths,
+            isLight: true,
+          );
           final repo = ref.read(directoryRepositoryProvider);
           try {
-            await repo.deleteItems(paths, permanent: false);
+            await repo.deleteItems(paths, 
+              permanent: false, 
+              taskId: taskId, 
+              onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+              onProgress: (p, t) {
+                ref.read(taskProvider.notifier).updateProgress(taskId, p / t);
+                ref.read(taskProvider.notifier).updateItemCounts(taskId, p, t);
+              },
+            );
+            ref.read(taskProvider.notifier).completeTask(taskId);
             ref.read(selectionProvider.notifier).deselectAll();
             ref.read(directoryItemsProvider.notifier).refresh();
           } catch (e) {
+            ref.read(taskProvider.notifier).failTask(taskId, e.toString());
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
           }
         },

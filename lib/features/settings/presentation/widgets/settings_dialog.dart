@@ -335,7 +335,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                     border: Border.all(color: Colors.white.withOpacity(0.08)),
                   ),
                   child: DropdownButton<int>(
-                    value: (settings.maxConcurrentTasks < 1 || settings.maxConcurrentTasks > 10) 
+                    value: (settings.maxConcurrentTasks < 1 || settings.maxConcurrentTasks > 3) 
                         ? 3 
                         : settings.maxConcurrentTasks,
                     dropdownColor: const Color(0xFF1A1A1A),
@@ -345,7 +345,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                       color: Colors.white,
                       fontSize: 14,
                     ),
-                    items: List.generate(10, (i) => i + 1)
+                    items: List.generate(3, (i) => i + 1)
                         .map((v) => DropdownMenuItem(
                               value: v,
                               child: Text('$v'),

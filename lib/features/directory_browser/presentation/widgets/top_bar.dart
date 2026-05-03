@@ -661,6 +661,9 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
         final taskId = ref.read(taskProvider.notifier).addTask(
           title: 'Moving Files',
           subtitle: '${details.data.length} items to ${widget.name}',
+          totalCount: details.data.length,
+          sourcePaths: details.data,
+          targetPath: widget.targetPath,
         );
         try {
           await repo.moveItems(details.data, widget.targetPath);

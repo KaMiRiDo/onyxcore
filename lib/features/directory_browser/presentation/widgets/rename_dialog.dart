@@ -1,3 +1,4 @@
+import 'dart:io' as io;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,6 +21,9 @@ class RenameDialog extends StatefulWidget {
 class _RenameDialogState extends State<RenameDialog> {
   late TextEditingController _controller;
   RenameMode _mode = RenameMode.prefix;
+  String? _errorMessage;
+  bool _isSubmitting = false;
+
   bool get _isBulk => widget.paths.length > 1;
 
   @override
@@ -27,13 +31,49 @@ class _RenameDialogState extends State<RenameDialog> {
     super.initState();
     final initialValue = _isBulk ? "" : p.basenameWithoutExtension(widget.paths.first);
     _controller = TextEditingController(text: initialValue);
-    _controller.addListener(() => setState(() {}));
+    _controller.addListener(() => setState(() {
+      _errorMessage = null;
+    }));
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _handleSubmit() {
+    if (_controller.text.isEmpty || _isSubmitting) return;
+
+    final value = _controller.text;
+    
+    // Check for existing files for simple rename
+    if (!_isBulk) {
+      final oldPath = widget.paths.first;
+      final parent = p.dirname(oldPath);
+      final newPath = p.join(parent, value + p.extension(oldPath));
+      
+      // If name hasn't changed, just close
+      if (newPath == oldPath) {
+        Navigator.pop(context);
+        return;
+      }
+
+      if (io.File(newPath).existsSync() || io.Directory(newPath).existsSync()) {
+        setState(() {
+          _errorMessage = "A file or folder with this name already exists.";
+        });
+        return;
+      }
+    }
+
+    // Clear error and pop
+    setState(() => _errorMessage = null);
+    if (!_isBulk) {
+      Navigator.pop(context, value);
+    } else {
+      Navigator.pop(context, {'mode': _mode, 'value': value});
+    }
   }
 
   List<Map<String, String>> _getPreviews() {
@@ -179,23 +219,47 @@ class _RenameDialogState extends State<RenameDialog> {
   }
 
   Widget _buildTextField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.violet.withOpacity(0.2)),
-      ),
-      child: TextField(
-        controller: _controller,
-        autofocus: true,
-        style: GoogleFonts.manrope(color: Colors.white, fontSize: 15),
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          border: InputBorder.none,
-          hintText: _isBulk ? "Enter value..." : "Enter file name",
-          hintStyle: const TextStyle(color: Colors.white12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.black26,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _errorMessage != null 
+                  ? AppColors.error.withOpacity(0.5) 
+                  : AppColors.violet.withOpacity(0.2)
+            ),
+          ),
+          child: TextField(
+            controller: _controller,
+            autofocus: true,
+            style: GoogleFonts.manrope(color: Colors.white, fontSize: 15),
+            onSubmitted: (_) => _handleSubmit(),
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              border: InputBorder.none,
+              hintText: _isBulk ? "Enter value..." : "Enter file name",
+              hintStyle: const TextStyle(color: Colors.white12),
+            ),
+          ),
         ),
-      ),
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              _errorMessage!,
+              style: GoogleFonts.manrope(
+                color: AppColors.error.withOpacity(0.8),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -269,13 +333,7 @@ class _RenameDialogState extends State<RenameDialog> {
             boxShadow: _controller.text.isEmpty ? [] : [BoxShadow(color: AppColors.violet.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
           ),
           child: ElevatedButton(
-            onPressed: _controller.text.isEmpty ? null : () {
-              if (!_isBulk) {
-                Navigator.pop(context, _controller.text);
-              } else {
-                Navigator.pop(context, {'mode': _mode, 'value': _controller.text});
-              }
-            },
+            onPressed: _controller.text.isEmpty ? null : _handleSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,

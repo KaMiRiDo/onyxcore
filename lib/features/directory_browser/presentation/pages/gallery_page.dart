@@ -34,7 +34,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/propert
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
+
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
 
 /// Main gallery page — slim orchestrator that composes all widgets.
@@ -160,44 +160,8 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
               });
             }
           },
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              _focusNode.requestFocus();
-              ref.read(selectionProvider.notifier).deselectAll();
-            },
-            onSecondaryTapUp: (details) {
-              _focusNode.requestFocus();
-              ref.read(selectionProvider.notifier).deselectAll();
-              ContextMenu.show(context, details.globalPosition, [
-                ContextMenuItem(
-                  title: 'New Folder',
-                  icon: Icons.create_new_folder_rounded,
-                  shortcut: 'Ctrl+Shift+N',
-                  onTap: _handleNewFolder,
-                ),
-                ContextMenuItem(
-                  title: 'New Document',
-                  icon: Icons.note_add_rounded,
-                  onTap: () {
-                    // TODO: Implement new document
-                  },
-                ),
-                ContextMenuItem(
-                  title: 'Paste',
-                  icon: Icons.paste_rounded,
-                  shortcut: 'Ctrl+V',
-                  onTap: _handlePaste,
-                ),
-                ContextMenuItem(
-                  title: 'Properties',
-                  icon: Icons.info_outline_rounded,
-                  onTap: _showProperties,
-                ),
-              ]);
-            },
-            child: Scaffold(
-              backgroundColor: AppColors.background,
+          child: Scaffold(
+            backgroundColor: AppColors.background,
               body: Stack(
                 children: [
                   Row(
@@ -210,7 +174,46 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                             Expanded(
                               child: Row(
                                 children: [
-                                  Expanded(child: _buildContentInner()),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () {
+                                        _focusNode.requestFocus();
+                                        ref.read(selectionProvider.notifier).deselectAll();
+                                      },
+                                      onSecondaryTapUp: (details) {
+                                        _focusNode.requestFocus();
+                                        ref.read(selectionProvider.notifier).deselectAll();
+                                        ContextMenu.show(context, details.globalPosition, [
+                                          ContextMenuItem(
+                                            title: 'New Folder',
+                                            icon: Icons.create_new_folder_rounded,
+                                            shortcut: 'Ctrl+Shift+N',
+                                            onTap: _handleNewFolder,
+                                          ),
+                                          ContextMenuItem(
+                                            title: 'New Document',
+                                            icon: Icons.note_add_rounded,
+                                            onTap: () {
+                                              // TODO: Implement new document
+                                            },
+                                          ),
+                                          ContextMenuItem(
+                                            title: 'Paste',
+                                            icon: Icons.paste_rounded,
+                                            shortcut: 'Ctrl+V',
+                                            onTap: _handlePaste,
+                                          ),
+                                          ContextMenuItem(
+                                            title: 'Properties',
+                                            icon: Icons.info_outline_rounded,
+                                            onTap: _showProperties,
+                                          ),
+                                        ]);
+                                      },
+                                      child: _buildContentInner(),
+                                    ),
+                                  ),
                                   const BackgroundPanel(),
                                 ],
                               ),
@@ -274,12 +277,10 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                   ),
                 ],
               ),
-
             ),
           ),
         ),
-      ),
-    );
+      );
   } 
 
   Widget _buildContent() {
@@ -427,6 +428,34 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     }
   }
 
+  Future<void> _handleProperties() async {
+    final selection = ref.read(selectionProvider);
+    if (selection.selectedPaths.isEmpty) return;
+
+    final paths = selection.selectedPaths.toList();
+    await showDialog(
+      context: context,
+      builder: (context) => PropertiesDialog(paths: paths),
+    );
+  }
+
+  int _getDirectorySizeSync(String path) {
+    int total = 0;
+    try {
+      final dir = Directory(path);
+      if (dir.existsSync()) {
+        for (final entity in dir.listSync(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            total += entity.lengthSync();
+          }
+        }
+      }
+    } catch (_) {
+      // Ignore permission errors for specific files
+    }
+    return total;
+  }
+
   void _showProperties() {
     final selection = ref.read(selectionProvider);
     final paths = selection.selectedPaths.isEmpty 
@@ -487,139 +516,202 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     final targetDir = ref.read(currentPathProvider);
     final repo = ref.read(directoryRepositoryProvider);
 
+    // Phase 1: Pre-check all items for conflicts and resolve them
+    final List<_PasteOperation> operations = [];
+    ref.read(conflictProvider.notifier).clearGlobalResolution();
+    
+    for (final source in clipboard.paths) {
+      final name = p.basename(source);
+      final destPath = p.join(targetDir, name);
+      final absSource = p.canonicalize(source);
+      final absDest = p.canonicalize(destPath);
+      final isFolder = Directory(source).existsSync();
+      final typeStr = isFolder ? 'folder' : 'file';
+
+      // 1. Circular reference check
+      if (absDest.startsWith(absSource + p.separator)) {
+        await showDialog(
+          context: context,
+          builder: (context) => ErrorDialog(
+            title: 'You cannot copy a $typeStr into itself.',
+            message: 'The destination is inside the source $typeStr.',
+          ),
+        );
+        continue;
+      }
+
+      // 2. Parent-child overwrite check
+      if (absSource.startsWith(absDest + p.separator)) {
+        await showDialog(
+          context: context,
+          builder: (context) => ErrorDialog(
+            title: 'You cannot ${clipboard.isCut ? "move" : "copy"} a $typeStr over itself.',
+            message: 'The source $typeStr would be overwritten by the destination.',
+          ),
+        );
+        continue;
+      }
+
+      // 3. Same path check
+      if (absSource == absDest && clipboard.isCut) {
+        await showDialog(
+          context: context,
+          builder: (context) => ErrorDialog(
+            title: 'You cannot move a $typeStr over itself.',
+            message: 'The source $typeStr would be overwritten by the destination.',
+          ),
+        );
+        continue;
+      }
+
+      // 4. Conflict check
+      String finalDestPath = destPath;
+      if (File(destPath).existsSync() || Directory(destPath).existsSync()) {
+        final resolution = await ref.read(conflictProvider.notifier).resolveConflict(
+          fileName: name,
+          destinationPath: destPath,
+          isFolder: isFolder,
+          context: context,
+        );
+
+        if (resolution == ConflictResolution.skip) {
+          continue;
+        } else if (resolution == ConflictResolution.replace && 
+                  (absSource == absDest || absSource.startsWith(absDest + p.separator))) {
+          await showDialog(
+            context: context,
+            builder: (context) => ErrorDialog(
+              title: 'You cannot copy a $typeStr over itself.',
+              message: 'The source $typeStr would be overwritten by the destination.',
+            ),
+          );
+          continue;
+        } else if (resolution == ConflictResolution.rename) {
+          final ext = p.extension(name);
+          final base = p.basenameWithoutExtension(name);
+          var counter = 1;
+          var newName = "$base($counter)$ext";
+          while (File(p.join(targetDir, newName)).existsSync() || 
+                 Directory(p.join(targetDir, newName)).existsSync()) {
+            counter++;
+            newName = "$base($counter)$ext";
+          }
+          finalDestPath = p.join(targetDir, newName);
+        }
+      }
+
+      // 5. Size calculation
+      int size = 0;
+      final stat = FileStat.statSync(source);
+      if (stat.type == FileSystemEntityType.directory) {
+        size = _getDirectorySizeSync(source);
+      } else {
+        size = stat.size;
+      }
+
+      operations.add(_PasteOperation(
+        source: source,
+        target: finalDestPath,
+        name: name,
+        size: size,
+      ));
+    }
+
+    if (operations.isEmpty) return;
+
+    // Phase 2: Start background task for resolved operations
     final String taskId = ref.read(taskProvider.notifier).addTask(
       title: clipboard.isCut ? 'Moving Files' : 'Copying Files',
-      subtitle: '${clipboard.paths.length} items to ${p.basename(targetDir)}',
-      totalCount: clipboard.paths.length,
+      subtitle: '${operations.length} items to ${p.basename(targetDir)}',
+      totalCount: operations.length,
+      sourcePaths: operations.map((o) => o.source).toList(),
+      targetPath: targetDir,
     );
 
+    int totalSizeBytes = operations.fold(0, (sum, o) => sum + o.size);
+    ref.read(taskProvider.notifier).updateByteCounts(taskId, 0, totalSizeBytes);
+
+    int totalBytesProcessed = 0;
+
     try {
-      // Clear selection before starting to ensure only new items are selected
+      // Clear selection before starting
       if (ref.read(currentPathProvider) == targetDir) {
         ref.read(selectionProvider.notifier).deselectAll();
       }
 
-      for (int i = 0; i < clipboard.paths.length; i++) {
+      for (int i = 0; i < operations.length; i++) {
         if (ref.read(taskProvider.notifier).isTaskCancelled(taskId)) break;
 
-        final source = clipboard.paths[i];
-        final name = p.basename(source);
-        final destPath = p.join(targetDir, name);
-        final absSource = p.canonicalize(source);
-        final absDest = p.canonicalize(destPath);
-        final isFolder = Directory(source).existsSync();
-        final typeStr = isFolder ? 'folder' : 'file';
-        
-        // Circular reference check: cannot copy/move a folder into one of its subdirectories
-        if (absDest.startsWith(absSource + p.separator)) {
-          await showDialog(
-            context: context,
-            builder: (context) => ErrorDialog(
-              title: 'You cannot copy a $typeStr into itself.',
-              message: 'The destination is inside the source $typeStr.',
-            ),
-          );
-          continue;
-        }
+        final op = operations[i];
+        final operationVerb = clipboard.isCut ? 'Moving' : 'Copying';
+        ref.read(taskProvider.notifier).addLog(taskId, '$operationVerb ${op.name}...');
+        ref.read(taskProvider.notifier).updateCurrentItem(taskId, op.name);
 
-        // Parent-child overwrite check: cannot copy/move an item over one of its own parents
-        // e.g. moving /root/new/new into /root where /root/new exists.
-        if (absSource.startsWith(absDest + p.separator)) {
-          await showDialog(
-            context: context,
-            builder: (context) => ErrorDialog(
-              title: 'You cannot ${clipboard.isCut ? "move" : "copy"} a $typeStr over itself.',
-              message: 'The source $typeStr would be overwritten by the destination.',
-            ),
-          );
-          continue;
-        }
+        int lastItemBytesProcessed = 0;
 
-        // Same path check
-        if (absSource == absDest && clipboard.isCut) {
-          await showDialog(
-            context: context,
-            builder: (context) => ErrorDialog(
-              title: 'You cannot move a $typeStr over itself.',
-              message: 'The source $typeStr would be overwritten by the destination.',
-            ),
-          );
-          continue;
-        }
-
-        ConflictResolution? resolution;
-        String finalDestPath = destPath;
-
-        if (File(destPath).existsSync() || Directory(destPath).existsSync()) {
-          resolution = await ref.read(conflictProvider.notifier).resolveConflict(
-            fileName: name,
-            destinationPath: destPath,
-            isFolder: isFolder,
-            context: context,
-          );
-
-          if (resolution == ConflictResolution.skip) {
-            continue;
-          } else if (resolution == ConflictResolution.replace && (absSource == absDest || absSource.startsWith(absDest + p.separator))) {
-            await showDialog(
-              context: context,
-              builder: (context) => ErrorDialog(
-                title: 'You cannot copy a $typeStr over itself.',
-                message: 'The source $typeStr would be overwritten by the destination.',
-              ),
-            );
-            continue;
-          } else if (resolution == ConflictResolution.rename) {
-            final ext = p.extension(name);
-            final base = p.basenameWithoutExtension(name);
-            var counter = 1;
-            var newName = "$base($counter)$ext";
-            while (File(p.join(targetDir, newName)).existsSync() || 
-                   Directory(p.join(targetDir, newName)).existsSync()) {
-              counter++;
-              newName = "$base($counter)$ext";
-            }
-            finalDestPath = p.join(targetDir, newName);
+        void onProgress(int bytesCopied) {
+          final delta = bytesCopied - lastItemBytesProcessed;
+          lastItemBytesProcessed = bytesCopied;
+          totalBytesProcessed += delta;
+          
+          ref.read(taskProvider.notifier).updateByteCounts(taskId, totalBytesProcessed, totalSizeBytes);
+          if (totalSizeBytes > 0) {
+            ref.read(taskProvider.notifier).updateProgress(taskId, totalBytesProcessed / totalSizeBytes);
           }
         }
 
-        final operationVerb = clipboard.isCut ? 'Moving' : 'Copying';
-        ref.read(taskProvider.notifier).addLog(taskId, '$operationVerb $name...');
-        ref.read(taskProvider.notifier).updateCurrentItem(taskId, name);
+        // Only signal the syncing phase for the very last operation in the batch.
+        // For earlier files, the task is still actively processing more items.
+        final isLastOperation = i == operations.length - 1;
+        void onSyncing() {
+          if (isLastOperation) {
+            ref.read(taskProvider.notifier).setSyncing(taskId, true);
+            ref.read(taskProvider.notifier).addLog(taskId, 'Syncing to disk...');
+          }
+        }
 
         if (clipboard.isCut) {
-          await repo.moveItemTo(source, finalDestPath);
+          await repo.moveItemTo(op.source, op.target, 
+            onProgress: onProgress, 
+            onSyncing: onSyncing,
+            taskId: taskId,
+            onPort: (port, isolate) => ref.read(taskProvider.notifier).registerPort(taskId, port, isolate: isolate),
+          );
         } else {
-          await repo.copyItemTo(source, finalDestPath);
+          // Trigger a refresh at the start to show the file as soon as it's created
+          if (ref.read(currentPathProvider) == targetDir) {
+            ref.read(directoryItemsProvider.notifier).refresh();
+          }
+          await repo.copyItemTo(op.source, op.target, 
+            onProgress: onProgress, 
+            onSyncing: onSyncing,
+            taskId: taskId,
+            onPort: (port, isolate) => ref.read(taskProvider.notifier).registerPort(taskId, port, isolate: isolate),
+          );
         }
 
-        ref.read(taskProvider.notifier).addLog(taskId, 'Completed: $name');
+        ref.read(taskProvider.notifier).addLog(taskId, 'Completed: ${op.name}');
 
-        // Select the newly pasted item if we are still in the destination folder
         if (ref.read(currentPathProvider) == targetDir) {
-          ref.read(selectionProvider.notifier).select(finalDestPath);
+          ref.read(selectionProvider.notifier).select(op.target);
+          // Refresh after each item to show progress in the gallery
+          await ref.read(directoryItemsProvider.notifier).refresh();
+          // Force UI rebuild
+          ref.read(refreshCountProvider.notifier).state++;
         }
 
-        ref.read(taskProvider.notifier).updateItemCounts(taskId, i + 1, clipboard.paths.length);
-        ref.read(taskProvider.notifier).updateProgress(taskId, (i + 1) / clipboard.paths.length);
+        ref.read(taskProvider.notifier).updateItemCounts(taskId, i + 1, operations.length);
+        ref.read(taskProvider.notifier).updateProgress(taskId, (i + 1) / operations.length);
       }
 
       ref.read(taskProvider.notifier).completeTask(taskId);
-      // Save to history
-      final completedTask = ref.read(taskProvider).firstWhere((t) => t.id == taskId);
-      ref.read(taskHistoryProvider.notifier).addEntry(completedTask);
-      ref.read(directoryItemsProvider.notifier).refresh();
+      
       if (clipboard.isCut) {
         ref.read(clipboardProvider.notifier).clear();
       }
     } catch (e) {
       ref.read(taskProvider.notifier).addLog(taskId, 'ERROR: $e');
       ref.read(taskProvider.notifier).failTask(taskId, e.toString());
-      // Save failed task to history
-      try {
-        final failedTask = ref.read(taskProvider).firstWhere((t) => t.id == taskId);
-        ref.read(taskHistoryProvider.notifier).addEntry(failedTask);
-      } catch (_) {}
     }
   }
 
@@ -653,20 +745,46 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
 
     if (!confirmed) return;
 
+    final paths = selection.selectedPaths.toList();
+    final taskId = ref.read(taskProvider.notifier).addTask(
+      title: effectivelyPermanent ? 'Deleting ${paths.length} items' : 'Moving ${paths.length} items to Trash',
+      subtitle: effectivelyPermanent ? 'Permanent deletion' : 'Trash',
+      sourcePaths: paths,
+      isLight: true,
+    );
+
     final repo = ref.read(directoryRepositoryProvider);
     try {
       if (effectivelyPermanent) {
-        await repo.deleteItems(selection.selectedPaths.toList(), permanent: true);
+        await repo.deleteItems(paths, 
+          permanent: true, 
+          taskId: taskId, 
+          onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+          onProgress: (p, t) {
+            ref.read(taskProvider.notifier).updateProgress(taskId, p / t);
+            ref.read(taskProvider.notifier).updateItemCounts(taskId, p, t);
+          },
+        );
       } else {
         try {
-          await repo.trashItems(selection.selectedPaths.toList());
+          await repo.trashItems(paths, 
+            taskId: taskId, 
+            onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+            onProgress: (p, t) {
+              ref.read(taskProvider.notifier).updateProgress(taskId, p / t);
+              ref.read(taskProvider.notifier).updateItemCounts(taskId, p, t);
+            },
+          );
         } catch (e) {
+          ref.read(taskProvider.notifier).failTask(taskId, e.toString());
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text("System trash utility not found. Use Shift+Delete."),
             backgroundColor: AppColors.error,
           ));
+          return;
         }
       }
+      ref.read(taskProvider.notifier).completeTask(taskId);
       ref.read(selectionProvider.notifier).deselectAll();
       ref.read(directoryItemsProvider.notifier).refresh();
     } catch (e) {
@@ -725,9 +843,25 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           final repo = ref.read(directoryRepositoryProvider);
           try {
             if (result is String) {
-              final newPath = await repo.renameItem(selection.selectedPaths.first, result);
-              ref.read(selectionProvider.notifier).deselectAll();
-              ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+              final oldPath = selection.selectedPaths.first;
+              final taskId = ref.read(taskProvider.notifier).addTask(
+                title: 'Renaming item',
+                subtitle: '${p.basename(oldPath)} -> $result',
+                sourcePaths: [oldPath],
+                isLight: true,
+              );
+              try {
+                final newPath = await repo.renameItem(oldPath, result, 
+                  taskId: taskId,
+                  onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+                );
+                ref.read(selectionProvider.notifier).deselectAll();
+                ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+                ref.read(taskProvider.notifier).completeTask(taskId);
+              } catch (e) {
+                ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+                rethrow;
+              }
             }
             ref.read(directoryItemsProvider.notifier).refresh();
           } catch (e) {
@@ -754,17 +888,55 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
       final repo = ref.read(directoryRepositoryProvider);
       try {
         if (result is String) {
-          final newPath = await repo.renameItem(selection.selectedPaths.first, result);
-          ref.read(selectionProvider.notifier).deselectAll();
-          ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+          final oldPath = selection.selectedPaths.first;
+          final taskId = ref.read(taskProvider.notifier).addTask(
+            title: 'Renaming item',
+            subtitle: '${p.basename(oldPath)} -> $result',
+            sourcePaths: [oldPath],
+            isLight: true,
+          );
+          try {
+            final newPath = await repo.renameItem(oldPath, result, 
+              taskId: taskId,
+              onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+            );
+            ref.read(selectionProvider.notifier).deselectAll();
+            ref.read(selectionProvider.notifier).selectMultiple([newPath]);
+            ref.read(taskProvider.notifier).completeTask(taskId);
+          } catch (e) {
+            ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+            rethrow;
+          }
         } else if (result is Map) {
           final mode = result['mode'] as RenameMode;
           final value = result['value'] as String;
           List<String> newPaths = [];
-          if (mode == RenameMode.prefix) {
-            newPaths = await repo.bulkRename(selection.selectedPaths.toList(), prefix: value);
-          } else {
-            newPaths = await repo.bulkRename(selection.selectedPaths.toList(), baseName: value);
+          final paths = selection.selectedPaths.toList();
+          final taskId = ref.read(taskProvider.notifier).addTask(
+            title: 'Bulk renaming ${paths.length} items',
+            subtitle: mode == RenameMode.prefix ? 'Prefix: $value' : 'Index: $value',
+            sourcePaths: paths,
+            isLight: true,
+          );
+
+          try {
+            if (mode == RenameMode.prefix) {
+              newPaths = await repo.bulkRename(paths, 
+                prefix: value, 
+                taskId: taskId,
+                onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+              );
+            } else {
+              newPaths = await repo.bulkRename(paths, 
+                baseName: value, 
+                taskId: taskId,
+                onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+              );
+            }
+            ref.read(taskProvider.notifier).completeTask(taskId);
+          } catch (e) {
+            ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+            rethrow;
           }
           ref.read(selectionProvider.notifier).deselectAll();
           ref.read(selectionProvider.notifier).selectMultiple(newPaths);
@@ -788,12 +960,25 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
       hint: 'Folder name',
     );
     if (name != null && name.isNotEmpty) {
+      final taskId = ref.read(taskProvider.notifier).addTask(
+        title: 'New Folder',
+        subtitle: name,
+        isLight: true,
+      );
       final repo = ref.read(directoryRepositoryProvider);
       final newFolderPath = p.join(currentPath, name);
-      await repo.createFolder(currentPath, name);
-      await ref.read(directoryItemsProvider.notifier).refresh();
-      // Auto-select the new folder
-      ref.read(selectionProvider.notifier).selectMultiple([newFolderPath]);
+      try {
+        await repo.createFolder(currentPath, name, taskId: taskId);
+        ref.read(taskProvider.notifier).completeTask(taskId);
+        await ref.read(directoryItemsProvider.notifier).refresh();
+        // Auto-select the new folder
+        ref.read(selectionProvider.notifier).selectMultiple([newFolderPath]);
+      } catch (e) {
+        ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error creating folder: $e')));
+        }
+      }
     }
     _focusNode.requestFocus();
   }
@@ -812,4 +997,17 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     zooms[path] = 0.8;
     ref.read(zoomProvider.notifier).state = zooms;
   }
+}
+
+class _PasteOperation {
+  final String source;
+  final String target;
+  final String name;
+  final int size;
+  _PasteOperation({
+    required this.source,
+    required this.target,
+    required this.name,
+    required this.size,
+  });
 }

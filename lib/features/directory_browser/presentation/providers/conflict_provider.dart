@@ -22,6 +22,7 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
   List<ConflictRequest> build() => [];
 
   bool _isShowingDialog = false;
+  ConflictResolution? _globalResolution;
 
   Future<ConflictResolution> resolveConflict({
     required String fileName,
@@ -50,7 +51,17 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
     _isShowingDialog = true;
     final request = state.first;
 
-    final resolution = await showDialog<ConflictResolution>(
+    if (_globalResolution != null) {
+      request.completer.complete(_globalResolution!);
+      state = state.skip(1).toList();
+      _isShowingDialog = false;
+      if (state.isNotEmpty && context.mounted) {
+        _processQueue(context);
+      }
+      return;
+    }
+
+    final result = await showDialog<ConflictResult>(
       context: context,
       barrierDismissible: false,
       builder: (context) => ConflictDialog(
@@ -60,9 +71,12 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
       ),
     );
 
-    // If resolution is null (shouldn't happen with our new dialog but as fallback),
-    // default to skip.
-    final finalResolution = resolution ?? ConflictResolution.skip;
+    // If resolution is null, default to skip.
+    final finalResolution = result?.resolution ?? ConflictResolution.skip;
+    
+    if (result?.applyToAll == true) {
+      _globalResolution = finalResolution;
+    }
     
     request.completer.complete(finalResolution);
     
@@ -73,6 +87,10 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
     if (state.isNotEmpty && context.mounted) {
       _processQueue(context);
     }
+  }
+
+  void clearGlobalResolution() {
+    _globalResolution = null;
   }
 }
 

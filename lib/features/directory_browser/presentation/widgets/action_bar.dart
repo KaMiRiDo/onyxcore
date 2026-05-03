@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 
 /// Action bar with gradient Add button and view options — pixel-perfect replica of original _buildActionBar().
@@ -94,8 +95,21 @@ class ActionBar extends ConsumerWidget {
     );
     if (name != null && name.isNotEmpty) {
       final repo = ref.read(directoryRepositoryProvider);
-      await repo.createFolder(currentPath, name);
-      await ref.read(directoryItemsProvider.notifier).refresh();
+      final taskId = ref.read(taskProvider.notifier).addTask(
+        title: 'New Folder',
+        subtitle: name,
+        isLight: true,
+      );
+      try {
+        await repo.createFolder(currentPath, name, taskId: taskId);
+        ref.read(taskProvider.notifier).completeTask(taskId);
+        await ref.read(directoryItemsProvider.notifier).refresh();
+      } catch (e) {
+        ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error creating folder: $e')));
+        }
+      }
     }
   }
 }

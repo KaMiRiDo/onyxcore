@@ -54,7 +54,13 @@ class DirectoryWatcher {
           final changeType = _mapEventType(event.type);
           if (changeType == null) return;
 
-          // Debounce: batch rapid events into one refresh
+          // Fire CREATE and DELETE immediately for instant UI feedback
+          if (changeType == FileChangeType.create || changeType == FileChangeType.delete) {
+            _controller.add(FileChangeEvent(type: changeType, path: event.path));
+            return;
+          }
+
+          // Debounce MODIFY events (like file writes) to prevent rapid rebuilds
           _debounceTimer?.cancel();
           _debounceTimer = Timer(debounceDuration, () {
             if (!_controller.isClosed) {

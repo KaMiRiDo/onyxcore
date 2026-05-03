@@ -22,6 +22,7 @@ class SidebarItem extends ConsumerStatefulWidget {
     required this.isActive,
     required this.onTap,
     this.progress,
+    this.storageText,
     this.onEject,
     super.key,
   });
@@ -33,6 +34,7 @@ class SidebarItem extends ConsumerStatefulWidget {
   final VoidCallback onTap;
   final VoidCallback? onEject;
   final double? progress;
+  final String? storageText;
 
   @override
   ConsumerState<SidebarItem> createState() => _SidebarItemState();
@@ -96,24 +98,35 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
               labelWidget,
               if (widget.progress != null) ...[
                 const SizedBox(height: 4),
-                Container(
-                  height: 3,
-                  width: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(1.5),
-                  ),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: widget.progress!.clamp(0.0, 1.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.circular(1.5),
+                if (widget.storageText != null) ...[
+                    Text(
+                      widget.storageText!,
+                      style: GoogleFonts.manrope(
+                        color: AppColors.textMuted.withOpacity(0.6),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
+                  Container(
+                    height: 3,
+                    width: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(1.5),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: widget.progress!.clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.primaryGradient,
+                          borderRadius: BorderRadius.circular(1.5),
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ],
           ),
@@ -121,10 +134,11 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
         if (widget.onEject != null)
           IconButton(
             icon: const Icon(Icons.eject_outlined, size: 16, color: AppColors.textMuted),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(12),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             onPressed: widget.onEject,
             hoverColor: Colors.white10,
+            splashRadius: 20,
           ),
       ],
     );
@@ -160,6 +174,9 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
           final taskId = ref.read(taskProvider.notifier).addTask(
             title: 'Moving Files',
             subtitle: '${details.data.length} items to ${widget.label}',
+            totalCount: details.data.length,
+            sourcePaths: details.data,
+            targetPath: widget.path,
           );
           
           try {

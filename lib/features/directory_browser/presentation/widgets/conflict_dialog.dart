@@ -9,15 +9,23 @@ import 'package:path/path.dart' as p;
 
 enum ConflictResolution { replace, skip, rename }
 
+class ConflictResult {
+  final ConflictResolution resolution;
+  final bool applyToAll;
+  ConflictResult(this.resolution, this.applyToAll);
+}
+
 class ConflictDialog extends ConsumerStatefulWidget {
   final String fileName;
   final String destinationPath;
   final bool isFolder;
+  final bool showApplyToAll;
 
   const ConflictDialog({
     required this.fileName, 
     required this.destinationPath,
     this.isFolder = false, 
+    this.showApplyToAll = true,
     super.key
   });
 
@@ -29,6 +37,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   int _selectedIndex = 0;
+  bool _applyToAll = false;
 
   final List<ConflictResolution> _resolutions = [
     ConflictResolution.skip,
@@ -66,7 +75,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
   }
 
   void _handleConfirm() {
-    Navigator.pop(context, _resolutions[_selectedIndex]);
+    Navigator.pop(context, ConflictResult(_resolutions[_selectedIndex], _applyToAll));
   }
 
   @override
@@ -199,6 +208,39 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
                             index: 2,
                           ),
 
+                          if (widget.showApplyToAll) ...[
+                            const Divider(color: Colors.white10, height: 1),
+                            InkWell(
+                              onTap: () => setState(() => _applyToAll = !_applyToAll),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: Checkbox(
+                                        value: _applyToAll,
+                                        onChanged: (val) => setState(() => _applyToAll = val ?? false),
+                                        activeColor: AppColors.violet,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                        side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Apply this for all files/folders',
+                                      style: GoogleFonts.manrope(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+
                           const SizedBox(height: 16),
                         ],
                       ),
@@ -226,7 +268,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => Navigator.pop(context, value),
+        onTap: () => Navigator.pop(context, ConflictResult(value, _applyToAll)),
         onHover: (hovering) {
           if (hovering) setState(() => _selectedIndex = index);
         },

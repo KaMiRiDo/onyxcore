@@ -13,4 +13,17 @@ class StringUtils {
 
     return '$start...$end';
   }
+
+  /// Formats a byte count into a human-readable string.
+  static String formatBytes(int bytes) {
+    if (bytes <= 0) return '0 B';
+    const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var i = 0;
+    var count = bytes.toDouble();
+    while (count >= 1024 && i < suffixes.length - 1) {
+      count /= 1024;
+      i++;
+    }
+    return '${count.toStringAsFixed(1)} ${suffixes[i]}';
+  }
 }
