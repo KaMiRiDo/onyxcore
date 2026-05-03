@@ -46,9 +46,6 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
         ref.read(selectionProvider.notifier).select(itemToHighlight);
       });
     }
-
-    // Close background panel to show the navigation result
-    ref.read(backgroundPanelOpenProvider.notifier).state = false;
   }
 
   @override

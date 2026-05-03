@@ -23,6 +23,8 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/file_gr
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/preview_container.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/gnome_tab_bar.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rubber_band_overlay.dart';
@@ -34,6 +36,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/propert
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
 
@@ -54,8 +57,6 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     WidgetsBinding.instance.addObserver(this);
     _focusNode = ref.read(mainFocusNodeProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final String currentPath = ref.read(currentPathProvider);
-      ref.read(navigationProvider.notifier).initialize(currentPath);
       _setupReverseIpc();
       _focusNode.requestFocus();
     });
@@ -140,7 +141,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
       }
       return null;
     });
-  }  @override
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Watch search state at the top level to ensure rebuilds of shortcuts
     final isSearchActive = ref.watch(isSearchActiveProvider);
@@ -171,6 +174,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                         child: Column(
                           children: [
                             const TopBar(),
+                            const GnomeTabBar(),
                             Expanded(
                               child: Row(
                                 children: [
@@ -305,11 +309,54 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
 
   /// Same as _buildContent but without the Expanded wrapper (for inline Row layout).
   Widget _buildContentInner() {
+    final tabState = ref.watch(tabManagerProvider);
+    
+    return IndexedStack(
+      index: tabState.activeTabIndex,
+      children: tabState.tabs.map((tab) {
+        return ProviderScope(
+          key: ValueKey(tab.id),
+          overrides: [
+            tabIdProvider.overrideWithValue(tab.id),
+            // Override these to ensure they are local to the tab's scope
+            directoryItemsProvider.overrideWith(DirectoryItemsNotifier.new),
+            filteredDirectoryItemsProvider.overrideWith((ref) {
+              final itemsAsync = ref.watch(directoryItemsProvider);
+              final query = ref.watch(searchQueryProvider).toLowerCase();
+              final settingsAsync = ref.watch(settingsProvider);
+              final showHidden = settingsAsync.value?.showHiddenFiles ?? false;
+              
+              return itemsAsync.whenData((items) {
+                var filtered = items;
+                if (!showHidden) {
+                  filtered = filtered.where((item) => !item.name.startsWith(".")).toList();
+                }
+                if (query.isNotEmpty) {
+                  filtered = filtered.where((item) => item.name.toLowerCase().contains(query)).toList();
+                }
+                return filtered;
+              });
+            }),
+            itemKeysProvider.overrideWith(ItemKeysNotifier.new),
+          ],
+          child: _TabBody(tabId: tab.id),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _TabBody extends ConsumerWidget {
+  final String tabId;
+  const _TabBody({required this.tabId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final previewFile = ref.watch(previewFileProvider);
     if (previewFile != null) {
       return PreviewContainer(item: previewFile);
     }
-    
+
     return Column(
       children: [
         Expanded(
@@ -320,6 +367,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
       ],
     );
   }
+}
+
+extension _GalleryPageStateShortcuts on _GalleryPageState {
 
   Map<ShortcutActivator, VoidCallback> _buildKeyBindings(bool isSearchActive, bool isLocationEditing) {
     return {
@@ -364,13 +414,19 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
       const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(!isSearchActive),
       const SingleActivator(LogicalKeyboardKey.keyR, control: true): _refresh,
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
-        ref.read(backgroundPanelOpenProvider.notifier).update((state) => !state);
+        ref.read(backgroundPanelOpenProvider.notifier).state = !ref.read(backgroundPanelOpenProvider);
       },
       const SingleActivator(LogicalKeyboardKey.keyD, alt: true): () {
         if (!isSearchActive) {
-          ref.read(isLocationEditingProvider.notifier).update((state) => !state);
+          ref.read(isLocationEditingProvider.notifier).toggle();
         }
       },
+
+      // Tab Management
+      const SingleActivator(LogicalKeyboardKey.keyT, control: true): _addNewTab,
+      const SingleActivator(LogicalKeyboardKey.keyW, control: true): _closeActiveTab,
+      const SingleActivator(LogicalKeyboardKey.tab, control: true): _switchToNextTab,
+      const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): _switchToPreviousTab,
 
       // Item Opening
       if (!isLocationEditing) ...{
@@ -380,18 +436,40 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     };
   }
 
+  void _addNewTab() {
+    final activeTab = ref.read(tabManagerProvider).activeTab;
+    ref.read(tabManagerProvider.notifier).addTab(
+      path: activeTab.currentPath,
+      history: activeTab.history,
+      historyIndex: activeTab.historyIndex,
+    );
+  }
+
+  void _closeActiveTab() {
+    final activeId = ref.read(activeTabIdProvider);
+    ref.read(tabManagerProvider.notifier).closeTab(activeId);
+  }
+
+  void _switchToNextTab() {
+    ref.read(tabManagerProvider.notifier).switchToNextTab();
+  }
+
+  void _switchToPreviousTab() {
+    ref.read(tabManagerProvider.notifier).switchToPreviousTab();
+  }
+
   void _toggleSearch(bool active) {
     if (active) {
-      ref.read(isLocationEditingProvider.notifier).state = false;
+      ref.read(isLocationEditingProvider.notifier).set(false);
     }
-    ref.read(isSearchActiveProvider.notifier).state = active;
+    ref.read(isSearchActiveProvider.notifier).set(active);
   }
 
   void _refresh() async {
     debugPrint("Refresh triggered via Ctrl+R");
     final currentPath = ref.read(currentPathProvider);
     ref.read(directoryRepositoryProvider).invalidateCache(currentPath);
-    ref.read(refreshCountProvider.notifier).update((state) => state + 1);
+    ref.read(refreshCountProvider.notifier).state = ref.read(refreshCountProvider) + 1;
     ref.read(isRefreshingProvider.notifier).state = true;
     ref.read(directoryItemsProvider.notifier).refresh();
     // Subtle blink duration
@@ -469,7 +547,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
   }
 
   void _goBack() {
-    ref.read(isSearchActiveProvider.notifier).state = false;
+    ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goBack();
     final nav = ref.read(navigationProvider);
@@ -479,7 +557,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
   }
 
   void _goForward() {
-    ref.read(isSearchActiveProvider.notifier).state = false;
+    ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goForward();
     final nav = ref.read(navigationProvider);

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -49,10 +50,23 @@ final directoryRepositoryProvider = Provider<DirectoryRepository>((ref) {
 
 // ——— State Providers ———
 
-/// The currently active directory path.
-final currentPathProvider = StateProvider<String>((ref) {
-  return Platform.environment['HOME'] ?? '/';
-});
+/// The currently active directory path, scoped to the current tab.
+class CurrentPathNotifier extends Notifier<String> {
+  @override
+  String build() {
+    final tabId = ref.watch(tabIdProvider);
+    return ref.watch(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).currentPath
+    ));
+  }
+
+  set state(String value) {
+    final tabId = ref.read(tabIdProvider);
+    ref.read(tabManagerProvider.notifier).updateTabPath(tabId, value);
+  }
+}
+
+final currentPathProvider = NotifierProvider<CurrentPathNotifier, String>(CurrentPathNotifier.new);
 
 /// Per-folder zoom levels. Default 0.8x.
 final zoomProvider = StateProvider<Map<String, double>>((ref) => {});
@@ -76,14 +90,72 @@ final previewFileProvider = StateProvider<FileItem?>((ref) => null);
 /// Global visibility state for the inline preview HUD.
 final previewHudVisibleProvider = StateProvider<bool>((ref) => true);
 
-/// Current search query.
-final searchQueryProvider = StateProvider<String>((ref) => '');
+/// Current search query, scoped to the current tab.
+class SearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() {
+    final tabId = ref.watch(tabIdProvider);
+    return ref.watch(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).searchQuery
+    ));
+  }
 
-/// Whether search mode is active in TopBar.
-final isSearchActiveProvider = StateProvider<bool>((ref) => false);
+  set state(String value) {
+    final tabId = ref.read(tabIdProvider);
+    ref.read(tabManagerProvider.notifier).updateSearchQuery(tabId, value);
+  }
+}
+final searchQueryProvider = NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
 
-/// Whether location editing mode is active in TopBar.
-final isLocationEditingProvider = StateProvider<bool>((ref) => false);
+/// Whether search mode is active, scoped to the current tab.
+class IsSearchActiveNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    final tabId = ref.watch(tabIdProvider);
+    return ref.watch(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive
+    ));
+  }
+
+  void set(bool value) {
+    final tabId = ref.read(tabIdProvider);
+    ref.read(tabManagerProvider.notifier).setSearchActive(tabId, value);
+  }
+
+  void toggle() {
+    final tabId = ref.read(tabIdProvider);
+    final current = ref.read(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive
+    ));
+    ref.read(tabManagerProvider.notifier).setSearchActive(tabId, !current);
+  }
+}
+final isSearchActiveProvider = NotifierProvider<IsSearchActiveNotifier, bool>(IsSearchActiveNotifier.new);
+
+/// Whether location editing mode is active, scoped to the current tab.
+class IsLocationEditingNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    final tabId = ref.watch(tabIdProvider);
+    return ref.watch(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing
+    ));
+  }
+
+  void set(bool value) {
+    final tabId = ref.read(tabIdProvider);
+    ref.read(tabManagerProvider.notifier).setLocationEditing(tabId, value);
+  }
+
+  void toggle() {
+    final tabId = ref.read(tabIdProvider);
+    final current = ref.read(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing
+    ));
+    ref.read(tabManagerProvider.notifier).setLocationEditing(tabId, !current);
+  }
+}
+final isLocationEditingProvider = NotifierProvider<IsLocationEditingNotifier, bool>(IsLocationEditingNotifier.new);
 
 /// Current error message for path editing.
 final pathErrorProvider = StateProvider<String?>((ref) => null);
@@ -204,9 +276,72 @@ final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref
   });
 });
 
-final isRefreshingProvider = StateProvider<bool>((ref) => false);
-final refreshCountProvider = StateProvider<int>((ref) => 0);
+/// Whether the current tab is refreshing.
+class IsRefreshingNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    final tabId = ref.watch(tabIdProvider);
+    return ref.watch(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).isRefreshing
+    ));
+  }
+
+  set state(bool value) {
+    final tabId = ref.read(tabIdProvider);
+    ref.read(tabManagerProvider.notifier).setRefreshing(tabId, value);
+  }
+}
+final isRefreshingProvider = NotifierProvider<IsRefreshingNotifier, bool>(IsRefreshingNotifier.new);
+
+/// Current refresh count, scoped to the current tab.
+class RefreshCountNotifier extends Notifier<int> {
+  @override
+  int build() {
+    final tabId = ref.watch(tabIdProvider);
+    return ref.watch(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount
+    ));
+  }
+
+  set state(int value) {
+    // This is usually called as state++, so we need a way to increment.
+    // But setting it directly works too.
+    final tabId = ref.read(tabIdProvider);
+    // If it's just incrementing, we could have a method, 
+    // but for compatibility with state = value:
+    final current = ref.read(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount
+    ));
+    if (value > current) {
+      ref.read(tabManagerProvider.notifier).incrementRefreshCount(tabId);
+    }
+  }
+  
+  void update(int Function(int) updater) {
+    final tabId = ref.read(tabIdProvider);
+    final current = ref.read(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount
+    ));
+    final next = updater(current);
+    if (next > current) {
+       ref.read(tabManagerProvider.notifier).incrementRefreshCount(tabId);
+    }
+  }
+}
+final refreshCountProvider = NotifierProvider<RefreshCountNotifier, int>(RefreshCountNotifier.new);
 final mainFocusNodeProvider = Provider<FocusNode>((ref) => FocusNode());
 
 /// Global registry of ItemCard GlobalKeys to find their positions for popovers (like Rename).
-final itemKeysProvider = StateProvider<Map<String, GlobalKey>>((ref) => {});
+class ItemKeysNotifier extends Notifier<Map<String, GlobalKey>> {
+  @override
+  Map<String, GlobalKey> build() => {};
+
+  void update(Map<String, GlobalKey> Function(Map<String, GlobalKey>) updater) {
+    state = updater(state);
+  }
+
+  void register(String path, GlobalKey key) {
+    state = {...state, path: key};
+  }
+}
+final itemKeysProvider = NotifierProvider<ItemKeysNotifier, Map<String, GlobalKey>>(ItemKeysNotifier.new);

@@ -1,20 +1,29 @@
 import 'dart:math' as math;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 
 import '../../domain/entities/selection_state.dart';
 
-/// Notifier managing multi-selection state.
-///
-/// Handles single-click, Ctrl+Click, Shift+Click selection logic
-/// (exact same behavior as original gallery_page.dart).
+/// Notifier managing multi-selection state, scoped to the current tab.
 class SelectionNotifier extends Notifier<SelectionState> {
   @override
-  SelectionState build() => SelectionState.empty;
+  SelectionState build() {
+    final tabId = ref.watch(tabIdProvider);
+    final selectedPaths = ref.watch(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).selectedPaths
+    ));
+    return SelectionState(
+      selectedPaths: selectedPaths,
+      isSelectionMode: selectedPaths.isNotEmpty,
+    );
+  }
+
+  void _update(Set<String> selection) {
+    final tabId = ref.read(tabIdProvider);
+    ref.read(tabManagerProvider.notifier).updateSelection(tabId, selection);
+  }
 
   /// Handle item tap with modifier key state.
-  ///
-  /// Exactly replicates the original _onItemTap() logic.
   void onItemTap({
     required int currentIndex,
     required List<String> allPaths,
@@ -25,75 +34,49 @@ class SelectionNotifier extends Notifier<SelectionState> {
     final selectedPaths = Set<String>.from(currentState.selectedPaths);
 
     if (isShift && currentState.anchorIndex != null) {
-      // Range selection (additive)
       final start = math.min(currentState.anchorIndex!, currentIndex);
       final end = math.max(currentState.anchorIndex!, currentIndex);
       for (var i = start; i <= end; i++) {
         selectedPaths.add(allPaths[i]);
       }
-      state = SelectionState(
-        selectedPaths: selectedPaths,
-        isSelectionMode: selectedPaths.isNotEmpty,
-        anchorIndex: currentState.anchorIndex,
-      );
+      _update(selectedPaths);
     } else if (isCtrl) {
-      // Individual toggle
       final path = allPaths[currentIndex];
       if (selectedPaths.contains(path)) {
         selectedPaths.remove(path);
       } else {
         selectedPaths.add(path);
       }
-      state = SelectionState(
-        selectedPaths: selectedPaths,
-        isSelectionMode: selectedPaths.isNotEmpty,
-        anchorIndex: currentIndex,
-      );
+      _update(selectedPaths);
     } else {
-      state = SelectionState(
-        selectedPaths: {allPaths[currentIndex]},
-        isSelectionMode: true,
-        anchorIndex: currentIndex,
-      );
+      _update({allPaths[currentIndex]});
     }
   }
 
   /// Select a single path.
   void select(String path) {
     final newSelection = Set<String>.from(state.selectedPaths)..add(path);
-    state = state.copyWith(
-      selectedPaths: newSelection,
-      isSelectionMode: true,
-    );
+    _update(newSelection);
   }
 
-  /// Select multiple paths (used for rubber-band selection).
+  /// Select multiple paths.
   void selectMultiple(List<String> paths, {bool isCtrl = false}) {
     if (isCtrl) {
       final newSelection = Set<String>.from(state.selectedPaths)..addAll(paths);
-      state = state.copyWith(
-        selectedPaths: newSelection,
-        isSelectionMode: newSelection.isNotEmpty,
-      );
+      _update(newSelection);
     } else {
-      state = state.copyWith(
-        selectedPaths: paths.toSet(),
-        isSelectionMode: paths.isNotEmpty,
-      );
+      _update(paths.toSet());
     }
   }
 
   /// Select all items.
   void selectAll(List<String> allPaths) {
-    state = SelectionState(
-      selectedPaths: allPaths.toSet(),
-      isSelectionMode: true,
-    );
+    _update(allPaths.toSet());
   }
 
   /// Clear all selection.
   void deselectAll() {
-    state = SelectionState.empty;
+    _update({});
   }
 
   /// Remove specific paths from selection.
@@ -102,10 +85,7 @@ class SelectionNotifier extends Notifier<SelectionState> {
     for (final p in paths) {
       newSelection.remove(p);
     }
-    state = state.copyWith(
-      selectedPaths: newSelection,
-      isSelectionMode: newSelection.isNotEmpty,
-    );
+    _update(newSelection);
   }
 }
 

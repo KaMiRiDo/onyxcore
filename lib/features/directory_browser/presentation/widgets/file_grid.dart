@@ -164,7 +164,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
                   const SizedBox(height: 48),
                   OutlinedButton(
                     onPressed: () {
-                      ref.read(isSearchActiveProvider.notifier).state = false;
+                      ref.read(isSearchActiveProvider.notifier).set(false);
                     },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.white.withOpacity(0.1)),

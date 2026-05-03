@@ -47,7 +47,7 @@ class _TopBarState extends ConsumerState<TopBar> {
     });
     _locationFocusNode.addListener(() {
       if (!_locationFocusNode.hasFocus && ref.read(isLocationEditingProvider)) {
-        ref.read(isLocationEditingProvider.notifier).state = false;
+        ref.read(isLocationEditingProvider.notifier).set(false);
       }
     });
   }
@@ -64,9 +64,9 @@ class _TopBarState extends ConsumerState<TopBar> {
 
   void _toggleSearch(bool active) {
     if (active) {
-      ref.read(isLocationEditingProvider.notifier).state = false;
+      ref.read(isLocationEditingProvider.notifier).set(false);
     }
-    ref.read(isSearchActiveProvider.notifier).state = active;
+    ref.read(isSearchActiveProvider.notifier).set(active);
   }
 
   @override
@@ -86,7 +86,7 @@ class _TopBarState extends ConsumerState<TopBar> {
           _toggleSearch(false);
         }
         if (ref.read(isLocationEditingProvider)) {
-          ref.read(isLocationEditingProvider.notifier).state = false;
+          ref.read(isLocationEditingProvider.notifier).set(false);
         }
         
         // Auto-scroll to end
@@ -174,7 +174,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                                   Expanded(
                                     child: GestureDetector(
                                       onTap: () {
-                                        ref.read(isLocationEditingProvider.notifier).state = true;
+                                        ref.read(isLocationEditingProvider.notifier).set(true);
                                       },
                                       behavior: HitTestBehavior.opaque,
                                       child: SingleChildScrollView(
@@ -210,7 +210,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                               child: TapRegion(
                                 onTapOutside: (_) {
                                   if (ref.read(isLocationEditingProvider)) {
-                                    ref.read(isLocationEditingProvider.notifier).state = false;
+                                    ref.read(isLocationEditingProvider.notifier).set(false);
                                   }
                                 },
                                 child: TextField(
@@ -234,7 +234,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                                         ref.read(pathErrorProvider.notifier).state = null;
                                       });
                                     }
-                                    ref.read(isLocationEditingProvider.notifier).state = false;
+                                    ref.read(isLocationEditingProvider.notifier).set(false);
                                     // Request focus back to main node
                                     ref.read(mainFocusNodeProvider).requestFocus();
                                   },
@@ -249,7 +249,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                                       constraints: const BoxConstraints(),
                                       splashRadius: 20,
                                       onPressed: () {
-                                        ref.read(isLocationEditingProvider.notifier).state = false;
+                                        ref.read(isLocationEditingProvider.notifier).set(false);
                                       },
                                     ),
                                   ),
