@@ -8,6 +8,7 @@ import 'package:onyxcore/core/widgets/onyx_switch.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
 
 class SettingsDialog extends ConsumerStatefulWidget {
@@ -355,6 +356,41 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                       if (value != null) {
                         setState(() {
                           _draftSettings = _draftSettings!.copyWith(maxConcurrentTasks: value);
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
+              _buildSettingTile(
+                title: 'Global default sort',
+                subtitle: 'The sort order used for folders without a specific preference',
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: DropdownButton<SortOption>(
+                    value: settings.globalSortOption,
+                    dropdownColor: const Color(0xFF1A1A1A),
+                    underline: const SizedBox.shrink(),
+                    isDense: true,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                    items: SortOption.values
+                        .map<DropdownMenuItem<SortOption>>((v) => DropdownMenuItem<SortOption>(
+                              value: v,
+                              child: Text(v.label),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _draftSettings = _draftSettings!.copyWith(globalSortOption: value);
                         });
                       }
                     },

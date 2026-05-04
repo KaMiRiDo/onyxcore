@@ -1,18 +1,16 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'dart:async';
-import 'package:path/path.dart' as p;
+import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 
 class GnomeTabBar extends ConsumerStatefulWidget {
   const GnomeTabBar({super.key});
@@ -23,8 +21,8 @@ class GnomeTabBar extends ConsumerStatefulWidget {
 
 class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
   final ScrollController _scrollController = ScrollController();
-  static const double _minTabWidth = 140.0;
-  static const double _height = 56.0;
+  static const double _minTabWidth = 140;
+  static const double _height = 56;
 
   @override
   void dispose() {
@@ -39,10 +37,11 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
     if (tabState.tabs.length <= 1) {
       return const SizedBox.shrink();
     }
-
-    ref.listen(tabManagerProvider.select((s) => s.tabs.length), (prev, next) {
-      if (next != null && (prev == null || next > prev)) {
-        Future.delayed(const Duration(milliseconds: 100), () {
+    
+    // Auto-scroll to end when tabs are added
+    ref.listen(tabManagerProvider, (previous, next) {
+      if (next.tabs.length > (previous?.tabs.length ?? 0)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
               _scrollController.position.maxScrollExtent,
@@ -89,14 +88,14 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
                   ),
                 ),
               );
-          },
-        ),
+            },
+          ),
     );
   }
 }
 
 class _TabWidget extends ConsumerStatefulWidget {
-  final dynamic tab;
+  final TabState tab;
   final bool isActive;
   final VoidCallback onTap;
   final VoidCallback onClose;
@@ -139,6 +138,8 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
     const activeBg = Color(0xFF212121);
     const inactiveBg = Color(0xFF141414);
     const borderColor = Color(0xFF2A2A2A);
+    
+    final currentRef = ref;
 
     return DragTarget<List<String>>(
       onWillAcceptWithDetails: (details) {
@@ -154,8 +155,8 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
         final targetPath = widget.tab.currentPath;
         if (details.data.every((path) => p.dirname(path) == targetPath)) return;
 
-        final repo = ref.read(directoryRepositoryProvider);
-        final taskId = ref.read(taskProvider.notifier).addTask(
+        final repo = currentRef.read(directoryRepositoryProvider);
+        final taskId = currentRef.read(taskProvider.notifier).addTask(
           title: 'Moving Files',
           subtitle: '${details.data.length} items to ${widget.tab.title}',
           totalCount: details.data.length,
@@ -165,11 +166,11 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
 
         try {
           await repo.moveItems(details.data, targetPath);
-          ref.read(taskProvider.notifier).completeTask(taskId);
-          ref.read(directoryItemsProvider.notifier).refresh();
-          ref.read(selectionProvider.notifier).deselectAll();
+          currentRef.read(taskProvider.notifier).completeTask(taskId);
+          currentRef.read(directoryItemsProvider.notifier).refresh();
+          currentRef.read(selectionProvider.notifier).deselectAll();
         } catch (e) {
-          ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+          currentRef.read(taskProvider.notifier).failTask(taskId, e.toString());
         }
       },
       builder: (context, candidateData, rejectedData) {
@@ -246,12 +247,12 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
                   ),
                   if (widget.isActive)
                     Positioned(
-                      bottom: 0,
                       left: 0,
                       right: 0,
+                      bottom: 0,
                       child: Container(
-                        height: 2.5,
-                        decoration: BoxDecoration(
+                        height: 3,
+                        decoration: const BoxDecoration(
                           gradient: AppTheme.primaryGradient,
                         ),
                       ),
@@ -270,26 +271,24 @@ class _CloseButton extends StatelessWidget {
   final VoidCallback onTap;
   final bool isActive;
 
-  const _CloseButton({required this.onTap, this.isActive = false});
+  const _CloseButton({required this.onTap, required this.isActive});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: isActive 
-        ? ShaderMask(
-            shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-            child: const Icon(
-              Icons.close_rounded,
-              size: 14,
-              color: Colors.white,
-            ),
-          )
-        : Icon(
-            Icons.close_rounded,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          child: Icon(
+            Icons.close,
             size: 14,
-            color: Colors.white.withOpacity(0.3),
+            color: isActive ? Colors.white : Colors.white38,
           ),
+        ),
+      ),
     );
   }
 }

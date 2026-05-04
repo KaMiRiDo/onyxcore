@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
 /// Immutable application settings entity.
 ///
@@ -14,6 +15,7 @@ class AppSettings extends Equatable {
     this.pinnedFolders = const [],
     this.gallerySortSettings = const {},
     this.maxConcurrentTasks = 3,
+    this.globalSortOption = SortOption.aToZ,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -37,6 +39,9 @@ class AppSettings extends Equatable {
   /// Maximum number of simultaneous background tasks.
   final int maxConcurrentTasks;
 
+  /// Global fallback sort option.
+  final SortOption globalSortOption;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -45,6 +50,7 @@ class AppSettings extends Equatable {
     List<String>? pinnedFolders,
     Map<String, String>? gallerySortSettings,
     int? maxConcurrentTasks,
+    SortOption? globalSortOption,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -54,6 +60,7 @@ class AppSettings extends Equatable {
       pinnedFolders: pinnedFolders ?? this.pinnedFolders,
       gallerySortSettings: gallerySortSettings ?? this.gallerySortSettings,
       maxConcurrentTasks: maxConcurrentTasks ?? this.maxConcurrentTasks,
+      globalSortOption: globalSortOption ?? this.globalSortOption,
     );
   }
 
@@ -66,5 +73,6 @@ class AppSettings extends Equatable {
     pinnedFolders,
     gallerySortSettings,
     maxConcurrentTasks,
+    globalSortOption,
   ];
 }

@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/tab_state.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class TabManagerState {
   final List<TabState> tabs;
@@ -35,6 +38,12 @@ class TabManager extends Notifier<TabManagerState> {
           currentPath: home,
           history: [home],
           historyIndex: 0,
+          sortSettings: SortSettings(
+            option: ref.read(settingsRepositoryProvider).getFolderSort(
+              home, 
+              SortOption.aToZ // Fallback during initial build
+            ),
+          ),
         ),
       ],
       activeTabIndex: 0,
@@ -44,11 +53,16 @@ class TabManager extends Notifier<TabManagerState> {
   void addTab({String? path, List<String>? history, int? historyIndex}) {
     final home = Platform.environment['HOME'] ?? '/';
     final newPath = path ?? home;
+    final settingsRepo = ref.read(settingsRepositoryProvider);
+    final globalSort = ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
+    final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
+
     final newTab = TabState(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       currentPath: newPath,
       history: history != null ? List<String>.from(history) : [newPath],
       historyIndex: historyIndex ?? 0,
+      sortSettings: SortSettings(option: folderSort),
     );
     
     state = state.copyWith(
@@ -114,11 +128,19 @@ class TabManager extends Notifier<TabManagerState> {
     history.add(newPath);
     historyIndex = history.length - 1;
 
+    // Load folder-specific sort settings
+    final settingsRepo = ref.read(settingsRepositoryProvider);
+    final globalSort = ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
+    final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
+
     final updatedTab = tab.copyWith(
       currentPath: newPath,
       history: history,
       historyIndex: historyIndex,
       selectedPaths: {}, // Clear selection on navigate
+      sortSettings: SortSettings(option: folderSort),
+      filterSettings: const FilterSettings(), // Reset filter on navigate? 
+      // Usually users want filters cleared when moving between folders.
     );
 
     final newTabs = List<TabState>.from(state.tabs)..[index] = updatedTab;
@@ -214,6 +236,32 @@ class TabManager extends Notifier<TabManagerState> {
     final updatedTab = state.tabs[index].copyWith(
       refreshCount: state.tabs[index].refreshCount + 1
     );
+    final newTabs = List<TabState>.from(state.tabs)..[index] = updatedTab;
+    state = state.copyWith(tabs: newTabs);
+  }
+
+  void updateSortSettings(String tabId, SortSettings sort) {
+    final index = state.tabs.indexWhere((t) => t.id == tabId);
+    if (index == -1) return;
+
+    final tab = state.tabs[index];
+    final updatedTab = tab.copyWith(sortSettings: sort);
+    final newTabs = List<TabState>.from(state.tabs)..[index] = updatedTab;
+    state = state.copyWith(tabs: newTabs);
+
+    // Persist folder-specific sort
+    final settingsRepo = ref.read(settingsRepositoryProvider);
+    settingsRepo.setFolderSort(tab.currentPath, sort.option);
+    
+    // Also notify settings provider that something changed (if needed)
+    // ref.invalidate(settingsProvider); // Optional
+  }
+
+  void updateFilterSettings(String tabId, FilterSettings filter) {
+    final index = state.tabs.indexWhere((t) => t.id == tabId);
+    if (index == -1) return;
+
+    final updatedTab = state.tabs[index].copyWith(filterSettings: filter);
     final newTabs = List<TabState>.from(state.tabs)..[index] = updatedTab;
     state = state.copyWith(tabs: newTabs);
   }

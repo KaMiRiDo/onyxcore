@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../domain/entities/app_settings.dart';
 import '../../domain/repositories/settings_repository.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
 /// SharedPreferences-based implementation of [SettingsRepository].
 ///
@@ -34,6 +35,13 @@ class SettingsRepositoryImpl implements SettingsRepository {
     // Load pinned folders
     _pinnedFolders = _prefs.getStringList('pinnedFolders') ?? [];
 
+    // Load global sort option
+    final globalSortStr = _prefs.getString('globalSortOption');
+    final globalSort = SortOption.values.firstWhere(
+      (e) => e.name == globalSortStr,
+      orElse: () => SortOption.aToZ,
+    );
+
     return AppSettings(
       autoPlayNext: _prefs.getBool('autoPlayNext') ?? false,
       showHiddenFiles: _prefs.getBool('showHiddenFiles') ?? false,
@@ -42,6 +50,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       pinnedFolders: List<String>.from(_pinnedFolders),
       gallerySortSettings: Map<String, String>.from(_gallerySortSettings),
       maxConcurrentTasks: _prefs.getInt('maxConcurrentTasks') ?? 3,
+      globalSortOption: globalSort,
     );
 
   }
@@ -53,6 +62,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setString('snapshotPrefix', settings.snapshotPrefix);
     await _prefs.setInt('doubleTapSeekSeconds', settings.doubleTapSeekSeconds);
     await _prefs.setInt('maxConcurrentTasks', settings.maxConcurrentTasks);
+    await _prefs.setString('globalSortOption', settings.globalSortOption.name);
     // pinnedFolders and gallerySortSettings are currently managed via specific methods,
     // but we can include them here for a full sync if needed.
   }
@@ -81,13 +91,18 @@ class SettingsRepositoryImpl implements SettingsRepository {
   // ——— Gallery Sorting ———
 
   @override
-  String getFolderSort(String path) {
-    return _gallerySortSettings[path] ?? 'date_desc';
+  SortOption getFolderSort(String path, SortOption globalDefault) {
+    final name = _gallerySortSettings[path];
+    if (name == null) return globalDefault;
+    return SortOption.values.firstWhere(
+      (e) => e.name == name,
+      orElse: () => globalDefault,
+    );
   }
 
   @override
-  Future<void> setFolderSort(String path, String sortKey) async {
-    _gallerySortSettings[path] = sortKey;
+  Future<void> setFolderSort(String path, SortOption option) async {
+    _gallerySortSettings[path] = option.name;
     await _prefs.setString(
       'gallerySortSettings',
       jsonEncode(_gallerySortSettings),

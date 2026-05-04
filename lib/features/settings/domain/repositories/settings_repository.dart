@@ -1,4 +1,5 @@
 import '../entities/app_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
 /// Abstract interface for settings persistence.
 ///
@@ -25,10 +26,10 @@ abstract class SettingsRepository {
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.
-  String getFolderSort(String path);
+  SortOption getFolderSort(String path, SortOption globalDefault);
 
   /// Set the sort key for a specific folder path.
-  Future<void> setFolderSort(String path, String sortKey);
+  Future<void> setFolderSort(String path, SortOption option);
 
   // ——— Gallery Pinning ———
 

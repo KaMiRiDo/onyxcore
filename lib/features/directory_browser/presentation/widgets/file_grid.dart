@@ -17,6 +17,9 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/item_ca
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/error_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_state_view.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
@@ -54,7 +57,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
-    final itemsAsync = ref.watch(filteredDirectoryItemsProvider);
+    final itemsAsync = ref.watch(sortedDirectoryItemsProvider);
     final zoom = ref.watch(currentZoomProvider);
     final selection = ref.watch(selectionProvider);
     final String currentPath = ref.watch(currentPathProvider);
@@ -110,90 +113,48 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
           if (items.isEmpty) {
             final isSearchActive = ref.watch(isSearchActiveProvider);
             final query = ref.watch(searchQueryProvider);
+            final filter = ref.watch(filterSettingsProvider);
+            final isFilterActive = !filter.isEmpty;
             
             if (isSearchActive && query.isNotEmpty) {
-              return Center(
+              return EmptyStateView(
                 key: const ValueKey('no-results'),
-                child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(40),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.02),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                    ),
-                    child: ShaderMask(
-                      shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-                      child: const Icon(
-                        Icons.manage_search_rounded,
-                        size: 80,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'No Results Found',
-                    style: GoogleFonts.manrope(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  RichText(
-                    text: TextSpan(
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        color: Colors.white38,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      children: [
-                        const TextSpan(text: 'No matches for "'),
-                        TextSpan(
-                          text: query,
-                          style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold),
-                        ),
-                        TextSpan(text: '" in ${p.basename(currentPath)}'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-                  OutlinedButton(
-                    onPressed: () {
-                      ref.read(isSearchActiveProvider.notifier).set(false);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      'Clear Search',
-                      style: GoogleFonts.manrope(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                icon: Icons.manage_search_rounded,
+                title: 'No Results Found',
+                subtitle: 'No matches for "$query" in ${p.basename(currentPath)}',
+                actionLabel: 'Clear Search',
+                onAction: () => ref.read(isSearchActiveProvider.notifier).set(false),
+              );
+            }
+
+            if (isFilterActive) {
+              return EmptyStateView(
+                key: const ValueKey('no-filter-results'),
+                icon: Icons.filter_list_off_rounded,
+                title: 'No Items Match',
+                subtitle: 'Try adjusting your filters to find what you\'re looking for',
+                actionLabel: 'Clear All Filters',
+                onAction: () {
+                  final tabId = ref.read(tabIdProvider);
+                  ref.read(tabManagerProvider.notifier).updateFilterSettings(
+                    tabId, 
+                    const FilterSettings()
+                  );
+                },
+              );
+            }
+
+            String message = 'This folder is empty';
+            if (currentPath == 'virtual:recent') message = 'No recent files found';
+            if (currentPath == 'virtual:starred') message = 'No starred items yet';
+            
+            return EmptyStateView(
+              key: const ValueKey('empty-folder'),
+              icon: _getEmptyIcon(currentPath),
+              title: 'Empty Folder',
+              subtitle: message,
             );
           }
-
-          String message = 'This folder is empty';
-          if (currentPath == 'virtual:recent') message = 'No recent files found';
-          if (currentPath == 'virtual:starred') message = 'No starred items yet';
-          return Center(
-            child: Text(
-              message,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-          );
-        }
 
           return GridView.builder(
             key: ValueKey('grid-refreshed-$refreshCount'),
@@ -385,5 +346,12 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
       ref.read(previewFileProvider.notifier).state = item;
       return;
     }
+  }
+
+  IconData _getEmptyIcon(String path) {
+    if (path == 'virtual:recent') return Icons.access_time_rounded;
+    if (path == 'virtual:starred') return Icons.star_outline_rounded;
+    if (path.contains('Trash')) return Icons.delete_outline_rounded;
+    return Icons.folder_open_rounded;
   }
 }

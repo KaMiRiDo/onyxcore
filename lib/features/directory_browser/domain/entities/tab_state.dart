@@ -1,4 +1,6 @@
 import 'package:path/path.dart' as p;
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 
 class TabState {
   final String id;
@@ -11,6 +13,8 @@ class TabState {
   final bool isLocationEditing;
   final int refreshCount;
   final bool isRefreshing;
+  final SortSettings sortSettings;
+  final FilterSettings filterSettings;
 
   TabState({
     required this.id,
@@ -23,6 +27,8 @@ class TabState {
     this.isLocationEditing = false,
     this.refreshCount = 0,
     this.isRefreshing = false,
+    this.sortSettings = const SortSettings(),
+    this.filterSettings = const FilterSettings(),
   });
 
   String get title => currentPath == '/' ? 'Root' : p.basename(currentPath);
@@ -41,6 +47,8 @@ class TabState {
     bool? isLocationEditing,
     int? refreshCount,
     bool? isRefreshing,
+    SortSettings? sortSettings,
+    FilterSettings? filterSettings,
   }) {
     return TabState(
       id: id ?? this.id,
@@ -53,6 +61,8 @@ class TabState {
       isLocationEditing: isLocationEditing ?? this.isLocationEditing,
       refreshCount: refreshCount ?? this.refreshCount,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      sortSettings: sortSettings ?? this.sortSettings,
+      filterSettings: filterSettings ?? this.filterSettings,
     );
   }
 }

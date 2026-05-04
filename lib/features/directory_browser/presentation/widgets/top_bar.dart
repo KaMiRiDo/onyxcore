@@ -17,6 +17,11 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/backgro
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/filter_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 
 class TopBar extends ConsumerStatefulWidget {
   const TopBar({super.key});
@@ -329,6 +334,119 @@ class _TopBarState extends ConsumerState<TopBar> {
                     ),
                   ),
                 ),
+
+                const SizedBox(width: 8),
+
+                // Sort Button
+                Builder(
+                  builder: (context) {
+                    final sort = ref.watch(sortSettingsProvider);
+                    return _buildActionIcon(
+                      icon: Icons.sort_rounded,
+                      onPressed: () {
+                        final RenderBox box = context.findRenderObject() as RenderBox;
+                        final position = box.localToGlobal(Offset.zero);
+                        SortOverlay.show(
+                          context: context,
+                          position: position,
+                          currentOption: sort.option,
+                          onSelected: (option) {
+                            final tabId = ref.read(tabIdProvider);
+                            ref.read(tabManagerProvider.notifier).updateSortSettings(
+                              tabId, 
+                              sort.copyWith(option: option)
+                            );
+                          },
+                        );
+                      },
+                    );
+                  }
+                ),
+
+                const SizedBox(width: 8),
+
+                // Filter Button Group
+                Builder(
+                  builder: (context) {
+                    final filter = ref.watch(filterSettingsProvider);
+                    final isFilterActive = !filter.isEmpty;
+                    
+                    if (!isFilterActive) {
+                      return _buildActionIcon(
+                        icon: Icons.tune_rounded,
+                        isActive: false,
+                        onPressed: () {
+                          final RenderBox box = context.findRenderObject() as RenderBox;
+                          final position = box.localToGlobal(Offset.zero);
+                          FilterOverlay.show(
+                            context: context,
+                            position: position,
+                            initialSettings: filter,
+                            onApply: (newSettings) {
+                              final tabId = ref.read(tabIdProvider);
+                              ref.read(tabManagerProvider.notifier).updateFilterSettings(
+                                tabId, 
+                                newSettings
+                              );
+                            },
+                          );
+                        },
+                      );
+                    }
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.violet.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.violet.withOpacity(0.25)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildActionIcon(
+                            icon: Icons.tune_rounded,
+                            isActive: true,
+                            onPressed: () {
+                              final RenderBox box = context.findRenderObject() as RenderBox;
+                              final position = box.localToGlobal(Offset.zero);
+                              FilterOverlay.show(
+                                context: context,
+                                position: position,
+                                initialSettings: filter,
+                                onApply: (newSettings) {
+                                  final tabId = ref.read(tabIdProvider);
+                                  ref.read(tabManagerProvider.notifier).updateFilterSettings(
+                                    tabId, 
+                                    newSettings
+                                  );
+                                },
+                              );
+                            },
+                            backgroundColor: Colors.transparent,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 16,
+                            color: AppColors.violet.withOpacity(0.2),
+                          ),
+                          _buildActionIcon(
+                            icon: Icons.close_rounded,
+                            isActive: false,
+                            onPressed: () {
+                              final tabId = ref.read(tabIdProvider);
+                              ref.read(tabManagerProvider.notifier).updateFilterSettings(
+                                tabId, 
+                                const FilterSettings()
+                              );
+                            },
+                            backgroundColor: Colors.transparent,
+                            iconColor: Colors.white.withOpacity(0.7),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                ),
     
                 const Spacer(flex: 4),
                 
@@ -412,6 +530,8 @@ class _TopBarState extends ConsumerState<TopBar> {
     required IconData icon,
     required VoidCallback onPressed,
     bool isActive = false,
+    Color? backgroundColor,
+    Color? iconColor,
   }) {
     return InkWell(
       onTap: onPressed,
@@ -420,12 +540,12 @@ class _TopBarState extends ConsumerState<TopBar> {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: isActive ? AppColors.violet.withOpacity(0.2) : Colors.transparent,
+          color: backgroundColor ?? (isActive ? AppColors.violet.withOpacity(0.2) : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           icon,
-          color: isActive ? AppColors.violet : Colors.white70,
+          color: iconColor ?? (isActive ? AppColors.violet : Colors.white70),
           size: 20,
         ),
       ),
@@ -632,7 +752,7 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
           widget.name,
           style: GoogleFonts.manrope(
             fontSize: 14,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

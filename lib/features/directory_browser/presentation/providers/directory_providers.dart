@@ -18,6 +18,8 @@ import 'package:onyxcore/features/directory_browser/data/datasources/media_metad
 import 'package:onyxcore/features/directory_browser/data/repositories/directory_repository_impl.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 
 // ——— Infrastructure Providers ———
 
@@ -166,6 +168,22 @@ final isVirtualPathProvider = Provider<bool>((ref) {
   return path.startsWith('virtual:');
 });
 
+// ——— Sort & Filter State Providers ———
+
+final sortSettingsProvider = Provider<SortSettings>((ref) {
+  final tabId = ref.watch(tabIdProvider);
+  return ref.watch(tabManagerProvider.select(
+    (s) => s.tabs.firstWhere((t) => t.id == tabId).sortSettings
+  ));
+});
+
+final filterSettingsProvider = Provider<FilterSettings>((ref) {
+  final tabId = ref.watch(tabIdProvider);
+  return ref.watch(tabManagerProvider.select(
+    (s) => s.tabs.firstWhere((t) => t.id == tabId).filterSettings
+  ));
+});
+
 // ——— Directory Items Provider ———
 
 /// Loads directory items for the current path.
@@ -252,9 +270,10 @@ final directoryItemsProvider =
   DirectoryItemsNotifier.new,
 );
 
-/// Filters directory items based on the current search query and settings.
+/// Stage 2: Filters directory items based on settings.
 final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref) {
   final itemsAsync = ref.watch(directoryItemsProvider);
+  final filter = ref.watch(filterSettingsProvider);
   final query = ref.watch(searchQueryProvider).toLowerCase();
   final settingsAsync = ref.watch(settingsProvider);
   final showHidden = settingsAsync.value?.showHiddenFiles ?? false;
@@ -262,19 +281,86 @@ final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref
   return itemsAsync.whenData((items) {
     var filtered = items;
     
-    // Filter hidden files
+    // 1. Filter hidden files
     if (!showHidden) {
       filtered = filtered.where((item) => !item.name.startsWith(".")).toList();
     }
     
-    // Filter by search query
+    // 2. Filter by search query
     if (query.isNotEmpty) {
       filtered = filtered.where((item) => item.name.toLowerCase().contains(query)).toList();
+    }
+
+    // 3. Apply advanced filters
+    if (!filter.isEmpty) {
+      filtered = filter.apply(filtered);
     }
     
     return filtered;
   });
 });
+
+/// Stage 3: Sorts the filtered items.
+final sortedDirectoryItemsProvider = FutureProvider<List<FileItem>>((ref) async {
+  final filteredAsync = ref.watch(filteredDirectoryItemsProvider);
+  final sort = ref.watch(sortSettingsProvider);
+  
+  final items = filteredAsync.value ?? [];
+  if (items.isEmpty) return [];
+
+  // Use compute for large directories to avoid UI lag
+  if (items.length > 500) {
+    return await compute(_sortItemsCompute, _SortParams(items, sort.option));
+  } else {
+    return _sortItems(items, sort.option);
+  }
+});
+
+// ——— Internal Sorting Logic ———
+
+class _SortParams {
+  final List<FileItem> items;
+  final SortOption option;
+  _SortParams(this.items, this.option);
+}
+
+List<FileItem> _sortItemsCompute(_SortParams params) {
+  return _sortItems(params.items, params.option);
+}
+
+List<FileItem> _sortItems(List<FileItem> items, SortOption option) {
+  final result = List<FileItem>.from(items);
+  result.sort((a, b) {
+    // Folders first logic (unless filesFirst option is selected)
+    if (option != SortOption.filesFirst) {
+      if (a.type == FileItemType.folder && b.type != FileItemType.folder) return -1;
+      if (a.type != FileItemType.folder && b.type == FileItemType.folder) return 1;
+    } else {
+      // Files first logic
+      if (a.type != FileItemType.folder && b.type == FileItemType.folder) return -1;
+      if (a.type == FileItemType.folder && b.type != FileItemType.folder) return 1;
+    }
+
+    // Secondary sort based on option
+    switch (option) {
+      case SortOption.aToZ:
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      case SortOption.zToA:
+        return b.name.toLowerCase().compareTo(a.name.toLowerCase());
+      case SortOption.firstModified:
+        return a.modified.compareTo(b.modified);
+      case SortOption.lastModified:
+        return b.modified.compareTo(a.modified);
+      case SortOption.sizeSmallToLarge:
+        return (a.sizeBytes ?? 0).compareTo(b.sizeBytes ?? 0);
+      case SortOption.sizeLargeToSmall:
+        return (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
+      case SortOption.filesFirst:
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    }
+  });
+  return result;
+}
 
 /// Whether the current tab is refreshing.
 class IsRefreshingNotifier extends Notifier<bool> {
