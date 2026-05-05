@@ -17,6 +17,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 class MarkdownPreviewWidget extends ConsumerStatefulWidget {
@@ -131,6 +132,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     if (widget.windowId != null) {
       windowManager.removeListener(this);
     }
+    _hideTimer?.cancel();
     _focusNode.dispose();
     _scrollController.dispose();
     _editController.dispose();
@@ -284,7 +286,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
               // Content
               Positioned.fill(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(child: BubbleLoader(size: 80))
                     : Padding(
                         padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
                         child: _isEditing ? _buildEditor() : _buildMarkdown(),

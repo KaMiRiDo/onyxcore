@@ -7,6 +7,7 @@ enum ViewerType {
   video,
   image,
   markdown,
+  audio,
   unsupported,
 }
 

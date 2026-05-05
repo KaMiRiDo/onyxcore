@@ -73,14 +73,17 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
   @override
   void dispose() {
     _errorTimer?.cancel();
-    _hideDropdown();
+    _dropdownEntry?.remove();
+    _dropdownEntry = null;
     super.dispose();
   }
 
   void _hideDropdown() {
     _dropdownEntry?.remove();
     _dropdownEntry = null;
-    if (mounted) setState(() => _expandedSection = null);
+    if (mounted && _expandedSection != null) {
+      setState(() => _expandedSection = null);
+    }
   }
 
   void _showDropdown<T>({

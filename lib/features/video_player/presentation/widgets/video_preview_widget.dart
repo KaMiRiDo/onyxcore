@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -88,9 +89,15 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   LogicalKeyboardKey? _activeSeekKey;
   LogicalKeyboardKey? _activeVolumeKey;
   bool _isSeekIndicatorVisible = false;
-  DateTime? _lastManualHide;
+  bool _isOpening = false;
+  bool _isBuffering = false;
   StreamSubscription? _trackSubscription;
   StreamSubscription? _completedSubscription;
+  StreamSubscription? _bufferingSubscription;
+  StreamSubscription? _errorSubscription;
+  bool _showFlash = false;
+  bool _showSnapshotToast = false;
+  Timer? _snapshotToastTimer;
 
   final FocusNode _focusNode = FocusNode();
   final LayerLink _audioLink = LayerLink();
@@ -143,7 +150,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _currentItem = widget.item;
     player = Player();
     controller = VideoController(player);
-    player.open(Media(_currentItem.path));
+    
+    _isOpening = true;
+    player.open(Media(_currentItem.path), play: true).then((_) {
+      if (mounted) setState(() => _isOpening = false);
+    });
 
     // Resume from initial position if provided
     if (widget.initialPosition != null) {
@@ -185,9 +196,25 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         if (autoPlay) {
           _navigateMedia(true);
         } else {
-          // If autoPlay is off, we just stay on the last frame (pause)
           player.pause();
         }
+      }
+    });
+
+    _bufferingSubscription = player.stream.buffering.listen((buffering) {
+      if (mounted && _isBuffering != buffering) {
+        setState(() => _isBuffering = buffering);
+      }
+    });
+
+    _errorSubscription = player.stream.error.listen((error) {
+      debugPrint('[VideoPlayer] Engine Error: $error');
+      if (mounted) {
+        setState(() {
+          _isOpening = false;
+          _isBuffering = false;
+          _isSeekingToInitial = false;
+        });
       }
     });
 
@@ -241,7 +268,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     });
 
     // 3. Open new media
-    await player.open(Media(item.path));
+    setState(() => _isOpening = true);
+    await player.open(Media(item.path), play: true);
+    if (mounted) setState(() => _isOpening = false);
 
     // 4. Initialize new media (subs, memory)
     _initMedia();
@@ -250,6 +279,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   }
 
   Future<void> _initMedia() async {
+    final currentPath = _currentItem.path;
+    
     // 1. External Subtitles
     _loadExternalSubtitles();
 
@@ -257,12 +288,22 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     final settings = ref.read(settingsProvider).value;
     if (settings?.resumePlayback ?? true) {
       final savedPos = await PlaybackMemoryRepository.getPosition(
-        _currentItem.path,
+        currentPath,
       );
       if (savedPos != null && savedPos > 0 && widget.initialPosition == null) {
         debugPrint('[VideoPlayer] Resuming from saved position: $savedPos');
-        await player.stream.duration.firstWhere((d) => d > Duration.zero);
-        await player.seek(Duration(milliseconds: savedPos));
+        try {
+          // Add 5s timeout to duration wait to prevent hanging UI
+          await player.stream.duration
+              .firstWhere((d) => d > Duration.zero)
+              .timeout(const Duration(seconds: 5));
+          
+          if (mounted && _currentItem.path == currentPath) {
+            await player.seek(Duration(milliseconds: savedPos));
+          }
+        } catch (e) {
+          debugPrint('[VideoPlayer] Seek setup failed/timed out: $e');
+        }
       }
     }
   }
@@ -362,6 +403,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _seekIndicatorTimer?.cancel();
     _trackSubscription?.cancel();
     _completedSubscription?.cancel();
+    _bufferingSubscription?.cancel();
+    _errorSubscription?.cancel();
+    _snapshotToastTimer?.cancel();
     _focusNode.dispose();
     player.dispose();
     super.dispose();
@@ -534,7 +578,27 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   }
 
   Future<void> _takeScreenshot() async {
+    // Show flash and toast immediately for instant feedback
+    if (mounted) {
+      setState(() {
+        _showFlash = true;
+        _showSnapshotToast = true;
+      });
+
+      // Rapid flash
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) setState(() => _showFlash = false);
+      });
+
+      // Notification timer
+      _snapshotToastTimer?.cancel();
+      _snapshotToastTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _showSnapshotToast = false);
+      });
+    }
+
     try {
+      // Capture the frame as soon as possible after visual trigger
       final bytes = await player.screenshot();
       if (bytes == null) return;
 
@@ -552,18 +616,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
       await screenshotFile.writeAsBytes(bytes);
       debugPrint('[VideoPlayer] Screenshot saved: ${screenshotFile.path}');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Screenshot saved to Snapshots/'),
-            backgroundColor: AppColors.violet.withOpacity(0.9),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            width: 250,
-          ),
-        );
-      }
     } catch (e) {
       debugPrint('[VideoPlayer] Error taking screenshot: $e');
     }
@@ -878,12 +930,32 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                           ),
                         ),
 
-                        // Bubble Loader during initial seek
-                        if (_isSeekingToInitial) const BubbleLoader(size: 100),
+                        // Bubble Loader during loading/buffering/seeking
+                        if (_isOpening || _isBuffering || _isSeekingToInitial) 
+                          const Center(child: BubbleLoader(size: 100)),
+
+                        // Snapshot Flash Effect
+                        if (_showFlash)
+                          Positioned.fill(
+                            child: Container(
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
+
+                // Snapshot Glass Toast (Higher Z-order)
+                if (_showSnapshotToast)
+                  Positioned(
+                    bottom: 120,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: _buildSnapshotToast(),
+                    ),
+                  ),
 
                 // Volume Overlay (Right side)
                 Positioned(
@@ -1551,6 +1623,60 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           size: 20,
         ),
         tooltip: isForward ? 'Seek Forward' : 'Seek Backward',
+      ),
+    );
+  }
+
+  Widget _buildSnapshotToast() {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 300),
+      opacity: _showSnapshotToast ? 1.0 : 0.0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.violet.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.camera_alt_rounded, 
+                    color: AppColors.violet, 
+                    size: 18
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Snapshot saved to Snapshots/',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

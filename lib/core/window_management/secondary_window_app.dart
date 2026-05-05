@@ -7,6 +7,7 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
+import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -118,9 +119,9 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
         title: params.file.name,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,
-        home: Scaffold(
-          backgroundColor: Colors.black,
-          body: _buildViewer(),
+        home: Material(
+          color: Colors.black,
+          child: _buildViewer(),
         ),
       ),
     );
@@ -148,6 +149,14 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
         );
       case ViewerType.image:
         return ImagePreviewWidget(
+          key: ValueKey(params.file.path),
+          item: params.file,
+          isStandalone: true,
+          windowId: widget.windowId,
+          parentWindowId: params.parentWindowId,
+        );
+      case ViewerType.audio:
+        return AudioPlayerView(
           key: ValueKey(params.file.path),
           item: params.file,
           isStandalone: true,

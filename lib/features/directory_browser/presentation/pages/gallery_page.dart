@@ -108,7 +108,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           // Filter by requested media type
           final targetType = typeStr == 'video' 
               ? FileItemType.video 
-              : (typeStr == "document" ? FileItemType.document : FileItemType.image);
+              : (typeStr == 'audio' ? FileItemType.audio : (typeStr == "document" ? FileItemType.document : FileItemType.image));
           final mediaItems = items.where((i) => i.type == targetType).toList();
       
           if (mediaItems.isEmpty) return 'error: no media items';
@@ -127,7 +127,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           
           // Command the sub-window to load the new item
           final params = WindowParams(
-            viewerType: nextItem.type == FileItemType.video ? ViewerType.video : ViewerType.image,
+            viewerType: nextItem.type == FileItemType.video 
+                ? ViewerType.video 
+                : (nextItem.type == FileItemType.audio ? ViewerType.audio : ViewerType.image),
             file: nextItem,
             parentWindowId: selfId,
           );
@@ -510,6 +512,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       ref.read(currentPathProvider.notifier).state = item.path;
     } else if (item.type == FileItemType.image || 
                item.type == FileItemType.video || 
+               item.type == FileItemType.audio || 
                item.type == FileItemType.document) {
       ref.read(previewFileProvider.notifier).state = item;
     }

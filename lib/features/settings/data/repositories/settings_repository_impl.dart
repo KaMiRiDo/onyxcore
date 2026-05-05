@@ -52,6 +52,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       maxConcurrentTasks: _prefs.getInt('maxConcurrentTasks') ?? 3,
       globalSortOption: globalSort,
       resumePlayback: _prefs.getBool('resumePlayback') ?? true,
+      audioSeekSeconds: _prefs.getInt('audioSeekSeconds') ?? 5,
     );
 
   }
@@ -65,6 +66,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setInt('maxConcurrentTasks', settings.maxConcurrentTasks);
     await _prefs.setString('globalSortOption', settings.globalSortOption.name);
     await _prefs.setBool('resumePlayback', settings.resumePlayback);
+    await _prefs.setInt('audioSeekSeconds', settings.audioSeekSeconds);
     // pinnedFolders and gallerySortSettings are currently managed via specific methods,
     // but we can include them here for a full sync if needed.
   }
@@ -93,6 +95,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setResumePlayback({required bool value}) async {
     await _prefs.setBool('resumePlayback', value);
+  }
+
+  @override
+  Future<void> setAudioSeekSeconds(int value) async {
+    await _prefs.setInt('audioSeekSeconds', value);
   }
 
   // ——— Gallery Sorting ———

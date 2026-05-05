@@ -26,6 +26,9 @@ abstract class SettingsRepository {
   /// Update the resume playback setting.
   Future<void> setResumePlayback({required bool value});
 
+  /// Update the audio seek seconds.
+  Future<void> setAudioSeekSeconds(int value);
+
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.

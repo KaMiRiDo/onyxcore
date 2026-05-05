@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
@@ -16,7 +17,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:vector_math/vector_math_64.dart' show Vector3;
 
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({
@@ -45,6 +48,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   Timer? _zoomTimer;
   final FocusNode _focusNode = FocusNode();
   final TransformationController _transformationController = TransformationController();
+  Offset _mousePosition = Offset.zero;
   double _currentScale = 1.0;
   bool _showZoomIndicator = false;
   
@@ -53,7 +57,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   double _brightness = 0.0;
 
   bool _isGlobalHudVisible = true;
-  bool _isWindowDecorated = false; // Track decoration state locally
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -62,14 +66,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     if (widget.windowId != null) {
       windowManager.addListener(this);
       windowManager.setPreventClose(true);
-      // Initialize title bar style for standalone mode
       windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     }
     _loadMetadata();
     _startHideTimer();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+      if (mounted) {
+        _focusNode.requestFocus();
+        final size = MediaQuery.of(context).size;
+        _mousePosition = Offset(size.width / 2, size.height / 2);
+      }
     });
   }
 
@@ -79,7 +86,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       setState(() {
         _currentScale = scale;
         _showZoomIndicator = true;
-        // Immediately hide top panel if we are zoomed in
         if (_currentScale > 1.0) {
           _isControlsVisible = false;
         }
@@ -97,23 +103,37 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     });
   }
 
-  void _setZoom(double newScale) {
-    // Clamp zoom between 1.0x and 10.0x
+  void _setZoom(double newScale, {Offset? focalPoint}) {
     final clampedScale = newScale.clamp(1.0, 10.0);
     
-    // Calculate center point for centered scaling
     final size = MediaQuery.of(context).size;
-    final center = Offset(size.width / 2, size.height / 2);
+    final P = focalPoint ?? _mousePosition;
     
-    // Scale from center logic: T(center) * S(scale) * T(-center)
+    if (clampedScale == 1.0) {
+      _transformationController.value = Matrix4.identity();
+      _onTransformationChanged();
+      return;
+    }
+
+    final Matrix4 currentMatrix = _transformationController.value;
+    final double oldScale = currentMatrix.getMaxScaleOnAxis();
+    
+    if ((clampedScale - oldScale).abs() < 0.001) return;
+
+    final Matrix4 invertedMatrix = Matrix4.inverted(currentMatrix);
+    final Vector3 imagePointP = invertedMatrix.transform3(Vector3(P.dx, P.dy, 0));
+    
     final Matrix4 newMatrix = Matrix4.identity()
-      ..translate(center.dx, center.dy)
+      ..translate(P.dx, P.dy)
       ..scale(clampedScale)
-      ..translate(-center.dx, -center.dy);
+      ..translate(-imagePointP.x, -imagePointP.y);
       
     _transformationController.value = newMatrix;
     _onTransformationChanged();
   }
+
+  double _baseScale = 1.0;
+  Offset _lastFocalPoint = Offset.zero;
 
   void _startHideTimer() {
     _hideTimer?.cancel();
@@ -125,9 +145,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   }
 
   void _onInteraction() {
-    // Wake up global HUD if it was manually hidden
     if (widget.windowId == null && !ref.read(previewHudVisibleProvider)) {
-      // Immediate update is safe here because listeners handle 'mounted' check
       ref.read(previewHudVisibleProvider.notifier).state = true;
     }
 
@@ -175,6 +193,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       }
     } catch (e) {
       debugPrint('Error loading image metadata: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -193,7 +213,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   @override
   void onWindowClose() async {
     if (_isClosing) return;
-    debugPrint('[ImagePreview] Standalone hiding triggered.');
     await windowManager.hide();
   }
 
@@ -201,6 +220,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   void didUpdateWidget(ImagePreviewWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.path != widget.item.path) {
+      setState(() {
+        _isLoading = true;
+        _rotationAngle = 0.0;
+        _brightness = 0.0;
+        _currentScale = 1.0;
+      });
+      _transformationController.value = Matrix4.identity();
       _loadMetadata();
       if (mounted) {
         _focusNode.requestFocus();
@@ -226,7 +252,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
 
   void _navigateMedia(bool forward) {
     if (widget.windowId != null) {
-      // 1. Standalone Mode: Send reverse IPC to Main Window (Window 0)
       final payload = jsonEncode({
         'direction': forward ? 'next' : 'prev',
         'currentPath': widget.item.path,
@@ -235,7 +260,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       });
       WindowController.fromWindowId(widget.parentWindowId ?? '0').invokeMethod('request_navigation', payload);
     } else {
-      // 2. Inline Mode: Local Riverpod state update
       final items = ref.read(directoryItemsProvider).value ?? [];
       if (items.isEmpty) return;
 
@@ -266,8 +290,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       });
     }
 
-    // In standalone mode, we ignore the global HUD visibility provider as the window 
-    // itself is the dedicated viewer. We only care about the internal control timer.
     final isVisible = _isControlsVisible && (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
 
     return Focus(
@@ -282,7 +304,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
               _toggleFullscreen();
               return KeyEventResult.handled;
             }
-            // Preview 'F' is now handled by PreviewContainer globally
           }
           
           if (ctrl && event.logicalKey == LogicalKeyboardKey.keyW) {
@@ -309,14 +330,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
             _navigateMedia(true);
             return KeyEventResult.handled;
           } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-            // Check if Alt is NOT pressed (Alt+Left is Back)
             if (!HardwareKeyboard.instance.isAltPressed) {
               _navigateMedia(false);
               return KeyEventResult.handled;
             }
           }
 
-          // Navigation Back Shortcuts (Preview Mode only)
           if (widget.windowId == null) {
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
             if (event.logicalKey == LogicalKeyboardKey.backspace || 
@@ -332,123 +351,86 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
         backgroundColor: Colors.black,
         body: MouseRegion(
           onEnter: (_) => _onInteraction(),
-          onHover: (_) => _onInteraction(),
-          child: Stack(
-            children: [
-              // Main Image View
-              Positioned.fill(
-                child: InteractiveViewer(
-                  transformationController: _transformationController,
-                  minScale: 1.0,
-                  maxScale: 10.0,
-                  onInteractionUpdate: (_) => _onTransformationChanged(),
-                  child: GestureDetector(
-                    onTap: () {
-                      _focusNode.requestFocus();
-                      setState(() {
-                        _isControlsVisible = !_isControlsVisible;
-                        if (_isControlsVisible) _startHideTimer();
-                      });
-                    },
-                    onDoubleTap: widget.windowId == null ? _openInNewWindow : null,
-                    child: Center(
-                      child: Hero(
-                        tag: widget.item.path,
-                        child: Transform.rotate(
-                          angle: _rotationAngle * 3.14159 / 180,
-                          child: ColorFiltered(
-                            colorFilter: ColorFilter.matrix([
-                              1, 0, 0, 0, _brightness * 255,
-                              0, 1, 0, 0, _brightness * 255,
-                              0, 0, 1, 0, _brightness * 255,
-                              0, 0, 0, 1, 0,
-                            ]),
-                            child: widget.item.path.toLowerCase().endsWith('.svg')
-                                ? SvgPicture.file(
-                                    File(widget.item.path),
-                                    fit: BoxFit.contain,
-                                  )
-                                : Image.file(
-                                    File(widget.item.path),
-                                    fit: BoxFit.contain,
-                                    filterQuality: FilterQuality.high,
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+          onHover: (event) {
+            _onInteraction();
+            _mousePosition = event.localPosition;
+          },
+          child: Listener(
+            onPointerDown: (event) {
+              _mousePosition = event.localPosition;
+            },
+            onPointerMove: (event) {
+              _mousePosition = event.localPosition;
+            },
+            onPointerSignal: (pointerSignal) {
+              if (pointerSignal is PointerScrollEvent) {
+                if (HardwareKeyboard.instance.isControlPressed) {
+                  final double delta = (pointerSignal as PointerScrollEvent).scrollDelta.dy;
+                  final double zoomFactor = delta > 0 ? 0.9 : 1.1;
+                  _setZoom(_currentScale * zoomFactor, focalPoint: pointerSignal.localPosition);
+                }
+              }
+            },
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: InteractiveViewer(
+                    transformationController: _transformationController,
+                    minScale: 1.0,
+                    maxScale: 10.0,
+                    scaleEnabled: false, // Override default scaling to force mouse-centered zoom
+                    onInteractionUpdate: (_) => _onTransformationChanged(),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onScaleStart: (details) {
+                        _baseScale = _currentScale;
+                        _lastFocalPoint = details.localFocalPoint;
+                      },
+                      onScaleUpdate: (details) {
+                        // 1. Handle Pan (Immediate and sensitive)
+                        final panDelta = details.localFocalPoint - _lastFocalPoint;
+                        if (panDelta.distance > 0.01) {
+                          _transformationController.value = _transformationController.value.clone()
+                            ..translate(panDelta.dx / _currentScale, panDelta.dy / _currentScale);
+                          _lastFocalPoint = details.localFocalPoint;
+                          // InteractiveViewer repaints itself when transformationController changes
+                        }
 
-              // Top Bar (Standardized)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 300),
-                  opacity: isVisible ? 1.0 : 0.0,
-                  child: ViewerTopBar(
-                    title: widget.item.name,
-                    metadata: _metadata,
-                    isStandalone: widget.isStandalone || widget.windowId != null,
-                    onPopOut: _openInNewWindow,
-                    onClose: () => ref.read(previewFileProvider.notifier).state = null,
-                    extraActions: [
-                      _buildTopBarButton(
-                        icon: _isEditing ? Icons.edit_rounded : Icons.edit_outlined,
-                        onPressed: () => setState(() => _isEditing = !_isEditing),
-                        tooltip: 'Edit Image',
-                        active: _isEditing,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildTopBarButton(
-                        icon: Icons.settings_rounded,
-                        onPressed: () => SettingsDialog.show(context, initialTab: 1, section: 'Image'),
-                        tooltip: 'Image Settings',
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Editing Bottom Panel
-              if (_isEditing && isVisible)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: _buildEditingPanel(),
-                ),
-
-              // Zoom Level Indicator (Bottom Right)
-              if (_showZoomIndicator)
-                Positioned(
-                  bottom: 32,
-                  right: 32,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: _showZoomIndicator ? 1.0 : 0.0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: BackdropFilter(
-                          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Text(
-                            '${(_currentScale * 100).toInt()}%',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
+                        // 2. Handle Scale
+                        if ((details.scale - 1.0).abs() > 0.001) {
+                          _setZoom(_baseScale * details.scale, focalPoint: _mousePosition);
+                        }
+                      },
+                      onTap: () {
+                        _focusNode.requestFocus();
+                        setState(() {
+                          _isControlsVisible = !_isControlsVisible;
+                          if (_isControlsVisible) _startHideTimer();
+                        });
+                      },
+                      onDoubleTap: widget.windowId == null ? _openInNewWindow : null,
+                      child: Center(
+                        child: Hero(
+                          tag: widget.item.path,
+                          child: Transform.rotate(
+                            angle: _rotationAngle * 3.14159 / 180,
+                            child: ColorFiltered(
+                              colorFilter: ColorFilter.matrix([
+                                1, 0, 0, 0, _brightness * 255,
+                                0, 1, 0, 0, _brightness * 255,
+                                0, 0, 1, 0, _brightness * 255,
+                                0, 0, 0, 1, 0,
+                              ]),
+                              child: widget.item.path.toLowerCase().endsWith('.svg')
+                                  ? SvgPicture.file(
+                                      File(widget.item.path),
+                                      fit: BoxFit.contain,
+                                    )
+                                  : Image.file(
+                                      File(widget.item.path),
+                                      fit: BoxFit.contain,
+                                      filterQuality: FilterQuality.high,
+                                    ),
                             ),
                           ),
                         ),
@@ -456,7 +438,84 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                     ),
                   ),
                 ),
-            ],
+
+                if (_isLoading)
+                  const Center(child: BubbleLoader(size: 80)),
+
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: isVisible ? 1.0 : 0.0,
+                    child: ViewerTopBar(
+                      title: widget.item.name,
+                      metadata: _metadata,
+                      isStandalone: widget.isStandalone || widget.windowId != null,
+                      onPopOut: _openInNewWindow,
+                      onClose: () => ref.read(previewFileProvider.notifier).state = null,
+                      extraActions: [
+                        _buildTopBarButton(
+                          icon: _isEditing ? Icons.edit_rounded : Icons.edit_outlined,
+                          onPressed: () => setState(() => _isEditing = !_isEditing),
+                          tooltip: 'Edit Image',
+                          active: _isEditing,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTopBarButton(
+                          icon: Icons.settings_rounded,
+                          onPressed: () => SettingsDialog.show(context, initialTab: 1, section: 'Image'),
+                          tooltip: 'Image Settings',
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
+                  ),
+                ),
+
+                if (_isEditing && isVisible)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildEditingPanel(),
+                  ),
+
+                if (_showZoomIndicator)
+                  Positioned(
+                    bottom: 32,
+                    right: 32,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _showZoomIndicator ? 1.0 : 0.0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Text(
+                              '${(_currentScale * 100).toInt()}%',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -487,14 +546,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   Widget _buildEditingPanel() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      height: 200, // Increased height to prevent overflow
+      height: 200,
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.85),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       padding: const EdgeInsets.all(24),
-      child: SingleChildScrollView( // Add scroll view as extra safety
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

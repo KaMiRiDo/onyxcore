@@ -6,6 +6,10 @@ import '../../domain/entities/selection_state.dart';
 
 /// Notifier managing multi-selection state, scoped to the current tab.
 class SelectionNotifier extends Notifier<SelectionState> {
+  /// The anchor index is tracked locally (not in tab state) because it's
+  /// transient UI state that doesn't need to survive tab switches.
+  int? _anchorIndex;
+
   @override
   SelectionState build() {
     final tabId = ref.watch(tabIdProvider);
@@ -15,6 +19,7 @@ class SelectionNotifier extends Notifier<SelectionState> {
     return SelectionState(
       selectedPaths: selectedPaths,
       isSelectionMode: selectedPaths.isNotEmpty,
+      anchorIndex: _anchorIndex,
     );
   }
 
@@ -30,12 +35,11 @@ class SelectionNotifier extends Notifier<SelectionState> {
     required bool isShift,
     required bool isCtrl,
   }) {
-    final currentState = state;
-    final selectedPaths = Set<String>.from(currentState.selectedPaths);
+    final selectedPaths = Set<String>.from(state.selectedPaths);
 
-    if (isShift && currentState.anchorIndex != null) {
-      final start = math.min(currentState.anchorIndex!, currentIndex);
-      final end = math.max(currentState.anchorIndex!, currentIndex);
+    if (isShift && _anchorIndex != null) {
+      final start = math.min(_anchorIndex!, currentIndex);
+      final end = math.max(_anchorIndex!, currentIndex);
       for (var i = start; i <= end; i++) {
         selectedPaths.add(allPaths[i]);
       }
@@ -47,8 +51,10 @@ class SelectionNotifier extends Notifier<SelectionState> {
       } else {
         selectedPaths.add(path);
       }
+      _anchorIndex = currentIndex;
       _update(selectedPaths);
     } else {
+      _anchorIndex = currentIndex;
       _update({allPaths[currentIndex]});
     }
   }

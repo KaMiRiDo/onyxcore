@@ -62,6 +62,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
     final selection = ref.watch(selectionProvider);
     final String currentPath = ref.watch(currentPathProvider);
     final refreshCount = ref.watch(refreshCountProvider);
+    final String tabId = ref.watch(tabIdProvider);
 
     final isRefreshing = ref.watch(isRefreshingProvider);
 
@@ -75,7 +76,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
         switchOutCurve: Curves.easeIn,
         child: itemsAsync.when(
         loading: () => Center(
-          key: ValueKey('loading-$currentPath-$refreshCount'),
+          key: ValueKey('loading-$tabId-$refreshCount'),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -103,7 +104,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
           ),
         ),
         error: (error, _) => Center(
-          key: ValueKey('error-$currentPath-$refreshCount'),
+          key: ValueKey('error-$tabId-$refreshCount'),
           child: Text(
             'Error: $error',
             style: const TextStyle(color: AppColors.textMuted),
@@ -118,7 +119,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
             
             if (isSearchActive && query.isNotEmpty) {
               return EmptyStateView(
-                key: ValueKey('no-results-$currentPath'),
+                key: ValueKey('empty-results-$tabId-$refreshCount'),
                 icon: Icons.manage_search_rounded,
                 title: 'No Results Found',
                 subtitle: 'No matches for "$query" in ${p.basename(currentPath)}',
@@ -129,7 +130,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
 
             if (isFilterActive) {
               return EmptyStateView(
-                key: ValueKey('no-filter-results-$currentPath'),
+                key: ValueKey('empty-filter-$tabId-$refreshCount'),
                 icon: Icons.filter_list_off_rounded,
                 title: 'No Items Match',
                 subtitle: 'Try adjusting your filters to find what you\'re looking for',
@@ -149,7 +150,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
             if (currentPath == 'virtual:starred') message = 'No starred items yet';
             
             return EmptyStateView(
-              key: ValueKey('empty-folder-$currentPath'),
+            key: ValueKey('empty-folder-$tabId-$refreshCount'),
               icon: _getEmptyIcon(currentPath),
               title: 'Empty Folder',
               subtitle: message,
@@ -157,7 +158,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
           }
 
           return GridView.builder(
-            key: ValueKey('grid-$currentPath-$refreshCount'),
+            key: ValueKey('grid-$tabId-$refreshCount'),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 180 * zoom,
@@ -342,6 +343,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
 
     if (item.type == FileItemType.image || 
         item.type == FileItemType.video || 
+        item.type == FileItemType.audio || 
         item.type == FileItemType.document) {
       ref.read(previewFileProvider.notifier).state = item;
       return;

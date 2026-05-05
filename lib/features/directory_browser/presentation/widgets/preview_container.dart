@@ -7,6 +7,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
+import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
@@ -86,7 +87,7 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
             final windowParams = WindowParams(
               viewerType: widget.item.type == FileItemType.video 
                   ? ViewerType.video 
-                  : (widget.item.type == FileItemType.document ? ViewerType.markdown : ViewerType.image),
+                  : (widget.item.type == FileItemType.audio ? ViewerType.audio : (widget.item.type == FileItemType.document ? ViewerType.markdown : ViewerType.image)),
               file: widget.item,
             );
             await PersistentViewerManager.openMedia(windowParams);
@@ -110,7 +111,29 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
       return ImagePreviewWidget(item: widget.item);
     } else if (widget.item.type == FileItemType.video) {
       return VideoPreviewWidget(item: widget.item);
+    } else if (widget.item.type == FileItemType.audio) {
+      return AudioPlayerView(item: widget.item);
     } else if (widget.item.type == FileItemType.document) {
+      if (widget.item.path.toLowerCase().endsWith('.pdf')) {
+        return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.picture_as_pdf_rounded, color: Colors.white24, size: 64),
+              SizedBox(height: 16),
+              Text(
+                'PDF Preview not yet implemented',
+                style: TextStyle(color: Colors.white38),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Double-tap to open in external viewer',
+                style: TextStyle(color: Colors.white10, fontSize: 12),
+              ),
+            ],
+          ),
+        );
+      }
       return MarkdownPreviewWidget(key: ValueKey(widget.item.path), item: widget.item);
     }
     return const Center(

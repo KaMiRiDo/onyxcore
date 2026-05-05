@@ -17,6 +17,7 @@ class AppSettings extends Equatable {
     this.maxConcurrentTasks = 3,
     this.globalSortOption = SortOption.aToZ,
     this.resumePlayback = true,
+    this.audioSeekSeconds = 5,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -46,6 +47,9 @@ class AppSettings extends Equatable {
   /// Whether to resume video playback from last known position.
   final bool resumePlayback;
 
+  /// Number of seconds to seek in audio player (left/right arrows).
+  final int audioSeekSeconds;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -56,6 +60,7 @@ class AppSettings extends Equatable {
     int? maxConcurrentTasks,
     SortOption? globalSortOption,
     bool? resumePlayback,
+    int? audioSeekSeconds,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -67,6 +72,7 @@ class AppSettings extends Equatable {
       maxConcurrentTasks: maxConcurrentTasks ?? this.maxConcurrentTasks,
       globalSortOption: globalSortOption ?? this.globalSortOption,
       resumePlayback: resumePlayback ?? this.resumePlayback,
+      audioSeekSeconds: audioSeekSeconds ?? this.audioSeekSeconds,
     );
   }
 
@@ -81,5 +87,6 @@ class AppSettings extends Equatable {
     maxConcurrentTasks,
     globalSortOption,
     resumePlayback,
+    audioSeekSeconds,
   ];
 }
