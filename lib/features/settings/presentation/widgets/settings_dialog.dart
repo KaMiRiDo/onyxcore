@@ -12,13 +12,20 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 
 
 class SettingsDialog extends ConsumerStatefulWidget {
-  const SettingsDialog({super.key});
+  final int initialTab;
+  final String? initialSection;
 
-  static Future<void> show(BuildContext context) {
+  const SettingsDialog({
+    this.initialTab = 0,
+    this.initialSection,
+    super.key,
+  });
+
+  static Future<void> show(BuildContext context, {int initialTab = 0, String? section}) {
     return showDialog(
       context: context,
       barrierColor: Colors.black.withAlpha(179),
-      builder: (context) => const SettingsDialog(),
+      builder: (context) => SettingsDialog(initialTab: initialTab, initialSection: section),
     );
   }
 
@@ -60,10 +67,32 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3, 
+      vsync: this, 
+      initialIndex: widget.initialTab,
+    );
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
+
+    // Handle initial section scrolling
+    if (widget.initialSection != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final tabName = widget.initialTab == 0 
+            ? 'General' 
+            : (widget.initialTab == 1 ? 'Viewers' : 'Security');
+        
+        GlobalKey? targetKey;
+        if (tabName == 'General') targetKey = _generalKeys[widget.initialSection];
+        if (tabName == 'Viewers') targetKey = _viewersKeys[widget.initialSection];
+        if (tabName == 'Security') targetKey = _securityKeys[widget.initialSection];
+
+        if (targetKey != null) {
+          _scrollToSection(targetKey, widget.initialSection!, tabName);
+        }
+      });
+    }
   }
 
   @override
@@ -426,7 +455,65 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               _buildEmptySection('Image viewer configuration options.'),
               const SizedBox(height: 40),
               _buildSectionHeader('Video', _viewersKeys['Video']!),
-              _buildEmptySection('Video playback and hardware acceleration.'),
+              _buildSettingTile(
+                title: 'Auto play next',
+                subtitle: 'Automatically play the next video in the folder when the current one finishes',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.autoPlayNext ?? true,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(autoPlayNext: value);
+                    });
+                  },
+                ),
+              ),
+              _buildSettingTile(
+                title: 'Resume playback',
+                subtitle: 'Remember and resume from the last playback position for each video',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.resumePlayback ?? true,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(resumePlayback: value);
+                    });
+                  },
+                ),
+              ),
+              _buildSettingTile(
+                title: 'Seek time',
+                subtitle: 'The number of seconds to seek when using double-tap or arrow keys',
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: DropdownButton<int>(
+                    value: _draftSettings?.doubleTapSeekSeconds ?? 10,
+                    dropdownColor: const Color(0xFF1A1A1A),
+                    underline: const SizedBox.shrink(),
+                    isDense: true,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                    items: [5, 10, 15, 20, 25, 30]
+                        .map((v) => DropdownMenuItem(
+                              value: v,
+                              child: Text('${v}s'),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _draftSettings = _draftSettings!.copyWith(doubleTapSeekSeconds: value);
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
               const SizedBox(height: 40),
               _buildSectionHeader('Documents', _viewersKeys['Documents']!),
               _buildEmptySection('PDF and text document viewing settings.'),

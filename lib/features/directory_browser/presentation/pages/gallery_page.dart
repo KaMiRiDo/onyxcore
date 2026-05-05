@@ -171,56 +171,70 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                     children: [
                       const Sidebar(),
                       Expanded(
-                        child: Column(
+                        child: Stack(
                           children: [
-                            const TopBar(),
-                            const GnomeTabBar(),
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: () {
-                                        _focusNode.requestFocus();
-                                        ref.read(selectionProvider.notifier).deselectAll();
-                                      },
-                                      onSecondaryTapUp: (details) {
-                                        _focusNode.requestFocus();
-                                        ref.read(selectionProvider.notifier).deselectAll();
-                                        ContextMenu.show(context, details.globalPosition, [
-                                          ContextMenuItem(
-                                            title: 'New Folder',
-                                            icon: Icons.create_new_folder_rounded,
-                                            shortcut: 'Ctrl+Shift+N',
-                                            onTap: _handleNewFolder,
-                                          ),
-                                          ContextMenuItem(
-                                            title: 'New Document',
-                                            icon: Icons.note_add_rounded,
-                                            onTap: () {
-                                              // TODO: Implement new document
-                                            },
-                                          ),
-                                          ContextMenuItem(
-                                            title: 'Paste',
-                                            icon: Icons.paste_rounded,
-                                            shortcut: 'Ctrl+V',
-                                            onTap: _handlePaste,
-                                          ),
-                                          ContextMenuItem(
-                                            title: 'Properties',
-                                            icon: Icons.info_outline_rounded,
-                                            onTap: _showProperties,
-                                          ),
-                                        ]);
-                                      },
-                                      child: _buildContentInner(),
-                                    ),
+                            Column(
+                              children: [
+                                const TopBar(),
+                                const GnomeTabBar(),
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () {
+                                            _focusNode.requestFocus();
+                                            ref.read(selectionProvider.notifier).deselectAll();
+                                          },
+                                          onSecondaryTapUp: (details) {
+                                            _focusNode.requestFocus();
+                                            ref.read(selectionProvider.notifier).deselectAll();
+                                            ContextMenu.show(context, details.globalPosition, [
+                                              ContextMenuItem(
+                                                title: 'New Folder',
+                                                icon: Icons.create_new_folder_rounded,
+                                                shortcut: 'Ctrl+Shift+N',
+                                                onTap: _handleNewFolder,
+                                              ),
+                                              ContextMenuItem(
+                                                title: 'New Document',
+                                                icon: Icons.note_add_rounded,
+                                                onTap: () {
+                                                  // TODO: Implement new document
+                                                },
+                                              ),
+                                              ContextMenuItem(
+                                                title: 'Paste',
+                                                icon: Icons.paste_rounded,
+                                                shortcut: 'Ctrl+V',
+                                                onTap: _handlePaste,
+                                              ),
+                                              ContextMenuItem(
+                                                title: 'Properties',
+                                                icon: Icons.info_outline_rounded,
+                                                onTap: _showProperties,
+                                              ),
+                                            ]);
+                                          },
+                                          child: _buildContentInner(),
+                                        ),
+                                      ),
+                                      const BackgroundPanel(),
+                                    ],
                                   ),
-                                  const BackgroundPanel(),
-                                ],
-                              ),
+                                ),
+                              ],
+                            ),
+                            // Immersive Media Preview Overlay (Covers tabs and top bar)
+                            Consumer(
+                              builder: (context, ref, child) {
+                                final previewFile = ref.watch(previewFileProvider);
+                                if (previewFile == null) return const SizedBox.shrink();
+                                return Positioned.fill(
+                                  child: PreviewContainer(item: previewFile),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -352,11 +366,6 @@ class _TabBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final previewFile = ref.watch(previewFileProvider);
-    if (previewFile != null) {
-      return PreviewContainer(item: previewFile);
-    }
-
     return Column(
       children: [
         Expanded(

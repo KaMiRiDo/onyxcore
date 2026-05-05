@@ -51,6 +51,34 @@ class FileItem extends Equatable {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'path': path,
+      'name': name,
+      'type': type.index,
+      'modified': modified.millisecondsSinceEpoch,
+      'sizeBytes': sizeBytes,
+      'thumbnailPath': thumbnailPath,
+      'imageAspectRatio': imageAspectRatio,
+      'isExecutable': isExecutable,
+      'hasWritePermission': hasWritePermission,
+    };
+  }
+
+  factory FileItem.fromJson(Map<String, dynamic> json) {
+    return FileItem(
+      path: json['path'],
+      name: json['name'],
+      type: FileItemType.values[json['type']],
+      modified: DateTime.fromMillisecondsSinceEpoch(json['modified']),
+      sizeBytes: json['sizeBytes'],
+      thumbnailPath: json['thumbnailPath'],
+      imageAspectRatio: json['imageAspectRatio'],
+      isExecutable: json['isExecutable'] ?? false,
+      hasWritePermission: json['hasWritePermission'] ?? true,
+    );
+  }
+
   @override
   List<Object?> get props => [path, name, type, modified, sizeBytes, thumbnailPath, imageAspectRatio, isExecutable, hasWritePermission];
 }

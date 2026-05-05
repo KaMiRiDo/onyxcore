@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:markdown/markdown.dart' as md;
 
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
@@ -22,12 +24,14 @@ class MarkdownPreviewWidget extends ConsumerStatefulWidget {
     required this.item,
     this.windowId,
     this.parentWindowId,
+    this.isStandalone = false,
     super.key,
   });
 
   final FileItem item;
   final String? windowId;
   final String? parentWindowId;
+  final bool isStandalone;
 
   @override
   ConsumerState<MarkdownPreviewWidget> createState() => _MarkdownPreviewWidgetState();
@@ -38,6 +42,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   bool _isLoading = true;
   bool _isEditing = false;
   bool _isControlsVisible = true;
+  bool _isGlobalHudVisible = true;
   bool _hasChanges = false;
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
@@ -46,6 +51,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   @override
   void initState() {
     super.initState();
+    _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
     if (widget.windowId != null) {
       windowManager.addListener(this);
       windowManager.setPreventClose(true);
@@ -149,6 +155,29 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     }
   }
 
+  Timer? _hideTimer;
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && !_isEditing) {
+        setState(() => _isControlsVisible = false);
+      }
+    });
+  }
+
+  void _onInteraction() {
+    // Wake up global HUD if it was manually hidden
+    if (widget.windowId == null && !ref.read(previewHudVisibleProvider)) {
+      // Immediate update is safe here because listeners handle 'mounted' check
+      ref.read(previewHudVisibleProvider.notifier).state = true;
+    }
+
+    if (mounted && !_isControlsVisible) {
+      setState(() => _isControlsVisible = true);
+    }
+    _startHideTimer();
+  }
+
   Future<void> _openInNewWindow() async {
     final windowParams = WindowParams(
       viewerType: ViewerType.markdown,
@@ -197,8 +226,17 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
 
   @override
   Widget build(BuildContext context) {
-    final isGlobalHudVisible = widget.windowId == null ? ref.watch(previewHudVisibleProvider) : true;
-    final isVisible = _isControlsVisible && isGlobalHudVisible;
+    if (widget.windowId == null && !widget.isStandalone) {
+      ref.listen(previewHudVisibleProvider, (previous, next) {
+        if (mounted) {
+          setState(() => _isGlobalHudVisible = next);
+        }
+      });
+    }
+
+    // In standalone mode, we ignore the global HUD visibility provider as the window 
+    // itself is the dedicated viewer. We only care about the internal control timer.
+    final isVisible = _isControlsVisible && (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
 
     return Focus(
       focusNode: _focusNode,
@@ -220,6 +258,13 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
 
           if (widget.windowId == null) {
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
+            final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+            
+            if (event.logicalKey == LogicalKeyboardKey.keyW && isCtrlPressed) {
+              ref.read(previewFileProvider.notifier).state = null;
+              return KeyEventResult.handled;
+            }
+
             if (event.logicalKey == LogicalKeyboardKey.backspace || 
                 (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft)) {
               ref.read(previewFileProvider.notifier).state = null;
@@ -231,51 +276,63 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: Stack(
-          children: [
-            // Content
-            Positioned.fill(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Padding(
-                      padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
-                      child: _isEditing ? _buildEditor() : _buildMarkdown(),
-                    ),
-            ),
-
-            // Top Bar
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 300),
-                opacity: isVisible ? 1.0 : 0.0,
-                child: ViewerTopBar(
-                  title: widget.item.name,
-                  metadata: _isEditing ? 'Editing Mode' : 'Markdown Documentation',
-                  isStandalone: widget.windowId != null,
-                  onPopOut: _openInNewWindow,
-                  onClose: () => ref.read(previewFileProvider.notifier).state = null,
-                  extraActions: [
-                    if (_isEditing)
-                      _buildTopButton(
-                        icon: Icons.save_rounded,
-                        onPressed: _hasChanges ? _saveFile : () {},
-                        color: _hasChanges ? const Color(0xFF00E5FF) : Colors.white24,
-                        tooltip: 'Save Changes',
+        body: MouseRegion(
+          onEnter: (_) => _onInteraction(),
+          onHover: (_) => _onInteraction(),
+          child: Stack(
+            children: [
+              // Content
+              Positioned.fill(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : Padding(
+                        padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
+                        child: _isEditing ? _buildEditor() : _buildMarkdown(),
                       ),
-                    const SizedBox(width: 8),
-                    _buildTopButton(
-                      icon: _isEditing ? Icons.visibility_rounded : Icons.edit_rounded,
-                      onPressed: () => setState(() => _isEditing = !_isEditing),
-                      tooltip: _isEditing ? 'View Preview' : 'Edit File',
-                    ),
-                  ],
+              ),
+
+              // Top Bar
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: isVisible ? 1.0 : 0.0,
+                  child: ViewerTopBar(
+                    title: widget.item.name,
+                    metadata: _isEditing ? 'Editing Mode' : 'Markdown Documentation',
+                    isStandalone: widget.isStandalone || widget.windowId != null,
+                    onPopOut: _openInNewWindow,
+                    onClose: () => ref.read(previewFileProvider.notifier).state = null,
+                    extraActions: [
+                      if (_isEditing) ...[
+                        _buildTopButton(
+                          icon: Icons.save_rounded,
+                          onPressed: _hasChanges ? _saveFile : () {},
+                          color: _hasChanges ? const Color(0xFF00E5FF) : Colors.white24,
+                          tooltip: 'Save Changes',
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      _buildTopButton(
+                        icon: _isEditing ? Icons.visibility_rounded : Icons.edit_rounded,
+                        onPressed: () => setState(() => _isEditing = !_isEditing),
+                        tooltip: _isEditing ? 'View Preview' : 'Edit File',
+                      ),
+                      const SizedBox(width: 8),
+                      _buildTopButton(
+                        icon: Icons.settings_rounded,
+                        onPressed: () => SettingsDialog.show(context, initialTab: 1, section: 'Documents'),
+                        tooltip: 'Document Settings',
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
@@ -21,12 +23,14 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
     required this.item, 
     this.windowId,
     this.parentWindowId,
+    this.isStandalone = false,
     super.key,
   });
 
   final FileItem item;
   final String? windowId;
   final String? parentWindowId;
+  final bool isStandalone;
 
   @override
   ConsumerState<ImagePreviewWidget> createState() => _ImagePreviewWidgetState();
@@ -48,11 +52,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   double _rotationAngle = 0.0;
   double _brightness = 0.0;
 
+  bool _isGlobalHudVisible = true;
   bool _isWindowDecorated = false; // Track decoration state locally
 
   @override
   void initState() {
     super.initState();
+    _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
     if (widget.windowId != null) {
       windowManager.addListener(this);
       windowManager.setPreventClose(true);
@@ -119,7 +125,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   }
 
   void _onInteraction() {
-    if (!_isControlsVisible) {
+    // Wake up global HUD if it was manually hidden
+    if (widget.windowId == null && !ref.read(previewHudVisibleProvider)) {
+      // Immediate update is safe here because listeners handle 'mounted' check
+      ref.read(previewHudVisibleProvider.notifier).state = true;
+    }
+
+    if (mounted && !_isControlsVisible) {
       setState(() => _isControlsVisible = true);
     }
     _startHideTimer();
@@ -246,8 +258,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
 
   @override
   Widget build(BuildContext context) {
-    final isGlobalHudVisible = widget.windowId == null ? ref.watch(previewHudVisibleProvider) : true;
-    final isVisible = _isControlsVisible && isGlobalHudVisible;
+    if (widget.windowId == null && !widget.isStandalone) {
+      ref.listen(previewHudVisibleProvider, (previous, next) {
+        if (mounted) {
+          setState(() => _isGlobalHudVisible = next);
+        }
+      });
+    }
+
+    // In standalone mode, we ignore the global HUD visibility provider as the window 
+    // itself is the dedicated viewer. We only care about the internal control timer.
+    final isVisible = _isControlsVisible && (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
 
     return Focus(
       focusNode: _focusNode,
@@ -262,6 +283,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
               return KeyEventResult.handled;
             }
             // Preview 'F' is now handled by PreviewContainer globally
+          }
+          
+          if (ctrl && event.logicalKey == LogicalKeyboardKey.keyW) {
+            if (widget.windowId == null) {
+              ref.read(previewFileProvider.notifier).state = null;
+              return KeyEventResult.handled;
+            }
           }
           
           if (ctrl) {
@@ -303,12 +331,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       child: Scaffold(
         backgroundColor: Colors.black,
         body: MouseRegion(
-          onEnter: (_) {
-            if (_currentScale <= 1.0) _onInteraction();
-          },
-          onHover: (_) {
-            if (_currentScale <= 1.0) _onInteraction();
-          },
+          onEnter: (_) => _onInteraction(),
+          onHover: (_) => _onInteraction(),
           child: Stack(
             children: [
               // Main Image View
@@ -321,12 +345,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                   child: GestureDetector(
                     onTap: () {
                       _focusNode.requestFocus();
-                      if (_currentScale <= 1.0) {
-                        setState(() {
-                          _isControlsVisible = !_isControlsVisible;
-                          if (_isControlsVisible) _startHideTimer();
-                        });
-                      }
+                      setState(() {
+                        _isControlsVisible = !_isControlsVisible;
+                        if (_isControlsVisible) _startHideTimer();
+                      });
                     },
                     onDoubleTap: widget.windowId == null ? _openInNewWindow : null,
                     child: Center(
@@ -370,16 +392,23 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                   child: ViewerTopBar(
                     title: widget.item.name,
                     metadata: _metadata,
-                    isStandalone: widget.windowId != null,
+                    isStandalone: widget.isStandalone || widget.windowId != null,
                     onPopOut: _openInNewWindow,
                     onClose: () => ref.read(previewFileProvider.notifier).state = null,
                     extraActions: [
                       _buildTopBarButton(
-                        icon: _isEditing ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                        icon: _isEditing ? Icons.edit_rounded : Icons.edit_outlined,
                         onPressed: () => setState(() => _isEditing = !_isEditing),
                         tooltip: 'Edit Image',
                         active: _isEditing,
                       ),
+                      const SizedBox(width: 8),
+                      _buildTopBarButton(
+                        icon: Icons.settings_rounded,
+                        onPressed: () => SettingsDialog.show(context, initialTab: 1, section: 'Image'),
+                        tooltip: 'Image Settings',
+                      ),
+                      const SizedBox(width: 8),
                     ],
                   ),
                 ),

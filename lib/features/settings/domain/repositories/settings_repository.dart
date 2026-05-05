@@ -23,6 +23,9 @@ abstract class SettingsRepository {
   /// Update the double-tap seek seconds.
   Future<void> setDoubleTapSeekSeconds(int value);
 
+  /// Update the resume playback setting.
+  Future<void> setResumePlayback({required bool value});
+
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.

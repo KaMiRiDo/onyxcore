@@ -276,7 +276,11 @@ final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref
   final filter = ref.watch(filterSettingsProvider);
   final query = ref.watch(searchQueryProvider).toLowerCase();
   final settingsAsync = ref.watch(settingsProvider);
-  final showHidden = settingsAsync.value?.showHiddenFiles ?? false;
+  final showHidden = settingsAsync.when(
+    data: (s) => s.showHiddenFiles,
+    loading: () => false,
+    error: (_, __) => false,
+  );
   
   return itemsAsync.whenData((items) {
     var filtered = items;

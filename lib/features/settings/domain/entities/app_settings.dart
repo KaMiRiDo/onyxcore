@@ -8,7 +8,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 /// have been removed.
 class AppSettings extends Equatable {
   const AppSettings({
-    this.autoPlayNext = false,
+    this.autoPlayNext = true,
     this.showHiddenFiles = false,
     this.snapshotPrefix = 'snapshot',
     this.doubleTapSeekSeconds = 10,
@@ -16,6 +16,7 @@ class AppSettings extends Equatable {
     this.gallerySortSettings = const {},
     this.maxConcurrentTasks = 3,
     this.globalSortOption = SortOption.aToZ,
+    this.resumePlayback = true,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -41,6 +42,9 @@ class AppSettings extends Equatable {
 
   /// Global fallback sort option.
   final SortOption globalSortOption;
+  
+  /// Whether to resume video playback from last known position.
+  final bool resumePlayback;
 
   AppSettings copyWith({
     bool? autoPlayNext,
@@ -51,6 +55,7 @@ class AppSettings extends Equatable {
     Map<String, String>? gallerySortSettings,
     int? maxConcurrentTasks,
     SortOption? globalSortOption,
+    bool? resumePlayback,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -61,6 +66,7 @@ class AppSettings extends Equatable {
       gallerySortSettings: gallerySortSettings ?? this.gallerySortSettings,
       maxConcurrentTasks: maxConcurrentTasks ?? this.maxConcurrentTasks,
       globalSortOption: globalSortOption ?? this.globalSortOption,
+      resumePlayback: resumePlayback ?? this.resumePlayback,
     );
   }
 
@@ -74,5 +80,6 @@ class AppSettings extends Equatable {
     gallerySortSettings,
     maxConcurrentTasks,
     globalSortOption,
+    resumePlayback,
   ];
 }

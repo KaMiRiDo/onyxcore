@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:media_kit/media_kit.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:onyxcore/app.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
@@ -21,6 +22,7 @@ void main(List<String> args) async {
   
   // Unified initialization for all engine instances (main and secondary)
   await windowManager.ensureInitialized();
+  await Hive.initFlutter();
   MediaKit.ensureInitialized();
 
   final windowController = await WindowController.fromCurrentEngine();

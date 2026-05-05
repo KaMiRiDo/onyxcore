@@ -56,6 +56,12 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> setResumePlayback({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setResumePlayback(value: value);
+    ref.invalidateSelf();
+  }
+
   Future<void> saveSettings(AppSettings settings) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.saveSettings(settings);

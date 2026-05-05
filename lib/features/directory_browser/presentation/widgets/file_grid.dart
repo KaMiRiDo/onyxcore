@@ -75,7 +75,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
         switchOutCurve: Curves.easeIn,
         child: itemsAsync.when(
         loading: () => Center(
-          key: const ValueKey('loading'),
+          key: ValueKey('loading-$currentPath-$refreshCount'),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -103,7 +103,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
           ),
         ),
         error: (error, _) => Center(
-          key: const ValueKey('error'),
+          key: ValueKey('error-$currentPath-$refreshCount'),
           child: Text(
             'Error: $error',
             style: const TextStyle(color: AppColors.textMuted),
@@ -118,7 +118,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
             
             if (isSearchActive && query.isNotEmpty) {
               return EmptyStateView(
-                key: const ValueKey('no-results'),
+                key: ValueKey('no-results-$currentPath'),
                 icon: Icons.manage_search_rounded,
                 title: 'No Results Found',
                 subtitle: 'No matches for "$query" in ${p.basename(currentPath)}',
@@ -129,7 +129,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
 
             if (isFilterActive) {
               return EmptyStateView(
-                key: const ValueKey('no-filter-results'),
+                key: ValueKey('no-filter-results-$currentPath'),
                 icon: Icons.filter_list_off_rounded,
                 title: 'No Items Match',
                 subtitle: 'Try adjusting your filters to find what you\'re looking for',
@@ -149,7 +149,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
             if (currentPath == 'virtual:starred') message = 'No starred items yet';
             
             return EmptyStateView(
-              key: const ValueKey('empty-folder'),
+              key: ValueKey('empty-folder-$currentPath'),
               icon: _getEmptyIcon(currentPath),
               title: 'Empty Folder',
               subtitle: message,
@@ -157,7 +157,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
           }
 
           return GridView.builder(
-            key: ValueKey('grid-refreshed-$refreshCount'),
+            key: ValueKey('grid-$currentPath-$refreshCount'),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 180 * zoom,

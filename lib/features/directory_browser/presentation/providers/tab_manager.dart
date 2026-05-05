@@ -73,9 +73,8 @@ class TabManager extends Notifier<TabManagerState> {
 
   void closeTab(String id) {
     if (state.tabs.length <= 1) {
-      // Close window logic handled in app.dart usually, 
-      // but here we just keep at least one tab or let the UI handle exit.
-      exit(0);
+      // Don't close the last tab to prevent application exit.
+      // Application exit should only happen via Alt+F4 or system menus.
       return;
     }
 

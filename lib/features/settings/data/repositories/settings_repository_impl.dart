@@ -43,7 +43,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     );
 
     return AppSettings(
-      autoPlayNext: _prefs.getBool('autoPlayNext') ?? false,
+      autoPlayNext: _prefs.getBool('autoPlayNext') ?? true,
       showHiddenFiles: _prefs.getBool('showHiddenFiles') ?? false,
       snapshotPrefix: _prefs.getString('snapshotPrefix') ?? 'snapshot',
       doubleTapSeekSeconds: _prefs.getInt('doubleTapSeekSeconds') ?? 10,
@@ -51,6 +51,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       gallerySortSettings: Map<String, String>.from(_gallerySortSettings),
       maxConcurrentTasks: _prefs.getInt('maxConcurrentTasks') ?? 3,
       globalSortOption: globalSort,
+      resumePlayback: _prefs.getBool('resumePlayback') ?? true,
     );
 
   }
@@ -63,6 +64,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setInt('doubleTapSeekSeconds', settings.doubleTapSeekSeconds);
     await _prefs.setInt('maxConcurrentTasks', settings.maxConcurrentTasks);
     await _prefs.setString('globalSortOption', settings.globalSortOption.name);
+    await _prefs.setBool('resumePlayback', settings.resumePlayback);
     // pinnedFolders and gallerySortSettings are currently managed via specific methods,
     // but we can include them here for a full sync if needed.
   }
@@ -86,6 +88,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setDoubleTapSeekSeconds(int value) async {
     await _prefs.setInt('doubleTapSeekSeconds', value);
+  }
+
+  @override
+  Future<void> setResumePlayback({required bool value}) async {
+    await _prefs.setBool('resumePlayback', value);
   }
 
   // ——— Gallery Sorting ———

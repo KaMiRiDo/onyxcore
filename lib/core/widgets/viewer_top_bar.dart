@@ -21,69 +21,71 @@ class ViewerTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.manrope(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (metadata != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    metadata!,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.black.withOpacity(0.7), Colors.transparent],
           ),
-          const SizedBox(width: 16),
-          if (extraActions != null) ...[
-            ...extraActions!,
-            const SizedBox(width: 8),
-          ],
-          if (!isStandalone) ...[
-            if (onPopOut != null)
-              _buildButton(
-                icon: Icons.open_in_new_rounded,
-                onPressed: onPopOut!,
-                tooltip: 'Pop Out',
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (metadata != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      metadata!,
+                      style: GoogleFonts.manrope(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            if (onClose != null) ...[
+            ),
+            const SizedBox(width: 16),
+            // Actions Area
+            if (extraActions != null) ...extraActions!,
+            if (!isStandalone) ...[
               const SizedBox(width: 8),
-              _buildButton(
-                icon: Icons.close_rounded,
-                onPressed: onClose!,
-                tooltip: 'Close',
-              ),
+              if (onPopOut != null) ...[
+                _buildButton(
+                  icon: Icons.open_in_new_rounded,
+                  onPressed: onPopOut!,
+                  tooltip: 'Pop Out',
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (onClose != null)
+                _buildButton(
+                  icon: Icons.close_rounded,
+                  onPressed: onClose!,
+                  tooltip: 'Close',
+                ),
             ],
           ],
-        ],
+        ),
       ),
     );
   }

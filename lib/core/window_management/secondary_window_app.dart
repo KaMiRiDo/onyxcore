@@ -9,6 +9,8 @@ import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 /// Generic entry point for secondary viewer windows.
 /// 
@@ -31,6 +33,7 @@ class SecondaryWindowApp extends StatefulWidget {
 class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowListener {
   late WindowParams params;
   bool _initialized = false;
+  SharedPreferences? _prefs;
 
   @override
   void initState() {
@@ -40,7 +43,17 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
     windowManager.setPreventClose(true);
     
     _initParams();
+    _initSharedPrefs();
     _setupIpc();
+  }
+
+  Future<void> _initSharedPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _prefs = prefs;
+      });
+    }
   }
 
   void _initParams() {
@@ -87,8 +100,9 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
+    if (!_initialized || _prefs == null) {
       return const MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: Scaffold(
           backgroundColor: Colors.black,
           body: Center(child: CircularProgressIndicator()),
@@ -97,6 +111,9 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
     }
 
     return ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(_prefs!),
+      ],
       child: MaterialApp(
         title: params.file.name,
         debugShowCheckedModeBanner: false,
@@ -113,18 +130,27 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
     switch (params.viewerType) {
       case ViewerType.video:
         final startMs = params.initParams['startPositionMs'] as int?;
+        final rate = params.initParams['playbackRate'] as double?;
+        final audioId = params.initParams['audioTrackId'] as String?;
+        final subtitleId = params.initParams['subtitleTrackId'] as String?;
+        
         return VideoPreviewWidget(
           key: ValueKey(params.file.path),
           item: params.file,
           initialPosition: startMs != null ? Duration(milliseconds: startMs) : null,
+          initialRate: rate,
+          initialAudioTrackId: audioId,
+          initialSubtitleTrackId: subtitleId,
           isStandalone: true,
           windowId: widget.windowId,
           parentWindowId: params.parentWindowId,
+          initParams: params.initParams,
         );
       case ViewerType.image:
         return ImagePreviewWidget(
           key: ValueKey(params.file.path),
           item: params.file,
+          isStandalone: true,
           windowId: widget.windowId,
           parentWindowId: params.parentWindowId,
         );
@@ -132,6 +158,7 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
         return MarkdownPreviewWidget(
           key: ValueKey(params.file.path),
           item: params.file,
+          isStandalone: true,
           windowId: widget.windowId,
           parentWindowId: params.parentWindowId,
         );

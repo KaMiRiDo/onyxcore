@@ -14,21 +14,40 @@ import 'package:window_manager/window_manager.dart';
 
 /// Orchestrator for the inline preview mode.
 /// Switches between image and video previewers based on file type.
-class PreviewContainer extends ConsumerWidget {
+class PreviewContainer extends ConsumerStatefulWidget {
   const PreviewContainer({required this.item, super.key});
 
   final FileItem item;
 
-  Future<void> _toggleFullscreen() async {
-    final isFullScreen = await windowManager.isFullScreen();
-    await windowManager.setFullScreen(!isFullScreen);
+  @override
+  ConsumerState<PreviewContainer> createState() => _PreviewContainerState();
+}
+
+class _PreviewContainerState extends ConsumerState<PreviewContainer> {
+  final FocusNode _focusNode = FocusNode();
+  DateTime _lastToggle = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       color: AppColors.background,
       child: Focus(
+        focusNode: _focusNode,
+        autofocus: true,
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
@@ -37,22 +56,25 @@ class PreviewContainer extends ConsumerWidget {
             if (event.logicalKey == LogicalKeyboardKey.backspace || 
                 (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft) ||
                 (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyW)) {
-              // Standard global navigation: Close any preview
-              ref.read(previewFileProvider.notifier).state = null;
               
-              // Restore standard window mode and HUD visibility
-              windowManager.setFullScreen(false);
+              // Close preview immediately
+              ref.read(previewFileProvider.notifier).state = null;
               ref.read(previewHudVisibleProvider.notifier).state = true;
               
               return KeyEventResult.handled;
             } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
-              // Standard global immersion: Toggle True Full Screen (System Level)
-              final isVisible = ref.read(previewHudVisibleProvider);
-              final newVisible = !isVisible;
-              ref.read(previewHudVisibleProvider.notifier).state = newVisible;
-              
-              // Toggle OS-level fullscreen to hide system bars
-              _toggleFullscreen();
+              final now = DateTime.now();
+              if (now.difference(_lastToggle).inMilliseconds < 300) {
+                return KeyEventResult.handled;
+              }
+              _lastToggle = now;
+
+              // Ensure we have focus
+              _focusNode.requestFocus();
+
+              // Toggle HUD panel visibility
+              final current = ref.read(previewHudVisibleProvider);
+              ref.read(previewHudVisibleProvider.notifier).state = !current;
               
               return KeyEventResult.handled;
             }
@@ -62,10 +84,10 @@ class PreviewContainer extends ConsumerWidget {
         child: GestureDetector(
           onDoubleTap: () async {
             final windowParams = WindowParams(
-              viewerType: item.type == FileItemType.video 
+              viewerType: widget.item.type == FileItemType.video 
                   ? ViewerType.video 
-                  : (item.type == FileItemType.document ? ViewerType.markdown : ViewerType.image),
-              file: item,
+                  : (widget.item.type == FileItemType.document ? ViewerType.markdown : ViewerType.image),
+              file: widget.item,
             );
             await PersistentViewerManager.openMedia(windowParams);
             ref.read(previewFileProvider.notifier).state = null;
@@ -84,12 +106,12 @@ class PreviewContainer extends ConsumerWidget {
   }
 
   Widget _buildPreviewer() {
-    if (item.type == FileItemType.image) {
-      return ImagePreviewWidget(item: item);
-    } else if (item.type == FileItemType.video) {
-      return VideoPreviewWidget(item: item);
-    } else if (item.type == FileItemType.document) {
-      return MarkdownPreviewWidget(key: ValueKey(item.path), item: item);
+    if (widget.item.type == FileItemType.image) {
+      return ImagePreviewWidget(item: widget.item);
+    } else if (widget.item.type == FileItemType.video) {
+      return VideoPreviewWidget(item: widget.item);
+    } else if (widget.item.type == FileItemType.document) {
+      return MarkdownPreviewWidget(key: ValueKey(widget.item.path), item: widget.item);
     }
     return const Center(
       child: Text(
