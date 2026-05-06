@@ -297,14 +297,19 @@ onyxcore/
 - `←`/`→` arrow keys to navigate between images in directory
 - Global HUD visibility sync with preview container
 - Auto-hide controls after 3s inactivity, wake on mouse movement
+- **Unified Gesture System**: Native `InteractiveViewer` touch/pinch gestures integrated with manual scroll-panning
+- **Boundary Clamping**: Strict lock at 1.0x scale to prevent image drifting off-screen
 - **BubbleLoader** shown during image loading
 
 #### 2.2 Standalone Mode (Persistent Window)
 - Dedicated window via `PersistentViewerManager` (window reuse, hide instead of destroy)
+- **Extreme Zoom**: Support for up to **1500% (15.0x)** magnification
 - **Mouse-centered zoom** via scroll wheel with `Matrix4` transform
 - Pinch-to-zoom with center-point tracking
 - Double-tap to reset zoom to fit
-- Pan/drag when zoomed in
+- **High-Performance Panning**: 5.0x sensitivity for Linux trackpad/mouse-wheel panning
+- **Stability Guards**: Matrix finiteness checks (`isFinite`) and `NaN` prevention to avoid UI freezes at extreme zoom
+- **Persistent Zoom Indicator**: Bottom-right stable display showing current zoom level (e.g., "850%") until scale returns to 1.0x
 - **EXIF metadata display** — dimensions, file size, date, camera info
 - **Snapshot flash effect** — white overlay animation on capture
 - **Glassmorphism snapshot toast** notification
@@ -334,6 +339,8 @@ onyxcore/
 #### 3.2 Standalone Mode (Persistent Window)
 - Full `media_kit` Player + VideoController lifecycle
 - **Persistent window** (hide/show, no engine re-initialization)
+- **Zero-Latency Loading**: Engine initialization is deferred by one frame to ensure the `BubbleLoader` renders immediately without UI thread freezing
+- **Persistent HUD State**: Standalone viewer maintains its UI state (hidden/visible HUD) during playlist navigation via a shared widget lifecycle (no `ValueKey` reset)
 - **Custom bottom controls bar** with gradient background:
   - Play/Pause button (white rounded rectangle with glow shadow)
   - Skip Previous / Skip Next
@@ -348,14 +355,14 @@ onyxcore/
 - **Vertical volume overlay** — right-side rotated slider with gradient track
 - **Seek indicator overlay** — large cinematic timestamp display (top-right, Outfit font 54px with text shadows)
 - **Double-tap to seek** — left half seeks backward, right half seeks forward (configurable seconds)
-- **Snapshot** — capture current frame to file with flash effect + glassmorphism toast
+- **Cinematic Snapshot**: High-performance frame capture with a visible flash overlay and a glassmorphism notification toast
 - **Playback memory** — resume from last position via Hive storage
 - **Auto-play next** — configurable in settings
 - **Fast seek** — hold arrow keys for continuous seeking
 - **Keyboard shortcuts**: Space (play/pause), ←/→ (seek), ↑/↓ (volume), M (mute), S (snapshot), F (fullscreen), [ ] (speed)
 - **FPS display** in top HUD metadata
 - **Resolution badge** (e.g., "1080p") in top HUD
-- **BubbleLoader** during loading/buffering/initial seek
+- **BubbleLoader Integration**: Replaced all generic loaders with the high-performance animated bubble system for loading/buffering/seeking
 - **Standalone playlist scanning** — scans parent directory for video files
 
 #### 3.3 Menu Tooltip

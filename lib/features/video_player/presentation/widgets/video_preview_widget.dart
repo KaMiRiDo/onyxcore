@@ -123,14 +123,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   @override
   void initState() {
     super.initState();
+    _currentItem = widget.item;
+    _playbackSpeed = widget.initialRate ?? 1.0;
     _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
-    if (widget.isStandalone) {
-      // Standardize standalone window behavior
+
+    if (widget.windowId != null || widget.isStandalone) {
       windowManager.addListener(this);
       windowManager.setPreventClose(true);
-      windowManager.maximize();
-      // Initialize title bar style for standalone mode
+      // Ensure true fullscreen to hide OS bars
+      windowManager.setFullScreen(true);
       windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      
       // Initialize playlist from passed arguments if available
       if (widget.initParams?.containsKey('playlistJson') == true) {
         try {
@@ -269,6 +272,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     // 3. Open new media
     setState(() => _isOpening = true);
+    
+    // Give the UI a frame to render the loader before engine init
+    await Future.delayed(Duration.zero);
+    
     await player.open(Media(item.path), play: true);
     if (mounted) setState(() => _isOpening = false);
 
@@ -585,8 +592,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         _showSnapshotToast = true;
       });
 
-      // Rapid flash
-      Future.delayed(const Duration(milliseconds: 100), () {
+      // Subtle flash fade
+      Future.delayed(const Duration(milliseconds: 50), () {
         if (mounted) setState(() => _showFlash = false);
       });
 
@@ -934,13 +941,19 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                         if (_isOpening || _isBuffering || _isSeekingToInitial) 
                           const Center(child: BubbleLoader(size: 100)),
 
-                        // Snapshot Flash Effect
-                        if (_showFlash)
-                          Positioned.fill(
-                            child: Container(
-                              color: Colors.white.withOpacity(0.8),
+                        // Snapshot Flash Effect (Subtle Fade)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 500),
+                              opacity: _showFlash ? 0.3 : 0.0,
+                              curve: Curves.easeOut,
+                              child: Container(
+                                color: Colors.white,
+                              ),
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),

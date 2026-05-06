@@ -58,6 +58,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
 
   bool _isGlobalHudVisible = true;
   bool _isLoading = false;
+  Size? _imageSize;
+  Offset? _lastMousePos;
 
   @override
   void initState() {
@@ -66,6 +68,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     if (widget.windowId != null) {
       windowManager.addListener(this);
       windowManager.setPreventClose(true);
+      // Ensure true fullscreen to hide OS bars
+      windowManager.setFullScreen(true);
       windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     }
     _loadMetadata();
@@ -85,18 +89,24 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     if (scale != _currentScale) {
       setState(() {
         _currentScale = scale;
-        _showZoomIndicator = true;
+        // Show indicator if zoomed in, otherwise hide it after a short delay
+        if (_currentScale > 1.0) {
+          _showZoomIndicator = true;
+          _zoomTimer?.cancel();
+        } else {
+          _startZoomTimer();
+        }
+        
         if (_currentScale > 1.0) {
           _isControlsVisible = false;
         }
       });
-      _startZoomTimer();
     }
   }
 
   void _startZoomTimer() {
     _zoomTimer?.cancel();
-    _zoomTimer = Timer(const Duration(milliseconds: 500), () {
+    _zoomTimer = Timer(const Duration(milliseconds: 1000), () {
       if (mounted) {
         setState(() => _showZoomIndicator = false);
       }
@@ -120,19 +130,31 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     
     if ((clampedScale - oldScale).abs() < 0.001) return;
 
-    final Matrix4 invertedMatrix = Matrix4.inverted(currentMatrix);
-    final Vector3 imagePointP = invertedMatrix.transform3(Vector3(P.dx, P.dy, 0));
-    
-    final Matrix4 newMatrix = Matrix4.identity()
-      ..translate(P.dx, P.dy)
-      ..scale(clampedScale)
-      ..translate(-imagePointP.x, -imagePointP.y);
+    try {
+      final Matrix4 invertedMatrix = Matrix4.inverted(currentMatrix);
+      final Vector3 imagePointP = invertedMatrix.transform3(Vector3(P.dx, P.dy, 0));
       
-    _transformationController.value = newMatrix;
-    _onTransformationChanged();
+      final Matrix4 newMatrix = Matrix4.identity()
+        ..translate(P.dx, P.dy)
+        ..scale(clampedScale)
+        ..translate(-imagePointP.x, -imagePointP.y);
+        
+      // Verify matrix is valid before applying
+      if (newMatrix.storage.any((v) => !v.isFinite)) {
+        debugPrint('[ImagePreview] Ignoring invalid transformation matrix');
+        return;
+      }
+
+      _transformationController.value = newMatrix;
+      _onTransformationChanged();
+    } catch (e) {
+      debugPrint('[ImagePreview] Error calculating zoom: $e');
+      // Reset to identity on critical failure to rescue the UI
+      _transformationController.value = Matrix4.identity();
+      _onTransformationChanged();
+    }
   }
 
-  double _baseScale = 1.0;
   Offset _lastFocalPoint = Offset.zero;
 
   void _startHideTimer() {
@@ -144,9 +166,22 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     });
   }
 
-  void _onInteraction() {
+  void _onInteraction({Offset? focalPoint}) {
     if (widget.windowId == null && !ref.read(previewHudVisibleProvider)) {
       ref.read(previewHudVisibleProvider.notifier).state = true;
+    }
+
+    if (focalPoint != null && _lastMousePos != null) {
+      final delta = (focalPoint - _lastMousePos!).distance;
+      // Only reveal if mouse actually moved significantly (avoid jitter or navigation-induced hover)
+      if (delta < 2.0) {
+        _startHideTimer();
+        return;
+      }
+    }
+    
+    if (focalPoint != null) {
+      _lastMousePos = focalPoint;
     }
 
     if (mounted && !_isControlsVisible) {
@@ -188,6 +223,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       if (mounted) {
         final mp = (image.width * image.height / 1000000).toStringAsFixed(1);
         setState(() {
+          _imageSize = Size(image.width.toDouble(), image.height.toDouble());
           _metadata = '${image.width}x${image.height} px • $mp MP';
         });
       }
@@ -220,13 +256,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   void didUpdateWidget(ImagePreviewWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.path != widget.item.path) {
+      _transformationController.value = Matrix4.identity();
       setState(() {
         _isLoading = true;
         _rotationAngle = 0.0;
         _brightness = 0.0;
         _currentScale = 1.0;
       });
-      _transformationController.value = Matrix4.identity();
       _loadMetadata();
       if (mounted) {
         _focusNode.requestFocus();
@@ -350,9 +386,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       child: Scaffold(
         backgroundColor: Colors.black,
         body: MouseRegion(
-          onEnter: (_) => _onInteraction(),
+          onEnter: (event) => _onInteraction(focalPoint: event.localPosition),
           onHover: (event) {
-            _onInteraction();
+            _onInteraction(focalPoint: event.localPosition);
             _mousePosition = event.localPosition;
           },
           child: Listener(
@@ -362,75 +398,69 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
             onPointerMove: (event) {
               _mousePosition = event.localPosition;
             },
-            onPointerSignal: (pointerSignal) {
-              if (pointerSignal is PointerScrollEvent) {
-                if (HardwareKeyboard.instance.isControlPressed) {
-                  final double delta = (pointerSignal as PointerScrollEvent).scrollDelta.dy;
-                  final double zoomFactor = delta > 0 ? 0.9 : 1.1;
-                  _setZoom(_currentScale * zoomFactor, focalPoint: pointerSignal.localPosition);
-                }
-              }
-            },
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: InteractiveViewer(
-                    transformationController: _transformationController,
-                    minScale: 1.0,
-                    maxScale: 10.0,
-                    scaleEnabled: false, // Override default scaling to force mouse-centered zoom
-                    onInteractionUpdate: (_) => _onTransformationChanged(),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onScaleStart: (details) {
-                        _baseScale = _currentScale;
-                        _lastFocalPoint = details.localFocalPoint;
-                      },
-                      onScaleUpdate: (details) {
-                        // 1. Handle Pan (Immediate and sensitive)
-                        final panDelta = details.localFocalPoint - _lastFocalPoint;
-                        if (panDelta.distance > 0.01) {
-                          _transformationController.value = _transformationController.value.clone()
-                            ..translate(panDelta.dx / _currentScale, panDelta.dy / _currentScale);
-                          _lastFocalPoint = details.localFocalPoint;
-                          // InteractiveViewer repaints itself when transformationController changes
+                  child: Listener(
+                    onPointerSignal: (pointerSignal) {
+                      if (pointerSignal is PointerScrollEvent) {
+                        if (HardwareKeyboard.instance.isControlPressed) {
+                          final double delta = pointerSignal.scrollDelta.dy;
+                          final double zoomFactor = delta > 0 ? 0.9 : 1.1;
+                          _setZoom(_currentScale * zoomFactor, focalPoint: pointerSignal.localPosition);
+                        } else if (_currentScale > 1.05) {
+                          // Handle trackpad two-finger drag (panning via scroll)
+                          final delta = pointerSignal.scrollDelta;
+                          const double sensitivity = 5.0;
+                          final translation = Matrix4.translationValues(-delta.dx * sensitivity, -delta.dy * sensitivity, 0);
+                          final nextMatrix = translation * _transformationController.value;
+                          
+                          if (nextMatrix.storage.any((v) => !v.isFinite)) return;
+                          
+                          _transformationController.value = nextMatrix;
+                          _onTransformationChanged();
                         }
-
-                        // 2. Handle Scale
-                        if ((details.scale - 1.0).abs() > 0.001) {
-                          _setZoom(_baseScale * details.scale, focalPoint: _mousePosition);
-                        }
-                      },
-                      onTap: () {
-                        _focusNode.requestFocus();
-                        setState(() {
-                          _isControlsVisible = !_isControlsVisible;
-                          if (_isControlsVisible) _startHideTimer();
-                        });
-                      },
-                      onDoubleTap: widget.windowId == null ? _openInNewWindow : null,
-                      child: Center(
-                        child: Hero(
-                          tag: widget.item.path,
-                          child: Transform.rotate(
-                            angle: _rotationAngle * 3.14159 / 180,
-                            child: ColorFiltered(
-                              colorFilter: ColorFilter.matrix([
-                                1, 0, 0, 0, _brightness * 255,
-                                0, 1, 0, 0, _brightness * 255,
-                                0, 0, 1, 0, _brightness * 255,
-                                0, 0, 0, 1, 0,
-                              ]),
-                              child: widget.item.path.toLowerCase().endsWith('.svg')
-                                  ? SvgPicture.file(
-                                      File(widget.item.path),
-                                      fit: BoxFit.contain,
-                                    )
-                                  : Image.file(
-                                      File(widget.item.path),
-                                      fit: BoxFit.contain,
-                                      filterQuality: FilterQuality.high,
-                                    ),
+                      }
+                    },
+                    child: InteractiveViewer(
+                      transformationController: _transformationController,
+                      minScale: 1.0,
+                      maxScale: 15.0,
+                      panEnabled: true,
+                      scaleEnabled: true,
+                      onInteractionUpdate: (_) => _onTransformationChanged(),
+                      child: GestureDetector(
+                        onTap: () {
+                          _focusNode.requestFocus();
+                          setState(() {
+                            _isControlsVisible = !_isControlsVisible;
+                            if (_isControlsVisible) _startHideTimer();
+                          });
+                        },
+                        onDoubleTap: widget.windowId == null ? _openInNewWindow : null,
+                        child: Center(
+                          child: Hero(
+                            tag: widget.item.path,
+                            child: Transform.rotate(
+                              angle: _rotationAngle * 3.14159 / 180,
+                              child: ColorFiltered(
+                                colorFilter: ColorFilter.matrix([
+                                  1, 0, 0, 0, _brightness * 255,
+                                  0, 1, 0, 0, _brightness * 255,
+                                  0, 0, 1, 0, _brightness * 255,
+                                  0, 0, 0, 1, 0,
+                                ]),
+                                child: widget.item.path.toLowerCase().endsWith('.svg')
+                                    ? SvgPicture.file(
+                                        File(widget.item.path),
+                                        fit: BoxFit.contain,
+                                      )
+                                    : Image.file(
+                                        File(widget.item.path),
+                                        fit: BoxFit.contain,
+                                        filterQuality: FilterQuality.high,
+                                      ),
+                              ),
                             ),
                           ),
                         ),

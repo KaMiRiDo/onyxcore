@@ -46,6 +46,10 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
     _initParams();
     _initSharedPrefs();
     _setupIpc();
+
+    // Standardize secondary window for immersive viewing
+    windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+    windowManager.setFullScreen(true);
   }
 
   Future<void> _initSharedPrefs() async {
