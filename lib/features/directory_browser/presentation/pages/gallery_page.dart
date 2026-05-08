@@ -101,8 +101,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           final self = await WindowController.fromCurrentEngine();
           final String selfId = self.windowId;
 
-          final repo = ref.read(directoryRepositoryProvider);
-          final items = await repo.listDirectory(p.dirname(currentPath));
+          final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
           if (items.isEmpty) return 'error: no items';
 
           // Filter by requested media type
@@ -125,6 +124,15 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
 
           final nextItem = mediaItems[nextIndex];
           
+          // Calculate adjacent items for preloading
+          List<String> preloadPaths = [];
+          if (mediaItems.isNotEmpty) {
+            for (int i = 1; i <= 2; i++) {
+              preloadPaths.add(mediaItems[(nextIndex + i) % mediaItems.length].path);
+              preloadPaths.add(mediaItems[(nextIndex - i + mediaItems.length) % mediaItems.length].path);
+            }
+          }
+
           // Command the sub-window to load the new item
           final params = WindowParams(
             viewerType: nextItem.type == FileItemType.video 
@@ -132,6 +140,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                 : (nextItem.type == FileItemType.audio ? ViewerType.audio : ViewerType.image),
             file: nextItem,
             parentWindowId: selfId,
+            initParams: {
+              'preloadPaths': preloadPaths,
+            },
           );
 
           await WindowController.fromWindowId(targetWindowId).invokeMethod('load_media', params.toJson());

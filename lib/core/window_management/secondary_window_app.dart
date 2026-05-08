@@ -49,7 +49,11 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
 
     // Standardize secondary window for immersive viewing
     windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-    windowManager.setFullScreen(true);
+    // Ensure the window gains OS-level focus so trackpad events register immediately.
+    // Delay ensures the OS compositor has mapped the window before stealing focus.
+    Future.delayed(const Duration(milliseconds: 100), () async {
+      await windowManager.focus();
+    });
   }
 
   Future<void> _initSharedPrefs() async {
@@ -81,6 +85,10 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
           final newParams = WindowParams.fromJson(normalizedArgs);
           setState(() {
             params = newParams;
+          });
+          // Ensure window regains focus if user navigated while window was somehow blurred
+          Future.delayed(const Duration(milliseconds: 100), () async {
+            await windowManager.focus();
           });
         } catch (e) {
           debugPrint('[SecondaryWindowApp] Error parsing IPC params: $e');
@@ -153,11 +161,11 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
         );
       case ViewerType.image:
         return ImagePreviewWidget(
-          key: ValueKey(params.file.path),
           item: params.file,
           isStandalone: true,
           windowId: widget.windowId,
           parentWindowId: params.parentWindowId,
+          initParams: params.initParams,
         );
       case ViewerType.audio:
         return AudioPlayerView(

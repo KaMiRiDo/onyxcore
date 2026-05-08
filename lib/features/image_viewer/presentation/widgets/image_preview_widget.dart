@@ -27,6 +27,7 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
     this.windowId,
     this.parentWindowId,
     this.isStandalone = false,
+    this.initParams,
     super.key,
   });
 
@@ -34,6 +35,7 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
   final String? windowId;
   final String? parentWindowId;
   final bool isStandalone;
+  final Map<String, dynamic>? initParams;
 
   @override
   ConsumerState<ImagePreviewWidget> createState() => _ImagePreviewWidgetState();
@@ -57,9 +59,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   double _brightness = 0.0;
 
   bool _isGlobalHudVisible = true;
-  bool _isLoading = false;
+  bool _isLoading = true;
   Size? _imageSize;
   Offset? _lastMousePos;
+  final Completer<void> _firstFrameCompleter = Completer<void>();
+  DateTime? _lastNavTime;
+  bool _isReadyForInteraction = false;
 
   @override
   void initState() {
@@ -77,10 +82,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        _precacheAdjacentImages();
         _focusNode.requestFocus();
         final size = MediaQuery.of(context).size;
         _mousePosition = Offset(size.width / 2, size.height / 2);
+        if (!_firstFrameCompleter.isCompleted) {
+          _firstFrameCompleter.complete();
+        }
       }
+    });
+
+    // Wait for Hero animation to complete before enabling pinch-to-zoom to avoid matrix corruption
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (mounted) setState(() => _isReadyForInteraction = true);
     });
   }
 
@@ -111,6 +125,39 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
         setState(() => _showZoomIndicator = false);
       }
     });
+  }
+
+  void _precacheAdjacentImages() {
+    List<String> pathsToPreload = [];
+
+    if (widget.isStandalone && widget.initParams != null && widget.initParams!['preloadPaths'] != null) {
+      final List<dynamic> preloadList = widget.initParams!['preloadPaths'];
+      pathsToPreload = preloadList.map((e) => e.toString()).toList();
+    } else if (!widget.isStandalone && widget.windowId == null) {
+      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+      final mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.isNotEmpty) {
+        final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path);
+        if (currentIndex != -1) {
+          for (int i = 1; i <= 2; i++) {
+            pathsToPreload.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
+            pathsToPreload.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
+          }
+        }
+      }
+    }
+
+    for (final path in pathsToPreload) {
+      if (path != widget.item.path && !path.toLowerCase().endsWith('.svg')) {
+        precacheImage(_getImageProvider(path), context, onError: (e, s) {
+          debugPrint('Failed to precache image $path: $e');
+        });
+      }
+    }
+  }
+
+  ImageProvider _getImageProvider(String path) {
+    return FileImage(File(path));
   }
 
   void _setZoom(double newScale, {Offset? focalPoint}) {
@@ -166,9 +213,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     });
   }
 
-  void _onInteraction({Offset? focalPoint}) {
+  void _onInteraction({Offset? focalPoint, Offset? eventDelta}) {
     if (widget.windowId == null && !ref.read(previewHudVisibleProvider)) {
       ref.read(previewHudVisibleProvider.notifier).state = true;
+    }
+
+    // Ignore synthetic hover events caused by layout changes
+    if (eventDelta != null && eventDelta == Offset.zero) {
+      return;
     }
 
     if (focalPoint != null && _lastMousePos != null) {
@@ -211,25 +263,43 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       if (isSvg) {
         setState(() {
           _metadata = 'Vector Graphic • Scalable';
+          _isLoading = false;
         });
         return;
       }
 
-      final bytes = await File(widget.item.path).readAsBytes();
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final image = frame.image;
+      if (!_firstFrameCompleter.isCompleted) {
+        await _firstFrameCompleter.future;
+      }
+      
+      if (!mounted) return;
+
+      final imageProvider = FileImage(File(widget.item.path));
+      final completer = Completer<ImageInfo>();
+      final stream = imageProvider.resolve(createLocalImageConfiguration(context));
+      
+      final listener = ImageStreamListener((info, _) {
+        if (!completer.isCompleted) completer.complete(info);
+      }, onError: (dynamic error, StackTrace? stackTrace) {
+        if (!completer.isCompleted) completer.completeError(error, stackTrace);
+      });
+      
+      stream.addListener(listener);
+      final info = await completer.future;
+      stream.removeListener(listener);
+
+      final image = info.image;
       
       if (mounted) {
         final mp = (image.width * image.height / 1000000).toStringAsFixed(1);
         setState(() {
           _imageSize = Size(image.width.toDouble(), image.height.toDouble());
           _metadata = '${image.width}x${image.height} px • $mp MP';
+          _isLoading = false;
         });
       }
     } catch (e) {
       debugPrint('Error loading image metadata: $e');
-    } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -262,18 +332,38 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
         _rotationAngle = 0.0;
         _brightness = 0.0;
         _currentScale = 1.0;
+        _isControlsVisible = false;
       });
       _loadMetadata();
       if (mounted) {
         _focusNode.requestFocus();
       }
+      _precacheAdjacentImages();
     }
   }
 
   Future<void> _openInNewWindow() async {
+    List<String> preloadPaths = [];
+    if (!widget.isStandalone && widget.windowId == null) {
+      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+      final mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.isNotEmpty) {
+        final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path);
+        if (currentIndex != -1) {
+          for (int i = 1; i <= 2; i++) {
+            preloadPaths.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
+            preloadPaths.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
+          }
+        }
+      }
+    }
+
     final windowParams = WindowParams(
       viewerType: ViewerType.image,
       file: widget.item,
+      initParams: {
+        'preloadPaths': preloadPaths,
+      },
     );
 
     try {
@@ -296,7 +386,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       });
       WindowController.fromWindowId(widget.parentWindowId ?? '0').invokeMethod('request_navigation', payload);
     } else {
-      final items = ref.read(directoryItemsProvider).value ?? [];
+      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
       if (items.isEmpty) return;
 
       final mediaItems = items.where((i) => i.type == FileItemType.image).toList();
@@ -332,18 +422,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent) {
+        if (event is KeyDownEvent || event is KeyRepeatEvent) {
           final ctrl = HardwareKeyboard.instance.isControlPressed;
           
           if (event.logicalKey == LogicalKeyboardKey.keyF) {
-            if (widget.windowId != null) {
+            if (widget.windowId != null && event is KeyDownEvent) {
               _toggleFullscreen();
               return KeyEventResult.handled;
             }
           }
           
           if (ctrl && event.logicalKey == LogicalKeyboardKey.keyW) {
-            if (widget.windowId == null) {
+            if (widget.windowId == null && event is KeyDownEvent) {
               ref.read(previewFileProvider.notifier).state = null;
               return KeyEventResult.handled;
             }
@@ -362,17 +452,27 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
             }
           }
 
-          if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-            _navigateMedia(true);
-            return KeyEventResult.handled;
-          } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-            if (!HardwareKeyboard.instance.isAltPressed) {
-              _navigateMedia(false);
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight || event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft && HardwareKeyboard.instance.isAltPressed) {
+              // Ignore Alt+Left as it's used for back navigation
+            } else {
+              final forward = event.logicalKey == LogicalKeyboardKey.arrowRight;
+              if (event is KeyRepeatEvent) {
+                final now = DateTime.now();
+                if (_lastNavTime != null && now.difference(_lastNavTime!).inMilliseconds < 300) {
+                  return KeyEventResult.handled;
+                }
+                _lastNavTime = now;
+                _navigateMedia(forward);
+              } else if (event is KeyDownEvent) {
+                _lastNavTime = DateTime.now();
+                _navigateMedia(forward);
+              }
               return KeyEventResult.handled;
             }
           }
 
-          if (widget.windowId == null) {
+          if (widget.windowId == null && event is KeyDownEvent) {
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
             if (event.logicalKey == LogicalKeyboardKey.backspace || 
                 (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft)) {
@@ -386,9 +486,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       child: Scaffold(
         backgroundColor: Colors.black,
         body: MouseRegion(
-          onEnter: (event) => _onInteraction(focalPoint: event.localPosition),
+          onEnter: (event) => _onInteraction(focalPoint: event.localPosition, eventDelta: event.delta),
           onHover: (event) {
-            _onInteraction(focalPoint: event.localPosition);
+            _onInteraction(focalPoint: event.localPosition, eventDelta: event.delta);
             _mousePosition = event.localPosition;
           },
           child: Listener(
@@ -426,8 +526,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                       transformationController: _transformationController,
                       minScale: 1.0,
                       maxScale: 15.0,
-                      panEnabled: true,
-                      scaleEnabled: true,
+                      panEnabled: _isReadyForInteraction || widget.isStandalone,
+                      scaleEnabled: _isReadyForInteraction || widget.isStandalone,
                       onInteractionUpdate: (_) => _onTransformationChanged(),
                       child: GestureDetector(
                         onTap: () {
@@ -470,7 +570,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                 ),
 
                 if (_isLoading)
-                  const Center(child: BubbleLoader(size: 80)),
+                  const IgnorePointer(child: Center(child: BubbleLoader(size: 80))),
 
                 Positioned(
                   top: 0,

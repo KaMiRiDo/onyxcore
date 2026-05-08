@@ -220,6 +220,7 @@ onyxcore/
 - **Lock icon badge** on read-only items
 - **Middle-truncated filenames** for long names
 - File name rendered in Manrope font, 2-line max with ellipsis
+- **Seamless State Transitions**: Uses implicit type-based keys in `AnimatedSwitcher` to prevent duplicate-key crashes during rapid async directory refreshes
 
 #### 1.4 Selection System
 - **Click to select** (single)
@@ -277,6 +278,7 @@ onyxcore/
 #### 1.11 Caching
 - **DirectoryCache**: in-memory with 30-second TTL, keyed by path
 - **MetadataCache**: SharedPreferences-backed image aspect ratio cache
+- **ImageCache**: High-capacity 500MB global limit to support instant pre-caching of massive uncompressed DSLR/Pexels images without downscaling or cache thrashing
 
 #### 1.12 Empty State
 - Custom `EmptyStateView` for empty directories
@@ -294,15 +296,17 @@ onyxcore/
 - Double-tap to **pop out** to standalone window
 - `Backspace` / `Alt+←` / `Ctrl+W` to close preview
 - `F` key to toggle HUD visibility
-- `←`/`→` arrow keys to navigate between images in directory
+- `←`/`→` arrow keys to navigate between images in directory (features a **300ms throttle** for stable continuous key-hold cycling)
 - Global HUD visibility sync with preview container
 - Auto-hide controls after 3s inactivity, wake on mouse movement
 - **Unified Gesture System**: Native `InteractiveViewer` touch/pinch gestures integrated with manual scroll-panning
+- **Matrix Corruption Guard**: Interaction lock (350ms) during the Hero flight animation to prevent random pinch-to-zoom focal point jumps
 - **Boundary Clamping**: Strict lock at 1.0x scale to prevent image drifting off-screen
-- **BubbleLoader** shown during image loading
+- **BubbleLoader** shown during image loading (wrapped in `IgnorePointer` to prevent swallowing background trackpad gestures)
 
 #### 2.2 Standalone Mode (Persistent Window)
 - Dedicated window via `PersistentViewerManager` (window reuse, hide instead of destroy)
+- **Focus Reliability**: Implements a 100ms compositor mapping delay before requesting OS focus, guaranteeing trackpad pinch-to-zoom works immediately upon launch without requiring a click
 - **Extreme Zoom**: Support for up to **1500% (15.0x)** magnification
 - **Mouse-centered zoom** via scroll wheel with `Matrix4` transform
 - Pinch-to-zoom with center-point tracking

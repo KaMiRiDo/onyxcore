@@ -76,7 +76,6 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
         switchOutCurve: Curves.easeIn,
         child: itemsAsync.when(
         loading: () => Center(
-          key: ValueKey('loading-$tabId-$refreshCount'),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -104,7 +103,6 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
           ),
         ),
         error: (error, _) => Center(
-          key: ValueKey('error-$tabId-$refreshCount'),
           child: Text(
             'Error: $error',
             style: const TextStyle(color: AppColors.textMuted),
@@ -119,7 +117,6 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
             
             if (isSearchActive && query.isNotEmpty) {
               return EmptyStateView(
-                key: ValueKey('empty-results-$tabId-$refreshCount'),
                 icon: Icons.manage_search_rounded,
                 title: 'No Results Found',
                 subtitle: 'No matches for "$query" in ${p.basename(currentPath)}',
@@ -130,7 +127,6 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
 
             if (isFilterActive) {
               return EmptyStateView(
-                key: ValueKey('empty-filter-$tabId-$refreshCount'),
                 icon: Icons.filter_list_off_rounded,
                 title: 'No Items Match',
                 subtitle: 'Try adjusting your filters to find what you\'re looking for',
@@ -150,7 +146,6 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
             if (currentPath == 'virtual:starred') message = 'No starred items yet';
             
             return EmptyStateView(
-            key: ValueKey('empty-folder-$tabId-$refreshCount'),
               icon: _getEmptyIcon(currentPath),
               title: 'Empty Folder',
               subtitle: message,
@@ -158,7 +153,6 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
           }
 
           return GridView.builder(
-            key: ValueKey('grid-$tabId-$refreshCount'),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 180 * zoom,

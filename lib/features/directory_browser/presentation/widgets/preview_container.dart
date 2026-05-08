@@ -84,11 +84,29 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
         },
         child: GestureDetector(
           onDoubleTap: () async {
+            List<String> preloadPaths = [];
+            if (widget.item.type == FileItemType.image) {
+              final items = ref.read(directoryItemsProvider).value ?? [];
+              final mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+              if (mediaItems.isNotEmpty) {
+                final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path);
+                if (currentIndex != -1) {
+                  for (int i = 1; i <= 2; i++) {
+                    preloadPaths.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
+                    preloadPaths.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
+                  }
+                }
+              }
+            }
+
             final windowParams = WindowParams(
               viewerType: widget.item.type == FileItemType.video 
                   ? ViewerType.video 
                   : (widget.item.type == FileItemType.audio ? ViewerType.audio : (widget.item.type == FileItemType.document ? ViewerType.markdown : ViewerType.image)),
               file: widget.item,
+              initParams: {
+                'preloadPaths': preloadPaths,
+              },
             );
             await PersistentViewerManager.openMedia(windowParams);
             ref.read(previewFileProvider.notifier).state = null;

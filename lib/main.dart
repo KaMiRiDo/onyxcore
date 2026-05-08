@@ -20,6 +20,9 @@ import 'package:onyxcore/core/window_management/window_controller_extension.dart
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Increase image cache to 500MB to support pre-caching of high-res files without compromising resolution
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 500;
+  
   // Unified initialization for all engine instances (main and secondary)
   await windowManager.ensureInitialized();
   await Hive.initFlutter();
