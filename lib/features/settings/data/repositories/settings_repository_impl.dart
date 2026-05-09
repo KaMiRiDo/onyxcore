@@ -53,6 +53,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       globalSortOption: globalSort,
       resumePlayback: _prefs.getBool('resumePlayback') ?? true,
       audioSeekSeconds: _prefs.getInt('audioSeekSeconds') ?? 5,
+      selectedHwDec: _prefs.getString('selectedHwDec') ?? 'auto',
+      cachedResolvedHwDec: _prefs.getString('cachedResolvedHwDec'),
     );
 
   }
@@ -67,8 +69,12 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setString('globalSortOption', settings.globalSortOption.name);
     await _prefs.setBool('resumePlayback', settings.resumePlayback);
     await _prefs.setInt('audioSeekSeconds', settings.audioSeekSeconds);
-    // pinnedFolders and gallerySortSettings are currently managed via specific methods,
-    // but we can include them here for a full sync if needed.
+    await _prefs.setString('selectedHwDec', settings.selectedHwDec);
+    if (settings.cachedResolvedHwDec != null) {
+      await _prefs.setString('cachedResolvedHwDec', settings.cachedResolvedHwDec!);
+    } else {
+      await _prefs.remove('cachedResolvedHwDec');
+    }
   }
 
   @override
@@ -100,6 +106,20 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setAudioSeekSeconds(int value) async {
     await _prefs.setInt('audioSeekSeconds', value);
+  }
+
+  @override
+  Future<void> setSelectedHwDec(String value) async {
+    await _prefs.setString('selectedHwDec', value);
+  }
+
+  @override
+  Future<void> setCachedResolvedHwDec(String? value) async {
+    if (value != null) {
+      await _prefs.setString('cachedResolvedHwDec', value);
+    } else {
+      await _prefs.remove('cachedResolvedHwDec');
+    }
   }
 
   // ——— Gallery Sorting ———

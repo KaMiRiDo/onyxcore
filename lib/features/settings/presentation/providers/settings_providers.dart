@@ -62,6 +62,18 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> setSelectedHwDec(String value) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setSelectedHwDec(value);
+    ref.invalidateSelf();
+  }
+
+  Future<void> setCachedResolvedHwDec(String? value) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setCachedResolvedHwDec(value);
+    ref.invalidateSelf();
+  }
+
   Future<void> saveSettings(AppSettings settings) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.saveSettings(settings);

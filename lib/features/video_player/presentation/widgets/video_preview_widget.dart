@@ -187,11 +187,52 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       platform.setProperty('hr-seek', 'no');           // Default: keyframe seeking (fast)
       platform.setProperty('hr-seek-framedrop', 'yes');
       platform.setProperty('vd-lavc-fast', 'yes');
-      platform.setProperty('hwdec', 'auto-safe');
+      
+      // EPX-008: Hardware Decoder Auto-Cache Logic
+      final settings = ref.read(settingsProvider).value;
+      if (settings != null) {
+        if (settings.selectedHwDec == 'auto') {
+          if (settings.cachedResolvedHwDec != null) {
+            debugPrint('[VideoPlayer] Using cached hardware decoder: ${settings.cachedResolvedHwDec}');
+            platform.setProperty('hwdec', settings.cachedResolvedHwDec!);
+          } else {
+            debugPrint('[VideoPlayer] No cached decoder, using fallback chain');
+            platform.setProperty('hwdec', 'vaapi,nvdec,vdpau,auto-safe');
+          }
+        } else {
+          debugPrint('[VideoPlayer] Using manually selected hardware decoder: ${settings.selectedHwDec}');
+          platform.setProperty('hwdec', settings.selectedHwDec);
+        }
+      } else {
+        platform.setProperty('hwdec', 'auto-safe');
+      }
     }
 
     controller = VideoController(player);
     
+    // EPX-008: Hardware Decoder Resolution Listener
+    _trackSubscription = player.stream.track.listen((track) {
+      _fetchFps();
+      
+      // Query the actual driver settled on by the engine
+      final settings = ref.read(settingsProvider).value;
+      if (settings != null && settings.selectedHwDec == 'auto' && settings.cachedResolvedHwDec == null) {
+        Future.delayed(const Duration(seconds: 1), () async {
+          if (_isClosing || !mounted) return;
+          try {
+            final dynamic platform = player.platform;
+            final String? currentHwDec = await platform.getProperty('hwdec-current');
+            if (currentHwDec != null && currentHwDec != 'no' && currentHwDec.isNotEmpty) {
+              debugPrint('[VideoPlayer] Resolved hardware decoder: $currentHwDec. Saving to cache.');
+              await ref.read(settingsProvider.notifier).setCachedResolvedHwDec(currentHwDec);
+            }
+          } catch (e) {
+            debugPrint('[VideoPlayer] Error resolving current hwdec: $e');
+          }
+        });
+      }
+    });
+
     _isOpening = true;
     
     // Ensure the loader is rendered and animating before engine-level open
@@ -235,10 +276,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         }
       });
     }
-
-    _trackSubscription = player.stream.track.listen((_) {
-      _fetchFps();
-    });
 
     _completedSubscription = player.stream.completed.listen((completed) {
       if (completed) {

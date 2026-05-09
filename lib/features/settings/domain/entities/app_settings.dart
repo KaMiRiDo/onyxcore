@@ -18,6 +18,8 @@ class AppSettings extends Equatable {
     this.globalSortOption = SortOption.aToZ,
     this.resumePlayback = true,
     this.audioSeekSeconds = 5,
+    this.selectedHwDec = 'auto',
+    this.cachedResolvedHwDec,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -50,6 +52,12 @@ class AppSettings extends Equatable {
   /// Number of seconds to seek in audio player (left/right arrows).
   final int audioSeekSeconds;
 
+  /// User selected hardware decoder option (e.g. 'auto', 'vaapi', 'nvdec', 'software').
+  final String selectedHwDec;
+
+  /// The actual hardware decoder driver resolved by the engine last time.
+  final String? cachedResolvedHwDec;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -61,6 +69,8 @@ class AppSettings extends Equatable {
     SortOption? globalSortOption,
     bool? resumePlayback,
     int? audioSeekSeconds,
+    String? selectedHwDec,
+    String? cachedResolvedHwDec,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -73,6 +83,8 @@ class AppSettings extends Equatable {
       globalSortOption: globalSortOption ?? this.globalSortOption,
       resumePlayback: resumePlayback ?? this.resumePlayback,
       audioSeekSeconds: audioSeekSeconds ?? this.audioSeekSeconds,
+      selectedHwDec: selectedHwDec ?? this.selectedHwDec,
+      cachedResolvedHwDec: cachedResolvedHwDec ?? this.cachedResolvedHwDec,
     );
   }
 
@@ -88,5 +100,7 @@ class AppSettings extends Equatable {
     globalSortOption,
     resumePlayback,
     audioSeekSeconds,
+    selectedHwDec,
+    cachedResolvedHwDec,
   ];
 }

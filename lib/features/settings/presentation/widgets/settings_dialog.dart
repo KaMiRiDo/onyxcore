@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,6 +46,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   final _generalKeys = {
     'Files & Folders': GlobalKey(),
     'Sync': GlobalKey(),
+    'Performance': GlobalKey(),
   };
   final _viewersKeys = {
     'Image': GlobalKey(),
@@ -241,8 +243,47 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
 
   Future<void> _handleSave() async {
     if (_draftSettings != null) {
+      final hwDecChanged = _draftSettings!.selectedHwDec != _originalSettings?.selectedHwDec;
+      
       await ref.read(settingsProvider.notifier).saveSettings(_draftSettings!);
-      if (mounted) Navigator.of(context).pop();
+      
+      if (mounted) {
+        if (hwDecChanged) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF1A1A1A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                'Restart Required',
+                style: GoogleFonts.manrope(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              content: Text(
+                'Hardware configuration changed. The application must be restarted for these changes to take effect.',
+                style: GoogleFonts.manrope(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => exit(0),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.manrope(
+                      color: AppColors.violet,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else {
+          Navigator.of(context).pop();
+        }
+      }
     }
   }
 
@@ -331,7 +372,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     return Row(
       children: [
         _buildSubSidebar(
-          items: ['Files & Folders', 'Sync'],
+          items: ['Files & Folders', 'Sync', 'Performance'],
           activeItem: _activeGeneralSection,
           onSelected: (section) => _scrollToSection(_generalKeys[section]!, section, 'General'),
         ),
@@ -429,6 +470,50 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               const SizedBox(height: 40),
               _buildSectionHeader('Sync', _generalKeys['Sync']!),
               _buildEmptySection('Sync settings and cloud integration options will appear here.'),
+              const SizedBox(height: 40),
+              _buildSectionHeader('Performance', _generalKeys['Performance']!),
+              _buildSettingTile(
+                title: 'Hardware Decoder',
+                subtitle: 'Choose the driver used for video decoding. Restart required.',
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: DropdownButton<String>(
+                    value: settings.selectedHwDec,
+                    dropdownColor: const Color(0xFF1A1A1A),
+                    underline: const SizedBox.shrink(),
+                    isDense: true,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                    items: [
+                      ['auto', 'Auto (Recommended)'],
+                      ['vaapi', 'VA-API (AMD / Intel)'],
+                      ['nvdec', 'NVDEC (NVIDIA)'],
+                      ['d3d11va', 'D3D11VA (Windows)'],
+                      ['no', 'Software (CPU Fallback)'],
+                    ].map((v) => DropdownMenuItem<String>(
+                      value: v[0],
+                      child: Text(v[1]),
+                    )).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _draftSettings = _draftSettings!.copyWith(
+                            selectedHwDec: value,
+                            cachedResolvedHwDec: null, // Clear cache on manual change
+                          );
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
               const SizedBox(height: 100), // Space to allow scrolling to final section
             ],
           ),

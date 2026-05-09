@@ -29,6 +29,12 @@ abstract class SettingsRepository {
   /// Update the audio seek seconds.
   Future<void> setAudioSeekSeconds(int value);
 
+  /// Update the user-selected hardware decoder driver.
+  Future<void> setSelectedHwDec(String value);
+
+  /// Update the cached resolved hardware decoder driver from the engine.
+  Future<void> setCachedResolvedHwDec(String? value);
+
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.

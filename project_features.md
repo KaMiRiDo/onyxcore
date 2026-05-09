@@ -436,7 +436,7 @@ onyxcore/
   - `demuxer-max-back-bytes: 200000000` (200 MiB backward buffer)
   - `demuxer-readahead-secs: 60` (60-second readahead)
   - `cache: yes` with `cache-secs: 60` for persistent decoded frame cache
-  - `hwdec: auto-safe` for hardware-accelerated decoding on the main player
+  - **Hardware Decoder (EPX-008)**: Configurable via Settings > Performance. Supports `auto`, `vaapi`, `nvdec`, `vdpau`, `auto-safe`, `no`. Default: `auto`. The "Auto-Cache" mechanism probes hardware capabilities on first run using the fallback chain `vaapi,nvdec,vdpau,auto-safe`, listens for the resolved decoder via `mpv`'s `hwdec` property stream, and caches the result in `AppSettings.cachedResolvedHwDec`. On subsequent launches, the cached value is injected directly — eliminating probe overhead. Changing the decoder requires an app restart (enforced by a confirmation dialog with `exit(0)`).
   - `hr-seek-framedrop: yes` for instant recovery during rapid navigation
 - **Differentiated Seek Logic** — two distinct seek modes:
   - **Arrow-key / fast seek**: Uses `hr-seek: no` (keyframe-only). Jumps to the nearest keyframe instantly from the buffer without frame-accurate decoding. Combined with the 400 MiB sliding window, this provides zero-latency ±10s navigation.
@@ -450,38 +450,46 @@ onyxcore/
 - **Smart Delay Buffering**: For non-seek buffering events (e.g., network stalls), a 200ms `_smartDelayTimer` delays the appearance of `_isSmartBuffering = true` to prevent sub-200ms buffer flickers from showing the loader.
 - **Precise Final Seek**: On `onChangeEnd`, `_isScrubbing` is reset, the scrub throttle is cancelled, and a single frame-accurate seek (`hr-seek: yes`) is issued to the exact release position.
 
-#### 3.5 Hover Preview System (BUG-001)
+#### 3.5 Hover Preview System (EPX-008 / BUG-001)
 - **Architecture**: `HoverPreview` widget (`hover_preview.dart`) — a self-contained `StatefulWidget` that manages its own positioning, frame extraction, and rendering independently of the parent `VideoPreviewWidget`.
-- **ffmpeg Subprocess Extraction**: Uses `Process.start('ffmpeg', ...)` to extract thumbnail frames. The ffmpeg command:
+- **ffmpeg Subprocess Extraction**: Uses `Process.start('ffmpeg', ...)` to extract frame-accurate thumbnail frames. The ffmpeg command:
   ```
-  ffmpeg -ss <seconds> -i <mediaPath> -vframes 1 -vf scale=240:-1
-         -q:v 5 -f image2pipe -vcodec mjpeg -loglevel error -y pipe:1
+  ffmpeg -threads 2 -ss <seconds> -i <mediaPath> -vframes 1 -an
+         -vf scale=160:-1 -q:v 8 -f image2pipe -vcodec mjpeg
+         -loglevel error -y pipe:1
   ```
-  - `-ss` before `-i`: Fast keyframe-based seek (no sequential decode from start)
-  - `-vf scale=240:-1`: Native low-resolution extraction at 240px width (GPU-level scaling)
-  - `-q:v 5`: Fast JPEG encoding with acceptable quality
-  - `-f image2pipe -vcodec mjpeg`: JPEG bytes streamed to stdout
-  - Previous ffmpeg process is killed (`_killActiveProcess()`) before each new extraction to prevent zombie processes
-- **Zero GPU Contention**: ffmpeg runs as a separate OS process — no shared GPU context, no EGL texture surfaces, no interference with the main `media_kit` player's rendering pipeline.
+  - `-ss` before `-i`: Input-level seeking (keyframe-based fast seek, no sequential decode from start)
+  - `-threads 2`: Limits CPU usage to 2 decode threads — prevents contention with main player
+  - `-an`: Explicitly skip audio stream parsing
+  - `-vf scale=160:-1`: Native low-resolution extraction at 160px width (minimizes decode work)
+  - `-q:v 8`: Fast JPEG encoding with lightweight quality (reduces encode time and output size)
+  - `-f image2pipe -vcodec mjpeg`: JPEG bytes streamed directly to stdout via pipe — no temp files
+  - Process is captured into a local variable to prevent null-check race conditions during concurrent kills
+- **Why ffmpeg over media_kit screenshot()**: Attempted 4 iterations with `media_kit`'s native `Player.screenshot()` API. On Linux with EGL/Mesa, `screenshot()` consistently returns stale buffer data (the frame from the PREVIOUS seek position, not the current one). This is a fundamental double-buffer issue in the EGL texture pipeline — the position stream updates as metadata immediately upon seek dispatch, but the video output texture isn't updated until the next render callback, which requires the Video widget to be in the active paint tree. `Offstage` prevents painting; `Opacity(0)` with `Positioned(-500)` still produced 1x1 pixel VideoOutput surfaces. ffmpeg subprocess extraction is process-isolated and always returns the exact frame at the requested timestamp.
+- **Zero GPU Contention**: ffmpeg runs as a completely separate OS process — no shared GPU context, no EGL texture surfaces, no interference with the main `media_kit` player's hardware-accelerated rendering pipeline. This eliminates the video playback flickering that was caused by competing EGL contexts when two `media_kit` Player instances shared the GPU command queue.
+- **Trailing-Throttle Pattern** (Zero-Delay Continuous Updates):
+  1. First hover fires extraction **immediately** (0ms delay — no debounce wait).
+  2. While an extraction is in-flight, each new hover position overwrites `_pendingHoverX` (only the latest position is kept — all intermediates are discarded).
+  3. When the current extraction completes, if `_pendingHoverX` is set, the next extraction starts immediately (0ms delay).
+  4. This creates a continuous chain of back-to-back extractions while the user slides, always prioritizing the newest position.
+  5. Only one ffmpeg process runs at any time — parallel workers were tested (2-3 concurrent) but caused main video flickering even at `nice -n 15` on the target hardware.
 - **ValueNotifier-Based Positioning** (Zero Parent Rebuilds):
   - The parent `VideoPreviewWidget` uses a `ValueNotifier<double?> _hoverXNotifier` for hover X position.
   - `MouseRegion.onHover` updates `_hoverXNotifier.value` directly — **no `setState` call on the parent**.
   - `HoverPreview` listens to the `ValueNotifier` via `addListener` in `initState` and manages its own `setState` calls internally.
   - This architecture ensures the 1900-line `VideoPreviewWidget` build tree is **never rebuilt** during hover interactions.
-- **Position Throttle**: Internal `_positionThrottle` timer limits `setState` rebuilds (for position tracking) to every **30ms** (~33fps), preventing excessive Flutter frame scheduling.
-- **Leading-Edge Seek Throttle**: Frame extraction uses a leading-edge throttle pattern:
-  1. First hover fires extraction **immediately** (0ms delay).
-  2. A 250ms `_seekThrottle` window suppresses subsequent requests.
-  3. When the throttle window expires, if a pending seek exists (`_hasPendingSeek`), it fires immediately.
-  4. After each extraction completes, queued seeks fire with a 100ms cooldown.
-- **Self-Positioning**: `HoverPreview` uses `Transform.translate(offset: Offset(left, 0))` for horizontal tracking, placed inside a `Positioned(left: 0, right: 0, bottom: 24)` in the parent's `Stack` for vertical placement. This eliminates the need for parent-side position calculations.
+- **Position Throttle**: Internal `_positionThrottle` timer limits `setState` rebuilds (for popup position tracking) to every **30ms** (~33fps), preventing excessive Flutter frame scheduling.
+- **Self-Positioning**: `HoverPreview` uses `Transform.translate(offset: Offset(left, 0))` for horizontal tracking, placed inside a `Positioned(left: 0, right: 0, bottom: 24)` in the parent's `Stack` for vertical placement. The `left` offset is clamped to `[0, sliderWidth - thumbWidth]` to keep the popup within bounds.
 - **No BackdropFilter**: Uses a simple `Color(0xE0181818)` dark container instead of `BackdropFilter(blur)`. BackdropFilter was identified as the primary cause of video playback flickering — it applies a real-time gaussian blur of the entire 4K video surface behind the popup on every rebuild, directly competing with the main player's GPU pipeline.
-- **Thumbnail Display**: `Image.memory` with `gaplessPlayback: true` — the previous thumbnail stays visible while a new one loads, preventing flicker between frames.
-- **Timestamp Label**: Positioned below the thumbnail with `GoogleFonts.manrope(fontSize: 11, fontWeight: w700)` in a dark rounded container.
+- **Thumbnail Display**: `Image.memory` with `gaplessPlayback: true` — the previous thumbnail stays visible while a new one loads, preventing blank flashes between frame updates. Thumbnail size: 160×90px.
+- **Timestamp Label**: Positioned below the thumbnail with `GoogleFonts.manrope(fontSize: 12, fontWeight: w700)` in a dark rounded container (`Color(0xD0101010)`).
 - **Visibility Control**: Wrapped in `AnimatedOpacity(duration: 150ms)` controlled by `_isSliderHovered`. The preview fades in/out smoothly.
 - **IgnorePointer**: Wrapped in `IgnorePointer` so the preview popup cannot steal mouse events from the progress bar `MouseRegion`.
 - **Hover Exit Delay**: A 300ms `_hoverExitTimer` delays the `_isSliderHovered = false` state change on `MouseRegion.onExit`, preventing the preview from flickering when the mouse briefly crosses the slider/popup boundary.
-- **Resource Cleanup**: On `dispose`, cancels all timers (`_positionThrottle`, `_seekThrottle`), kills any active ffmpeg process, and removes the ValueNotifier listener.
+- **Resource Cleanup**: On `dispose`, cancels `_positionThrottle`, kills any active ffmpeg process via `_killActiveProcess()`, and removes the ValueNotifier listener.
+- **Known Limitations**:
+  - **Extraction latency**: Each frame takes ~150-400ms (ffmpeg process fork + demux + decode + encode). This is the irreducible cost of subprocess extraction. Parallel workers would reduce perceived latency but cause main video flickering on the target hardware.
+  - **Previous frame visible during load**: Due to `gaplessPlayback: true`, the previous thumbnail stays visible while the new one decodes. This is intentional — the alternative (showing a spinner) creates a worse visual experience.
 
 #### 3.6 Video Surface Isolation (BUG-001)
 - **RepaintBoundary**: The `Video` widget (native mpv surface) is wrapped in `RepaintBoundary` to isolate the native rendering layer from Flutter's paint cycle. This prevents Flutter widget rebuilds (e.g., StreamBuilder updates, hover state changes) from triggering unnecessary re-compositing of the video texture.
