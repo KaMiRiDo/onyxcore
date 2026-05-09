@@ -55,6 +55,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       audioSeekSeconds: _prefs.getInt('audioSeekSeconds') ?? 5,
       selectedHwDec: _prefs.getString('selectedHwDec') ?? 'auto',
       cachedResolvedHwDec: _prefs.getString('cachedResolvedHwDec'),
+      trackpadSpeedControl: SpeedControlOption.values.firstWhere(
+        (e) => e.name == _prefs.getString('trackpad_speed_control'),
+        orElse: () => SpeedControlOption.off,
+      ),
     );
 
   }
@@ -75,6 +79,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     } else {
       await _prefs.remove('cachedResolvedHwDec');
     }
+    await _prefs.setString('trackpad_speed_control', settings.trackpadSpeedControl.name);
   }
 
   @override
@@ -120,6 +125,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
     } else {
       await _prefs.remove('cachedResolvedHwDec');
     }
+  }
+
+  @override
+  Future<void> setTrackpadSpeedControl({required SpeedControlOption value}) async {
+    await _prefs.setString('trackpad_speed_control', value.name);
   }
 
   // ——— Gallery Sorting ———

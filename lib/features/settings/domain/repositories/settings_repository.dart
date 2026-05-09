@@ -35,6 +35,9 @@ abstract class SettingsRepository {
   /// Update the cached resolved hardware decoder driver from the engine.
   Future<void> setCachedResolvedHwDec(String? value);
 
+  /// Update the trackpad speed control setting.
+  Future<void> setTrackpadSpeedControl({required SpeedControlOption value});
+
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.

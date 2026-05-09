@@ -1,6 +1,16 @@
 import 'package:equatable/equatable.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
+/// Options for the trackpad speed control gesture.
+enum SpeedControlOption {
+  off('Off'),
+  releaseToNormal('Release to Normal'),
+  releaseToFix('Release to Fix');
+
+  final String label;
+  const SpeedControlOption(this.label);
+}
+
 /// Immutable application settings entity.
 ///
 /// Only includes settings that are actually used in the Linux application.
@@ -20,6 +30,7 @@ class AppSettings extends Equatable {
     this.audioSeekSeconds = 5,
     this.selectedHwDec = 'auto',
     this.cachedResolvedHwDec,
+    this.trackpadSpeedControl = SpeedControlOption.off,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -58,6 +69,9 @@ class AppSettings extends Equatable {
   /// The actual hardware decoder driver resolved by the engine last time.
   final String? cachedResolvedHwDec;
 
+  /// Whether vertical scroll on the left side of the screen controls playback speed, and how it behaves on release.
+  final SpeedControlOption trackpadSpeedControl;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -71,6 +85,7 @@ class AppSettings extends Equatable {
     int? audioSeekSeconds,
     String? selectedHwDec,
     String? cachedResolvedHwDec,
+    SpeedControlOption? trackpadSpeedControl,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -85,6 +100,7 @@ class AppSettings extends Equatable {
       audioSeekSeconds: audioSeekSeconds ?? this.audioSeekSeconds,
       selectedHwDec: selectedHwDec ?? this.selectedHwDec,
       cachedResolvedHwDec: cachedResolvedHwDec ?? this.cachedResolvedHwDec,
+      trackpadSpeedControl: trackpadSpeedControl ?? this.trackpadSpeedControl,
     );
   }
 
@@ -102,5 +118,6 @@ class AppSettings extends Equatable {
     audioSeekSeconds,
     selectedHwDec,
     cachedResolvedHwDec,
+    trackpadSpeedControl,
   ];
 }

@@ -74,6 +74,12 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> setTrackpadSpeedControl({required SpeedControlOption value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setTrackpadSpeedControl(value: value);
+    ref.invalidateSelf();
+  }
+
   Future<void> saveSettings(AppSettings settings) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.saveSettings(settings);

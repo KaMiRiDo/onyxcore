@@ -75,7 +75,7 @@ graph TB
         subgraph VideoPlayer["video_player"]
             VidPreview["VideoPreviewWidget"]
             HoverPrev["HoverPreview (ffmpeg subprocess)"]
-            VidWidgets["PlaylistOverlay / TrackSelector / SpeedControl / VolumeOverlay"]
+            VidWidgets["PlaylistOverlay / TrackSelector / SpeedControl / VolumeOverlay / VideoSpeedOverlay"]
             PlaybackMem["PlaybackMemoryRepository (Hive)"]
         end
 
@@ -412,8 +412,22 @@ onyxcore/
 - **Subtitle track selector** — list available subtitle tracks with radio buttons, "Load External Subtitle" button (srt/vtt/ass via `file_picker`)
 - **Audio track selector** — switch between embedded audio streams
 - **Playback speed control** — 0.25x to 2.0x presets
-- **Volume control**: scroll-wheel adjustment (0-200%), bottom-bar slider with orange color above 100%, mute toggle
+- **Volume control**: scroll-wheel or vertical trackpad drag (right side) (0-200%), bottom-bar slider with orange color above 100%, mute toggle
 - **Vertical volume overlay** — right-side rotated slider with gradient track
+- **Trackpad Gesture Axis Routing**: Vertical drags on the video viewport are dynamically routed:
+  - **Left Side**: Controls playback speed (0.25x to 4.0x).
+  - **Right Side**: Controls volume (0-200%).
+- **Playback Speed Control Options**: Configurable via settings:
+  - **OFF**: Speed gestures disabled (entire viewport controls volume).
+  - **Release to Normal**: Speed snaps back to 1.0x immediately when fingers are lifted.
+  - **Release to Fix**: Current speed persists after the gesture ends.
+- **Vertical speed overlay** — left-side rotated slider mirroring the volume overlay UX.
+- **Speed Text Indicator**: Displays current speed (e.g., "1.5x") in the bottom-left corner of the viewport whenever the speed is not 1.0x.
+- **High-Performance Gesture Engine**:
+  - **Palm Rejection**: Filters out spurious "release" signals sent by OS drivers during keypresses (e.g., Space to pause) using a 50ms protection window and deferred retry logic.
+  - **Zero-Latency Reset**: The engine triggers `player.setRate(1.0)` immediately before the Flutter rebuild cycle to eliminate perceived lag.
+  - **Stationary Finger Support**: Strictly waits for physical "End" signals for continuous trackpad gestures, allowing users to hold a specific speed indefinitely without movement.
+- **HUD Suppression**: The main HUD (timeline, buttons) is automatically hidden during active speed/volume/seek gestures to provide a clean, cinematic view.
 - **Seek indicator overlay** — large cinematic timestamp display (top-right, Outfit font 54px with text shadows)
 - **Double-tap to seek** — left half seeks backward, right half seeks forward (configurable seconds)
 - **Cinematic Snapshot**: High-performance frame capture with a visible flash overlay and a glassmorphism notification toast
@@ -575,6 +589,7 @@ onyxcore/
 #### 6.1 Configurable Options
 - **Auto Play Next** (video) — boolean toggle
 - **Resume Playback** (video) — resume from last position
+- **Trackpad Speed Control** (video) — dropdown (OFF, Release to Normal, Release to Fix)
 - **Double-Tap Seek Seconds** (video) — integer (options: 5, 10, 15, 20, 25, 30)
 - **Audio Seek Seconds** — integer
 - **Snapshot Prefix** — custom string for snapshot filenames

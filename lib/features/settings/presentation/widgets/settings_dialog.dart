@@ -599,6 +599,41 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   ),
                 ),
               ),
+              _buildSettingTile(
+                title: 'Vertical Scroll Speed Control',
+                subtitle: 'Use the left side of the screen to control playback speed via trackpad',
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: DropdownButton<SpeedControlOption>(
+                    value: _draftSettings?.trackpadSpeedControl ?? SpeedControlOption.off,
+                    dropdownColor: const Color(0xFF1A1A1A),
+                    underline: const SizedBox.shrink(),
+                    isDense: true,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                    items: SpeedControlOption.values
+                        .map((v) => DropdownMenuItem(
+                              value: v,
+                              child: Text(v.label),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _draftSettings = _draftSettings!.copyWith(trackpadSpeedControl: value);
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
               const SizedBox(height: 40),
               _buildSectionHeader('Documents', _viewersKeys['Documents']!),
               _buildEmptySection('PDF and text document viewing settings.'),
@@ -757,17 +792,23 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
         onTap: _handleSave,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withAlpha(13),
+            gradient: AppTheme.primaryGradient,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withAlpha(26)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.violet.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Text(
             'Save',
             style: GoogleFonts.manrope(
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               color: Colors.white,
             ),
           ),

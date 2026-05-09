@@ -12,6 +12,7 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/gradient_slider_track.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_volume_overlay.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_speed_overlay.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/track_selector_menu.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/playback_speed_control.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/playlist_overlay.dart';
@@ -28,6 +29,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
@@ -134,6 +136,18 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   bool _isGlobalHudVisible = true;
   Offset? _doubleTapPosition;
+
+  // EPX-006: Trackpad Gesture Engine state
+  Duration? _virtualScrubPosition;
+  double? _virtualVolume;
+  double? _virtualSpeed;
+  String? _scrollLockAxis; // 'h', 'volume', or 'speed'
+  Timer? _scrollResetTimer;
+  Timer? _scrollVolumeTimer;
+  Timer? _scrollSpeedTimer;
+  Timer? _speedOverlayTimer;
+  bool _showSpeedOverlayVisible = false;
+  DateTime? _lastKeyEventTime;
 
   @override
   void initState() {
@@ -485,6 +499,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       // Reveal controls when exiting fullscreen (returning to system UI)
       _onInteraction();
     }
+    // Linux/GTK window transitions can cause temporary focus loss.
+    // We wait for the window state to settle before forcing focus back.
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) _focusNode.requestFocus();
+    });
   }
 
   @override
@@ -536,6 +555,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _hoverExitTimer?.cancel();
     _hoverXNotifier.dispose();
     _scrubThrottleTimer?.cancel();
+    _scrollResetTimer?.cancel();
+    _scrollVolumeTimer?.cancel();
+    _scrollSpeedTimer?.cancel();
+    _speedOverlayTimer?.cancel();
     _audioTrackInitSubscription?.cancel();
     _subtitleTrackInitSubscription?.cancel();
     _focusNode.dispose();
@@ -597,7 +620,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   void _showVolumeOverlay() {
     _volumeOverlayTimer?.cancel();
-    if (mounted) {
+    if (mounted && !_isVolumeOverlayVisible) {
       setState(() => _isVolumeOverlayVisible = true);
     }
     _volumeOverlayTimer = Timer(const Duration(seconds: 3), () {
@@ -607,9 +630,21 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     });
   }
 
+  void _showSpeedOverlay() {
+    _speedOverlayTimer?.cancel();
+    if (mounted && !_showSpeedOverlayVisible) {
+      setState(() => _showSpeedOverlayVisible = true);
+    }
+    _speedOverlayTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => _showSpeedOverlayVisible = false);
+      }
+    });
+  }
+
   void _showSeekIndicator() {
     _seekIndicatorTimer?.cancel();
-    if (mounted) {
+    if (mounted && !_isSeekIndicatorVisible) {
       setState(() => _isSeekIndicatorVisible = true);
     }
     _seekIndicatorTimer = Timer(const Duration(milliseconds: 1200), () {
@@ -840,8 +875,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   KeyEventResult _handleKeyEvent(KeyEvent event) {
     if (_isClosing) return KeyEventResult.ignored;
+    _lastKeyEventTime = DateTime.now();
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.space) {
+      if (event.logicalKey == LogicalKeyboardKey.space ||
+          event.logicalKey == LogicalKeyboardKey.shiftLeft ||
+          event.logicalKey == LogicalKeyboardKey.shiftRight) {
         if (event is KeyDownEvent) player.playOrPause();
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
@@ -876,15 +914,24 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
         if (event is KeyDownEvent) {
+          // In all modes, 'F' should at least hide the HUD controls
+          if (_isControlsVisible) {
+            setState(() => _isControlsVisible = false);
+            _hideMenu();
+          } else {
+            // Optional: Toggle it back on if it was already hidden?
+            // User only asked to hide, but toggle is more standard.
+            setState(() => _isControlsVisible = true);
+          }
+          
           if (widget.isStandalone) {
-            if (_isControlsVisible) {
-              setState(() => _isControlsVisible = false);
-              _hideMenu();
-            }
             _toggleFullscreen();
+          } else {
+            // In preview mode, ensure we keep focus after the HUD state change
+            _focusNode.requestFocus();
           }
         }
-        return event.logicalKey == LogicalKeyboardKey.keyF ? (widget.isStandalone ? KeyEventResult.handled : KeyEventResult.ignored) : KeyEventResult.ignored;
+        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyW &&
           HardwareKeyboard.instance.isControlPressed) {
         if (event is KeyDownEvent && !widget.isStandalone) {
@@ -950,6 +997,205 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _isFastSeeking = false; // BUG-001: Re-enable BubbleLoader
   }
 
+  void _handlePointerScroll(PointerSignalEvent signal) {
+    if (signal is PointerScrollEvent) {
+      _processTrackpadGesture(signal.scrollDelta.dx, signal.scrollDelta.dy, signal.localPosition, isDiscrete: true);
+    }
+  }
+
+  void _handlePointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    _processTrackpadGesture(event.panDelta.dx, event.panDelta.dy, event.localPosition, isDiscrete: false);
+  }
+
+  void _handlePointerPanZoomEnd(PointerPanZoomEndEvent event) {
+    _resetTrackpadGesture();
+  }
+
+  void _processTrackpadGesture(double dx, double dy, Offset localPosition, {required bool isDiscrete}) {
+    if (_scrollLockAxis == null) {
+      final settings = ref.read(settingsProvider).value;
+      final speedControlOption = settings?.trackpadSpeedControl ?? SpeedControlOption.off;
+      final screenWidth = context.size?.width ?? MediaQuery.of(context).size.width;
+
+      if (dx.abs() > dy.abs() && dx.abs() > 0.5) {
+        _scrollLockAxis = 'h';
+        _isScrubbing = true;
+        _virtualScrubPosition = player.state.position;
+      } else if (dy.abs() > dx.abs() && dy.abs() > 0.5) {
+        if (speedControlOption != SpeedControlOption.off && localPosition.dx < screenWidth / 2) {
+          _scrollLockAxis = 'speed';
+          _virtualSpeed = player.state.rate;
+        } else {
+          _scrollLockAxis = 'v';
+          _virtualVolume = player.state.volume;
+        }
+      } else {
+        return;
+      }
+    }
+    
+    _scrollResetTimer?.cancel();
+    if (isDiscrete) {
+      // For discrete scrolls (mouse wheel), we must use a timer because there's no "End" signal.
+      _scrollResetTimer = Timer(const Duration(milliseconds: 1000), () {
+        _resetTrackpadGesture();
+      });
+    }
+    // For continuous pan-zoom (trackpad), we strictly wait for the "End" event from the OS.
+    // This allows the user to hold their finger stationary without resetting.
+
+    if (_scrollLockAxis == 'h') {
+      _handleScrubScroll(dx);
+    } else if (_scrollLockAxis == 'v') {
+      _handleVolumeScroll(dy);
+    } else if (_scrollLockAxis == 'speed') {
+      _handleSpeedScroll(dy);
+    }
+  }
+
+  void _resetTrackpadGesture() {
+    if (!mounted) return;
+
+    // EPX-006: Ultra-tight 50ms window for blip rejection.
+    // If a reset is blocked by a recent keypress, we schedule a retry in 50ms
+    // to ensure the speed eventually returns to 1.0x if this was a real release.
+    if (_lastKeyEventTime != null &&
+        DateTime.now().difference(_lastKeyEventTime!).inMilliseconds < 50) {
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (mounted) _resetTrackpadGesture();
+      });
+      return;
+    }
+
+    // Trigger the actual player speed change immediately BEFORE the setState 
+    // to minimize perceived latency from the Flutter build/re-layout cycle.
+    if (_scrollLockAxis == 'speed') {
+      final settings = ref.read(settingsProvider).value;
+      final option = settings?.trackpadSpeedControl ?? SpeedControlOption.off;
+      if (option == SpeedControlOption.releaseToNormal) {
+        player.setRate(1.0);
+      }
+    }
+
+    setState(() {
+      if (_scrollLockAxis == 'speed') {
+        final settings = ref.read(settingsProvider).value;
+        final option = settings?.trackpadSpeedControl ?? SpeedControlOption.off;
+        if (option == SpeedControlOption.releaseToNormal) {
+          _virtualSpeed = 1.0;
+          _showSpeedOverlay();
+        }
+      }
+
+      _scrollLockAxis = null;
+      _virtualVolume = null;
+      _virtualSpeed = null;
+      if (_isScrubbing) {
+        _isScrubbing = false;
+        _scrubThrottleTimer?.cancel();
+        _smartDelayTimer?.cancel();
+        _pendingScrubPosition = null;
+        if (mounted) {
+          setState(() => _isSmartBuffering = false);
+        }
+        if (player.platform is dynamic) {
+          (player.platform as dynamic).setProperty('hr-seek', 'yes');
+        }
+        if (_virtualScrubPosition != null) {
+          player.seek(_virtualScrubPosition!);
+        }
+        Timer(const Duration(milliseconds: 200), () {
+          if (mounted && player.platform is dynamic) {
+            (player.platform as dynamic).setProperty('hr-seek', 'no');
+          }
+        });
+        _virtualScrubPosition = null;
+      }
+    });
+  }
+
+
+  void _handleScrubScroll(double dx) {
+    // Determine target based on virtual position rather than actual player position
+    // which may lag behind rapid gesture updates.
+    final duration = player.state.duration;
+    if (duration > Duration.zero && _virtualScrubPosition != null) {
+      // 200ms per unit of dx is the sensitivity
+      int newMs = _virtualScrubPosition!.inMilliseconds + (dx * 200).toInt();
+      newMs = newMs.clamp(0, duration.inMilliseconds);
+      _virtualScrubPosition = Duration(milliseconds: newMs);
+      _pendingScrubPosition = _virtualScrubPosition;
+
+      _showSeekIndicator();
+      _onInteraction();
+
+      if (_scrubThrottleTimer?.isActive != true) {
+        player.seek(_pendingScrubPosition!);
+        _scrubThrottleTimer = Timer(
+          const Duration(milliseconds: 100),
+          () {
+            if (_pendingScrubPosition != null && mounted && _isScrubbing) {
+              player.seek(_pendingScrubPosition!);
+            }
+          },
+        );
+      }
+    }
+  }
+
+  void _handleVolumeScroll(double dy) {
+    // Invert the dy value so that "scrolling up" (negative dy) increases volume.
+    final isIncrease = dy < 0;
+    // Apply a direct sensitivity multiplier based on pixels moved
+    final step = dy.abs() * 0.05;
+    
+    // Clamp resulting volume between 0.0 and 200.0.
+    _virtualVolume ??= player.state.volume;
+    _virtualVolume = (_virtualVolume! + (isIncrease ? step : -step)).clamp(0.0, 200.0);
+    
+    _showVolumeOverlay();
+    _onInteraction();
+
+    if (_scrollVolumeTimer?.isActive != true) {
+      if (_virtualVolume != null) {
+        player.setVolume(_virtualVolume!);
+      }
+      _scrollVolumeTimer = Timer(const Duration(milliseconds: 30), () {
+        if (_isClosing || !mounted) return;
+        if (_virtualVolume != null) {
+          player.setVolume(_virtualVolume!);
+        }
+      });
+    }
+  }
+
+  void _handleSpeedScroll(double dy) {
+    // Invert the dy value so that "scrolling up" (negative dy) increases speed.
+    final isIncrease = dy < 0;
+    // Multiplier for speed: we want fine control. A full swipe should change speed by maybe 1.0x.
+    // 0.005 means 200 pixels = 1.0x speed change.
+    final step = dy.abs() * 0.005;
+    
+    // Clamp resulting speed between 0.25 and 4.0.
+    _virtualSpeed ??= player.state.rate;
+    _virtualSpeed = (_virtualSpeed! + (isIncrease ? step : -step)).clamp(0.25, 4.0);
+    
+    _showSpeedOverlay();
+    _onInteraction();
+
+    if (_scrollSpeedTimer?.isActive != true) {
+      if (_virtualSpeed != null) {
+        player.setRate(_virtualSpeed!);
+      }
+      _scrollSpeedTimer = Timer(const Duration(milliseconds: 30), () {
+        if (_isClosing || !mounted) return;
+        if (_virtualSpeed != null) {
+          player.setRate(_virtualSpeed!);
+        }
+      });
+    }
+  }
+
   void _navigateMedia(bool forward) {
     if (widget.windowId != null) {
       // 1. Standalone Mode: Send reverse IPC to Main Window (Window 0)
@@ -998,8 +1244,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     // In standalone mode, we ignore the global HUD visibility provider as the window
     // itself is the dedicated viewer. We only care about the internal control timer.
+    // Hide the main HUD (timeline, play button, etc.) during active trackpad gestures
+    // to provide a cleaner view while adjusting volume/speed/scrubbing.
     final isVisible =
         _isControlsVisible &&
+        _scrollLockAxis == null &&
         (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
 
     return Focus(
@@ -1012,50 +1261,40 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         }
       },
       onKeyEvent: (node, event) => _handleKeyEvent(event),
-      child: GestureDetector(
-        onTap: () => _focusNode.requestFocus(),
-        onDoubleTapDown: (details) {
-          _doubleTapPosition = details.localPosition;
-        },
-        onDoubleTap: () {
-          if (widget.windowId == null && !widget.isStandalone) {
-            _openInNewWindow();
-            return;
-          }
-
-          if (_doubleTapPosition == null) return;
-          final width =
-              context.size?.width ?? MediaQuery.of(context).size.width;
-          final isForward = _doubleTapPosition!.dx > width / 2;
-
-          final seconds =
-              ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
-          _clampedSeek(
-            player.state.position +
-                Duration(seconds: isForward ? seconds : -seconds),
-          );
-
-          _showSeekIndicator();
-          _onInteraction(); // Show HUD to indicate action
-        },
         child: Listener(
-          onPointerSignal: (signal) {
-            if (signal is PointerScrollEvent && signal.scrollDelta.dy != 0) {
-              final isIncrease = signal.scrollDelta.dy < 0;
-              // Use a base step of 2% but scale slightly with delta for faster scrolling
-              final step = (signal.scrollDelta.dy.abs() / 15).clamp(1.5, 6.0);
-              player.setVolume(
-                (player.state.volume + (isIncrease ? step : -step)).clamp(
-                  0.0,
-                  200.0,
-                ),
+          onPointerSignal: _handlePointerScroll,
+          onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
+          onPointerPanZoomEnd: _handlePointerPanZoomEnd,
+          behavior: HitTestBehavior.translucent,
+          child: GestureDetector(
+            onTap: () => _focusNode.requestFocus(),
+            onDoubleTapDown: (details) {
+              _doubleTapPosition = details.localPosition;
+            },
+            onDoubleTap: () {
+              if (widget.windowId == null && !widget.isStandalone) {
+                _openInNewWindow();
+                return;
+              }
+
+              if (_doubleTapPosition == null) return;
+              final width =
+                  context.size?.width ?? MediaQuery.of(context).size.width;
+              final isForward = _doubleTapPosition!.dx > width / 2;
+
+              final seconds =
+                  ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
+              _clampedSeek(
+                player.state.position +
+                    Duration(seconds: isForward ? seconds : -seconds),
               );
-              _showVolumeOverlay();
-            }
-          },
-          child: Container(
-            color: Colors.black,
-            child: Stack(
+
+              _showSeekIndicator();
+              _onInteraction(); // Show HUD to indicate action
+            },
+            child: Container(
+              color: Colors.black,
+              child: Stack(
               children: [
                 // Interaction Trigger Zone (Full Viewport)
                 Positioned.fill(
@@ -1144,6 +1383,65 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                         },
                       ),
                     ),
+                  ),
+                ),
+
+                // Speed Overlay (Left side)
+                Positioned(
+                  left: 32,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 300),
+                      opacity: _showSpeedOverlayVisible ? 1.0 : 0.0,
+                      child: StreamBuilder<double>(
+                        stream: player.stream.rate,
+                        builder: (context, snapshot) {
+                          final rate = snapshot.data ?? player.state.rate;
+                          return VideoSpeedOverlay(
+                            speed: rate,
+                            onSpeedChanged: (r) => player.setRate(r),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Persistent Speed Indicator Text (Bottom Left)
+                Positioned(
+                  bottom: 24,
+                  left: 24,
+                  child: StreamBuilder<double>(
+                    stream: player.stream.rate,
+                    builder: (context, snapshot) {
+                      final rate = snapshot.data ?? player.state.rate;
+                      if ((rate - 1.0).abs() < 0.01) return const SizedBox.shrink();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.speed, color: AppColors.violet, size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${rate.toStringAsFixed(2)}x',
+                              style: GoogleFonts.manrope(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
 
