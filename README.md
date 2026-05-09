@@ -1,16 +1,25 @@
-# onyxcore
+# OnyxCore
+**The Natural Archive Explorer**
 
-A new Flutter project.
+OnyxCore is a high-performance, pixel-perfect Linux desktop file manager and multimedia explorer built with Flutter. It prioritizes immersive archival aesthetics, fluid media consumption, and responsive system interactions.
 
-## Getting Started
+## 🚀 Quick Start for Developers
+If you are continuing development in a new environment or account, please refer to the following documentation for full context:
 
-This project is a starting point for a Flutter application.
+1.  **[Project Context](project_context.md)**: Architecture, Tech Stack, and Current State.
+2.  **[Current Sprint: BUG-001](_prompts/BUG-001.md)**: Performance-Optimized Seek & Hover Preview (Active Task).
+3.  **[Roadmap & Updates](recommended_updates.md)**: Strategic improvements and future goals.
 
-A few resources to get you started if this is your first Flutter project:
+## 🛠 Tech Stack
+*   **Framework**: Flutter (Linux Native)
+*   **State Management**: Riverpod
+*   **Media Engine**: Media Kit (libmpv)
+*   **Native Tools**: Isolate-driven I/O, FFmpeg-powered image editor.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 📦 How to Run
+```bash
+flutter run -d linux
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+*Aesthetics. Performance. Precision.*

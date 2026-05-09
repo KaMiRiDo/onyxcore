@@ -81,18 +81,40 @@ lib/
 ### Media Viewers (Images & Video)
 *   **Multi-Window Architecture**: Utilizes `desktop_multi_window` for true independent viewer windows.
 *   **IPC Media Navigation**: Viewers communicate directly with the main engine (`WindowController` 0) via JSON payloads to request next/previous files without re-indexing directories.
-*   **Video Player**: Media Kit integration with fast-seeking (`Left`/`Right` arrows skip 10s), 0-200% volume amplification (`Up`/`Down` arrows), and a standardized HUD overlay.
-*   **Image Editor**: FFmpeg-powered editing overlay featuring:
-    *   0 to 360° rotational slider with a custom painter.
-    *   Interactive -1.0 to 1.0 brightness slider.
-    *   Draggable 3x3 crop grid handling aspect ratio normalization.
-    *   Export modes: "Replace" (overwrites original file) and "Save Copy" (appends `copy_` to basename, auto-incrementing if conflicts exist).
+*   **Video Player (Performance Optimized)**:
+    *   **Stability**: Implemented managed stream subscriptions and `_isClosing` lifecycle guards to eliminate native playback crashes during window closure or rapid navigation.
+    *   **Zero-Latency Startup**: 300ms deferred engine initialization strategy ensures the UI loader (`BubbleLoader`) animates smoothly before heavy native `libmpv` initialization.
+    *   **Buffering & Cache**: High-precision `libmpv` configuration with 128MB RAM buffering (`demuxer-max-bytes`) and 60s readahead to eliminate seek stutters.
+    *   **HUD & UX**: Glassmorphic HUD with movement-based triggers and standardized cinematic snapshot flash effects.
+*   **Image Viewer (High Fidelity)**:
+    *   **Navigation Throttle**: 500ms cooldown for rapid arrow-key navigation to prevent texture thrashing.
+    *   **Cache Persistence**: 500MB dedicated image cache ensures high-resolution media remains in memory during playlist traversal.
+    *   **Interaction Engine**: Unified panning/scaling logic with strict boundary clamping at 1.0x scale to prevent "zoom-drifting" UI glitches.
+    *   **FFmpeg Editor**: Integrated rotational slider, brightness adjustment, and 3x3 crop grid with aspect ratio normalization.
 
 </current_state>
 
 <roadmap>
 ## Unresolved Gaps & Roadmap
-1.  **TFLite Integration**: Implement Neural Image Assessment (NIMA) for automated clarity/aesthetic scanning.
-2.  **Cloud Backend**: Networking layer for Google Drive/Dropbox sidebar integrations.
-3.  **Search Refinement**: Implement global file search indexing for instant results across massive directory trees.
+1.  **[ACTIVE] BUG-001: Performance-Optimized Seek & Hover Preview**:
+    *   Implementing "Sliding Window" seek logic (60s ahead / 30s behind cache).
+    *   Headless `Player` instance for low-latency hover thumbnails on the progress bar.
+    *   Unified Initialization UI with cross-fade transitions.
+2.  **TFLite Integration**: Implement Neural Image Assessment (NIMA) for automated clarity/aesthetic scanning.
+3.  **Cloud Backend**: Networking layer for Google Drive/Dropbox sidebar integrations.
+4.  **Search Refinement**: Implement global file search indexing for instant results across massive directory trees.
 </roadmap>
+
+<account_transition>
+## Account Transition Context (Transfer Summary)
+**Current Date**: 2026-05-09
+**Status**: Mid-Optimization (Performance Phase)
+**Current Task**: Resolving `BUG-001` (Media Player Seek & Hover).
+**Key Files for Handover**:
+*   `project_context.md`: (This file) Full architectural and state overview.
+*   `_prompts/BUG-001.md`: Requirements for the current active development sprint.
+*   `recommended_updates.md`: Strategic roadmap for future iterations.
+
+**Instructions for New AI Instance**: 
+> "Please ingest `project_context.md` and `_prompts/BUG-001.md` to resume the media player optimization sprint. Focus on the `libmpv` sliding window cache and the headless player for hover previews as defined in BUG-001."
+</account_transition>
