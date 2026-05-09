@@ -15,6 +15,7 @@ import 'package:onyxcore/features/video_player/presentation/widgets/video_volume
 import 'package:onyxcore/features/video_player/presentation/widgets/track_selector_menu.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/playback_speed_control.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/playlist_overlay.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/hover_preview.dart';
 import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -99,6 +100,22 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _showSnapshotToast = false;
   Timer? _snapshotToastTimer;
   StreamSubscription? _audioTrackInitSubscription;
+
+  // BUG-001: Sliding Window seek state
+  bool _isFastSeeking = false;
+  bool _isSmartBuffering = false;
+  Timer? _smartDelayTimer;
+  bool _isScrubbing = false;
+
+  // BUG-001: Hover preview state
+  final ValueNotifier<double?> _hoverXNotifier = ValueNotifier<double?>(null);
+  double _sliderWidth = 0;
+  bool _isSliderHovered = false;
+  Timer? _hoverExitTimer;
+
+  // BUG-001: Scrub throttle state
+  Timer? _scrubThrottleTimer;
+  Duration? _pendingScrubPosition;
   StreamSubscription? _subtitleTrackInitSubscription;
 
   late final GlobalKey _audioKey;
@@ -156,16 +173,21 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _speedKey = GlobalKey(debugLabel: 'video_speed_${widget.item.path}');
     _playlistKey = GlobalKey(debugLabel: 'video_playlist_${widget.item.path}');
     
-    // Configure buffering properties for smooth seeking and performance
+    // BUG-001: Sliding Window buffer configuration
+    // 400MiB forward + 200MiB backward for zero-latency arrow-key seeks
     if (player.platform is dynamic) {
       final dynamic platform = player.platform;
       platform.setProperty('demuxer-readahead-secs', '60');
-      platform.setProperty('buffer-size', '134217728'); // 128MB
+      platform.setProperty('demuxer-max-bytes', '419430400');    // 400 MiB forward
+      platform.setProperty('demuxer-max-back-bytes', '209715200'); // 200 MiB backward
+      platform.setProperty('buffer-size', '134217728');           // 128MB internal
       platform.setProperty('cache', 'yes');
       platform.setProperty('cache-secs', '60');
       platform.setProperty('cache-pause', 'no');
-      platform.setProperty('hr-seek', 'yes');
+      platform.setProperty('hr-seek', 'no');           // Default: keyframe seeking (fast)
       platform.setProperty('hr-seek-framedrop', 'yes');
+      platform.setProperty('vd-lavc-fast', 'yes');
+      platform.setProperty('hwdec', 'auto-safe');
     }
 
     controller = VideoController(player);
@@ -231,6 +253,24 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     });
 
     _bufferingSubscription = player.stream.buffering.listen((buffering) {
+      if (_isClosing || !mounted) return;
+
+      // BUG-001: Suppress loader during fast (arrow-key) seeks
+      if (_isFastSeeking) return;
+
+      if (buffering && _isScrubbing) {
+        // Smart Delay: only show loader if buffering persists > 200ms
+        _smartDelayTimer?.cancel();
+        _smartDelayTimer = Timer(const Duration(milliseconds: 200), () {
+          if (mounted && !_isClosing) {
+            setState(() => _isSmartBuffering = true);
+          }
+        });
+      } else if (!buffering) {
+        _smartDelayTimer?.cancel();
+        if (mounted) setState(() => _isSmartBuffering = false);
+      }
+
       if (mounted && _isBuffering != buffering) {
         setState(() => _isBuffering = buffering);
       }
@@ -455,6 +495,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _bufferingSubscription?.cancel();
     _errorSubscription?.cancel();
     _snapshotToastTimer?.cancel();
+    _smartDelayTimer?.cancel(); // BUG-001: Smart Delay cleanup
+    _hoverExitTimer?.cancel();
+    _hoverXNotifier.dispose();
+    _scrubThrottleTimer?.cancel();
     _audioTrackInitSubscription?.cancel();
     _subtitleTrackInitSubscription?.cancel();
     _focusNode.dispose();
@@ -831,30 +875,42 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   void _startFastSeek({required bool isForward}) {
     _fastSeekTimer?.cancel();
+    _isFastSeeking = true; // BUG-001: Suppress BubbleLoader during fast seeks
     final seekSeconds =
         ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
 
     // Initial seek
     _showSeekIndicator();
-    player.seek(
+    _clampedSeek(
       player.state.position +
           Duration(seconds: isForward ? seekSeconds : -seekSeconds),
     );
 
     _fastSeekTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
       _showSeekIndicator();
-      // Periodic seek is usually slightly faster or same as initial
-      player.seek(
+      _clampedSeek(
         player.state.position +
             Duration(seconds: isForward ? seekSeconds : -seekSeconds),
       );
     });
   }
 
+  /// Seeks the main player, clamping to [0, duration] to prevent
+  /// circular wraparound (e.g. backward from 0:00 going to end).
+  void _clampedSeek(Duration target) {
+    final duration = player.state.duration;
+    if (duration <= Duration.zero) return;
+    final clamped = Duration(
+      milliseconds: target.inMilliseconds.clamp(0, duration.inMilliseconds),
+    );
+    player.seek(clamped);
+  }
+
   void _stopFastSeek() {
     _fastSeekTimer?.cancel();
     _fastSeekTimer = null;
     _activeSeekKey = null;
+    _isFastSeeking = false; // BUG-001: Re-enable BubbleLoader
   }
 
   void _navigateMedia(bool forward) {
@@ -937,7 +993,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
           final seconds =
               ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
-          player.seek(
+          _clampedSeek(
             player.state.position +
                 Duration(seconds: isForward ? seconds : -seconds),
           );
@@ -974,21 +1030,27 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                     onHover: (_) => _onInteraction(),
                     child: Stack(
                       children: [
-                        // Video Player
-                        Center(
-                          child: Video(
-                            controller: controller,
-                            controls: (state) => const SizedBox.shrink(),
+                        // Video Player (isolated render pipeline)
+                        RepaintBoundary(
+                          child: Center(
+                            child: Video(
+                              controller: controller,
+                              controls: (state) => const SizedBox.shrink(),
+                            ),
                           ),
                         ),
 
-                        // Bubble Loader during loading/buffering/seeking
-                        // Using AnimatedOpacity to ensure the loader is already in the tree and animating
+                        // BUG-001: Unified BubbleLoader
+                        // Completely hidden during fast seeks AND scrubbing.
+                        // Only visible during initial open or initial position seek.
                         IgnorePointer(
                           child: Center(
                             child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 200),
-                              opacity: (_isOpening || _isBuffering || _isSeekingToInitial) ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 300),
+                              opacity: (_isOpening || _isSeekingToInitial ||
+                                  (!_isFastSeeking && !_isScrubbing &&
+                                      (_isSmartBuffering || _isBuffering)))
+                                  ? 1.0 : 0.0,
                               child: const RepaintBoundary(
                                 child: BubbleLoader(size: 100),
                               ),
@@ -1192,38 +1254,123 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
-                                      child: SliderTheme(
-                                        data: SliderTheme.of(context).copyWith(
-                                          trackShape:
-                                              GradientRectSliderTrackShape(
-                                                gradient:
-                                                    AppTheme.primaryGradient,
-                                              ),
-                                          activeTrackColor: Colors.white,
-                                          inactiveTrackColor: Colors.white
-                                              .withOpacity(0.1),
-                                          thumbShape:
-                                              SliderComponentShape.noThumb,
-                                          overlayShape:
-                                              SliderComponentShape.noOverlay,
-                                          trackHeight: 10.0,
-                                        ),
-                                        child: Slider(
-                                          value: progress.clamp(0.0, 1.0),
-                                          onChanged: (v) {
-                                            _onInteraction();
-                                            _showSeekIndicator();
-                                            player.seek(
-                                              Duration(
-                                                milliseconds:
-                                                    (v *
-                                                            duration
-                                                                .inMilliseconds)
-                                                        .toInt(),
-                                              ),
-                                            );
-                                          },
-                                        ),
+                                      child: LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          _sliderWidth = constraints.maxWidth;
+                                          return MouseRegion(
+                                            onEnter: (_) {
+                                              _hoverExitTimer?.cancel();
+                                              if (mounted && !_isSliderHovered) {
+                                                setState(() => _isSliderHovered = true);
+                                              }
+                                            },
+                                            onExit: (_) {
+                                              _hoverExitTimer?.cancel();
+                                              _hoverExitTimer = Timer(
+                                                const Duration(milliseconds: 300),
+                                                () {
+                                                  if (mounted) {
+                                                    setState(() => _isSliderHovered = false);
+                                                    _hoverXNotifier.value = null;
+                                                  }
+                                                },
+                                              );
+                                            },
+                                            onHover: (event) {
+                                              // ZERO setState — just update the ValueNotifier.
+                                              // HoverPreview listens to this and manages
+                                              // its own rebuilds internally.
+                                              _hoverXNotifier.value = event.localPosition.dx;
+                                            },
+                                            child: Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                SliderTheme(
+                                                  data: SliderTheme.of(context).copyWith(
+                                                    trackShape:
+                                                        GradientRectSliderTrackShape(
+                                                          gradient:
+                                                              AppTheme.primaryGradient,
+                                                        ),
+                                                    activeTrackColor: Colors.white,
+                                                    inactiveTrackColor: Colors.white
+                                                        .withOpacity(0.1),
+                                                    thumbShape:
+                                                        SliderComponentShape.noThumb,
+                                                    overlayShape:
+                                                        SliderComponentShape.noOverlay,
+                                                    trackHeight: 10.0,
+                                                  ),
+                                                  child: Slider(
+                                                    value: progress.clamp(0.0, 1.0),
+                                                    onChangeStart: (_) {
+                                                      _isScrubbing = true;
+                                                    },
+                                                    onChanged: (v) {
+                                                      _onInteraction();
+                                                      _showSeekIndicator();
+                                                      final targetMs = (v * duration.inMilliseconds).toInt();
+                                                      _pendingScrubPosition = Duration(milliseconds: targetMs);
+                                                      if (_scrubThrottleTimer?.isActive != true) {
+                                                        player.seek(_pendingScrubPosition!);
+                                                        _scrubThrottleTimer = Timer(
+                                                          const Duration(milliseconds: 100),
+                                                          () {
+                                                            if (_pendingScrubPosition != null && mounted && _isScrubbing) {
+                                                              player.seek(_pendingScrubPosition!);
+                                                            }
+                                                          },
+                                                        );
+                                                      }
+                                                    },
+                                                    onChangeEnd: (v) {
+                                                      _isScrubbing = false;
+                                                      _scrubThrottleTimer?.cancel();
+                                                      _smartDelayTimer?.cancel();
+                                                      _pendingScrubPosition = null;
+                                                      if (mounted) {
+                                                        setState(() => _isSmartBuffering = false);
+                                                      }
+                                                      if (player.platform is dynamic) {
+                                                        (player.platform as dynamic).setProperty('hr-seek', 'yes');
+                                                      }
+                                                      player.seek(
+                                                        Duration(
+                                                          milliseconds: (v * duration.inMilliseconds).toInt(),
+                                                        ),
+                                                      );
+                                                      Future.delayed(const Duration(milliseconds: 200), () {
+                                                        if (player.platform is dynamic) {
+                                                          (player.platform as dynamic).setProperty('hr-seek', 'no');
+                                                        }
+                                                      });
+                                                    },
+                                                  ),
+                                                ),
+                                                // BUG-001: Hover thumbnail preview
+                                                // Positioned so it overlays without affecting Stack layout
+                                                Positioned(
+                                                  left: 0,
+                                                  right: 0,
+                                                  bottom: 24,
+                                                  child: IgnorePointer(
+                                                    child: AnimatedOpacity(
+                                                      duration: const Duration(milliseconds: 150),
+                                                      opacity: _isSliderHovered ? 1.0 : 0.0,
+                                                      child: HoverPreview(
+                                                        mediaPath: _currentItem.path,
+                                                        totalDuration: duration,
+                                                        sliderWidth: _sliderWidth,
+                                                        hoverXNotifier: _hoverXNotifier,
+                                                        isVisible: _isSliderHovered,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ),
                                     const SizedBox(width: 16),
@@ -1404,7 +1551,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                   isForward: false,
                                   onPressed: () {
                                     final seconds = ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
-                                    player.seek(player.state.position - Duration(seconds: seconds));
+                                    _clampedSeek(player.state.position - Duration(seconds: seconds));
                                     _onInteraction();
                                   },
                                 ),
@@ -1452,7 +1599,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                   isForward: true,
                                   onPressed: () {
                                     final seconds = ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
-                                    player.seek(player.state.position + Duration(seconds: seconds));
+                                    _clampedSeek(player.state.position + Duration(seconds: seconds));
                                     _onInteraction();
                                   },
                                 ),

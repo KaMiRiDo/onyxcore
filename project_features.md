@@ -33,7 +33,7 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `path_provider` | ^2.1.5 | Platform directories |
 | | `watcher` | ^1.2.1 | File system watching |
 | **Lint** | `very_good_analysis` | ^10.1.0 | Static analysis rules |
-| **External** | `ffmpeg` (CLI) | system | Image editing (rotate, crop, brightness) |
+| **External** | `ffmpeg` (CLI) | system | Image editing (rotate, crop, brightness); hover thumbnail extraction (video preview) |
 | | `lsblk` / `udisksctl` (CLI) | system | Device detection & mounting |
 | | `gio` (CLI) | system | Trash operations |
 
@@ -74,6 +74,7 @@ graph TB
 
         subgraph VideoPlayer["video_player"]
             VidPreview["VideoPreviewWidget"]
+            HoverPrev["HoverPreview (ffmpeg subprocess)"]
             VidWidgets["PlaylistOverlay / TrackSelector / SpeedControl / VolumeOverlay"]
             PlaybackMem["PlaybackMemoryRepository (Hive)"]
         end
@@ -162,7 +163,7 @@ onyxcore/
 │       ├── video_player/
 │       │   ├── data/repositories/
 │       │   │   └── playback_memory_repository.dart  # Resume position (Hive)
-│       │   └── presentation/widgets/           # 6 widget files
+│       │   └── presentation/widgets/           # 7 widget files (incl. hover_preview.dart)
 │       ├── audio_player/
 │       │   ├── domain/entities/audio_track.dart
 │       │   └── presentation/                   # 4 widget files + providers
@@ -191,38 +192,56 @@ onyxcore/
 
 #### 1.1 Navigation
 - **Breadcrumb bar** with clickable path segments and gradient separators
-- Breadcrumb auto-scrolls to end on directory change
-- **Click-to-edit location bar** — tap breadcrumb to type a raw path, with validation & error toast
+- Breadcrumb auto-scrolls to end on directory change (300ms `easeOut` animation)
+- **Click-to-edit location bar** — tap breadcrumb to type a raw path, with validation & error toast (auto-dismisses after 2s)
+- **Location bar full-text selection** — on activation, the entire path text is pre-selected for quick overwrite
 - Context-aware root icon (Home, Storage, Trash, Recent, Starred)
 - **Back/Forward history** via `NavigationNotifier` per-tab
 - Keyboard: `Backspace` / `Alt+←` to go back
 - **Shortcut Isolation**: Global file operation shortcuts (Copy, Cut, Paste) are automatically disabled when the breadcrumb location bar is in edit mode to prevent conflicts with standard text input.
+- **Breadcrumb DragTarget**: Each breadcrumb segment is a `DragTarget<List<String>>` — files dragged onto a breadcrumb segment move to that directory. Hovering for 1s auto-navigates to the target path.
+- **Breadcrumb device-aware rendering**: Breadcrumbs dynamically resolve external device mount paths, matching the longest device path first, and display the device name as the root segment.
+- **Breadcrumb preview file segment**: When a file is previewed inline, the filename is appended as a non-clickable gradient breadcrumb segment (max 32 chars, middle-truncated).
 - **Sidebar** with quick-access: Home, Desktop, Documents, Music, Pictures, Videos, Downloads, Recent, Trash
 - Sidebar **Devices section**: auto-detects block devices via `lsblk --json`, auto-mount via `udisksctl`
 - Sidebar **Cloud Storage** placeholder section
 - Sidebar **Storage indicator** showing disk usage
 - Sidebar **Overview button**
+- **Sidebar navigation pattern**: All sidebar items clear preview state, deselect all items, update navigation history, and set current path atomically.
 
 #### 1.2 Tabbed Interface
-- **GNOME-inspired tab bar** with dynamic non-stretched tab widths
-- 3px gradient bottom indicator on active tab
-- Vertical separators between tabs
-- Close button per tab
+- **GNOME-inspired tab bar** with dynamic non-stretched tab widths (minimum 140px, auto-calculated to fill available width)
+- 3px gradient bottom indicator on active tab (`AppTheme.primaryGradient`)
+- Vertical 1px border separators between tabs
+- Close button per tab (visible only on hover or active tab)
+- Active tab: `ShaderMask` gradient text + gradient icon; inactive tab: white54/white70 text
+- **Context-aware tab icon** — dynamically selects icon based on folder name (Downloads → download icon, Pictures → image icon, Music → music note, etc.)
+- **Tab DragTarget**: Each tab is a `DragTarget<List<String>>` — files dragged onto a tab move to that tab's directory. Hovering 1s auto-switches to that tab.
+- **Tab bar auto-hide**: Bar is hidden (`SizedBox.shrink()`) when only a single tab is open
+- **Tab bar auto-scroll**: Scrolls to reveal newly created tabs (300ms `easeOut` animation)
 - New tab button
-- Each tab has independent: path, history, selection, sort settings, filter settings
+- Each tab has independent: path, history, selection, sort settings, filter settings, search state, location editing state, refresh count
+- **Per-folder sort persistence**: When navigating to a folder, its previously-saved sort preference is loaded from `SharedPreferences` via `SettingsRepository.getFolderSort()`. Falls back to the global default.
+- **Filter reset on navigate**: Filters are automatically cleared when navigating to a new folder.
+- **Last tab protection**: The last remaining tab cannot be closed — prevents accidental application exit.
 
 #### 1.3 File Grid
-- **Responsive grid** layout with zoom-dependent column count
-- **Zoom slider** (Ctrl+Scroll) for dynamic icon sizing
+- **Responsive grid** layout with zoom-dependent column count (`SliverGridDelegateWithMaxCrossAxisExtent`, `maxCrossAxisExtent: 180 * zoom`, `mainAxisExtent: 215 * zoom`)
+- **Zoom slider** (Ctrl+Scroll) per-folder zoom levels stored in a `Map<String, double>` (default 0.8x)
 - Thumbnail previews for images (with `cacheWidth: 300` optimization)
-- SVG file rendering via `flutter_svg`
-- Custom gradient folder icons with colored tabs (context-aware per folder name)
-- Custom SVG icons for video, audio, archive, executable, readme files
-- **Lock icon badge** on read-only items
-- **Middle-truncated filenames** for long names
-- File name rendered in Manrope font, 2-line max with ellipsis
+- SVG file rendering via `flutter_svg` (`SvgPicture.file`)
+- Custom gradient folder icons with colored tabs (context-aware per folder name via `getFolderIconConfig`)
+- Custom SVG icons for video, audio, archive, executable, readme files (via `getFileIconConfig`)
+- **Archival icon builder**: Folders use a stacked `Container` approach with a small colored "tab" on top-left and a gradient body underneath, mimicking physical folder tabs
+- **Lock icon badge** on read-only items (positioned top-right with semi-transparent black background)
+- **Middle-truncated filenames** for long names (60% start + 30% end, max 35 chars)
+- File name rendered in Manrope font, 2-line max with ellipsis; font size scales with zoom (clamped at 0.8–1.1x)
 - **Non-Destructive Refresh**: Implements a persistent state mechanism in the grid. During directory updates, the current grid items remain visible instead of resetting to a loading state, completely eliminating UI flickering.
 - **Seamless State Transitions**: Uses implicit type-based keys in `AnimatedSwitcher` to prevent duplicate-key crashes during rapid async directory refreshes
+- **Grid-level DragTarget**: The entire file grid background is a `DragTarget<List<String>>` — files dropped on empty grid space move to the current directory, with full conflict resolution (skip/overwrite/rename) and per-item progress tracking
+- **Refresh opacity dimming**: Grid content dims to 20% opacity (`AnimatedOpacity`) during active directory refresh
+- **App lifecycle observer**: Implements `WidgetsBindingObserver` to cancel all active tasks when the app is detached or hidden
+- **Cut item dimming**: Items on the clipboard in "cut" mode render at 40% opacity
 
 #### 1.4 Selection System
 - **Click to select** (single)
@@ -234,16 +253,22 @@ onyxcore/
 
 #### 1.5 File Operations
 - **Copy** (Ctrl+C) / **Cut** (Ctrl+X) / **Paste** (Ctrl+V) via clipboard provider
-- **Move** via drag-and-drop onto folders or breadcrumb segments
-- **Delete to Trash** via `gio trash` (Delete key)
+- **Move** via drag-and-drop onto folders, breadcrumb segments, or tab headers
+- **Delete to Trash** via `gio trash` (Delete key) — progress tracked per-item with `onProgress` callback
 - **Rename (Single)**: Notch-based inline popover that anchors precisely to the selected file item using a managed `GlobalKey` map.
 - **Rename (Bulk)**: Prefix/index modes via modal dialog.
+- **Rename task tracking**: Both single and bulk renames create lightweight background tasks (`isLight: true`) with per-item logging
 - **Key Lifecycle Management**: Uses a lazy-registry pattern for widget keys. Keys are tagged with path-specific `debugLabel`s (e.g., `item_card_/path/to/file`) to prevent collisions. Stale keys in the registry are handled safely via `currentContext` null-checks in `GalleryPage`, avoiding risky provider updates during the widget deactivation phase.
 - **Create New Folder** via gradient "+ Add" button
 - **Isolate-based file copy** with manual buffer flushing, progress reporting via SendPort
-- **Conflict resolution** — queue-based with Completer, user dialog for skip/overwrite/rename
+- **Conflict resolution** — queue-based with Completer, user dialog for skip/overwrite/rename; auto-rename appends `(1)`, `(2)` etc. with collision loop
+- **Global conflict resolution**: `ConflictProvider` supports a "remember my choice" global resolution that applies to all remaining items in a batch
 - **Concurrency-limited task queue** (default 3 concurrent tasks)
-- **Drag-and-drop**: drag files/folders with miniature preview feedback; drop on folder cards or breadcrumb segments to move; hover-to-navigate (1s delay) on folder targets
+- **Drag-and-drop**: drag files/folders with miniature preview feedback (48x48 white rounded container with 0.4x scale preview icon); drop on folder cards, breadcrumb segments, or tab headers to move; hover-to-navigate (1s delay) on folder/breadcrumb/tab targets
+- **Drag source dimming**: Items being actively dragged render at 30% opacity via `draggingPathsProvider`
+- **Multi-select drag**: If an item is already selected, dragging it drags all selected items; if unselected, it auto-selects and drags only that item
+- **Post-rename selection**: After rename, the old selection is cleared and the newly-renamed file path(s) are auto-selected
+- **Open in Terminal**: Context menu launches `gnome-terminal` at the item's directory (or parent directory for files)
 
 #### 1.6 Search & Filter
 - **Instant search** filter in current directory (gradient-highlighted search bar)
@@ -267,11 +292,18 @@ onyxcore/
 - File count, total size, permissions display
 
 #### 1.9 Background Tasks Panel
-- **Slide-out panel** with Task/History tabs
+- **Slide-out panel** (25% of screen width) with animated open/close (300ms `easeOutCubic`), shadow and left border
+- Uses `OverflowBox` to maintain consistent panel width during animation
+- **Three-view navigation**: Tasks → History → History Detail, managed via `BackgroundPanelView` enum
 - **Task tiles** showing: progress bar, speed (bytes/s), item counts, processed/total size
 - **Task history** with persistent file-based storage, lazy pagination, filter by status
 - **Task history detail view** with duration, throughput, processed items list with scrollbar
 - Tasks auto-transition to history after 3s completion
+- **Cancelled task auto-archival**: Cancelled tasks are automatically moved to history and removed from the active list via `ref.listen`
+- **Refresh button**: Animated `RotationTransition` spin effect while refreshing, with 800ms hold for visual feedback
+- **Cancel All**: Footer button (red outline) with a dedicated in-panel confirmation overlay (dark scrim + centered dialog with warning icon, "No, Keep" / "Yes, Cancel" actions)
+- **History text button**: Compact outlined button to switch from tasks view to history
+- **Empty state**: Centered hourglass icon + "No active tasks" text
 - Chevron arrow on history items indicating clickability
 
 #### 1.10 Directory Watching
@@ -286,10 +318,30 @@ onyxcore/
 
 #### 1.12 Empty State
 - Custom `EmptyStateView` for empty directories
+- **Context-aware empty states**:
+  - Search active + query: "No Results Found" with search icon + "Clear Search" action button
+  - Filter active: "No Items Match" with filter icon + "Clear All Filters" action button
+  - Virtual Recent: "No recent files found"; Virtual Starred: "No starred items yet"
+  - Trash: delete icon; default: folder-open icon
 
-#### 1.13 Status Bar
+#### 1.13 Preview Container (Inline Preview Orchestrator)
+- **Type-routing**: Dispatches to `ImagePreviewWidget`, `VideoPreviewWidget`, `AudioPlayerView`, or `MarkdownPreviewWidget` based on `FileItemType`
+- **PDF placeholder**: Shows a centered icon with "PDF Preview not yet implemented" message and hint to double-tap for external viewer
+- **Double-tap pop-out**: Opens the previewed file in a standalone persistent window via `PersistentViewerManager.openMedia()`, then clears the inline preview
+- **Image preload on pop-out**: When popping out an image, pre-computes 4 adjacent image paths (±2 neighbors) and passes them as `preloadPaths` in `WindowParams.initParams`
+- **F-key HUD toggle**: Toggles `previewHudVisibleProvider` with a 300ms debounce to prevent rapid toggling
+- **Close shortcuts**: `Backspace` / `Alt+←` / `Ctrl+W` all close the preview and reset HUD visibility to true
+
+#### 1.14 Status Bar
 - Glassmorphism status notifications across viewers
 - Custom `BubbleLoader` animated loading indicator (8 orbiting gradient bubbles)
+
+#### 1.15 Directory Items Pipeline
+- **Three-stage reactive pipeline**:
+  1. `directoryItemsProvider` — raw listing from isolate (with cache check) + inotify watcher setup
+  2. `filteredDirectoryItemsProvider` — applies hidden file filter, search query, and advanced filter settings
+  3. `sortedDirectoryItemsProvider` — applies sort; uses `compute()` isolate for directories with 500+ items to avoid UI lag
+- **Async metadata enrichment**: After initial load, image aspect ratios are extracted asynchronously via `MediaMetadataDatasource` and the state is updated incrementally without re-triggering the full pipeline
 
 ---
 
@@ -349,10 +401,6 @@ onyxcore/
 - **Persistent window** (hide/show, no engine re-initialization)
 - **Zero-Latency Initialization**: Engine startup is deferred by a 300ms post-frame callback to ensure the `BubbleLoader` is fully rendered and animating before the heavy `player.open` call, preventing initial UI thread freezes.
 - **BubbleLoader Persistence**: Uses `AnimatedOpacity` to keep the loader in the widget tree, ensuring it continues to animate smoothly during engine initialization and buffering states.
-- **Aggressive Buffering & Caching**: 
-  - 60-second readahead buffer (128MB).
-  - Persistent caching enabled with `cache-secs: 60`.
-  - Framedrop enabled for high-precision seeks (`hr-seek-framedrop`), ensuring instant recovery during rapid 10s navigation.
 - **Persistent HUD State**: Standalone viewer maintains its UI state (hidden/visible HUD) during playlist navigation via a shared widget lifecycle (no `ValueKey` reset)
 - **Custom bottom controls bar** with gradient background:
   - Play/Pause button (white rounded rectangle with glow shadow)
@@ -382,7 +430,63 @@ onyxcore/
   - **Key Isolation**: All UI control keys (audio, sub, playlist) are generated with unique path-based debug labels to ensure stability during `Hero` transitions.
 - **Standalone playlist scanning** — scans parent directory for video files
 
-#### 3.3 Menu Tooltip
+#### 3.3 Sliding Window Seek & Buffering (BUG-001)
+- **Aggressive Forward/Backward Buffer**: Configured via native `libmpv` properties on player startup:
+  - `demuxer-max-bytes: 400000000` (400 MiB forward buffer)
+  - `demuxer-max-back-bytes: 200000000` (200 MiB backward buffer)
+  - `demuxer-readahead-secs: 60` (60-second readahead)
+  - `cache: yes` with `cache-secs: 60` for persistent decoded frame cache
+  - `hwdec: auto-safe` for hardware-accelerated decoding on the main player
+  - `hr-seek-framedrop: yes` for instant recovery during rapid navigation
+- **Differentiated Seek Logic** — two distinct seek modes:
+  - **Arrow-key / fast seek**: Uses `hr-seek: no` (keyframe-only). Jumps to the nearest keyframe instantly from the buffer without frame-accurate decoding. Combined with the 400 MiB sliding window, this provides zero-latency ±10s navigation.
+  - **Slider scrub final seek**: On `onChangeEnd`, temporarily sets `hr-seek: yes` for one frame-accurate seek to the exact drop position, then reverts to `hr-seek: no` after 200ms via `Future.delayed`.
+- **Clamped Seek Helper** (`_clampedSeek`): All seek calls (arrow keys, double-tap, seek buttons) route through a helper that clamps the target `Duration` to `[0, player.state.duration]`, preventing circular wraparound (e.g., backward from 0:00 jumping to the video end).
+- **Fast Seek Timer** (`_startFastSeek`): Holding arrow keys fires `Timer.periodic(200ms)` for continuous seeking with `_isFastSeeking = true` flag active, fully suppressing the BubbleLoader.
+
+#### 3.4 Slider Scrub Optimization (BUG-001)
+- **Scrub Seek Throttle**: During active drag (`_isScrubbing = true`), seeks are throttled to one every **100ms** via `_scrubThrottleTimer`. Each `onChanged` event stores the latest target in `_pendingScrubPosition`; the throttle timer fires a catch-up seek to the latest position when it expires.
+- **Zero Loading During Scrub**: The BubbleLoader is completely suppressed during active scrubbing via a combined condition: `!_isFastSeeking && !_isScrubbing && (_isSmartBuffering || _isBuffering)`. Both fast seeks AND scrubbing are treated as user-driven operations that never show loading indicators.
+- **Smart Delay Buffering**: For non-seek buffering events (e.g., network stalls), a 200ms `_smartDelayTimer` delays the appearance of `_isSmartBuffering = true` to prevent sub-200ms buffer flickers from showing the loader.
+- **Precise Final Seek**: On `onChangeEnd`, `_isScrubbing` is reset, the scrub throttle is cancelled, and a single frame-accurate seek (`hr-seek: yes`) is issued to the exact release position.
+
+#### 3.5 Hover Preview System (BUG-001)
+- **Architecture**: `HoverPreview` widget (`hover_preview.dart`) — a self-contained `StatefulWidget` that manages its own positioning, frame extraction, and rendering independently of the parent `VideoPreviewWidget`.
+- **ffmpeg Subprocess Extraction**: Uses `Process.start('ffmpeg', ...)` to extract thumbnail frames. The ffmpeg command:
+  ```
+  ffmpeg -ss <seconds> -i <mediaPath> -vframes 1 -vf scale=240:-1
+         -q:v 5 -f image2pipe -vcodec mjpeg -loglevel error -y pipe:1
+  ```
+  - `-ss` before `-i`: Fast keyframe-based seek (no sequential decode from start)
+  - `-vf scale=240:-1`: Native low-resolution extraction at 240px width (GPU-level scaling)
+  - `-q:v 5`: Fast JPEG encoding with acceptable quality
+  - `-f image2pipe -vcodec mjpeg`: JPEG bytes streamed to stdout
+  - Previous ffmpeg process is killed (`_killActiveProcess()`) before each new extraction to prevent zombie processes
+- **Zero GPU Contention**: ffmpeg runs as a separate OS process — no shared GPU context, no EGL texture surfaces, no interference with the main `media_kit` player's rendering pipeline.
+- **ValueNotifier-Based Positioning** (Zero Parent Rebuilds):
+  - The parent `VideoPreviewWidget` uses a `ValueNotifier<double?> _hoverXNotifier` for hover X position.
+  - `MouseRegion.onHover` updates `_hoverXNotifier.value` directly — **no `setState` call on the parent**.
+  - `HoverPreview` listens to the `ValueNotifier` via `addListener` in `initState` and manages its own `setState` calls internally.
+  - This architecture ensures the 1900-line `VideoPreviewWidget` build tree is **never rebuilt** during hover interactions.
+- **Position Throttle**: Internal `_positionThrottle` timer limits `setState` rebuilds (for position tracking) to every **30ms** (~33fps), preventing excessive Flutter frame scheduling.
+- **Leading-Edge Seek Throttle**: Frame extraction uses a leading-edge throttle pattern:
+  1. First hover fires extraction **immediately** (0ms delay).
+  2. A 250ms `_seekThrottle` window suppresses subsequent requests.
+  3. When the throttle window expires, if a pending seek exists (`_hasPendingSeek`), it fires immediately.
+  4. After each extraction completes, queued seeks fire with a 100ms cooldown.
+- **Self-Positioning**: `HoverPreview` uses `Transform.translate(offset: Offset(left, 0))` for horizontal tracking, placed inside a `Positioned(left: 0, right: 0, bottom: 24)` in the parent's `Stack` for vertical placement. This eliminates the need for parent-side position calculations.
+- **No BackdropFilter**: Uses a simple `Color(0xE0181818)` dark container instead of `BackdropFilter(blur)`. BackdropFilter was identified as the primary cause of video playback flickering — it applies a real-time gaussian blur of the entire 4K video surface behind the popup on every rebuild, directly competing with the main player's GPU pipeline.
+- **Thumbnail Display**: `Image.memory` with `gaplessPlayback: true` — the previous thumbnail stays visible while a new one loads, preventing flicker between frames.
+- **Timestamp Label**: Positioned below the thumbnail with `GoogleFonts.manrope(fontSize: 11, fontWeight: w700)` in a dark rounded container.
+- **Visibility Control**: Wrapped in `AnimatedOpacity(duration: 150ms)` controlled by `_isSliderHovered`. The preview fades in/out smoothly.
+- **IgnorePointer**: Wrapped in `IgnorePointer` so the preview popup cannot steal mouse events from the progress bar `MouseRegion`.
+- **Hover Exit Delay**: A 300ms `_hoverExitTimer` delays the `_isSliderHovered = false` state change on `MouseRegion.onExit`, preventing the preview from flickering when the mouse briefly crosses the slider/popup boundary.
+- **Resource Cleanup**: On `dispose`, cancels all timers (`_positionThrottle`, `_seekThrottle`), kills any active ffmpeg process, and removes the ValueNotifier listener.
+
+#### 3.6 Video Surface Isolation (BUG-001)
+- **RepaintBoundary**: The `Video` widget (native mpv surface) is wrapped in `RepaintBoundary` to isolate the native rendering layer from Flutter's paint cycle. This prevents Flutter widget rebuilds (e.g., StreamBuilder updates, hover state changes) from triggering unnecessary re-compositing of the video texture.
+
+#### 3.7 Menu Tooltip
 - Custom `OverlayPortal`-based tooltip for playlist/menu items with hover trigger
 
 ---
@@ -463,18 +567,26 @@ onyxcore/
 #### 6.1 Configurable Options
 - **Auto Play Next** (video) — boolean toggle
 - **Resume Playback** (video) — resume from last position
-- **Double-Tap Seek Seconds** (video) — integer
+- **Double-Tap Seek Seconds** (video) — integer (options: 5, 10, 15, 20, 25, 30)
 - **Audio Seek Seconds** — integer
 - **Snapshot Prefix** — custom string for snapshot filenames
 - **Show Hidden Files** — boolean toggle
-- **Max Concurrent Tasks** — integer (default 3)
-- **Global Sort Option** — fallback sort
+- **Max Concurrent Tasks** — integer dropdown (1–3)
+- **Global Sort Option** — fallback sort (all `SortOption` enum values)
 - **Pinned Folders** — ordered list
-- **Per-folder Sort Settings** — map
+- **Per-folder Sort Settings** — map persisted in SharedPreferences
 
 #### 6.2 Settings Dialog
-- Tabbed dialog UI
-- Section-based navigation (General, Video, Documents)
+- **Full-screen blur backdrop** (`BackdropFilter` sigmaX/Y: 8) with semi-transparent overlay
+- **Dialog dimensions**: 760×560px, rounded 24px corners, dark glassmorphism panel with shadow
+- **3-tab layout**: General, Viewers, Security — via `TabController`
+- **Custom gradient tab indicator**: `GradientUnderlineTabIndicator` — draws a 3px gradient underline using a custom `BoxPainter` with `AppTheme.primaryGradient`, rounded top corners
+- **Active tab text**: `ShaderMask` gradient; inactive: `AppColors.textMuted`
+- **Sub-sidebar navigation**: Each tab has a 170px left sidebar listing its sections; clicking a section smooth-scrolls to it (500ms `easeOutQuart`)
+- **Section headers**: Uppercase, violet, 12px, `w800` weight, `letterSpacing: 1.2`
+- **Draft/save pattern**: Settings are loaded into `_draftSettings` on open; edits modify only the draft. "Save" commits the draft via `SettingsNotifier.saveSettings()` and closes. Closing without saving prompts a "Discard Changes?" confirmation dialog.
+- **PopScope guard**: Prevents accidental back-navigation; routes through `_handleClose()` for unsaved-changes check
+- **Custom OnyxSwitch**: A gradient toggle widget (44×24px) with `AnimatedContainer` + `AnimatedAlign`. Active state uses `AppTheme.primaryGradient`; inactive uses `Colors.white.withAlpha(20)`. White circular thumb with drop shadow.
 - Persisted via `SharedPreferences` through repository pattern
 
 ---
@@ -492,13 +604,17 @@ onyxcore/
 
 ### 8. Design System ("Onyx Monolith")
 
-- **AppColors**: surfaceBase, background, textMuted, violet, magenta, indigo, cyan
+- **AppColors**: surfaceBase, background, textMuted, violet, magenta, indigo, cyan, error
 - **AppTheme**: `primaryGradient` (magenta→violet→indigo), dark ThemeData
-- **Typography**: Manrope (UI), Outfit (content), JetBrains Mono (code)
-- **Glassmorphism**: `BackdropFilter` blur + translucent backgrounds on menus, overlays, toasts
-- **Gradient accents**: active states, buttons, breadcrumb separators, slider tracks
-- **Custom window controls**: circular minimize/maximize/close buttons
-- **DragToMoveArea**: custom titlebar drag regions
+- **Typography**: Manrope (UI, 13–24px), Outfit (content/headings, 16–36px), JetBrains Mono (code, 13–14px)
+- **Glassmorphism**: `BackdropFilter` blur + translucent backgrounds on menus, overlays, toasts, settings dialog
+- **Gradient accents**: active states, buttons, breadcrumb separators, slider tracks, tab indicators, brand logo
+- **`ShaderMask` gradient text**: Used consistently for active tab labels, sidebar brand logo, breadcrumbs, panel headers, and player metadata
+- **Custom window controls**: circular minimize/maximize/close buttons (28×28, `BoxShape.circle`, white5% background)
+- **DragToMoveArea**: custom titlebar drag regions on both TopBar and Sidebar brand logo
+- **Shared `ViewerTopBar`**: Reusable glassmorphism top bar with gradient fade (`black 70% → transparent`), title + metadata display, configurable action buttons (pop-out, close), and `extraActions` slot for viewer-specific controls
+- **Custom `OnyxSwitch`**: Gradient toggle widget used in Settings (see §6.2)
+- **`BubbleLoader`**: Custom animated loading indicator used across all viewers for initialization, buffering, and seeking states; wrapped in `IgnorePointer` to prevent gesture interference
 
 ---
 
