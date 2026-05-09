@@ -196,6 +196,7 @@ onyxcore/
 - Context-aware root icon (Home, Storage, Trash, Recent, Starred)
 - **Back/Forward history** via `NavigationNotifier` per-tab
 - Keyboard: `Backspace` / `Alt+←` to go back
+- **Shortcut Isolation**: Global file operation shortcuts (Copy, Cut, Paste) are automatically disabled when the breadcrumb location bar is in edit mode to prevent conflicts with standard text input.
 - **Sidebar** with quick-access: Home, Desktop, Documents, Music, Pictures, Videos, Downloads, Recent, Trash
 - Sidebar **Devices section**: auto-detects block devices via `lsblk --json`, auto-mount via `udisksctl`
 - Sidebar **Cloud Storage** placeholder section
@@ -220,6 +221,7 @@ onyxcore/
 - **Lock icon badge** on read-only items
 - **Middle-truncated filenames** for long names
 - File name rendered in Manrope font, 2-line max with ellipsis
+- **Non-Destructive Refresh**: Implements a persistent state mechanism in the grid. During directory updates, the current grid items remain visible instead of resetting to a loading state, completely eliminating UI flickering.
 - **Seamless State Transitions**: Uses implicit type-based keys in `AnimatedSwitcher` to prevent duplicate-key crashes during rapid async directory refreshes
 
 #### 1.4 Selection System
@@ -234,7 +236,9 @@ onyxcore/
 - **Copy** (Ctrl+C) / **Cut** (Ctrl+X) / **Paste** (Ctrl+V) via clipboard provider
 - **Move** via drag-and-drop onto folders or breadcrumb segments
 - **Delete to Trash** via `gio trash` (Delete key)
-- **Rename** — single file via inline popover; bulk rename with prefix/index modes via dialog
+- **Rename (Single)**: Notch-based inline popover that anchors precisely to the selected file item using a managed `GlobalKey` map.
+- **Rename (Bulk)**: Prefix/index modes via modal dialog.
+- **Key Lifecycle Management**: Uses a lazy-registry pattern for widget keys. Keys are tagged with path-specific `debugLabel`s (e.g., `item_card_/path/to/file`) to prevent collisions. Stale keys in the registry are handled safely via `currentContext` null-checks in `GalleryPage`, avoiding risky provider updates during the widget deactivation phase.
 - **Create New Folder** via gradient "+ Add" button
 - **Isolate-based file copy** with manual buffer flushing, progress reporting via SendPort
 - **Conflict resolution** — queue-based with Completer, user dialog for skip/overwrite/rename
@@ -343,7 +347,12 @@ onyxcore/
 #### 3.2 Standalone Mode (Persistent Window)
 - Full `media_kit` Player + VideoController lifecycle
 - **Persistent window** (hide/show, no engine re-initialization)
-- **Zero-Latency Loading**: Engine initialization is deferred by one frame to ensure the `BubbleLoader` renders immediately without UI thread freezing
+- **Zero-Latency Initialization**: Engine startup is deferred by a 300ms post-frame callback to ensure the `BubbleLoader` is fully rendered and animating before the heavy `player.open` call, preventing initial UI thread freezes.
+- **BubbleLoader Persistence**: Uses `AnimatedOpacity` to keep the loader in the widget tree, ensuring it continues to animate smoothly during engine initialization and buffering states.
+- **Aggressive Buffering & Caching**: 
+  - 60-second readahead buffer (128MB).
+  - Persistent caching enabled with `cache-secs: 60`.
+  - Framedrop enabled for high-precision seeks (`hr-seek-framedrop`), ensuring instant recovery during rapid 10s navigation.
 - **Persistent HUD State**: Standalone viewer maintains its UI state (hidden/visible HUD) during playlist navigation via a shared widget lifecycle (no `ValueKey` reset)
 - **Custom bottom controls bar** with gradient background:
   - Play/Pause button (white rounded rectangle with glow shadow)
@@ -367,6 +376,10 @@ onyxcore/
 - **FPS display** in top HUD metadata
 - **Resolution badge** (e.g., "1080p") in top HUD
 - **BubbleLoader Integration**: Replaced all generic loaders with the high-performance animated bubble system for loading/buffering/seeking
+- **Managed Lifecycle & Stability**: 
+  - **Stream Management**: All native engine listeners (tracks, duration, buffering) are stored in managed `StreamSubscription` objects and explicitly cancelled on disposal.
+  - **Closing Guards**: Implements an `_isClosing` state flag that aborts all pending async tasks (like FPS fetching or metadata parsing) once the widget begins unmounting, preventing "Callback invoked after it has been deleted" native errors.
+  - **Key Isolation**: All UI control keys (audio, sub, playlist) are generated with unique path-based debug labels to ensure stability during `Hero` transitions.
 - **Standalone playlist scanning** — scans parent directory for video files
 
 #### 3.3 Menu Tooltip

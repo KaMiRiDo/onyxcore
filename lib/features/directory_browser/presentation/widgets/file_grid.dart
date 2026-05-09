@@ -20,6 +20,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/confl
 import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_state_view.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
 
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
@@ -61,9 +62,6 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
     final zoom = ref.watch(currentZoomProvider);
     final selection = ref.watch(selectionProvider);
     final String currentPath = ref.watch(currentPathProvider);
-    final refreshCount = ref.watch(refreshCountProvider);
-    final String tabId = ref.watch(tabIdProvider);
-
     final isRefreshing = ref.watch(isRefreshingProvider);
 
     final content = AnimatedOpacity(
@@ -75,112 +73,45 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
         switchInCurve: Curves.easeOut,
         switchOutCurve: Curves.easeIn,
         child: itemsAsync.when(
-        loading: () => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppColors.violet.withOpacity(0.4),
+          loading: () => itemsAsync.hasValue
+              ? _buildGrid(itemsAsync.value!, selection, zoom, currentPath)
+              : Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.violet.withOpacity(0.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Reading disk...',
+                        style: GoogleFonts.manrope(
+                          color: Colors.white24,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Reading disk...',
-                style: GoogleFonts.manrope(
-                  color: Colors.white24,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
+          error: (error, _) => Center(
+            child: Text(
+              'Error: $error',
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
           ),
+          data: (items) => _buildGrid(items, selection, zoom, currentPath),
         ),
-        error: (error, _) => Center(
-          child: Text(
-            'Error: $error',
-            style: const TextStyle(color: AppColors.textMuted),
-          ),
-        ),
-        data: (items) {
-          if (items.isEmpty) {
-            final isSearchActive = ref.watch(isSearchActiveProvider);
-            final query = ref.watch(searchQueryProvider);
-            final filter = ref.watch(filterSettingsProvider);
-            final isFilterActive = !filter.isEmpty;
-            
-            if (isSearchActive && query.isNotEmpty) {
-              return EmptyStateView(
-                icon: Icons.manage_search_rounded,
-                title: 'No Results Found',
-                subtitle: 'No matches for "$query" in ${p.basename(currentPath)}',
-                actionLabel: 'Clear Search',
-                onAction: () => ref.read(isSearchActiveProvider.notifier).set(false),
-              );
-            }
-
-            if (isFilterActive) {
-              return EmptyStateView(
-                icon: Icons.filter_list_off_rounded,
-                title: 'No Items Match',
-                subtitle: 'Try adjusting your filters to find what you\'re looking for',
-                actionLabel: 'Clear All Filters',
-                onAction: () {
-                  final tabId = ref.read(tabIdProvider);
-                  ref.read(tabManagerProvider.notifier).updateFilterSettings(
-                    tabId, 
-                    const FilterSettings()
-                  );
-                },
-              );
-            }
-
-            String message = 'This folder is empty';
-            if (currentPath == 'virtual:recent') message = 'No recent files found';
-            if (currentPath == 'virtual:starred') message = 'No starred items yet';
-            
-            return EmptyStateView(
-              icon: _getEmptyIcon(currentPath),
-              title: 'Empty Folder',
-              subtitle: message,
-            );
-          }
-
-          return GridView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 180 * zoom,
-            mainAxisSpacing: 16 * zoom,
-            crossAxisSpacing: 24 * zoom,
-            mainAxisExtent: 215 * zoom,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return ItemCard(
-              key: ValueKey(item.path),
-              item: item,
-              zoom: zoom,
-              isSelected: selection.selectedPaths.contains(item.path),
-              isHovered: _hoveredPath == item.path,
-              onTap: () => _handleTap(items, index),
-              onDoubleTap: () => _handleDoubleTap(items, index),
-              onHoverChanged: (hovered) {
-                setState(() => _hoveredPath = hovered ? item.path : null);
-              },
-            );
-          },
-        );
-      },
-    ),
-  ),
-);
+      ),
+    );
 
     if (currentPath.startsWith('virtual:')) return content;
 
@@ -217,33 +148,6 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
             final destPath = p.join(currentPath, name);
             final isFolder = Directory(source).existsSync();
 
-            final absSource = p.canonicalize(source);
-            final absDest = p.canonicalize(destPath);
-            final typeStr = isFolder ? 'folder' : 'file';
-
-            if (absSource == absDest || absSource.startsWith(absDest + p.separator)) {
-              await showDialog(
-                context: context,
-                builder: (context) => ErrorDialog(
-                  title: 'You cannot move a $typeStr over itself.',
-                  message: 'The source $typeStr would be overwritten by the destination.',
-                ),
-              );
-              continue;
-            }
-
-            // check if destination is inside source (circular inclusion)
-            if (absDest.startsWith(absSource + p.separator)) {
-              await showDialog(
-                context: context,
-                builder: (context) => ErrorDialog(
-                  title: 'You cannot move a $typeStr into itself.',
-                  message: 'The destination is inside the source $typeStr.',
-                ),
-              );
-              continue;
-            }
-
             String finalDestPath = destPath;
 
             if (File(destPath).existsSync() || Directory(destPath).existsSync()) {
@@ -253,7 +157,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
                 isFolder: isFolder,
                 context: context,
               );
-
+              
               if (resolution == ConflictResolution.skip) {
                 continue;
               } else if (resolution == ConflictResolution.rename) {
@@ -349,5 +253,76 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
     if (path == 'virtual:starred') return Icons.star_outline_rounded;
     if (path.contains('Trash')) return Icons.delete_outline_rounded;
     return Icons.folder_open_rounded;
+  }
+
+  Widget _buildGrid(List<FileItem> items, SelectionState selection, double zoom, String currentPath) {
+    if (items.isEmpty) {
+      final isSearchActive = ref.watch(isSearchActiveProvider);
+      final query = ref.watch(searchQueryProvider);
+      final filter = ref.watch(filterSettingsProvider);
+      final isFilterActive = !filter.isEmpty;
+      
+      if (isSearchActive && query.isNotEmpty) {
+        return EmptyStateView(
+          icon: Icons.manage_search_rounded,
+          title: 'No Results Found',
+          subtitle: 'No matches for "$query" in ${p.basename(currentPath)}',
+          actionLabel: 'Clear Search',
+          onAction: () => ref.read(isSearchActiveProvider.notifier).set(false),
+        );
+      }
+
+      if (isFilterActive) {
+        return EmptyStateView(
+          icon: Icons.filter_list_off_rounded,
+          title: 'No Items Match',
+          subtitle: 'Try adjusting your filters to find what you\'re looking for',
+          actionLabel: 'Clear All Filters',
+          onAction: () {
+            final tabId = ref.read(tabIdProvider);
+            ref.read(tabManagerProvider.notifier).updateFilterSettings(
+              tabId, 
+              const FilterSettings()
+            );
+          },
+        );
+      }
+
+      String message = 'This folder is empty';
+      if (currentPath == 'virtual:recent') message = 'No recent files found';
+      if (currentPath == 'virtual:starred') message = 'No starred items yet';
+      
+      return EmptyStateView(
+        icon: _getEmptyIcon(currentPath),
+        title: 'Empty Folder',
+        subtitle: message,
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 180 * zoom,
+        mainAxisSpacing: 16 * zoom,
+        crossAxisSpacing: 24 * zoom,
+        mainAxisExtent: 215 * zoom,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return ItemCard(
+          key: ValueKey(item.path),
+          item: item,
+          zoom: zoom,
+          isSelected: selection.selectedPaths.contains(item.path),
+          isHovered: _hoveredPath == item.path,
+          onTap: () => _handleTap(items, index),
+          onDoubleTap: () => _handleDoubleTap(items, index),
+          onHoverChanged: (hovered) {
+            setState(() => _hoveredPath = hovered ? item.path : null);
+          },
+        );
+      },
+    );
   }
 }

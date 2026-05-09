@@ -98,17 +98,15 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _showFlash = false;
   bool _showSnapshotToast = false;
   Timer? _snapshotToastTimer;
+  StreamSubscription? _audioTrackInitSubscription;
+  StreamSubscription? _subtitleTrackInitSubscription;
+
+  late final GlobalKey _audioKey;
+  late final GlobalKey _subtitleKey;
+  late final GlobalKey _speedKey;
+  late final GlobalKey _playlistKey;
 
   final FocusNode _focusNode = FocusNode();
-  final LayerLink _audioLink = LayerLink();
-  final LayerLink _subtitleLink = LayerLink();
-  final LayerLink _speedLink = LayerLink();
-  final LayerLink _playlistLink = LayerLink();
-
-  final GlobalKey _audioKey = GlobalKey();
-  final GlobalKey _subtitleKey = GlobalKey();
-  final GlobalKey _speedKey = GlobalKey();
-  final GlobalKey _playlistKey = GlobalKey();
   OverlayEntry? _activeMenuEntry;
 
   bool get _isAnyMenuVisible =>
@@ -152,11 +150,39 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     _currentItem = widget.item;
     player = Player();
+    
+    _audioKey = GlobalKey(debugLabel: 'video_audio_${widget.item.path}');
+    _subtitleKey = GlobalKey(debugLabel: 'video_subtitle_${widget.item.path}');
+    _speedKey = GlobalKey(debugLabel: 'video_speed_${widget.item.path}');
+    _playlistKey = GlobalKey(debugLabel: 'video_playlist_${widget.item.path}');
+    
+    // Configure buffering properties for smooth seeking and performance
+    if (player.platform is dynamic) {
+      final dynamic platform = player.platform;
+      platform.setProperty('demuxer-readahead-secs', '60');
+      platform.setProperty('buffer-size', '134217728'); // 128MB
+      platform.setProperty('cache', 'yes');
+      platform.setProperty('cache-secs', '60');
+      platform.setProperty('cache-pause', 'no');
+      platform.setProperty('hr-seek', 'yes');
+      platform.setProperty('hr-seek-framedrop', 'yes');
+    }
+
     controller = VideoController(player);
     
     _isOpening = true;
-    player.open(Media(_currentItem.path), play: true).then((_) {
-      if (mounted) setState(() => _isOpening = false);
+    
+    // Ensure the loader is rendered and animating before engine-level open
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Increased delay to 300ms to ensure UI isolate is free and animation is running
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          player.open(Media(_currentItem.path), play: true).then((_) {
+            if (mounted) setState(() => _isOpening = false);
+          });
+        }
+      });
     });
 
     // Resume from initial position if provided
@@ -238,21 +264,31 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       }
       if (widget.initialAudioTrackId != null) {
         // Find the track by ID once tracks are loaded
-        player.stream.tracks.listen((tracks) {
-          final track = tracks.audio.firstWhere(
-            (t) => t.id == widget.initialAudioTrackId,
-            orElse: () => tracks.audio.first,
-          );
-          player.setAudioTrack(track);
+        _audioTrackInitSubscription = player.stream.tracks.listen((tracks) {
+          if (tracks.audio.isNotEmpty) {
+            final track = tracks.audio.firstWhere(
+              (t) => t.id == widget.initialAudioTrackId,
+              orElse: () => tracks.audio.first,
+            );
+            player.setAudioTrack(track);
+            // Only apply once
+            _audioTrackInitSubscription?.cancel();
+            _audioTrackInitSubscription = null;
+          }
         });
       }
       if (widget.initialSubtitleTrackId != null) {
-        player.stream.tracks.listen((tracks) {
-          final track = tracks.subtitle.firstWhere(
-            (t) => t.id == widget.initialSubtitleTrackId,
-            orElse: () => tracks.subtitle.first,
-          );
-          player.setSubtitleTrack(track);
+        _subtitleTrackInitSubscription = player.stream.tracks.listen((tracks) {
+          if (tracks.subtitle.isNotEmpty) {
+            final track = tracks.subtitle.firstWhere(
+              (t) => t.id == widget.initialSubtitleTrackId,
+              orElse: () => tracks.subtitle.first,
+            );
+            player.setSubtitleTrack(track);
+            // Only apply once
+            _subtitleTrackInitSubscription?.cancel();
+            _subtitleTrackInitSubscription = null;
+          }
         });
       }
     });
@@ -273,11 +309,16 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     // 3. Open new media
     setState(() => _isOpening = true);
     
-    // Give the UI a frame to render the loader before engine init
-    await Future.delayed(Duration.zero);
-    
-    await player.open(Media(item.path), play: true);
-    if (mounted) setState(() => _isOpening = false);
+    // Give the UI time to render the loader before engine init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Future.delayed(const Duration(milliseconds: 100), () async {
+        if (mounted) {
+          await player.open(Media(item.path), play: true);
+          if (mounted) setState(() => _isOpening = false);
+        }
+      });
+    });
 
     // 4. Initialize new media (subs, memory)
     _initMedia();
@@ -396,6 +437,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   @override
   void dispose() {
+    _isClosing = true;
     WidgetsBinding.instance.removeObserver(this);
     if (widget.isStandalone) {
       windowManager.removeListener(this);
@@ -413,6 +455,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _bufferingSubscription?.cancel();
     _errorSubscription?.cancel();
     _snapshotToastTimer?.cancel();
+    _audioTrackInitSubscription?.cancel();
+    _subtitleTrackInitSubscription?.cancel();
     _focusNode.dispose();
     player.dispose();
     super.dispose();
@@ -427,19 +471,20 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   Future<void> _fetchFps() async {
     try {
+      if (_isClosing || !mounted) return;
       // Small delay to allow mpv to parse container metadata
       await Future.delayed(const Duration(milliseconds: 500));
-      if (!mounted) return;
-
-      // Attempt to get FPS from track state first (high-level)
+      if (_isClosing || !mounted) return;
+      
       double? fps = player.state.track.video.fps;
-
+      
       // Fallback to native property if high-level is null
-      if (fps == null && mounted) {
+      if (fps == null && mounted && !_isClosing) {
         final dynamic platform = player.platform;
         // Accessing getProperty via dynamic to avoid platform-specific import issues
         // while still reaching libmpv's container-fps
         final dynamic result = await platform.getProperty('container-fps');
+        if (_isClosing) return;
         if (result is num) {
           fps = result.toDouble();
         } else if (result is String) {
@@ -447,11 +492,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         }
       }
 
-      if (mounted && fps != null && fps > 0) {
+      if (mounted && fps != null && fps > 0 && !_isClosing) {
         setState(() => _fps = fps);
       }
     } catch (e) {
-      debugPrint('Error fetching FPS: $e');
+      if (!_isClosing) debugPrint('Error fetching FPS: $e');
     }
   }
 
@@ -938,8 +983,18 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                         ),
 
                         // Bubble Loader during loading/buffering/seeking
-                        if (_isOpening || _isBuffering || _isSeekingToInitial) 
-                          const Center(child: BubbleLoader(size: 100)),
+                        // Using AnimatedOpacity to ensure the loader is already in the tree and animating
+                        IgnorePointer(
+                          child: Center(
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 200),
+                              opacity: (_isOpening || _isBuffering || _isSeekingToInitial) ? 1.0 : 0.0,
+                              child: const RepaintBoundary(
+                                child: BubbleLoader(size: 100),
+                              ),
+                            ),
+                          ),
+                        ),
 
                         // Snapshot Flash Effect (Subtle Fade)
                         Positioned.fill(

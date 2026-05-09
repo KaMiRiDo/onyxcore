@@ -364,7 +364,6 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                 return filtered;
               });
             }),
-            itemKeysProvider.overrideWith(ItemKeysNotifier.new),
           ],
           child: _TabBody(tabId: tab.id),
         );
@@ -410,15 +409,18 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       const SingleActivator(LogicalKeyboardKey.enter, alt: true): _showProperties,
 
       // File Operations
-      const SingleActivator(LogicalKeyboardKey.keyC, control: true): _handleCopy,
-      const SingleActivator(LogicalKeyboardKey.keyX, control: true): _handleCut,
-      const SingleActivator(LogicalKeyboardKey.keyV, control: true): _handlePaste,
-      const SingleActivator(LogicalKeyboardKey.delete): () =>
-          _handleDelete(permanent: false),
-      const SingleActivator(LogicalKeyboardKey.delete, shift: true): () =>
-          _handleDelete(permanent: true),
-      const SingleActivator(LogicalKeyboardKey.f2): _onF2Pressed,
-      const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true): _handleNewFolder,
+      if (!isLocationEditing) ...{
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true): _handleCopy,
+        const SingleActivator(LogicalKeyboardKey.keyX, control: true): _handleCut,
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true): _handlePaste,
+        const SingleActivator(LogicalKeyboardKey.delete): () =>
+            _handleDelete(permanent: false),
+        const SingleActivator(LogicalKeyboardKey.delete, shift: true): () =>
+            _handleDelete(permanent: true),
+        const SingleActivator(LogicalKeyboardKey.f2): _onF2Pressed,
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true):
+            _handleNewFolder,
+      },
 
       // Zoom
       const SingleActivator(LogicalKeyboardKey.equal, control: true): () =>
@@ -906,6 +908,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       if (key?.currentContext != null) {
         final box = key!.currentContext!.findRenderObject() as RenderBox;
         anchorPosition = box.localToGlobal(Offset(box.size.width / 2, box.size.height));
+      } else {
+        debugPrint('[GalleryPage] Anchor key not found or context null for: $path. Map size: ${itemKeys.length}');
       }
     } else {
       double minX = double.infinity, minY = double.infinity;

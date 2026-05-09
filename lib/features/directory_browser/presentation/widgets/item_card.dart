@@ -49,11 +49,12 @@ class ItemCard extends ConsumerStatefulWidget {
 
 class _ItemCardState extends ConsumerState<ItemCard> {
   Timer? _hoverTimer;
-  final GlobalKey _cardKey = GlobalKey();
+  late final GlobalKey _cardKey;
 
   @override
   void initState() {
     super.initState();
+    _cardKey = GlobalKey(debugLabel: 'item_card_${widget.item.path}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(itemKeysProvider.notifier).update((state) {
@@ -75,9 +76,11 @@ class _ItemCardState extends ConsumerState<ItemCard> {
   Widget build(BuildContext context) {
     final draggingPaths = ref.watch(draggingPathsProvider);
     final isSourceDragging = draggingPaths.contains(widget.item.path);
+    final clipboard = ref.watch(clipboardProvider);
+    final isCut = clipboard.isCut && clipboard.paths.contains(widget.item.path);
 
     Widget cardContent = Opacity(
-      opacity: isSourceDragging ? 0.3 : 1.0,
+      opacity: isCut ? 0.4 : (isSourceDragging ? 0.3 : 1.0),
       child: Container(
       width: double.infinity,
       height: double.infinity,
