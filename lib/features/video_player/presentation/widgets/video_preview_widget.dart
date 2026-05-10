@@ -21,6 +21,10 @@ import 'package:onyxcore/features/video_player/data/repositories/playback_memory
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/timeline_marker.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
@@ -106,8 +110,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   // BUG-001: Sliding Window seek state
   bool _isFastSeeking = false;
   bool _isSmartBuffering = false;
+  double _playerWidth = 0;
+  double _playerHeight = 0;
   Timer? _smartDelayTimer;
   bool _isScrubbing = false;
+  final GlobalKey _sliderKey = GlobalKey();
+  final GlobalKey _playerKey = GlobalKey();
 
   // BUG-001: Hover preview state
   final ValueNotifier<double?> _hoverXNotifier = ValueNotifier<double?>(null);
@@ -132,7 +140,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       _isAudioMenuVisible ||
       _isSubtitleMenuVisible ||
       _isSpeedMenuVisible ||
-      _isPlaylistVisible;
+      _isPlaylistVisible ||
+      _isMarkerMenuVisible;
 
   bool _isGlobalHudVisible = true;
   Offset? _doubleTapPosition;
@@ -149,9 +158,23 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _showSpeedOverlayVisible = false;
   DateTime? _lastKeyEventTime;
 
+  // EPX-009: Marker System state
+  bool _isMarkerEditorActive = false;
+  VideoMarker? _editingMarker;
+  Offset? _markerEditorAnchor;
+  bool _isHoveringMarker = false;
+  bool _isMarkerMenuVisible = false;
+  final GlobalKey<MarkerEditorOverlayState> _markerEditorKey = GlobalKey<MarkerEditorOverlayState>();
+  final LayerLink _sliderLink = LayerLink();
+  final ValueNotifier<bool> _isPlayingNotifier = ValueNotifier<bool>(false);
+  StreamSubscription? _playingSubscription;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
     _currentItem = widget.item;
     _playbackSpeed = widget.initialRate ?? 1.0;
     _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
@@ -245,6 +268,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           }
         });
       }
+    });
+
+    _playingSubscription = player.stream.playing.listen((playing) {
+      _isPlayingNotifier.value = playing;
     });
 
     _isOpening = true;
@@ -550,6 +577,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _completedSubscription?.cancel();
     _bufferingSubscription?.cancel();
     _errorSubscription?.cancel();
+    _playingSubscription?.cancel();
+    _isPlayingNotifier.dispose();
     _snapshotToastTimer?.cancel();
     _smartDelayTimer?.cancel(); // BUG-001: Smart Delay cleanup
     _hoverExitTimer?.cancel();
@@ -606,13 +635,13 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   void _startHideTimer() {
     _hideTimer?.cancel();
-
-    // If any selection menu is active, we MUST NOT hide the HUD.
-    if (_isAnyMenuVisible) return;
-
-    _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      if (_isControlsVisible && !_isAnyMenuVisible) {
+    if (_isAnyMenuVisible || _isMarkerEditorActive) return;
+    _hideTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted &&
+          _isControlsVisible &&
+          !_isScrubbing &&
+          !_isMarkerEditorActive &&
+          !_isAnyMenuVisible) {
         setState(() => _isControlsVisible = false);
       }
     });
@@ -666,6 +695,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     if (mounted && !_isControlsVisible) {
       setState(() => _isControlsVisible = true);
     }
+    
+    // If marker editor or any menu is active, we don't start the hide timer
+    if (_isMarkerEditorActive || _isAnyMenuVisible) return;
+    
     _startHideTimer();
   }
 
@@ -790,11 +823,73 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   }
 
   void _toggleControls({bool isKeyboard = false}) {
+    if (_isMarkerEditorActive) return; // Locked during editing
+    
     setState(() {
       _isControlsVisible = !_isControlsVisible;
       if (_isControlsVisible) {
         _startHideTimer();
       }
+    });
+  }
+
+  void _openMarkerEditor({VideoMarker? marker}) {
+    _hideTimer?.cancel();
+    player.pause();
+    
+    final position = marker?.timestamp ?? player.state.position;
+    final duration = player.state.duration;
+    
+    setState(() {
+      _isMarkerEditorActive = true;
+      _isControlsVisible = true; // Lock HUD
+      _editingMarker = marker;
+      
+      // Calculate anchor position on timeline
+      if (duration > Duration.zero) {
+        final fraction = position.inMilliseconds / duration.inMilliseconds;
+        // The slider starts at 32px padding. 
+        // We calculate the absolute screen X for the notch.
+        final effectiveWidth = _sliderWidth > 0 ? _sliderWidth : (MediaQuery.of(context).size.width - 64);
+        _markerEditorAnchor = Offset(fraction * effectiveWidth, 0);
+      } else {
+        _markerEditorAnchor = Offset((MediaQuery.of(context).size.width - 64) / 2, 0);
+      }
+    });
+    ref.read(isMarkerEditorActiveProvider.notifier).state = true;
+  }
+
+  void _saveMarker(String content) async {
+    if (_editingMarker != null) {
+      await ref.read(markerActionsProvider)
+          .updateMarker(_currentItem.path, _editingMarker!.copyWith(content: content));
+    } else {
+      await ref.read(markerActionsProvider)
+          .addMarker(_currentItem.path, player.state.position, content);
+    }
+    
+    _closeMarkerEditor(resume: true);
+  }
+
+  void _closeMarkerEditor({bool resume = false}) {
+    if (resume) {
+      player.play();
+      _isPlayingNotifier.value = true;
+    }
+    
+    setState(() {
+      _isMarkerEditorActive = false;
+      _editingMarker = null;
+      _markerEditorAnchor = null;
+      // Force HUD to stay visible for 3 seconds after closing
+      // to show updated progress/play state
+      _onInteraction();
+    });
+    ref.read(isMarkerEditorActiveProvider.notifier).state = false;
+
+    // EPX-009: Restore focus to the player to ensure shortcuts work immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
     });
   }
 
@@ -876,6 +971,68 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   KeyEventResult _handleKeyEvent(KeyEvent event) {
     if (_isClosing) return KeyEventResult.ignored;
     _lastKeyEventTime = DateTime.now();
+
+    // EPX-009: Handle Space and other keys during marker editor
+    if (_isMarkerEditorActive) {
+      // Allow standard OS shortcuts (Ctrl+C, Ctrl+V, Ctrl+A, etc.) to pass through
+      final isControlPressed = HardwareKeyboard.instance.isControlPressed || 
+                               HardwareKeyboard.instance.isMetaPressed;
+      if (isControlPressed) return KeyEventResult.ignored;
+
+      if (event is KeyDownEvent) {
+        if (event.logicalKey == LogicalKeyboardKey.escape) {
+          _closeMarkerEditor(resume: true);
+          return KeyEventResult.handled;
+        }
+
+        if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+          final editor = _markerEditorKey.currentState;
+          if (editor != null && editor.isTagFieldFocused) {
+            editor.save();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored; // Let the custom set editor handle its own Enter
+        }
+        
+        // Block all shortcuts from triggering player actions while editor is open
+        // This includes Space (play/pause), arrows, M, F, T, etc.
+        // We let them through to the TextField by returning ignored ONLY for non-shortcut keys
+        // or keys that the TextField needs (like Space, Backspace).
+        
+        // If it's a key that normally triggers a player action, we return handled to consume it
+        // but we DON'T trigger the shake if it's a key the user might be typing (like a letter).
+        // Actually, we should only shake for keys that are definitely NOT text input.
+        
+        // Arrows should be ignored here so the TextField can use them to move the caret.
+        // We no longer shake the container for arrow keys when the editor is active.
+
+        // Specifically block Space and Backspace from triggering player actions,
+        // but return ignored so the TextField (child) can handle them for text entry.
+        if (event.logicalKey == LogicalKeyboardKey.space || 
+            event.logicalKey == LogicalKeyboardKey.backspace) {
+          return KeyEventResult.ignored;
+        }
+
+        // For other potential shortcut keys (F, M, T, etc.), we also return ignored
+        // to allow the TextField to process them as text input. 
+        // Bubbling to parent widgets (like PreviewContainer) is now handled 
+        // via focus checking in those widgets.
+        return KeyEventResult.ignored;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // BUG-FIX: Block Backspace and Alt+Arrows navigation in preview mode
+    final isAltPressed = HardwareKeyboard.instance.isAltPressed;
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.backspace || 
+         (isAltPressed && (event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.arrowRight))) {
+        if (widget.windowId == null && !widget.isStandalone) {
+          return KeyEventResult.handled; // Consume to prevent navigation
+        }
+      }
+    }
+
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
       if (event.logicalKey == LogicalKeyboardKey.space ||
           event.logicalKey == LogicalKeyboardKey.shiftLeft ||
@@ -931,6 +1088,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             _focusNode.requestFocus();
           }
         }
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.keyT) {
+        if (event is KeyDownEvent) _openMarkerEditor();
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyW &&
           HardwareKeyboard.instance.isControlPressed) {
@@ -1247,11 +1407,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     // Hide the main HUD (timeline, play button, etc.) during active trackpad gestures
     // to provide a cleaner view while adjusting volume/speed/scrubbing.
     final isVisible =
-        _isControlsVisible &&
+        (_isControlsVisible || _isMarkerEditorActive) &&
         _scrollLockAxis == null &&
         (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
 
-    return Focus(
+    return PopScope(
+      canPop: widget.windowId != null || widget.isStandalone,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Specifically block back navigation in preview mode
+      },
+      child: Focus(
       focusNode: _focusNode,
       autofocus: true,
       onFocusChange: (hasFocus) {
@@ -1262,9 +1428,36 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       },
       onKeyEvent: (node, event) => _handleKeyEvent(event),
         child: Listener(
-          onPointerSignal: _handlePointerScroll,
-          onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
-          onPointerPanZoomEnd: _handlePointerPanZoomEnd,
+          onPointerSignal: (event) {
+            if (_isMarkerEditorActive) {
+              // Only shake if the event is NOT on the marker editor
+              final RenderBox? box = _markerEditorKey.currentContext?.findRenderObject() as RenderBox?;
+              if (box != null) {
+                final Offset local = box.globalToLocal(event.position);
+                if (box.paintBounds.contains(local)) return; // Inside editor, don't shake
+              }
+              _markerEditorKey.currentState?.shake();
+              return;
+            }
+            _handlePointerScroll(event);
+          },
+          onPointerPanZoomUpdate: (event) {
+            if (_isMarkerEditorActive) {
+              // Only shake if the event is NOT on the marker editor
+              final RenderBox? box = _markerEditorKey.currentContext?.findRenderObject() as RenderBox?;
+              if (box != null) {
+                final Offset local = box.globalToLocal(event.position);
+                if (box.paintBounds.contains(local)) return; // Inside editor, don't shake
+              }
+              _markerEditorKey.currentState?.shake();
+              return;
+            }
+            _handlePointerPanZoomUpdate(event);
+          },
+          onPointerPanZoomEnd: (event) {
+            if (_isMarkerEditorActive) return;
+            _handlePointerPanZoomEnd(event);
+          },
           behavior: HitTestBehavior.translucent,
           child: GestureDetector(
             onTap: () => _focusNode.requestFocus(),
@@ -1292,10 +1485,16 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
               _showSeekIndicator();
               _onInteraction(); // Show HUD to indicate action
             },
-            child: Container(
-              color: Colors.black,
-              child: Stack(
-              children: [
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                _playerWidth = constraints.maxWidth;
+                _playerHeight = constraints.maxHeight;
+                
+                return Container(
+                  key: _playerKey,
+                  color: Colors.black,
+                  child: Stack(
+                  children: [
                 // Interaction Trigger Zone (Full Viewport)
                 Positioned.fill(
                   child: MouseRegion(
@@ -1362,6 +1561,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                       child: _buildSnapshotToast(),
                     ),
                   ),
+
 
                 // Volume Overlay (Right side)
                 Positioned(
@@ -1569,7 +1769,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                             StreamBuilder<Duration>(
                               stream: player.stream.position,
                               builder: (context, snapshot) {
-                                final position = snapshot.data ?? Duration.zero;
+                                final position = snapshot.data ?? player.state.position;
                                 final duration = player.state.duration;
                                 final remaining = duration - position;
                                 final progress = duration.inMilliseconds > 0
@@ -1612,98 +1812,139 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                               );
                                             },
                                             onHover: (event) {
-                                              // ZERO setState — just update the ValueNotifier.
-                                              // HoverPreview listens to this and manages
-                                              // its own rebuilds internally.
-                                              _hoverXNotifier.value = event.localPosition.dx;
+                                              // Strictly show preview only when hovering over the progress bar (bottom area)
+                                              // The track is at bottom: 20-30 of the 100px container (dy: 70-80)
+                                              final dy = event.localPosition.dy;
+                                              if (dy >= 65 && dy <= 95 && !_isHoveringMarker) {
+                                                _hoverXNotifier.value = event.localPosition.dx;
+                                              } else {
+                                                _hoverXNotifier.value = null;
+                                              }
                                             },
-                                            child: Stack(
-                                              clipBehavior: Clip.none,
-                                              children: [
-                                                SliderTheme(
-                                                  data: SliderTheme.of(context).copyWith(
-                                                    trackShape:
-                                                        GradientRectSliderTrackShape(
-                                                          gradient:
-                                                              AppTheme.primaryGradient,
+                                            child: CompositedTransformTarget(
+                                              link: _sliderLink,
+                                              key: _sliderKey,
+                                              child: SizedBox(
+                                                height: 100, // Increased height for radial marker menu
+                                                child: Stack(
+                                                clipBehavior: Clip.none,
+                                                alignment: Alignment.bottomCenter,
+                                                children: [
+                                                  Positioned(
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 20, // Move slider up slightly
+                                                    child: SliderTheme(
+                                                      data: SliderTheme.of(context).copyWith(
+                                                        trackShape: GradientRectSliderTrackShape(
+                                                          gradient: AppTheme.primaryGradient,
                                                         ),
-                                                    activeTrackColor: Colors.white,
-                                                    inactiveTrackColor: Colors.white
-                                                        .withOpacity(0.1),
-                                                    thumbShape:
-                                                        SliderComponentShape.noThumb,
-                                                    overlayShape:
-                                                        SliderComponentShape.noOverlay,
-                                                    trackHeight: 10.0,
-                                                  ),
-                                                  child: Slider(
-                                                    value: progress.clamp(0.0, 1.0),
-                                                    onChangeStart: (_) {
-                                                      _isScrubbing = true;
-                                                    },
-                                                    onChanged: (v) {
-                                                      _onInteraction();
-                                                      _showSeekIndicator();
-                                                      final targetMs = (v * duration.inMilliseconds).toInt();
-                                                      _pendingScrubPosition = Duration(milliseconds: targetMs);
-                                                      if (_scrubThrottleTimer?.isActive != true) {
-                                                        player.seek(_pendingScrubPosition!);
-                                                        _scrubThrottleTimer = Timer(
-                                                          const Duration(milliseconds: 100),
-                                                          () {
-                                                            if (_pendingScrubPosition != null && mounted && _isScrubbing) {
-                                                              player.seek(_pendingScrubPosition!);
+                                                        activeTrackColor: Colors.white,
+                                                        inactiveTrackColor: Colors.white.withOpacity(0.1),
+                                                        thumbShape: SliderComponentShape.noThumb,
+                                                        overlayShape: SliderComponentShape.noOverlay,
+                                                        trackHeight: 10.0,
+                                                      ),
+                                                      child: Slider(
+                                                        value: progress.clamp(0.0, 1.0),
+                                                        onChangeStart: (_) => _isScrubbing = true,
+                                                        onChanged: (v) {
+                                                          _onInteraction();
+                                                          _showSeekIndicator();
+                                                          final targetMs = (v * duration.inMilliseconds).toInt();
+                                                          _pendingScrubPosition = Duration(milliseconds: targetMs);
+                                                          if (_scrubThrottleTimer?.isActive != true) {
+                                                            player.seek(_pendingScrubPosition!);
+                                                            _scrubThrottleTimer = Timer(
+                                                              const Duration(milliseconds: 100),
+                                                              () {
+                                                                if (_pendingScrubPosition != null && mounted && _isScrubbing) {
+                                                                  player.seek(_pendingScrubPosition!);
+                                                                }
+                                                              },
+                                                            );
+                                                          }
+                                                        },
+                                                        onChangeEnd: (v) {
+                                                          _isScrubbing = false;
+                                                          _scrubThrottleTimer?.cancel();
+                                                          _smartDelayTimer?.cancel();
+                                                          _pendingScrubPosition = null;
+                                                          if (mounted) {
+                                                            setState(() => _isSmartBuffering = false);
+                                                          }
+                                                          if (player.platform is dynamic) {
+                                                            (player.platform as dynamic).setProperty('hr-seek', 'yes');
+                                                          }
+                                                          player.seek(
+                                                            Duration(
+                                                              milliseconds: (v * duration.inMilliseconds).toInt(),
+                                                            ),
+                                                          );
+                                                          Future.delayed(const Duration(milliseconds: 200), () {
+                                                            if (player.platform is dynamic) {
+                                                              (player.platform as dynamic).setProperty('hr-seek', 'no');
                                                             }
-                                                          },
-                                                        );
-                                                      }
-                                                    },
-                                                    onChangeEnd: (v) {
-                                                      _isScrubbing = false;
-                                                      _scrubThrottleTimer?.cancel();
-                                                      _smartDelayTimer?.cancel();
-                                                      _pendingScrubPosition = null;
-                                                      if (mounted) {
-                                                        setState(() => _isSmartBuffering = false);
-                                                      }
-                                                      if (player.platform is dynamic) {
-                                                        (player.platform as dynamic).setProperty('hr-seek', 'yes');
-                                                      }
-                                                      player.seek(
-                                                        Duration(
-                                                          milliseconds: (v * duration.inMilliseconds).toInt(),
-                                                        ),
-                                                      );
-                                                      Future.delayed(const Duration(milliseconds: 200), () {
-                                                        if (player.platform is dynamic) {
-                                                          (player.platform as dynamic).setProperty('hr-seek', 'no');
-                                                        }
-                                                      });
-                                                    },
-                                                  ),
-                                                ),
-                                                // BUG-001: Hover thumbnail preview
-                                                // Positioned so it overlays without affecting Stack layout
-                                                Positioned(
-                                                  left: 0,
-                                                  right: 0,
-                                                  bottom: 24,
-                                                  child: IgnorePointer(
-                                                    child: AnimatedOpacity(
-                                                      duration: const Duration(milliseconds: 150),
-                                                      opacity: _isSliderHovered ? 1.0 : 0.0,
-                                                      child: HoverPreview(
-                                                        mediaPath: _currentItem.path,
-                                                        totalDuration: duration,
-                                                        sliderWidth: _sliderWidth,
-                                                        hoverXNotifier: _hoverXNotifier,
-                                                        isVisible: _isSliderHovered,
+                                                          });
+                                                        },
                                                       ),
                                                     ),
                                                   ),
-                                                ),
-                                              ],
+
+                                                  // EPX-009: Timeline Markers
+                                                  if (ref.watch(settingsProvider).value?.showMarkersOnTimeline ?? true)
+                                                    ...ref.watch(videoMarkersProvider(_currentItem.path)).maybeWhen(
+                                                      data: (markers) => markers.map((m) => TimelineMarker(
+                                                        marker: m,
+                                                        totalDuration: duration,
+                                                        sliderWidth: _sliderWidth,
+                                                        videoPath: _currentItem.path,
+                                                        hoverXNotifier: _hoverXNotifier,
+                                                        onTap: () {
+                                                          player.seek(m.timestamp);
+                                                          player.play();
+                                                        },
+                                                        onEdit: () => _openMarkerEditor(marker: m),
+                                                        onHoverChanged: (hovering) {
+                                                          if (mounted) {
+                                                            setState(() => _isHoveringMarker = hovering);
+                                                          }
+                                                        },
+                                                        onMenuVisibilityChanged: (visible) {
+                                                          if (mounted) {
+                                                            setState(() => _isMarkerMenuVisible = visible);
+                                                            if (visible) {
+                                                              _onInteraction(); // Ensure HUD is visible when menu opens
+                                                            }
+                                                          }
+                                                        },
+                                                      )),
+                                                      orElse: () => [],
+                                                    ),
+
+                                                  // BUG-001: Hover thumbnail preview
+                                                  Positioned(
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 24,
+                                                    child: IgnorePointer(
+                                                      child: AnimatedOpacity(
+                                                        duration: const Duration(milliseconds: 150),
+                                                        opacity: _isSliderHovered ? 1.0 : 0.0,
+                                                        child: HoverPreview(
+                                                          mediaPath: _currentItem.path,
+                                                          totalDuration: duration,
+                                                          sliderWidth: _sliderWidth,
+                                                          hoverXNotifier: _hoverXNotifier,
+                                                          isVisible: _isSliderHovered,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
+                                          ),
                                           );
                                         },
                                       ),
@@ -1891,10 +2132,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                   },
                                 ),
                                 const SizedBox(width: 16),
-                                StreamBuilder<bool>(
-                                  stream: player.stream.playing,
-                                  builder: (context, snapshot) {
-                                    final playing = snapshot.data ?? false;
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: _isPlayingNotifier,
+                                  builder: (context, playing, _) {
                                     return GestureDetector(
                                       onTap: () {
                                         _onInteraction();
@@ -2045,15 +2285,63 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                         ),
                       ),
                     ),
-                  ),
                 ),
-              ],
-            ),
+              ),
+
+              // EPX-009: Marker Editor Overlay with full-screen click-outside dismissal
+              if (_isMarkerEditorActive && _markerEditorAnchor != null)
+                Builder(
+                  builder: (context) {
+                    // We need to calculate the slider's position relative to the player's root stack
+                    final RenderBox? playerBox = _playerKey.currentContext?.findRenderObject() as RenderBox?;
+                    final RenderBox? sliderBox = _sliderKey.currentContext?.findRenderObject() as RenderBox?;
+                    
+                    double sliderX = 0;
+                    if (playerBox != null && sliderBox != null) {
+                      sliderX = sliderBox.localToGlobal(Offset.zero, ancestor: playerBox).dx;
+                    }
+
+                    final anchorX = sliderX + _markerEditorAnchor!.dx;
+                    final idealLeft = anchorX - 210;
+                    final clampedLeft = idealLeft.clamp(16.0, _playerWidth - 420 - 16.0);
+                    final notchOffset = anchorX - clampedLeft;
+
+                    return Positioned.fill(
+                      child: GestureDetector(
+                        onTap: () => _closeMarkerEditor(resume: true),
+                        behavior: HitTestBehavior.opaque,
+                        onScaleUpdate: (_) => _markerEditorKey.currentState?.shake(),
+                        onDoubleTap: () {}, 
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              left: clampedLeft,
+                              bottom: 104, // Aligned with the track top
+                              child: MarkerEditorOverlay(
+                                key: _markerEditorKey,
+                                initialContent: _editingMarker?.content,
+                                timestamp: _editingMarker?.timestamp ?? player.state.position,
+                                notchOffset: notchOffset,
+                                onSave: _saveMarker,
+                                onCancel: () => _closeMarkerEditor(resume: true),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
           ),
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  ),
+),
+),
+);
+}
 
   void _initStandalonePlaylist() async {
     try {
@@ -2208,9 +2496,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                     color: AppColors.violet.withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.camera_alt_rounded, 
-                    color: AppColors.violet, 
-                    size: 18
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: AppColors.violet,
+                    size: 18,
                   ),
                 ),
                 const SizedBox(width: 12),

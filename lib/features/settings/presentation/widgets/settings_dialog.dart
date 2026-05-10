@@ -634,6 +634,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   ),
                 ),
               ),
+              _buildSettingTile(
+                title: 'Show markers on timeline',
+                subtitle: 'Render saved markers above the video progress bar',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.showMarkersOnTimeline ?? true,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(showMarkersOnTimeline: value);
+                    });
+                  },
+                ),
+              ),
               const SizedBox(height: 40),
               _buildSectionHeader('Documents', _viewersKeys['Documents']!),
               _buildEmptySection('PDF and text document viewing settings.'),

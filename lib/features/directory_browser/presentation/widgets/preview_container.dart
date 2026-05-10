@@ -51,11 +51,16 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
         autofocus: true,
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {
+            // Block all shortcuts if the marker editor is active
+            if (ref.read(isMarkerEditorActiveProvider)) return KeyEventResult.ignored;
+
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
             final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
 
-            if (event.logicalKey == LogicalKeyboardKey.backspace || 
-                (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft) ||
+            final isVideo = widget.item.type == FileItemType.video;
+            
+            if ((event.logicalKey == LogicalKeyboardKey.backspace && !isVideo) || 
+                (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft && !isVideo) ||
                 (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyW)) {
               
               // Close preview immediately

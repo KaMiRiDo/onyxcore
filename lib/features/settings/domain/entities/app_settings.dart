@@ -31,6 +31,7 @@ class AppSettings extends Equatable {
     this.selectedHwDec = 'auto',
     this.cachedResolvedHwDec,
     this.trackpadSpeedControl = SpeedControlOption.off,
+    this.showMarkersOnTimeline = true,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -72,6 +73,9 @@ class AppSettings extends Equatable {
   /// Whether vertical scroll on the left side of the screen controls playback speed, and how it behaves on release.
   final SpeedControlOption trackpadSpeedControl;
 
+  /// Whether to render markers on the video timeline.
+  final bool showMarkersOnTimeline;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -86,6 +90,7 @@ class AppSettings extends Equatable {
     String? selectedHwDec,
     String? cachedResolvedHwDec,
     SpeedControlOption? trackpadSpeedControl,
+    bool? showMarkersOnTimeline,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -101,6 +106,7 @@ class AppSettings extends Equatable {
       selectedHwDec: selectedHwDec ?? this.selectedHwDec,
       cachedResolvedHwDec: cachedResolvedHwDec ?? this.cachedResolvedHwDec,
       trackpadSpeedControl: trackpadSpeedControl ?? this.trackpadSpeedControl,
+      showMarkersOnTimeline: showMarkersOnTimeline ?? this.showMarkersOnTimeline,
     );
   }
 
@@ -119,5 +125,6 @@ class AppSettings extends Equatable {
     selectedHwDec,
     cachedResolvedHwDec,
     trackpadSpeedControl,
+    showMarkersOnTimeline,
   ];
 }

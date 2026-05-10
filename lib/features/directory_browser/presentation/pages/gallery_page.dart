@@ -161,9 +161,10 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     // Watch search state at the top level to ensure rebuilds of shortcuts
     final isSearchActive = ref.watch(isSearchActiveProvider);
     final isLocationEditing = ref.watch(isLocationEditingProvider);
+    final isMarkerEditorActive = ref.watch(isMarkerEditorActiveProvider);
     
     return CallbackShortcuts(
-      bindings: _buildKeyBindings(isSearchActive, isLocationEditing),
+      bindings: _buildKeyBindings(isSearchActive, isLocationEditing, isMarkerEditorActive),
       child: Focus(
         focusNode: _focusNode,
         autofocus: true,
@@ -392,10 +393,10 @@ class _TabBody extends ConsumerWidget {
 
 extension _GalleryPageStateShortcuts on _GalleryPageState {
 
-  Map<ShortcutActivator, VoidCallback> _buildKeyBindings(bool isSearchActive, bool isLocationEditing) {
+  Map<ShortcutActivator, VoidCallback> _buildKeyBindings(bool isSearchActive, bool isLocationEditing, bool isMarkerEditorActive) {
     return {
       // Basic Navigation
-      if (!isSearchActive && !isLocationEditing)
+      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive)
         const SingleActivator(LogicalKeyboardKey.backspace): _goBack,
       const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _goBack,
       const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): _goForward,
@@ -403,13 +404,15 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       // Selection
       const SingleActivator(LogicalKeyboardKey.escape): () =>
           ref.read(selectionProvider.notifier).deselectAll(),
-      const SingleActivator(LogicalKeyboardKey.keyA, control: true): _selectAll,
+      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive)
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true): _selectAll,
 
       // Properties
-      const SingleActivator(LogicalKeyboardKey.enter, alt: true): _showProperties,
+      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive)
+        const SingleActivator(LogicalKeyboardKey.enter, alt: true): _showProperties,
 
       // File Operations
-      if (!isLocationEditing) ...{
+      if (!isLocationEditing && !isMarkerEditorActive) ...{
         const SingleActivator(LogicalKeyboardKey.keyC, control: true): _handleCopy,
         const SingleActivator(LogicalKeyboardKey.keyX, control: true): _handleCut,
         const SingleActivator(LogicalKeyboardKey.keyV, control: true): _handlePaste,

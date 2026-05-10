@@ -277,6 +277,7 @@ onyxcore/
 - **Sort overlay** with options: A-Z, Z-A, Size, Date, Type
 - Per-tab independent sort and filter state
 - Active filter shown with violet badge + clear button
+- **Custom Emoji Integration**: Custom emoji sets defined via the Marker Editor are automatically indexed by the global search provider, allowing user-defined keywords to surface custom emojis alongside built-in categories.
 
 #### 1.7 Context Menu
 - Glassmorphism backdrop-blur context menu
@@ -434,14 +435,15 @@ onyxcore/
 - **Playback memory** — resume from last position via Hive storage
 - **Auto-play next** — configurable in settings
 - **Fast seek** — hold arrow keys for continuous seeking
-- **Keyboard shortcuts**: Space (play/pause), ←/→ (seek), ↑/↓ (volume), M (mute), S (snapshot), F (fullscreen), [ ] (speed)
+- **Keyboard shortcuts**: Space (play/pause), ←/→ (seek), ↑/↓ (volume), M (mute), S (snapshot), F (fullscreen), [ ] (speed), **T (toggle marker editor)**
 - **FPS display** in top HUD metadata
 - **Resolution badge** (e.g., "1080p") in top HUD
 - **BubbleLoader Integration**: Replaced all generic loaders with the high-performance animated bubble system for loading/buffering/seeking
+- **Marker Editor Integration**: Dedicated overlay (triggered by 'T') for creating and managing timestamped tags and custom emoji sets.
 - **Managed Lifecycle & Stability**: 
   - **Stream Management**: All native engine listeners (tracks, duration, buffering) are stored in managed `StreamSubscription` objects and explicitly cancelled on disposal.
   - **Closing Guards**: Implements an `_isClosing` state flag that aborts all pending async tasks (like FPS fetching or metadata parsing) once the widget begins unmounting, preventing "Callback invoked after it has been deleted" native errors.
-  - **Key Isolation**: All UI control keys (audio, sub, playlist) are generated with unique path-based debug labels to ensure stability during `Hero` transitions.
+  - **Key Isolation**: All UI control keys (audio, sub, playlist, **marker editor**) are generated with unique path-based debug labels to ensure stability during `Hero` transitions.
 - **Standalone playlist scanning** — scans parent directory for video files
 
 #### 3.3 Sliding Window Seek & Buffering (BUG-001)
@@ -510,6 +512,28 @@ onyxcore/
 
 #### 3.7 Menu Tooltip
 - Custom `OverlayPortal`-based tooltip for playlist/menu items with hover trigger
+
+#### 3.8 Marker Editor & Custom Emoji Management
+- **Timestamped Tagging (Markers)**: 
+  - **Marker Creation**: Create timestamped tags with up to 20 characters via a glassmorphic overlay (triggered by the 'T' key).
+  - **Timeline Markers**: Visual violet indicators appear on the video progress bar at marker timestamps.
+  - **Interactive Timeline**:
+    *   **Single Tap**: Instantly seek to the marker's timestamp and resume playback.
+    *   **Double Tap**: Open the Marker Editor for the selected tag for rapid editing.
+  - **Search Integration**: Marker tags are indexed globally. Searching in the Gallery browser surfaces both filenames and specific video timestamps containing the matching tag.
+- **Dual-Layer Persistence**:
+  - **Sidecar Strategy**: Markers are saved to `.markers.json` files within a hidden `.onyxcore/` directory adjacent to the video file, ensuring portability across systems.
+  - **Robust Fallback**: For read-only filesystems (e.g., optical media), markers are automatically saved to the application's local support directory using a safe, path-hashed filename.
+- **Custom Emoji Set Engine**: 
+  - **Hive Persistence**: Custom emoji sets and keywords are stored in a dedicated Hive box (`custom_emojis`) for high-performance persistence across restarts.
+  - **Sidebar Navigation**: Scrollable category list with a professional thin scrollbar and counter-badges on custom folder icons (e.g., [1], [2]).
+  - **Context Menu Management**: Right-click custom category icons to open a menu with **Edit** and **Remove** options.
+  - **Glassmorphic Creation UI**: Full-width creation editor with placeholder support for the `'😀': 'keywords'` format.
+  - **Multi-line Definition**: Supports massive emoji sets via a scrollable text area with manual Enter-to-newline handling via `CallbackShortcuts` to bypass focus conflicts.
+- **Intelligent Input Routing**:
+  - **Priority-Based Events**: Keyboard events are routed to the active editor first. Arrow keys provide natural caret movement without triggering player seeks or UI shaking.
+  - **Shortcut Guarding**: Global gallery commands (Ctrl+C, V, A) are automatically disabled when the editor is active, ensuring standard text editing commands work perfectly.
+- **Stability Patching**: Uses dedicated `ScrollController` instances for all scrollable areas and `autofocus` with `FocusNode` for the editor to eliminate "no ScrollPosition" crashes and focus loss issues on Linux.
 
 ---
 

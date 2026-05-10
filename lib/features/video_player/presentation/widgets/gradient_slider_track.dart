@@ -32,24 +32,33 @@ class GradientRectSliderTrackShape extends RectangularSliderTrackShape {
       isDiscrete: isDiscrete,
     );
 
+    // BUG-FIX: Force the track to use the FULL width of the parentBox
+    // by overriding the default 24px margin in RectangularSliderTrackShape.
+    final Rect fullWidthRect = Rect.fromLTWH(
+      offset.dx,
+      trackRect.top,
+      parentBox.size.width,
+      trackRect.height,
+    );
+
     // The active and inactive track rectangles.
     final Rect activeTrackRect = Rect.fromLTRB(
-      trackRect.left,
-      trackRect.top,
+      fullWidthRect.left,
+      fullWidthRect.top,
       thumbCenter.dx,
-      trackRect.bottom,
+      fullWidthRect.bottom,
     );
     final Rect inactiveTrackRect = Rect.fromLTRB(
       thumbCenter.dx,
-      trackRect.top,
-      trackRect.right,
-      trackRect.bottom,
+      fullWidthRect.top,
+      fullWidthRect.right,
+      fullWidthRect.bottom,
     );
 
     final Paint activePaint = Paint()..shader = gradient.createShader(activeTrackRect);
     final Paint inactivePaint = Paint()..color = sliderTheme.inactiveTrackColor!;
 
-    final Radius radius = Radius.circular(trackRect.height / 2);
+    final Radius radius = Radius.circular(fullWidthRect.height / 2);
 
     context.canvas.drawRRect(
       RRect.fromRectAndRadius(activeTrackRect, radius),
