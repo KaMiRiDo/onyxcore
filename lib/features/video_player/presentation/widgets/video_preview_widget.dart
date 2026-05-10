@@ -1407,7 +1407,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     // Hide the main HUD (timeline, play button, etc.) during active trackpad gestures
     // to provide a cleaner view while adjusting volume/speed/scrubbing.
     final isVisible =
-        (_isControlsVisible || _isMarkerEditorActive) &&
+        (_isControlsVisible || _isMarkerEditorActive || _isMarkerMenuVisible) &&
         _scrollLockAxis == null &&
         (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
 
@@ -1460,7 +1460,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           },
           behavior: HitTestBehavior.translucent,
           child: GestureDetector(
-            onTap: () => _focusNode.requestFocus(),
+            onTap: () {
+              _focusNode.requestFocus();
+              _onInteraction();
+            },
             onDoubleTapDown: (details) {
               _doubleTapPosition = details.localPosition;
             },
@@ -1901,8 +1904,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                         videoPath: _currentItem.path,
                                                         hoverXNotifier: _hoverXNotifier,
                                                         onTap: () {
+                                                          if (player.platform is dynamic) {
+                                                            (player.platform as dynamic).setProperty('hr-seek', 'yes');
+                                                          }
                                                           player.seek(m.timestamp);
                                                           player.play();
+                                                          // Briefly keep high-precision seek active to ensure the frame is hit accurately
+                                                          Future.delayed(const Duration(milliseconds: 200), () {
+                                                            if (mounted && player.platform is dynamic) {
+                                                              (player.platform as dynamic).setProperty('hr-seek', 'no');
+                                                            }
+                                                          });
                                                         },
                                                         onEdit: () => _openMarkerEditor(marker: m),
                                                         onHoverChanged: (hovering) {
@@ -1915,6 +1927,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                             setState(() => _isMarkerMenuVisible = visible);
                                                             if (visible) {
                                                               _onInteraction(); // Ensure HUD is visible when menu opens
+                                                            } else {
+                                                              _onInteraction(); // Start fade-out timer when menu closes
                                                             }
                                                           }
                                                         },

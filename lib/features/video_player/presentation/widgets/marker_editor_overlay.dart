@@ -513,15 +513,27 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                 ),
               ),
               
-              // Downward pointing notch - Dynamically positioned
+              // Downward pointing notch - Unified with glassmorphism box
               Container(
                 width: 420,
                 alignment: Alignment.centerLeft,
                 child: Padding(
                   padding: EdgeInsets.only(left: (widget.notchOffset - 16).clamp(0.0, 420.0 - 32.0)),
-                  child: CustomPaint(
-                    size: const Size(32, 16),
-                    painter: NotchPainter(color: Colors.white.withOpacity(0.04)),
+                  child: ClipPath(
+                    clipper: TriangleClipper(),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                      child: Container(
+                        width: 32,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.04),
+                        ),
+                        child: CustomPaint(
+                          painter: NotchPainter(color: Colors.transparent), // Only draw borders now
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -930,4 +942,19 @@ class NotchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+class TriangleClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldDelegate) => false;
 }
