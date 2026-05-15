@@ -170,14 +170,21 @@ onyxcore/
 │       ├── document_viewer/
 │       │   └── presentation/widgets/
 │       │       └── markdown_preview_widget.dart # MD viewer + editor
-│       └── settings/
-│           ├── data/repositories/settings_repository_impl.dart
-│           ├── domain/
-│           │   ├── entities/app_settings.dart
-│           │   └── repositories/settings_repository.dart
+│       ├── settings/
+│       │   ├── data/repositories/settings_repository_impl.dart
+│       │   ├── domain/
+│       │   │   ├── entities/app_settings.dart
+│       │   │   └── repositories/settings_repository.dart
+│       │   └── presentation/
+│       │       ├── providers/settings_providers.dart
+│       │       └── widgets/settings_dialog.dart
+│       └── file_picker/
 │           └── presentation/
-│               ├── providers/settings_providers.dart
-│               └── widgets/settings_dialog.dart
+│               ├── providers/file_picker_notifier.dart
+│               └── widgets/
+│                   ├── custom_file_picker_dialog.dart
+│                   ├── file_entity_tile.dart
+│                   └── file_picker_preview_pane.dart
 ├── assets/icons/                          # SVG file-type icons
 └── pubspec.yaml
 ```
@@ -525,7 +532,9 @@ onyxcore/
 #### 3.8 Marker Editor & Custom Emoji Management
 - **Timestamped Tagging (Markers)**: 
   - **Marker Creation**: Create timestamped tags with up to 20 characters via a glassmorphic overlay (triggered by the 'T' key).
-  - **Timeline Markers**: Visual indicators (custom icons or red pins) appear on the video progress bar at marker timestamps.
+- **Timeline Markers**:
+  - **Enlarged Marker Icons**: Visual timeline markers feature a 20% larger icon footprint (**24x24px** for custom images, **22pt** for emojis) to ensure high visibility on high-resolution displays.
+  - **Optimized Padding**: Internal padding is reduced to **4px**, maximizing the icon's scale within the glassmorphic notched container.
   - **Interactive Timeline**:
     *   **Single Tap**: Instantly seek to the marker's timestamp and resume playback.
     *   **Secondary Tap**: Opens a radial menu for rapid editing or deletion.
@@ -538,6 +547,8 @@ onyxcore/
   - **Content Input**: Auto-focusing text field with 20-character limit and "Save" / "Cancel" glassmorphic buttons.
   - **Asset Library**: Integrated picker for standard emojis, custom emoji sets, and uploaded custom icons.
   - **Recents Ribbon**: Hive-backed ribbon that persists the last 12 used icons/emojis for rapid repeated tagging.
+  - **Individual Item Deletion**: The "Add Custom Icons" tab features a red-accented cross button for each entry, allowing users to prune the upload list before finalizing.
+  - **Persistent Add Entry**: The "Add New" input slot at the bottom of the list is protected from deletion, providing a permanent and clear entry point for new icon uploads.
   - **Custom Icon Pipeline**: Supports uploading PNG/JPG files; uses a background `compute` isolate to square-crop and resize to 96x96px for performance-optimized marker rendering.
 - **Dual-Layer Persistence**:
   - **Sidecar Strategy**: Markers are saved to `.markers.json` files within a hidden `.onyxcore/` directory adjacent to the video file, ensuring portability across systems.
@@ -547,10 +558,24 @@ onyxcore/
   - **Sidebar Navigation**: Scrollable category list with a professional thin scrollbar and counter-badges on custom folder icons (e.g., [1], [2]).
   - **Context Menu Management**: Right-click custom category icons to open a menu with **Edit** and **Remove** options.
   - **Emoji Definition Format**: Supports the `'😀': 'keywords'` definition format with multi-line support and manual Enter-key routing to prevent focus conflicts.
+- **Radial Interaction Menu**:
+  - Secondary-click on a timeline marker opens a high-performance radial menu with three key actions:
+    - **Edit (Top)**: Opens the Marker Editor overlay for content modification.
+    - **Delete (Left)**: Instantly removes the specific marker from the timeline and filesystem.
+    - **Delete All (Right)**: Triggers a global confirmation dialog to clear all markers for the current media.
+  - **Smart No-Overlap Positioning**: The radial menu implements collision detection that prevents buttons from overlapping or extending beyond the screen boundaries, even at the extreme edges of the player.
+- **Delete All Confirmation Dialog**:
+  - **Coordinate Synchronization**: Centers precisely above the marker icon with strict **16px horizontal clamping** from the video content edges.
+  - **Aesthetics**: Glassmorphic dark panel with `sigma: 16` backdrop blur, `white.withOpacity(0.2)` borders, and animated scale/fade transitions.
+  - **Safety**: Automatically holds HUD visibility active during interaction to prevent controls from disappearing mid-dialog.
 - **Intelligent Input Routing**:
   - **Priority-Based Events**: Keyboard events are routed to the active editor first. Arrow keys provide natural caret movement without triggering player seeks or UI shaking.
   - **Shortcut Guarding**: Global gallery commands (Ctrl+C, V, A) are automatically disabled when the editor is active, ensuring standard text editing commands work perfectly.
 - **Stability Patching**: Uses dedicated `ScrollController` instances for all scrollable areas and `autofocus` with `FocusNode` for the editor to eliminate "no ScrollPosition" crashes and focus loss issues on Linux.
+- **Asset Processing Isolate**: Uses a background `compute` isolate to square-crop and resize uploaded PNG/JPG icons to 96x96px, ensuring the UI thread remains responsive during library updates.
+- **Search Engine Integration**:
+  - **Keyword Indexing**: Marker tags and custom emojis are fully indexed by the global search provider.
+  - **Timestamp Resolution**: Search results surface specific video timestamps, allowing users to jump directly to the tagged moment from the Gallery view.
 
 ---
 
@@ -682,58 +707,43 @@ onyxcore/
 
 ---
 
-## Performance Risks & Recommended Solutions
+### 9. Custom File Picker
 
-| # | Risk | Location | Impact | Solution |
-|---|------|----------|--------|----------|
-| 1 | **No Isolate Pool** — each file copy spawns a new isolate | `LocalFileDatasource` | Resource exhaustion during batch ops (100+ files) | Implement centralized `IsolatePool` with configurable worker count |
-| 2 | **Unbounded directory listing** — `Isolate.run` loads entire directory into memory | `DirectoryItemsNotifier` | OOM on dirs with 50k+ files | Add pagination/virtualization; stream results from isolate |
-| 3 | **inotify watch limits** — Linux default is 8192 watches | `DirectoryWatcher` | Silent failure on large dir trees | Check `/proc/sys/fs/inotify/max_user_watches`; add error handling |
-| 4 | **Image thumbnails on main thread** — `Image.file` with `cacheWidth` still decodes on UI thread | `ItemCard._buildItemPreview` | Jank on image-heavy directories | Pre-generate thumbnails in isolate; use cached thumbnail files |
-| 5 | **Player lifecycle in preview mode** — Player created/disposed on every preview toggle | `VideoPreviewWidget` | Noticeable delay on rapid preview switching | Cache Player instances per path with LRU eviction |
-| 6 | **No error boundary** — unhandled exceptions in isolates crash silently | `TaskNotifier._processQueue` | Tasks stuck in "running" state forever | Add try/catch wrappers + timeout; surface errors to UI |
-| 7 | **SharedPreferences on main thread** — blocking I/O during settings read | `SettingsNotifier.build` | Frame drops on cold start | Move to async initialization; show splash screen |
-| 8 | **Large file history** — JSON file grows unbounded | `TaskHistoryProvider` | Slow load times, high memory | Add max history size; implement rotation/cleanup |
+#### 9.1 Architecture & Theme
+- **Onyx Monolith UI**: High-contrast dark grey (`#161616`) theme with full-screen `BackdropFilter` (sigma: 30) for a premium glassmorphic depth effect.
+- **Manrope Typography**: Standardized use of the project's primary 'Manrope' font across all UI elements (headers, file lists, buttons).
+- **Persistent Geometry**: Dialog width and height are resizable via a bottom-right handle and persisted via `SharedPreferences`.
+- **Blur Depth**: Uses `sigma: 30` backdrop blur to isolate the picker from the main application background.
 
----
+#### 9.2 Navigation & Selection
+- **Sidebar Quick Access**: Home, Documents, Downloads, Videos, Pictures, and Root shortcuts.
+- **History Navigation**: `Alt + ArrowLeft` (Back) and `Alt + ArrowRight` (Forward) support for directory history.
+- **Modifier-Key Multi-Selection**:
+  - **Ctrl + Click**: Individual additive selection.
+  - **Shift + Click**: Range selection using a persistent anchor tracking mechanism.
+  - **Ctrl + A**: Select all items in the current view.
+- **History Persistence**: Navigating to a folder maintains the user's scroll position and history stack for the session.
 
-## Redundant Code & Consolidation Opportunities
+#### 9.3 Live Preview Sidebar
+- **Scrollable Preview Pane**: Dedicated right-side panel that aggregates previews of all selected items.
+- **Auto-Scrolling Behavior**: The list automatically scrolls to the bottom whenever a new item is added to ensure the latest selection is always visible.
+- **Thumbnail Support**: Generates real-time thumbnails for image files; provides high-fidelity placeholders for other file types.
+- **Rich Metadata**: Each preview card displays the filename and formatted file size in high-contrast text.
 
-### 1. `formatBytes` — **4 duplicate implementations**
+#### 9.4 Validation & Safety
+- **Context-Aware "OPEN" Button**:
+  - Automatically disabled when no items are selected.
+  - Automatically disabled if any selected item is a folder (when file selection is required).
+  - Automatically disabled if selected items do not match the `allowedExtensions` filter.
+- **Gradient Warning Overlay**: Centered footer warning (`* Select only {extensions} files`) rendered with a `ShaderMask` Magenta-to-Violet gradient.
+- **Type Guarding**: Integrated logic to prevent directory selection in file-only contexts.
 
-| Location | Signature | Notes |
-|----------|-----------|-------|
-| `core/utils/string_utils.dart` | `StringUtils.formatBytes(int)` | ✅ **Canonical** |
-| `core/utils/directory_size_utils.dart` | `formatBytes(int)` | Top-level function, duplicate |
-| `widgets/task_history_view.dart` | `_formatBytes(int)` | Private method, duplicate |
-| `widgets/playlist_overlay.dart` | `_formatSize(int)` | Private method, different name |
-| `providers/device_provider.dart` | `_formatSize(double)` | Takes double, slightly different |
-
-**Action**: Consolidate all to `StringUtils.formatBytes()`. Add a `double` overload if needed.
-
-### 2. `_formatDuration` — **3 duplicate implementations**
-
-| Location | Format |
-|----------|--------|
-| `video_preview_widget.dart` | `HH:MM:SS` or `MM:SS` |
-| `waveform_scrubber.dart` | `M:SS` (no zero-pad minutes) |
-| `task_history_detail_view.dart` | `Xh Ym Zs` (prose format) |
-
-**Action**: Create `StringUtils.formatDuration()` with optional format parameter. The task history one uses a different format so it may stay separate.
-
-### 3. `_formatSize` in `PlaylistOverlay`
-- Identical logic to `StringUtils.formatBytes` — direct replacement.
-
-### 4. Gradient Slider Track — **2 implementations**
-- `GradientRectSliderTrackShape` in `gradient_slider_track.dart`
-- `_GradientRectSliderTrackShape` in `video_volume_overlay.dart`
-
-**Action**: Reuse the public `GradientRectSliderTrackShape` in the volume overlay.
-
-### 5. `_buildTopBarButton` pattern
-- Nearly identical button builder methods in `VideoPreviewWidget` and `MarkdownPreviewWidget`.
-- **Action**: Extract to `ViewerTopBar` or a shared utility widget.
+#### 9.5 Aesthetic Accents
+- **Gradient Folder Icons**: Folders in the file list are rendered with a linear Magenta-to-Violet gradient using `ShaderMask`.
+- **Gradient Primary Button**: The "OPEN" button features a full-width gradient background with no-glow styling for a flat, modern aesthetic.
+- **Interactive Cursor**: The resize handle dynamically changes the system cursor to a hand/pointer (`SystemMouseCursors.click`) on hover.
+- **Hidden File Toggle**: Integrated switch to show/hide dot-files (e.g., `.markers.json`).
 
 ---
 
-*Generated: 2026-05-06 | Comprehensive audit of 70 Dart source files across 6 feature modules.*
+*Generated: 2026-05-15 | Comprehensive audit of 72 Dart source files across 7 feature modules.*

@@ -18,13 +18,13 @@ import 'package:onyxcore/features/video_player/presentation/widgets/playback_spe
 import 'package:onyxcore/features/video_player/presentation/widgets/playlist_overlay.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/hover_preview.dart';
 import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
-import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/timeline_marker.dart';
+import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
@@ -2079,8 +2079,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                             },
                                             onLoadExternal: () async {
                                               final result =
-                                                  await FilePicker.pickFiles(
-                                                    type: FileType.custom,
+                                                  await CustomFilePickerDialog.show(
+                                                    context,
+                                                    title: 'SELECT SUBTITLE',
                                                     allowedExtensions: [
                                                       'srt',
                                                       'vtt',
@@ -2088,11 +2089,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                     ],
                                                   );
                                               if (result != null &&
-                                                  result.files.single.path !=
-                                                      null) {
+                                                  result.isNotEmpty) {
                                                 player.setSubtitleTrack(
                                                   SubtitleTrack.uri(
-                                                    result.files.single.path!,
+                                                    result.first.path,
                                                   ),
                                                 );
                                               }

@@ -80,6 +80,12 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> setFilePickerDimensions(double width, double height) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setFilePickerDimensions(width, height);
+    ref.invalidateSelf();
+  }
+
   Future<void> saveSettings(AppSettings settings) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.saveSettings(settings);

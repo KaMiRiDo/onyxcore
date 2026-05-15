@@ -32,6 +32,8 @@ class AppSettings extends Equatable {
     this.cachedResolvedHwDec,
     this.trackpadSpeedControl = SpeedControlOption.off,
     this.showMarkersOnTimeline = true,
+    this.filePickerWidth = 1000.0,
+    this.filePickerHeight = 650.0,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -76,6 +78,12 @@ class AppSettings extends Equatable {
   /// Whether to render markers on the video timeline.
   final bool showMarkersOnTimeline;
 
+  /// Default width for the custom file picker.
+  final double filePickerWidth;
+
+  /// Default height for the custom file picker.
+  final double filePickerHeight;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -91,6 +99,8 @@ class AppSettings extends Equatable {
     String? cachedResolvedHwDec,
     SpeedControlOption? trackpadSpeedControl,
     bool? showMarkersOnTimeline,
+    double? filePickerWidth,
+    double? filePickerHeight,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -107,6 +117,8 @@ class AppSettings extends Equatable {
       cachedResolvedHwDec: cachedResolvedHwDec ?? this.cachedResolvedHwDec,
       trackpadSpeedControl: trackpadSpeedControl ?? this.trackpadSpeedControl,
       showMarkersOnTimeline: showMarkersOnTimeline ?? this.showMarkersOnTimeline,
+      filePickerWidth: filePickerWidth ?? this.filePickerWidth,
+      filePickerHeight: filePickerHeight ?? this.filePickerHeight,
     );
   }
 
@@ -126,5 +138,7 @@ class AppSettings extends Equatable {
     cachedResolvedHwDec,
     trackpadSpeedControl,
     showMarkersOnTimeline,
+    filePickerWidth,
+    filePickerHeight,
   ];
 }

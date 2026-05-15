@@ -543,13 +543,13 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                             alignment: const Alignment(0, -0.3),
                             child: _isBase64 && _cachedImageBytes != null
                                 ? Padding(
-                                    padding: const EdgeInsets.only(bottom: 6.0),
+                                    padding: const EdgeInsets.only(bottom: 4.0),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
                                       child: Image.memory(
                                         _cachedImageBytes!, 
-                                        width: 20, 
-                                        height: 20, 
+                                        width: 24, 
+                                        height: 24, 
                                         fit: BoxFit.cover,
                                         gaplessPlayback: true, // Prevents flickering on minor rebuilds
                                       ),
@@ -557,7 +557,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                                   )
                                 : Text(
                                     displayEmoji,
-                                    style: const TextStyle(fontSize: 18),
+                                    style: const TextStyle(fontSize: 22),
                                   ),
                           ),
                         ),

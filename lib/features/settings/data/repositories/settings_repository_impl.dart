@@ -59,6 +59,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
         (e) => e.name == _prefs.getString('trackpad_speed_control'),
         orElse: () => SpeedControlOption.off,
       ),
+      filePickerWidth: _prefs.getDouble('filePickerWidth') ?? 1000.0,
+      filePickerHeight: _prefs.getDouble('filePickerHeight') ?? 650.0,
     );
 
   }
@@ -80,6 +82,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       await _prefs.remove('cachedResolvedHwDec');
     }
     await _prefs.setString('trackpad_speed_control', settings.trackpadSpeedControl.name);
+    await _prefs.setDouble('filePickerWidth', settings.filePickerWidth);
+    await _prefs.setDouble('filePickerHeight', settings.filePickerHeight);
   }
 
   @override
@@ -130,6 +134,12 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setTrackpadSpeedControl({required SpeedControlOption value}) async {
     await _prefs.setString('trackpad_speed_control', value.name);
+  }
+
+  @override
+  Future<void> setFilePickerDimensions(double width, double height) async {
+    await _prefs.setDouble('filePickerWidth', width);
+    await _prefs.setDouble('filePickerHeight', height);
   }
 
   // ——— Gallery Sorting ———

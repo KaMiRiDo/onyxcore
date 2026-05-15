@@ -38,6 +38,9 @@ abstract class SettingsRepository {
   /// Update the trackpad speed control setting.
   Future<void> setTrackpadSpeedControl({required SpeedControlOption value});
 
+  /// Update the file picker dimensions.
+  Future<void> setFilePickerDimensions(double width, double height);
+
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.

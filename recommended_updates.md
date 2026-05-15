@@ -287,6 +287,59 @@
 - Priority: **Medium**
 
 ---
+## Performance Risks & Recommended Solutions
+
+| # | Risk | Location | Impact | Solution |
+|---|------|----------|--------|----------|
+| 1 | **No Isolate Pool** — each file copy spawns a new isolate | `LocalFileDatasource` | Resource exhaustion during batch ops (100+ files) | Implement centralized `IsolatePool` with configurable worker count |
+| 2 | **Unbounded directory listing** — `Isolate.run` loads entire directory into memory | `DirectoryItemsNotifier` | OOM on dirs with 50k+ files | Add pagination/virtualization; stream results from isolate |
+| 3 | **inotify watch limits** — Linux default is 8192 watches | `DirectoryWatcher` | Silent failure on large dir trees | Check `/proc/sys/fs/inotify/max_user_watches`; add error handling |
+| 4 | **Image thumbnails on main thread** — `Image.file` with `cacheWidth` still decodes on UI thread | `ItemCard._buildItemPreview` | Jank on image-heavy directories | Pre-generate thumbnails in isolate; use cached thumbnail files |
+| 5 | **Player lifecycle in preview mode** — Player created/disposed on every preview toggle | `VideoPreviewWidget` | Noticeable delay on rapid preview switching | Cache Player instances per path with LRU eviction |
+| 6 | **No error boundary** — unhandled exceptions in isolates crash silently | `TaskNotifier._processQueue` | Tasks stuck in "running" state forever | Add try/catch wrappers + timeout; surface errors to UI |
+| 7 | **SharedPreferences on main thread** — blocking I/O during settings read | `SettingsNotifier.build` | Frame drops on cold start | Move to async initialization; show splash screen |
+| 8 | **Large file history** — JSON file grows unbounded | `TaskHistoryProvider` | Slow load times, high memory | Add max history size; implement rotation/cleanup |
+
+---
+
+## Redundant Code & Consolidation Opportunities
+
+### 1. `formatBytes` — **4 duplicate implementations**
+
+| Location | Signature | Notes |
+|----------|-----------|-------|
+| `core/utils/string_utils.dart` | `StringUtils.formatBytes(int)` | ✅ **Canonical** |
+| `core/utils/directory_size_utils.dart` | `formatBytes(int)` | Top-level function, duplicate |
+| `widgets/task_history_view.dart` | `_formatBytes(int)` | Private method, duplicate |
+| `widgets/playlist_overlay.dart` | `_formatSize(int)` | Private method, different name |
+| `providers/device_provider.dart` | `_formatSize(double)` | Takes double, slightly different |
+
+**Action**: Consolidate all to `StringUtils.formatBytes()`. Add a `double` overload if needed.
+
+### 2. `_formatDuration` — **3 duplicate implementations**
+
+| Location | Format |
+|----------|--------|
+| `video_preview_widget.dart` | `HH:MM:SS` or `MM:SS` |
+| `waveform_scrubber.dart` | `M:SS` (no zero-pad minutes) |
+| `task_history_detail_view.dart` | `Xh Ym Zs` (prose format) |
+
+**Action**: Create `StringUtils.formatDuration()` with optional format parameter. The task history one uses a different format so it may stay separate.
+
+### 3. `_formatSize` in `PlaylistOverlay`
+- Identical logic to `StringUtils.formatBytes` — direct replacement.
+
+### 4. Gradient Slider Track — **2 implementations**
+- `GradientRectSliderTrackShape` in `gradient_slider_track.dart`
+- `_GradientRectSliderTrackShape` in `video_volume_overlay.dart`
+
+**Action**: Reuse the public `GradientRectSliderTrackShape` in the volume overlay.
+
+### 5. `_buildTopBarButton` pattern
+- Nearly identical button builder methods in `VideoPreviewWidget` and `MarkdownPreviewWidget`.
+- **Action**: Extract to `ViewerTopBar` or a shared utility widget.
+
+---
 
 ## Priority Summary
 

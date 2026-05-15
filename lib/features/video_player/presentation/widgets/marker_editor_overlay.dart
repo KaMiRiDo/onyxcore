@@ -10,7 +10,7 @@ import 'emoji_data.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 import 'package:image/image.dart' as img;
 
 class CustomEmojiSet {
@@ -653,19 +653,20 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
 
   Future<void> _pickIconFiles(int index) async {
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
+      final result = await CustomFilePickerDialog.show(
+        context,
+        title: 'SELECT ICONS',
         allowedExtensions: ['png', 'jpg', 'jpeg'],
         allowMultiple: true,
       );
-
-      if (result != null && result.files.isNotEmpty) {
+      
+      if (result != null && result.isNotEmpty) {
         setState(() {
           if (_iconUploads[index].rawFilePath == null && _iconUploads[index].originalBytes == null) {
             _iconUploads.removeAt(index);
           }
           
-          for (var file in result.files) {
+          for (var file in result) {
             if (file.path == null) continue;
             final item = IconUploadItem(
               rawFilePath: file.path,
@@ -807,6 +808,29 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                         ),
                       ),
                     ),
+                    if (item.rawFilePath != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _iconUploads.removeAt(index);
+                              if (_iconUploads.isEmpty) {
+                                _iconUploads.add(IconUploadItem(tagController: TextEditingController()));
+                              }
+                            });
+                          },
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.close_rounded, color: Colors.redAccent, size: 16),
+                          ),
+                        ),
+                      ),
                   ],
                 );
               },
