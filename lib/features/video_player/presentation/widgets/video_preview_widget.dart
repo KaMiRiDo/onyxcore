@@ -495,18 +495,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   }
 
   Future<void> _savePlaybackPosition() async {
-    if (_isClosing) return;
+    // Capture state synchronously before any async operations or disposal
+    if (_isClosing || !mounted) return;
     final position = player.state.position.inMilliseconds;
     final duration = player.state.duration.inMilliseconds;
+    final path = _currentItem.path;
 
     // Don't save if near the end (95%)
     if (duration > 0 && position < (duration * 0.95)) {
-      await PlaybackMemoryRepository.savePosition(_currentItem.path, position);
+      await PlaybackMemoryRepository.savePosition(path, position);
     } else {
-      await PlaybackMemoryRepository.savePosition(
-        _currentItem.path,
-        0,
-      ); // Reset
+      await PlaybackMemoryRepository.savePosition(path, 0); // Reset
     }
   }
 
@@ -560,38 +559,58 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   @override
   void dispose() {
+    // 1. Mark as closing immediately to block incoming callbacks/state updates
     _isClosing = true;
+    
+    // 2. Unregister from all global observers
     WidgetsBinding.instance.removeObserver(this);
     if (widget.isStandalone) {
       windowManager.removeListener(this);
     }
-    _savePlaybackPosition();
-    _activeMenuEntry?.remove();
-    _activeMenuEntry = null;
+    
+    // 3. Stop all timers and animations
     _hideTimer?.cancel();
     _fastSeekTimer?.cancel();
     _volumeTimer?.cancel();
     _volumeOverlayTimer?.cancel();
     _seekIndicatorTimer?.cancel();
-    _trackSubscription?.cancel();
-    _completedSubscription?.cancel();
-    _bufferingSubscription?.cancel();
-    _errorSubscription?.cancel();
-    _playingSubscription?.cancel();
-    _isPlayingNotifier.dispose();
     _snapshotToastTimer?.cancel();
-    _smartDelayTimer?.cancel(); // BUG-001: Smart Delay cleanup
+    _smartDelayTimer?.cancel();
     _hoverExitTimer?.cancel();
-    _hoverXNotifier.dispose();
     _scrubThrottleTimer?.cancel();
     _scrollResetTimer?.cancel();
     _scrollVolumeTimer?.cancel();
     _scrollSpeedTimer?.cancel();
     _speedOverlayTimer?.cancel();
+
+    // 4. Cancel all stream subscriptions
+    _trackSubscription?.cancel();
+    _completedSubscription?.cancel();
+    _bufferingSubscription?.cancel();
+    _errorSubscription?.cancel();
+    _playingSubscription?.cancel();
     _audioTrackInitSubscription?.cancel();
     _subtitleTrackInitSubscription?.cancel();
+
+    // 5. Save position using a non-awaited call (we captured state if needed)
+    _savePlaybackPosition();
+
+    // 6. Dispose UI controllers
+    _isPlayingNotifier.dispose();
+    _hoverXNotifier.dispose();
     _focusNode.dispose();
-    player.dispose();
+    _activeMenuEntry?.remove();
+    _activeMenuEntry = null;
+
+    // 7. Final engine teardown
+    // We pause before disposing to ensure the native pipeline is idle
+    try {
+      player.pause();
+      player.dispose();
+    } catch (e) {
+      debugPrint('[VideoPlayer] Error during engine disposal: $e');
+    }
+    
     super.dispose();
   }
 
