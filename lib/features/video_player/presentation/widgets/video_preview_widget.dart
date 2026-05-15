@@ -635,12 +635,13 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   void _startHideTimer() {
     _hideTimer?.cancel();
-    if (_isAnyMenuVisible || _isMarkerEditorActive) return;
+    if (_isAnyMenuVisible || _isMarkerEditorActive || _isHoveringMarker) return;
     _hideTimer = Timer(const Duration(seconds: 2), () {
       if (mounted &&
           _isControlsVisible &&
           !_isScrubbing &&
           !_isMarkerEditorActive &&
+          !_isHoveringMarker &&
           !_isAnyMenuVisible) {
         setState(() => _isControlsVisible = false);
       }
@@ -697,7 +698,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
     
     // If marker editor or any menu is active, we don't start the hide timer
-    if (_isMarkerEditorActive || _isAnyMenuVisible) return;
+    if (_isMarkerEditorActive || _isAnyMenuVisible || _isHoveringMarker) return;
     
     _startHideTimer();
   }
@@ -859,13 +860,13 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     ref.read(isMarkerEditorActiveProvider.notifier).state = true;
   }
 
-  void _saveMarker(String content) async {
+  void _saveMarker(String content, String icon) async {
     if (_editingMarker != null) {
       await ref.read(markerActionsProvider)
-          .updateMarker(_currentItem.path, _editingMarker!.copyWith(content: content));
+          .updateMarker(_currentItem.path, _editingMarker!.copyWith(content: content, icon: icon));
     } else {
       await ref.read(markerActionsProvider)
-          .addMarker(_currentItem.path, player.state.position, content);
+          .addMarker(_currentItem.path, player.state.position, content, icon: icon);
     }
     
     _closeMarkerEditor(resume: true);
@@ -1903,6 +1904,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                         sliderWidth: _sliderWidth,
                                                         videoPath: _currentItem.path,
                                                         hoverXNotifier: _hoverXNotifier,
+                                                        isMarkerEditorActive: _isMarkerEditorActive,
                                                         onTap: () {
                                                           if (player.platform is dynamic) {
                                                             (player.platform as dynamic).setProperty('hr-seek', 'yes');
@@ -1920,6 +1922,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                         onHoverChanged: (hovering) {
                                                           if (mounted) {
                                                             setState(() => _isHoveringMarker = hovering);
+                                                            if (hovering) {
+                                                              _hideTimer?.cancel();
+                                                            } else {
+                                                              _onInteraction();
+                                                            }
                                                           }
                                                         },
                                                         onMenuVisibilityChanged: (visible) {
@@ -2334,6 +2341,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                               child: MarkerEditorOverlay(
                                 key: _markerEditorKey,
                                 initialContent: _editingMarker?.content,
+                                initialIcon: _editingMarker?.icon,
                                 timestamp: _editingMarker?.timestamp ?? player.state.position,
                                 notchOffset: notchOffset,
                                 onSave: _saveMarker,

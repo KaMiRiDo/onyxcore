@@ -439,11 +439,20 @@ onyxcore/
 - **FPS display** in top HUD metadata
 - **Resolution badge** (e.g., "1080p") in top HUD
 - **BubbleLoader Integration**: Replaced all generic loaders with the high-performance animated bubble system for loading/buffering/seeking
-- **Marker Editor Integration**: Dedicated overlay (triggered by 'T') for creating and managing timestamped tags and custom emoji sets.
+- **Marker Editor Integration**: Dedicated overlay (triggered by 'T', double-tap, or radial menu) for creating and managing timestamped tags and custom assets.
+- **Radial Interaction Menu**: Secondary-click on a timeline marker opens a high-performance radial menu with three key actions:
+  - **Edit (Top)**: Opens the Marker Editor overlay for content modification.
+  - **Delete (Left)**: Instantly removes the specific marker from the timeline and filesystem.
+  - **Delete All (Right)**: Triggers a global confirmation dialog to clear all markers for the current media.
+- **Smart No-Overlap Positioning**: The radial menu implements collision detection that prevents buttons from overlapping or extending beyond the screen boundaries, even at the extreme edges of the player.
+- **Delete All Confirmation Dialog**:
+  - **Coordinate Synchronization**: Centers precisely above the marker icon with strict **16px horizontal clamping** from the video content edges.
+  - **Aesthetics**: Glassmorphic dark panel with `sigma: 16` backdrop blur, `white.withOpacity(0.2)` borders, and animated scale/fade transitions.
+  - **Safety**: Automatically holds HUD visibility active during interaction to prevent controls from disappearing mid-dialog.
 - **Managed Lifecycle & Stability**: 
   - **Stream Management**: All native engine listeners (tracks, duration, buffering) are stored in managed `StreamSubscription` objects and explicitly cancelled on disposal.
   - **Closing Guards**: Implements an `_isClosing` state flag that aborts all pending async tasks (like FPS fetching or metadata parsing) once the widget begins unmounting, preventing "Callback invoked after it has been deleted" native errors.
-  - **Key Isolation**: All UI control keys (audio, sub, playlist, **marker editor**) are generated with unique path-based debug labels to ensure stability during `Hero` transitions.
+  - **Key Isolation**: All UI control keys (audio, sub, playlist, marker editor) are generated with unique path-based debug labels to ensure stability during `Hero` transitions.
 - **Standalone playlist scanning** — scans parent directory for video files
 
 #### 3.3 Sliding Window Seek & Buffering (BUG-001)
@@ -516,11 +525,20 @@ onyxcore/
 #### 3.8 Marker Editor & Custom Emoji Management
 - **Timestamped Tagging (Markers)**: 
   - **Marker Creation**: Create timestamped tags with up to 20 characters via a glassmorphic overlay (triggered by the 'T' key).
-  - **Timeline Markers**: Visual violet indicators appear on the video progress bar at marker timestamps.
+  - **Timeline Markers**: Visual indicators (custom icons or red pins) appear on the video progress bar at marker timestamps.
   - **Interactive Timeline**:
     *   **Single Tap**: Instantly seek to the marker's timestamp and resume playback.
+    *   **Secondary Tap**: Opens a radial menu for rapid editing or deletion.
     *   **Double Tap**: Open the Marker Editor for the selected tag for rapid editing.
+  - **Coordinate Synchronization**: The Marker Editor overlay uses a dynamic `notchOffset` calculation based on global `RenderBox` geometry to ensure the editor's visual anchor (the notch) always points precisely to the marker icon, even when the editor itself is clamped to viewport edges.
+  - **Edge Clamping Logic**: Both the Marker Editor and interaction dialogs implement a strict **16px horizontal margin** from the visual edge of the video content (discovered via render-tree traversal), preventing UI overflow and maintaining visual balance.
   - **Search Integration**: Marker tags are indexed globally. Searching in the Gallery browser surfaces both filenames and specific video timestamps containing the matching tag.
+- **Marker Editor Component**:
+  - **Notched Bubble Design**: High-fidelity glassmorphism with custom-painter notch, backdrop blur, and animated entry.
+  - **Content Input**: Auto-focusing text field with 20-character limit and "Save" / "Cancel" glassmorphic buttons.
+  - **Asset Library**: Integrated picker for standard emojis, custom emoji sets, and uploaded custom icons.
+  - **Recents Ribbon**: Hive-backed ribbon that persists the last 12 used icons/emojis for rapid repeated tagging.
+  - **Custom Icon Pipeline**: Supports uploading PNG/JPG files; uses a background `compute` isolate to square-crop and resize to 96x96px for performance-optimized marker rendering.
 - **Dual-Layer Persistence**:
   - **Sidecar Strategy**: Markers are saved to `.markers.json` files within a hidden `.onyxcore/` directory adjacent to the video file, ensuring portability across systems.
   - **Robust Fallback**: For read-only filesystems (e.g., optical media), markers are automatically saved to the application's local support directory using a safe, path-hashed filename.
@@ -528,8 +546,7 @@ onyxcore/
   - **Hive Persistence**: Custom emoji sets and keywords are stored in a dedicated Hive box (`custom_emojis`) for high-performance persistence across restarts.
   - **Sidebar Navigation**: Scrollable category list with a professional thin scrollbar and counter-badges on custom folder icons (e.g., [1], [2]).
   - **Context Menu Management**: Right-click custom category icons to open a menu with **Edit** and **Remove** options.
-  - **Glassmorphic Creation UI**: Full-width creation editor with placeholder support for the `'😀': 'keywords'` format.
-  - **Multi-line Definition**: Supports massive emoji sets via a scrollable text area with manual Enter-to-newline handling via `CallbackShortcuts` to bypass focus conflicts.
+  - **Emoji Definition Format**: Supports the `'😀': 'keywords'` definition format with multi-line support and manual Enter-key routing to prevent focus conflicts.
 - **Intelligent Input Routing**:
   - **Priority-Based Events**: Keyboard events are routed to the active editor first. Arrow keys provide natural caret movement without triggering player seeks or UI shaking.
   - **Shortcut Guarding**: Global gallery commands (Ctrl+C, V, A) are automatically disabled when the editor is active, ensuring standard text editing commands work perfectly.

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/video_marker.dart';
 import '../../data/repositories/marker_repository.dart';
+import 'package:hive/hive.dart';
 
 // Use FutureProvider for loading markers. 
 // We will use ref.invalidate() to trigger reloads after mutations.
@@ -16,13 +17,14 @@ class MarkerActions {
   final Ref ref;
   MarkerActions(this.ref);
 
-  Future<void> addMarker(String videoPath, Duration timestamp, String content) async {
+  Future<void> addMarker(String videoPath, Duration timestamp, String content, {String icon = '📍'}) async {
     final currentMarkers = await MarkerRepository.loadMarkers(videoPath);
     
     final newMarker = VideoMarker(
       id: const Uuid().v4(),
       timestamp: timestamp,
       content: content,
+      icon: icon,
     );
     
     final updatedMarkers = [...currentMarkers, newMarker]
