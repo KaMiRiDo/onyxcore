@@ -666,17 +666,27 @@ onyxcore/
 - **Per-folder Sort Settings** — map persisted in SharedPreferences
 
 #### 6.2 Settings Dialog
-- **Full-screen blur backdrop** (`BackdropFilter` sigmaX/Y: 8) with semi-transparent overlay
-- **Dialog dimensions**: 760×560px, rounded 24px corners, dark glassmorphism panel with shadow
-- **3-tab layout**: General, Viewers, Security — via `TabController`
-- **Custom gradient tab indicator**: `GradientUnderlineTabIndicator` — draws a 3px gradient underline using a custom `BoxPainter` with `AppTheme.primaryGradient`, rounded top corners
-- **Active tab text**: `ShaderMask` gradient; inactive: `AppColors.textMuted`
-- **Sub-sidebar navigation**: Each tab has a 170px left sidebar listing its sections; clicking a section smooth-scrolls to it (500ms `easeOutQuart`)
-- **Section headers**: Uppercase, violet, 12px, `w800` weight, `letterSpacing: 1.2`
-- **Draft/save pattern**: Settings are loaded into `_draftSettings` on open; edits modify only the draft. "Save" commits the draft via `SettingsNotifier.saveSettings()` and closes. Closing without saving prompts a "Discard Changes?" confirmation dialog.
-- **PopScope guard**: Prevents accidental back-navigation; routes through `_handleClose()` for unsaved-changes check
-- **Custom OnyxSwitch**: A gradient toggle widget (44×24px) with `AnimatedContainer` + `AnimatedAlign`. Active state uses `AppTheme.primaryGradient`; inactive uses `Colors.white.withAlpha(20)`. White circular thumb with drop shadow.
-- Persisted via `SharedPreferences` through repository pattern
+- **Onyx Monolith UI**: High-contrast dark grey (`#161616`) theme with full-screen `BackdropFilter` (sigma: 30) for premium glassmorphic depth.
+- **Dynamic Geometry**: Dialog width and height are resizable via a bottom-right handle and persisted via `SharedPreferences`.
+- **Unified Typographic Hierarchy**: Standardized text scale for clear information architecture:
+    - Main Header: 16px (w800, Uppercase).
+    - Section Headers: 15px (w800, Uppercase, 1.5 tracking).
+    - Item Titles: 16px (w600).
+    - Subtitles: 13px (Muted, 1.4 line height).
+- **Redesigned Context-Box Dropdowns**: Custom-styled `PopupMenuButton` replaces standard dropdowns for a premium matte experience.
+    - **Rounded Geometry**: 12px menu radius with 10% opacity border.
+    - **Floating Surface**: `#161616` background with 24-elevation shadow depth.
+    - **Rounded Highlights**: 8px rounded selection backgrounds for menu items.
+    - **Dynamic Constraints**: Intelligent min-widths (60px–100px) based on content to eliminate horizontal dead space.
+    - **Compact Trigger**: 32px height trigger box with 8px radius and integrated arrow icon.
+- **3-tab layout**: General, Viewers, Security — via `TabController`.
+- **Custom gradient tab indicator**: `GradientUnderlineTabIndicator` — draws a 2px gradient underline using a custom `BoxPainter` with `AppTheme.primaryGradient`.
+- **Refined Vertical Rhythm**: Consolidated spacing logic (top: 28px on headers) to eliminate redundant gaps and create a tighter, more professional flow between configuration categories.
+- **Sub-sidebar navigation**: 180px left sidebar with `Colors.black.withOpacity(0.1)` background; clicking a section smooth-scrolls to it (500ms `easeOutQuart`).
+- **Edge-to-Edge Accents**: Header, Tab Bar section, and Footer feature discrete top/bottom borders (`white.withOpacity(0.05)`) for structural definition.
+- **Draft/save pattern**: Edits modify only `_draftSettings`; "Save" commits changes. Closing without saving triggers a "Discard Changes?" prompt.
+- **Interactive Handle**: Resize handle at bottom-right with dynamic color shift (`white24` to `white70`) during active interaction.
+- **Custom OnyxSwitch**: Gradient toggle widget used for all boolean settings.
 
 ---
 

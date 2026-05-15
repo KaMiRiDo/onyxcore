@@ -61,6 +61,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       ),
       filePickerWidth: _prefs.getDouble('filePickerWidth') ?? 1000.0,
       filePickerHeight: _prefs.getDouble('filePickerHeight') ?? 650.0,
+      settingsWidth: _prefs.getDouble('settingsWidth') ?? 760.0,
+      settingsHeight: _prefs.getDouble('settingsHeight') ?? 560.0,
     );
 
   }
@@ -84,6 +86,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setString('trackpad_speed_control', settings.trackpadSpeedControl.name);
     await _prefs.setDouble('filePickerWidth', settings.filePickerWidth);
     await _prefs.setDouble('filePickerHeight', settings.filePickerHeight);
+    await _prefs.setDouble('settingsWidth', settings.settingsWidth);
+    await _prefs.setDouble('settingsHeight', settings.settingsHeight);
   }
 
   @override
@@ -140,6 +144,12 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> setFilePickerDimensions(double width, double height) async {
     await _prefs.setDouble('filePickerWidth', width);
     await _prefs.setDouble('filePickerHeight', height);
+  }
+
+  @override
+  Future<void> setSettingsDimensions(double width, double height) async {
+    await _prefs.setDouble('settingsWidth', width);
+    await _prefs.setDouble('settingsHeight', height);
   }
 
   // ——— Gallery Sorting ———

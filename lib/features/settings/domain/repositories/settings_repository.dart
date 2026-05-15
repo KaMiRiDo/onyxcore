@@ -41,6 +41,9 @@ abstract class SettingsRepository {
   /// Update the file picker dimensions.
   Future<void> setFilePickerDimensions(double width, double height);
 
+  /// Update the settings dialog dimensions.
+  Future<void> setSettingsDimensions(double width, double height);
+
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.

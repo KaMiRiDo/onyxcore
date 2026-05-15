@@ -34,6 +34,8 @@ class AppSettings extends Equatable {
     this.showMarkersOnTimeline = true,
     this.filePickerWidth = 1000.0,
     this.filePickerHeight = 650.0,
+    this.settingsWidth = 760.0,
+    this.settingsHeight = 560.0,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -84,6 +86,12 @@ class AppSettings extends Equatable {
   /// Default height for the custom file picker.
   final double filePickerHeight;
 
+  /// Default width for the settings dialog.
+  final double settingsWidth;
+
+  /// Default height for the settings dialog.
+  final double settingsHeight;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -101,6 +109,8 @@ class AppSettings extends Equatable {
     bool? showMarkersOnTimeline,
     double? filePickerWidth,
     double? filePickerHeight,
+    double? settingsWidth,
+    double? settingsHeight,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -119,6 +129,8 @@ class AppSettings extends Equatable {
       showMarkersOnTimeline: showMarkersOnTimeline ?? this.showMarkersOnTimeline,
       filePickerWidth: filePickerWidth ?? this.filePickerWidth,
       filePickerHeight: filePickerHeight ?? this.filePickerHeight,
+      settingsWidth: settingsWidth ?? this.settingsWidth,
+      settingsHeight: settingsHeight ?? this.settingsHeight,
     );
   }
 
@@ -140,5 +152,7 @@ class AppSettings extends Equatable {
     showMarkersOnTimeline,
     filePickerWidth,
     filePickerHeight,
+    settingsWidth,
+    settingsHeight,
   ];
 }

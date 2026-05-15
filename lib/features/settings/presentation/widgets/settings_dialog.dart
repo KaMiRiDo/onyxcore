@@ -62,6 +62,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   String _activeViewersSection = 'Image';
   String _activeSecuritySection = 'Vault';
 
+  late double _width;
+  late double _height;
+  bool _isResizing = false;
+
   // Draft state for buffered saving
   AppSettings? _draftSettings;
   AppSettings? _originalSettings;
@@ -77,6 +81,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
+
+    final settings = ref.read(settingsProvider).value;
+    _width = settings?.settingsWidth ?? 760;
+    _height = settings?.settingsHeight ?? 560;
 
     // Handle initial section scrolling
     if (widget.initialSection != null) {
@@ -165,50 +173,78 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               Center(
                 child: Material(
                   type: MaterialType.transparency,
-                  child: Container(
-                    width: 760,
-                    height: 560,
-                    margin: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F0F0F).withAlpha(235),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withAlpha(30)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(160),
-                          blurRadius: 60,
-                          offset: const Offset(0, 20),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildHeader(),
-                            const SizedBox(height: 20),
-                            _buildTabBar(),
-                            const SizedBox(height: 8),
-                            Divider(color: Colors.white.withAlpha(20)),
-                            const SizedBox(height: 24),
-                            Expanded(
-                              child: TabBarView(
-                                controller: _tabController,
+                  child: SizedBox(
+                    width: _width,
+                    height: _height,
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF161616).withOpacity(0.98),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.6),
+                                    blurRadius: 60,
+                                    offset: const Offset(0, 30),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildGeneralTab(_draftSettings!),
-                                  _buildViewersTab(),
-                                  _buildSecurityTab(),
+                                  _buildHeader(),
+                                  _buildTabBarSection(),
+                                  Expanded(
+                                    child: TabBarView(
+                                      controller: _tabController,
+                                      children: [
+                                        _buildGeneralTab(_draftSettings!),
+                                        _buildViewersTab(),
+                                        _buildSecurityTab(),
+                                      ],
+                                    ),
+                                  ),
+                                  _buildFooter(),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            _buildFooter(),
-                          ],
+                          ),
                         ),
-                      ),
+                        
+                        // Resize Handle
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.resizeDownRight,
+                            child: GestureDetector(
+                              onPanStart: (_) => setState(() => _isResizing = true),
+                              onPanUpdate: (details) {
+                                setState(() {
+                                  _width = (_width + details.delta.dx).clamp(600, 1200);
+                                  _height = (_height + details.delta.dy).clamp(400, 900);
+                                });
+                              },
+                              onPanEnd: (_) {
+                                setState(() => _isResizing = false);
+                                ref.read(settingsProvider.notifier).setSettingsDimensions(_width, _height);
+                              },
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                padding: const EdgeInsets.all(4),
+                                child: CustomPaint(painter: _ResizeHandlePainter(color: _isResizing ? Colors.white70 : Colors.white24)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -288,57 +324,67 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   }
 
   Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Settings',
-          style: GoogleFonts.manrope(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'SETTINGS',
+            style: AppTheme.labelStyle.copyWith(
+              letterSpacing: 2.0,
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.8),
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-        IconButton(
-          onPressed: _handleClose,
-          icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
-          splashRadius: 20,
-        ),
-      ],
+          IconButton(
+            onPressed: _handleClose,
+            icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
+            splashRadius: 20,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBarSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.1),
+        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: _buildTabBar(),
     );
   }
 
   Widget _buildTabBar() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withAlpha(10), width: 1),
+    return TabBar(
+      controller: _tabController,
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 20),
+      dividerColor: Colors.transparent,
+      indicator: GradientUnderlineTabIndicator(
+        gradient: AppTheme.primaryGradient,
+        width: 2,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(2),
+          topRight: Radius.circular(2),
         ),
       ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        labelPadding: const EdgeInsets.only(left: 0, right: 32),
-        dividerColor: Colors.transparent, // We use the container border instead
-        indicator: GradientUnderlineTabIndicator(
-          gradient: AppTheme.primaryGradient,
-          width: 3,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(3),
-            topRight: Radius.circular(3),
-          ),
-        ),
-
-        indicatorSize: TabBarIndicatorSize.label,
-        labelColor: Colors.white,
-        unselectedLabelColor: AppColors.textMuted,
-        tabs: [
-          _buildTab(0, 'General'),
-          _buildTab(1, 'Viewers'),
-          _buildTab(2, 'Security'),
-        ],
-      ),
+      indicatorSize: TabBarIndicatorSize.label,
+      labelColor: Colors.white.withOpacity(0.9),
+      unselectedLabelColor: AppColors.textMuted.withOpacity(0.5),
+      tabs: [
+        _buildTab(0, 'General'),
+        _buildTab(1, 'Viewers'),
+        _buildTab(2, 'Security'),
+      ],
     );
   }
 
@@ -346,7 +392,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     final isSelected = _tabController.index == index;
     final style = GoogleFonts.manrope(
       fontSize: 14,
-      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+      letterSpacing: 0.5,
     );
 
     if (isSelected) {
@@ -376,7 +423,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           activeItem: _activeGeneralSection,
           onSelected: (section) => _scrollToSection(_generalKeys[section]!, section, 'General'),
         ),
-        const VerticalDivider(width: 1, color: Colors.white10),
         Expanded(
           child: ListView(
             controller: _generalScrollController,
@@ -398,120 +444,59 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               _buildSettingTile(
                 title: 'Max concurrent tasks',
                 subtitle: 'Maximum number of background file operations running simultaneously',
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  child: DropdownButton<int>(
-                    value: (settings.maxConcurrentTasks < 1 || settings.maxConcurrentTasks > 3) 
-                        ? 3 
-                        : settings.maxConcurrentTasks,
-                    dropdownColor: const Color(0xFF1A1A1A),
-                    underline: const SizedBox.shrink(),
-                    isDense: true,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    items: List.generate(3, (i) => i + 1)
-                        .map((v) => DropdownMenuItem(
-                              value: v,
-                              child: Text('$v'),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _draftSettings = _draftSettings!.copyWith(maxConcurrentTasks: value);
-                        });
-                      }
-                    },
-                  ),
+                trailing: _buildDropdown<int>(
+                  value: (settings.maxConcurrentTasks < 1 || settings.maxConcurrentTasks > 3) 
+                      ? 3 
+                      : settings.maxConcurrentTasks,
+                  options: List.generate(3, (i) => i + 1)
+                      .map((v) => MapEntry(v, '$v'))
+                      .toList(),
+                  minWidth: 60,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(maxConcurrentTasks: value);
+                    });
+                  },
                 ),
               ),
               _buildSettingTile(
                 title: 'Global default sort',
                 subtitle: 'The sort order used for folders without a specific preference',
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  child: DropdownButton<SortOption>(
-                    value: settings.globalSortOption,
-                    dropdownColor: const Color(0xFF1A1A1A),
-                    underline: const SizedBox.shrink(),
-                    isDense: true,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    items: SortOption.values
-                        .map<DropdownMenuItem<SortOption>>((v) => DropdownMenuItem<SortOption>(
-                              value: v,
-                              child: Text(v.label),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _draftSettings = _draftSettings!.copyWith(globalSortOption: value);
-                        });
-                      }
-                    },
-                  ),
+                trailing: _buildDropdown<SortOption>(
+                  value: settings.globalSortOption,
+                  options: SortOption.values
+                      .map((v) => MapEntry(v, v.label))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(globalSortOption: value);
+                    });
+                  },
                 ),
               ),
-              const SizedBox(height: 40),
               _buildSectionHeader('Sync', _generalKeys['Sync']!),
               _buildEmptySection('Sync settings and cloud integration options will appear here.'),
-              const SizedBox(height: 40),
               _buildSectionHeader('Performance', _generalKeys['Performance']!),
               _buildSettingTile(
                 title: 'Hardware Decoder',
                 subtitle: 'Choose the driver used for video decoding. Restart required.',
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  child: DropdownButton<String>(
-                    value: settings.selectedHwDec,
-                    dropdownColor: const Color(0xFF1A1A1A),
-                    underline: const SizedBox.shrink(),
-                    isDense: true,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    items: [
-                      ['auto', 'Auto (Recommended)'],
-                      ['vaapi', 'VA-API (AMD / Intel)'],
-                      ['nvdec', 'NVDEC (NVIDIA)'],
-                      ['d3d11va', 'D3D11VA (Windows)'],
-                      ['no', 'Software (CPU Fallback)'],
-                    ].map((v) => DropdownMenuItem<String>(
-                      value: v[0],
-                      child: Text(v[1]),
-                    )).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _draftSettings = _draftSettings!.copyWith(
-                            selectedHwDec: value,
-                            cachedResolvedHwDec: null, // Clear cache on manual change
-                          );
-                        });
-                      }
-                    },
-                  ),
+                trailing: _buildDropdown<String>(
+                  value: settings.selectedHwDec,
+                  options: const [
+                    MapEntry('auto', 'Auto (Recommended)'),
+                    MapEntry('vaapi', 'VA-API (AMD / Intel)'),
+                    MapEntry('nvdec', 'NVDEC (NVIDIA)'),
+                    MapEntry('d3d11va', 'D3D11VA (Windows)'),
+                    MapEntry('no', 'Software (CPU Fallback)'),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(
+                        selectedHwDec: value,
+                        cachedResolvedHwDec: null,
+                      );
+                    });
+                  },
                 ),
               ),
               const SizedBox(height: 100), // Space to allow scrolling to final section
@@ -530,7 +515,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           activeItem: _activeViewersSection,
           onSelected: (section) => _scrollToSection(_viewersKeys[section]!, section, 'Viewers'),
         ),
-        const VerticalDivider(width: 1, color: Colors.white10),
         Expanded(
           child: ListView(
             controller: _viewersScrollController,
@@ -538,7 +522,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
             children: [
               _buildSectionHeader('Image', _viewersKeys['Image']!),
               _buildEmptySection('Image viewer configuration options.'),
-              const SizedBox(height: 40),
               _buildSectionHeader('Video', _viewersKeys['Video']!),
               _buildSettingTile(
                 title: 'Auto play next',
@@ -567,71 +550,32 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               _buildSettingTile(
                 title: 'Seek time',
                 subtitle: 'The number of seconds to seek when using double-tap or arrow keys',
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  child: DropdownButton<int>(
-                    value: _draftSettings?.doubleTapSeekSeconds ?? 10,
-                    dropdownColor: const Color(0xFF1A1A1A),
-                    underline: const SizedBox.shrink(),
-                    isDense: true,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    items: [5, 10, 15, 20, 25, 30]
-                        .map((v) => DropdownMenuItem(
-                              value: v,
-                              child: Text('${v}s'),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _draftSettings = _draftSettings!.copyWith(doubleTapSeekSeconds: value);
-                        });
-                      }
-                    },
-                  ),
+                trailing: _buildDropdown<int>(
+                  value: _draftSettings?.doubleTapSeekSeconds ?? 10,
+                  options: [5, 10, 15, 20, 25, 30]
+                      .map((v) => MapEntry(v, '${v}s'))
+                      .toList(),
+                  minWidth: 80,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(doubleTapSeekSeconds: value);
+                    });
+                  },
                 ),
               ),
               _buildSettingTile(
                 title: 'Vertical Scroll Speed Control',
                 subtitle: 'Use the left side of the screen to control playback speed via trackpad',
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  child: DropdownButton<SpeedControlOption>(
-                    value: _draftSettings?.trackpadSpeedControl ?? SpeedControlOption.off,
-                    dropdownColor: const Color(0xFF1A1A1A),
-                    underline: const SizedBox.shrink(),
-                    isDense: true,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    items: SpeedControlOption.values
-                        .map((v) => DropdownMenuItem(
-                              value: v,
-                              child: Text(v.label),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _draftSettings = _draftSettings!.copyWith(trackpadSpeedControl: value);
-                        });
-                      }
-                    },
-                  ),
+                trailing: _buildDropdown<SpeedControlOption>(
+                  value: _draftSettings?.trackpadSpeedControl ?? SpeedControlOption.off,
+                  options: SpeedControlOption.values
+                      .map((v) => MapEntry(v, v.label))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(trackpadSpeedControl: value);
+                    });
+                  },
                 ),
               ),
               _buildSettingTile(
@@ -646,10 +590,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   },
                 ),
               ),
-              const SizedBox(height: 40),
               _buildSectionHeader('Documents', _viewersKeys['Documents']!),
               _buildEmptySection('PDF and text document viewing settings.'),
-              const SizedBox(height: 100),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -665,7 +608,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           activeItem: _activeSecuritySection,
           onSelected: (section) => _scrollToSection(_securityKeys[section]!, section, 'Security'),
         ),
-        const VerticalDivider(width: 1, color: Colors.white10),
         Expanded(
           child: ListView(
             controller: _securityScrollController,
@@ -673,10 +615,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
             children: [
               _buildSectionHeader('Vault', _securityKeys['Vault']!),
               _buildEmptySection('Secure vault storage and access control.'),
-              const SizedBox(height: 40),
               _buildSectionHeader('Encryption', _securityKeys['Encryption']!),
               _buildEmptySection('End-to-end encryption for file operations.'),
-              const SizedBox(height: 100),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -690,7 +631,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     required ValueChanged<String> onSelected,
   }) {
     return Container(
-      width: 170, // Reduced for a more compact and elegant look
+      width: 180,
+      color: Colors.black.withOpacity(0.1),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
       child: ListView.builder(
         itemCount: items.length,
@@ -717,7 +659,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? Colors.white : AppColors.textMuted,
+                    color: isSelected ? Colors.white.withOpacity(0.9) : AppColors.textMuted.withOpacity(0.6),
+                    letterSpacing: 0.3,
                   ),
                 ),
               ),
@@ -732,14 +675,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   Widget _buildSectionHeader(String title, GlobalKey key) {
     return Padding(
       key: key,
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      padding: const EdgeInsets.only(top: 28, bottom: 8),
       child: Text(
         title.toUpperCase(),
         style: GoogleFonts.manrope(
-          fontSize: 12,
+          fontSize: 15,
           fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
-          color: AppColors.violet,
+          letterSpacing: 1.5,
+          color: AppColors.violet.withOpacity(0.8),
         ),
       ),
     );
@@ -776,8 +719,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   title,
                   style: GoogleFonts.manrope(
                     fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withOpacity(0.85),
+                    letterSpacing: 0.2,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -785,7 +729,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   subtitle,
                   style: GoogleFonts.manrope(
                     fontSize: 13,
-                    color: AppColors.textMuted,
+                    color: AppColors.textMuted.withOpacity(0.5),
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -797,31 +742,106 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     );
   }
 
-  Widget _buildFooter() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: InkWell(
-        onTap: _handleSave,
+  Widget _buildDropdown<T>({
+    required T value,
+    required List<MapEntry<T, String>> options,
+    required ValueChanged<T> onChanged,
+    double minWidth = 100,
+  }) {
+    final selectedOption = options.firstWhere((o) => o.key == value);
+
+    return PopupMenuButton<T>(
+      offset: const Offset(0, 40),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.violet.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+      ),
+      color: const Color(0xFF161616),
+      elevation: 24,
+      onSelected: onChanged,
+      tooltip: '',
+      padding: EdgeInsets.zero,
+      constraints: BoxConstraints(minWidth: minWidth),
+      itemBuilder: (context) => options.map((opt) {
+        final isSelected = opt.key == value;
+        return PopupMenuItem<T>(
+          value: opt.key,
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.white.withOpacity(0.06) : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              opt.value,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? Colors.white : Colors.white.withOpacity(0.7),
               ),
-            ],
+            ),
           ),
-          child: Text(
-            'Save',
-            style: GoogleFonts.manrope(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
+        );
+      }).toList(),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              selectedOption.value,
+              style: GoogleFonts.manrope(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white.withOpacity(0.3),
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: InkWell(
+          onTap: _handleSave,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Save',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Colors.white.withOpacity(0.9),
+                letterSpacing: 1.0,
+              ),
             ),
           ),
         ),
@@ -878,5 +898,26 @@ class _GradientUnderlinePainter extends BoxPainter {
       canvas.drawRect(indicatorRect, paint);
     }
   }
+}
+
+class _ResizeHandlePainter extends CustomPainter {
+  final Color color;
+  _ResizeHandlePainter({this.color = Colors.white24});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+
+    // Draw three diagonal lines for the handle
+    canvas.drawLine(Offset(size.width * 0.7, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.7), paint);
+    canvas.drawLine(Offset(size.width * 0.4, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.4), paint);
+    canvas.drawLine(Offset(size.width * 0.1, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.1), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 

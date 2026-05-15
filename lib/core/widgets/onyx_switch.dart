@@ -37,13 +37,6 @@ class OnyxSwitch extends StatelessWidget {
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
               ),
             ),
           ),
