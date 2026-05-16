@@ -100,6 +100,7 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
     await datasource.moveItemTo(source, destinationPath, onProgress: onProgress, onSyncing: onSyncing, taskId: taskId, onPort: onPort);
     cache.invalidateRecursive(source);
     cache.invalidateRecursive(destinationPath);
+    cache.invalidate(p.dirname(source));
     cache.invalidate(p.dirname(destinationPath));
   }
 

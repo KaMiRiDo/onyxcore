@@ -230,3 +230,200 @@ class ConfirmDialog extends StatelessWidget {
     );
   }
 }
+
+/// A specialized, high-fidelity confirmation dialog for permanent deletions.
+class PermanentDeleteDialog extends StatelessWidget {
+  final int filesCount;
+  final int foldersCount;
+  final String totalSize;
+
+  const PermanentDeleteDialog({
+    super.key,
+    required this.filesCount,
+    required this.foldersCount,
+    required this.totalSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalItems = filesCount + foldersCount;
+    
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        width: 420,
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111111),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.6),
+              blurRadius: 50,
+              spreadRadius: 10,
+              offset: const Offset(0, 20),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Centered Trash Icon with Soft Glow
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.05),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.error.withOpacity(0.15), width: 1.5),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.error.withOpacity(0.9),
+                  size: 44,
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              "Are you sure?",
+              style: GoogleFonts.outfit(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: Colors.white.withOpacity(0.7),
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatItem(
+                    label: "Folders",
+                    value: foldersCount.toString(),
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                  _buildStatItem(
+                    label: "Files",
+                    value: filesCount.toString(),
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                  _buildStatItem(
+                    label: "Total Space",
+                    value: totalSize,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Refined Warning Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: AppColors.error.withOpacity(0.08)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.error.withOpacity(0.6),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "This action cannot be undone",
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: AppColors.error.withOpacity(0.6),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      "No, Cancel",
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      "Yes, Delete",
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 15),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.manrope(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: Colors.white24,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+}

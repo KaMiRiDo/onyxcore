@@ -54,8 +54,10 @@ class DirectoryWatcher {
           final changeType = _mapEventType(event.type);
           if (changeType == null) return;
 
-          // Fire CREATE and DELETE immediately for instant UI feedback
-          if (changeType == FileChangeType.create || changeType == FileChangeType.delete) {
+          // Fire CREATE, DELETE, and MOVE immediately for instant UI feedback
+          if (changeType == FileChangeType.create || 
+              changeType == FileChangeType.delete ||
+              event.type == FileSystemEvent.move) {
             _controller.add(FileChangeEvent(type: changeType, path: event.path));
             return;
           }

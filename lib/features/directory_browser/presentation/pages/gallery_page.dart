@@ -14,6 +14,7 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
@@ -34,11 +35,15 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/conflic
 import 'package:onyxcore/features/directory_browser/presentation/widgets/error_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
+import 'package:onyxcore/core/utils/app_launcher_utils.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/core/utils/directory_size_utils.dart';
+import 'dart:isolate';
 
 /// Main gallery page — slim orchestrator that composes all widgets.
 class GalleryPage extends ConsumerStatefulWidget {
@@ -202,8 +207,12 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                             ref.read(selectionProvider.notifier).deselectAll();
                                           },
                                           onSecondaryTapUp: (details) {
-                                            _focusNode.requestFocus();
-                                            ref.read(selectionProvider.notifier).deselectAll();
+                                            final clipboard = ref.read(clipboardProvider);
+                                            final currentPath = ref.read(currentPathProvider);
+                                            final tabId = ref.read(tabIdProvider);
+                                            final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
+                                            final allPaths = items.map((e) => e.path).toList();
+
                                             ContextMenu.show(context, details.globalPosition, [
                                               ContextMenuItem(
                                                 title: 'New Folder',
@@ -219,14 +228,55 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                                 },
                                               ),
                                               ContextMenuItem(
+                                                title: 'Open With',
+                                                icon: Icons.open_in_new_rounded,
+                                                onTap: () => OpenWithDialog.show(context, currentPath),
+                                              ),
+                                              ContextMenuItem(
+                                                title: 'Sort By',
+                                                icon: Icons.sort_rounded,
+                                                subItems: [
+                                                  _buildSortItem('A to Z', SortOption.aToZ, tabId),
+                                                  _buildSortItem('Z to A', SortOption.zToA, tabId),
+                                                  ContextMenuItem.divider(),
+                                                  _buildSortItem('Last Modified', SortOption.lastModified, tabId),
+                                                  _buildSortItem('First Modified', SortOption.firstModified, tabId),
+                                                  ContextMenuItem.divider(),
+                                                  _buildSortItem('Size (Small to Large)', SortOption.sizeSmallToLarge, tabId),
+                                                  _buildSortItem('Size (Large to Small)', SortOption.sizeLargeToSmall, tabId),
+                                                ],
+                                                onTap: () {},
+                                              ),
+                                              ContextMenuItem.divider(),
+                                              ContextMenuItem(
+                                                title: 'Refresh',
+                                                icon: Icons.refresh_rounded,
+                                                shortcut: 'F5, Ctrl+R',
+                                                onTap: _refresh,
+                                              ),
+                                              ContextMenuItem(
                                                 title: 'Paste',
                                                 icon: Icons.paste_rounded,
                                                 shortcut: 'Ctrl+V',
+                                                isEnabled: clipboard.paths.isNotEmpty,
                                                 onTap: _handlePaste,
                                               ),
                                               ContextMenuItem(
+                                                title: 'Select All',
+                                                icon: Icons.select_all_rounded,
+                                                shortcut: 'Ctrl+A',
+                                                onTap: () => ref.read(selectionProvider.notifier).selectAll(allPaths),
+                                              ),
+                                              ContextMenuItem(
+                                                title: 'Open in Terminal',
+                                                icon: Icons.terminal_rounded,
+                                                onTap: () => Process.start('gnome-terminal', ['--working-directory=$currentPath']),
+                                              ),
+                                              ContextMenuItem.divider(),
+                                              ContextMenuItem(
                                                 title: 'Properties',
                                                 icon: Icons.info_outline_rounded,
+                                                shortcut: 'Alt+Enter',
                                                 onTap: _showProperties,
                                               ),
                                             ]);
@@ -351,8 +401,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
             filteredDirectoryItemsProvider.overrideWith((ref) {
               final itemsAsync = ref.watch(directoryItemsProvider);
               final query = ref.watch(searchQueryProvider).toLowerCase();
-              final settingsAsync = ref.watch(settingsProvider);
-              final showHidden = settingsAsync.value?.showHiddenFiles ?? false;
+              final showHidden = ref.watch(settingsProvider.select((s) => s.value?.showHiddenFiles ?? false));
               
               return itemsAsync.whenData((items) {
                 var filtered = items;
@@ -440,6 +489,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       // Global Shortcuts
       const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(!isSearchActive),
       const SingleActivator(LogicalKeyboardKey.keyR, control: true): _refresh,
+      const SingleActivator(LogicalKeyboardKey.f5): _refresh,
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
         ref.read(backgroundPanelOpenProvider.notifier).state = !ref.read(backgroundPanelOpenProvider);
       },
@@ -592,6 +642,18 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (nav.currentPath.isNotEmpty) {
       ref.read(currentPathProvider.notifier).state = nav.currentPath;
     }
+  }
+
+  ContextMenuItem _buildSortItem(String title, SortOption option, String tabId) {
+    final tab = ref.read(tabManagerProvider).tabs.firstWhere((t) => t.id == tabId);
+    final currentSort = tab.sortSettings.option;
+    return ContextMenuItem(
+      title: title,
+      isSelected: currentSort == option,
+      onTap: () {
+        ref.read(tabManagerProvider.notifier).updateSortSettings(tabId, SortSettings(option: option));
+      },
+    );
   }
 
   void _selectAll() {
@@ -836,15 +898,19 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     final count = selection.selectedPaths.length;
     bool confirmed = false;
     if (effectivelyPermanent) {
-      confirmed = await showVibrantConfirmDialog(
+      // Calculate detailed stats for the confirmation dialog
+      final stats = await _calculateSelectionStats(selection.selectedPaths.toList());
+      
+      if (!mounted) return;
+
+      confirmed = await showDialog<bool>(
         context: context,
-        title: 'Delete Permanently',
-        message: effectivelyPermanent && !permanent 
-            ? 'Delete $count item(s) from Trash? This will permanently remove them.'
-            : 'Permanently delete $count item(s)? This cannot be undone.',
-        confirmLabel: 'Delete',
-        confirmColor: AppColors.error,
-      );
+        builder: (context) => PermanentDeleteDialog(
+          filesCount: stats.filesCount,
+          foldersCount: stats.foldersCount,
+          totalSize: StringUtils.formatBytes(stats.size),
+        ),
+      ) ?? false;
     } else {
       confirmed = true;
     }
@@ -1089,6 +1155,24 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       }
     }
     _focusNode.requestFocus();
+  }
+
+  Future<DirectorySizeUpdate> _calculateSelectionStats(List<String> paths) async {
+    final receivePort = ReceivePort();
+    try {
+      await Isolate.spawn(
+        calculateDirectorySizeIncremental,
+        DirectorySizeArgs(
+          paths: paths,
+          sendPort: receivePort.sendPort,
+        ),
+      );
+
+      final result = await receivePort.firstWhere((m) => m is DirectorySizeUpdate && m.isFinished);
+      return result as DirectorySizeUpdate;
+    } finally {
+      receivePort.close();
+    }
   }
 
   void _zoom(double delta) {

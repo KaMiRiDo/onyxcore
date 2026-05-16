@@ -5,12 +5,14 @@ import 'dart:isolate';
 /// Represents a progress update from the directory size calculation isolate.
 class DirectorySizeUpdate {
   final int size;
-  final int count;
+  final int filesCount;
+  final int foldersCount;
   final bool isFinished;
 
   DirectorySizeUpdate({
     required this.size,
-    required this.count,
+    required this.filesCount,
+    required this.foldersCount,
     required this.isFinished,
   });
 }
@@ -36,36 +38,33 @@ void calculateDirectorySizeIncremental(DirectorySizeArgs args) {
 
 Future<void> _processDirectoryAsync(DirectorySizeArgs args) async {
   int totalSize = 0;
-  int itemCount = 0;
+  int filesCount = 0;
+  int foldersCount = 0;
 
   try {
     for (final path in args.paths) {
       if (FileSystemEntity.isFileSync(path)) {
-        itemCount++;
+        filesCount++;
         try {
           totalSize += File(path).lengthSync();
         } catch (_) {}
-        
-        if (itemCount % args.updateFrequency == 0) {
-          args.sendPort.send(DirectorySizeUpdate(
-            size: totalSize,
-            count: itemCount,
-            isFinished: false,
-          ));
-        }
       } else if (FileSystemEntity.isDirectorySync(path)) {
+        foldersCount++;
         await for (final entity in Directory(path).list(recursive: true, followLinks: false)) {
-          itemCount++;
           if (entity is File) {
+            filesCount++;
             try {
               totalSize += entity.lengthSync();
             } catch (_) {}
+          } else if (entity is Directory) {
+            foldersCount++;
           }
 
-          if (itemCount % args.updateFrequency == 0) {
+          if ((filesCount + foldersCount) % args.updateFrequency == 0) {
             args.sendPort.send(DirectorySizeUpdate(
               size: totalSize,
-              count: itemCount,
+              filesCount: filesCount,
+              foldersCount: foldersCount,
               isFinished: false,
             ));
           }
@@ -79,7 +78,8 @@ Future<void> _processDirectoryAsync(DirectorySizeArgs args) async {
   // Send final update
   args.sendPort.send(DirectorySizeUpdate(
     size: totalSize,
-    count: itemCount,
+    filesCount: filesCount,
+    foldersCount: foldersCount,
     isFinished: true,
   ));
 }

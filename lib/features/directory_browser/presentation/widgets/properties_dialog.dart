@@ -28,7 +28,8 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
   Isolate? _isolate;
   
   int _currentSize = 0;
-  int _currentCount = 0;
+  int _currentFilesCount = 0;
+  int _currentFoldersCount = 0;
   bool _isCalculating = false;
   bool _hasError = false;
 
@@ -68,7 +69,8 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
       if (message is DirectorySizeUpdate) {
         setState(() {
           _currentSize = message.size;
-          _currentCount = message.count;
+          _currentFilesCount = message.filesCount;
+          _currentFoldersCount = message.foldersCount;
           if (message.isFinished) {
             _isCalculating = false;
             _cleanupIsolate();
@@ -331,6 +333,12 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
       return Text('Size: Unknown (Permission Denied)', style: GoogleFonts.manrope(color: Colors.white54, fontSize: 14));
     }
 
+    final totalItems = _currentFilesCount + _currentFoldersCount;
+    String detailText = '${NumberFormat.decimalPattern().format(totalItems)} items';
+    if (_currentFoldersCount > 0) {
+      detailText = '${NumberFormat.decimalPattern().format(_currentFoldersCount)} folders, ${NumberFormat.decimalPattern().format(_currentFilesCount)} files';
+    }
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -339,7 +347,7 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
           const SizedBox(width: 8),
         ],
         Text(
-          '${NumberFormat.decimalPattern().format(_currentCount)} items, totalling ${formatBytes(_currentSize)}',
+          '$detailText, totalling ${formatBytes(_currentSize)}',
           style: GoogleFonts.manrope(color: Colors.white70, fontSize: 14),
         ),
       ],

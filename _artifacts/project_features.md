@@ -20,7 +20,7 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `media_kit_libs_video` | ^1.0.7 | Native codec libraries |
 | **Window** | `desktop_multi_window` | ^0.3.0 | Multi-window IPC |
 | | `window_manager` | ^0.5.1 | Window lifecycle control |
-| **Storage** | `hive` / `hive_flutter` | ^2.2.3 | Local key-value persistence |
+| **Storage** | `hive` / `hive_flutter` | ^1.1.0 | Local key-value persistence |
 | | `shared_preferences` | ^2.2.3 | Settings persistence |
 | **UI** | `google_fonts` | ^6.2.1 | Typography (Manrope, Outfit, JetBrains Mono) |
 | | `flutter_svg` | ^2.2.4 | SVG icon rendering |
@@ -67,7 +67,8 @@ graph TB
             Domain["FileItem / SortSettings / FilterSettings / Device"]
             Providers["DirectoryProviders / TabManager / TaskNotifier / SelectionNotifier"]
             Pages["GalleryPage (Main Orchestrator)"]
-            BrowserWidgets["TopBar / Sidebar / FileGrid / ItemCard / ContextMenu"]
+            BrowserWidgets["TopBar / Sidebar / FileGrid / ItemCard / ContextMenu / OpenWithDialog / FilterOverlay / SortOverlay / BackgroundPanel / TaskHistory"]
+            Utils["AppLauncherUtils / DirectorySizeUtils / FileTypeUtils / StringUtils"]
         end
 
         subgraph ImageViewer["image_viewer"]
@@ -78,7 +79,7 @@ graph TB
         subgraph VideoPlayer["video_player"]
             VidPreview["VideoPreviewWidget"]
             HoverPrev["HoverPreview (ffmpeg subprocess)"]
-            VidWidgets["PlaylistOverlay / TrackSelector / SpeedControl / VolumeOverlay / VideoSpeedOverlay"]
+            VidWidgets["VideoPreviewWidget / MarkerEditor / HoverPreview / PlaylistOverlay / TrackSelector / VolumeOverlay / SpeedOverlay / TimelineMarker"]
             PlaybackMem["PlaybackMemoryRepository (Hive)"]
         end
 
@@ -348,6 +349,8 @@ onyxcore/
 - **Middle-truncated filenames** for long names (60% start + 30% end, max 35 chars)
 - File name rendered in Manrope font, 2-line max with ellipsis; font size scales with zoom (clamped at 0.8–1.1x)
 - **Non-Destructive Refresh**: Implements a persistent state mechanism in the grid. During directory updates, the current grid items remain visible instead of resetting to a loading state, completely eliminating UI flickering.
+- **Background Stability (Granular Reactivity)**: Optimized directory providers using `ref.watch(settingsProvider.select((s) => s.showHiddenFiles))` to exclusively monitor the hidden-files setting. This strictly prevents unwanted background file refreshes and UI stutters when opening, resizing, or interacting with overlays (Settings, Open With, etc.) that modify other application state.
+- **Isolate-Optimized Metadata**: Thumbnail aspect ratio extraction is deferred to background isolates and cached, ensuring the UI thread remains responsive even in folders with thousands of images.
 - **Seamless State Transitions**: Uses implicit type-based keys in `AnimatedSwitcher` to prevent duplicate-key crashes during rapid async directory refreshes
 - **Grid-level DragTarget**: The entire file grid background is a `DragTarget<List<String>>` — files dropped on empty grid space move to the current directory, with full conflict resolution (skip/overwrite/rename) and per-item progress tracking
 - **Refresh opacity dimming**: Grid content dims to 20% opacity (`AnimatedOpacity`) during active directory refresh
@@ -366,6 +369,12 @@ onyxcore/
 - **Copy** (Ctrl+C) / **Cut** (Ctrl+X) / **Paste** (Ctrl+V) via clipboard provider
 - **Move** via drag-and-drop onto folders, breadcrumb segments, or tab headers
 - **Delete to Trash** via `gio trash` (Delete key) — progress tracked per-item with `onProgress` callback
+- **Permanent Delete Confirmation**: 
+  - **Dashboard-Style Stats**: Features a dedicated statistics row displaying **Folders**, **Files**, and **Total Space** to be removed.
+  - **Design Pattern**: High-fidelity centered trash icon with a soft magenta/red glow and premium action buttons ("No, Cancel" / "Yes, Delete").
+  - **Matte Texture**: All dialog text is unified with a `white.withOpacity(0.7)` matte texture for a professional look.
+  - **Styled Warning Badge**: The irreversible nature of the action is highlighted via a pill-shaped info badge with an integrated icon and soft red tint.
+  - **Background Pre-Calculation**: Triggers an asynchronous isolate-based scan of the selection before the dialog appears to provide precise recursive item counts and size.
 - **Rename (Single)**: Notch-based inline popover that anchors precisely to the selected file item using a managed `GlobalKey` map.
 - **Rename (Bulk)**: Prefix/index modes via modal dialog.
 - **Rename task tracking**: Both single and bulk renames create lightweight background tasks (`isLight: true`) with per-item logging
@@ -379,7 +388,8 @@ onyxcore/
 - **Drag source dimming**: Items being actively dragged render at 30% opacity via `draggingPathsProvider`
 - **Multi-select drag**: If an item is already selected, dragging it drags all selected items; if unselected, it auto-selects and drags only that item
 - **Post-rename selection**: After rename, the old selection is cleared and the newly-renamed file path(s) are auto-selected
-- **Open in Terminal**: Context menu launches `gnome-terminal` at the item's directory (or parent directory for files)
+- **Open in Terminal**: Context menu launches `gnome-terminal` at the item's directory. This option is automatically hidden for file items to reduce clutter, remaining available exclusively for folders.
+- **Linux "Open With" Integration**: High-performance application discovery system that parses system `.desktop` files and uses `gio mime` to categorize compatible apps for any file or folder.
 
 #### 1.6 Search & Filter
 - **Instant search** filter in current directory (gradient-highlighted search bar)
@@ -391,17 +401,25 @@ onyxcore/
 - **Custom Emoji Integration**: Custom emoji sets defined via the Marker Editor are automatically indexed by the global search provider, allowing user-defined keywords to surface custom emojis alongside built-in categories.
 
 #### 1.7 Context Menu
-- Glassmorphism backdrop-blur context menu
-- Items: Open, Cut, Copy, Rename, Compress (placeholder), Move to Trash, Open in Terminal, Properties
-- Keyboard shortcut labels displayed
-- Destructive items shown in red
-- Hover highlight effect
-- Screen-edge collision detection
+- **Glassmorphism Backdrop-Blur Context Menu**: High-fidelity overlays with recursive submenu support and screen-boundary detection.
+- **Dynamic Action States**: Menu items like "Paste" are conditionally enabled based on clipboard state (refreshes automatically via Riverpod).
+- **Submenu Navigation**: Implementation of "Sort By" submenu with persistent per-folder settings.
+- **Priority-Ordered Actions**:
+  - **File/Folder**: 1. Open, 2. Open With, 3. Cut, 4. Copy, 5. **Refresh** (Strategic placement for ergonomics), 6. Rename, 7. Compress, 8. Move to Trash, 9. Open in Terminal (Folders only), 10. Properties.
+  - **Empty Space**: 1. New Folder, 2. New Document, 3. Open With (Folder), 4. Sort By (Submenu), 5. **Refresh** (Above Paste action), 6. Paste, 7. Select All, 8. Open in Terminal, 9. Properties.
+- **Unified Refresh Action**: Centralized refresh logic that invalidates caches and reloads the directory view.
+- **Refresh Ergonomics**: The refresh option is positioned immediately above the 'Paste' group in both item and background menus, providing a familiar and high-access entry point for manual directory synchronization.
+- **Shortcut Parity**: Full integration with **F5** and **Ctrl+R** shortcuts, ensuring keyboard-driven refreshes trigger the exact same consolidated logic as the UI menus.
+- **Keyboard Shortcut Labels**: Clear display of shortcuts (e.g., F5, Ctrl+R, Ctrl+Shift+N).
+- **Destructive items** shown in red with secondary confirmation logic.
+- **Hover highlight effect** with 200ms debounce for submenu triggers.
+- **Collision Detection**: Menus and submenus automatically flip horizontally if they would overflow the screen viewport.
 
 #### 1.8 Properties Dialog
 - Multi-file properties aggregation
-- Recursive directory size calculation via isolate (`computeDirectorySize`)
-- File count, total size, permissions display
+- **Detailed Statistics**: Displays separate counts for **Folders** and **Files** alongside total size, providing deeper insight into directory structures.
+- Recursive directory size calculation via enhanced isolate (`calculateDirectorySizeIncremental`) with per-item type tracking.
+- Permissions display and path navigation
 
 #### 1.9 Background Tasks Panel
 - **Slide-out panel** (25% of screen width) with animated open/close (300ms `easeOutCubic`), shadow and left border
@@ -421,6 +439,9 @@ onyxcore/
 #### 1.10 Directory Watching
 - **inotify-based** real-time directory monitoring via `FileSystemEntity.watch`
 - Debounced refresh (300ms) to batch rapid filesystem events
+- **Instant Move Reflection**: Optimized to fire **Move** events with zero latency (bypassing debounce), ensuring that cut items disappear immediately when pasted elsewhere.
+- **Automated Cache invalidation**: Moving or cutting items automatically invalidates the cache for both the source and target parent directories, guaranteeing data consistency across all open windows.
+- **Parent Invalidation Logic**: The repository explicitly invalidates parent directory caches for both source and destination during move operations, forcing an immediate reload of the affected file lists.
 - Auto-refresh on create, modify, delete, move events
 
 #### 1.11 Caching
@@ -430,6 +451,9 @@ onyxcore/
 
 #### 1.12 Empty State
 - Custom `EmptyStateView` for empty directories
+- **Aesthetic Refinement (Matte Finish)**: Redesigned for a premium, professional appearance with a focus on subtle typography and minimalism.
+- **Large Matte Iconography**: Centered icon increased to **160px** with a very subtle **0.08 opacity**, creating a clean "natural archive" feel without visual clutter.
+- **Typography Smoothing**: Uses `outfit` for titles (0.5 opacity) and `manrope` for subtitles (0.12 opacity) to achieve a non-glossy, integrated texture.
 - **Context-aware empty states**:
   - Search active + query: "No Results Found" with search icon + "Clear Search" action button
   - Filter active: "No Items Match" with filter icon + "Clear All Filters" action button
@@ -446,6 +470,19 @@ onyxcore/
 
 #### 1.14 Status Bar
 - Glassmorphism status notifications across viewers
+- **Open With Dialog**:
+  - **Categorized Discovery**: Displays "Default", "Recommended", and "All Apps" using Linux system MIME associations.
+  - **Onyx Monolith Styling**: Matte-dark theme with BackdropFilter, Outfit typography, and consistent padding.
+  - **Resizable Geometry**: Dialog width/height can be adjusted via a resize handle and is persisted across sessions via `SharedPreferences`.
+  - **Keyboard Navigation**:
+    *   **High-Speed Repeat**: Arrow keys feature a refined **150ms repeat logic** for responsive browsing through large application lists.
+    *   **Center-Focus Scrolling**: Advanced list logic that keeps the selected item centered in the viewport during navigation, providing superior visual tracking.
+  - **Persistent Search Focus**: The search box is **permanently active**. Any alphanumeric keypress immediately populates the search; the focus is maintained even after category switching or item interaction, ensuring the user is always one keystroke away from finding an app.
+  - **Global Category Search**: The search filter operates across **Default**, **Recommended**, and **All Apps** categories simultaneously, preventing missing results when an application is categorized unexpectedly.
+  - **Persistent Geometry**: Window dimensions (width/height) are stored in `SharedPreferences` and restored on each launch, allowing users to customize their preferred workspace layout.
+  - **Icon & Metadata Resolution**: Advanced parsing for dotted `.desktop` names (e.g., `org.gnome.Nautilus`, `org.gnome.TextEditor`) with intelligent resolution of symbolic system icons and standard theme fallbacks.
+  - **Manual Rescan**: Dedicated manual refresh button with a 360-degree `RotationTransition` animation for instant system-wide application re-discovery.
+  - **Launch Sanitization**: Handles complex `.desktop` `Exec` strings with field code expansion (e.g., `%f`, `%u`).
 - Custom `BubbleLoader` animated loading indicator (8 orbiting gradient bubbles)
 
 #### 1.15 Directory Items Pipeline

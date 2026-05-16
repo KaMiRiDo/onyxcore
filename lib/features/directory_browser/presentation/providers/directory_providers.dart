@@ -196,8 +196,7 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
   @override
   Future<List<FileItem>> build() async {
     final String path = ref.watch(currentPathProvider);
-    final settingsAsync = ref.watch(settingsProvider);
-    final showHidden = settingsAsync.value?.showHiddenFiles ?? false;
+    final showHidden = ref.watch(settingsProvider.select((s) => s.value?.showHiddenFiles ?? false));
 
     // Handle virtual paths (allow filtering if data exists)
     if (path.startsWith('virtual:')) {
@@ -278,12 +277,7 @@ final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref
   final itemsAsync = ref.watch(directoryItemsProvider);
   final filter = ref.watch(filterSettingsProvider);
   final query = ref.watch(searchQueryProvider).toLowerCase();
-  final settingsAsync = ref.watch(settingsProvider);
-  final showHidden = settingsAsync.when(
-    data: (s) => s.showHiddenFiles,
-    loading: () => false,
-    error: (_, __) => false,
-  );
+  final showHidden = ref.watch(settingsProvider.select((s) => s.value?.showHiddenFiles ?? false));
   
   return itemsAsync.whenData((items) {
     var filtered = items;

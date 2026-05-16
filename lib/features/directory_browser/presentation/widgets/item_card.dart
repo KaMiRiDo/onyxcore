@@ -17,6 +17,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
@@ -299,17 +300,25 @@ class _ItemCardState extends ConsumerState<ItemCard> {
   void _showContextMenu(BuildContext context, Offset position) {
     final selection = ref.read(selectionProvider).selectedPaths.toList();
     final paths = selection.isEmpty ? [widget.item.path] : selection;
+    final currentPath = ref.read(currentPathProvider);
 
     final menuItems = [
       if (paths.length == 1) ...[
         ContextMenuItem(
           title: 'Open',
+          icon: Icons.open_in_browser_rounded,
           onTap: widget.onDoubleTap,
+        ),
+        ContextMenuItem(
+          title: 'Open With...',
+          icon: Icons.open_in_new_rounded,
+          onTap: () => OpenWithDialog.show(context, widget.item.path),
         ),
         ContextMenuItem.divider(),
       ],
       ContextMenuItem(
         title: 'Cut',
+        icon: Icons.content_cut_rounded,
         shortcut: 'Ctrl+X',
         onTap: () {
           ref.read(clipboardProvider.notifier).cut(paths);
@@ -317,6 +326,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
       ),
       ContextMenuItem(
         title: 'Copy',
+        icon: Icons.content_copy_rounded,
         shortcut: 'Ctrl+C',
         onTap: () {
           ref.read(clipboardProvider.notifier).copy(paths);
@@ -324,9 +334,26 @@ class _ItemCardState extends ConsumerState<ItemCard> {
       ),
       ContextMenuItem.divider(),
       ContextMenuItem(
+        title: 'Refresh',
+        icon: Icons.refresh_rounded,
+        shortcut: 'F5, Ctrl+R',
+        onTap: () {
+          ref.read(directoryRepositoryProvider).invalidateCache(currentPath);
+          ref.read(refreshCountProvider.notifier).state = ref.read(refreshCountProvider) + 1;
+          ref.read(isRefreshingProvider.notifier).state = true;
+          ref.read(directoryItemsProvider.notifier).refresh();
+          Future.delayed(const Duration(milliseconds: 150), () {
+            ref.read(isRefreshingProvider.notifier).state = false;
+          });
+        },
+      ),
+      ContextMenuItem.divider(),
+      ContextMenuItem(
         title: 'Rename...',
+        icon: Icons.edit_rounded,
         shortcut: 'F2',
         onTap: () async {
+          // ... (Rename logic remains same)
           if (paths.length == 1) {
             final existingNames = ref.read(filteredDirectoryItemsProvider).value?.map((i) => i.name).toList() ?? [];
             RenamePopover.show(
@@ -443,12 +470,14 @@ class _ItemCardState extends ConsumerState<ItemCard> {
       ),
       ContextMenuItem(
         title: 'Compress...',
+        icon: Icons.archive_outlined,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compression coming soon.')));
         },
       ),
       ContextMenuItem(
         title: 'Move to Trash',
+        icon: Icons.delete_outline_rounded,
         shortcut: 'Delete',
         isDestructive: true,
         onTap: () async {
@@ -478,21 +507,18 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           }
         },
       ),
-      if (paths.length == 1) ...[
-        ContextMenuItem.divider(),
+      if (widget.item.type == FileItemType.folder)
         ContextMenuItem(
           title: 'Open in Terminal',
+          icon: Icons.terminal_rounded,
           onTap: () {
-            final targetDir = widget.item.type == FileItemType.folder 
-                ? widget.item.path 
-                : p.dirname(widget.item.path);
-            Process.run('gnome-terminal', ['--working-directory=$targetDir']);
+            Process.run('gnome-terminal', ['--working-directory=${widget.item.path}']);
           },
         ),
-      ],
       ContextMenuItem.divider(),
       ContextMenuItem(
         title: 'Properties',
+        icon: Icons.info_outline_rounded,
         shortcut: 'Alt+Return',
         onTap: () {
           showDialog(

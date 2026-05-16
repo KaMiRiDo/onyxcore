@@ -24,58 +24,50 @@ class EmptyStateView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(40),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
-            ),
-            child: ShaderMask(
-              shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-              child: Icon(
-                icon,
-                size: 80,
-                color: Colors.white,
-              ),
-            ),
+          Icon(
+            icon,
+            size: 160,
+            color: Colors.white.withOpacity(0.08),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           Text(
             title,
             style: GoogleFonts.outfit(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: -0.5,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withOpacity(0.5),
+              letterSpacing: -0.2,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Text(
               subtitle,
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
-                fontSize: 16,
-                color: Colors.white38,
-                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.12),
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
           if (onAction != null && actionLabel != null) ...[
-            const SizedBox(height: 48),
-            OutlinedButton(
+            const SizedBox(height: 40),
+            TextButton(
               onPressed: onAction,
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.white.withOpacity(0.1)),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white38,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.white.withOpacity(0.05)),
+                ),
               ),
               child: Text(
                 actionLabel!,
                 style: GoogleFonts.manrope(
-                  color: Colors.white70,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
