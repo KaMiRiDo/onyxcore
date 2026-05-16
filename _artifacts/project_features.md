@@ -22,17 +22,20 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `window_manager` | ^0.5.1 | Window lifecycle control |
 | **Storage** | `hive` / `hive_flutter` | ^2.2.3 | Local key-value persistence |
 | | `shared_preferences` | ^2.2.3 | Settings persistence |
-| **UI** | `google_fonts` | ^6.1.0 | Typography (Manrope, Outfit, JetBrains Mono) |
+| **UI** | `google_fonts` | ^6.2.1 | Typography (Manrope, Outfit, JetBrains Mono) |
 | | `flutter_svg` | ^2.2.4 | SVG icon rendering |
 | | `flutter_markdown` | ^0.7.1 | Markdown rendering |
 | **Utility** | `path` | ^1.9.0 | Path manipulation |
 | | `intl` | ^0.19.0 | Number formatting |
 | | `equatable` | ^2.0.7 | Value equality |
 | | `uuid` | ^4.5.3 | Unique ID generation |
-| | `file_picker` | ^11.0.2 | Native file dialogs |
+| | `file` | ^7.0.0 | Filesystem abstraction (DI for tests) |
+| | `image` | ^4.8.0 | Image processing |
 | | `path_provider` | ^2.1.5 | Platform directories |
 | | `watcher` | ^1.2.1 | File system watching |
 | **Lint** | `very_good_analysis` | ^10.1.0 | Static analysis rules |
+| **Test** | `flutter_test` | SDK | Widget testing framework |
+| | `mocktail` | ^1.0.4 | Mock object generation for tests |
 | **External** | `ffmpeg` (CLI) | system | Image editing (rotate, crop, brightness); hover thumbnail extraction (video preview) |
 | | `lsblk` / `udisksctl` (CLI) | system | Device detection & mounting |
 | | `gio` (CLI) | system | Trash operations |
@@ -117,12 +120,18 @@ onyxcore/
 ├── lib/
 │   ├── main.dart                          # Entry point, engine routing
 │   ├── app.dart                           # OnyxCoreApp MaterialApp wrapper
+│   ├── services/
+│   │   └── file_system_service.dart       # Abstracted FS via `file` package (DI-ready)
 │   ├── core/
 │   │   ├── cache/
 │   │   │   ├── directory_cache.dart       # In-memory dir cache (30s TTL)
 │   │   │   └── metadata_cache.dart        # Image aspect ratio cache
+│   │   ├── errors/
+│   │   │   ├── exceptions.dart            # Custom exception types
+│   │   │   └── failures.dart              # Failure models
 │   │   ├── platform/
-│   │   │   └── directory_watcher.dart     # inotify-based FS watcher
+│   │   │   ├── directory_watcher.dart     # inotify-based FS watcher
+│   │   │   └── disk_usage.dart            # Disk usage utilities
 │   │   ├── theme/
 │   │   │   ├── app_colors.dart            # Onyx Monolith color palette
 │   │   │   └── app_theme.dart             # Gradients, ThemeData
@@ -131,9 +140,13 @@ onyxcore/
 │   │   │   ├── file_type_classifier.dart  # Extension → FileItemType map
 │   │   │   ├── file_type_utils.dart       # Folder/file icon configs
 │   │   │   ├── directory_size_utils.dart  # Recursive size calc (isolate)
-│   │   │   └── formatters.dart            # Date/number formatters
+│   │   │   ├── extensions.dart            # Dart extension methods
+│   │   │   ├── formatters.dart            # Date/number formatters
+│   │   │   └── logger.dart                # Logging utility
 │   │   ├── widgets/
 │   │   │   ├── bubble_loader.dart         # Animated bubble loading indicator
+│   │   │   ├── onyx_switch.dart           # Gradient toggle switch widget
+│   │   │   ├── task_progress_overlay.dart # Task progress overlay widget
 │   │   │   └── viewer_top_bar.dart        # Shared glassmorphism top bar
 │   │   └── window_management/
 │   │       ├── persistent_viewer_manager.dart  # Window reuse manager
@@ -143,53 +156,144 @@ onyxcore/
 │   └── features/
 │       ├── directory_browser/
 │       │   ├── data/
-│       │   │   └── datasources/local_file_datasource.dart  # Isolate file ops
+│       │   │   ├── datasources/
+│       │   │   │   ├── local_file_datasource.dart     # Isolate file ops
+│       │   │   │   └── media_metadata_datasource.dart # Image metadata extraction
+│       │   │   └── repositories/
+│       │   │       └── directory_repository_impl.dart  # Repository implementation
 │       │   ├── domain/
 │       │   │   ├── entities/
 │       │   │   │   ├── file_item.dart          # Core file entity
 │       │   │   │   ├── sort_settings.dart       # Sort options enum
 │       │   │   │   ├── filter_settings.dart      # Filter criteria model
-│       │   │   │   └── device.dart              # Block device model
+│       │   │   │   ├── device.dart              # Block device model
+│       │   │   │   ├── directory_state.dart      # Directory state model
+│       │   │   │   ├── navigation_state.dart     # Navigation history state
+│       │   │   │   ├── selection_state.dart       # Selection state model
+│       │   │   │   └── tab_state.dart            # Tab state model
 │       │   │   └── repositories/
 │       │   │       └── directory_repository.dart # Repository interface
 │       │   └── presentation/
-│       │       ├── pages/gallery_page.dart      # Main UI orchestrator
-│       │       ├── providers/                   # 11 provider files
-│       │       └── widgets/                     # 22 widget files + sidebar/
+│       │       ├── pages/
+│       │       │   └── gallery_page.dart         # Main UI orchestrator
+│       │       ├── providers/
+│       │       │   ├── background_panel_provider.dart  # Background panel state
+│       │       │   ├── clipboard_provider.dart         # Copy/Cut clipboard state
+│       │       │   ├── conflict_provider.dart          # File conflict resolution
+│       │       │   ├── device_provider.dart            # Block device detection
+│       │       │   ├── directory_providers.dart        # Core directory state providers
+│       │       │   ├── navigation_notifier.dart        # Back/forward navigation
+│       │       │   ├── selection_notifier.dart         # Multi-select state
+│       │       │   ├── tab_manager.dart                # Tabbed interface state
+│       │       │   ├── task_history_provider.dart      # Persistent task history
+│       │       │   └── task_provider.dart              # Background task queue
+│       │       └── widgets/
+│       │           ├── action_bar.dart              # File operation action bar
+│       │           ├── background_panel.dart        # Slide-out tasks panel
+│       │           ├── background_processes_button.dart # Tasks panel toggle
+│       │           ├── conflict_dialog.dart          # Skip/Overwrite/Rename dialog
+│       │           ├── context_menu.dart             # Glassmorphism right-click menu
+│       │           ├── dialogs.dart                  # Common dialog utilities
+│       │           ├── empty_state_view.dart         # Empty folder/search/filter views
+│       │           ├── error_dialog.dart             # Error display dialog
+│       │           ├── file_grid.dart                # Responsive file grid layout
+│       │           ├── filter_overlay.dart           # Advanced file type filter
+│       │           ├── gnome_tab_bar.dart            # GNOME-style tab bar
+│       │           ├── item_card.dart                # File/folder card widget
+│       │           ├── item_preview.dart             # Inline file preview
+│       │           ├── preview_container.dart        # Preview type router
+│       │           ├── properties_dialog.dart        # File properties dialog
+│       │           ├── rename_dialog.dart            # Bulk rename modal
+│       │           ├── rename_popover.dart           # Inline rename popover
+│       │           ├── rubber_band_overlay.dart      # Lasso selection overlay
+│       │           ├── sort_overlay.dart             # Sort options overlay
+│       │           ├── task_history_detail_view.dart # Task history detail
+│       │           ├── task_history_view.dart        # Task history list
+│       │           ├── task_tile.dart                # Active task tile
+│       │           ├── top_bar.dart                  # Main window top bar
+│       │           └── sidebar/
+│       │               ├── sidebar.dart              # Main sidebar widget
+│       │               ├── sidebar_item.dart         # Sidebar navigation item
+│       │               ├── cloud_item.dart           # Cloud storage placeholder
+│       │               ├── devices_section.dart      # Block device list
+│       │               ├── overview_button.dart      # Sidebar overview button
+│       │               └── storage_indicator.dart    # Disk usage indicator
 │       ├── image_viewer/
 │       │   └── presentation/widgets/
 │       │       ├── image_preview_widget.dart    # Zoomable image viewer
 │       │       └── image_editor_overlay.dart    # ffmpeg-based editor
 │       ├── video_player/
 │       │   ├── data/repositories/
-│       │   │   └── playback_memory_repository.dart  # Resume position (Hive)
-│       │   └── presentation/widgets/           # 7 widget files (incl. hover_preview.dart)
+│       │   │   ├── playback_memory_repository.dart  # Resume position (Hive)
+│       │   │   └── marker_repository.dart           # Marker sidecar persistence
+│       │   ├── domain/entities/
+│       │   │   └── video_marker.dart                # Marker entity model
+│       │   └── presentation/
+│       │       ├── providers/
+│       │       │   └── video_markers_provider.dart  # Marker state management
+│       │       └── widgets/
+│       │           ├── video_preview_widget.dart     # Main video player widget
+│       │           ├── hover_preview.dart            # ffmpeg hover thumbnail
+│       │           ├── playlist_overlay.dart         # Video playlist panel
+│       │           ├── track_selector_menu.dart      # Audio/subtitle track picker
+│       │           ├── playback_speed_control.dart   # Speed preset selector
+│       │           ├── video_speed_overlay.dart      # Left-side speed slider
+│       │           ├── video_volume_overlay.dart     # Right-side volume slider
+│       │           ├── gradient_slider_track.dart    # Custom gradient slider shape
+│       │           ├── marker_editor_overlay.dart    # Marker tag editor
+│       │           ├── timeline_marker.dart          # Timeline marker icons
+│       │           ├── emoji_data.dart               # Emoji category data
+│       │           └── menu_tooltip.dart             # OverlayPortal tooltip
 │       ├── audio_player/
-│       │   ├── domain/entities/audio_track.dart
-│       │   └── presentation/                   # 4 widget files + providers
+│       │   ├── domain/entities/
+│       │   │   └── audio_track.dart                 # Audio track entity
+│       │   └── presentation/
+│       │       ├── pages/
+│       │       │   └── audio_player_view.dart       # Main audio player layout
+│       │       ├── providers/
+│       │       │   └── audio_player_providers.dart  # Audio state providers
+│       │       └── widgets/
+│       │           ├── hero_audio_player.dart        # Large album art player
+│       │           ├── waveform_scrubber.dart        # Procedural waveform widget
+│       │           ├── audio_controls_bar.dart       # Playback controls
+│       │           └── playlist_sidebar.dart         # Audio playlist panel
 │       ├── document_viewer/
 │       │   └── presentation/widgets/
-│       │       └── markdown_preview_widget.dart # MD viewer + editor
+│       │       └── markdown_preview_widget.dart     # MD viewer + editor
 │       ├── settings/
-│       │   ├── data/repositories/settings_repository_impl.dart
+│       │   ├── data/repositories/
+│       │   │   └── settings_repository_impl.dart    # SharedPreferences impl
 │       │   ├── domain/
-│       │   │   ├── entities/app_settings.dart
-│       │   │   └── repositories/settings_repository.dart
+│       │   │   ├── entities/app_settings.dart        # Settings entity
+│       │   │   └── repositories/settings_repository.dart # Repository interface
 │       │   └── presentation/
-│       │       ├── providers/settings_providers.dart
-│       │       └── widgets/settings_dialog.dart
+│       │       ├── providers/settings_providers.dart  # Settings state
+│       │       └── widgets/settings_dialog.dart       # Settings dialog UI
 │       └── file_picker/
 │           └── presentation/
-│               ├── providers/file_picker_notifier.dart
+│               ├── providers/
+│               │   └── file_picker_notifier.dart     # Picker state + FS provider
 │               └── widgets/
-│                   ├── custom_file_picker_dialog.dart
-│                   ├── file_entity_tile.dart
-│                   └── file_picker_preview_pane.dart
+│                   ├── custom_file_picker_dialog.dart # Picker dialog UI
+│                   ├── file_entity_tile.dart          # File list tile
+│                   └── file_picker_preview_pane.dart  # Selection preview pane
+├── services/
+│   └── file_system_service.dart           # (mirrored above under lib/)
+├── test/
+│   ├── helpers/
+│   │   └── file_system_helper.dart        # MemoryFileSystem factory + dummy tree
+│   ├── mocks/
+│   │   └── mocks.dart                     # Central Mocktail mock registry
+│   ├── unit/
+│   │   └── file_system_service_test.dart  # FileSystemService DI skeleton
+│   ├── widgets/
+│   │   └── file_grid_test.dart            # FileGrid widget DI skeleton
+│   └── widget_test.dart                   # Legacy placeholder
 ├── assets/icons/                          # SVG file-type icons
 └── pubspec.yaml
 ```
 
-**Total: ~70 Dart files across 6 feature modules and core infrastructure.**
+**Total: 113 Dart source files across 8 feature modules, core infrastructure, and services layer + 5 test files.**
 
 ---
 
@@ -756,4 +860,4 @@ onyxcore/
 
 ---
 
-*Generated: 2026-05-15 | Comprehensive audit of 72 Dart source files across 7 feature modules.*
+*Generated: 2026-05-16 | Comprehensive audit of 113 Dart source files + 5 test files across 8 feature modules, core infrastructure, and services layer.*
