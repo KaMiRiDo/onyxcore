@@ -36,6 +36,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/error_d
 import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/create_item_dialog.dart';
 import 'package:onyxcore/core/utils/app_launcher_utils.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
@@ -218,14 +219,12 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                                 title: 'New Folder',
                                                 icon: Icons.create_new_folder_rounded,
                                                 shortcut: 'Ctrl+Shift+N',
-                                                onTap: _handleNewFolder,
+                                                onTap: () => _handleNewItem(initialIsFolder: true),
                                               ),
                                               ContextMenuItem(
                                                 title: 'New Document',
                                                 icon: Icons.note_add_rounded,
-                                                onTap: () {
-                                                  // TODO: Implement new document
-                                                },
+                                                onTap: () => _handleNewItem(initialIsFolder: false),
                                               ),
                                               ContextMenuItem(
                                                 title: 'Open With',
@@ -471,7 +470,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
             _handleDelete(permanent: true),
         const SingleActivator(LogicalKeyboardKey.f2): _onF2Pressed,
         const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true):
-            _handleNewFolder,
+            () => _handleNewItem(initialIsFolder: true),
       },
 
       // Zoom
@@ -1126,31 +1125,47 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     }
   }
 
-  Future<void> _handleNewFolder() async {
+  Future<void> _handleNewItem({bool initialIsFolder = true}) async {
     final String currentPath = ref.read(currentPathProvider);
-    final name = await showInputDialog(
+    final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
+    final existingNames = items.map((i) => i.name).toList();
+
+    final result = await CreateItemDialog.show(
       context: context,
-      title: 'New Folder',
-      hint: 'Folder name',
+      currentPath: currentPath,
+      existingNames: existingNames,
+      initialIsFolder: initialIsFolder,
     );
-    if (name != null && name.isNotEmpty) {
+
+    if (result != null && result.contains(':')) {
+      final parts = result.split(':');
+      final type = parts[0];
+      final name = parts[1];
+
       final taskId = ref.read(taskProvider.notifier).addTask(
-        title: 'New Folder',
+        title: type == 'folder' ? 'New Folder' : 'New Document',
         subtitle: name,
         isLight: true,
       );
+
       final repo = ref.read(directoryRepositoryProvider);
-      final newFolderPath = p.join(currentPath, name);
+      final newItemPath = p.join(currentPath, name);
+
       try {
-        await repo.createFolder(currentPath, name, taskId: taskId);
+        if (type == 'folder') {
+          await repo.createFolder(currentPath, name, taskId: taskId);
+        } else {
+          await repo.createFile(currentPath, name, taskId: taskId);
+        }
+        
         ref.read(taskProvider.notifier).completeTask(taskId);
         await ref.read(directoryItemsProvider.notifier).refresh();
-        // Auto-select the new folder
-        ref.read(selectionProvider.notifier).selectMultiple([newFolderPath]);
+        // Auto-select the new item
+        ref.read(selectionProvider.notifier).selectMultiple([newItemPath]);
       } catch (e) {
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error creating folder: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error creating $type: $e')));
         }
       }
     }

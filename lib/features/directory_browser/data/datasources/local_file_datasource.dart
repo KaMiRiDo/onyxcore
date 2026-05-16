@@ -30,6 +30,14 @@ class LocalFileDatasource {
     }
   }
 
+  /// Create a new empty file in a parent directory.
+  Future<void> createFile(String parentPath, String name, {String? taskId}) async {
+    final file = File(p.join(parentPath, name));
+    if (!await file.exists()) {
+      await file.create(recursive: true);
+    }
+  }
+
   /// Delete items (files or folders).
   Future<void> deleteItems(List<String> paths, {void Function(int processed, int total)? onProgress, String? taskId, void Function(String message)? onLog}) async {
     for (int i = 0; i < paths.length; i++) {

@@ -44,6 +44,12 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   }
 
   @override
+  Future<void> createFile(String parentPath, String name, {String? taskId}) async {
+    await datasource.createFile(parentPath, name);
+    cache.invalidate(parentPath);
+  }
+
+  @override
   Future<void> deleteItems(
     List<String> paths, {
     required bool permanent,

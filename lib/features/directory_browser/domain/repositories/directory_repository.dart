@@ -14,6 +14,9 @@ abstract class DirectoryRepository {
   /// Create a new folder with [name] inside [parentPath].
   Future<void> createFolder(String parentPath, String name, {String? taskId});
 
+  /// Create a new file with [name] inside [parentPath].
+  Future<void> createFile(String parentPath, String name, {String? taskId});
+
   /// Delete items at the given [paths].
   /// If [permanent] is true, deletes permanently. Otherwise moves to trash.
   Future<void> deleteItems(List<String> paths, {required bool permanent, String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog});
