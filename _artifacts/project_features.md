@@ -617,11 +617,15 @@ onyxcore/
 - **Clamped Seek Helper** (`_clampedSeek`): All seek calls (arrow keys, double-tap, seek buttons) route through a helper that clamps the target `Duration` to `[0, player.state.duration]`, preventing circular wraparound (e.g., backward from 0:00 jumping to the video end).
 - **Fast Seek Timer** (`_startFastSeek`): Holding arrow keys fires `Timer.periodic(200ms)` for continuous seeking with `_isFastSeeking = true` flag active, fully suppressing the BubbleLoader.
 
-#### 3.4 Slider Scrub Optimization (BUG-001)
-- **Scrub Seek Throttle**: During active drag (`_isScrubbing = true`), seeks are throttled to one every **100ms** via `_scrubThrottleTimer`. Each `onChanged` event stores the latest target in `_pendingScrubPosition`; the throttle timer fires a catch-up seek to the latest position when it expires.
-- **Zero Loading During Scrub**: The BubbleLoader is completely suppressed during active scrubbing via a combined condition: `!_isFastSeeking && !_isScrubbing && (_isSmartBuffering || _isBuffering)`. Both fast seeks AND scrubbing are treated as user-driven operations that never show loading indicators.
-- **Smart Delay Buffering**: For non-seek buffering events (e.g., network stalls), a 200ms `_smartDelayTimer` delays the appearance of `_isSmartBuffering = true` to prevent sub-200ms buffer flickers from showing the loader.
-- **Precise Final Seek**: On `onChangeEnd`, `_isScrubbing` is reset, the scrub throttle is cancelled, and a single frame-accurate seek (`hr-seek: yes`) is issued to the exact release position.
+#### 3.4 Unified Virtual Seeking & Scrubbing (BUG-001)
+- **Unified Virtual Anchor**: All seeking modalities (trackpad gestures, slider drags, keyboard arrows, and manual buttons) share a centralized `_virtualScrubPosition` anchor. This prevents the media engine’s inherent playback latency from "pulling" the seek operation backward during rapid user interaction.
+- **Gesture-Aware Persistence**: Implemented a "virtual state persistence" mechanism for trackpad scrubbing. Successive swipes share a unified virtual anchor, and the state is preserved for **1 second of inactivity** after physical finger release before resetting to the physical playback timeline.
+- **Active Gesture Protection**: The virtual seek state is strictly protected during active physical interaction. If a user holds their fingers stationary on the trackpad, the cleanup timer returns early, allowing the user to resume scrubbing seamlessly from the same position after a pause.
+- **Playback Suspension (Anti-Oscillation)**: The player automatically **pauses** during active scrubbing/gestures and resumes (if it was previously playing) only upon gesture completion. This eliminates the "back and forth" playhead oscillations caused by the engine trying to play forward while being asked to seek backward.
+- **Scrub Seek Throttle**: During active interaction, seeks are throttled to one every **100ms** via `_scrubThrottleTimer`. Intermediate positions are stored in `_pendingScrubPosition`, and a catch-up seek is issued when the timer expires to ensure fluidity.
+- **Zero-Loading UI**: The `BubbleLoader` is completely suppressed during user-driven seeking (`_isFastSeeking || _isScrubbing`), providing an uninterrupted "NLE-style" scrubbing experience.
+- **High-Precision Finalization**: On gesture/drag completion, the system temporarily enables `hr-seek: yes` for a single frame-accurate seek to the final position before reverting to high-performance keyframe-only seeking.
+- **UI Synchronization**: Both the HUD progress bar and the seek-indicator timer prioritize the virtual position, ensuring the interface remains pinned to the user's intent even during heavy engine load.
 
 #### 3.5 Hover Preview System (EPX-008 / BUG-001)
 - **Architecture**: `HoverPreview` widget (`hover_preview.dart`) — a self-contained `StatefulWidget` that manages its own positioning, frame extraction, and rendering independently of the parent `VideoPreviewWidget`.

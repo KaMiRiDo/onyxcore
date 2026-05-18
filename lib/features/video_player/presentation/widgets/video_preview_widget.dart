@@ -98,6 +98,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isSeekIndicatorVisible = false;
   bool _isOpening = false;
   bool _isBuffering = false;
+  Timer? _virtualSeekCleanupTimer;
   StreamSubscription? _trackSubscription;
   StreamSubscription? _completedSubscription;
   StreamSubscription? _bufferingSubscription;
@@ -114,6 +115,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   double _playerHeight = 0;
   Timer? _smartDelayTimer;
   bool _isScrubbing = false;
+  bool _wasPlayingBeforeScrub = false;
   final GlobalKey _sliderKey = GlobalKey();
   final GlobalKey _playerKey = GlobalKey();
 
@@ -126,6 +128,24 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   // BUG-001: Scrub throttle state
   Timer? _scrubThrottleTimer;
   Duration? _pendingScrubPosition;
+  Duration? _virtualSeekPosition;
+
+  // Seek Engine Gateway: Throttle + Debounce
+  Timer? _engineSeekTimer;
+  DateTime _lastEngineSeekTime = DateTime.fromMillisecondsSinceEpoch(0);
+  final int _throttleMs = 400;
+  final int _debounceMs = 250;
+
+  /// Unified position the UI should render (OSD, progress bar, slider).
+  Duration get displayPosition {
+    if (_isScrubbing && _virtualScrubPosition != null) {
+      return _virtualScrubPosition!;
+    }
+    if (_isFastSeeking && _virtualSeekPosition != null) {
+      return _virtualSeekPosition!;
+    }
+    return player.state.position;
+  }
   StreamSubscription? _subtitleTrackInitSubscription;
 
   late final GlobalKey _audioKey;
@@ -221,7 +241,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       platform.setProperty('cache', 'yes');
       platform.setProperty('cache-secs', '60');
       platform.setProperty('cache-pause', 'no');
-      platform.setProperty('hr-seek', 'no');           // Default: keyframe seeking (fast)
+      platform.setProperty('hr-seek', 'yes');           // Exact seeking (prevents keyframe quantization)
       platform.setProperty('hr-seek-framedrop', 'yes');
       platform.setProperty('vd-lavc-fast', 'yes');
       
@@ -582,6 +602,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _scrollVolumeTimer?.cancel();
     _scrollSpeedTimer?.cancel();
     _speedOverlayTimer?.cancel();
+    _virtualSeekCleanupTimer?.cancel();
+    _engineSeekTimer?.cancel();
 
     // 4. Cancel all stream subscriptions
     _trackSubscription?.cancel();
@@ -1137,26 +1159,159 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     return KeyEventResult.ignored;
   }
 
-  void _startFastSeek({required bool isForward}) {
-    _fastSeekTimer?.cancel();
-    _isFastSeeking = true; // BUG-001: Suppress BubbleLoader during fast seeks
-    final seekSeconds =
-        ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
+  // ── Seek Engine Gateway (Throttle + Debounce) ─────────────────────
 
-    // Initial seek
-    _showSeekIndicator();
-    _clampedSeek(
-      player.state.position +
-          Duration(seconds: isForward ? seekSeconds : -seekSeconds),
-    );
+  void _requestEngineSeek(Duration targetPosition) {
+    // Clear any lingering scrub state so displayPosition uses the seek target
+    _isScrubbing = false;
+    _virtualScrubPosition = null;
+    _pendingScrubPosition = null;
 
-    _fastSeekTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
-      _showSeekIndicator();
-      _clampedSeek(
-        player.state.position +
-            Duration(seconds: isForward ? seekSeconds : -seekSeconds),
-      );
+    // 1. Instantly update the UI's source of truth
+    setState(() {
+      _virtualSeekPosition = targetPosition;
     });
+
+    // 2. Prevent play/seek fighting during rapid inputs
+    if (player.state.playing && !_isFastSeeking) {
+      _wasPlayingBeforeScrub = true;
+      player.pause();
+    }
+
+    final now = DateTime.now();
+    final timeSinceLastSeek = now.difference(_lastEngineSeekTime).inMilliseconds;
+
+    // Cancel any pending debounced seek
+    _engineSeekTimer?.cancel();
+
+    if (timeSinceLastSeek > _throttleMs) {
+      // THROTTLE: Give the user a visual frame update right now.
+      _dispatchToEngine(targetPosition);
+    } else {
+      // DEBOUNCE: Protect the engine from starvation. Wait for clicks to settle.
+      _engineSeekTimer = Timer(Duration(milliseconds: _debounceMs), () {
+        if (_virtualSeekPosition != null && mounted) {
+          _dispatchToEngine(_virtualSeekPosition!);
+        }
+      });
+    }
+  }
+
+  void _dispatchToEngine(Duration target) {
+    _lastEngineSeekTime = DateTime.now();
+    player.seek(target);
+    _scheduleVirtualStateCleanup();
+  }
+
+  void _scheduleVirtualStateCleanup() {
+    // CRITICAL: Kill ghost timers to prevent snapbacks
+    _virtualSeekCleanupTimer?.cancel();
+
+    // Wait 500ms for mpv to lock onto the keyframe and update its stream
+    _virtualSeekCleanupTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      // If another seek is pending, reschedule instead of silently aborting
+      if (_engineSeekTimer?.isActive ?? false) {
+        _scheduleVirtualStateCleanup();
+        return;
+      }
+
+      setState(() {
+        _virtualSeekPosition = null;
+        _isFastSeeking = false;
+      });
+
+      if (_wasPlayingBeforeScrub) {
+        player.play();
+        _wasPlayingBeforeScrub = false;
+      }
+    });
+  }
+
+  // ── Seek Triggers ────────────────────────────────────────────────
+
+  void _startFastSeek({required bool isForward}) {
+    setState(() {
+      _isFastSeeking = true;
+    });
+
+    _performStepSeek(isForward: isForward);
+
+    _fastSeekTimer?.cancel();
+    _fastSeekTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      _performStepSeek(isForward: isForward);
+    });
+  }
+
+  void _performStepSeek({required bool isForward}) {
+    // STRICT HANDOFF GUARD: If we have a valid scrub position, it means we just
+    // finished scrubbing. We MUST invalidate any dormant fast-seek state.
+    if (_virtualScrubPosition != null) {
+      _isFastSeeking = false;
+      _virtualSeekPosition = null;
+    }
+
+    final currentBase = (_isFastSeeking ? _virtualSeekPosition : null)
+        ?? _virtualScrubPosition
+        ?? player.state.position;
+    final seekSeconds = ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
+    final step = Duration(seconds: seekSeconds);
+
+    Duration target = isForward ? currentBase + step : currentBase - step;
+
+    // Clamp to valid range
+    if (target < Duration.zero) target = Duration.zero;
+    final dur = player.state.duration;
+    if (dur > Duration.zero && target > dur) target = dur;
+
+    setState(() {
+      _isFastSeeking = true;
+      // Clear scrub position now that we have safely used it as the base
+      _virtualScrubPosition = null;
+      _isScrubbing = false;
+    });
+
+    _showSeekIndicator();
+    _onInteraction();
+    _requestEngineSeek(target);
+  }
+
+  void _stopFastSeek() {
+    _fastSeekTimer?.cancel();
+    _fastSeekTimer = null;
+    _activeSeekKey = null;
+
+    // Force the debouncer to fire immediately on key release
+    if (_engineSeekTimer?.isActive ?? false) {
+      _engineSeekTimer?.cancel();
+      if (_virtualSeekPosition != null) {
+        _dispatchToEngine(_virtualSeekPosition!);
+      }
+    }
+  }
+
+  // ── Shared Utilities ─────────────────────────────────────────────
+
+  void _cleanupVirtualSeeking() {
+    if (!mounted) return;
+
+    // If a trackpad gesture is still active (fingers on pad),
+    // don't clear the virtual position yet.
+    if (_scrollLockAxis != null) return;
+
+    setState(() {
+      _isFastSeeking = false;
+      _virtualSeekPosition = null;
+      _isScrubbing = false;
+      _virtualScrubPosition = null;
+      _pendingScrubPosition = null;
+      _isSmartBuffering = false;
+    });
+
+    if (_wasPlayingBeforeScrub) {
+      player.play();
+      _wasPlayingBeforeScrub = false;
+    }
   }
 
   /// Seeks the main player, clamping to [0, duration] to prevent
@@ -1164,17 +1319,15 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   void _clampedSeek(Duration target) {
     final duration = player.state.duration;
     if (duration <= Duration.zero) return;
-    final clamped = Duration(
-      milliseconds: target.inMilliseconds.clamp(0, duration.inMilliseconds),
-    );
-    player.seek(clamped);
-  }
 
-  void _stopFastSeek() {
-    _fastSeekTimer?.cancel();
-    _fastSeekTimer = null;
-    _activeSeekKey = null;
-    _isFastSeeking = false; // BUG-001: Re-enable BubbleLoader
+    final clampedMs = target.inMilliseconds.clamp(0, duration.inMilliseconds);
+    final clamped = Duration(milliseconds: clampedMs);
+
+    if (clampedMs != target.inMilliseconds) {
+      _virtualSeekPosition = clamped;
+    }
+
+    player.seek(clamped);
   }
 
   void _handlePointerScroll(PointerSignalEvent signal) {
@@ -1198,9 +1351,18 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       final screenWidth = context.size?.width ?? MediaQuery.of(context).size.width;
 
       if (dx.abs() > dy.abs() && dx.abs() > 0.5) {
+        // Explicitly kill all step-seek state before initializing scrub
+        _virtualSeekPosition = null;
+        _isFastSeeking = false;
+        _engineSeekTimer?.cancel();
+        _virtualSeekCleanupTimer?.cancel();
+        _fastSeekTimer?.cancel();
+
         _scrollLockAxis = 'h';
         _isScrubbing = true;
-        _virtualScrubPosition = player.state.position;
+        _virtualScrubPosition ??= player.state.position;
+        _wasPlayingBeforeScrub = player.state.playing;
+        player.pause();
       } else if (dy.abs() > dx.abs() && dy.abs() > 0.5) {
         if (speedControlOption != SpeedControlOption.off && localPosition.dx < screenWidth / 2) {
           _scrollLockAxis = 'speed';
@@ -1270,27 +1432,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       _scrollLockAxis = null;
       _virtualVolume = null;
       _virtualSpeed = null;
-      if (_isScrubbing) {
-        _isScrubbing = false;
-        _scrubThrottleTimer?.cancel();
-        _smartDelayTimer?.cancel();
-        _pendingScrubPosition = null;
-        if (mounted) {
-          setState(() => _isSmartBuffering = false);
-        }
-        if (player.platform is dynamic) {
-          (player.platform as dynamic).setProperty('hr-seek', 'yes');
-        }
-        if (_virtualScrubPosition != null) {
-          player.seek(_virtualScrubPosition!);
-        }
-        Timer(const Duration(milliseconds: 200), () {
-          if (mounted && player.platform is dynamic) {
-            (player.platform as dynamic).setProperty('hr-seek', 'no');
-          }
-        });
-        _virtualScrubPosition = null;
+      
+      if (_wasPlayingBeforeScrub) {
+        player.play();
+        _wasPlayingBeforeScrub = false;
       }
+
+      // Start the cleanup timer now that the physical gesture has ended.
+      _virtualSeekCleanupTimer?.cancel();
+      _virtualSeekCleanupTimer = Timer(const Duration(seconds: 1), () {
+        _cleanupVirtualSeeking();
+      });
     });
   }
 
@@ -1303,11 +1455,19 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       // 200ms per unit of dx is the sensitivity
       int newMs = _virtualScrubPosition!.inMilliseconds + (dx * 200).toInt();
       newMs = newMs.clamp(0, duration.inMilliseconds);
-      _virtualScrubPosition = Duration(milliseconds: newMs);
-      _pendingScrubPosition = _virtualScrubPosition;
+      setState(() {
+        _virtualScrubPosition = Duration(milliseconds: newMs);
+        _pendingScrubPosition = _virtualScrubPosition;
+      });
 
       _showSeekIndicator();
       _onInteraction();
+
+      // Reset cleanup timer to keep virtual position alive during gesture
+      _virtualSeekCleanupTimer?.cancel();
+      _virtualSeekCleanupTimer = Timer(const Duration(seconds: 1), () {
+        _cleanupVirtualSeeking();
+      });
 
       if (_scrubThrottleTimer?.isActive != true) {
         player.seek(_pendingScrubPosition!);
@@ -1498,15 +1658,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                   context.size?.width ?? MediaQuery.of(context).size.width;
               final isForward = _doubleTapPosition!.dx > width / 2;
 
-              final seconds =
-                  ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
-              _clampedSeek(
-                player.state.position +
-                    Duration(seconds: isForward ? seconds : -seconds),
-              );
-
-              _showSeekIndicator();
-              _onInteraction(); // Show HUD to indicate action
+              _performStepSeek(isForward: isForward);
             },
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -1678,7 +1830,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                     child: StreamBuilder<Duration>(
                       stream: player.stream.position,
                       builder: (context, snapshot) {
-                        final position = snapshot.data ?? player.state.position;
+                        final position = displayPosition;
                         final duration = player.state.duration;
                         return Text(
                           '${_formatDuration(position)} / ${_formatDuration(duration)}',
@@ -1792,7 +1944,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                             StreamBuilder<Duration>(
                               stream: player.stream.position,
                               builder: (context, snapshot) {
-                                final position = snapshot.data ?? player.state.position;
+                                final position = displayPosition;
                                 final duration = player.state.duration;
                                 final remaining = duration - position;
                                 final progress = duration.inMilliseconds > 0
@@ -1870,12 +2022,31 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                       ),
                                                       child: Slider(
                                                         value: progress.clamp(0.0, 1.0),
-                                                        onChangeStart: (_) => _isScrubbing = true,
+                                                         onChangeStart: (_) {
+                                                           setState(() {
+                                                             // 1. Explicitly kill all step-seek state
+                                                             _virtualSeekPosition = null;
+                                                             _isFastSeeking = false;
+
+                                                             // 2. Kill all pending timers
+                                                             _engineSeekTimer?.cancel();
+                                                             _virtualSeekCleanupTimer?.cancel();
+                                                             _fastSeekTimer?.cancel();
+
+                                                             // 3. Initialize scrub state
+                                                             _isScrubbing = true;
+                                                             _wasPlayingBeforeScrub = player.state.playing;
+                                                           });
+                                                           player.pause();
+                                                         },
                                                         onChanged: (v) {
                                                           _onInteraction();
                                                           _showSeekIndicator();
                                                           final targetMs = (v * duration.inMilliseconds).toInt();
-                                                          _pendingScrubPosition = Duration(milliseconds: targetMs);
+                                                          setState(() {
+                                                            _virtualScrubPosition = Duration(milliseconds: targetMs);
+                                                            _pendingScrubPosition = _virtualScrubPosition;
+                                                          });
                                                           if (_scrubThrottleTimer?.isActive != true) {
                                                             player.seek(_pendingScrubPosition!);
                                                             _scrubThrottleTimer = Timer(
@@ -1889,27 +2060,23 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                           }
                                                         },
                                                         onChangeEnd: (v) {
-                                                          _isScrubbing = false;
-                                                          _scrubThrottleTimer?.cancel();
-                                                          _smartDelayTimer?.cancel();
-                                                          _pendingScrubPosition = null;
-                                                          if (mounted) {
-                                                            setState(() => _isSmartBuffering = false);
-                                                          }
-                                                          if (player.platform is dynamic) {
-                                                            (player.platform as dynamic).setProperty('hr-seek', 'yes');
-                                                          }
-                                                          player.seek(
-                                                            Duration(
-                                                              milliseconds: (v * duration.inMilliseconds).toInt(),
-                                                            ),
-                                                          );
-                                                          Future.delayed(const Duration(milliseconds: 200), () {
-                                                            if (player.platform is dynamic) {
-                                                              (player.platform as dynamic).setProperty('hr-seek', 'no');
-                                                            }
-                                                          });
-                                                        },
+                                                           _scrubThrottleTimer?.cancel();
+                                                           _smartDelayTimer?.cancel();
+                                                           
+                                                           // Final seek
+                                                           player.seek(Duration(milliseconds: (v * duration.inMilliseconds).toInt()));
+
+                                                           if (_wasPlayingBeforeScrub) {
+                                                             player.play();
+                                                             _wasPlayingBeforeScrub = false;
+                                                           }
+
+                                                           // Reset cleanup timer
+                                                           _virtualSeekCleanupTimer?.cancel();
+                                                           _virtualSeekCleanupTimer = Timer(const Duration(seconds: 1), () {
+                                                             _cleanupVirtualSeeking();
+                                                           });
+                                                         },
                                                       ),
                                                     ),
                                                   ),
@@ -2165,11 +2332,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                 const SizedBox(width: 8),
                                 _buildSeekButton(
                                   isForward: false,
-                                  onPressed: () {
-                                    final seconds = ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
-                                    _clampedSeek(player.state.position - Duration(seconds: seconds));
-                                    _onInteraction();
-                                  },
+                                  onPressed: () => _performStepSeek(isForward: false),
                                 ),
                                 const SizedBox(width: 16),
                                 ValueListenableBuilder<bool>(
@@ -2212,11 +2375,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                 const SizedBox(width: 16),
                                 _buildSeekButton(
                                   isForward: true,
-                                  onPressed: () {
-                                    final seconds = ref.read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
-                                    _clampedSeek(player.state.position + Duration(seconds: seconds));
-                                    _onInteraction();
-                                  },
+                                  onPressed: () => _performStepSeek(isForward: true),
                                 ),
                                 const SizedBox(width: 8),
                                 IconButton(
