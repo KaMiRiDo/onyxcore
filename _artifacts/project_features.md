@@ -603,29 +603,31 @@ onyxcore/
   - **Key Isolation**: All UI control keys (audio, sub, playlist, marker editor) are generated with unique path-based debug labels to ensure stability during `Hero` transitions.
 - **Standalone playlist scanning** — scans parent directory for video files
 
-#### 3.3 Sliding Window Seek & Buffering (BUG-001)
-- **Aggressive Forward/Backward Buffer**: Configured via native `libmpv` properties on player startup:
-  - `demuxer-max-bytes: 400000000` (400 MiB forward buffer)
-  - `demuxer-max-back-bytes: 200000000` (200 MiB backward buffer)
+#### 3.3 Throttle & Debounce Seek Architecture
+- **Aggressive Buffer & Exact Seeking**: Configured via native `libmpv` properties on player startup:
+  - `demuxer-max-bytes: 419430400` (400 MiB forward buffer)
+  - `demuxer-max-back-bytes: 209715200` (200 MiB backward buffer)
   - `demuxer-readahead-secs: 60` (60-second readahead)
   - `cache: yes` with `cache-secs: 60` for persistent decoded frame cache
-  - **Hardware Decoder (EPX-008)**: Configurable via Settings > Performance. Supports `auto`, `vaapi`, `nvdec`, `vdpau`, `auto-safe`, `no`. Default: `auto`. The "Auto-Cache" mechanism probes hardware capabilities on first run using the fallback chain `vaapi,nvdec,vdpau,auto-safe`, listens for the resolved decoder via `mpv`'s `hwdec` property stream, and caches the result in `AppSettings.cachedResolvedHwDec`. On subsequent launches, the cached value is injected directly — eliminating probe overhead. Changing the decoder requires an app restart (enforced by a confirmation dialog with `exit(0)`).
-  - `hr-seek-framedrop: yes` for instant recovery during rapid navigation
-- **Differentiated Seek Logic** — two distinct seek modes:
-  - **Arrow-key / fast seek**: Uses `hr-seek: no` (keyframe-only). Jumps to the nearest keyframe instantly from the buffer without frame-accurate decoding. Combined with the 400 MiB sliding window, this provides zero-latency ±10s navigation.
-  - **Slider scrub final seek**: On `onChangeEnd`, temporarily sets `hr-seek: yes` for one frame-accurate seek to the exact drop position, then reverts to `hr-seek: no` after 200ms via `Future.delayed`.
-- **Clamped Seek Helper** (`_clampedSeek`): All seek calls (arrow keys, double-tap, seek buttons) route through a helper that clamps the target `Duration` to `[0, player.state.duration]`, preventing circular wraparound (e.g., backward from 0:00 jumping to the video end).
-- **Fast Seek Timer** (`_startFastSeek`): Holding arrow keys fires `Timer.periodic(200ms)` for continuous seeking with `_isFastSeeking = true` flag active, fully suppressing the BubbleLoader.
+  - `hr-seek: yes` to force exact frame decoding for accurate 5s step-seeking (prevents snapping to 10s keyframe boundaries).
+  - `hr-seek-framedrop: yes` and `vd-lavc-fast: yes` to drop intermediate frames during long seeks for instant recovery.
+  - **Hardware Decoder (EPX-008)**: Configurable via Settings > Performance. Supports `auto`, `vaapi`, `nvdec`, `vdpau`, `auto-safe`, `no`. Default: `auto`. The "Auto-Cache" mechanism probes hardware capabilities on first run, resolving via `mpv`'s `hwdec` property, and caches the result. Changing the decoder requires an app restart.
+- **Engine Gateway Architecture**: All step-seeking operations route through a centralized `_requestEngineSeek` gateway that implements a Throttle + Debounce pattern to prevent engine starvation and UI jitter:
+  - **Throttle (400ms)**: The first click of a rapid sequence passes immediately. Subsequent clicks during sustained input pass at most once every 400ms, providing a responsive visual "slideshow" update.
+  - **Debounce (250ms)**: Once the user stops rapidly clicking, a debounce timer waits 250ms before dispatching the final, accumulated target position.
+  - **Continuous Playback**: The player is deliberately not paused during rapid step-seeking, eliminating play/pause UI flickering.
+- **Virtual Accumulation**: Rapid sequential clicks accumulate a target in `_virtualSeekPosition` rather than reading `player.state.position`, guaranteeing consistent `click × N = N × seekStep` intervals regardless of engine latency.
 
-#### 3.4 Unified Virtual Seeking & Scrubbing (BUG-001)
-- **Unified Virtual Anchor**: All seeking modalities (trackpad gestures, slider drags, keyboard arrows, and manual buttons) share a centralized `_virtualScrubPosition` anchor. This prevents the media engine’s inherent playback latency from "pulling" the seek operation backward during rapid user interaction.
-- **Gesture-Aware Persistence**: Implemented a "virtual state persistence" mechanism for trackpad scrubbing. Successive swipes share a unified virtual anchor, and the state is preserved for **1 second of inactivity** after physical finger release before resetting to the physical playback timeline.
-- **Active Gesture Protection**: The virtual seek state is strictly protected during active physical interaction. If a user holds their fingers stationary on the trackpad, the cleanup timer returns early, allowing the user to resume scrubbing seamlessly from the same position after a pause.
-- **Playback Suspension (Anti-Oscillation)**: The player automatically **pauses** during active scrubbing/gestures and resumes (if it was previously playing) only upon gesture completion. This eliminates the "back and forth" playhead oscillations caused by the engine trying to play forward while being asked to seek backward.
-- **Scrub Seek Throttle**: During active interaction, seeks are throttled to one every **100ms** via `_scrubThrottleTimer`. Intermediate positions are stored in `_pendingScrubPosition`, and a catch-up seek is issued when the timer expires to ensure fluidity.
+#### 3.4 Strict State Handoffs & Cross-Interaction Guards
+- **Unified Virtual Anchor Priority**: The `displayPosition` getter acts as the single source of truth for all UI elements (OSD, progress bar, time labels), prioritizing active interactions: `_isScrubbing ? _virtualScrubPosition : (_isFastSeeking ? _virtualSeekPosition : player.state.position)`.
+- **Playback Suspension (Anti-Oscillation)**: The player automatically **pauses** during active scrubbing (slider/trackpad) and resumes only upon gesture completion, eliminating playhead oscillation.
+- **Scrub Seek Throttle**: Trackpad and slider drag seeks are throttled to **100ms** via `_scrubThrottleTimer`, sending fluid continuous updates to the exact-seek engine.
+- **Cross-Interaction State Purge**: Strict guards exist when transitioning between modalities (e.g., rapid clicks immediately followed by a slider scrub):
+  - **Scrub Initialization**: Slider `onChangeStart` and trackpad horizontal gestures explicitly kill all dormant `_virtualSeekPosition` state and cancel pending `_engineSeekTimer`/`_virtualSeekCleanupTimer` instances before initializing scrub state.
+  - **Step-Seek Initialization**: `_performStepSeek` explicitly invalidates dormant fast-seek state if a `_virtualScrubPosition` exists, ensuring a new click after a scrub uses the scrub's final position as its base instead of a stale rapid-click accumulator.
+- **Resilient Cleanup Loop**: Virtual state override ends via a 1200ms `_scheduleVirtualStateCleanup` timer. To prevent silent aborts, if a debounced engine seek is still active when the cleanup fires, the cleanup reschedules itself (with a 5-retry limit safety net).
+- **Gesture-Aware Persistence**: Trackpad swipe state is preserved for **1 second of inactivity** after physical release. If fingers remain on the pad (stationary), cleanup returns early, allowing seamless scrub resumption.
 - **Zero-Loading UI**: The `BubbleLoader` is completely suppressed during user-driven seeking (`_isFastSeeking || _isScrubbing`), providing an uninterrupted "NLE-style" scrubbing experience.
-- **High-Precision Finalization**: On gesture/drag completion, the system temporarily enables `hr-seek: yes` for a single frame-accurate seek to the final position before reverting to high-performance keyframe-only seeking.
-- **UI Synchronization**: Both the HUD progress bar and the seek-indicator timer prioritize the virtual position, ensuring the interface remains pinned to the user's intent even during heavy engine load.
 
 #### 3.5 Hover Preview System (EPX-008 / BUG-001)
 - **Architecture**: `HoverPreview` widget (`hover_preview.dart`) — a self-contained `StatefulWidget` that manages its own positioning, frame extraction, and rendering independently of the parent `VideoPreviewWidget`.

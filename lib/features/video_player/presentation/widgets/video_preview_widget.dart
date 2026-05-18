@@ -135,6 +135,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   DateTime _lastEngineSeekTime = DateTime.fromMillisecondsSinceEpoch(0);
   final int _throttleMs = 400;
   final int _debounceMs = 250;
+  int _cleanupRetryCount = 0;
 
   /// Unified position the UI should render (OSD, progress bar, slider).
   Duration get displayPosition {
@@ -1206,15 +1207,20 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   void _scheduleVirtualStateCleanup() {
     // CRITICAL: Kill ghost timers to prevent snapbacks
     _virtualSeekCleanupTimer?.cancel();
+    _cleanupRetryCount = 0; // Reset on fresh schedule
 
-    // Wait 500ms for mpv to lock onto the keyframe and update its stream
-    _virtualSeekCleanupTimer = Timer(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      // If another seek is pending, reschedule instead of silently aborting
+    // Wait 1200ms for mpv to lock onto the keyframe and update its stream
+    _virtualSeekCleanupTimer = Timer(const Duration(milliseconds: 1200), () {
       if (_engineSeekTimer?.isActive ?? false) {
-        _scheduleVirtualStateCleanup();
-        return;
+        // Safety net: Prevent infinite reschedule loop
+        if (++_cleanupRetryCount < 5) {
+          _scheduleVirtualStateCleanup();
+          return;
+        }
+        // If we hit 5 retries, fall through and force cleanup anyway
       }
+
+      if (!mounted) return;
 
       setState(() {
         _virtualSeekPosition = null;
@@ -1314,21 +1320,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
   }
 
-  /// Seeks the main player, clamping to [0, duration] to prevent
-  /// circular wraparound (e.g. backward from 0:00 going to end).
-  void _clampedSeek(Duration target) {
-    final duration = player.state.duration;
-    if (duration <= Duration.zero) return;
-
-    final clampedMs = target.inMilliseconds.clamp(0, duration.inMilliseconds);
-    final clamped = Duration(milliseconds: clampedMs);
-
-    if (clampedMs != target.inMilliseconds) {
-      _virtualSeekPosition = clamped;
-    }
-
-    player.seek(clamped);
-  }
 
   void _handlePointerScroll(PointerSignalEvent signal) {
     if (signal is PointerScrollEvent) {
