@@ -38,6 +38,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/context
 import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/create_item_dialog.dart';
 import 'package:onyxcore/core/utils/app_launcher_utils.dart';
+import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
@@ -158,6 +159,34 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           return 'error: $e';
         }
       }
+
+      if (call.method == 'save_playback_position') {
+        debugPrint('[Main] IPC save_playback_position received: ${call.arguments}');
+        try {
+          final data = jsonDecode(call.arguments as String);
+          final String path = data['path'] as String;
+          final int positionMs = data['positionMs'] as int;
+          await PlaybackMemoryRepository.savePosition(path, positionMs);
+          return 'ok';
+        } catch (e) {
+          debugPrint('[Main] IPC save_playback_position error: $e');
+          return 'error: $e';
+        }
+      }
+
+      if (call.method == 'get_playback_position') {
+        debugPrint('[Main] IPC get_playback_position received: ${call.arguments}');
+        try {
+          final data = jsonDecode(call.arguments as String);
+          final String path = data['path'] as String;
+          final positionMs = await PlaybackMemoryRepository.getPosition(path);
+          return positionMs;
+        } catch (e) {
+          debugPrint('[Main] IPC get_playback_position error: $e');
+          return null;
+        }
+      }
+
       return null;
     });
   }

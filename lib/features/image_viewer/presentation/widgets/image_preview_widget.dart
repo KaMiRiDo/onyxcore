@@ -52,6 +52,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   final TransformationController _transformationController = TransformationController();
   Offset _mousePosition = Offset.zero;
   double _currentScale = 1.0;
+  double _initialScale = 1.0;
   bool _showZoomIndicator = false;
   
   // Image Edit State
@@ -131,7 +132,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     List<String> pathsToPreload = [];
 
     if (widget.isStandalone && widget.initParams != null && widget.initParams!['preloadPaths'] != null) {
-      final List<dynamic> preloadList = widget.initParams!['preloadPaths'];
+      final List<dynamic> preloadList = widget.initParams!['preloadPaths'] as List<dynamic>;
       pathsToPreload = preloadList.map((e) => e.toString()).toList();
     } else if (!widget.isStandalone && widget.windowId == null) {
       final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
@@ -281,7 +282,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       final listener = ImageStreamListener((info, _) {
         if (!completer.isCompleted) completer.complete(info);
       }, onError: (dynamic error, StackTrace? stackTrace) {
-        if (!completer.isCompleted) completer.completeError(error, stackTrace);
+        if (!completer.isCompleted) completer.completeError(error as Object, stackTrace);
       });
       
       stream.addListener(listener);
@@ -502,21 +503,57 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
               children: [
                 Positioned.fill(
                   child: Listener(
+                    behavior: HitTestBehavior.translucent,
                     onPointerSignal: (pointerSignal) {
                       if (pointerSignal is PointerScrollEvent) {
-                        if (HardwareKeyboard.instance.isControlPressed) {
+                        final ctrl = HardwareKeyboard.instance.isControlPressed ||
+                            HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
+                            HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlRight);
+                        if (ctrl) {
                           final double delta = pointerSignal.scrollDelta.dy;
-                          final double zoomFactor = delta > 0 ? 0.9 : 1.1;
-                          _setZoom(_currentScale * zoomFactor, focalPoint: pointerSignal.localPosition);
+                          if (delta != 0) {
+                            final double zoomFactor = delta > 0 ? 1.05 : 0.95;
+                            _setZoom(_currentScale * zoomFactor, focalPoint: pointerSignal.localPosition);
+                          }
                         } else if (_currentScale > 1.05) {
                           // Handle trackpad two-finger drag (panning via scroll)
                           final delta = pointerSignal.scrollDelta;
                           const double sensitivity = 5.0;
                           final translation = Matrix4.translationValues(-delta.dx * sensitivity, -delta.dy * sensitivity, 0);
-                          final nextMatrix = translation * _transformationController.value;
+                          final Matrix4 nextMatrix = (translation * _transformationController.value) as Matrix4;
                           
                           if (nextMatrix.storage.any((v) => !v.isFinite)) return;
                           
+                          _transformationController.value = nextMatrix;
+                          _onTransformationChanged();
+                        }
+                      }
+                    },
+                    onPointerPanZoomStart: (event) {
+                      _initialScale = _currentScale;
+                    },
+                    onPointerPanZoomUpdate: (event) {
+                      final ctrl = HardwareKeyboard.instance.isControlPressed ||
+                          HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
+                          HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlRight);
+                      
+                      if (ctrl) {
+                        final double dy = event.panDelta.dy;
+                        if (dy != 0) {
+                          // Proportional zoom factor
+                          // dy is positive (scrub down) -> zoom in (> 1.0)
+                          // dy is negative (scrub up) -> zoom out (< 1.0)
+                          final double zoomFactor = 1.0 + (dy * 0.005);
+                          _setZoom(_currentScale * zoomFactor, focalPoint: event.localPosition);
+                        }
+                      } else {
+                        if (event.scale != 1.0) {
+                          _setZoom(_initialScale * event.scale, focalPoint: event.localPosition);
+                        } else if (event.panDelta != Offset.zero && _currentScale > 1.05) {
+                          final delta = event.panDelta;
+                          final translation = Matrix4.translationValues(delta.dx, delta.dy, 0);
+                          final Matrix4 nextMatrix = (translation * _transformationController.value) as Matrix4;
+                          if (nextMatrix.storage.any((v) => !v.isFinite)) return;
                           _transformationController.value = nextMatrix;
                           _onTransformationChanged();
                         }
@@ -527,7 +564,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                       minScale: 1.0,
                       maxScale: 15.0,
                       panEnabled: _isReadyForInteraction || widget.isStandalone,
-                      scaleEnabled: _isReadyForInteraction || widget.isStandalone,
+                      scaleEnabled: false, // Handled customly above for perfect cursor-centered zoom
                       onInteractionUpdate: (_) => _onTransformationChanged(),
                       child: GestureDetector(
                         onTap: () {

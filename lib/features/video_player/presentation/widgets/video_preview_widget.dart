@@ -474,9 +474,26 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     // 2. Playback Memory
     final settings = ref.read(settingsProvider).value;
     if (settings?.resumePlayback ?? true) {
-      final savedPos = await PlaybackMemoryRepository.getPosition(
-        currentPath,
-      );
+      int? savedPos;
+      if (widget.isStandalone) {
+        final payload = jsonEncode({
+          'path': currentPath,
+        });
+        try {
+          final result = await WindowController.fromWindowId(widget.parentWindowId ?? '0')
+              .invokeMethod('get_playback_position', payload);
+          if (result is int) {
+            savedPos = result;
+          }
+        } catch (e) {
+          debugPrint('[VideoPlayer] Standalone get position IPC failed: $e');
+        }
+      } else {
+        savedPos = await PlaybackMemoryRepository.getPosition(
+          currentPath,
+        );
+      }
+
       if (savedPos != null && savedPos > 0 && widget.initialPosition == null) {
         debugPrint('[VideoPlayer] Resuming from saved position: $savedPos');
         try {
@@ -515,18 +532,29 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
   }
 
-  Future<void> _savePlaybackPosition() async {
+  Future<void> _savePlaybackPosition({bool force = false}) async {
     // Capture state synchronously before any async operations or disposal
-    if (_isClosing || !mounted) return;
+    if (!force && (_isClosing || !mounted)) return;
     final position = player.state.position.inMilliseconds;
     final duration = player.state.duration.inMilliseconds;
     final path = _currentItem.path;
 
     // Don't save if near the end (95%)
-    if (duration > 0 && position < (duration * 0.95)) {
-      await PlaybackMemoryRepository.savePosition(path, position);
+    final targetPosition = (duration > 0 && position < (duration * 0.95)) ? position : 0;
+
+    if (widget.isStandalone) {
+      final payload = jsonEncode({
+        'path': path,
+        'positionMs': targetPosition,
+      });
+      try {
+        await WindowController.fromWindowId(widget.parentWindowId ?? '0')
+            .invokeMethod('save_playback_position', payload);
+      } catch (e) {
+        debugPrint('[VideoPlayer] Standalone save position IPC failed: $e');
+      }
     } else {
-      await PlaybackMemoryRepository.savePosition(path, 0); // Reset
+      await PlaybackMemoryRepository.savePosition(path, targetPosition);
     }
   }
 
@@ -616,7 +644,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _subtitleTrackInitSubscription?.cancel();
 
     // 5. Save position using a non-awaited call (we captured state if needed)
-    _savePlaybackPosition();
+    _savePlaybackPosition(force: true);
 
     // 6. Dispose UI controllers
     _isPlayingNotifier.dispose();
