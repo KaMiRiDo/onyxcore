@@ -58,9 +58,11 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
             final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
 
             final isVideo = widget.item.type == FileItemType.video;
+            final isAudio = widget.item.type == FileItemType.audio;
+            final canCloseWithKeys = !isVideo && !isAudio;
             
-            if ((event.logicalKey == LogicalKeyboardKey.backspace && !isVideo) || 
-                (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft && !isVideo) ||
+            if ((event.logicalKey == LogicalKeyboardKey.backspace && canCloseWithKeys) || 
+                (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft && canCloseWithKeys) ||
                 (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyW)) {
               
               // Close preview immediately

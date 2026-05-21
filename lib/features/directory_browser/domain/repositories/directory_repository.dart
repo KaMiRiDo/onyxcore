@@ -21,9 +21,10 @@ abstract class DirectoryRepository {
   /// If [permanent] is true, deletes permanently. Otherwise moves to trash.
   Future<void> deleteItems(List<String> paths, {required bool permanent, String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog});
 
-  /// Move the given [paths] to the system trash
-  /// (~/.local/share/Trash/files).
   Future<void> moveToTrash(List<String> paths, {String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog});
+
+  /// Restore items from the system trash to their original locations.
+  Future<void> restoreFromTrash(List<String> paths, {String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog});
 
   /// Copy items from [sources] to [destination] folder.
   Future<void> copyItems(List<String> sources, String destination);

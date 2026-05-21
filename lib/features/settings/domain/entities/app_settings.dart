@@ -36,6 +36,10 @@ class AppSettings extends Equatable {
     this.filePickerHeight = 650.0,
     this.settingsWidth = 760.0,
     this.settingsHeight = 560.0,
+    this.confirmDeleteImage = true,
+    this.confirmDeleteVideo = true,
+    this.confirmDeleteDocument = true,
+    this.confirmDeleteAudio = true,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -92,6 +96,18 @@ class AppSettings extends Equatable {
   /// Default height for the settings dialog.
   final double settingsHeight;
 
+  /// Whether to ask for confirmation when deleting images.
+  final bool confirmDeleteImage;
+
+  /// Whether to ask for confirmation when deleting videos.
+  final bool confirmDeleteVideo;
+
+  /// Whether to ask for confirmation when deleting documents.
+  final bool confirmDeleteDocument;
+
+  /// Whether to ask for confirmation when deleting audio files.
+  final bool confirmDeleteAudio;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -111,6 +127,10 @@ class AppSettings extends Equatable {
     double? filePickerHeight,
     double? settingsWidth,
     double? settingsHeight,
+    bool? confirmDeleteImage,
+    bool? confirmDeleteVideo,
+    bool? confirmDeleteDocument,
+    bool? confirmDeleteAudio,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -131,6 +151,10 @@ class AppSettings extends Equatable {
       filePickerHeight: filePickerHeight ?? this.filePickerHeight,
       settingsWidth: settingsWidth ?? this.settingsWidth,
       settingsHeight: settingsHeight ?? this.settingsHeight,
+      confirmDeleteImage: confirmDeleteImage ?? this.confirmDeleteImage,
+      confirmDeleteVideo: confirmDeleteVideo ?? this.confirmDeleteVideo,
+      confirmDeleteDocument: confirmDeleteDocument ?? this.confirmDeleteDocument,
+      confirmDeleteAudio: confirmDeleteAudio ?? this.confirmDeleteAudio,
     );
   }
 
@@ -154,5 +178,9 @@ class AppSettings extends Equatable {
     filePickerHeight,
     settingsWidth,
     settingsHeight,
+    confirmDeleteImage,
+    confirmDeleteVideo,
+    confirmDeleteDocument,
+    confirmDeleteAudio,
   ];
 }

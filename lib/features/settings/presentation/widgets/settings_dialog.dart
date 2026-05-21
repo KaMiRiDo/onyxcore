@@ -51,6 +51,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   final _viewersKeys = {
     'Image': GlobalKey(),
     'Video': GlobalKey(),
+    'Audio': GlobalKey(),
     'Documents': GlobalKey(),
   };
   final _securityKeys = {
@@ -91,11 +92,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final tabName = widget.initialTab == 0 
             ? 'General' 
-            : (widget.initialTab == 1 ? 'Viewers' : 'Security');
+            : (widget.initialTab == 1 ? 'Viewers/Players' : 'Security');
         
         GlobalKey? targetKey;
         if (tabName == 'General') targetKey = _generalKeys[widget.initialSection];
-        if (tabName == 'Viewers') targetKey = _viewersKeys[widget.initialSection];
+        if (tabName == 'Viewers/Players') targetKey = _viewersKeys[widget.initialSection];
         if (tabName == 'Security') targetKey = _securityKeys[widget.initialSection];
 
         if (targetKey != null) {
@@ -117,7 +118,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   void _scrollToSection(GlobalKey key, String sectionName, String tab) {
     setState(() {
       if (tab == 'General') _activeGeneralSection = sectionName;
-      if (tab == 'Viewers') _activeViewersSection = sectionName;
+      if (tab == 'Viewers/Players') _activeViewersSection = sectionName;
       if (tab == 'Security') _activeSecuritySection = sectionName;
     });
 
@@ -125,7 +126,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     if (context != null) {
       final scrollController = tab == 'General'
           ? _generalScrollController
-          : tab == 'Viewers'
+          : tab == 'Viewers/Players'
               ? _viewersScrollController
               : _securityScrollController;
 
@@ -382,7 +383,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
       unselectedLabelColor: AppColors.textMuted.withOpacity(0.5),
       tabs: [
         _buildTab(0, 'General'),
-        _buildTab(1, 'Viewers'),
+        _buildTab(1, 'Viewers/Players'),
         _buildTab(2, 'Security'),
       ],
     );
@@ -511,9 +512,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     return Row(
       children: [
         _buildSubSidebar(
-          items: ['Image', 'Video', 'Documents'],
+          items: ['Image', 'Video', 'Audio', 'Documents'],
           activeItem: _activeViewersSection,
-          onSelected: (section) => _scrollToSection(_viewersKeys[section]!, section, 'Viewers'),
+          onSelected: (section) => _scrollToSection(_viewersKeys[section]!, section, 'Viewers/Players'),
         ),
         Expanded(
           child: ListView(
@@ -521,8 +522,31 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
             padding: const EdgeInsets.symmetric(horizontal: 24),
             children: [
               _buildSectionHeader('Image', _viewersKeys['Image']!),
-              _buildEmptySection('Image viewer configuration options.'),
+              _buildSettingTile(
+                title: 'Confirm delete',
+                subtitle: 'Show confirmation dialog before moving an image to Trash',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.confirmDeleteImage ?? true,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(confirmDeleteImage: value);
+                    });
+                  },
+                ),
+              ),
               _buildSectionHeader('Video', _viewersKeys['Video']!),
+              _buildSettingTile(
+                title: 'Confirm delete',
+                subtitle: 'Show confirmation dialog before moving a video to Trash',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.confirmDeleteVideo ?? true,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(confirmDeleteVideo: value);
+                    });
+                  },
+                ),
+              ),
               _buildSettingTile(
                 title: 'Auto play next',
                 subtitle: 'Automatically play the next video in the folder when the current one finishes',
@@ -590,8 +614,48 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   },
                 ),
               ),
+              _buildSectionHeader('Audio', _viewersKeys['Audio']!),
+              _buildSettingTile(
+                title: 'Seek duration',
+                subtitle: 'Seconds to seek when using arrow keys in the audio player',
+                trailing: _buildDropdown<int>(
+                  value: _draftSettings?.audioSeekSeconds ?? 5,
+                  options: [3, 5, 10, 15, 30]
+                      .map((v) => MapEntry(v, '${v}s'))
+                      .toList(),
+                  minWidth: 80,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(audioSeekSeconds: value);
+                    });
+                  },
+                ),
+              ),
+              _buildSettingTile(
+                title: 'Confirm delete',
+                subtitle: 'Show confirmation dialog before moving an audio to Trash',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.confirmDeleteAudio ?? true,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(confirmDeleteAudio: value);
+                    });
+                  },
+                ),
+              ),
               _buildSectionHeader('Documents', _viewersKeys['Documents']!),
-              _buildEmptySection('PDF and text document viewing settings.'),
+              _buildSettingTile(
+                title: 'Confirm delete',
+                subtitle: 'Show confirmation dialog before moving a document to Trash',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.confirmDeleteDocument ?? true,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(confirmDeleteDocument: value);
+                    });
+                  },
+                ),
+              ),
               const SizedBox(height: 40),
             ],
           ),

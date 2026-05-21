@@ -16,9 +16,13 @@ import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 class MarkdownPreviewWidget extends ConsumerStatefulWidget {
   const MarkdownPreviewWidget({
@@ -226,6 +230,60 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     }
   }
 
+  Future<void> _handleDelete({required bool permanent}) async {
+    final settings = ref.read(settingsProvider).value;
+    final confirm = permanent || (settings?.confirmDeleteDocument ?? true);
+    
+    if (confirm) {
+      final shouldDelete = await showDialog<bool>(
+        context: context,
+        builder: (context) => ViewerDeleteDialog(
+          fileName: widget.item.name,
+          permanent: permanent,
+        ),
+      );
+      if (shouldDelete != true) return;
+    }
+    
+    if (widget.windowId != null) {
+      final payload = jsonEncode({
+        'path': widget.item.path,
+        'permanent': permanent,
+      });
+      await WindowController.fromWindowId(widget.parentWindowId ?? '0').invokeMethod('delete_item', payload);
+      await windowManager.hide();
+    } else {
+      final repo = ref.read(directoryRepositoryProvider);
+      final currentPath = ref.read(currentPathProvider);
+      final taskId = ref.read(taskProvider.notifier).addTask(
+        title: permanent ? 'Deleting document permanently' : 'Moving document to Trash',
+        subtitle: permanent ? 'Delete' : 'Trash',
+        sourcePaths: [widget.item.path],
+        isLight: true,
+      );
+      
+      try {
+        await repo.deleteItems(
+          [widget.item.path],
+          permanent: permanent,
+          taskId: taskId,
+          onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+        );
+        ref.read(taskProvider.notifier).completeTask(taskId);
+      } catch (e) {
+        ref.read(taskProvider.notifier).addLog(taskId, 'Error: $e');
+        ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+      } finally {
+        repo.invalidateCache(currentPath);
+        ref.read(refreshCountProvider.notifier).state = ref.read(refreshCountProvider) + 1;
+        ref.read(directoryItemsProvider.notifier).refresh();
+      }
+      
+      ref.read(previewFileProvider.notifier).state = null;
+      ref.read(mainFocusNodeProvider).requestFocus();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.windowId == null && !widget.isStandalone) {
@@ -258,6 +316,12 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
             }
           }
 
+          if (event.logicalKey == LogicalKeyboardKey.delete) {
+            final shift = HardwareKeyboard.instance.isShiftPressed;
+            _handleDelete(permanent: shift);
+            return KeyEventResult.handled;
+          }
+
           if (widget.windowId == null) {
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
             final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
@@ -286,7 +350,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
               // Content
               Positioned.fill(
                 child: _isLoading
-                    ? const Center(child: BubbleLoader(size: 80))
+                    ? Center(child: BubbleLoader(size: 80))
                     : Padding(
                         padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
                         child: _isEditing ? _buildEditor() : _buildMarkdown(),

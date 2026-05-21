@@ -174,6 +174,79 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
         }
       }
 
+      if (call.method == 'get_next_prev_media') {
+        try {
+          final data = jsonDecode(call.arguments as String);
+          final String currentPath = data['currentPath'] as String;
+          final String typeStr = data['type'] as String;
+          
+          final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+          final targetType = typeStr == 'video' 
+              ? FileItemType.video 
+              : (typeStr == 'audio' ? FileItemType.audio : (typeStr == "document" ? FileItemType.document : FileItemType.image));
+          final mediaItems = items.where((i) => i.type == targetType).toList();
+          
+          if (mediaItems.isEmpty) return null;
+          final currentIndex = mediaItems.indexWhere((i) => i.path == currentPath);
+          if (currentIndex == -1) return null;
+          
+          final nextIndex = (currentIndex + 1) % mediaItems.length;
+          final prevIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+          
+          return jsonEncode({
+            'nextPath': mediaItems[nextIndex].path,
+            'nextName': mediaItems[nextIndex].name,
+            'prevPath': mediaItems[prevIndex].path,
+            'prevName': mediaItems[prevIndex].name,
+          });
+        } catch (e) {
+          debugPrint('[Main] IPC get_next_prev_media error: $e');
+          return null;
+        }
+      }
+
+      if (call.method == 'delete_item') {
+        debugPrint('[Main] IPC delete_item received: ${call.arguments}');
+        try {
+          final data = jsonDecode(call.arguments as String);
+          final String path = data['path'] as String;
+          final bool permanent = data['permanent'] as bool;
+          
+          final repo = ref.read(directoryRepositoryProvider);
+          final currentPath = ref.read(currentPathProvider);
+          
+          final taskId = ref.read(taskProvider.notifier).addTask(
+            title: permanent ? 'Deleting item permanently' : 'Moving item to Trash',
+            subtitle: permanent ? 'Delete' : 'Trash',
+            sourcePaths: [path],
+            isLight: true,
+          );
+          
+          try {
+            await repo.deleteItems(
+              [path],
+              permanent: permanent,
+              taskId: taskId,
+              onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+            );
+            ref.read(taskProvider.notifier).completeTask(taskId);
+          } catch (e) {
+            ref.read(taskProvider.notifier).addLog(taskId, 'Error: $e');
+            ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+            rethrow;
+          }
+          
+          ref.read(directoryRepositoryProvider).invalidateCache(currentPath);
+          ref.read(refreshCountProvider.notifier).state = ref.read(refreshCountProvider) + 1;
+          ref.read(directoryItemsProvider.notifier).refresh();
+          
+          return 'ok';
+        } catch (e) {
+          debugPrint('[Main] IPC delete_item error: $e');
+          return 'error: $e';
+        }
+      }
+
       if (call.method == 'get_playback_position') {
         debugPrint('[Main] IPC get_playback_position received: ${call.arguments}');
         try {
@@ -197,9 +270,10 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     final isSearchActive = ref.watch(isSearchActiveProvider);
     final isLocationEditing = ref.watch(isLocationEditingProvider);
     final isMarkerEditorActive = ref.watch(isMarkerEditorActiveProvider);
+    final isPreviewActive = ref.watch(previewFileProvider) != null;
     
     return CallbackShortcuts(
-      bindings: _buildKeyBindings(isSearchActive, isLocationEditing, isMarkerEditorActive),
+      bindings: _buildKeyBindings(isSearchActive, isLocationEditing, isMarkerEditorActive, isPreviewActive),
       child: Focus(
         focusNode: _focusNode,
         autofocus: true,
@@ -470,26 +544,29 @@ class _TabBody extends ConsumerWidget {
 
 extension _GalleryPageStateShortcuts on _GalleryPageState {
 
-  Map<ShortcutActivator, VoidCallback> _buildKeyBindings(bool isSearchActive, bool isLocationEditing, bool isMarkerEditorActive) {
+  Map<ShortcutActivator, VoidCallback> _buildKeyBindings(bool isSearchActive, bool isLocationEditing, bool isMarkerEditorActive, bool isPreviewActive) {
     return {
       // Basic Navigation
-      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive)
+      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive)
         const SingleActivator(LogicalKeyboardKey.backspace): _goBack,
-      const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _goBack,
-      const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): _goForward,
+      if (!isPreviewActive)
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _goBack,
+      if (!isPreviewActive)
+        const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): _goForward,
 
       // Selection
-      const SingleActivator(LogicalKeyboardKey.escape): () =>
-          ref.read(selectionProvider.notifier).deselectAll(),
-      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive)
+      if (!isPreviewActive)
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            ref.read(selectionProvider.notifier).deselectAll(),
+      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive)
         const SingleActivator(LogicalKeyboardKey.keyA, control: true): _selectAll,
 
       // Properties
-      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive)
+      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive)
         const SingleActivator(LogicalKeyboardKey.enter, alt: true): _showProperties,
 
       // File Operations
-      if (!isLocationEditing && !isMarkerEditorActive) ...{
+      if (!isLocationEditing && !isMarkerEditorActive && !isPreviewActive) ...{
         const SingleActivator(LogicalKeyboardKey.keyC, control: true): _handleCopy,
         const SingleActivator(LogicalKeyboardKey.keyX, control: true): _handleCut,
         const SingleActivator(LogicalKeyboardKey.keyV, control: true): _handlePaste,
@@ -503,8 +580,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       },
 
       // Zoom
-      const SingleActivator(LogicalKeyboardKey.equal, control: true): () =>
-          _zoom(0.1),
+      if (!isPreviewActive)
+        const SingleActivator(LogicalKeyboardKey.equal, control: true): () =>
+            _zoom(0.1),
       const SingleActivator(LogicalKeyboardKey.minus, control: true): () =>
           _zoom(-0.1),
       const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true): () =>
@@ -653,6 +731,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   }
 
   void _goBack() {
+    if (ref.read(previewFileProvider) != null) return;
+    
     ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goBack();
@@ -663,6 +743,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   }
 
   void _goForward() {
+    if (ref.read(previewFileProvider) != null) return;
+    
     ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goForward();

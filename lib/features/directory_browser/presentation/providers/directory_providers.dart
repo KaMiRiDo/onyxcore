@@ -20,6 +20,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
 
 // ——— Infrastructure Providers ———
 
@@ -305,15 +306,17 @@ final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref
 final sortedDirectoryItemsProvider = FutureProvider<List<FileItem>>((ref) async {
   final filteredAsync = ref.watch(filteredDirectoryItemsProvider);
   final sort = ref.watch(sortSettingsProvider);
+  final pinnedAsync = ref.watch(pinnedItemsProvider);
+  final pinnedMap = pinnedAsync.value ?? const {};
   
   final items = filteredAsync.value ?? [];
   if (items.isEmpty) return [];
 
   // Use compute for large directories to avoid UI lag
   if (items.length > 500) {
-    return await compute(_sortItemsCompute, _SortParams(items, sort.option));
+    return await compute(_sortItemsCompute, _SortParams(items, sort.option, pinnedMap));
   } else {
-    return _sortItems(items, sort.option);
+    return _sortItems(items, sort.option, pinnedMap);
   }
 });
 
@@ -322,16 +325,35 @@ final sortedDirectoryItemsProvider = FutureProvider<List<FileItem>>((ref) async 
 class _SortParams {
   final List<FileItem> items;
   final SortOption option;
-  _SortParams(this.items, this.option);
+  final Map<String, int> pinnedMap;
+  _SortParams(this.items, this.option, this.pinnedMap);
 }
 
 List<FileItem> _sortItemsCompute(_SortParams params) {
-  return _sortItems(params.items, params.option);
+  return _sortItems(params.items, params.option, params.pinnedMap);
 }
 
-List<FileItem> _sortItems(List<FileItem> items, SortOption option) {
-  final result = List<FileItem>.from(items);
-  result.sort((a, b) {
+List<FileItem> _sortItems(List<FileItem> items, SortOption option, Map<String, int> pinnedMap) {
+  final pinnedList = <FileItem>[];
+  final unpinnedList = <FileItem>[];
+  
+  for (final item in items) {
+    if (pinnedMap.containsKey(item.path)) {
+      pinnedList.add(item);
+    } else {
+      unpinnedList.add(item);
+    }
+  }
+
+  // Sort pinned descending by timestamp
+  pinnedList.sort((a, b) {
+    final tA = pinnedMap[a.path] ?? 0;
+    final tB = pinnedMap[b.path] ?? 0;
+    return tB.compareTo(tA);
+  });
+
+  // Sort unpinned
+  unpinnedList.sort((a, b) {
     // Folders first logic (unless filesFirst option is selected)
     if (option != SortOption.filesFirst) {
       if (a.type == FileItemType.folder && b.type != FileItemType.folder) return -1;
@@ -360,7 +382,8 @@ List<FileItem> _sortItems(List<FileItem> items, SortOption option) {
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     }
   });
-  return result;
+
+  return [...pinnedList, ...unpinnedList];
 }
 
 /// Whether the current tab is refreshing.

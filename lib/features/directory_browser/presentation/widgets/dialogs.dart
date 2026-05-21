@@ -428,3 +428,156 @@ class PermanentDeleteDialog extends StatelessWidget {
     );
   }
 }
+
+/// A specialized, high-fidelity confirmation dialog for viewer deletions (Trash vs. Permanent).
+class ViewerDeleteDialog extends StatelessWidget {
+  final String fileName;
+  final bool permanent;
+
+  const ViewerDeleteDialog({
+    super.key,
+    required this.fileName,
+    required this.permanent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        width: 420,
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111111),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.6),
+              blurRadius: 50,
+              spreadRadius: 10,
+              offset: const Offset(0, 20),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Centered Trash Icon with Soft Glow
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.05),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.error.withOpacity(0.15), width: 1.5),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.error.withOpacity(0.9),
+                  size: 44,
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              permanent ? "Permanently Delete?" : "Move to Trash?",
+              style: GoogleFonts.outfit(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Colors.white.withOpacity(0.9),
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              fileName,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                color: Colors.white60,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Refined Warning Badge if permanent, or Info Badge if trash
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: permanent ? AppColors.error.withOpacity(0.04) : AppColors.violet.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: permanent ? AppColors.error.withOpacity(0.08) : AppColors.violet.withOpacity(0.08)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    permanent ? Icons.info_outline_rounded : Icons.delete_sweep_outlined,
+                    color: permanent ? AppColors.error.withOpacity(0.6) : AppColors.violet.withOpacity(0.6),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    permanent ? "This action cannot be undone" : "You can restore it from system Trash",
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: permanent ? AppColors.error.withOpacity(0.6) : AppColors.violet.withOpacity(0.6),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      "No, Cancel",
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    autofocus: true,
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: permanent ? AppColors.error : AppColors.violet,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      permanent ? "Yes, Delete" : "Yes, Trash",
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 15),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

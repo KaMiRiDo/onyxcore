@@ -73,6 +73,12 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   }
 
   @override
+  Future<void> restoreFromTrash(List<String> paths, {String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog}) async {
+    await datasource.restoreFromTrash(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
+    _invalidateParents(paths);
+  }
+
+  @override
   Future<void> trashItems(List<String> paths, {String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog}) async {
     await datasource.trashItems(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
     _invalidateParents(paths);

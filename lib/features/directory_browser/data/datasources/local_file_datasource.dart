@@ -78,6 +78,30 @@ class LocalFileDatasource {
     await moveToTrash(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
   }
 
+  /// Restore items from system trash using 'gio trash --restore'.
+  /// gio expects a trash:// URI of the form: trash:///filename
+  Future<void> restoreFromTrash(List<String> paths, {void Function(int processed, int total)? onProgress, String? taskId, void Function(String message)? onLog}) async {
+    for (int i = 0; i < paths.length; i++) {
+      final path = paths[i];
+      try {
+        // gio trash --restore requires a trash:// URI, not a filesystem path.
+        // The trash URI is: trash:///filename (just the basename inside Trash/files/)
+        final fileName = p.basename(path);
+        final trashUri = 'trash:///$fileName';
+        final result = await Process.run('gio', ['trash', '--restore', trashUri]);
+        if (result.exitCode != 0) {
+          throw Exception(result.stderr.toString().trim());
+        }
+        onLog?.call('Restored: $path');
+      } catch (e) {
+        onLog?.call('Failed to restore $path: $e');
+        throw Exception('Failed to restore $path: $e');
+      }
+      onProgress?.call(i + 1, paths.length);
+    }
+  }
+
+
   /// Copy items (files or folders).
   Future<void> copyItems(List<String> sources, String destination) async {
     for (final source in sources) {

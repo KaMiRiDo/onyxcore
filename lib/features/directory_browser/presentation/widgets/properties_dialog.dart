@@ -17,7 +17,8 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 
 class PropertiesDialog extends ConsumerStatefulWidget {
   final List<String> paths;
-  const PropertiesDialog({super.key, required this.paths});
+  final bool isInTrash;
+  const PropertiesDialog({super.key, required this.paths, this.isInTrash = false});
 
   @override
   ConsumerState<PropertiesDialog> createState() => _PropertiesDialogState();
@@ -34,6 +35,7 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
   bool _hasError = false;
 
   FileItem? _singleItem;
+  String? _restorePath;
   
   @override
   void initState() {
@@ -58,6 +60,31 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
       }
     } catch (e) {
       debugPrint('Error loading single item for properties: $e');
+    }
+    // Read original restore path from .trashinfo if in Trash
+    if (widget.isInTrash) {
+      try {
+        final name = p.basename(widget.paths.first);
+        final trashInfoPath = p.join(
+          Platform.environment['HOME'] ?? '',
+          '.local', 'share', 'Trash', 'info', '$name.trashinfo',
+        );
+        final infoFile = File(trashInfoPath);
+        if (await infoFile.exists()) {
+          final lines = await infoFile.readAsLines();
+          for (final line in lines) {
+            if (line.startsWith('Path=')) {
+              final raw = line.substring(5);
+              // URL-decode the path
+              final decoded = Uri.decodeFull(raw);
+              if (mounted) setState(() => _restorePath = decoded);
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Could not read trashinfo: $e');
+      }
     }
   }
 
@@ -219,20 +246,42 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
                                     ),
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                                  color: Colors.white54,
-                                  onPressed: () {
-                                    final parentPath = _getParentFolder();
-                                    Navigator.of(context).pop();
-                                    ref.read(navigationProvider.notifier).navigateTo(parentPath);
-                                    ref.read(currentPathProvider.notifier).state = parentPath;
-                                  },
-                                ),
+                                if (!widget.isInTrash)
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                    color: Colors.white54,
+                                    onPressed: () {
+                                      final parentPath = _getParentFolder();
+                                      Navigator.of(context).pop();
+                                      ref.read(navigationProvider.notifier).navigateTo(parentPath);
+                                      ref.read(currentPathProvider.notifier).state = parentPath;
+                                    },
+                                  ),
                               ],
                             ),
-                            isBottom: !isMulti,
+                            isBottom: !isMulti && (!widget.isInTrash || _restorePath == null),
                           ),
+                          if (widget.isInTrash && _restorePath != null)
+                            _buildRow(
+                              'Restore Path',
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _restorePath!,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.manrope(
+                                        color: AppColors.violet,
+                                        fontSize: 13,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              isBottom: true,
+                            ),
                         ]),
                         if (!isMulti && _singleItem != null) ...[
                           const SizedBox(height: 16),

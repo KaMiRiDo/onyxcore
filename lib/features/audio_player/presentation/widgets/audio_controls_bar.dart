@@ -12,16 +12,68 @@ class AudioControlsBar extends ConsumerWidget {
     final volume = ref.watch(audioVolumeProvider).value ?? 100.0;
     final player = ref.watch(audioPlayerProvider);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        // Left actions
-        IconButton(
-          icon: const Icon(Icons.favorite_border, color: Colors.white70),
-          onPressed: () {},
-        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Left actions
+            IconButton(
+              icon: const Icon(Icons.favorite_border, color: Colors.white70),
+              onPressed: () {},
+            ),
 
-        // Center controls
+            // Right volume
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    final currentVol = player?.state.volume ?? 100.0;
+                    player?.setVolume(currentVol > 0 ? 0 : 100);
+                  },
+                  child: Icon(
+                    volume == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 100,
+                  child: SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                      activeTrackColor: Colors.white,
+                      inactiveTrackColor: Colors.white24,
+                      thumbColor: Colors.white,
+                    ),
+                    child: Slider(
+                      value: volume.clamp(0.0, 200.0),
+                      min: 0,
+                      max: 200,
+                      onChanged: (val) => player?.setVolume(val),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 36,
+                  child: Text(
+                    '${volume.toInt()}%',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        
+        // Center controls (Strictly Centered)
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -38,13 +90,6 @@ class AudioControlsBar extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.3),
-                      blurRadius: 15,
-                      spreadRadius: 2,
-                    ),
-                  ],
                 ),
                 child: Icon(
                   isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
@@ -57,38 +102,6 @@ class AudioControlsBar extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 32),
               onPressed: () => player?.next(),
-            ),
-          ],
-        ),
-
-        // Right volume
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              volume == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-              color: Colors.white70,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 100,
-              child: SliderTheme(
-                data: SliderThemeData(
-                  trackHeight: 2,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                  activeTrackColor: Colors.white,
-                  inactiveTrackColor: Colors.white24,
-                  thumbColor: Colors.white,
-                ),
-                child: Slider(
-                  value: volume,
-                  min: 0,
-                  max: 100,
-                  onChanged: (val) => player?.setVolume(val),
-                ),
-              ),
             ),
           ],
         ),

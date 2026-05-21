@@ -20,6 +20,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:vector_math/vector_math_64.dart' show Vector3;
+import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({
@@ -407,6 +411,116 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     }
   }
 
+  Future<void> _handleDelete({required bool permanent}) async {
+    final settings = ref.read(settingsProvider).value;
+    final confirm = permanent || (settings?.confirmDeleteImage ?? true);
+    
+    if (confirm) {
+      final shouldDelete = await showDialog<bool>(
+        context: context,
+        builder: (context) => ViewerDeleteDialog(
+          fileName: widget.item.name,
+          permanent: permanent,
+        ),
+      );
+      if (shouldDelete != true) return;
+    }
+    
+    FileItem? nextItem;
+    bool hasMultiple = false;
+    
+    if (widget.windowId != null) {
+      try {
+        final payload = jsonEncode({
+          'currentPath': widget.item.path,
+          'type': 'image',
+        });
+        final response = await WindowController.fromWindowId(widget.parentWindowId ?? '0')
+            .invokeMethod('get_next_prev_media', payload);
+        if (response != null && response is String) {
+          final data = jsonDecode(response);
+          final String? nextPath = data['nextPath'];
+          if (nextPath != null && nextPath != widget.item.path) {
+            hasMultiple = true;
+            nextItem = FileItem(
+              name: data['nextName'] ?? '',
+              path: nextPath,
+              type: FileItemType.image,
+              sizeBytes: 0,
+              modified: DateTime.now(),
+              hasWritePermission: true,
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Error getting next media in standalone deletion: $e');
+      }
+    } else {
+      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+      final mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.length > 1) {
+        hasMultiple = true;
+        final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path);
+        if (currentIndex != -1) {
+          final nextIndex = (currentIndex + 1) % mediaItems.length;
+          nextItem = mediaItems[nextIndex];
+        }
+      }
+    }
+    
+    if (widget.windowId != null) {
+      final payload = jsonEncode({
+        'path': widget.item.path,
+        'permanent': permanent,
+      });
+      
+      if (hasMultiple && nextItem != null) {
+        _navigateMedia(true);
+        // Delay slightly to let the navigate IPC execute first
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      
+      await WindowController.fromWindowId(widget.parentWindowId ?? '0').invokeMethod('delete_item', payload);
+      
+      if (!hasMultiple) {
+        await windowManager.hide();
+      }
+    } else {
+      final repo = ref.read(directoryRepositoryProvider);
+      final currentPath = ref.read(currentPathProvider);
+      final taskId = ref.read(taskProvider.notifier).addTask(
+        title: permanent ? 'Deleting image permanently' : 'Moving image to Trash',
+        subtitle: permanent ? 'Delete' : 'Trash',
+        sourcePaths: [widget.item.path],
+        isLight: true,
+      );
+      
+      try {
+        await repo.deleteItems(
+          [widget.item.path],
+          permanent: permanent,
+          taskId: taskId,
+          onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+        );
+        ref.read(taskProvider.notifier).completeTask(taskId);
+      } catch (e) {
+        ref.read(taskProvider.notifier).addLog(taskId, 'Error: $e');
+        ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+      } finally {
+        repo.invalidateCache(currentPath);
+        ref.read(refreshCountProvider.notifier).state = ref.read(refreshCountProvider) + 1;
+        ref.read(directoryItemsProvider.notifier).refresh();
+      }
+      
+      if (hasMultiple && nextItem != null) {
+        ref.read(previewFileProvider.notifier).state = nextItem;
+      } else {
+        ref.read(previewFileProvider.notifier).state = null;
+        ref.read(mainFocusNodeProvider).requestFocus();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.windowId == null && !widget.isStandalone) {
@@ -438,6 +552,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
               ref.read(previewFileProvider.notifier).state = null;
               return KeyEventResult.handled;
             }
+          }
+
+          if (event.logicalKey == LogicalKeyboardKey.delete && event is KeyDownEvent) {
+            final shift = HardwareKeyboard.instance.isShiftPressed;
+            _handleDelete(permanent: shift);
+            return KeyEventResult.handled;
           }
           
           if (ctrl) {

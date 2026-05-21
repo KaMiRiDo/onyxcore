@@ -41,6 +41,9 @@ import 'package:onyxcore/core/window_management/window_controller_extension.dart
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 
 class VideoPreviewWidget extends ConsumerStatefulWidget {
   const VideoPreviewWidget({
@@ -1163,6 +1166,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       } else if (event.logicalKey == LogicalKeyboardKey.keyT) {
         if (event is KeyDownEvent) _openMarkerEditor();
         return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.delete) {
+        if (event is KeyDownEvent) {
+          final shift = HardwareKeyboard.instance.isShiftPressed;
+          _handleDelete(permanent: shift);
+        }
+        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyW &&
           HardwareKeyboard.instance.isControlPressed) {
         if (event is KeyDownEvent && !widget.isStandalone) {
@@ -1590,6 +1599,125 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       }
 
       ref.read(previewFileProvider.notifier).state = mediaItems[nextIndex];
+    }
+  }
+
+  Future<void> _handleDelete({required bool permanent}) async {
+    player.pause();
+    
+    final settings = ref.read(settingsProvider).value;
+    final confirm = permanent || (settings?.confirmDeleteVideo ?? true);
+    
+    if (confirm) {
+      final shouldDelete = await showDialog<bool>(
+        context: context,
+        builder: (context) => ViewerDeleteDialog(
+          fileName: widget.item.name,
+          permanent: permanent,
+        ),
+      );
+      if (shouldDelete != true) return;
+    }
+    
+    FileItem? nextItem;
+    bool hasMultiple = false;
+    
+    if (widget.windowId != null) {
+      try {
+        final payload = jsonEncode({
+          'currentPath': widget.item.path,
+          'type': 'video',
+        });
+        final response = await WindowController.fromWindowId(widget.parentWindowId ?? '0')
+            .invokeMethod('get_next_prev_media', payload);
+        if (response != null && response is String) {
+          final data = jsonDecode(response);
+          final String? nextPath = data['nextPath'];
+          if (nextPath != null && nextPath != widget.item.path) {
+            hasMultiple = true;
+            nextItem = FileItem(
+              name: data['nextName'] ?? '',
+              path: nextPath,
+              type: FileItemType.video,
+              sizeBytes: 0,
+              modified: DateTime.now(),
+              hasWritePermission: true,
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Error getting next media in standalone video deletion: $e');
+      }
+    } else {
+      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+      final mediaItems = items.where((i) => i.type == FileItemType.video).toList();
+      if (mediaItems.length > 1) {
+        hasMultiple = true;
+        final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path);
+        if (currentIndex != -1) {
+          final nextIndex = (currentIndex + 1) % mediaItems.length;
+          nextItem = mediaItems[nextIndex];
+        }
+      }
+    }
+    
+    final shouldAdvance = (settings?.autoPlayNext ?? true) && hasMultiple && nextItem != null;
+    
+    if (widget.windowId != null) {
+      final payload = jsonEncode({
+        'path': widget.item.path,
+        'permanent': permanent,
+      });
+      
+      if (shouldAdvance) {
+        final navPayload = jsonEncode({
+          'direction': 'next',
+          'currentPath': widget.item.path,
+          'type': 'video',
+          'targetWindowId': widget.windowId!,
+        });
+        await WindowController.fromWindowId(widget.parentWindowId ?? '0').invokeMethod('request_navigation', navPayload);
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      
+      await WindowController.fromWindowId(widget.parentWindowId ?? '0').invokeMethod('delete_item', payload);
+      
+      if (!shouldAdvance) {
+        await windowManager.hide();
+      }
+    } else {
+      final repo = ref.read(directoryRepositoryProvider);
+      final currentPath = ref.read(currentPathProvider);
+      final taskId = ref.read(taskProvider.notifier).addTask(
+        title: permanent ? 'Deleting video permanently' : 'Moving video to Trash',
+        subtitle: permanent ? 'Delete' : 'Trash',
+        sourcePaths: [widget.item.path],
+        isLight: true,
+      );
+      
+      try {
+        await repo.deleteItems(
+          [widget.item.path],
+          permanent: permanent,
+          taskId: taskId,
+          onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+        );
+        ref.read(taskProvider.notifier).completeTask(taskId);
+      } catch (e) {
+        ref.read(taskProvider.notifier).addLog(taskId, 'Error: $e');
+        ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+      } finally {
+        repo.invalidateCache(currentPath);
+        ref.read(refreshCountProvider.notifier).state = ref.read(refreshCountProvider) + 1;
+        ref.read(directoryItemsProvider.notifier).refresh();
+      }
+      
+      if (shouldAdvance) {
+        ref.read(previewFileProvider.notifier).state = nextItem;
+      } else {
+        ref.read(previewFileProvider.notifier).state = null;
+        ref.read(mainFocusNodeProvider).requestFocus();
+      }
     }
   }
 

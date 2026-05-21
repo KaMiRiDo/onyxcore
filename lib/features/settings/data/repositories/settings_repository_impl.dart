@@ -63,6 +63,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       filePickerHeight: _prefs.getDouble('filePickerHeight') ?? 650.0,
       settingsWidth: _prefs.getDouble('settingsWidth') ?? 760.0,
       settingsHeight: _prefs.getDouble('settingsHeight') ?? 560.0,
+      confirmDeleteImage: _prefs.getBool('confirmDeleteImage') ?? true,
+      confirmDeleteVideo: _prefs.getBool('confirmDeleteVideo') ?? true,
+      confirmDeleteDocument: _prefs.getBool('confirmDeleteDocument') ?? true,
+      confirmDeleteAudio: _prefs.getBool('confirmDeleteAudio') ?? true,
     );
 
   }
@@ -88,6 +92,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setDouble('filePickerHeight', settings.filePickerHeight);
     await _prefs.setDouble('settingsWidth', settings.settingsWidth);
     await _prefs.setDouble('settingsHeight', settings.settingsHeight);
+    await _prefs.setBool('confirmDeleteImage', settings.confirmDeleteImage);
+    await _prefs.setBool('confirmDeleteVideo', settings.confirmDeleteVideo);
+    await _prefs.setBool('confirmDeleteDocument', settings.confirmDeleteDocument);
+    await _prefs.setBool('confirmDeleteAudio', settings.confirmDeleteAudio);
   }
 
   @override
