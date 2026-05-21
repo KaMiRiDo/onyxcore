@@ -303,14 +303,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     // Ensure the loader is rendered and animating before engine-level open
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Increased delay to 300ms to ensure UI isolate is free and animation is running
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          player.open(Media(_currentItem.path), play: true).then((_) {
-            if (mounted) setState(() => _isOpening = false);
-          });
-        }
-      });
+      _openMediaWithDelay();
     });
 
     // Resume from initial position if provided
@@ -434,6 +427,37 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         });
       }
     });
+  }
+
+  /// Opens the video media after a short delay.
+  ///
+  /// Safe to call since the AudioPlayerView now uses a global Player instance
+  /// that doesn't need to be disposed, avoiding native deadlocks.
+  Future<void> _openMediaWithDelay() async {
+    if (!mounted || _isClosing) return;
+    
+    debugPrint('[VideoPlayer] _openMediaWithDelay: START');
+    
+    // No longer need to wait for audio player disposal because AudioPlayerView
+    // now uses a global, reused Player instance that is never disposed.
+    // Standard UI delay to ensure loader animation is running
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted || _isClosing) return;
+    
+    debugPrint('[VideoPlayer] Calling player.open() for: ${_currentItem.path}');
+    try {
+      await player.open(Media(_currentItem.path), play: true);
+      debugPrint('[VideoPlayer] player.open() completed successfully');
+      if (mounted) setState(() => _isOpening = false);
+    } catch (e) {
+      debugPrint('[VideoPlayer] player.open() FAILED: $e');
+      if (mounted) {
+        setState(() {
+          _isOpening = false;
+          _isBuffering = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadMedia(FileItem item) async {

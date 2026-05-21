@@ -768,6 +768,15 @@ onyxcore/
 - `↑`/`↓`: volume ±5%
 - `M`: mute toggle
 
+#### 4.7 Native Engine Synchronization (Deadlock Prevention)
+- **Singleton Architecture**: The AudioPlayerView utilizes a globally persistent `Player` instance (`globalAudioPlayer`) rather than instantiating and destroying a new engine context for each audio file.
+- **Why**: `media_kit` native backend (libmpv) on Linux struggles with concurrent resource teardown and initialization. When transitioning rapidly from Audio to Video, calling `AudioPlayer.dispose()` while simultaneously calling `new Player()` in the video player creates a severe native deadlock, causing the application to hang indefinitely.
+- **The Solution**: By reusing a single global audio player, we never need to call `Player.dispose()`. When the audio viewer closes, we simply call `await player.stop()`, which instantaneously halts playback without attempting to destroy the complex EGL contexts and native thread locks. This completely eliminates UI freezing during rapid media transitions.
+- **Codebase Integrity**: With the deadlock eliminated by the global player, all legacy cross-widget wait mechanisms have been cleanly purged:
+  - The `audioNativeCleanup` `Completer` has been fully removed, breaking the artificial dependency between the video player and audio player.
+  - The video player's `_openVideoWithAudioGuard()` method was renamed to `_openMediaWithDelay()` as it now solely manages a standard UI loading animation delay (300ms) rather than guarding against native deadlocks.
+  - Cross-module import dependencies (e.g., importing audio providers inside the video widget) and unused `dart:async` imports were entirely stripped out to enforce strict architectural isolation.
+
 ---
 
 ### 5. Document Viewer (Markdown)

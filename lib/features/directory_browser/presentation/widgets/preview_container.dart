@@ -9,6 +9,7 @@ import 'package:onyxcore/features/image_viewer/presentation/widgets/image_previe
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
+
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:window_manager/window_manager.dart';

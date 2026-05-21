@@ -55,8 +55,8 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
   void initState() {
     super.initState();
     
-    // Create the player locally (same pattern as VideoPreviewWidget)
-    _player = Player();
+    // Use the global, reused Player instance to avoid native deadlocks
+    _player = globalAudioPlayer;
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -214,20 +214,29 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
   @override
   void dispose() {
+    // 1. Cancel all stream subscriptions first
     _playlistSub?.cancel();
     _errorSub?.cancel();
     _bufferingSub?.cancel();
     _focusNode.dispose();
     
-    // Clear the provider reference before disposing
-    // Use a microtask to avoid modifying providers during dispose
-    Future.microtask(() {
+    // 2. Clear the provider reference.
+    try {
+      ref.read(audioPlayerProvider.notifier).state = null;
+    } catch (_) {}
+    
+    // 3. Stop playback. We do NOT dispose the player because it's a 
+    //    global reused instance. This prevents native libmpv deadlocks.
+    final playerToStop = _player;
+    Future(() async {
       try {
-        ref.read(audioPlayerProvider.notifier).state = null;
-      } catch (_) {}
+        await playerToStop.stop();
+        debugPrint('[AudioPlayer] Player stopped');
+      } catch (e) {
+        debugPrint('[AudioPlayer] Stop error: $e');
+      }
     });
     
-    _player.dispose();
     super.dispose();
   }
 

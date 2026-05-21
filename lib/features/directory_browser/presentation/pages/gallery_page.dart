@@ -398,7 +398,10 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                 final previewFile = ref.watch(previewFileProvider);
                                 if (previewFile == null) return const SizedBox.shrink();
                                 return Positioned.fill(
-                                  child: PreviewContainer(item: previewFile),
+                                  child: PreviewContainer(
+                                    key: ValueKey(previewFile.path),
+                                    item: previewFile,
+                                  ),
                                 );
                               },
                             ),

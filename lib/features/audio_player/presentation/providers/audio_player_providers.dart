@@ -1,3 +1,4 @@
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
@@ -9,6 +10,12 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 /// The active Player instance, set by AudioPlayerView when it mounts.
 /// This is NOT auto-created by Riverpod — it is set externally.
 final audioPlayerProvider = StateProvider<Player?>((ref) => null);
+
+/// A global, reused Player instance for all audio playback.
+/// We reuse this instance instead of creating a new one for each AudioPlayerView.
+/// This means we never have to call Player.dispose(), preventing native libmpv
+/// deadlocks when switching rapidly between audio and video players.
+final Player globalAudioPlayer = Player();
 
 final audioCurrentPathProvider = StateProvider<String>((ref) => '');
 final audioRootPathProvider = StateProvider<String>((ref) => '');
