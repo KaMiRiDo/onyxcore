@@ -30,7 +30,7 @@ class Sidebar extends ConsumerWidget {
     return Container(
       width: 240,
       decoration: BoxDecoration(
-        color: const Color(0xFF0C0C0C),
+        color: const Color(0xFF161616),
         border: Border(
           right: BorderSide(
             color: Colors.white.withOpacity(0.05),

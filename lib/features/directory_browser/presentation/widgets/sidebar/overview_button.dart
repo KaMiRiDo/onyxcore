@@ -19,9 +19,9 @@ class OverviewButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: AppColors.violet.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.25), // Standard shadow instead of glow
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),

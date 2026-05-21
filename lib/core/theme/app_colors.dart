@@ -8,7 +8,7 @@ class AppColors {
   const AppColors._();
 
   // Onyx Monolith Core Palette
-  static const Color background = Color(0xFF050505);
+  static const Color background = Color(0xFF121212);
   static const Color surfaceBase = Color(0xFF0A0A0A);
   static const Color borderColor = Color(0x26484848);
 
