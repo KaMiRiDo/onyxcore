@@ -72,14 +72,14 @@ class HeroAudioPlayer extends ConsumerWidget {
           ),
         ),
 
-        const SizedBox(height: 32),
+        const Spacer(flex: 2),
 
         // Track Info
               Text(
                 currentTrack.name,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 36,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -0.5,
                 ),
@@ -98,12 +98,12 @@ class HeroAudioPlayer extends ConsumerWidget {
                 textAlign: TextAlign.center,
               ),
 
-              const Spacer(flex: 3), // Space between track info and waveform
+              const Spacer(flex: 2), // Space between track info and waveform
 
               // Waveform
               WaveformScrubber(fileName: currentTrack.name),
 
-              const SizedBox(height: 40),
+              const Spacer(flex: 1),
 
               // Controls
               const AudioControlsBar(),

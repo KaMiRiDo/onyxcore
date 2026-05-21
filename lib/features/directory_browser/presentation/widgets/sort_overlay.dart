@@ -10,7 +10,8 @@ class SortOverlay {
 
   static void show({
     required BuildContext context,
-    required Offset position,
+    required Offset buttonPosition,
+    required Size buttonSize,
     required SortOption currentOption,
     required Function(SortOption) onSelected,
   }) {
@@ -18,7 +19,8 @@ class SortOverlay {
 
     _overlayEntry = OverlayEntry(
       builder: (context) => _SortOverlayWidget(
-        position: position,
+        buttonPosition: buttonPosition,
+        buttonSize: buttonSize,
         currentOption: currentOption,
         onSelected: (option) {
           hide();
@@ -38,13 +40,15 @@ class SortOverlay {
 }
 
 class _SortOverlayWidget extends StatelessWidget {
-  final Offset position;
+  final Offset buttonPosition;
+  final Size buttonSize;
   final SortOption currentOption;
   final Function(SortOption) onSelected;
   final VoidCallback onClose;
 
   const _SortOverlayWidget({
-    required this.position,
+    required this.buttonPosition,
+    required this.buttonSize,
     required this.currentOption,
     required this.onSelected,
     required this.onClose,
@@ -56,16 +60,16 @@ class _SortOverlayWidget extends StatelessWidget {
     const width = 240.0;
     final height = SortOption.values.length * 44.0 + 32.0;
 
-    // Adjust left to align with button center/right
-    double left = position.dx - width + 40;
-    // Show below the button (button height is ~44px)
-    double top = position.dy + 48; 
+    // Align left edge of popup with the button so it opens towards the right
+    double left = buttonPosition.dx + 8;
+    // Show directly below the button
+    double top = buttonPosition.dy + buttonSize.height + 8; 
 
     if (left < 16) left = 16;
     if (left + width > screenSize.width - 16) left = screenSize.width - width - 16;
     
     if (top + height > screenSize.height - 16) {
-      top = position.dy - height - 8;
+      top = buttonPosition.dy - height - 8;
     }
 
     return Stack(
@@ -82,25 +86,29 @@ class _SortOverlayWidget extends StatelessWidget {
           top: top,
           child: Material(
             color: Colors.transparent,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                child: Container(
-                  width: width,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E26).withOpacity(0.85),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.12)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
-                        blurRadius: 40,
-                        offset: const Offset(0, 20),
-                      ),
-                    ],
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 32,
+                    offset: const Offset(0, 16),
                   ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                  child: Container(
+                    width: width,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF181818).withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                    ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: SortOption.values.map((option) {
@@ -112,6 +120,7 @@ class _SortOverlayWidget extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ],
     );

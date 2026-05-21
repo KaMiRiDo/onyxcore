@@ -44,8 +44,9 @@ class ViewerTopBar extends StatelessWidget {
                     title,
                     style: GoogleFonts.manrope(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

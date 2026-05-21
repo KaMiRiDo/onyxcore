@@ -43,6 +43,9 @@ class AudioPlayerView extends ConsumerStatefulWidget {
 }
 
 class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
+  static int _globalPlayerViewIdCounter = 0;
+  int _myPlayerViewId = 0;
+
   final FocusNode _focusNode = FocusNode();
   late final Player _player;
   StreamSubscription? _playlistSub;
@@ -55,11 +58,24 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
   void initState() {
     super.initState();
     
+    _globalPlayerViewIdCounter++;
+    _myPlayerViewId = _globalPlayerViewIdCounter;
+
     // Use the global, reused Player instance to avoid native deadlocks
     _player = globalAudioPlayer;
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      
+      // Reset states for fresh open
+      ref.read(audioSearchQueryProvider.notifier).state = '';
+      ref.read(audioSelectionProvider.notifier).state = {};
+      ref.read(audioSelectionAnchorProvider.notifier).state = null;
+      ref.read(audioViewModeProvider.notifier).state = AudioViewMode.home;
+      
+      // Inherit sort order from gallery
+      final gallerySort = ref.read(sortSettingsProvider).option;
+      ref.read(audioSortOptionProvider.notifier).state = gallerySort;
       
       // Initialize the root path to the parent directory of the initial file
       final initialDir = p.dirname(widget.item.path);
@@ -74,13 +90,12 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
   void _initializePlayer() async {
     debugPrint('[AudioPlayer] Initializing for: ${widget.item.path}');
 
-    // Build the queue from directory items
-    final itemsAsync = ref.read(directoryItemsProvider);
     final repo = ref.read(directoryRepositoryProvider);
-    
+    final currentDir = ref.read(audioCurrentPathProvider);
     List<FileItem> audioFiles = [];
-    if (itemsAsync.hasValue) {
-      final items = itemsAsync.value!;
+
+    try {
+      final items = await repo.listDirectory(currentDir);
       for (final item in items) {
         if (item.type == FileItemType.audio) {
           audioFiles.add(item);
@@ -94,7 +109,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           } catch (_) {}
         }
       }
-    } else {
+    } catch (e) {
       audioFiles = [widget.item];
     }
 
@@ -110,11 +125,8 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
     // Push state to providers AFTER the first frame (safe now)
     ref.read(audioQueueProvider.notifier).state = audioFiles;
+    ref.read(audioPlayingQueueProvider.notifier).state = audioFiles;
     ref.read(activeTrackIndexProvider.notifier).state = startIndex;
-    
-    // Set initial isolated path
-    final currentPath = ref.read(currentPathProvider);
-    ref.read(audioCurrentPathProvider.notifier).state = currentPath;
     
     // Register the player instance with Riverpod so child widgets can access it
     ref.read(audioPlayerProvider.notifier).state = _player;
@@ -225,17 +237,23 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       ref.read(audioPlayerProvider.notifier).state = null;
     } catch (_) {}
     
-    // 3. Stop playback. We do NOT dispose the player because it's a 
     //    global reused instance. This prevents native libmpv deadlocks.
-    final playerToStop = _player;
-    Future(() async {
-      try {
-        await playerToStop.stop();
-        debugPrint('[AudioPlayer] Player stopped');
-      } catch (e) {
-        debugPrint('[AudioPlayer] Stop error: $e');
-      }
-    });
+    //    We use pause() instead of stop() or open(Media('')) because completely
+    //    unloading the player breaks it for future Playlist loads on Linux due
+    //    to a media_kit/libmpv native bug.
+    //    We ONLY pause if we are the most recent view (prevents race conditions
+    //    when switching between audio files).
+    if (_myPlayerViewId == _globalPlayerViewIdCounter) {
+      final playerToStop = _player;
+      Future(() async {
+        try {
+          await playerToStop.pause();
+          debugPrint('[AudioPlayer] Player paused (simulated unload)');
+        } catch (e) {
+          debugPrint('[AudioPlayer] Pause error: $e');
+        }
+      });
+    }
     
     super.dispose();
   }
@@ -260,7 +278,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
     _player.pause();
 
-    final queue = ref.read(audioQueueProvider);
+    final queue = ref.read(audioPlayingQueueProvider);
     final currentIndex = ref.read(activeTrackIndexProvider);
     final hasMultiple = queue.length > 1;
 
@@ -307,7 +325,11 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
     if (hasMultiple) {
       final updatedQueue = queue.where((item) => item.path != path).toList();
-      ref.read(audioQueueProvider.notifier).state = updatedQueue;
+      ref.read(audioPlayingQueueProvider.notifier).state = updatedQueue;
+      
+      // Also update the browsing queue if it was showing the same file
+      final browsingQueue = ref.read(audioQueueProvider);
+      ref.read(audioQueueProvider.notifier).state = browsingQueue.where((item) => item.path != path).toList();
       
       final list = updatedQueue.map((item) => Media(item.path)).toList();
       await _player.open(Playlist(list, index: nextIndex!));
@@ -372,6 +394,10 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.keyM) {
+          // Ignore if user is typing in a text field
+          if (FocusManager.instance.primaryFocus?.context?.widget is EditableText) {
+            return KeyEventResult.ignored;
+          }
           final currentVolume = _player.state.volume;
           _player.setVolume(currentVolume > 0 ? 0 : 100);
           return KeyEventResult.handled;
@@ -387,7 +413,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         onTap: () => _focusNode.requestFocus(),
         behavior: HitTestBehavior.translucent,
         child: Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: const Color(0xFF121212),
           body: Row(
             children: [
               // Left Pane (25%)

@@ -32,7 +32,7 @@ class SecondaryWindowApp extends StatefulWidget {
 }
 
 class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowListener {
-  late WindowParams params;
+  WindowParams? params;
   bool _initialized = false;
   SharedPreferences? _prefs;
 
@@ -108,6 +108,11 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
   void onWindowClose() async {
     // Persistent viewer architecture: Hide instead of destroy
     debugPrint('[SecondaryWindowApp] Window close requested. Hiding window.');
+    if (mounted) {
+      setState(() {
+        params = null;
+      });
+    }
     await windowManager.hide();
   }
 
@@ -128,7 +133,7 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
         sharedPreferencesProvider.overrideWithValue(_prefs!),
       ],
       child: MaterialApp(
-        title: params.file.name,
+        title: params?.file.name ?? 'OnyxCore Viewer',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,
         home: Material(
@@ -140,53 +145,55 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
   }
 
   Widget _buildViewer() {
-    switch (params.viewerType) {
+    if (params == null) return const SizedBox.shrink();
+
+    switch (params!.viewerType) {
       case ViewerType.video:
-        final startMs = params.initParams['startPositionMs'] as int?;
-        final rate = params.initParams['playbackRate'] as double?;
-        final audioId = params.initParams['audioTrackId'] as String?;
-        final subtitleId = params.initParams['subtitleTrackId'] as String?;
+        final startMs = params!.initParams['startPositionMs'] as int?;
+        final rate = params!.initParams['playbackRate'] as double?;
+        final audioId = params!.initParams['audioTrackId'] as String?;
+        final subtitleId = params!.initParams['subtitleTrackId'] as String?;
         
         return VideoPreviewWidget(
-          key: ValueKey(params.file.path),
-          item: params.file,
+          key: ValueKey(params!.file.path),
+          item: params!.file,
           initialPosition: startMs != null ? Duration(milliseconds: startMs) : null,
           initialRate: rate,
           initialAudioTrackId: audioId,
           initialSubtitleTrackId: subtitleId,
           isStandalone: true,
           windowId: widget.windowId,
-          parentWindowId: params.parentWindowId,
-          initParams: params.initParams,
+          parentWindowId: params!.parentWindowId,
+          initParams: params!.initParams,
         );
       case ViewerType.image:
         return ImagePreviewWidget(
-          item: params.file,
+          item: params!.file,
           isStandalone: true,
           windowId: widget.windowId,
-          parentWindowId: params.parentWindowId,
-          initParams: params.initParams,
+          parentWindowId: params!.parentWindowId,
+          initParams: params!.initParams,
         );
       case ViewerType.audio:
         return AudioPlayerView(
-          key: ValueKey(params.file.path),
-          item: params.file,
+          key: ValueKey(params!.file.path),
+          item: params!.file,
           isStandalone: true,
           windowId: widget.windowId,
-          parentWindowId: params.parentWindowId,
+          parentWindowId: params!.parentWindowId,
         );
       case ViewerType.markdown:
         return MarkdownPreviewWidget(
-          key: ValueKey(params.file.path),
-          item: params.file,
+          key: ValueKey(params!.file.path),
+          item: params!.file,
           isStandalone: true,
           windowId: widget.windowId,
-          parentWindowId: params.parentWindowId,
+          parentWindowId: params!.parentWindowId,
         );
       default:
         return Center(
           child: Text(
-            'Unsupported viewer type: ${params.viewerType}',
+            'Unsupported viewer type: ${params!.viewerType}',
             style: const TextStyle(color: Colors.white),
           ),
         );

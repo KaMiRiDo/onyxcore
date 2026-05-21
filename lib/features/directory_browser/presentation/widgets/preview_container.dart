@@ -91,7 +91,7 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
           return KeyEventResult.ignored;
         },
         child: GestureDetector(
-          onDoubleTap: () async {
+          onDoubleTap: widget.item.type == FileItemType.audio ? null : () async {
             List<String> preloadPaths = [];
             if (widget.item.type == FileItemType.image) {
               final items = ref.read(directoryItemsProvider).value ?? [];

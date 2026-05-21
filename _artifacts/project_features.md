@@ -395,7 +395,7 @@ onyxcore/
 - **Instant search** filter in current directory (gradient-highlighted search bar)
 - Search provider updates filtered list reactively
 - **Filter overlay** with file-type radio buttons and extension checkboxes with "Select All" toggle
-- **Sort overlay** with options: A-Z, Z-A, Size, Date, Type
+- **Sort overlay** with options: A-Z, Z-A, Size, Date, Type. Rendered with a custom matte dark aesthetic (0.06 white border opacity, frosted glass backdrop, and deep diffuse shadow) that anchors precisely to the right side of the control button without overlapping side panels.
 - Per-tab independent sort and filter state
 - Active filter shown with violet badge + clear button
 - **Custom Emoji Integration**: Custom emoji sets defined via the Marker Editor are automatically indexed by the global search provider, allowing user-defined keywords to surface custom emojis alongside built-in categories.
@@ -771,7 +771,8 @@ onyxcore/
 #### 4.7 Native Engine Synchronization (Deadlock Prevention)
 - **Singleton Architecture**: The AudioPlayerView utilizes a globally persistent `Player` instance (`globalAudioPlayer`) rather than instantiating and destroying a new engine context for each audio file.
 - **Why**: `media_kit` native backend (libmpv) on Linux struggles with concurrent resource teardown and initialization. When transitioning rapidly from Audio to Video, calling `AudioPlayer.dispose()` while simultaneously calling `new Player()` in the video player creates a severe native deadlock, causing the application to hang indefinitely.
-- **The Solution**: By reusing a single global audio player, we never need to call `Player.dispose()`. When the audio viewer closes, we simply call `await player.stop()`, which instantaneously halts playback without attempting to destroy the complex EGL contexts and native thread locks. This completely eliminates UI freezing during rapid media transitions.
+- **The Solution (Pause & Persist)**: By reusing a single global audio player, we never need to call `Player.dispose()`. Furthermore, we avoid `player.stop()` and `open(Media(''))` because completely unloading the player on Linux permanently breaks subsequent `Playlist` loads due to an underlying `media_kit` parsing bug. Instead, when the viewer closes, we execute a gentle `await player.pause()`. The player retains its native state and safely overrides the session when a new file is loaded.
+- **Race Condition Prevention**: Implemented an active-view tracker (`_globalPlayerViewIdCounter`). When rapidly switching between audio files, the disposed widget verifies it is still the active viewer before attempting to pause playback, completely eliminating race conditions where an old widget's cleanup halts a newly loading track.
 - **Codebase Integrity**: With the deadlock eliminated by the global player, all legacy cross-widget wait mechanisms have been cleanly purged:
   - The `audioNativeCleanup` `Completer` has been fully removed, breaking the artificial dependency between the video player and audio player.
   - The video player's `_openVideoWithAudioGuard()` method was renamed to `_openMediaWithDelay()` as it now solely manages a standard UI loading animation delay (300ms) rather than guarding against native deadlocks.

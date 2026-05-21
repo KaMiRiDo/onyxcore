@@ -19,9 +19,22 @@ class AudioControlsBar extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Left actions
-            IconButton(
-              icon: const Icon(Icons.favorite_border, color: Colors.white70),
-              onPressed: () {},
+            Consumer(
+              builder: (context, ref, child) {
+                final currentTrack = ref.watch(currentTrackProvider);
+                if (currentTrack == null) return const SizedBox(width: 48);
+                final isFavorite = ref.watch(audioFavoritesProvider).contains(currentTrack.path);
+                
+                return IconButton(
+                  icon: Icon(
+                    isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    color: isFavorite ? AppColors.magenta : Colors.white70,
+                  ),
+                  onPressed: () {
+                    ref.read(audioFavoritesProvider.notifier).toggleFavorite(currentTrack.path);
+                  },
+                );
+              },
             ),
 
             // Right volume

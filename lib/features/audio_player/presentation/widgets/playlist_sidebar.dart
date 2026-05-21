@@ -11,6 +11,7 @@ import '../providers/audio_player_providers.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/playing_eq_animation.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
 import 'package:path/path.dart' as p;
 
 class PlaylistSidebar extends ConsumerStatefulWidget {
@@ -126,15 +127,19 @@ class _PlaylistSidebarState extends ConsumerState<PlaylistSidebar> {
           onTap: isLast ? null : () {
             _openFolder(ref, targetPath);
           },
-          borderRadius: BorderRadius.circular(4),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: isLast ? Colors.white.withOpacity(0.1) : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: Text(
               segment,
               style: TextStyle(
-                color: isLast ? Colors.white : Colors.white54,
-                fontSize: 12,
-                fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
+                color: isLast ? Colors.white : Colors.white70,
+                fontSize: 11,
+                fontWeight: isLast ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ),
@@ -145,14 +150,14 @@ class _PlaylistSidebarState extends ConsumerState<PlaylistSidebar> {
         breadcrumbWidgets.add(
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 2),
-            child: Text('/', style: TextStyle(color: Colors.white24, fontSize: 12)),
+            child: Text('/', style: TextStyle(color: Colors.white24, fontSize: 11, fontWeight: FontWeight.bold)),
           )
         );
       }
     }
     
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           const Icon(Icons.folder_open_rounded, color: Colors.white38, size: 14),
@@ -185,7 +190,7 @@ class _PlaylistSidebarState extends ConsumerState<PlaylistSidebar> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E), // Matte dark grey
+        color: const Color(0xFF181818), // Matte dark grey
         border: Border(right: BorderSide(color: Colors.white.withOpacity(0.03))),
       ),
       child: Column(
@@ -197,9 +202,11 @@ class _PlaylistSidebarState extends ConsumerState<PlaylistSidebar> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Up Next",
-                  style: TextStyle(
+                Text(
+                  ref.watch(audioViewModeProvider) == AudioViewMode.favorites
+                      ? "Favorites"
+                      : "Home",
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -233,23 +240,27 @@ class _PlaylistSidebarState extends ConsumerState<PlaylistSidebar> {
                       },
                       tooltip: "Repeat",
                     ),
-                    PopupMenuButton<SortOption>(
-                      icon: const Icon(Icons.sort_rounded, color: Colors.white70, size: 20),
-                      tooltip: "Sort",
-                      color: const Color(0xFF2C2C2C),
-                      onSelected: (option) {
-                        ref.read(audioSortOptionProvider.notifier).state = option;
+                    Builder(
+                      builder: (context) {
+                        final sortOption = ref.watch(audioSortOptionProvider);
+                        return IconButton(
+                          icon: const Icon(Icons.sort_rounded, color: Colors.white70, size: 20),
+                          tooltip: "Sort",
+                          onPressed: () {
+                            final RenderBox box = context.findRenderObject() as RenderBox;
+                            final position = box.localToGlobal(Offset.zero);
+                            SortOverlay.show(
+                              context: context,
+                              buttonPosition: position,
+                              buttonSize: box.size,
+                              currentOption: ref.read(audioSortOptionProvider) ?? SortOption.aToZ,
+                              onSelected: (option) {
+                                ref.read(audioSortOptionProvider.notifier).state = option;
+                              },
+                            );
+                          },
+                        );
                       },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: SortOption.aToZ, child: Text("A to Z", style: TextStyle(color: Colors.white))),
-                        const PopupMenuItem(value: SortOption.zToA, child: Text("Z to A", style: TextStyle(color: Colors.white))),
-                        const PopupMenuDivider(),
-                        const PopupMenuItem(value: SortOption.lastModified, child: Text("Last Modified", style: TextStyle(color: Colors.white))),
-                        const PopupMenuItem(value: SortOption.firstModified, child: Text("First Modified", style: TextStyle(color: Colors.white))),
-                        const PopupMenuDivider(),
-                        const PopupMenuItem(value: SortOption.sizeSmallToLarge, child: Text("Size (Small to Large)", style: TextStyle(color: Colors.white))),
-                        const PopupMenuItem(value: SortOption.sizeLargeToSmall, child: Text("Size (Large to Small)", style: TextStyle(color: Colors.white))),
-                      ],
                     ),
                   ],
                 ),
@@ -286,16 +297,24 @@ class _PlaylistSidebarState extends ConsumerState<PlaylistSidebar> {
 
           // Track List
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
+            child: queue.isEmpty
+                ? Center(
+                    child: Text(
+                      ref.watch(audioViewModeProvider) == AudioViewMode.favorites
+                          ? "No favorite files in this folder"
+                          : "No audio files found",
+                      style: const TextStyle(color: Colors.white54, fontSize: 14),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: queue.length,
               itemBuilder: (context, index) {
                 final item = queue[index];
-                // Need to find real index in the original queue for player.jump
-                final originalQueue = ref.read(audioQueueProvider);
-                final realIndex = originalQueue.indexWhere((i) => i.path == item.path);
-                final isActive = realIndex != -1 && realIndex == activeIndex;
+                
+                final currentTrack = ref.watch(currentTrackProvider);
+                final isActive = currentTrack?.path == item.path;
                 final isSelected = selection.contains(item.path);
 
                 return _TrackTile(
@@ -311,13 +330,93 @@ class _PlaylistSidebarState extends ConsumerState<PlaylistSidebar> {
                       _openFolder(ref, item.path);
                       return;
                     }
+                    
+                    final originalQueue = ref.read(audioQueueProvider);
+                    final playingQueue = ref.read(audioPlayingQueueProvider);
+                    final realIndex = originalQueue.indexWhere((i) => i.path == item.path);
+                    
                     if (realIndex != -1) {
-                      ref.read(activeTrackIndexProvider.notifier).state = realIndex;
-                      player?.jump(realIndex);
+                      if (originalQueue != playingQueue) {
+                        // Browsing a different folder than playing, so load new playlist
+                        ref.read(audioPlayingQueueProvider.notifier).state = originalQueue;
+                        final playlist = Playlist(
+                          originalQueue.map((f) => Media(f.path)).toList(),
+                          index: realIndex,
+                        );
+                        ref.read(activeTrackIndexProvider.notifier).state = realIndex;
+                        player?.open(playlist);
+                      } else {
+                        ref.read(activeTrackIndexProvider.notifier).state = realIndex;
+                        player?.jump(realIndex);
+                      }
                     }
                   },
                 );
               },
+            ),
+          ),
+
+          // Bottom Navigation Bar
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141414),
+              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.03))),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildNavItem(
+                  icon: Icons.home_rounded,
+                  label: "Home",
+                  isSelected: ref.watch(audioViewModeProvider) == AudioViewMode.home,
+                  onTap: () => ref.read(audioViewModeProvider.notifier).state = AudioViewMode.home,
+                ),
+                _buildNavItem(
+                  icon: Icons.favorite_rounded,
+                  label: "Favorites",
+                  isSelected: ref.watch(audioViewModeProvider) == AudioViewMode.favorites,
+                  onTap: () => ref.read(audioViewModeProvider.notifier).state = AudioViewMode.favorites,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.magenta.withOpacity(0.15) : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              icon,
+              color: isSelected ? AppColors.magenta : Colors.white54,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white54,
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],

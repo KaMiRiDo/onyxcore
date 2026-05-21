@@ -1,4 +1,4 @@
-
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
@@ -6,6 +6,43 @@ import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+
+enum AudioViewMode { home, favorites }
+
+class AudioFavoritesNotifier extends StateNotifier<Set<String>> {
+  static const String _boxName = 'audio_favorites';
+  Box? _box;
+
+  AudioFavoritesNotifier() : super({}) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    _box = await Hive.openBox(_boxName);
+    final favs = _box!.get('favorites', defaultValue: <String>[]);
+    if (mounted) {
+      state = (favs as List).cast<String>().toSet();
+    }
+  }
+
+  void toggleFavorite(String path) {
+    if (state.contains(path)) {
+      state = {...state}..remove(path);
+    } else {
+      state = {...state, path};
+    }
+    _box?.put('favorites', state.toList());
+  }
+}
+
+final audioFavoritesProvider = StateNotifierProvider<AudioFavoritesNotifier, Set<String>>((ref) {
+  return AudioFavoritesNotifier();
+});
+
+final audioViewModeProvider = StateProvider<AudioViewMode>((ref) => AudioViewMode.home);
 
 /// The active Player instance, set by AudioPlayerView when it mounts.
 /// This is NOT auto-created by Riverpod — it is set externally.
@@ -27,10 +64,11 @@ final audioSelectionProvider = StateProvider<Set<String>>((ref) => {});
 final audioSelectionAnchorProvider = StateProvider<int?>((ref) => null);
 
 final audioQueueProvider = StateProvider<List<FileItem>>((ref) => []);
+final audioPlayingQueueProvider = StateProvider<List<FileItem>>((ref) => []);
 final activeTrackIndexProvider = StateProvider<int>((ref) => 0);
 
 final currentTrackProvider = Provider<FileItem?>((ref) {
-  final queue = ref.watch(audioQueueProvider);
+  final queue = ref.watch(audioPlayingQueueProvider);
   final index = ref.watch(activeTrackIndexProvider);
   if (index >= 0 && index < queue.length) {
     return queue[index];
@@ -73,9 +111,15 @@ final filteredAndSortedAudioQueueProvider = Provider<List<FileItem>>((ref) {
   final queue = ref.watch(audioQueueProvider);
   final query = ref.watch(audioSearchQueryProvider).toLowerCase();
   final sortOption = ref.watch(audioSortOptionProvider);
+  final viewMode = ref.watch(audioViewModeProvider);
+  final favorites = ref.watch(audioFavoritesProvider);
 
   // Filter
   var result = queue;
+  if (viewMode == AudioViewMode.favorites) {
+    result = result.where((item) => favorites.contains(item.path)).toList();
+  }
+
   if (query.isNotEmpty) {
     result = result.where((item) => item.name.toLowerCase().contains(query)).toList();
   }

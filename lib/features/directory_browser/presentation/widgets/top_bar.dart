@@ -348,7 +348,8 @@ class _TopBarState extends ConsumerState<TopBar> {
                         final position = box.localToGlobal(Offset.zero);
                         SortOverlay.show(
                           context: context,
-                          position: position,
+                          buttonPosition: position,
+                          buttonSize: box.size,
                           currentOption: sort.option,
                           onSelected: (option) {
                             final tabId = ref.read(tabIdProvider);
