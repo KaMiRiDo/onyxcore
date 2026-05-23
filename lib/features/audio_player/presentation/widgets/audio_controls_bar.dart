@@ -60,9 +60,9 @@ class AudioControlsBar extends ConsumerWidget {
                       trackHeight: 2,
                       thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                       overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                      activeTrackColor: Colors.white,
+                      activeTrackColor: volume > 100 ? AppColors.magenta : Colors.white,
                       inactiveTrackColor: Colors.white24,
-                      thumbColor: Colors.white,
+                      thumbColor: volume > 100 ? AppColors.magenta : Colors.white,
                     ),
                     child: Slider(
                       value: volume.clamp(0.0, 200.0),

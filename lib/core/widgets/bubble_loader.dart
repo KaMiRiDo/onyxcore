@@ -71,7 +71,7 @@ class BubblePainter extends CustomPainter {
         center.dy + math.sin(angle) * offsetDist,
       );
 
-      final bubbleRadius = 8.0 * math.sin(bubbleProgress * math.pi);
+      final bubbleRadius = (size.width * 0.05) * math.sin(bubbleProgress * math.pi);
       
       final paint = Paint()
         ..sharedGradient(

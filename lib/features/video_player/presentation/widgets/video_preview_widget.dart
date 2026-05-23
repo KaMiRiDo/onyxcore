@@ -31,6 +31,7 @@ import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
+import 'package:onyxcore/core/utils/media_uri_helper.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
@@ -446,7 +447,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     
     debugPrint('[VideoPlayer] Calling player.open() for: ${_currentItem.path}');
     try {
-      await player.open(Media(_currentItem.path), play: true);
+      await MediaUriHelper.ensureLocalProxy();
+      await player.open(Media(MediaUriHelper.getSafeMediaUri(_currentItem.path)), play: true);
       debugPrint('[VideoPlayer] player.open() completed successfully');
       if (mounted) setState(() => _isOpening = false);
     } catch (e) {
@@ -480,7 +482,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       if (!mounted) return;
       Future.delayed(const Duration(milliseconds: 100), () async {
         if (mounted) {
-          await player.open(Media(item.path), play: true);
+          await MediaUriHelper.ensureLocalProxy();
+          await player.open(Media(MediaUriHelper.getSafeMediaUri(item.path)), play: true);
           if (mounted) setState(() => _isOpening = false);
         }
       });

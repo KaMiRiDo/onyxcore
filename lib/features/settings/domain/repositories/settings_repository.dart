@@ -17,6 +17,9 @@ abstract class SettingsRepository {
   /// Update the show-hidden-files setting.
   Future<void> setShowHiddenFiles({required bool value});
 
+  /// Update the show-hidden-audio-files setting.
+  Future<void> setShowHiddenAudioFiles({required bool value});
+
   /// Update the snapshot filename prefix.
   Future<void> setSnapshotPrefix(String value);
 

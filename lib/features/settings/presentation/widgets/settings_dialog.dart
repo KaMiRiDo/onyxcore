@@ -616,6 +616,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               ),
               _buildSectionHeader('Audio', _viewersKeys['Audio']!),
               _buildSettingTile(
+                title: 'Show hidden files',
+                subtitle: 'Show hidden files and folders starting with a dot in the audio player',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.showHiddenAudioFiles ?? false,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(showHiddenAudioFiles: value);
+                    });
+                  },
+                ),
+              ),
+              _buildSettingTile(
                 title: 'Seek duration',
                 subtitle: 'Seconds to seek when using arrow keys in the audio player',
                 trailing: _buildDropdown<int>(

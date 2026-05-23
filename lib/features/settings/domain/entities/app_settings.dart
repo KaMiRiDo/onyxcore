@@ -40,6 +40,7 @@ class AppSettings extends Equatable {
     this.confirmDeleteVideo = true,
     this.confirmDeleteDocument = true,
     this.confirmDeleteAudio = true,
+    this.showHiddenAudioFiles = false,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -47,6 +48,9 @@ class AppSettings extends Equatable {
 
   /// Whether to show hidden files (starting with .) in the file manager.
   final bool showHiddenFiles;
+
+  /// Whether to show hidden files (starting with .) in the audio player.
+  final bool showHiddenAudioFiles;
 
   /// Prefix for snapshot filenames (e.g., "snapshot_1234567890.png").
   final String snapshotPrefix;
@@ -131,6 +135,7 @@ class AppSettings extends Equatable {
     bool? confirmDeleteVideo,
     bool? confirmDeleteDocument,
     bool? confirmDeleteAudio,
+    bool? showHiddenAudioFiles,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -155,6 +160,7 @@ class AppSettings extends Equatable {
       confirmDeleteVideo: confirmDeleteVideo ?? this.confirmDeleteVideo,
       confirmDeleteDocument: confirmDeleteDocument ?? this.confirmDeleteDocument,
       confirmDeleteAudio: confirmDeleteAudio ?? this.confirmDeleteAudio,
+      showHiddenAudioFiles: showHiddenAudioFiles ?? this.showHiddenAudioFiles,
     );
   }
 
@@ -182,5 +188,6 @@ class AppSettings extends Equatable {
     confirmDeleteVideo,
     confirmDeleteDocument,
     confirmDeleteAudio,
+    showHiddenAudioFiles,
   ];
 }

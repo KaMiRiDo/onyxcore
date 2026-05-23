@@ -9,6 +9,18 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:audiotags/audiotags.dart';
+import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
+
+final audioTagsOverridesProvider = StateProvider.family<Tag?, String>((ref, path) => null);
+
+final audioTagsProvider = FutureProvider.family<Tag?, String>((ref, path) async {
+  final overrideTag = ref.watch(audioTagsOverridesProvider(path));
+  if (overrideTag != null) {
+    return overrideTag;
+  }
+  return await AudioMetadataUtils.readTags(path);
+});
 
 enum AudioViewMode { home, favorites }
 
@@ -59,6 +71,10 @@ final audioRootPathProvider = StateProvider<String>((ref) => '');
 final audioPathHistoryProvider = StateProvider<List<String>>((ref) => []);
 final audioPathForwardHistoryProvider = StateProvider<List<String>>((ref) => []);
 
+final audioShowHiddenProvider = StateProvider<bool>((ref) {
+  return ref.watch(settingsProvider).value?.showHiddenAudioFiles ?? false;
+});
+
 // Selection State for Audio Sidebar
 final audioSelectionProvider = StateProvider<Set<String>>((ref) => {});
 final audioSelectionAnchorProvider = StateProvider<int?>((ref) => null);
@@ -66,6 +82,7 @@ final audioSelectionAnchorProvider = StateProvider<int?>((ref) => null);
 final audioQueueProvider = StateProvider<List<FileItem>>((ref) => []);
 final audioPlayingQueueProvider = StateProvider<List<FileItem>>((ref) => []);
 final activeTrackIndexProvider = StateProvider<int>((ref) => 0);
+final audioIsReloadingProvider = StateProvider<bool>((ref) => false);
 
 final currentTrackProvider = Provider<FileItem?>((ref) {
   final queue = ref.watch(audioPlayingQueueProvider);
@@ -100,8 +117,6 @@ final audioVolumeProvider = StreamProvider<double>((ref) {
   return player.stream.volume;
 });
 
-final audioShuffleProvider = StateProvider<bool>((ref) => false);
-final audioRepeatProvider = StateProvider<PlaylistMode>((ref) => PlaylistMode.none);
 
 // Sorting and Searching
 final audioSortOptionProvider = StateProvider<SortOption?>((ref) => null);
@@ -128,8 +143,10 @@ final filteredAndSortedAudioQueueProvider = Provider<List<FileItem>>((ref) {
   if (sortOption != null) {
     result = List.from(result);
     result.sort((a, b) {
-      if (a.type == FileItemType.folder && b.type != FileItemType.folder) return -1;
-      if (a.type != FileItemType.folder && b.type == FileItemType.folder) return 1;
+      if (sortOption != SortOption.filesFirst) {
+        if (a.type == FileItemType.folder && b.type != FileItemType.folder) return -1;
+        if (a.type != FileItemType.folder && b.type == FileItemType.folder) return 1;
+      }
 
       switch (sortOption) {
         case SortOption.aToZ:

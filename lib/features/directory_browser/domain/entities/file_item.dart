@@ -12,6 +12,7 @@ class FileItem extends Equatable {
     this.sizeBytes,
     this.thumbnailPath,
     this.imageAspectRatio,
+    this.itemCount,
     this.isExecutable = false,
     this.hasWritePermission = true,
   });
@@ -23,6 +24,7 @@ class FileItem extends Equatable {
   final int? sizeBytes;
   final String? thumbnailPath;
   final double? imageAspectRatio;
+  final int? itemCount;
   final bool isExecutable;
   final bool hasWritePermission;
 
@@ -35,6 +37,7 @@ class FileItem extends Equatable {
     int? sizeBytes,
     String? thumbnailPath,
     double? imageAspectRatio,
+    int? itemCount,
     bool? isExecutable,
     bool? hasWritePermission,
   }) {
@@ -46,6 +49,7 @@ class FileItem extends Equatable {
       sizeBytes: sizeBytes ?? this.sizeBytes,
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
       imageAspectRatio: imageAspectRatio ?? this.imageAspectRatio,
+      itemCount: itemCount ?? this.itemCount,
       isExecutable: isExecutable ?? this.isExecutable,
       hasWritePermission: hasWritePermission ?? this.hasWritePermission,
     );
@@ -60,6 +64,7 @@ class FileItem extends Equatable {
       'sizeBytes': sizeBytes,
       'thumbnailPath': thumbnailPath,
       'imageAspectRatio': imageAspectRatio,
+      'itemCount': itemCount,
       'isExecutable': isExecutable,
       'hasWritePermission': hasWritePermission,
     };
@@ -74,11 +79,23 @@ class FileItem extends Equatable {
       sizeBytes: json['sizeBytes'],
       thumbnailPath: json['thumbnailPath'],
       imageAspectRatio: json['imageAspectRatio'],
+      itemCount: json['itemCount'],
       isExecutable: json['isExecutable'] ?? false,
       hasWritePermission: json['hasWritePermission'] ?? true,
     );
   }
 
   @override
-  List<Object?> get props => [path, name, type, modified, sizeBytes, thumbnailPath, imageAspectRatio, isExecutable, hasWritePermission];
+  List<Object?> get props => [
+    path,
+    name,
+    type,
+    modified,
+    sizeBytes,
+    thumbnailPath,
+    imageAspectRatio,
+    itemCount,
+    isExecutable,
+    hasWritePermission,
+  ];
 }

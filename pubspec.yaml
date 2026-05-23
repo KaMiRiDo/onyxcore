@@ -36,6 +36,8 @@ dependencies:
   hive_flutter: ^1.1.0
   path_provider: ^2.1.5
   image: ^4.8.0
+  audiotags: ^1.4.5
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:

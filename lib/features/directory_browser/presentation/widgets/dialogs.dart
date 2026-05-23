@@ -433,19 +433,24 @@ class PermanentDeleteDialog extends StatelessWidget {
 class ViewerDeleteDialog extends StatelessWidget {
   final String fileName;
   final bool permanent;
+  final ValueChanged<bool>? onDontAskAgainChanged;
 
   const ViewerDeleteDialog({
     super.key,
     required this.fileName,
     required this.permanent,
+    this.onDontAskAgainChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    bool dontAskAgain = false;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      child: Container(
+      child: StatefulBuilder(
+        builder: (context, setState) => Container(
         width: 420,
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
@@ -533,6 +538,46 @@ class ViewerDeleteDialog extends StatelessWidget {
                 ],
               ),
             ),
+
+            if (!permanent && onDontAskAgainChanged != null) ...[
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    dontAskAgain = !dontAskAgain;
+                  });
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: dontAskAgain ? AppColors.violet : Colors.transparent,
+                        border: Border.all(
+                          color: dontAskAgain ? AppColors.violet : Colors.white38,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: dontAskAgain
+                          ? const Icon(Icons.check, size: 14, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Don't ask for confirmation in this session",
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 32),
             Row(
               children: [
@@ -557,7 +602,12 @@ class ViewerDeleteDialog extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     autofocus: true,
-                    onPressed: () => Navigator.pop(context, true),
+                    onPressed: () {
+                      if (onDontAskAgainChanged != null) {
+                        onDontAskAgainChanged!(dontAskAgain);
+                      }
+                      Navigator.pop(context, true);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: permanent ? AppColors.error : AppColors.violet,
                       foregroundColor: Colors.white,
@@ -576,6 +626,7 @@ class ViewerDeleteDialog extends StatelessWidget {
               ],
             ),
           ],
+        ),
         ),
       ),
     );

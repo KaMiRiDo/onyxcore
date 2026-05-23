@@ -78,6 +78,7 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
       bindings: {
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () => ref.read(filePickerProvider.notifier).goBack(),
         const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () => ref.read(filePickerProvider.notifier).goForward(),
+        const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.of(context).maybePop(),
       },
       child: Focus(
         autofocus: true,

@@ -33,6 +33,8 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `image` | ^4.8.0 | Image processing |
 | | `path_provider` | ^2.1.5 | Platform directories |
 | | `watcher` | ^1.2.1 | File system watching |
+| | `audiotags` | ^1.4.0 | ID3 audio metadata manipulation |
+| | `mime` | ^1.0.4 | MIME type resolution for proxy |
 | **Lint** | `very_good_analysis` | ^10.1.0 | Static analysis rules |
 | **Test** | `flutter_test` | SDK | Widget testing framework |
 | | `mocktail` | ^1.0.4 | Mock object generation for tests |
@@ -143,6 +145,7 @@ onyxcore/
 │   │   │   ├── directory_size_utils.dart  # Recursive size calc (isolate)
 │   │   │   ├── extensions.dart            # Dart extension methods
 │   │   │   ├── formatters.dart            # Date/number formatters
+│   │   │   ├── media_uri_helper.dart      # HTTP proxy for media_kit
 │   │   │   └── logger.dart                # Logging utility
 │   │   ├── widgets/
 │   │   │   ├── bubble_loader.dart         # Animated bubble loading indicator
@@ -257,7 +260,10 @@ onyxcore/
 │       │           ├── hero_audio_player.dart        # Large album art player
 │       │           ├── waveform_scrubber.dart        # Procedural waveform widget
 │       │           ├── audio_controls_bar.dart       # Playback controls
-│       │           └── playlist_sidebar.dart         # Audio playlist panel
+│       │           ├── playlist_sidebar.dart         # Audio playlist panel
+│       │           └── dialogs/
+│       │               ├── audio_properties_dialog.dart # Audio metadata dialog
+│       │               └── audio_tag_editor_dialog.dart # ID3 tag editor
 │       ├── document_viewer/
 │       │   └── presentation/widgets/
 │       │       └── markdown_preview_widget.dart     # MD viewer + editor
@@ -759,16 +765,36 @@ onyxcore/
 - **Shuffle** toggle button
 - **Repeat mode** cycling: None → Loop All → Loop Single
 - Track tiles with gradient art placeholders
+- **Context-Aware Active Track Tracking**: The active track is highlighted using strict absolute path matching rather than raw index tracking. When navigating into parent directories, the playing animation intelligently falls back to highlight the parent folder containing the active track, providing accurate visual context regardless of navigation depth.
 - Active track: gradient text via `ShaderMask` + **animated equalizer icon** (3-bar sine wave animation)
 - Tap to jump to any track
+- **ContextMenu Integration**: Right-clicking an audio track opens the glassmorphic context menu, supporting inline operations:
+  - **Properties**: View full metadata and file statistics.
+  - **Tag Editor**: Open the ID3 tag editor for the file.
+  - **Rename / Delete**: Standard file operations with instant queue synchronization.
 
-#### 4.6 Keyboard Shortcuts
+#### 4.6 ID3 Tag Editor
+- Dedicated `AudioTagEditorDialog` built using `audiotags` package to modify ID3 metadata.
+- **Glassmorphic UI**: Integrates seamlessly with the Onyx Monolith aesthetic, featuring custom text fields and a responsive grid layout.
+- **Editable Fields**: Title, Artist, Album, Genre, and Track Number.
+- **Album Art Replacement**: Clickable album art zone allowing users to browse and attach new cover images using `file_picker`.
+- **Live Sync**: Saved changes automatically trigger a filesystem event, updating the file browser and reloading the active track metadata without interrupting playback.
+
+#### 4.7 Keyboard Shortcuts & Guarding
 - `Space`: play/pause
 - `←`/`→`: seek (configurable seconds from settings)
 - `↑`/`↓`: volume ±5%
 - `M`: mute toggle
+- **Input Guarding**: Media shortcuts (Space, Arrows) are strictly disabled when the user is actively typing in `EditableText` fields (e.g., Search bar, File renamer, Tag editor) to prevent playback interference.
+- **Queue Protection**: Refresh (`F5`/`Ctrl+R`) and Show Hidden Files (`Ctrl+H`) shortcuts safely update the directory view without erroneously overwriting the active playback queue when browsing secondary folders.
 
-#### 4.7 Native Engine Synchronization (Deadlock Prevention)
+#### 4.8 Local Proxy Mechanism (media_kit Unicode Bypass)
+- **`MediaUriHelper`**: A bespoke local HTTP server (`http://127.0.0.1`) spawned at app launch to proxy local file paths into the `media_kit` engine.
+- **Why**: Bypasses native GLib/GIO URI parsing bugs in `media_kit` on Linux which cause playback failure for paths containing specific Unicode or special characters (e.g., `｜`).
+- **MIME Type Negotiation**: Uses the `mime` package to dynamically set correct `Content-Type` headers during the proxy stream, ensuring the native engine correctly identifies and demuxes media streams.
+- **Zero-Latency Streaming**: The proxy acts as a direct byte-stream pipeline, imposing zero latency on playback initialization or seeking operations.
+
+#### 4.9 Native Engine Synchronization (Deadlock Prevention)
 - **Singleton Architecture**: The AudioPlayerView utilizes a globally persistent `Player` instance (`globalAudioPlayer`) rather than instantiating and destroying a new engine context for each audio file.
 - **Why**: `media_kit` native backend (libmpv) on Linux struggles with concurrent resource teardown and initialization. When transitioning rapidly from Audio to Video, calling `AudioPlayer.dispose()` while simultaneously calling `new Player()` in the video player creates a severe native deadlock, causing the application to hang indefinitely.
 - **The Solution (Pause & Persist)**: By reusing a single global audio player, we never need to call `Player.dispose()`. Furthermore, we avoid `player.stop()` and `open(Media(''))` because completely unloading the player on Linux permanently breaks subsequent `Playlist` loads due to an underlying `media_kit` parsing bug. Instead, when the viewer closes, we execute a gentle `await player.pause()`. The player retains its native state and safely overrides the session when a new file is loaded.

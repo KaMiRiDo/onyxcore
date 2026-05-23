@@ -153,35 +153,40 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
                     ),
 
                   // The Menu Container
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                      child: Container(
-                        width: menuWidth,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E1E).withOpacity(0.85),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 32,
+                          offset: const Offset(0, 16),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: widget.items.map((item) => _ContextMenuItemWidget(
-                            item: item,
-                            onTap: () {
-                              widget.onClose();
-                              item.onTap();
-                            },
-                            onCloseAll: widget.onClose,
-                          )).toList(),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                        child: Container(
+                          width: menuWidth,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF181818).withOpacity(0.95),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white.withOpacity(0.06)),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: widget.items.map((item) => _ContextMenuItemWidget(
+                              item: item,
+                              onTap: () {
+                                widget.onClose();
+                                item.onTap();
+                              },
+                              onCloseAll: widget.onClose,
+                            )).toList(),
+                          ),
                         ),
                       ),
                     ),
@@ -308,12 +313,14 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
         behavior: HitTestBehavior.opaque,
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
             color: (isSelected) 
                 ? AppColors.violet.withOpacity(0.15)
                 : (_isHovered && isEnabled) 
-                    ? Colors.white.withOpacity(0.1) 
+                    ? Colors.white.withOpacity(0.08) 
                     : Colors.transparent,
           ),
           child: Row(

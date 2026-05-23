@@ -40,16 +40,19 @@ class ViewerTopBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
+                  Tooltip(
+                    message: title,
+                    waitDuration: const Duration(milliseconds: 500),
+                    child: Text(
+                      _trimMiddle(title, maxLength: 50),
+                      style: GoogleFonts.manrope(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
+                      maxLines: 1,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   if (metadata != null) ...[
                     const SizedBox(height: 4),
@@ -65,7 +68,7 @@ class ViewerTopBar extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 48),
             // Actions Area
             if (extraActions != null) ...extraActions!,
             if (!isStandalone) ...[
@@ -108,5 +111,11 @@ class ViewerTopBar extends StatelessWidget {
         splashRadius: 24,
       ),
     );
+  }
+
+  String _trimMiddle(String text, {int maxLength = 40}) {
+    if (text.length <= maxLength) return text;
+    final half = (maxLength - 3) ~/ 2;
+    return '${text.substring(0, half)}...${text.substring(text.length - half)}';
   }
 }

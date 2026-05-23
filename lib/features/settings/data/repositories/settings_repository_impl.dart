@@ -45,6 +45,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     return AppSettings(
       autoPlayNext: _prefs.getBool('autoPlayNext') ?? true,
       showHiddenFiles: _prefs.getBool('showHiddenFiles') ?? false,
+      showHiddenAudioFiles: _prefs.getBool('showHiddenAudioFiles') ?? false,
       snapshotPrefix: _prefs.getString('snapshotPrefix') ?? 'snapshot',
       doubleTapSeekSeconds: _prefs.getInt('doubleTapSeekSeconds') ?? 10,
       pinnedFolders: List<String>.from(_pinnedFolders),
@@ -75,6 +76,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> saveSettings(AppSettings settings) async {
     await _prefs.setBool('autoPlayNext', settings.autoPlayNext);
     await _prefs.setBool('showHiddenFiles', settings.showHiddenFiles);
+    await _prefs.setBool('showHiddenAudioFiles', settings.showHiddenAudioFiles);
     await _prefs.setString('snapshotPrefix', settings.snapshotPrefix);
     await _prefs.setInt('doubleTapSeekSeconds', settings.doubleTapSeekSeconds);
     await _prefs.setInt('maxConcurrentTasks', settings.maxConcurrentTasks);
@@ -106,6 +108,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setShowHiddenFiles({required bool value}) async {
     await _prefs.setBool('showHiddenFiles', value);
+  }
+
+  @override
+  Future<void> setShowHiddenAudioFiles({required bool value}) async {
+    await _prefs.setBool('showHiddenAudioFiles', value);
   }
 
 

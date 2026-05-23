@@ -44,6 +44,12 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> setShowHiddenAudioFiles({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setShowHiddenAudioFiles(value: value);
+    ref.invalidateSelf();
+  }
+
   Future<void> setSnapshotPrefix(String value) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.setSnapshotPrefix(value);
