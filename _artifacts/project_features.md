@@ -20,7 +20,7 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `media_kit_libs_video` | ^1.0.7 | Native codec libraries |
 | **Window** | `desktop_multi_window` | ^0.3.0 | Multi-window IPC |
 | | `window_manager` | ^0.5.1 | Window lifecycle control |
-| **Storage** | `hive` / `hive_flutter` | ^1.1.0 | Local key-value persistence |
+| **Storage** | `hive` / `hive_flutter` | ^2.2.3 / ^1.1.0 | Local key-value persistence |
 | | `shared_preferences` | ^2.2.3 | Settings persistence |
 | **UI** | `google_fonts` | ^6.2.1 | Typography (Manrope, Outfit, JetBrains Mono) |
 | | `flutter_svg` | ^2.2.4 | SVG icon rendering |
@@ -33,12 +33,13 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `image` | ^4.8.0 | Image processing |
 | | `path_provider` | ^2.1.5 | Platform directories |
 | | `watcher` | ^1.2.1 | File system watching |
-| | `audiotags` | ^1.4.0 | ID3 audio metadata manipulation |
-| | `mime` | ^1.0.4 | MIME type resolution for proxy |
+| | `audiotags` | ^1.4.5 | ID3 audio metadata manipulation |
+| | `file_selector` | ^1.1.0 | Platform-native file selection dialogs |
 | **Lint** | `very_good_analysis` | ^10.1.0 | Static analysis rules |
 | **Test** | `flutter_test` | SDK | Widget testing framework |
 | | `mocktail` | ^1.0.4 | Mock object generation for tests |
 | **External** | `ffmpeg` (CLI) | system | Image editing (rotate, crop, brightness); hover thumbnail extraction (video preview) |
+| | `ffprobe` (CLI) | system | Audio properties extraction (duration, bitrate, sample rate) |
 | | `lsblk` / `udisksctl` (CLI) | system | Device detection & mounting |
 | | `gio` (CLI) | system | Trash operations |
 
@@ -69,7 +70,7 @@ graph TB
             Domain["FileItem / SortSettings / FilterSettings / Device"]
             Providers["DirectoryProviders / TabManager / TaskNotifier / SelectionNotifier"]
             Pages["GalleryPage (Main Orchestrator)"]
-            BrowserWidgets["TopBar / Sidebar / FileGrid / ItemCard / ContextMenu / OpenWithDialog / FilterOverlay / SortOverlay / BackgroundPanel / TaskHistory"]
+            BrowserWidgets["TopBar / Sidebar / FileGrid / ItemCard / ContextMenu / OpenWithDialog / FilterOverlay / SortOverlay / BackgroundPanel / TaskHistory / CreateItemDialog"]
             Utils["AppLauncherUtils / DirectorySizeUtils / FileTypeUtils / StringUtils"]
         end
 
@@ -86,8 +87,9 @@ graph TB
         end
 
         subgraph AudioPlayer["audio_player"]
+            AudioUtils["AudioMetadataUtils / AudioQueueIsolate"]
             AudioView["AudioPlayerView"]
-            AudioWidgets["HeroAudioPlayer / WaveformScrubber / AudioControlsBar / PlaylistSidebar"]
+            AudioWidgets["HeroAudioPlayer / WaveformScrubber / AudioControlsBar / PlaylistSidebar / PlayingEqAnimation"]
         end
 
         subgraph DocViewer["document_viewer"]
@@ -187,6 +189,7 @@ onyxcore/
 │       │       │   ├── device_provider.dart            # Block device detection
 │       │       │   ├── directory_providers.dart        # Core directory state providers
 │       │       │   ├── navigation_notifier.dart        # Back/forward navigation
+│       │       │   ├── pinned_items_provider.dart       # Hive-backed pinned items
 │       │       │   ├── selection_notifier.dart         # Multi-select state
 │       │       │   ├── tab_manager.dart                # Tabbed interface state
 │       │       │   ├── task_history_provider.dart      # Persistent task history
@@ -197,6 +200,7 @@ onyxcore/
 │       │           ├── background_processes_button.dart # Tasks panel toggle
 │       │           ├── conflict_dialog.dart          # Skip/Overwrite/Rename dialog
 │       │           ├── context_menu.dart             # Glassmorphism right-click menu
+│       │           ├── create_item_dialog.dart       # New Folder/Document creation dialog
 │       │           ├── dialogs.dart                  # Common dialog utilities
 │       │           ├── empty_state_view.dart         # Empty folder/search/filter views
 │       │           ├── error_dialog.dart             # Error display dialog
@@ -249,18 +253,23 @@ onyxcore/
 │       │           ├── emoji_data.dart               # Emoji category data
 │       │           └── menu_tooltip.dart             # OverlayPortal tooltip
 │       ├── audio_player/
-│       │   ├── domain/entities/
-│       │   │   └── audio_track.dart                 # Audio track entity
+│       │   ├── domain/
+│       │   │   ├── entities/
+│       │   │   │   └── audio_track.dart                 # Audio track entity
+│       │   │   └── utils/
+│       │   │       ├── audio_metadata_utils.dart         # FFprobe properties + cover art processing
+│       │   │       └── audio_queue_isolate.dart          # Isolate-based audio queue builder
 │       │   └── presentation/
 │       │       ├── pages/
 │       │       │   └── audio_player_view.dart       # Main audio player layout
 │       │       ├── providers/
 │       │       │   └── audio_player_providers.dart  # Audio state providers
 │       │       └── widgets/
-│       │           ├── hero_audio_player.dart        # Large album art player
+│       │           ├── hero_audio_player.dart        # Large album art player + AutoScrollingText
 │       │           ├── waveform_scrubber.dart        # Procedural waveform widget
-│       │           ├── audio_controls_bar.dart       # Playback controls
-│       │           ├── playlist_sidebar.dart         # Audio playlist panel
+│       │           ├── audio_controls_bar.dart       # Playback controls + favorites
+│       │           ├── playlist_sidebar.dart         # Audio playlist panel + browser
+│       │           ├── playing_eq_animation.dart     # 3-bar sine wave EQ animation
 │       │           └── dialogs/
 │       │               ├── audio_properties_dialog.dart # Audio metadata dialog
 │       │               └── audio_tag_editor_dialog.dart # ID3 tag editor
@@ -300,7 +309,7 @@ onyxcore/
 └── pubspec.yaml
 ```
 
-**Total: 113 Dart source files across 8 feature modules, core infrastructure, and services layer + 5 test files.**
+**Total: 123 Dart source files across 8 feature modules, core infrastructure, and services layer + 5 test files.**
 
 ---
 
@@ -385,7 +394,7 @@ onyxcore/
 - **Rename (Bulk)**: Prefix/index modes via modal dialog.
 - **Rename task tracking**: Both single and bulk renames create lightweight background tasks (`isLight: true`) with per-item logging
 - **Key Lifecycle Management**: Uses a lazy-registry pattern for widget keys. Keys are tagged with path-specific `debugLabel`s (e.g., `item_card_/path/to/file`) to prevent collisions. Stale keys in the registry are handled safely via `currentContext` null-checks in `GalleryPage`, avoiding risky provider updates during the widget deactivation phase.
-- **Create New Folder** via gradient "+ Add" button
+- **Create New Folder / Document** via `CreateItemDialog` — premium glassmorphic dialog with type toggle (folder/document), name validation (invalid characters, duplicate names), gradient radio buttons with animated transitions, and arrow-key type switching
 - **Isolate-based file copy** with manual buffer flushing, progress reporting via SendPort
 - **Conflict resolution** — queue-based with Completer, user dialog for skip/overwrite/rename; auto-rename appends `(1)`, `(2)` etc. with collision loop
 - **Global conflict resolution**: `ConflictProvider` supports a "remember my choice" global resolution that applies to all remaining items in a batch
@@ -735,66 +744,130 @@ onyxcore/
 ### 4. Audio Player
 
 #### 4.1 Preview Mode (Inline)
-- Split-pane layout: 25% playlist sidebar + 75% hero player
-- Builds queue from all audio files in current directory
-- Auto-plays from selected track
+- Split-pane layout: **25% playlist sidebar** (directory browser) + **75% hero player**
+- Builds queue from all audio files in current directory via `AudioQueueIsolate` (`compute` isolate)
+- Auto-plays from selected track at the start index
+- **Double-tap pop-out**: Opens the audio player in a standalone persistent window via `PersistentViewerManager.openMedia()`, then clears the inline preview
+- **Close shortcuts**: `Backspace` / `Alt+←` / `Ctrl+W` close the audio preview
 
 #### 4.2 Hero Audio Player
-- Large glassmorphism **album art placeholder** (380x380) with gradient glow
-- **Track name** display (36px bold)
-- "Unknown Artist" subtitle
-- **Radial violet glow** background effect
+- Large **album art** display (380×380) with gradient glow — reads embedded cover art from ID3 tags via `audiotags`
+- **Fallback placeholder**: When no album art is present, displays a gradient music note icon (140px) with `ShaderMask` (magenta→violet)
+- **Cover art overlay**: Gradient overlay (white 15% top-left → black 40% bottom-right) adds depth to embedded images
+- **Album art border**: 1.5px `white.withOpacity(0.04)` border with 16px radius and diffuse shadow (40px blur, 10px spread)
+- **AutoScrollingText**: Custom auto-scrolling track title widget using `Ticker` — text scrolls horizontally at ~60px/sec after a 2s initial delay, loops infinitely. Resets and re-delays on track change.
+- **Track name** display (28px bold, -0.5 letter-spacing) — shows filename without extension
+- **Artist/Album subtitle**: Reads `trackArtist` and `album` from ID3 tags, displays as "Artist | Album" format; falls back to "Audio File"
+- **Responsive layout**: Uses `Spacer` flex-based layout to distribute album art, track info, waveform, and controls proportionally
 
 #### 4.3 Waveform Scrubber
 - **Procedurally-generated waveform** visualization using `CustomPainter`
-- Deterministic bar heights seeded from filename hash
-- Gradient-colored played portion (magenta→violet)
-- White playhead indicator bar
-- Tap/drag to seek
-- Elapsed / remaining time display
+- Deterministic bar heights seeded from filename hash (`Random(seed)`)
+- Gradient-colored played portion (magenta→violet) via shader
+- White playhead indicator bar at current position
+- **Tap to seek**: Absolute position seek based on tap X coordinate
+- **Drag to scrub**: Relative scrubbing from drag start anchor — accumulates `delta.dx` and converts pixels to duration offset using `msPerPixel = totalDuration / width`
+- **Virtual scrub position**: During active drag, UI displays `_virtualScrubPosition` instead of engine position, preventing playhead snapback
+- Elapsed / remaining time display (remaining shown with `-` prefix)
+- Bar width: 3px with 2px gap; count dynamically calculated from available width
 
 #### 4.4 Audio Controls Bar
-- Play/Pause (white rounded button with glow)
-- Skip Previous / Skip Next
-- Volume slider (0-100%)
-- Mute toggle
-- Favorite button (placeholder)
+- **Play/Pause** (white rounded rectangle button, 64×48, 16px radius) — centered in the layout
+- **Skip Previous / Skip Next** — 32px white icons flanking the play button (24px spacing)
+- **Volume slider** (0–200%) — slider turns magenta when volume exceeds 100% for visual overdrive warning
+- **Volume percentage label** — right-aligned 36px-wide text display
+- **Mute toggle** — icon button toggles between volume_up and volume_off
+- **Favorite button** — heart icon toggles per-track via `AudioFavoritesNotifier` (Hive-backed `audio_favorites` box); filled magenta when active, outline white70 when inactive
+- **Strict centering**: Uses `Stack` with centered `Row` for transport controls, ensuring perfect alignment regardless of left/right action bar contents
 
-#### 4.5 Playlist Sidebar
-- "Up Next" header with item count
-- **Shuffle** toggle button
-- **Repeat mode** cycling: None → Loop All → Loop Single
-- Track tiles with gradient art placeholders
-- **Context-Aware Active Track Tracking**: The active track is highlighted using strict absolute path matching rather than raw index tracking. When navigating into parent directories, the playing animation intelligently falls back to highlight the parent folder containing the active track, providing accurate visual context regardless of navigation depth.
-- Active track: gradient text via `ShaderMask` + **animated equalizer icon** (3-bar sine wave animation)
-- Tap to jump to any track
+#### 4.5 Playlist Sidebar (Directory Browser)
+- **Full directory browser** with folder navigation, breadcrumbs, search, sort, and selection
+- **Header**: "Home" or "Favorites" title (18px bold) depending on active view mode
+- **Search bar**: 36px search field with instant filtering via `audioSearchQueryProvider`
+- **Breadcrumbs**: Clickable path segments relative to root directory, with folder icon prefix and `/` separators; auto-scrolls to end on folder change (300ms `easeOut`)
+- **Folder navigation**: Double-tap a folder tile to navigate into it — pushes path history and loads child audio items
+- **Back/Forward history**: `Alt+←` / `Alt+→` navigate through path history stack (`audioPathHistoryProvider` / `audioPathForwardHistoryProvider`)
+- **Navigate up**: `Alt+↑` navigates to parent directory
+- **Sort overlay**: Sort button in header opens `SortOverlay` with all sort options (A-Z, Z-A, Size, Date, Files First); inherits gallery sort order on initial open
+- **Hidden files toggle**: Eye icon in breadcrumb bar toggles `audioShowHiddenProvider`; gradient magenta icon when active, muted when inactive (`Ctrl+Shift+.` keyboard shortcut)
+- **Reload button**: Refresh icon in breadcrumb bar triggers `_handleReload()` with cache invalidation + 300ms artificial delay for loading UX (`Ctrl+R` keyboard shortcut)
+- **BubbleLoader overlay**: Displays animated bubble loader over dimmed list (10% black overlay) during reload
+- **Directory watcher**: `DirectoryWatcher` subscription auto-refreshes the queue on filesystem events (create, modify, delete, move)
+- **Bottom navigation bar**: Two-tab navigation (Home / Favorites) with pill-shaped active indicator (magenta 15% opacity) and gradient icon; 8px vertical padding with top border separator
+- **Context-Aware Active Track Tracking**: The active track is highlighted using strict absolute path matching rather than raw index tracking. When navigating into parent directories, the playing animation intelligently falls back to highlight the parent folder containing the active track (`currentPlayingTrack.path.startsWith('${item.path}/'))`), providing accurate visual context regardless of navigation depth.
+- **Track tiles** (`_TrackTile`): 44×44 album art thumbnail with gradient fallback; reads ID3 tags for artist/album subtitle and embedded cover art via `audioTagsProvider`; file size appended to subtitle (e.g., "3.2 MB")
+- **Folder tiles**: Display audio file count in subtitle (scanned via `AudioQueueIsolate`); gradient folder icon with `ShaderMask`
+- **Active track indicator**: `PlayingEqAnimation` (3-bar sine wave, 600ms cycle) when playing; pause icon when paused — both in magenta
+- **Selected item styling**: 10% white background, 15% white border; active items get 3% white background with 5% border
+- Tap to select; double-tap to play (audio files) or navigate (folders)
+- **Selection system**: `Ctrl+Click` for additive selection, `Shift+Click` for range selection with anchor index, `Ctrl+A` to select all
+- **Queue dual-track**: Separate `audioQueueProvider` (browsing queue) and `audioPlayingQueueProvider` (active playback queue) — browsing folders doesn't interfere with current playback; new playlist loads on double-tap in different directory
 - **ContextMenu Integration**: Right-clicking an audio track opens the glassmorphic context menu, supporting inline operations:
-  - **Properties**: View full metadata and file statistics.
-  - **Tag Editor**: Open the ID3 tag editor for the file.
-  - **Rename / Delete**: Standard file operations with instant queue synchronization.
+  - **Move to Trash**: Delete selected items with queue synchronization.
+  - **Edit Tags**: Open the ID3 tag editor (`F2` shortcut); supports bulk editing multiple selected files.
+  - **Properties**: View full metadata and file statistics via `AudioPropertiesDialog` (`Alt+Enter`); only available for single selection.
+- **Empty state**: Centered text "No audio files found" (Home) or "No favorite files in this folder" (Favorites)
+- **Click-to-deselect**: Tapping empty space in sidebar or hero pane clears selection
 
-#### 4.6 ID3 Tag Editor
+#### 4.6 Favorites System
+- **Hive-backed persistence**: `AudioFavoritesNotifier` stores favorite paths in `audio_favorites` Hive box
+- **Toggle via heart icon**: `AudioControlsBar` includes a favorite button that toggles the current track's path in the favorites set
+- **Filtered view**: `AudioViewMode.favorites` filters the queue to show only favorited tracks via `filteredAndSortedAudioQueueProvider`
+- **Bottom nav bar**: Switch between Home (all audio) and Favorites views
+
+#### 4.7 Audio Properties Dialog
+- Dedicated `AudioPropertiesDialog` for viewing detailed audio file metadata
+- **FFprobe-based extraction**: Uses `AudioMetadataUtils.getProperties()` which runs `ffprobe -v error -select_streams a:0 -show_entries stream=sample_rate,bit_rate:format=duration,bit_rate -of json` to extract duration, bitrate (kbps), and sample rate (Hz)
+- **ID3 metadata display**: Reads tag fields (title, artist, album, genre, track number) via `audiotags`
+- **File statistics**: File size, modification date, and full path
+
+#### 4.8 ID3 Tag Editor
 - Dedicated `AudioTagEditorDialog` built using `audiotags` package to modify ID3 metadata.
 - **Glassmorphic UI**: Integrates seamlessly with the Onyx Monolith aesthetic, featuring custom text fields and a responsive grid layout.
 - **Editable Fields**: Title, Artist, Album, Genre, and Track Number.
-- **Album Art Replacement**: Clickable album art zone allowing users to browse and attach new cover images using `file_picker`.
-- **Live Sync**: Saved changes automatically trigger a filesystem event, updating the file browser and reloading the active track metadata without interrupting playback.
+- **Album Art Replacement**: Clickable album art zone allowing users to browse and attach new cover images using `file_selector`. Cover art is processed via `AudioMetadataUtils.prepareCoverArt()` — square-cropped and resized to 600×600px JPEG (90% quality) to prevent OOM errors.
+- **Inline Rename**: File renaming within the tag editor triggers full queue synchronization — updates `audioQueueProvider`, `audioPlayingQueueProvider`, `audioSelectionProvider`, and directory cache. If the renamed file is currently playing, the playing queue's URI reference is updated live.
+- **Live Sync**: Saved changes push tag overrides to `audioTagsOverridesProvider` for immediate UI update without re-reading the file from disk.
 
-#### 4.7 Keyboard Shortcuts & Guarding
+#### 4.9 Delete Operations
+- **Trash and permanent delete**: `Delete` key moves to trash; `Shift+Delete` permanently deletes
+- **Per-viewer confirmation**: Uses `confirmDeleteAudio` setting to control whether a confirmation dialog is shown
+- **Session "don't ask again"**: Trash operations support a per-session `_sessionDontAskTrash` flag — once the user checks "don't ask again", subsequent trash deletes in the same session are immediate
+- **Playing track safety**: If the actively playing track is deleted, playback pauses before deletion; after deletion, the player automatically advances to the next available track in the updated queue. If the queue is empty, the preview closes.
+- **Queue synchronization**: Both `audioQueueProvider` and `audioPlayingQueueProvider` are atomically updated to remove deleted items, with safe index clamping for the active track index
+- **Task tracking**: Deletes create lightweight background tasks (`isLight: true`) with per-item logging
+
+#### 4.10 Keyboard Shortcuts & Guarding
 - `Space`: play/pause
-- `←`/`→`: seek (configurable seconds from settings)
-- `↑`/`↓`: volume ±5%
-- `M`: mute toggle
-- **Input Guarding**: Media shortcuts (Space, Arrows) are strictly disabled when the user is actively typing in `EditableText` fields (e.g., Search bar, File renamer, Tag editor) to prevent playback interference.
-- **Queue Protection**: Refresh (`F5`/`Ctrl+R`) and Show Hidden Files (`Ctrl+H`) shortcuts safely update the directory view without erroneously overwriting the active playback queue when browsing secondary folders.
+- `←`/`→`: seek (configurable seconds from settings via `audioSeekSeconds`)
+- `Alt+←` / `Alt+→`: navigate history back/forward in sidebar
+- `Alt+↑`: navigate up to parent directory
+- `↑`/`↓`: volume ±5% (clamped 0–200%)
+- `M`: mute toggle (0 ↔ 100%)
+- `F2`: open tag editor for selected items or current track
+- `Delete` / `Shift+Delete`: trash / permanent delete
+- `Alt+Enter`: open properties dialog
+- `Ctrl+A`: select all items in filtered queue
+- `Ctrl+R`: reload current directory
+- `Ctrl+Shift+.`: toggle hidden files visibility
+- **Input Guarding**: Media shortcuts (Space, Arrows, M, Ctrl+A, Ctrl+R) are strictly disabled when the user is actively typing in `EditableText` fields (e.g., Search bar, File renamer, Tag editor) to prevent playback interference.
+- **Queue Protection**: Refresh (`Ctrl+R`) and Show Hidden Files (`Ctrl+Shift+.`) shortcuts safely update the directory view without erroneously overwriting the active playback queue when browsing secondary folders — the playing queue is only updated if the browsing directory matches the playing directory.
 
-#### 4.8 Local Proxy Mechanism (media_kit Unicode Bypass)
+#### 4.11 Domain Utilities
+- **`AudioQueueIsolate`** (`processAudioQueueIsolate`): Background `compute` isolate that processes raw `FileItem` lists into audio-only queues. Filters audio files and scans folders for audio file counts (used for folder tile subtitles). Respects `showHidden` setting for both top-level and nested items.
+- **`AudioMetadataUtils`**: Static utility class:
+  - `readTags(path)`: Reads ID3 tags via `AudioTags.read()` — used by `audioTagsProvider` for live UI metadata
+  - `writeTags(path, tag)`: Writes ID3 tags via `AudioTags.write()` — used by the tag editor
+  - `prepareCoverArt(bytes, {targetSize})`: Processes uploaded cover art — decodes, square-crops, resizes to `targetSize` (default 600px), encodes as JPEG at 90% quality. Returns `Uint8List` ready for ID3 embedding.
+  - `getProperties(path)`: Runs `ffprobe` subprocess to extract duration, bitrate, and sample rate. Returns `AudioProperties` model.
+
+#### 4.12 Local Proxy Mechanism (media_kit Unicode Bypass)
 - **`MediaUriHelper`**: A bespoke local HTTP server (`http://127.0.0.1`) spawned at app launch to proxy local file paths into the `media_kit` engine.
 - **Why**: Bypasses native GLib/GIO URI parsing bugs in `media_kit` on Linux which cause playback failure for paths containing specific Unicode or special characters (e.g., `｜`).
-- **MIME Type Negotiation**: Uses the `mime` package to dynamically set correct `Content-Type` headers during the proxy stream, ensuring the native engine correctly identifies and demuxes media streams.
+- **MIME Type Negotiation**: Dynamically sets correct `Content-Type` headers during the proxy stream, ensuring the native engine correctly identifies and demuxes media streams.
 - **Zero-Latency Streaming**: The proxy acts as a direct byte-stream pipeline, imposing zero latency on playback initialization or seeking operations.
 
-#### 4.9 Native Engine Synchronization (Deadlock Prevention)
+#### 4.13 Native Engine Synchronization (Deadlock Prevention)
 - **Singleton Architecture**: The AudioPlayerView utilizes a globally persistent `Player` instance (`globalAudioPlayer`) rather than instantiating and destroying a new engine context for each audio file.
 - **Why**: `media_kit` native backend (libmpv) on Linux struggles with concurrent resource teardown and initialization. When transitioning rapidly from Audio to Video, calling `AudioPlayer.dispose()` while simultaneously calling `new Player()` in the video player creates a severe native deadlock, causing the application to hang indefinitely.
 - **The Solution (Pause & Persist)**: By reusing a single global audio player, we never need to call `Player.dispose()`. Furthermore, we avoid `player.stop()` and `open(Media(''))` because completely unloading the player on Linux permanently breaks subsequent `Playlist` loads due to an underlying `media_kit` parsing bug. Instead, when the viewer closes, we execute a gentle `await player.pause()`. The player retains its native state and safely overrides the session when a new file is loaded.
@@ -843,8 +916,11 @@ onyxcore/
 - **Audio Seek Seconds** — integer
 - **Snapshot Prefix** — custom string for snapshot filenames
 - **Show Hidden Files** — boolean toggle
+- **Show Hidden Audio Files** — boolean toggle (independent audio browser setting)
 - **Max Concurrent Tasks** — integer dropdown (1–3)
 - **Global Sort Option** — fallback sort (all `SortOption` enum values)
+- **Show Markers on Timeline** — boolean toggle for video timeline marker visibility
+- **Confirm Delete** — per-viewer boolean toggles: Image, Video, Document, Audio
 - **Pinned Folders** — ordered list
 - **Per-folder Sort Settings** — map persisted in SharedPreferences
 
@@ -939,4 +1015,4 @@ onyxcore/
 
 ---
 
-*Generated: 2026-05-16 | Comprehensive audit of 113 Dart source files + 5 test files across 8 feature modules, core infrastructure, and services layer.*
+*Generated: 2026-05-23 | Comprehensive audit of 123 Dart source files + 5 test files across 8 feature modules, core infrastructure, and services layer.*
