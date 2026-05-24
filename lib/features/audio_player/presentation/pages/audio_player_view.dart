@@ -29,7 +29,7 @@ import '../providers/audio_player_providers.dart';
 import '../widgets/playlist_sidebar.dart';
 import '../widgets/hero_audio_player.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
+
 
 class AudioPlayerView extends ConsumerStatefulWidget {
   final FileItem item;
@@ -124,10 +124,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       // Invalidate the cache to ensure a true disk read
       final repo = ref.read(directoryRepositoryProvider);
       repo.invalidateCache(currentDir);
-      
-      // Artificial delay to ensure the UI loading effect is perceptible
-      await Future.delayed(const Duration(milliseconds: 300));
-      
+
       List<FileItem> audioFiles = await _fetchAudioQueue(currentDir);
       
       if (audioFiles.isEmpty) {
@@ -269,23 +266,6 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     });
   }
 
-  void _navigateUp(WidgetRef ref) {
-    final currentPath = ref.read(audioCurrentPathProvider);
-    if (currentPath.isEmpty || currentPath == '/') return;
-
-    final parentPath = p.dirname(currentPath);
-    ref
-        .read(audioPathHistoryProvider.notifier)
-        .update((state) => [...state, currentPath]);
-    ref.read(audioPathForwardHistoryProvider.notifier).state = [];
-
-    _fetchAudioQueue(parentPath).then((audioFiles) {
-      ref.read(audioCurrentPathProvider.notifier).state = parentPath;
-      ref.read(audioQueueProvider.notifier).state = audioFiles;
-      ref.read(audioSelectionProvider.notifier).state = {};
-      ref.read(audioSelectionAnchorProvider.notifier).state = null;
-    });
-  }
 
   @override
   void dispose() {
@@ -567,10 +547,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           }
           return KeyEventResult.handled;
         }
-        if (key == LogicalKeyboardKey.arrowUp && isAlt) {
-          _navigateUp(ref);
-          return KeyEventResult.handled;
-        }
+
         if (key == LogicalKeyboardKey.arrowUp) {
           _player.setVolume((_player.state.volume + 5).clamp(0, 200));
           return KeyEventResult.handled;
@@ -797,71 +774,13 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.edit_rounded,
-                                    color: Colors.white,
+                                    color: Colors.white.withOpacity(0.3),
                                     size: 20,
                                   ),
-                                  onPressed: () {
-                                    final existingNames =
-                                        ref
-                                            .read(directoryItemsProvider)
-                                            .value
-                                            ?.map((i) => i.name)
-                                            .toList() ??
-                                        [];
-                                    RenamePopover.show(
-                                      context: context,
-                                      position: Offset(
-                                        MediaQuery.of(context).size.width / 2,
-                                        80,
-                                      ),
-                                      paths: [currentTrack.path],
-                                      existingNames: existingNames,
-                                      onRename: (result) async {
-                                        if (result is String) {
-                                          final repo = ref.read(
-                                            directoryRepositoryProvider,
-                                          );
-                                          final taskId = ref
-                                              .read(taskProvider.notifier)
-                                              .addTask(
-                                                title: 'Renaming audio file',
-                                                subtitle: result,
-                                                sourcePaths: [
-                                                  currentTrack.path,
-                                                ],
-                                                isLight: true,
-                                              );
-                                          try {
-                                            await repo.renameItem(
-                                              currentTrack.path,
-                                              result,
-                                              taskId: taskId,
-                                              onLog: (msg) => ref
-                                                  .read(taskProvider.notifier)
-                                                  .addLog(taskId, msg),
-                                            );
-                                            ref
-                                                .read(taskProvider.notifier)
-                                                .completeTask(taskId);
-                                            ref
-                                                .read(
-                                                  directoryItemsProvider
-                                                      .notifier,
-                                                )
-                                                .refresh();
-                                          } catch (e) {
-                                            ref
-                                                .read(taskProvider.notifier)
-                                                .failTask(taskId, e.toString());
-                                          }
-                                        }
-                                      },
-                                      onClose: () => _focusNode.requestFocus(),
-                                    );
-                                  },
-                                  tooltip: 'Rename',
+                                  onPressed: null, // Placeholder — disabled
+                                  tooltip: 'Edit (coming soon)',
                                   splashRadius: 24,
                                 ),
                               ),

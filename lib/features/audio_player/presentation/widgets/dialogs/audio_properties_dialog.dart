@@ -12,7 +12,18 @@ import 'package:audiotags/audiotags.dart';
 class AudioPropertiesDialog extends StatefulWidget {
   final String path;
 
-  const AudioPropertiesDialog({super.key, required this.path});
+  /// Optional overrides for testing — bypasses FFI and filesystem calls.
+  final Tag? testTag;
+  final AudioProperties? testProperties;
+  final FileStat? testStat;
+
+  const AudioPropertiesDialog({
+    super.key,
+    required this.path,
+    this.testTag,
+    this.testProperties,
+    this.testStat,
+  });
 
   static Future<void> show(BuildContext context, String path) {
     return showDialog(
@@ -40,9 +51,18 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
 
   Future<void> _loadProperties() async {
     try {
-      _stat = File(widget.path).statSync();
-      _tag = await AudioMetadataUtils.readTags(widget.path);
-      _properties = await AudioMetadataUtils.getProperties(widget.path);
+      if (widget.testStat != null ||
+          widget.testTag != null ||
+          widget.testProperties != null) {
+        // Use injected test data — no real I/O.
+        _stat = widget.testStat ?? File(widget.path).statSync();
+        _tag = widget.testTag;
+        _properties = widget.testProperties;
+      } else {
+        _stat = File(widget.path).statSync();
+        _tag = await AudioMetadataUtils.readTags(widget.path);
+        _properties = await AudioMetadataUtils.getProperties(widget.path);
+      }
     } catch (_) {}
     
     if (mounted) {
