@@ -20,6 +20,8 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/navig
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/action_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
+import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/preview_container.dart';
@@ -308,7 +310,13 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                           behavior: HitTestBehavior.opaque,
                                           onTap: () {
                                             _focusNode.requestFocus();
-                                            ref.read(selectionProvider.notifier).deselectAll();
+                                            final isModifierPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
+                                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight) ||
+                                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
+                                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlRight);
+                                            if (!isModifierPressed) {
+                                              ref.read(selectionProvider.notifier).deselectAll();
+                                            }
                                           },
                                           onSecondaryTapUp: (details) {
                                             final clipboard = ref.read(clipboardProvider);
@@ -580,6 +588,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         const SingleActivator(LogicalKeyboardKey.f2): _onF2Pressed,
         const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true):
             () => _handleNewItem(initialIsFolder: true),
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true, alt: true): _handleCompress,
       },
 
       // Zoom
@@ -685,6 +694,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       ref.read(selectionProvider.notifier).deselectAll();
       ref.read(navigationProvider.notifier).navigateTo(item.path);
       ref.read(currentPathProvider.notifier).state = item.path;
+    } else if (item.type == FileItemType.archive) {
+      final currentDir = ref.read(currentPathProvider);
+      ref.read(archiveProvider.notifier).extractArchive(context, item.path, currentDir);
     } else if (item.type == FileItemType.image || 
                item.type == FileItemType.video || 
                item.type == FileItemType.audio || 
@@ -788,6 +800,14 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (selection.selectedPaths.isNotEmpty) {
       ref.read(clipboardProvider.notifier).cut(selection.selectedPaths.toList());
     }
+  }
+
+  void _handleCompress() {
+    final selection = ref.read(selectionProvider);
+    if (selection.selectedPaths.isEmpty) return;
+    
+    final currentDir = ref.read(currentPathProvider);
+    ref.read(archiveProvider.notifier).compressItems(context, selection.selectedPaths.toList(), currentDir);
   }
 
   void _handlePaste() async {

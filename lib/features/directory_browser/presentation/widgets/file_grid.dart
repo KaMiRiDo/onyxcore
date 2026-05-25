@@ -21,6 +21,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_s
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
+import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
@@ -244,6 +245,12 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
         item.type == FileItemType.audio || 
         item.type == FileItemType.document) {
       ref.read(previewFileProvider.notifier).state = item;
+      return;
+    }
+
+    if (item.type == FileItemType.archive) {
+      final currentPath = ref.read(currentPathProvider);
+      ref.read(archiveProvider.notifier).extractArchive(context, item.path, currentPath);
       return;
     }
   }

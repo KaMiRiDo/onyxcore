@@ -22,10 +22,14 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
   bool _logsExpanded = false;
   bool _showDeleteConfirm = false;
   final ScrollController _logScrollController = ScrollController();
+  final ScrollController _processedScrollController = ScrollController();
+  final ScrollController _affectedScrollController = ScrollController();
 
   @override
   void dispose() {
     _logScrollController.dispose();
+    _processedScrollController.dispose();
+    _affectedScrollController.dispose();
     super.dispose();
   }
 
@@ -243,11 +247,13 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                           border: Border.all(color: Colors.white.withOpacity(0.04)),
                         ),
                         child: Scrollbar(
+                          controller: _processedScrollController,
                           thumbVisibility: true,
                           trackVisibility: false,
                           thickness: 4,
                           radius: const Radius.circular(10),
                           child: ListView.builder(
+                            controller: _processedScrollController,
                             padding: EdgeInsets.zero,
                             itemCount: entry.sourcePaths!.length,
                             itemBuilder: (context, index) {
@@ -293,11 +299,13 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                             border: Border.all(color: Colors.white.withOpacity(0.04)),
                           ),
                         child: Scrollbar(
+                          controller: _affectedScrollController,
                           thumbVisibility: true,
                           trackVisibility: false,
                           thickness: 4,
                           radius: const Radius.circular(10),
                           child: ListView.builder(
+                            controller: _affectedScrollController,
                             padding: EdgeInsets.zero,
                             itemCount: processedLogs.length,
                             itemBuilder: (context, index) {

@@ -5,6 +5,10 @@ import 'package:window_manager/window_manager.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/directory_browser/presentation/pages/gallery_page.dart';
+import 'features/archive_manager/services/archive_service.dart';
+
+/// Global navigator key for accessing context outside widgets.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 /// Root widget of the OnyxCore application.
 class OnyxCoreApp extends StatefulWidget {
@@ -15,7 +19,6 @@ class OnyxCoreApp extends StatefulWidget {
 }
 
 class _OnyxCoreAppState extends State<OnyxCoreApp> with WindowListener {
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -34,11 +37,12 @@ class _OnyxCoreAppState extends State<OnyxCoreApp> with WindowListener {
   @override
   void onWindowClose() async {
     // If a dialog is open (like properties or rename), close the dialog instead of the app
-    final context = navigatorKey.currentContext;
+    final context = appNavigatorKey.currentContext;
     if (context != null && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     } else {
       debugPrint('[OnyxCoreApp] Main window closing. Terminating process...');
+      ArchiveService.killZombies(); // Cleanup 7z processes
       // Forcefully kill the entire process tree to clean up all secondary windows.
       exit(0);
     }
@@ -47,7 +51,7 @@ class _OnyxCoreAppState extends State<OnyxCoreApp> with WindowListener {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey,
+      navigatorKey: appNavigatorKey,
       title: 'OnyxCore',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,

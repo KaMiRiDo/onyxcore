@@ -24,6 +24,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/propert
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
+import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 
 /// Individual file/folder card — pixel-perfect replica of original _buildItemCard().
 class ItemCard extends ConsumerStatefulWidget {
@@ -600,10 +601,14 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           },
         ),
         ContextMenuItem(
-          title: 'Compress...',
-          icon: Icons.archive_outlined,
+          title: widget.item.type == FileItemType.archive ? 'Extract Here' : 'Compress...',
+          icon: widget.item.type == FileItemType.archive ? Icons.unarchive_outlined : Icons.archive_outlined,
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compression coming soon.')));
+            if (widget.item.type == FileItemType.archive && paths.length == 1) {
+              ref.read(archiveProvider.notifier).extractArchive(context, widget.item.path, currentPath);
+            } else {
+              ref.read(archiveProvider.notifier).compressItems(context, paths, currentPath);
+            }
           },
         ),
       ],
