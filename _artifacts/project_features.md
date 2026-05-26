@@ -406,7 +406,21 @@ onyxcore/
 - **Open in Terminal**: Context menu launches `gnome-terminal` at the item's directory. This option is automatically hidden for file items to reduce clutter, remaining available exclusively for folders.
 - **Linux "Open With" Integration**: High-performance application discovery system that parses system `.desktop` files and uses `gio mime` to categorize compatible apps for any file or folder.
 
-#### 1.6 Search & Filter
+#### 1.6 Archive Management
+- **Native Engine**: Uses `p7zip-full` (`7z` binary) for high-performance compression and extraction via `ArchiveService`.
+- **Format Support**: Creates `.zip`, `.tar`, `.gz`, and `.7z` archives. Extracts any format supported by `7z`.
+- **Encryption**: Supports password-protected compression and extraction. Intelligently applies `-mhe=on` (header encryption) exclusively for `.7z` formats to prevent `E_INVALIDARG` failures on standard formats.
+- **Interactive Dialogs**: 
+  - **Compress Dialog**: Glassmorphic UI to select format, specify filename (auto-populated with selected item count or parent folder name), and set optional passwords. Supports `Enter` key submission.
+  - **Password Dialog**: Prompts for extraction passwords when encrypted archives are detected (via `7z l -slt`).
+- **Background Task Integration**: All archive operations are executed asynchronously and dispatched to the `TaskNotifier`. Parses `7z -bsp1` stdout stream to provide real-time percentage progress in the Background Tasks Panel.
+- **Global Context Toasts**: Success/failure and task-started toasts are dispatched using a global `appNavigatorKey` overlay. This ensures notifications survive directory navigation. Toasts feature a custom notch pointing to the Background Panel icon.
+- **Workflow Shortcuts**:
+  - `Ctrl+Alt+C`: Instantly opens the compress dialog for the current selection.
+  - `Enter`: Pressing Enter on an archive file automatically triggers extraction in the current directory.
+- **Post-Operation Focus**: Upon successful compression or extraction, the application automatically clears the previous selection and highlights the newly created archive or extracted folder, immediately drawing user attention.
+
+#### 1.7 Search & Filter
 - **Instant search** filter in current directory (gradient-highlighted search bar)
 - Search provider updates filtered list reactively
 - **Filter overlay** with file-type radio buttons and extension checkboxes with "Select All" toggle
@@ -415,7 +429,7 @@ onyxcore/
 - Active filter shown with violet badge + clear button
 - **Custom Emoji Integration**: Custom emoji sets defined via the Marker Editor are automatically indexed by the global search provider, allowing user-defined keywords to surface custom emojis alongside built-in categories.
 
-#### 1.7 Context Menu
+#### 1.8 Context Menu
 - **Glassmorphism Backdrop-Blur Context Menu**: High-fidelity overlays with recursive submenu support and screen-boundary detection.
 - **Dynamic Action States**: Menu items like "Paste" are conditionally enabled based on clipboard state (refreshes automatically via Riverpod).
 - **Submenu Navigation**: Implementation of "Sort By" submenu with persistent per-folder settings.
@@ -430,13 +444,13 @@ onyxcore/
 - **Hover highlight effect** with 200ms debounce for submenu triggers.
 - **Collision Detection**: Menus and submenus automatically flip horizontally if they would overflow the screen viewport.
 
-#### 1.8 Properties Dialog
+#### 1.9 Properties Dialog
 - Multi-file properties aggregation
 - **Detailed Statistics**: Displays separate counts for **Folders** and **Files** alongside total size, providing deeper insight into directory structures.
 - Recursive directory size calculation via enhanced isolate (`calculateDirectorySizeIncremental`) with per-item type tracking.
 - Permissions display and path navigation
 
-#### 1.9 Background Tasks Panel
+#### 1.10 Background Tasks Panel
 - **Slide-out panel** (25% of screen width) with animated open/close (300ms `easeOutCubic`), shadow and left border
 - Uses `OverflowBox` to maintain consistent panel width during animation
 - **Three-view navigation**: Tasks → History → History Detail, managed via `BackgroundPanelView` enum
@@ -451,7 +465,7 @@ onyxcore/
 - **Empty state**: Centered hourglass icon + "No active tasks" text
 - Chevron arrow on history items indicating clickability
 
-#### 1.10 Directory Watching
+#### 1.11 Directory Watching
 - **inotify-based** real-time directory monitoring via `FileSystemEntity.watch`
 - Debounced refresh (300ms) to batch rapid filesystem events
 - **Instant Move Reflection**: Optimized to fire **Move** events with zero latency (bypassing debounce), ensuring that cut items disappear immediately when pasted elsewhere.
@@ -459,12 +473,12 @@ onyxcore/
 - **Parent Invalidation Logic**: The repository explicitly invalidates parent directory caches for both source and destination during move operations, forcing an immediate reload of the affected file lists.
 - Auto-refresh on create, modify, delete, move events
 
-#### 1.11 Caching
+#### 1.12 Caching
 - **DirectoryCache**: in-memory with 30-second TTL, keyed by path
 - **MetadataCache**: SharedPreferences-backed image aspect ratio cache
 - **ImageCache**: High-capacity 500MB global limit to support instant pre-caching of massive uncompressed DSLR/Pexels images without downscaling or cache thrashing
 
-#### 1.12 Empty State
+#### 1.13 Empty State
 - Custom `EmptyStateView` for empty directories
 - **Aesthetic Refinement (Matte Finish)**: Redesigned for a premium, professional appearance with a focus on subtle typography and minimalism.
 - **Large Matte Iconography**: Centered icon increased to **160px** with a very subtle **0.08 opacity**, creating a clean "natural archive" feel without visual clutter.
@@ -475,7 +489,7 @@ onyxcore/
   - Virtual Recent: "No recent files found"; Virtual Starred: "No starred items yet"
   - Trash: delete icon; default: folder-open icon
 
-#### 1.13 Preview Container (Inline Preview Orchestrator)
+#### 1.14 Preview Container (Inline Preview Orchestrator)
 - **Type-routing**: Dispatches to `ImagePreviewWidget`, `VideoPreviewWidget`, `AudioPlayerView`, or `MarkdownPreviewWidget` based on `FileItemType`
 - **PDF placeholder**: Shows a centered icon with "PDF Preview not yet implemented" message and hint to double-tap for external viewer
 - **Double-tap pop-out**: Opens the previewed file in a standalone persistent window via `PersistentViewerManager.openMedia()`, then clears the inline preview
@@ -483,7 +497,7 @@ onyxcore/
 - **F-key HUD toggle**: Toggles `previewHudVisibleProvider` with a 300ms debounce to prevent rapid toggling
 - **Close shortcuts**: `Backspace` / `Alt+←` / `Ctrl+W` all close the preview and reset HUD visibility to true
 
-#### 1.14 Status Bar
+#### 1.15 Status Bar
 - Glassmorphism status notifications across viewers
 - **Open With Dialog**:
   - **Categorized Discovery**: Displays "Default", "Recommended", and "All Apps" using Linux system MIME associations.
@@ -500,7 +514,7 @@ onyxcore/
   - **Launch Sanitization**: Handles complex `.desktop` `Exec` strings with field code expansion (e.g., `%f`, `%u`).
 - Custom `BubbleLoader` animated loading indicator (8 orbiting gradient bubbles)
 
-#### 1.15 Directory Items Pipeline
+#### 1.16 Directory Items Pipeline
 - **Three-stage reactive pipeline**:
   1. `directoryItemsProvider` — raw listing from isolate (with cache check) + inotify watcher setup
   2. `filteredDirectoryItemsProvider` — applies hidden file filter, search query, and advanced filter settings
@@ -528,8 +542,13 @@ onyxcore/
 - Dedicated window via `PersistentViewerManager` (window reuse, hide instead of destroy)
 - **Focus Reliability**: Implements a 100ms compositor mapping delay before requesting OS focus, guaranteeing trackpad pinch-to-zoom works immediately upon launch without requiring a click
 - **Extreme Zoom**: Support for up to **1500% (15.0x)** magnification
-- **Mouse-centered zoom** via scroll wheel with `Matrix4` transform
-- Pinch-to-zoom with center-point tracking
+- **True Cursor-Centered Zoom**:
+  - **Non-Incremental Architecture**: Zoom transforms compute absolute matrices from the gesture's starting state, entirely eliminating floating-point drift over sustained pinch or scrub gestures.
+  - **Scene-Space Mapping**: Focal points are dynamically mapped from viewport coordinates into the image's native scene space via inverse matrix multiplication, locking the pixel under the cursor perfectly in place.
+  - **Ctrl+Scrub Normalization**: Trackpad vertical scrolling with Ctrl is fully supported and acts identically to pinch-to-zoom.
+- **High-Performance Rendering Engine**:
+  - **Dynamic Filter Quality**: Drops to `FilterQuality.low` (bilinear) during active zooming or panning to guarantee 60fps on massive 50MB+ images, and instantly snaps back to `FilterQuality.high` (bicubic) upon release for maximum fidelity.
+  - **Zero-Cost Matrix Bypass**: `ColorFiltered` pipelines are completely bypassed from the render tree when brightness is 0.0, eliminating a massive GPU overhead pass during heavy interactions.
 - Double-tap to reset zoom to fit
 - **High-Performance Panning**: 5.0x sensitivity for Linux trackpad/mouse-wheel panning
 - **Stability Guards**: Matrix finiteness checks (`isFinite`) and `NaN` prevention to avoid UI freezes at extreme zoom

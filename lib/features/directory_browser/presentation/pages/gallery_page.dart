@@ -200,6 +200,8 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
             'nextName': mediaItems[nextIndex].name,
             'prevPath': mediaItems[prevIndex].path,
             'prevName': mediaItems[prevIndex].name,
+            'currentIndex': currentIndex + 1,
+            'totalCount': mediaItems.length,
           });
         } catch (e) {
           debugPrint('[Main] IPC get_next_prev_media error: $e');

@@ -45,9 +45,10 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
   ConsumerState<ImagePreviewWidget> createState() => _ImagePreviewWidgetState();
 }
 
-class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with WindowListener {
+class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with WindowListener, TickerProviderStateMixin {
   bool _isClosing = false;
   String? _metadata;
+  String? _indexString;
   bool _isControlsVisible = true;
   bool _isEditing = false;
   Timer? _hideTimer;
@@ -57,7 +58,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   Offset _mousePosition = Offset.zero;
   double _currentScale = 1.0;
   double _initialScale = 1.0;
+  Matrix4 _gestureStartMatrix = Matrix4.identity();
+  double _scrubAccumulatedScale = 1.0;
+  bool _isPanZoomGesture = false;
+  bool _isInteracting = false;
   bool _showZoomIndicator = false;
+
+  late AnimationController _zoomAnimationController;
+  Animation<Matrix4>? _zoomAnimation;
   
   // Image Edit State
   double _rotationAngle = 0.0;
@@ -71,9 +79,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
   DateTime? _lastNavTime;
   bool _isReadyForInteraction = false;
 
-  @override
   void initState() {
     super.initState();
+    _zoomAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addListener(() {
+        if (_zoomAnimation != null) {
+          _transformationController.value = _zoomAnimation!.value;
+          _onTransformationChanged();
+        }
+      });
+
     _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
     if (widget.windowId != null) {
       windowManager.addListener(this);
@@ -83,14 +100,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     }
     _loadMetadata();
+    _updateIndexData();
     _startHideTimer();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _precacheAdjacentImages();
         _focusNode.requestFocus();
-        final size = MediaQuery.of(context).size;
-        _mousePosition = Offset(size.width / 2, size.height / 2);
         if (!_firstFrameCompleter.isCompleted) {
           _firstFrameCompleter.complete();
         }
@@ -165,46 +181,108 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     return FileImage(File(path));
   }
 
-  void _setZoom(double newScale, {Offset? focalPoint}) {
-    final clampedScale = newScale.clamp(1.0, 10.0);
+  void _setZoom(double newScale, {Offset? focalPoint, bool animate = true}) {
+    final clampedScale = newScale.clamp(1.0, 15.0);
     
-    final size = MediaQuery.of(context).size;
     final P = focalPoint ?? _mousePosition;
     
+    if (clampedScale == 1.0) {
+      if (animate) {
+        _animateMatrix(_transformationController.value, Matrix4.identity());
+      } else {
+        _transformationController.value = Matrix4.identity();
+        _onTransformationChanged();
+      }
+      return;
+    }
+
+    final Matrix4 currentMatrix = _transformationController.value.clone();
+    final double oldScale = currentMatrix.getMaxScaleOnAxis();
+    
+    if ((clampedScale - oldScale).abs() < 0.001) return;
+
+    final double scaleRatio = clampedScale / oldScale;
+
+    try {
+      // Convert the viewport focal point to scene coordinates using the
+      // inverse of the current transformation matrix. This ensures the
+      // content point under the cursor stays pinned during zoom.
+      final Matrix4 inverseMatrix = Matrix4.inverted(currentMatrix);
+      final Offset scenePoint = MatrixUtils.transformPoint(inverseMatrix, P);
+
+      // Build the new matrix: translate so that scenePoint is at origin,
+      // apply uniform scale, then translate back — all in scene space,
+      // then compose with the existing transform.
+      final Matrix4 newMatrix = currentMatrix.clone()
+        ..translate(scenePoint.dx, scenePoint.dy)
+        ..scale(scaleRatio, scaleRatio)
+        ..translate(-scenePoint.dx, -scenePoint.dy);
+        
+      if (newMatrix.storage.any((v) => !v.isFinite)) {
+        return;
+      }
+
+      if (animate) {
+        _animateMatrix(currentMatrix, newMatrix);
+      } else {
+        _transformationController.value = newMatrix;
+        _onTransformationChanged();
+      }
+    } catch (e) {
+      debugPrint('[ImagePreview] Error calculating zoom: $e');
+      if (!animate) {
+        _transformationController.value = Matrix4.identity();
+        _onTransformationChanged();
+      }
+    }
+  }
+
+  /// Non-incremental zoom for pinch-to-zoom gestures.
+  /// Computes the target matrix directly from [_gestureStartMatrix] to avoid
+  /// cumulative drift from repeated incremental applications.
+  void _setZoomFromGesture(double targetScale, Offset viewportFocalPoint) {
+    final clampedScale = targetScale.clamp(1.0, 15.0);
+
     if (clampedScale == 1.0) {
       _transformationController.value = Matrix4.identity();
       _onTransformationChanged();
       return;
     }
 
-    final Matrix4 currentMatrix = _transformationController.value;
-    final double oldScale = currentMatrix.getMaxScaleOnAxis();
-    
-    if ((clampedScale - oldScale).abs() < 0.001) return;
+    final double startScale = _gestureStartMatrix.getMaxScaleOnAxis();
+    if (startScale < 0.001) return;
+    final double scaleRatio = clampedScale / startScale;
 
     try {
-      final Matrix4 invertedMatrix = Matrix4.inverted(currentMatrix);
-      final Vector3 imagePointP = invertedMatrix.transform3(Vector3(P.dx, P.dy, 0));
-      
-      final Matrix4 newMatrix = Matrix4.identity()
-        ..translate(P.dx, P.dy)
-        ..scale(clampedScale)
-        ..translate(-imagePointP.x, -imagePointP.y);
-        
-      // Verify matrix is valid before applying
-      if (newMatrix.storage.any((v) => !v.isFinite)) {
-        debugPrint('[ImagePreview] Ignoring invalid transformation matrix');
-        return;
-      }
+      // Map viewport focal point to scene coordinates using the INITIAL matrix
+      // (not the current one), so the anchor stays fixed across the gesture.
+      final Matrix4 inverseStart = Matrix4.inverted(_gestureStartMatrix);
+      final Offset scenePoint = MatrixUtils.transformPoint(inverseStart, viewportFocalPoint);
+
+      final Matrix4 newMatrix = _gestureStartMatrix.clone()
+        ..translate(scenePoint.dx, scenePoint.dy)
+        ..scale(scaleRatio, scaleRatio)
+        ..translate(-scenePoint.dx, -scenePoint.dy);
+
+      if (newMatrix.storage.any((v) => !v.isFinite)) return;
 
       _transformationController.value = newMatrix;
       _onTransformationChanged();
     } catch (e) {
-      debugPrint('[ImagePreview] Error calculating zoom: $e');
-      // Reset to identity on critical failure to rescue the UI
-      _transformationController.value = Matrix4.identity();
-      _onTransformationChanged();
+      debugPrint('[ImagePreview] Error in gesture zoom: $e');
     }
+  }
+
+  void _animateMatrix(Matrix4 start, Matrix4 end) {
+    _zoomAnimationController.stop();
+    _zoomAnimation = Matrix4Tween(
+      begin: start,
+      end: end,
+    ).animate(CurvedAnimation(
+      parent: _zoomAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+    _zoomAnimationController.forward(from: 0);
   }
 
   Offset _lastFocalPoint = Offset.zero;
@@ -260,6 +338,47 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     }
     
     _onInteraction();
+  }
+
+  Future<void> _updateIndexData() async {
+    if (widget.windowId != null) {
+      if (widget.initParams != null && widget.initParams!['currentIndex'] != null) {
+        if (mounted) {
+          setState(() {
+            _indexString = '${widget.initParams!['currentIndex']}/${widget.initParams!['totalCount']}';
+          });
+        }
+      } else {
+        try {
+          final payload = jsonEncode({
+            'currentPath': widget.item.path,
+            'type': 'image',
+          });
+          final response = await WindowController.fromWindowId(widget.parentWindowId ?? '0')
+              .invokeMethod('get_next_prev_media', payload);
+          if (response != null && response is String) {
+            final data = jsonDecode(response);
+            if (mounted && data['currentIndex'] != null) {
+              setState(() {
+                _indexString = '${data['currentIndex']}/${data['totalCount']}';
+              });
+            }
+          }
+        } catch (e) {
+          debugPrint('Error getting index from IPC: $e');
+        }
+      }
+    } else {
+      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+      final mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path) + 1;
+      final totalCount = mediaItems.length;
+      if (currentIndex > 0 && mounted) {
+        setState(() {
+          _indexString = '$currentIndex/$totalCount';
+        });
+      }
+    }
   }
 
   Future<void> _loadMetadata() async {
@@ -318,6 +437,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
     _zoomTimer?.cancel();
     _focusNode.dispose();
     _transformationController.dispose();
+    _zoomAnimationController.dispose();
     super.dispose();
   }
 
@@ -340,6 +460,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
         _isControlsVisible = false;
       });
       _loadMetadata();
+      _updateIndexData();
       if (mounted) {
         _focusNode.requestFocus();
       }
@@ -443,7 +564,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
           if (nextPath != null && nextPath != widget.item.path) {
             hasMultiple = true;
             nextItem = FileItem(
-              name: data['nextName'] ?? '',
+              name: (data['nextName'] as String?) ?? '',
               path: nextPath,
               type: FileItemType.image,
               sizeBytes: 0,
@@ -607,7 +728,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
       child: Scaffold(
         backgroundColor: Colors.black,
         body: MouseRegion(
-          onEnter: (event) => _onInteraction(focalPoint: event.localPosition, eventDelta: event.delta),
+          onEnter: (event) {
+            _mousePosition = event.localPosition;
+            _onInteraction(focalPoint: event.localPosition, eventDelta: event.delta);
+          },
           onHover: (event) {
             _onInteraction(focalPoint: event.localPosition, eventDelta: event.delta);
             _mousePosition = event.localPosition;
@@ -615,6 +739,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
           child: Listener(
             onPointerDown: (event) {
               _mousePosition = event.localPosition;
+              setState(() => _isInteracting = true);
+              if (_zoomAnimationController.isAnimating) {
+                _zoomAnimationController.stop();
+              }
+            },
+            onPointerUp: (event) {
+              setState(() => _isInteracting = false);
             },
             onPointerMove: (event) {
               _mousePosition = event.localPosition;
@@ -650,7 +781,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                       }
                     },
                     onPointerPanZoomStart: (event) {
+                      // Use gesture localPosition as fallback if _mousePosition
+                      if (_mousePosition == Offset.zero) {
+                        _mousePosition = event.localPosition;
+                      }
                       _initialScale = _currentScale;
+                      _gestureStartMatrix = _transformationController.value.clone();
+                      _scrubAccumulatedScale = 1.0;
+                      setState(() => _isPanZoomGesture = true);
+                    },
+                    onPointerPanZoomEnd: (event) {
+                      setState(() => _isPanZoomGesture = false);
                     },
                     onPointerPanZoomUpdate: (event) {
                       final ctrl = HardwareKeyboard.instance.isControlPressed ||
@@ -660,15 +801,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                       if (ctrl) {
                         final double dy = event.panDelta.dy;
                         if (dy != 0) {
-                          // Proportional zoom factor
-                          // dy is positive (scrub down) -> zoom in (> 1.0)
-                          // dy is negative (scrub up) -> zoom out (< 1.0)
-                          final double zoomFactor = 1.0 + (dy * 0.005);
-                          _setZoom(_currentScale * zoomFactor, focalPoint: event.localPosition);
+                          // Accumulate the scrub scale from gesture start
+                          // dy positive (scrub down) -> zoom in, negative -> zoom out
+                          _scrubAccumulatedScale *= 1.0 + (dy * 0.005);
+                          _setZoomFromGesture(_initialScale * _scrubAccumulatedScale, _mousePosition);
                         }
                       } else {
                         if (event.scale != 1.0) {
-                          _setZoom(_initialScale * event.scale, focalPoint: event.localPosition);
+                          _setZoomFromGesture(_initialScale * event.scale, _mousePosition);
                         } else if (event.panDelta != Offset.zero && _currentScale > 1.05) {
                           final delta = event.panDelta;
                           final translation = Matrix4.translationValues(delta.dx, delta.dy, 0);
@@ -683,7 +823,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                       transformationController: _transformationController,
                       minScale: 1.0,
                       maxScale: 15.0,
-                      panEnabled: _isReadyForInteraction || widget.isStandalone,
+                      panEnabled: !_isPanZoomGesture && (_isReadyForInteraction || widget.isStandalone),
                       scaleEnabled: false, // Handled customly above for perfect cursor-centered zoom
                       onInteractionUpdate: (_) => _onTransformationChanged(),
                       child: GestureDetector(
@@ -695,31 +835,43 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                           });
                         },
                         onDoubleTap: widget.windowId == null ? _openInNewWindow : null,
-                        child: Center(
-                          child: Hero(
-                            tag: widget.item.path,
-                            child: Transform.rotate(
-                              angle: _rotationAngle * 3.14159 / 180,
-                              child: ColorFiltered(
-                                colorFilter: ColorFilter.matrix([
-                                  1, 0, 0, 0, _brightness * 255,
-                                  0, 1, 0, 0, _brightness * 255,
-                                  0, 0, 1, 0, _brightness * 255,
-                                  0, 0, 0, 1, 0,
-                                ]),
-                                child: widget.item.path.toLowerCase().endsWith('.svg')
-                                    ? SvgPicture.file(
-                                        File(widget.item.path),
-                                        fit: BoxFit.contain,
+                        child: Builder(
+                          builder: (context) {
+                            Widget _buildImageWidget() {
+                              return widget.item.path.toLowerCase().endsWith('.svg')
+                                  ? SvgPicture.file(
+                                      File(widget.item.path),
+                                      fit: BoxFit.contain,
+                                    )
+                                  : Image.file(
+                                      File(widget.item.path),
+                                      fit: BoxFit.contain,
+                                      filterQuality: (_isInteracting || _isPanZoomGesture || _zoomAnimationController.isAnimating) 
+                                          ? FilterQuality.low 
+                                          : FilterQuality.high,
+                                    );
+                            }
+                            
+                            return Center(
+                              child: Hero(
+                                tag: widget.item.path,
+                                child: Transform.rotate(
+                                  angle: _rotationAngle * 3.14159 / 180,
+                                  child: _brightness != 0.0 
+                                    ? ColorFiltered(
+                                        colorFilter: ColorFilter.matrix([
+                                          1, 0, 0, 0, _brightness * 255,
+                                          0, 1, 0, 0, _brightness * 255,
+                                          0, 0, 1, 0, _brightness * 255,
+                                          0, 0, 0, 1, 0,
+                                        ]),
+                                        child: _buildImageWidget(),
                                       )
-                                    : Image.file(
-                                        File(widget.item.path),
-                                        fit: BoxFit.contain,
-                                        filterQuality: FilterQuality.high,
-                                      ),
+                                    : _buildImageWidget(),
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -738,7 +890,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> with Wi
                     opacity: isVisible ? 1.0 : 0.0,
                     child: ViewerTopBar(
                       title: widget.item.name,
-                      metadata: _metadata,
+                      metadata: _indexString != null ? '$_indexString • ${_metadata ?? ''}' : _metadata,
                       isStandalone: widget.isStandalone || widget.windowId != null,
                       onPopOut: _openInNewWindow,
                       onClose: () => ref.read(previewFileProvider.notifier).state = null,

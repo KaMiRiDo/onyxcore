@@ -114,6 +114,10 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
               file: widget.item,
               initParams: {
                 'preloadPaths': preloadPaths,
+                if (widget.item.type == FileItemType.image) ...{
+                  'currentIndex': (ref.read(directoryItemsProvider).value ?? []).where((i) => i.type == FileItemType.image).toList().indexWhere((i) => i.path == widget.item.path) + 1,
+                  'totalCount': (ref.read(directoryItemsProvider).value ?? []).where((i) => i.type == FileItemType.image).length,
+                }
               },
             );
             await PersistentViewerManager.openMedia(windowParams);
