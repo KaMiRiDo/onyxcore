@@ -15,6 +15,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/task_
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
@@ -460,6 +461,23 @@ class _TopBarState extends ConsumerState<TopBar> {
                     icon: Icons.settings,
                     onPressed: () => SettingsDialog.show(context),
                   ),
+                ),
+                const SizedBox(width: 8),
+                Builder(
+                  builder: (context) {
+                     final isDownloadsOpen = ref.watch(downloadsPanelOpenProvider);
+                     return Tooltip(
+                       message: 'Downloads Panel (Ctrl+D)',
+                       waitDuration: const Duration(milliseconds: 500),
+                       child: _buildActionIcon(
+                         icon: Icons.download_rounded,
+                         isActive: isDownloadsOpen,
+                         onPressed: () {
+                            ref.read(downloadsPanelOpenProvider.notifier).state = !isDownloadsOpen;
+                         },
+                       ),
+                     );
+                  }
                 ),
                 const SizedBox(width: 8),
                 const BackgroundProcessesButton(),

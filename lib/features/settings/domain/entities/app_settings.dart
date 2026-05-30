@@ -36,11 +36,14 @@ class AppSettings extends Equatable {
     this.filePickerHeight = 650.0,
     this.settingsWidth = 760.0,
     this.settingsHeight = 560.0,
+    this.downloaderWidth = 750.0,
+    this.downloaderHeight = 560.0,
     this.confirmDeleteImage = true,
     this.confirmDeleteVideo = true,
     this.confirmDeleteDocument = true,
     this.confirmDeleteAudio = true,
     this.showHiddenAudioFiles = false,
+    this.downloadBrowser,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -100,6 +103,12 @@ class AppSettings extends Equatable {
   /// Default height for the settings dialog.
   final double settingsHeight;
 
+  /// Default width for the media downloader dialog.
+  final double downloaderWidth;
+
+  /// Default height for the media downloader dialog.
+  final double downloaderHeight;
+
   /// Whether to ask for confirmation when deleting images.
   final bool confirmDeleteImage;
 
@@ -111,6 +120,9 @@ class AppSettings extends Equatable {
 
   /// Whether to ask for confirmation when deleting audio files.
   final bool confirmDeleteAudio;
+
+  /// The browser used for cookie extraction in the downloader. If null, use the default. If 'None', disable.
+  final String? downloadBrowser;
 
   AppSettings copyWith({
     bool? autoPlayNext,
@@ -131,11 +143,14 @@ class AppSettings extends Equatable {
     double? filePickerHeight,
     double? settingsWidth,
     double? settingsHeight,
+    double? downloaderWidth,
+    double? downloaderHeight,
     bool? confirmDeleteImage,
     bool? confirmDeleteVideo,
     bool? confirmDeleteDocument,
     bool? confirmDeleteAudio,
     bool? showHiddenAudioFiles,
+    String? downloadBrowser,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -156,11 +171,14 @@ class AppSettings extends Equatable {
       filePickerHeight: filePickerHeight ?? this.filePickerHeight,
       settingsWidth: settingsWidth ?? this.settingsWidth,
       settingsHeight: settingsHeight ?? this.settingsHeight,
+      downloaderWidth: downloaderWidth ?? this.downloaderWidth,
+      downloaderHeight: downloaderHeight ?? this.downloaderHeight,
       confirmDeleteImage: confirmDeleteImage ?? this.confirmDeleteImage,
       confirmDeleteVideo: confirmDeleteVideo ?? this.confirmDeleteVideo,
       confirmDeleteDocument: confirmDeleteDocument ?? this.confirmDeleteDocument,
       confirmDeleteAudio: confirmDeleteAudio ?? this.confirmDeleteAudio,
       showHiddenAudioFiles: showHiddenAudioFiles ?? this.showHiddenAudioFiles,
+      downloadBrowser: downloadBrowser ?? this.downloadBrowser,
     );
   }
 
@@ -184,10 +202,13 @@ class AppSettings extends Equatable {
     filePickerHeight,
     settingsWidth,
     settingsHeight,
+    downloaderWidth,
+    downloaderHeight,
     confirmDeleteImage,
     confirmDeleteVideo,
     confirmDeleteDocument,
     confirmDeleteAudio,
     showHiddenAudioFiles,
+    downloadBrowser,
   ];
 }

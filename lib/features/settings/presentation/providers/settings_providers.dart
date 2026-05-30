@@ -98,6 +98,18 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> setDownloaderDimensions(double width, double height) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setDownloaderDimensions(width, height);
+    ref.invalidateSelf();
+  }
+
+  Future<void> setDownloadBrowser(String? browser) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setDownloadBrowser(browser);
+    ref.invalidateSelf();
+  }
+
   Future<void> saveSettings(AppSettings settings) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.saveSettings(settings);

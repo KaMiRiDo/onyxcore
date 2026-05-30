@@ -47,6 +47,12 @@ abstract class SettingsRepository {
   /// Update the settings dialog dimensions.
   Future<void> setSettingsDimensions(double width, double height);
 
+  /// Update the media downloader dialog dimensions.
+  Future<void> setDownloaderDimensions(double width, double height);
+
+  /// Update the browser used for cookie extraction.
+  Future<void> setDownloadBrowser(String? browser);
+
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.

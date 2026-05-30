@@ -1,0 +1,31 @@
+[gallery-dl][debug] Version 1.32.1
+[gallery-dl][debug] Python 3.12.3 - Linux-6.17.0-29-generic-x86_64-with-glibc2.39
+[gallery-dl][debug] requests 2.34.2 - urllib3 2.7.0
+[gallery-dl][debug] Configuration Files []
+[gallery-dl][debug] Starting DownloadJob for 'https://www.instagram.com/reel/C-5_7Huvl6b/'
+[instagram][debug] Using InstagramPostExtractor for 'https://www.instagram.com/reel/C-5_7Huvl6b/'
+[urllib3.connectionpool][debug] Starting new HTTPS connection (1): www.instagram.com:443
+[urllib3.connectionpool][debug] https://www.instagram.com:443 "GET /api/v1/media/3439060930153832091/info/ HTTP/1.1" 302 0
+[urllib3.connectionpool][debug] https://www.instagram.com:443 "GET /accounts/login/?next=/api/v1/media/3439060930153832091/info/ HTTP/1.1" 200 None
+[instagram][debug] 
+Traceback (most recent call last):
+  File "/home/vimal-babu/.local/share/pipx/venvs/gallery-dl/lib/python3.12/site-packages/gallery_dl/job.py", line 163, in run
+    msg = self.dispatch(extractor)
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vimal-babu/.local/share/pipx/venvs/gallery-dl/lib/python3.12/site-packages/gallery_dl/job.py", line 222, in dispatch
+    for msg, url, kwdict in messages:
+  File "/home/vimal-babu/.local/share/pipx/venvs/gallery-dl/lib/python3.12/site-packages/gallery_dl/extractor/instagram.py", line 103, in items
+    for post in posts:
+  File "/home/vimal-babu/.local/share/pipx/venvs/gallery-dl/lib/python3.12/site-packages/gallery_dl/extractor/instagram.py", line 1201, in _pagination
+    data = self._call(endpoint, params=params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vimal-babu/.local/share/pipx/venvs/gallery-dl/lib/python3.12/site-packages/gallery_dl/extractor/instagram.py", line 1192, in _call
+    return extr.request_json(url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vimal-babu/.local/share/pipx/venvs/gallery-dl/lib/python3.12/site-packages/gallery_dl/extractor/common.py", line 288, in request_json
+    response = self.request(url, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vimal-babu/.local/share/pipx/venvs/gallery-dl/lib/python3.12/site-packages/gallery_dl/extractor/instagram.py", line 187, in request
+    raise self.exc.AbortExtraction(
+gallery_dl.exception.AbortExtraction: HTTP redirect to login page (https://www.instagram.com/accounts/login/)
+[instagram][error] HTTP redirect to login page (https://www.instagram.com/accounts/login/)

@@ -64,10 +64,13 @@ class SettingsRepositoryImpl implements SettingsRepository {
       filePickerHeight: _prefs.getDouble('filePickerHeight') ?? 650.0,
       settingsWidth: _prefs.getDouble('settingsWidth') ?? 760.0,
       settingsHeight: _prefs.getDouble('settingsHeight') ?? 560.0,
+      downloaderWidth: _prefs.getDouble('downloaderWidth') ?? 750.0,
+      downloaderHeight: _prefs.getDouble('downloaderHeight') ?? 560.0,
       confirmDeleteImage: _prefs.getBool('confirmDeleteImage') ?? true,
       confirmDeleteVideo: _prefs.getBool('confirmDeleteVideo') ?? true,
       confirmDeleteDocument: _prefs.getBool('confirmDeleteDocument') ?? true,
       confirmDeleteAudio: _prefs.getBool('confirmDeleteAudio') ?? true,
+      downloadBrowser: _prefs.getString('downloadBrowser'),
     );
 
   }
@@ -94,10 +97,18 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setDouble('filePickerHeight', settings.filePickerHeight);
     await _prefs.setDouble('settingsWidth', settings.settingsWidth);
     await _prefs.setDouble('settingsHeight', settings.settingsHeight);
+    await _prefs.setDouble('downloaderWidth', settings.downloaderWidth);
+    await _prefs.setDouble('downloaderHeight', settings.downloaderHeight);
     await _prefs.setBool('confirmDeleteImage', settings.confirmDeleteImage);
     await _prefs.setBool('confirmDeleteVideo', settings.confirmDeleteVideo);
     await _prefs.setBool('confirmDeleteDocument', settings.confirmDeleteDocument);
     await _prefs.setBool('confirmDeleteAudio', settings.confirmDeleteAudio);
+    
+    if (settings.downloadBrowser != null) {
+      await _prefs.setString('downloadBrowser', settings.downloadBrowser!);
+    } else {
+      await _prefs.remove('downloadBrowser');
+    }
   }
 
   @override
@@ -165,6 +176,21 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> setSettingsDimensions(double width, double height) async {
     await _prefs.setDouble('settingsWidth', width);
     await _prefs.setDouble('settingsHeight', height);
+  }
+
+  @override
+  Future<void> setDownloaderDimensions(double width, double height) async {
+    await _prefs.setDouble('downloaderWidth', width);
+    await _prefs.setDouble('downloaderHeight', height);
+  }
+
+  @override
+  Future<void> setDownloadBrowser(String? browser) async {
+    if (browser != null) {
+      await _prefs.setString('downloadBrowser', browser);
+    } else {
+      await _prefs.remove('downloadBrowser');
+    }
   }
 
   // ——— Gallery Sorting ———

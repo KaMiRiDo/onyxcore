@@ -45,6 +45,8 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/confl
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/core/utils/directory_size_utils.dart';
 import 'dart:isolate';
@@ -275,9 +277,10 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     final isLocationEditing = ref.watch(isLocationEditingProvider);
     final isMarkerEditorActive = ref.watch(isMarkerEditorActiveProvider);
     final isPreviewActive = ref.watch(previewFileProvider) != null;
+    final isDownloadInputFocused = ref.watch(isDownloadInputFocusedProvider);
     
     return CallbackShortcuts(
-      bindings: _buildKeyBindings(isSearchActive, isLocationEditing, isMarkerEditorActive, isPreviewActive),
+      bindings: _buildKeyBindings(isSearchActive, isLocationEditing, isMarkerEditorActive, isPreviewActive, isDownloadInputFocused),
       child: Focus(
         focusNode: _focusNode,
         autofocus: true,
@@ -396,6 +399,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                           child: _buildContentInner(),
                                         ),
                                       ),
+                                      const DownloadsPanel(),
                                       const BackgroundPanel(),
                                     ],
                                   ),
@@ -556,30 +560,34 @@ class _TabBody extends ConsumerWidget {
 }
 
 extension _GalleryPageStateShortcuts on _GalleryPageState {
-
-  Map<ShortcutActivator, VoidCallback> _buildKeyBindings(bool isSearchActive, bool isLocationEditing, bool isMarkerEditorActive, bool isPreviewActive) {
+  Map<ShortcutActivator, VoidCallback> _buildKeyBindings(
+    bool isSearchActive, 
+    bool isLocationEditing, 
+    bool isMarkerEditorActive,
+    bool isPreviewActive,
+    bool isDownloadInputFocused,
+  ) {
     return {
-      // Basic Navigation
-      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive)
+      // General Navigation
+      if (!isLocationEditing && !isDownloadInputFocused) ...{
         const SingleActivator(LogicalKeyboardKey.backspace): _goBack,
-      if (!isPreviewActive)
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _goBack,
-      if (!isPreviewActive)
         const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): _goForward,
+      },
 
       // Selection
       if (!isPreviewActive)
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             ref.read(selectionProvider.notifier).deselectAll(),
-      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive)
+      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive && !isDownloadInputFocused)
         const SingleActivator(LogicalKeyboardKey.keyA, control: true): _selectAll,
 
       // Properties
-      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive)
+      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive && !isDownloadInputFocused)
         const SingleActivator(LogicalKeyboardKey.enter, alt: true): _showProperties,
 
       // File Operations
-      if (!isLocationEditing && !isMarkerEditorActive && !isPreviewActive) ...{
+      if (!isLocationEditing && !isMarkerEditorActive && !isPreviewActive && !isDownloadInputFocused) ...{
         const SingleActivator(LogicalKeyboardKey.keyC, control: true): _handleCopy,
         const SingleActivator(LogicalKeyboardKey.keyX, control: true): _handleCut,
         const SingleActivator(LogicalKeyboardKey.keyV, control: true): _handlePaste,
@@ -626,7 +634,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): _switchToPreviousTab,
 
       // Item Opening
-      if (!isLocationEditing) ...{
+      if (!isLocationEditing && !isDownloadInputFocused) ...{
         const SingleActivator(LogicalKeyboardKey.enter): _handleEnter,
         const SingleActivator(LogicalKeyboardKey.numpadEnter): _handleEnter,
       },

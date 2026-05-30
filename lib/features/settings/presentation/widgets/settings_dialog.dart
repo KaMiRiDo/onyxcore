@@ -10,7 +10,7 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
-
+import 'package:onyxcore/core/utils/browser_detector.dart';
 
 class SettingsDialog extends ConsumerStatefulWidget {
   final int initialTab;
@@ -45,6 +45,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   // Keys for sections to enable auto-scrolling
   final _generalKeys = {
     'Files & Folders': GlobalKey(),
+    'Download Manager': GlobalKey(),
     'Sync': GlobalKey(),
     'Performance': GlobalKey(),
   };
@@ -70,6 +71,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   // Draft state for buffered saving
   AppSettings? _draftSettings;
   AppSettings? _originalSettings;
+  
+  List<String> _installedBrowsers = [];
+  String? _defaultBrowser;
 
   @override
   void initState() {
@@ -102,6 +106,19 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
         if (targetKey != null) {
           _scrollToSection(targetKey, widget.initialSection!, tabName);
         }
+      });
+    }
+
+    _loadBrowsers();
+  }
+
+  Future<void> _loadBrowsers() async {
+    final installed = BrowserDetector.getInstalledBrowsers();
+    final defaultB = BrowserDetector.getDefaultBrowser();
+    if (mounted) {
+      setState(() {
+        _installedBrowsers = installed;
+        _defaultBrowser = defaultB;
       });
     }
   }
@@ -420,7 +437,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     return Row(
       children: [
         _buildSubSidebar(
-          items: ['Files & Folders', 'Sync', 'Performance'],
+          items: ['Files & Folders', 'Download Manager', 'Sync', 'Performance'],
           activeItem: _activeGeneralSection,
           onSelected: (section) => _scrollToSection(_generalKeys[section]!, section, 'General'),
         ),
@@ -471,6 +488,25 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   onChanged: (value) {
                     setState(() {
                       _draftSettings = _draftSettings!.copyWith(globalSortOption: value);
+                    });
+                  },
+                ),
+              ),
+              _buildSectionHeader('Download Manager', _generalKeys['Download Manager']!),
+              _buildSettingTile(
+                title: 'Browser for Cookie Extraction',
+                subtitle: 'Used for age-restricted or private downloads (e.g. Instagram). Default is system browser.',
+                trailing: _buildDropdown<String>(
+                  value: settings.downloadBrowser ?? _defaultBrowser ?? 'None',
+                  options: [
+                    if (_defaultBrowser != null) MapEntry(_defaultBrowser!, '$_defaultBrowser (Default)'),
+                    ..._installedBrowsers.where((b) => b != _defaultBrowser).map((b) => MapEntry(b, b)),
+                    const MapEntry('None', 'None (Disabled)'),
+                  ],
+                  minWidth: 150,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(downloadBrowser: value == 'None' ? 'None' : value);
                     });
                   },
                 ),
