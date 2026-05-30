@@ -107,6 +107,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     int? galleryIndex,
     String engine = 'auto',
     bool isPlaylist = false,
+    String? browser,
   }) async {
     final id = _uuid.v4();
     final newTask = DownloadTask(

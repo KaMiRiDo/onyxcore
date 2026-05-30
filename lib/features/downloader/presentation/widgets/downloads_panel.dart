@@ -21,11 +21,19 @@ import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 
 enum DownloadMode { normal, mute, audioOnly }
+enum GroupDownloadType { all, images, videos }
 
 class DownloadConfig {
   MediaFormat? format;
+  Map<String, MediaFormat?> itemFormats;
   DownloadMode mode;
-  DownloadConfig({this.format, this.mode = DownloadMode.normal});
+  GroupDownloadType groupFilter;
+  DownloadConfig({
+    this.format, 
+    this.mode = DownloadMode.normal, 
+    this.groupFilter = GroupDownloadType.all,
+    Map<String, MediaFormat?>? itemFormats,
+  }) : itemFormats = itemFormats ?? {};
 }
 
 class DownloadsPanel extends ConsumerWidget {
@@ -104,7 +112,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   bool _isLoading = false;
   String? _error;
 
-  List<MediaInfo>? _parsedItems;
+  List<MediaGroup>? _parsedItems;
   final Map<int, DownloadConfig> _configs = {};
 
   String _destinationMode = 'current';
@@ -119,8 +127,27 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   int _anchorIndex = -1;
   final Map<int, GlobalKey> _itemKeys = {};
 
-  MediaInfo? _previewItem;
+  MediaGroup? _previewItem;
   int? _previewIndex;
+  int _previewCarouselIndex = 0;
+
+  List<MediaInfo> get _visiblePreviewItems {
+    if (_previewItem == null) return [];
+    final config = _configs[_previewIndex!];
+    if (config == null) return _previewItem!.items;
+    
+    return _previewItem!.items.where((info) {
+      if (config.groupFilter == GroupDownloadType.images && info.isVideo) return false;
+      if (config.groupFilter == GroupDownloadType.videos && !info.isVideo) return false;
+      return true;
+    }).toList();
+  }
+
+  String _trimMiddle(String text, int maxLength) {
+    if (text.length <= maxLength) return text;
+    final half = (maxLength - 3) ~/ 2;
+    return '${text.substring(0, half)}...${text.substring(text.length - half)}';
+  }
 
   late FocusNode _urlFocusNode;
   final FocusNode _listFocusNode = FocusNode();
@@ -136,6 +163,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             _urlFocusNode.hasFocus;
         setState(() {});
       });
+    _listFocusNode.addListener(() {
+      ref.read(isDownloadsPanelFocusedProvider.notifier).state =
+          _listFocusNode.hasFocus;
+    });
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _checkBinaries();
     _gradientController = AnimationController(
@@ -247,23 +278,31 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           _parsedItems = [];
         }
 
+        final newGroups = <String, List<MediaInfo>>{};
         for (final item in items) {
+          if (!newGroups.containsKey(item.originalUrl)) {
+            newGroups[item.originalUrl] = [];
+          }
+          newGroups[item.originalUrl]!.add(item);
+        }
+
+        for (final entry in newGroups.entries) {
+          final groupItems = entry.value;
           final isDuplicate = _parsedItems!.any(
-            (existing) =>
-                existing.originalUrl == item.originalUrl &&
-                existing.id == item.id &&
-                existing.galleryIndex == item.galleryIndex,
+            (existing) => existing.originalUrl == entry.key
           );
           if (!isDuplicate) {
-            _parsedItems!.add(item);
+            _parsedItems!.add(MediaGroup(originalUrl: entry.key, items: groupItems));
           }
         }
 
         for (int i = 0; i < _parsedItems!.length; i++) {
           if (!_configs.containsKey(i)) {
-            final info = _parsedItems![i];
+            final group = _parsedItems![i];
+            final info = group.first;
             _configs[i] = DownloadConfig(
               format: info.formats.isNotEmpty ? info.formats.last : null,
+              groupFilter: GroupDownloadType.all,
             );
           }
         }
@@ -282,109 +321,127 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     }
   }
 
-  Future<void> _startDownload(int index) async {
+  Future<void> _startDownload(int index, {String? singleItemId}) async {
     if (_parsedItems == null || index >= _parsedItems!.length) return;
 
-    final info = _parsedItems![index];
+    final group = _parsedItems![index];
     final config = _configs[index]!;
 
     String dest = _destinationMode == 'current'
         ? ref.read(currentPathProvider)
         : '${Platform.environment['HOME']}/Downloads';
 
-    if (info.isPlaylist || info.isProfile) {
-      final safeName = info.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-      dest = p.join(dest, safeName);
-      if (!Directory(dest).existsSync()) {
-        Directory(dest).createSync(recursive: true);
+    for (final info in group.items) {
+      if (singleItemId != null && info.id != singleItemId) continue;
+      
+      if (config.groupFilter == GroupDownloadType.images && info.isVideo) continue;
+      if (config.groupFilter == GroupDownloadType.videos && !info.isVideo) continue;
+
+      final format = config.itemFormats[info.id] ?? config.format;
+
+      String itemDest = dest;
+      if (info.isPlaylist || info.isProfile) {
+        final safeName = info.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+        itemDest = p.join(dest, safeName);
+        if (!Directory(itemDest).existsSync()) {
+          Directory(itemDest).createSync(recursive: true);
+        }
       }
-    }
 
-    bool shouldDownload = true;
-    String finalTitle = info.title;
-    String suffix = '';
-    final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
-    if (match != null) {
-      suffix = ' - ${match.group(1)}';
-      finalTitle = finalTitle.replaceAll(
-        RegExp(r' \(\d+\)$'),
-        '',
-      ); // Remove it so it doesn't get partially trimmed
-    } else if (info.galleryIndex != null) {
-      suffix = ' - ${info.galleryIndex}';
-    }
-
-    if (finalTitle.length > 80) {
-      finalTitle = finalTitle.substring(0, 80).trim();
-    }
-    finalTitle = '$finalTitle$suffix';
-
-    if (!info.isPlaylist && !info.isProfile) {
-      final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-      final dir = Directory(dest);
-      if (dir.existsSync()) {
-        final existingFiles = dir.listSync().whereType<File>().toList();
-        final exists = existingFiles.any(
-          (f) => p.basenameWithoutExtension(f.path) == safeName,
+      bool shouldDownload = true;
+      String finalTitle = info.title;
+      String suffix = '';
+      final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
+      if (match != null) {
+        suffix = ' - ${match.group(1)}';
+        finalTitle = finalTitle.replaceAll(
+          RegExp(r' \(\d+\)$'),
+          '',
         );
-        if (exists) {
-          final result = await showDialog<ConflictResult>(
-            context: context,
-            barrierColor: Colors.black54,
-            builder: (context) => ConflictDialog(
-              fileName: safeName,
-              destinationPath: dest,
-              showApplyToAll: false,
-            ),
+      } else if (info.galleryIndex != null) {
+        suffix = ' - ${info.galleryIndex}';
+      }
+
+      if (finalTitle.length > 80) {
+        finalTitle = finalTitle.substring(0, 80).trim();
+      }
+      finalTitle = '$finalTitle$suffix';
+
+      if (!info.isPlaylist && !info.isProfile) {
+        final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+        final dir = Directory(itemDest);
+        if (dir.existsSync()) {
+          final existingFiles = dir.listSync().whereType<File>().toList();
+          final exists = existingFiles.any(
+            (f) => p.basenameWithoutExtension(f.path) == safeName,
           );
-          if (result == null || result.resolution == ConflictResolution.skip) {
-            shouldDownload = false;
-          } else if (result.resolution == ConflictResolution.rename) {
-            int counter = 1;
-            while (existingFiles.any(
-              (f) =>
-                  p.basenameWithoutExtension(f.path) == '$safeName ($counter)',
-            )) {
-              counter++;
+          if (exists) {
+            final result = await showDialog<ConflictResult>(
+              context: context,
+              barrierColor: Colors.black54,
+              builder: (context) => ConflictDialog(
+                fileName: safeName,
+                destinationPath: itemDest,
+                showApplyToAll: false,
+              ),
+            );
+            if (result == null || result.resolution == ConflictResolution.skip) {
+              shouldDownload = false;
+            } else if (result.resolution == ConflictResolution.rename) {
+              int counter = 1;
+              while (existingFiles.any(
+                (f) =>
+                    p.basenameWithoutExtension(f.path) == '$safeName ($counter)',
+              )) {
+                counter++;
+              }
+              finalTitle = '$finalTitle ($counter)';
+            } else if (result.resolution == ConflictResolution.replace) {
+              try {
+                final fileToDelete = existingFiles.firstWhere(
+                  (f) => p.basenameWithoutExtension(f.path) == safeName,
+                );
+                fileToDelete.deleteSync();
+              } catch (_) {}
             }
-            finalTitle = '$finalTitle ($counter)';
-          } else if (result.resolution == ConflictResolution.replace) {
-            try {
-              final fileToDelete = existingFiles.firstWhere(
-                (f) => p.basenameWithoutExtension(f.path) == safeName,
-              );
-              fileToDelete.deleteSync();
-            } catch (_) {}
           }
         }
       }
-    }
 
-    if (shouldDownload) {
-      ref
-          .read(downloadTaskProvider.notifier)
-          .startDownload(
-            url: info.originalUrl,
-            destination: dest,
-            title: finalTitle,
-            format: config.format,
-            audioOnly: config.mode == DownloadMode.audioOnly,
-            mute: config.mode == DownloadMode.mute,
-            galleryIndex: info.galleryIndex,
-            engine: _selectedEngine,
-            isPlaylist: info.isPlaylist,
-          );
+      if (shouldDownload) {
+        ref
+            .read(downloadTaskProvider.notifier)
+            .startDownload(
+              url: info.originalUrl,
+              destination: itemDest,
+              title: finalTitle,
+              format: format,
+              audioOnly: config.mode == DownloadMode.audioOnly,
+              mute: config.mode == DownloadMode.mute,
+              galleryIndex: info.galleryIndex,
+              engine: _selectedEngine,
+              isPlaylist: info.isPlaylist,
+              browser: ref.read(settingsProvider).value?.downloadBrowser,
+            );
+      }
     }
 
     setState(() {
-      _parsedItems!.removeAt(index);
+      if (singleItemId != null) {
+        group.items.removeWhere((i) => i.id == singleItemId);
+        if (group.items.isEmpty) {
+          _parsedItems!.removeAt(index);
+        }
+      } else {
+        _parsedItems!.removeAt(index);
+      }
 
       final newConfigs = <int, DownloadConfig>{};
       for (int i = 0; i < _parsedItems!.length; i++) {
-        final oldFormat = _parsedItems![i].formats.isNotEmpty
-            ? _parsedItems![i].formats.last
-            : null;
-        newConfigs[i] = DownloadConfig(format: oldFormat);
+        final g = _parsedItems![i];
+        final info = g.first;
+        final oldFormat = info.formats.isNotEmpty ? info.formats.last : null;
+        newConfigs[i] = DownloadConfig(format: oldFormat, groupFilter: GroupDownloadType.all);
       }
       _configs.clear();
       _configs.addAll(newConfigs);
@@ -407,43 +464,48 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     for (final i in indices) {
       if (_parsedItems == null || i >= _parsedItems!.length) continue;
 
-      final info = _parsedItems![i];
+      final group = _parsedItems![i];
       final config = _configs[i]!;
 
       String dest = _destinationMode == 'current'
           ? ref.read(currentPathProvider)
           : '${Platform.environment['HOME']}/Downloads';
 
-      if (info.isPlaylist || info.isProfile) {
-        final safeName = info.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-        dest = p.join(dest, safeName);
-        if (!Directory(dest).existsSync()) {
-          Directory(dest).createSync(recursive: true);
+      for (final info in group.items) {
+        if (config.groupFilter == GroupDownloadType.images && info.isVideo) continue;
+        if (config.groupFilter == GroupDownloadType.videos && !info.isVideo) continue;
+
+        String itemDest = dest;
+        if (info.isPlaylist || info.isProfile) {
+          final safeName = info.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+          itemDest = p.join(dest, safeName);
+          if (!Directory(itemDest).existsSync()) {
+            Directory(itemDest).createSync(recursive: true);
+          }
         }
-      }
 
-      bool shouldDownload = true;
-      String finalTitle = info.title;
-      String suffix = '';
-      final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
-      if (match != null) {
-        suffix = ' - ${match.group(1)}';
-        finalTitle = finalTitle.replaceAll(RegExp(r' \(\d+\)$'), '');
-      } else if (info.galleryIndex != null) {
-        suffix = ' - ${info.galleryIndex}';
-      }
+        bool shouldDownload = true;
+        String finalTitle = info.title;
+        String suffix = '';
+        final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
+        if (match != null) {
+          suffix = ' - ${match.group(1)}';
+          finalTitle = finalTitle.replaceAll(RegExp(r' \(\d+\)$'), '');
+        } else if (info.galleryIndex != null) {
+          suffix = ' - ${info.galleryIndex}';
+        }
 
-      if (finalTitle.length > 80) {
-        finalTitle = finalTitle.substring(0, 80).trim();
-      }
-      finalTitle = '$finalTitle$suffix';
+        if (finalTitle.length > 80) {
+          finalTitle = finalTitle.substring(0, 80).trim();
+        }
+        finalTitle = '$finalTitle$suffix';
 
-      if (!info.isPlaylist && !info.isProfile) {
-        final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-        final dir = Directory(dest);
-        bool exists = false;
-        List<File> existingFiles = [];
-        if (dir.existsSync()) {
+        if (!info.isPlaylist && !info.isProfile) {
+          final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+          final dir = Directory(itemDest);
+          bool exists = false;
+          List<File> existingFiles = [];
+          if (dir.existsSync()) {
           existingFiles = dir.listSync().whereType<File>().toList();
           exists = existingFiles.any(
             (f) => p.basenameWithoutExtension(f.path) == safeName,
@@ -481,7 +543,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               barrierColor: Colors.black54,
               builder: (context) => ConflictDialog(
                 fileName: safeName,
-                destinationPath: dest,
+                destinationPath: itemDest,
                 showApplyToAll: true,
               ),
             );
@@ -518,21 +580,23 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         }
       }
 
-      if (shouldDownload) {
-        sessionNames.add(finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_'));
-        ref
-            .read(downloadTaskProvider.notifier)
-            .startDownload(
-              url: info.originalUrl,
-              destination: dest,
-              title: finalTitle,
-              format: config.format,
-              audioOnly: config.mode == DownloadMode.audioOnly,
-              mute: config.mode == DownloadMode.mute,
-              galleryIndex: info.galleryIndex,
-              engine: _selectedEngine,
-              isPlaylist: info.isPlaylist,
-            );
+        if (shouldDownload) {
+          sessionNames.add(finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_'));
+          ref
+              .read(downloadTaskProvider.notifier)
+              .startDownload(
+                url: info.originalUrl,
+                destination: itemDest,
+                title: finalTitle,
+                format: config.format,
+                audioOnly: config.mode == DownloadMode.audioOnly,
+                mute: config.mode == DownloadMode.mute,
+                galleryIndex: info.galleryIndex,
+                engine: _selectedEngine,
+                isPlaylist: info.isPlaylist,
+                browser: ref.read(settingsProvider).value?.downloadBrowser,
+              );
+        }
       }
     }
 
@@ -550,7 +614,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
     final sortedIndices = List<int>.from(indicesToRemove)
       ..sort((a, b) => b.compareTo(a));
-    final remainingItems = <MediaInfo>[];
+    final remainingItems = <MediaGroup>[];
     final remainingConfigs = <DownloadConfig>[];
 
     for (int i = 0; i < _parsedItems!.length; i++) {
@@ -559,8 +623,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         remainingConfigs.add(
           _configs[i] ??
               DownloadConfig(
-                format: _parsedItems![i].formats.isNotEmpty
-                    ? _parsedItems![i].formats.last
+                format: _parsedItems![i].first.formats.isNotEmpty
+                    ? _parsedItems![i].first.formats.last
                     : null,
               ),
         );
@@ -579,10 +643,27 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     _selectedIndices.clear();
     _lastSelectedIndex = -1;
     _anchorIndex = -1;
+    if (_parsedItems!.isEmpty) {
+      _parsedItems = null;
+    }
     _previewItem = null;
   }
 
-  void _updateShiftSelection(List<MapEntry<int, MediaInfo>> items) {
+  void _removeSingleItem(int groupIndex, String itemId) {
+    if (_parsedItems == null || groupIndex >= _parsedItems!.length) return;
+    
+    final group = _parsedItems![groupIndex];
+    group.items.removeWhere((i) => i.id == itemId);
+    
+    if (group.items.isEmpty) {
+      _removeParsedItems([groupIndex]);
+    } else {
+      // Re-trigger rebuild
+      setState(() {});
+    }
+  }
+
+  void _updateShiftSelection(List<MapEntry<int, MediaGroup>> items) {
     if (_anchorIndex == -1) _anchorIndex = _lastSelectedIndex;
     int visualStart = items.indexWhere((e) => e.key == _anchorIndex);
     int visualEnd = items.indexWhere((e) => e.key == _lastSelectedIndex);
@@ -606,8 +687,13 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         autofocus: false,
         canRequestFocus: false,
         descendantsAreFocusable: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
+        child: Listener(
+          onPointerDown: (_) => _listFocusNode.requestFocus(),
+          onPointerSignal: (_) => _listFocusNode.requestFocus(),
+          child: MouseRegion(
+            onEnter: (_) => _listFocusNode.requestFocus(),
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
           onTap: () {
             setState(() {
               _selectedIndices.clear();
@@ -642,13 +728,15 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                   ),
                 ],
               ),
-              if (_previewItem != null && _previewIndex != null)
-                _buildPreviewOverlay(),
+              if (_previewItem != null)
+                _previewItem!.isSingle ? _buildSinglePreviewOverlay() : _buildGroupPreviewOverlay(),
             ],
           ),
         ),
       ),
-    );
+    ),
+    ),
+  );
   }
 
   Widget _buildEngineDropdown() {
@@ -765,10 +853,13 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     );
   }
 
-  Widget _buildPreviewOverlay() {
-    final item = _previewItem!;
-    final index = _previewIndex!;
-    final config = _configs[index]!;
+  Widget _buildSinglePreviewOverlay() {
+    final item = _previewItem;
+    if (item == null) return const SizedBox.shrink();
+    final index = _previewIndex;
+    if (index == null) return const SizedBox.shrink();
+    final config = _configs[index];
+    if (config == null) return const SizedBox.shrink();
 
     return Positioned.fill(
       child: GestureDetector(
@@ -840,15 +931,15 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                item.thumbnail != null
+                                item.first.thumbnail != null
                                     ? Image.network(
-                                        item.thumbnail!,
+                                        item.first.thumbnail!,
                                         fit: BoxFit.contain,
                                         errorBuilder: (_, __, ___) =>
                                             _buildFallbackThumb(),
                                       )
                                     : _buildFallbackThumb(),
-                                if (item.isVideo && item.duration != null)
+                                if (item.isSingle && item.first.isVideo && item.first.duration != null)
                                   Positioned(
                                     bottom: 8,
                                     right: 8,
@@ -862,7 +953,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        _formatDuration(item.duration!),
+                                        _formatDuration(item.first.duration!),
                                         style: GoogleFonts.manrope(
                                           color: Colors.white,
                                           fontSize: 10,
@@ -871,6 +962,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                       ),
                                     ),
                                   ),
+
                               ],
                             ),
                           ),
@@ -882,7 +974,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                item.title,
+                                item.first.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.manrope(
@@ -894,9 +986,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  if (item.extractor != null) ...[
+                                  if (item.first.extractor != null) ...[
                                     Text(
-                                      item.extractor!,
+                                      item.first.extractor!,
                                       style: GoogleFonts.manrope(
                                         color: Colors.white70,
                                         fontSize: 11,
@@ -916,8 +1008,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                     ),
                                   ],
                                   Text(
-                                    _getFileSize(item, config) ??
-                                        'Unknown size',
+                                    !item.isSingle 
+                                        ? _formatBytes(item.totalFilesize)
+                                        : (_getFileSize(item.first, config) ?? 'Unknown size'),
                                     style: GoogleFonts.manrope(
                                       color: Colors.white70,
                                       fontSize: 11,
@@ -933,17 +1026,27 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                           child: Row(
                             children: [
-                              if (item.formats.isNotEmpty)
+                              if (item.isSingle && item.first.formats.isNotEmpty)
                                 Expanded(
                                   child: Align(
                                     alignment: Alignment.centerLeft,
                                     child: SizedBox(
                                       width: 140,
                                       child: _buildFormatDropdown(
-                                        item,
+                                        item.first,
                                         config,
                                         index,
                                       ),
+                                    ),
+                                  ),
+                                )
+                              else if (!item.isSingle)
+                                Expanded(
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: SizedBox(
+                                      width: 140,
+                                      child: _buildGroupFilterDropdown(config, index),
                                     ),
                                   ),
                                 )
@@ -1021,6 +1124,455 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupPreviewOverlay() {
+    final group = _previewItem;
+    if (group == null) return const SizedBox.shrink();
+    final groupIndex = _previewIndex;
+    if (groupIndex == null) return const SizedBox.shrink();
+    final config = _configs[groupIndex];
+    if (config == null) return const SizedBox.shrink();
+    final visibleItems = _visiblePreviewItems;
+
+    // Safety fallback
+    if (visibleItems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (_previewCarouselIndex >= visibleItems.length) {
+      _previewCarouselIndex = visibleItems.length - 1;
+    }
+    if (_previewCarouselIndex < 0) {
+      _previewCarouselIndex = 0;
+    }
+
+    final currentItem = visibleItems[_previewCarouselIndex];
+    final totalSize = visibleItems.fold<int>(0, (sum, i) => sum + (i.filesize ?? 0));
+
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _previewItem = null;
+          });
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          color: Colors.black.withOpacity(0.8),
+          child: Center(
+            child: GestureDetector(
+              onTap: () {}, // Absorb taps
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                  child: Container(
+                    margin: const EdgeInsets.all(24),
+                    width: 650, // Fixed width for better carousel look
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2C2C35).withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.15)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.5),
+                          blurRadius: 30,
+                          offset: const Offset(0, 15),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Header
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Row 1: Title and Close Button
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      group.first.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.manrope(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  IconButton(
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      setState(() {
+                                        _previewItem = null;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              // Row 2: Source • Size
+                              Row(
+                                children: [
+                                  if (group.first.extractor != null) ...[
+                                    Text(
+                                      group.first.extractor!,
+                                      style: GoogleFonts.manrope(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 6),
+                                      child: Text('•', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                                    ),
+                                  ],
+                                  Text(
+                                    _formatBytes(totalSize),
+                                    style: GoogleFonts.manrope(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              // Row 3: Dropdown & Download All
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  SizedBox(
+                                    width: 140,
+                                    child: _buildGroupFilterDropdown(config, groupIndex),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      _startDownload(groupIndex);
+                                      setState(() {
+                                        _previewItem = null;
+                                      });
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.violet.withOpacity(0.2),
+                                      foregroundColor: AppColors.violet,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      fixedSize: const Size.fromHeight(32),
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Download All',
+                                      style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Image Carousel
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Row(
+                            children: [
+                              // Prev Button
+                              IconButton(
+                                icon: Icon(
+                                  Icons.arrow_back_ios,
+                                  color: _previewCarouselIndex > 0 ? Colors.white : Colors.white24,
+                                ),
+                                onPressed: _previewCarouselIndex > 0
+                                    ? () {
+                                        setState(() {
+                                          _previewCarouselIndex--;
+                                        });
+                                      }
+                                    : null,
+                              ),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 280,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      currentItem.thumbnail != null
+                                          ? Image.network(
+                                              currentItem.thumbnail!,
+                                              fit: BoxFit.contain,
+                                              loadingBuilder: (context, child, loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                return const Center(
+                                                  child: _JugglingBallsLoader(),
+                                                );
+                                              },
+                                              errorBuilder: (_, __, ___) => _buildFallbackThumb(),
+                                            )
+                                          : _buildFallbackThumb(),
+                                      if (currentItem.isVideo && currentItem.duration != null)
+                                        Positioned(
+                                          bottom: 8,
+                                          right: 8,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.7),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              _formatDuration(currentItem.duration!),
+                                              style: GoogleFonts.manrope(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.7),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            '${_previewCarouselIndex + 1} / ${visibleItems.length}',
+                                            style: GoogleFonts.manrope(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              // Next Button
+                              IconButton(
+                                icon: Icon(
+                                  Icons.arrow_forward_ios,
+                                  color: _previewCarouselIndex < visibleItems.length - 1 ? Colors.white : Colors.white24,
+                                ),
+                                onPressed: _previewCarouselIndex < visibleItems.length - 1
+                                    ? () {
+                                        setState(() {
+                                          _previewCarouselIndex++;
+                                        });
+                                      }
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Footer
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                _trimMiddle(currentItem.title, 40) + ' (${_getFileSize(currentItem, config) ?? "Unknown size"})',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.manrope(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  if (currentItem.formats.isNotEmpty)
+                                    SizedBox(
+                                      width: 140,
+                                      child: _buildFormatDropdown(currentItem, config, groupIndex, isItemLevel: true),
+                                    )
+                                  else
+                                    const Spacer(),
+                                  const Spacer(),
+                                  OutlinedButton(
+                                    onPressed: () {
+                                      _removeSingleItem(groupIndex, currentItem.id);
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                      backgroundColor: Colors.white.withOpacity(0.05),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      fixedSize: const Size.fromHeight(32),
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    child: Text(
+                                      'Remove',
+                                      style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      _startDownload(groupIndex, singleItemId: currentItem.id);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.violet.withOpacity(0.2),
+                                      foregroundColor: AppColors.violet,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      fixedSize: const Size.fromHeight(32),
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    child: Text(
+                                      'Download',
+                                      style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCountIndicator(IconData icon, int count, {bool disabled = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: disabled ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: disabled ? Colors.white38 : Colors.white, size: 10),
+          const SizedBox(width: 4),
+          Text(
+            count.toString(),
+            style: GoogleFonts.manrope(
+              color: disabled ? Colors.white38 : Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupFilterDropdown(DownloadConfig config, int index) {
+    String getLabel(GroupDownloadType type) {
+      switch (type) {
+        case GroupDownloadType.all:
+          return 'All';
+        case GroupDownloadType.images:
+          return 'Images Only';
+        case GroupDownloadType.videos:
+          return 'Videos Only';
+      }
+    }
+
+    return PopupMenuButton<GroupDownloadType>(
+      offset: const Offset(0, 36),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+      ),
+      color: const Color(0xFF1E1E1E),
+      surfaceTintColor: Colors.transparent,
+      elevation: 24,
+      tooltip: '',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(maxHeight: 250),
+      onSelected: (val) {
+        setState(() {
+          config.groupFilter = val;
+          _previewCarouselIndex = 0;
+        });
+      },
+      itemBuilder: (context) => GroupDownloadType.values.map((f) {
+        final isSelected = f == config.groupFilter;
+        return PopupMenuItem<GroupDownloadType>(
+          value: f,
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.white.withAlpha(15) : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              getLabel(f),
+              style: GoogleFonts.manrope(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      }).toList(),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                getLabel(config.groupFilter),
+                style: GoogleFonts.manrope(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              color: Colors.white54,
+              size: 16,
+            ),
+          ],
         ),
       ),
     );
@@ -1362,18 +1914,18 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     );
   }
 
-  List<MapEntry<int, MediaInfo>> get _filteredItems {
+  List<MapEntry<int, MediaGroup>> get _filteredItems {
     if (_parsedItems == null) return [];
     var entries = _parsedItems!.asMap().entries.toList();
 
     // First apply filters
     if (_sortFilter == 'image') {
       entries = entries
-          .where((e) => !e.value.isVideo && !e.value.isPlaylist)
+          .where((e) => !e.value.first.isVideo && !e.value.first.isPlaylist)
           .toList();
     } else if (_sortFilter == 'video') {
       entries = entries
-          .where((e) => e.value.isVideo && !e.value.isPlaylist)
+          .where((e) => e.value.first.isVideo && !e.value.first.isPlaylist)
           .toList();
     }
 
@@ -1382,8 +1934,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       entries.sort((a, b) => a.key.compareTo(b.key));
     } else if (_sortFilter == 'size_asc' || _sortFilter == 'size_desc') {
       entries.sort((a, b) {
-        final aSize = a.value.filesize ?? 0;
-        final bSize = b.value.filesize ?? 0;
+        final aSize = a.value.totalFilesize;
+        final bSize = b.value.totalFilesize;
         return _sortFilter == 'size_asc'
             ? aSize.compareTo(bSize)
             : bSize.compareTo(aSize);
@@ -1698,7 +2250,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                         );
 
                         Widget tile;
-                        if (item.isPlaylist || item.isProfile) {
+                        if (item.first.isPlaylist || item.first.isProfile) {
                           tile = _buildGroupTile(index, item);
                         } else {
                           tile = _buildMediaTile(index, item);
@@ -1927,7 +2479,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     );
   }
 
-  Widget _buildGroupTile(int index, MediaInfo item) {
+  Widget _buildGroupTile(int index, MediaGroup group) {
+    final item = group.first;
     final config = _configs[index]!;
     final isPlaylist = item.isPlaylist;
 
@@ -2041,7 +2594,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     );
   }
 
-  Widget _buildMediaTile(int index, MediaInfo item) {
+  Widget _buildMediaTile(int index, MediaGroup group) {
+    final item = group.first;
     final config = _configs[index]!;
     final isSelected = _selectedIndices.contains(index);
 
@@ -2092,8 +2646,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               GestureDetector(
                 onTap: () {
                   setState(() {
-                    _previewItem = item;
+                    _previewItem = group;
                     _previewIndex = index;
+                    _previewCarouselIndex = 0;
                   });
                 },
                 child: MouseRegion(
@@ -2145,15 +2700,17 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Icon(
-                              item.isVideo
-                                  ? Icons.videocam_rounded
-                                  : Icons.image_rounded,
+                              !group.isSingle
+                                  ? Icons.filter_none_rounded
+                                  : (item.isVideo
+                                      ? Icons.videocam_rounded
+                                      : Icons.image_rounded),
                               color: Colors.white,
                               size: 12,
                             ),
                           ),
                         ),
-                        if (item.isVideo && item.duration != null)
+                        if (group.isSingle && item.isVideo && item.duration != null)
                           Positioned(
                             bottom: 8,
                             left: 8,
@@ -2176,7 +2733,22 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                               ),
                             ),
                           ),
-                        if (_getFileSize(item, config) != null)
+                        if (!group.isSingle)
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            child: Row(
+                              children: [
+                                if (group.imageCount > 0)
+                                  _buildCountIndicator(Icons.image_rounded, group.imageCount, disabled: config.groupFilter == GroupDownloadType.videos),
+                                if (group.imageCount > 0 && group.videoCount > 0)
+                                  const SizedBox(width: 4),
+                                if (group.videoCount > 0)
+                                  _buildCountIndicator(Icons.videocam_rounded, group.videoCount, disabled: config.groupFilter == GroupDownloadType.images),
+                              ],
+                            ),
+                          ),
+                        if (!group.isSingle || _getFileSize(item, config) != null)
                           Positioned(
                             bottom: 8,
                             right: 8,
@@ -2190,7 +2762,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                _getFileSize(item, config)!,
+                                !group.isSingle 
+                                    ? _formatBytes(_getGroupBytes(group, config))
+                                    : _getFileSize(item, config) ?? 'Unknown size',
                                 style: GoogleFonts.manrope(
                                   color: Colors.white,
                                   fontSize: 9,
@@ -2260,7 +2834,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                               alignment: WrapAlignment.end,
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                if (item.formats.isNotEmpty)
+                                if (group.isSingle && item.formats.isNotEmpty)
                                   SizedBox(
                                     width: 130,
                                     child: _buildFormatDropdown(
@@ -2268,6 +2842,11 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                       config,
                                       index,
                                     ),
+                                  )
+                                else if (!group.isSingle)
+                                  SizedBox(
+                                    width: 130,
+                                    child: _buildGroupFilterDropdown(config, index),
                                   ),
                                 ElevatedButton(
                                   onPressed: () => _startDownload(index),
@@ -2358,8 +2937,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   Widget _buildFormatDropdown(
     MediaInfo item,
     DownloadConfig config,
-    int index,
-  ) {
+    int index, {
+    bool isItemLevel = false,
+  }) {
     var formats = item.formats.toSet().toList();
 
     formats.sort((a, b) {
@@ -2385,9 +2965,11 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       }).toList();
     }
 
+    final currentFormat = isItemLevel ? config.itemFormats[item.id] ?? config.format : config.format;
+
     final hasMultiple = formats.length > 1;
-    final displayFormat = formats.contains(config.format)
-        ? config.format
+    final displayFormat = formats.contains(currentFormat)
+        ? currentFormat
         : (formats.isNotEmpty ? formats.first : null);
 
     return PopupMenuButton<MediaFormat>(
@@ -2398,15 +2980,22 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         side: BorderSide(color: Colors.white.withOpacity(0.1)),
       ),
       color: const Color(0xFF1E1E1E),
+      surfaceTintColor: Colors.transparent,
       elevation: 24,
       tooltip: '',
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(maxHeight: 250),
       onSelected: (val) {
-        setState(() => config.format = val);
+        setState(() {
+          if (isItemLevel) {
+            config.itemFormats[item.id] = val;
+          } else {
+            config.format = val;
+          }
+        });
       },
       itemBuilder: (context) => formats.map((f) {
-        final isSelected = f == config.format;
+        final isSelected = f == currentFormat;
         return PopupMenuItem<MediaFormat>(
           value: f,
           height: 34,
@@ -2614,9 +3203,11 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   String? _getFileSize(MediaInfo item, DownloadConfig config) {
     int? bytes;
+    final currentFormat = config.itemFormats[item.id] ?? config.format;
+    
     if (config.mode == DownloadMode.mute ||
         config.mode == DownloadMode.normal) {
-      final formatId = config.format?.formatId;
+      final formatId = currentFormat?.formatId;
       if (formatId != null) {
         final format = item.formats
             .where((f) => f.formatId == formatId)
@@ -2636,6 +3227,32 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       return _formatBytes(bytes);
     }
     return null;
+  }
+
+  int _getGroupBytes(MediaGroup group, DownloadConfig config) {
+    int total = 0;
+    for (final item in group.items) {
+      if (config.groupFilter == GroupDownloadType.images && item.isVideo) continue;
+      if (config.groupFilter == GroupDownloadType.videos && !item.isVideo) continue;
+      
+      int? bytes;
+      final currentFormat = config.itemFormats[item.id] ?? config.format;
+      
+      if (config.mode == DownloadMode.mute || config.mode == DownloadMode.normal) {
+        final formatId = currentFormat?.formatId;
+        if (formatId != null) {
+          final format = item.formats.where((f) => f.formatId == formatId).firstOrNull;
+          bytes = format?.filesize;
+        }
+      } else if (config.mode == DownloadMode.audioOnly) {
+        final audioFormat = item.formats.where((f) => f.resolution == 'audio only').firstOrNull;
+        bytes = audioFormat?.filesize;
+      }
+      
+      bytes ??= item.filesize;
+      total += bytes ?? 0;
+    }
+    return total;
   }
 
   String _formatBytes(int bytes) {

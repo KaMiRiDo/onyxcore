@@ -12,3 +12,4 @@ final downloadsPanelOpenProvider = StateProvider<bool>((ref) => false);
 final downloadsPanelViewProvider = StateProvider<DownloadsPanelView>((ref) => DownloadsPanelView.tasks);
 final selectedDownloadHistoryIdProvider = StateProvider<String?>((ref) => null);
 final isDownloadInputFocusedProvider = StateProvider<bool>((ref) => false);
+final isDownloadsPanelFocusedProvider = StateProvider<bool>((ref) => false);

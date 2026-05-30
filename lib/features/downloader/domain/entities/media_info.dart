@@ -167,3 +167,20 @@ class MediaInfo {
     );
   }
 }
+
+class MediaGroup {
+  final String originalUrl;
+  final List<MediaInfo> items;
+  
+  const MediaGroup({
+    required this.originalUrl,
+    required this.items,
+  });
+
+  bool get isSingle => items.length <= 1;
+  MediaInfo get first => items.first;
+
+  int get imageCount => items.where((i) => !i.isVideo).length;
+  int get videoCount => items.where((i) => i.isVideo).length;
+  int get totalFilesize => items.fold<int>(0, (sum, i) => sum + (i.filesize ?? 0));
+}

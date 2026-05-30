@@ -278,9 +278,10 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     final isMarkerEditorActive = ref.watch(isMarkerEditorActiveProvider);
     final isPreviewActive = ref.watch(previewFileProvider) != null;
     final isDownloadInputFocused = ref.watch(isDownloadInputFocusedProvider);
+    final isDownloadsPanelFocused = ref.watch(isDownloadsPanelFocusedProvider);
     
     return CallbackShortcuts(
-      bindings: _buildKeyBindings(isSearchActive, isLocationEditing, isMarkerEditorActive, isPreviewActive, isDownloadInputFocused),
+      bindings: _buildKeyBindings(isSearchActive, isLocationEditing, isMarkerEditorActive, isPreviewActive, isDownloadInputFocused || isDownloadsPanelFocused),
       child: Focus(
         focusNode: _focusNode,
         autofocus: true,
@@ -311,9 +312,14 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                   child: Row(
                                     children: [
                                       Expanded(
-                                        child: GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTap: () {
+                                        child: Listener(
+                                          onPointerDown: (_) => _focusNode.requestFocus(),
+                                          onPointerSignal: (_) => _focusNode.requestFocus(),
+                                          child: MouseRegion(
+                                            onEnter: (_) => _focusNode.requestFocus(),
+                                            child: GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: () {
                                             _focusNode.requestFocus();
                                             final isModifierPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
                                                 HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight) ||
@@ -397,7 +403,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                             ]);
                                           },
                                           child: _buildContentInner(),
+                                          ),
                                         ),
+                                      ),
                                       ),
                                       const DownloadsPanel(),
                                       const BackgroundPanel(),
