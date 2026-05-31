@@ -79,7 +79,6 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
     }
     
     request.completer.complete(finalResolution);
-    
     state = state.skip(1).toList();
     _isShowingDialog = false;
     
@@ -92,6 +91,7 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
   void clearGlobalResolution() {
     _globalResolution = null;
   }
+
 }
 
 final conflictProvider = NotifierProvider<ConflictNotifier, List<ConflictRequest>>(() {

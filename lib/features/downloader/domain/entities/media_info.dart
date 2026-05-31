@@ -143,7 +143,7 @@ class MediaInfo {
       galleryIndex: json['galleryIndex'] as int?,
       width: json['width'] as int?,
       height: json['height'] as int?,
-      originalUrl: originalUrl,
+      originalUrl: json['webpage_url']?.toString() ?? originalUrl,
     );
   }
 

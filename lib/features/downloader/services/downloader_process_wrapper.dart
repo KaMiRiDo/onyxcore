@@ -377,11 +377,24 @@ class MediaDownloaderBackend {
               String? title = sharedMeta['title']?.toString() ?? sharedMeta['description']?.toString();
               if (title == null || title.isEmpty) title = 'Item';
               
-              final info = MediaInfo.fromJson(sharedMeta, originalUrl: url).copyWith(
+              String? postUrl;
+              if (sharedMeta.containsKey('shortcode')) {
+                postUrl = 'https://www.instagram.com/p/${sharedMeta['shortcode']}/';
+              } else if (sharedMeta.containsKey('webpage_url')) {
+                postUrl = sharedMeta['webpage_url']?.toString();
+              } else if (sharedMeta.containsKey('url') && sharedMeta['url'].toString().startsWith('http')) {
+                postUrl = sharedMeta['url']?.toString();
+              }
+              if (postUrl == null || postUrl.isEmpty) {
+                postUrl = url;
+              }
+              
+              final info = MediaInfo.fromJson(sharedMeta, originalUrl: postUrl).copyWith(
                 isProfile: false,
                 thumbnail: sharedMeta['thumbnail']?.toString() ?? sharedMeta['display_url']?.toString() ?? fileUrl,
                 title: title,
                 galleryIndex: fileCount,
+                id: '${sharedMeta['id'] ?? sharedMeta['shortcode'] ?? url.hashCode}_$fileCount',
               );
               if (fileUrl != null) {
                 final ext = fileUrl.split('?').first.split('.').last;
@@ -592,9 +605,11 @@ class MediaDownloaderBackend {
     int? galleryIndex,
     String engine = 'auto',
     bool isPlaylist = false,
+    bool isProfile = false,
     String? browser,
     bool isZip = false,
     String? filterType,
+    int? totalItems,
   }) async {
     bool isGallery = url.contains('instagram.com') ||
         url.contains('twitter.com') ||
@@ -662,10 +677,18 @@ class MediaDownloaderBackend {
       }
     } else {
       args.addAll(['-D', destination]);
-      if (galleryIndex != null && title != null) {
+      if (title != null) {
         final safeTitle = title.replaceAll(RegExp(r'[\\/:*?"<>|\{\}]'), '_');
-        args.addAll(['--filename', '$safeTitle.{extension}']);
-        args.addAll(['--range', galleryIndex.toString()]);
+        if (galleryIndex != null) {
+          args.addAll(['--filename', '$safeTitle.{extension}']);
+          args.addAll(['--range', galleryIndex.toString()]);
+        } else if (!isProfile) {
+          if (totalItems == 1) {
+            args.addAll(['--filename', '$safeTitle.{extension}']);
+          } else {
+            args.addAll(['--filename', '${safeTitle}_{num}.{extension}']);
+          }
+        }
         args.addAll(['-o', 'directory=[]']);
       } else {
         // All items will download directly to the base profile folder as requested

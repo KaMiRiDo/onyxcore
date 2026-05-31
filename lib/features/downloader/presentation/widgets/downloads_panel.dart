@@ -19,6 +19,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_header.dart';
@@ -149,6 +150,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   late FocusNode _urlFocusNode;
   final FocusNode _listFocusNode = FocusNode();
+  final FocusNode _previewFocusNode = FocusNode();
   late AnimationController _gradientController;
 
   @override
@@ -243,6 +245,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     _gradientController.dispose();
     _urlFocusNode.dispose();
     _listFocusNode.dispose();
+    _previewFocusNode.dispose();
     _urlController.dispose();
     super.dispose();
   }
@@ -398,24 +401,49 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   Future<void> _startDownload(int index, {String? singleItemId}) async {
     if (_parsedItems == null || index >= _parsedItems!.length) return;
 
-    final group = _parsedItems![index];
-    final config = _configs[index]!;
+    try {
+      final group = _parsedItems![index];
+      final config = _configs[index]!;
 
-    String dest = _destinationMode == 'current'
-        ? ref.read(currentPathProvider)
-        : '${Platform.environment['HOME']}/Downloads';
+      String dest = _destinationMode == 'current'
+          ? ref.read(currentPathProvider)
+          : '${Platform.environment['HOME']}/Downloads';
 
-    // Use a copy to prevent concurrent modification if background tasks update group.items
-    final itemsToDownload = List.from(group.items);
+      // Use a copy to prevent concurrent modification if background tasks update group.items
+      final itemsToDownload = List<MediaInfo>.from(group.items);
 
     // Batch download logic for profiles AND grouped posts
     if ((group.first.isProfile || group.items.length > 1) && singleItemId == null) {
-      final safeName = group.first.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      String safeName = group.first.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       final itemDest = group.first.isProfile ? p.join(dest, safeName) : dest;
       if (group.first.isProfile && !Directory(itemDest).existsSync()) {
         Directory(itemDest).createSync(recursive: true);
       }
       
+      if (!group.first.isProfile) {
+        final dir = Directory(itemDest);
+        List<File> existingFiles = [];
+        if (dir.existsSync()) {
+          existingFiles = dir.listSync().whereType<File>().toList();
+        }
+        
+        bool groupExists = existingFiles.any((f) {
+          final base = p.basenameWithoutExtension(f.path);
+          return base.startsWith('${safeName}_') || base == safeName;
+        });
+
+        if (groupExists) {
+          int conflictCounter = 1;
+          while (existingFiles.any((f) {
+            final base = p.basenameWithoutExtension(f.path);
+            return base.startsWith('${safeName} ($conflictCounter)_') || base == '${safeName} ($conflictCounter)';
+          })) {
+            conflictCounter++;
+          }
+          safeName = '$safeName ($conflictCounter)';
+        }
+      }
+
       String? filterType;
       int? totalFilteredItems;
       bool isHydrating = _backgroundLoadingProfiles.contains(group.originalUrl);
@@ -447,6 +475,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             mute: config.mode == DownloadMode.mute,
             engine: _selectedEngine,
             isPlaylist: false,
+            isProfile: group.first.isProfile,
             isZip: false, // Ensure zip is off
             filterType: filterType,
             totalItems: totalFilteredItems,
@@ -489,7 +518,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         }
       }
 
-      bool shouldDownload = true;
       String finalTitle = info.title;
       String suffix = '';
       final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
@@ -524,41 +552,19 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           (f) => p.basenameWithoutExtension(f.path) == safeName,
         );
         if (exists) {
-          final result = await showDialog<ConflictResult>(
-            context: context,
-            barrierColor: Colors.black54,
-            builder: (context) => ConflictDialog(
-              fileName: safeName,
-              destinationPath: itemDest,
-              showApplyToAll: false,
-            ),
-          );
-          if (result == null ||
-              result.resolution == ConflictResolution.skip) {
-            shouldDownload = false;
-          } else if (result.resolution == ConflictResolution.rename) {
-            int conflictCounter = 1;
-            while (existingFiles.any(
-              (f) =>
-                  p.basenameWithoutExtension(f.path) ==
-                  '$safeName ($conflictCounter)',
-            )) {
-              conflictCounter++;
-            }
-            finalTitle = '$finalTitle ($conflictCounter)';
-          } else if (result.resolution == ConflictResolution.replace) {
-            try {
-              final fileToDelete = existingFiles.firstWhere(
-                (f) => p.basenameWithoutExtension(f.path) == safeName,
-              );
-              fileToDelete.deleteSync();
-            } catch (_) {}
+          int conflictCounter = 1;
+          while (existingFiles.any(
+            (f) =>
+                p.basenameWithoutExtension(f.path) ==
+                '$safeName ($conflictCounter)',
+          )) {
+            conflictCounter++;
           }
+          finalTitle = '$finalTitle ($conflictCounter)';
         }
       }
 
-      if (shouldDownload) {
-        ref
+      ref
             .read(downloadTaskProvider.notifier)
             .startDownload(
               url: info.originalUrl,
@@ -573,7 +579,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               browser: ref.read(settingsProvider).value?.downloadBrowser,
               totalItems: 1,
             );
-      }
     }
 
     setState(() {
@@ -594,6 +599,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         }
       }
     });
+    } finally {
+      ref.read(conflictProvider.notifier).clearGlobalResolution();
+    }
   }
 
   Future<void> _startDownloadAll() async {
@@ -602,36 +610,68 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         : List.of(_filteredItems);
     if (itemsToDownload.isEmpty) return;
 
-    ConflictResolution? globalResolution;
     final Set<String> sessionNames = {};
 
-    // Collect group references and their configs instead of just indices
-    final groupsToProcess = <MediaGroup, DownloadConfig>{};
-    for (final item in itemsToDownload) {
-      if (_parsedItems != null && item.key < _parsedItems!.length) {
-         groupsToProcess[_parsedItems![item.key]] = _configs[item.key]!;
+    try {
+      // Collect group references and their configs instead of just indices
+      final groupsToProcess = <MediaGroup, DownloadConfig>{};
+      for (final item in itemsToDownload) {
+        if (_parsedItems != null && item.key < _parsedItems!.length) {
+           groupsToProcess[_parsedItems![item.key]] = _configs[item.key]!;
+        }
       }
-    }
 
-    for (final entry in groupsToProcess.entries) {
-      final group = entry.key;
-      final config = entry.value;
+      final Map<String, List<File>> dirCache = {};
 
-      String dest = _destinationMode == 'current'
-          ? ref.read(currentPathProvider)
-          : '${Platform.environment['HOME']}/Downloads';
+      for (final entry in groupsToProcess.entries) {
+        final group = entry.key;
+        final config = entry.value;
 
-      // Use a copy to prevent concurrent modification if background tasks update group.items
-      final itemsToDownload = List.from(group.items);
+        String dest = _destinationMode == 'current'
+            ? ref.read(currentPathProvider)
+            : '${Platform.environment['HOME']}/Downloads';
+
+        // Use a copy to prevent concurrent modification if background tasks update group.items
+        final itemsToDownloadLocal = List<MediaInfo>.from(group.items);
 
       // Batch download logic for profiles AND grouped posts
       if (group.first.isProfile || group.items.length > 1) {
-        final safeName = group.first.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+        String safeName = group.first.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
         final itemDest = group.first.isProfile ? p.join(dest, safeName) : dest;
         if (group.first.isProfile && !Directory(itemDest).existsSync()) {
           Directory(itemDest).createSync(recursive: true);
         }
         
+        if (!group.first.isProfile) {
+          if (!dirCache.containsKey(itemDest)) {
+            final dir = Directory(itemDest);
+            if (dir.existsSync()) {
+              dirCache[itemDest] = dir.listSync().whereType<File>().toList();
+            } else {
+              dirCache[itemDest] = [];
+            }
+          }
+          final existingFiles = dirCache[itemDest]!;
+          
+          bool groupExists = existingFiles.any((f) {
+            final base = p.basenameWithoutExtension(f.path);
+            return base.startsWith('${safeName}_') || base == safeName;
+          });
+
+          if (groupExists || sessionNames.contains(safeName)) {
+            int conflictCounter = 1;
+            while (existingFiles.any((f) {
+              final base = p.basenameWithoutExtension(f.path);
+              return base.startsWith('${safeName} ($conflictCounter)_') || base == '${safeName} ($conflictCounter)';
+            }) || sessionNames.contains('$safeName ($conflictCounter)')) {
+              conflictCounter++;
+            }
+            safeName = '$safeName ($conflictCounter)';
+          }
+        }
+        
+        sessionNames.add(safeName);
+
         String? filterType;
         int? totalFilteredItems;
         bool isHydrating = _backgroundLoadingProfiles.contains(group.originalUrl);
@@ -639,10 +679,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
         if (config.groupFilter == GroupDownloadType.images) {
           filterType = 'images';
-          totalFilteredItems = isHydrating ? null : itemsToDownload.where((item) => !item.isVideo && !item.isProfile).length;
+          totalFilteredItems = isHydrating ? null : itemsToDownloadLocal.where((item) => !item.isVideo && !item.isProfile).length;
         } else if (config.groupFilter == GroupDownloadType.videos) {
           filterType = 'videos';
-          totalFilteredItems = isHydrating ? null : itemsToDownload.where((item) => item.isVideo && !item.isProfile).length;
+          totalFilteredItems = isHydrating ? null : itemsToDownloadLocal.where((item) => item.isVideo && !item.isProfile).length;
         } else {
           if (isHydrating) {
              totalFilteredItems = group.first.itemCount ?? 0;
@@ -650,7 +690,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                  shouldAbortHydration = true;
              }
           } else {
-             totalFilteredItems = itemsToDownload.where((item) => !item.isProfile).length;
+             totalFilteredItems = itemsToDownloadLocal.where((item) => !item.isProfile).length;
           }
         }
         
@@ -663,6 +703,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               mute: config.mode == DownloadMode.mute,
               engine: _selectedEngine,
               isPlaylist: false,
+              isProfile: group.first.isProfile,
               isZip: false, // Ensure zip is off
               filterType: filterType,
               totalItems: totalFilteredItems,
@@ -670,10 +711,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         continue;
       }
 
-      final Map<String, List<File>> dirCache = {};
       int count = 0;
 
-      for (final info in itemsToDownload) {
+      for (final info in itemsToDownloadLocal) {
         if (count++ % 20 == 0) await Future.delayed(Duration.zero);
         if (config.groupFilter == GroupDownloadType.images && info.isVideo)
           continue;
@@ -689,7 +729,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           }
         }
 
-        bool shouldDownload = true;
         String finalTitle = info.title;
         String suffix = '';
         final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
@@ -722,77 +761,22 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           );
 
           if (exists || sessionNames.contains(safeName)) {
-            ConflictResolution resolution;
-            if (globalResolution != null) {
-              resolution = globalResolution;
-              if (resolution == ConflictResolution.skip) {
-                shouldDownload = false;
-              } else if (resolution == ConflictResolution.rename) {
-                int conflictCounter = 1;
-                while (existingFiles.any(
-                      (f) =>
-                          p.basenameWithoutExtension(f.path) ==
-                          '$safeName ($conflictCounter)',
-                    ) ||
-                    sessionNames.contains('$safeName ($conflictCounter)')) {
-                  conflictCounter++;
-                }
-                finalTitle = '$finalTitle ($conflictCounter)';
-              } else if (resolution == ConflictResolution.replace) {
-                try {
-                  final fileToDelete = existingFiles.firstWhere(
-                    (f) => p.basenameWithoutExtension(f.path) == safeName,
-                  );
-                  fileToDelete.deleteSync();
-                } catch (_) {}
-              }
-            } else {
-              final result = await showDialog<ConflictResult>(
-                context: context,
-                barrierColor: Colors.black54,
-                builder: (context) => ConflictDialog(
-                  fileName: safeName,
-                  destinationPath: itemDest,
-                  showApplyToAll: true,
-                ),
-              );
-              if (result == null) {
-                shouldDownload = false;
-              } else {
-                resolution = result.resolution;
-                if (result.applyToAll) {
-                  globalResolution = resolution;
-                }
-                if (resolution == ConflictResolution.skip) {
-                  shouldDownload = false;
-                } else if (resolution == ConflictResolution.rename) {
-                  int counter = 1;
-                  while (existingFiles.any(
-                        (f) =>
-                            p.basenameWithoutExtension(f.path) ==
-                            '$safeName ($counter)',
-                      ) ||
-                      sessionNames.contains('$safeName ($counter)')) {
-                    counter++;
-                  }
-                  finalTitle = '$finalTitle ($counter)';
-                } else if (resolution == ConflictResolution.replace) {
-                  try {
-                    final fileToDelete = existingFiles.firstWhere(
-                      (f) => p.basenameWithoutExtension(f.path) == safeName,
-                    );
-                    fileToDelete.deleteSync();
-                  } catch (_) {}
-                }
-              }
+            int conflictCounter = 1;
+            while (existingFiles.any(
+                  (f) =>
+                      p.basenameWithoutExtension(f.path) ==
+                      '$safeName ($conflictCounter)',
+                ) ||
+                sessionNames.contains('$safeName ($conflictCounter)')) {
+              conflictCounter++;
             }
+            finalTitle = '$finalTitle ($conflictCounter)';
           }
         }
 
-        if (shouldDownload) {
-          sessionNames.add(finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_'));
-          ref
-              .read(downloadTaskProvider.notifier)
+        sessionNames.add(finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_'));
+        ref
+            .read(downloadTaskProvider.notifier)
               .startDownload(
                 url: info.originalUrl,
                 destination: itemDest,
@@ -806,7 +790,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 browser: ref.read(settingsProvider).value?.downloadBrowser,
                 totalItems: 1,
               );
-        }
       }
     }
 
@@ -835,6 +818,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     setState(() {
       _sortFilter = 'added_desc';
     });
+    } finally {
+      ref.read(conflictProvider.notifier).clearGlobalResolution();
+    }
   }
 
   void _removeParsedItems(List<int> indices, {bool abortHydration = true}) {

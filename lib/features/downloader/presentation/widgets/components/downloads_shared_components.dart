@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
+import 'dart:async';
 
 class FallbackThumb extends StatelessWidget {
   const FallbackThumb({super.key});
@@ -46,6 +48,75 @@ class CountIndicator extends StatelessWidget {
               color: disabled ? Colors.white38 : Colors.white,
               fontSize: 10,
               fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CopyUrlButton extends StatefulWidget {
+  final String url;
+  
+  const CopyUrlButton({super.key, required this.url});
+
+  @override
+  State<CopyUrlButton> createState() => _CopyUrlButtonState();
+}
+
+class _CopyUrlButtonState extends State<CopyUrlButton> {
+  bool _copied = false;
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _copy() {
+    if (widget.url.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: widget.url));
+    setState(() {
+      _copied = true;
+    });
+    _timer?.cancel();
+    _timer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _copied = false;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _copy,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'URL',
+            style: GoogleFonts.manrope(
+              color: _copied ? Colors.green : Colors.white54,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 4),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return ScaleTransition(scale: animation, child: child);
+            },
+            child: Icon(
+              _copied ? Icons.check_circle_rounded : Icons.copy_rounded,
+              key: ValueKey<bool>(_copied),
+              color: _copied ? Colors.green : Colors.white54,
+              size: 12,
             ),
           ),
         ],

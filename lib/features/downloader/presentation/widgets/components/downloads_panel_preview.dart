@@ -164,6 +164,19 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                       fontSize: 11,
                                     ),
                                   ),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    child: Text(
+                                      '•',
+                                      style: TextStyle(
+                                        color: Colors.white38,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                  CopyUrlButton(url: item.first.originalUrl ?? ''),
                                 ],
                               ),
                             ],
@@ -318,16 +331,39 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
     final totalSize = visibleItems.fold<int>(0, (sum, i) => sum + (i.filesize ?? 0));
 
     return Positioned.fill(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _previewItem = null;
-          });
+      child: Focus(
+        focusNode: _previewFocusNode,
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              if (_previewCarouselIndex > 0) {
+                setState(() {
+                  _previewCarouselIndex--;
+                });
+                return KeyEventResult.handled;
+              }
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              if (_previewCarouselIndex < visibleItems.length - 1) {
+                setState(() {
+                  _previewCarouselIndex++;
+                });
+                return KeyEventResult.handled;
+              }
+            }
+          }
+          return KeyEventResult.ignored;
         },
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          color: Colors.black.withOpacity(0.8),
-          child: Center(
+        child: GestureDetector(
+          onTap: () {
+            setState(() {
+              _previewItem = null;
+            });
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            color: Colors.black.withOpacity(0.8),
+            child: Center(
             child: GestureDetector(
               onTap: () {}, // Absorb taps
               child: ClipRRect(
@@ -584,6 +620,8 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              const SizedBox(height: 6),
+                              CopyUrlButton(url: currentItem.originalUrl ?? ''),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
@@ -641,6 +679,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                   ),
                 ),
               ),
+            ),
             ),
           ),
         ),

@@ -225,6 +225,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                 _previewIndex = index;
                                 _previewCarouselIndex = 0;
                               });
+                              _previewFocusNode.requestFocus();
                             },
                       child: MouseRegion(
                         cursor: SystemMouseCursors.click,
@@ -494,8 +495,11 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 4),
+                              CopyUrlButton(url: group.originalUrl ?? ''),
                             ],
                           ),
+
                           Builder(
                             builder: (context) {
                               return Align(

@@ -131,9 +131,11 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         galleryIndex: args['galleryIndex'],
         engine: args['engine'],
         isPlaylist: args['isPlaylist'],
+        isProfile: args['isProfile'],
         browser: args['browser'],
         isZip: args['isZip'],
         filterType: args['filterType'],
+        totalItems: args['totalItems'],
       );
 
       _updateTask(id, process: process);
@@ -179,11 +181,13 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     int? galleryIndex,
     String engine = 'auto',
     bool isPlaylist = false,
+    bool isProfile = false,
     String? browser,
     bool isZip = false,
     String? filterType,
     int? totalItems,
   }) {
+
     final id = _uuid.v4();
     final newTask = DownloadTask(
       id: id,
@@ -204,6 +208,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       'galleryIndex': galleryIndex,
       'engine': engine,
       'isPlaylist': isPlaylist,
+      'isProfile': isProfile,
       'browser': browser,
       'isZip': isZip,
       'filterType': filterType,
