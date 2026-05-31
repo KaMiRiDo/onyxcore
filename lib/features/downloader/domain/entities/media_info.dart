@@ -147,9 +147,9 @@ class MediaInfo {
     );
   }
 
-  MediaInfo copyWith({bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize}) {
+  MediaInfo copyWith({String? id, bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize}) {
     return MediaInfo(
-      id: id,
+      id: id ?? this.id,
       title: title ?? this.title,
       thumbnail: thumbnail ?? this.thumbnail,
       duration: duration,

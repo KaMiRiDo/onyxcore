@@ -114,8 +114,8 @@ class ViewerTopBar extends StatelessWidget {
   }
 
   String _trimMiddle(String text, {int maxLength = 40}) {
-    if (text.length <= maxLength) return text;
+    if (text.characters.length <= maxLength) return text;
     final half = (maxLength - 3) ~/ 2;
-    return '${text.substring(0, half)}...${text.substring(text.length - half)}';
+    return '${text.characters.take(half)}...${text.characters.takeLast(half)}';
   }
 }

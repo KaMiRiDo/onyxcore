@@ -1,4 +1,5 @@
 /// Formatting utilities used across the application.
+import 'package:flutter/widgets.dart';
 
 /// Formats a [Duration] as MM:SS.
 String formatDuration(Duration d) {
@@ -32,7 +33,7 @@ String bytesToHumanReadable(int bytes) {
 ///
 /// Example: "very_long_filename_here.pdf" → "very_long_fil...pdf"
 String truncateMiddle(String title, {int maxLength = 50}) {
-  if (title.length <= maxLength) return title;
+  if (title.characters.length <= maxLength) return title;
 
   final extIndex = title.lastIndexOf('.');
   var ext = '';
@@ -44,8 +45,8 @@ String truncateMiddle(String title, {int maxLength = 50}) {
     base = title.substring(0, extIndex);
   }
 
-  final startChars = maxLength - ext.length - 3; // 3 for '...'
-  if (startChars <= 10) return '${title.substring(0, maxLength - 3)}...';
+  final startChars = maxLength - ext.characters.length - 3; // 3 for '...'
+  if (startChars <= 10) return '${title.characters.take(maxLength - 3)}...';
 
-  return '${base.substring(0, startChars)}...$ext';
+  return '${base.characters.take(startChars)}...$ext';
 }

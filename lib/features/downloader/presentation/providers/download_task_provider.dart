@@ -8,6 +8,7 @@ import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/core/utils/process_utils.dart';
 
 enum DownloadStatus { pending, running, completed, error, cancelled }
 
@@ -92,10 +93,81 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     // Zombie Process Prevention
     for (final task in state) {
       if (task.status == DownloadStatus.running && task.process != null) {
-        Process.killPid(task.process!.pid, ProcessSignal.sigkill);
+        ProcessUtils.killProcessTree(task.process!.pid);
       }
     }
   }
+
+  final Map<String, Map<String, dynamic>> _taskArgs = {};
+  static const int _maxConcurrent = 3;
+
+  void _processQueue() async {
+    final runningCount = state.where((t) => t.status == DownloadStatus.running).length;
+    if (runningCount >= _maxConcurrent) return;
+
+    final pendingTasks = state.where((t) => t.status == DownloadStatus.pending).toList();
+    if (pendingTasks.isEmpty) return;
+
+    final tasksToStart = pendingTasks.take(_maxConcurrent - runningCount).toList();
+
+    for (final task in tasksToStart) {
+      _startProcessForTask(task.id);
+    }
+  }
+
+  void _startProcessForTask(String id) async {
+    _updateTask(id, status: DownloadStatus.running);
+    final args = _taskArgs[id];
+    if (args == null) return;
+
+    try {
+      final process = await MediaDownloaderBackend.startDownload(
+        url: args['url'],
+        destination: args['destination'],
+        title: args['title'],
+        format: args['format'],
+        audioOnly: args['audioOnly'],
+        mute: args['mute'],
+        galleryIndex: args['galleryIndex'],
+        engine: args['engine'],
+        isPlaylist: args['isPlaylist'],
+        browser: args['browser'],
+        isZip: args['isZip'],
+        filterType: args['filterType'],
+      );
+
+      _updateTask(id, process: process);
+
+      process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
+        _parseProgress(id, data);
+        _appendLog(id, data);
+      });
+
+      process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
+        _appendLog(id, data);
+      });
+
+      final exitCode = await process.exitCode;
+
+      if (exitCode == 0) {
+        _updateTask(id, status: DownloadStatus.completed, progress: 1.0, completedAt: DateTime.now());
+      } else {
+        final currentTask = state.firstWhere((t) => t.id == id);
+        if (currentTask.status != DownloadStatus.cancelled) {
+          _updateTask(id,
+              status: DownloadStatus.error,
+              error: 'Process exited with code $exitCode',
+              completedAt: DateTime.now());
+        }
+      }
+    } catch (e) {
+      _updateTask(id, status: DownloadStatus.error, error: e.toString(), completedAt: DateTime.now());
+    } finally {
+      _processQueue();
+    }
+  }
+
+  final Map<String, int> _downloadedCounts = {};
 
   void startDownload({
     required String url,
@@ -108,75 +180,57 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     String engine = 'auto',
     bool isPlaylist = false,
     String? browser,
-  }) async {
+    bool isZip = false,
+    String? filterType,
+    int? totalItems,
+  }) {
     final id = _uuid.v4();
     final newTask = DownloadTask(
       id: id,
       url: url,
       destination: destination,
       title: title,
-      status: DownloadStatus.running,
+      status: DownloadStatus.pending,
       createdAt: DateTime.now(),
     );
 
-    state = [...state, newTask];
+    _taskArgs[id] = {
+      'url': url,
+      'destination': destination,
+      'title': title,
+      'format': format,
+      'audioOnly': audioOnly,
+      'mute': mute,
+      'galleryIndex': galleryIndex,
+      'engine': engine,
+      'isPlaylist': isPlaylist,
+      'browser': browser,
+      'isZip': isZip,
+      'filterType': filterType,
+      'totalItems': totalItems,
+    };
 
-    try {
-      final browser = ref.read(settingsProvider).value?.downloadBrowser;
-      final process = await MediaDownloaderBackend.startDownload(
-        url: url,
-        destination: destination,
-        title: title,
-        format: format,
-        audioOnly: audioOnly,
-        mute: mute,
-        galleryIndex: galleryIndex,
-        engine: engine,
-        isPlaylist: isPlaylist,
-        browser: browser,
-      );
-
-      _updateTask(id, process: process);
-
-      process.stdout.transform(utf8.decoder).listen((data) {
-        _parseProgress(id, data);
-        _appendLog(id, data);
-      });
-
-      process.stderr.transform(utf8.decoder).listen((data) {
-        _appendLog(id, data);
-      });
-
-      final exitCode = await process.exitCode;
-
-      if (exitCode == 0) {
-        _updateTask(id, status: DownloadStatus.completed, progress: 1.0, completedAt: DateTime.now());
-      } else {
-        // Only mark as error if it wasn't cancelled
-        final currentTask = state.firstWhere((t) => t.id == id);
-        if (currentTask.status != DownloadStatus.cancelled) {
-          _updateTask(id,
-              status: DownloadStatus.error,
-              error: 'Process exited with code $exitCode',
-              completedAt: DateTime.now());
-        }
-      }
-    } catch (e) {
-      _updateTask(id, status: DownloadStatus.error, error: e.toString(), completedAt: DateTime.now());
+    if (totalItems != null) {
+      _downloadedCounts[id] = 0;
     }
+
+    state = [...state, newTask];
+    _processQueue();
   }
 
   void cancelDownload(String id) {
     try {
         final task = state.firstWhere((t) => t.id == id);
         if (task.status == DownloadStatus.running && task.process != null) {
-          Process.killPid(task.process!.pid, ProcessSignal.sigkill);
+          ProcessUtils.killProcessTree(task.process!.pid);
         }
         _updateTask(id, status: DownloadStatus.cancelled, completedAt: DateTime.now());
     } catch (_) {}
   }
 
   void removeTask(String id) {
+    _taskArgs.remove(id);
+    _downloadedCounts.remove(id);
     state = state.where((t) => t.id != id).toList();
   }
 
@@ -185,6 +239,37 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   final Map<String, Timer> _removalTimers = {};
+
+  void onHydrationFinished(String url, List<MediaInfo> items) {
+    for (final task in state) {
+      if (task.url == url && (task.status == DownloadStatus.running || task.status == DownloadStatus.pending)) {
+        final filterType = _taskArgs[task.id]?['filterType'] as String?;
+        int newTotal = 0;
+        
+        if (filterType == 'images') {
+          newTotal = items.where((item) => !item.isVideo && !item.isProfile).length;
+        } else if (filterType == 'videos') {
+          newTotal = items.where((item) => item.isVideo && !item.isProfile).length;
+        } else {
+          newTotal = items.where((item) => !item.isProfile).length;
+        }
+        
+        if (newTotal > 0) {
+          _taskArgs[task.id]?['totalItems'] = newTotal;
+          
+          if (!_downloadedCounts.containsKey(task.id)) {
+            _downloadedCounts[task.id] = 0;
+          }
+          
+          // Force UI update to show progress bar if it just switched from indeterminate
+          _updateTask(task.id, 
+              progress: _downloadedCounts[task.id]! / newTotal,
+              totalSize: '${_downloadedCounts[task.id]!} / $newTotal'
+          );
+        }
+      }
+    }
+  }
 
   void _startAutoRemovalTimer(String id) {
     if (_removalTimers.containsKey(id)) return;
@@ -271,6 +356,28 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       final eta = ariaMatch.group(3) ?? '';
       _updateTask(id,
           progress: percentage / 100.0, speed: speed.trim(), eta: eta.trim());
+      return;
+    }
+
+    // Handle gallery-dl file output
+    // gallery-dl usually prints the full file path to stdout when a file completes downloading.
+    final currentTotal = _taskArgs[id]?['totalItems'] as int?;
+    
+    // Check if it's not a log message
+    if (!data.trim().startsWith('[') && data.trim().isNotEmpty) {
+      final extRegExp = RegExp(r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv)$', caseSensitive: false);
+      if (extRegExp.hasMatch(data.trim()) || data.contains('/') || data.contains('\\')) {
+        _downloadedCounts[id] = (_downloadedCounts[id] ?? 0) + 1;
+        final count = _downloadedCounts[id]!;
+        
+        if (currentTotal != null && currentTotal > 0) {
+          double prog = count / currentTotal;
+          if (prog > 1.0) prog = 1.0;
+          _updateTask(id, progress: prog, totalSize: '$count / $currentTotal');
+        } else {
+          _updateTask(id, progress: null, totalSize: '$count / ?');
+        }
+      }
     }
   }
 }

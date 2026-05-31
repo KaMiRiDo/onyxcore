@@ -1,9 +1,0 @@
-[
-  [
-    -1,
-    {
-      "error": "HttpError",
-      "message": "'404 Not Found' for 'https://api.imgur.com/post/v1/posts/q7M4a3g'"
-    }
-  ]
-]
