@@ -494,6 +494,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               ),
               _buildSectionHeader('Download Manager', _generalKeys['Download Manager']!),
               _buildSettingTile(
+                title: 'Download to current folder',
+                subtitle: 'Save downloaded media to the currently viewed directory instead of the default Downloads folder',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.downloadToCurrentFolder ?? true,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(downloadToCurrentFolder: value);
+                    });
+                  },
+                ),
+              ),
+              _buildSettingTile(
                 title: 'Browser for Cookie Extraction',
                 subtitle: 'Used for age-restricted or private downloads (e.g. Instagram). Default is system browser.',
                 trailing: _buildDropdown<String>(

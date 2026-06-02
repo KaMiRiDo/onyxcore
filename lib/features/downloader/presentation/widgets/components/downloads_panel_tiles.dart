@@ -244,6 +244,19 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                             'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
                                         'Referer': 'https://www.instagram.com/',
                                       },
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                            if (loadingProgress == null)
+                                              return child;
+                                            return Container(
+                                              width: 160,
+                                              height: 104,
+                                              color: Colors.black12,
+                                              child: const Center(
+                                                child: _JugglingBallsLoader(),
+                                              ),
+                                            );
+                                          },
                                       errorBuilder: (_, __, ___) =>
                                           item.isProfile
                                           ? Container(

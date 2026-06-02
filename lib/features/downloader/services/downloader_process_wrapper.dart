@@ -377,24 +377,11 @@ class MediaDownloaderBackend {
               String? title = sharedMeta['title']?.toString() ?? sharedMeta['description']?.toString();
               if (title == null || title.isEmpty) title = 'Item';
               
-              String? postUrl;
-              if (sharedMeta.containsKey('shortcode')) {
-                postUrl = 'https://www.instagram.com/p/${sharedMeta['shortcode']}/';
-              } else if (sharedMeta.containsKey('webpage_url')) {
-                postUrl = sharedMeta['webpage_url']?.toString();
-              } else if (sharedMeta.containsKey('url') && sharedMeta['url'].toString().startsWith('http')) {
-                postUrl = sharedMeta['url']?.toString();
-              }
-              if (postUrl == null || postUrl.isEmpty) {
-                postUrl = url;
-              }
-              
-              final info = MediaInfo.fromJson(sharedMeta, originalUrl: postUrl).copyWith(
+              final info = MediaInfo.fromJson(sharedMeta, originalUrl: url).copyWith(
                 isProfile: false,
                 thumbnail: sharedMeta['thumbnail']?.toString() ?? sharedMeta['display_url']?.toString() ?? fileUrl,
                 title: title,
                 galleryIndex: fileCount,
-                id: '${sharedMeta['id'] ?? sharedMeta['shortcode'] ?? url.hashCode}_$fileCount',
               );
               if (fileUrl != null) {
                 final ext = fileUrl.split('?').first.split('.').last;

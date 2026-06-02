@@ -45,6 +45,19 @@ class MediaFormat {
       formatString: json['format']?.toString() ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'format_id': formatId,
+      'ext': extension,
+      'resolution': resolution,
+      if (videoCodec != null) 'vcodec': videoCodec,
+      if (audioCodec != null) 'acodec': audioCodec,
+      if (filesize != null) 'filesize': filesize,
+      if (formatNote != null) 'format_note': formatNote,
+      'format': formatString,
+    };
+  }
 }
 
 class MediaInfo {
@@ -166,6 +179,49 @@ class MediaInfo {
       originalUrl: originalUrl,
     );
   }
+
+  factory MediaInfo.fromMap(Map<String, dynamic> map) {
+    return MediaInfo(
+      id: map['id']?.toString() ?? '',
+      title: map['title']?.toString() ?? '',
+      thumbnail: map['thumbnail']?.toString(),
+      duration: map['duration'] as int?,
+      extractor: map['extractor']?.toString(),
+      formats: (map['formats'] as List<dynamic>?)
+              ?.map((e) => MediaFormat.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      isVideo: map['isVideo'] as bool? ?? true,
+      isPlaylist: map['isPlaylist'] as bool? ?? false,
+      isProfile: map['isProfile'] as bool? ?? false,
+      itemCount: map['itemCount'] as int?,
+      galleryIndex: map['galleryIndex'] as int?,
+      width: map['width'] as int?,
+      height: map['height'] as int?,
+      filesize: map['filesize'] as int?,
+      originalUrl: map['originalUrl']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      if (thumbnail != null) 'thumbnail': thumbnail,
+      if (duration != null) 'duration': duration,
+      if (extractor != null) 'extractor': extractor,
+      'formats': formats.map((e) => e.toJson()).toList(),
+      'isVideo': isVideo,
+      'isPlaylist': isPlaylist,
+      'isProfile': isProfile,
+      if (itemCount != null) 'itemCount': itemCount,
+      if (galleryIndex != null) 'galleryIndex': galleryIndex,
+      if (width != null) 'width': width,
+      if (height != null) 'height': height,
+      if (filesize != null) 'filesize': filesize,
+      'originalUrl': originalUrl,
+    };
+  }
 }
 
 class MediaGroup {
@@ -176,6 +232,23 @@ class MediaGroup {
     required this.originalUrl,
     required this.items,
   });
+
+  factory MediaGroup.fromMap(Map<String, dynamic> map) {
+    return MediaGroup(
+      originalUrl: map['originalUrl']?.toString() ?? '',
+      items: (map['items'] as List<dynamic>?)
+              ?.map((e) => MediaInfo.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'originalUrl': originalUrl,
+      'items': items.map((e) => e.toMap()).toList(),
+    };
+  }
 
   bool get isSingle => items.length <= 1;
   MediaInfo get first => items.first;

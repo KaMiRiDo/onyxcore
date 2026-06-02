@@ -9,6 +9,7 @@ class DownloadHistoryEntry {
   final String id;
   final String title;
   final String statusName;
+  final String downloadType;
   final String? errorMessage;
   final String url;
   final String destination;
@@ -20,6 +21,7 @@ class DownloadHistoryEntry {
     required this.id,
     required this.title,
     required this.statusName,
+    this.downloadType = 'generic',
     this.errorMessage,
     required this.url,
     required this.destination,
@@ -33,6 +35,7 @@ class DownloadHistoryEntry {
       id: task.id,
       title: task.title,
       statusName: task.status.name,
+      downloadType: task.downloadType,
       errorMessage: task.error,
       url: task.url,
       destination: task.destination,
@@ -47,6 +50,7 @@ class DownloadHistoryEntry {
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? 'Untitled Download',
       statusName: json['statusName']?.toString() ?? 'completed',
+      downloadType: json['downloadType']?.toString() ?? 'generic',
       errorMessage: json['errorMessage']?.toString(),
       url: json['url']?.toString() ?? '',
       destination: json['destination']?.toString() ?? '',
@@ -64,6 +68,7 @@ class DownloadHistoryEntry {
     'id': id,
     'title': title,
     'statusName': statusName,
+    'downloadType': downloadType,
     'errorMessage': errorMessage,
     'url': url,
     'destination': destination,
@@ -155,6 +160,7 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
   void deleteEntry(String id) {
     deleteEntries({id});
   }
+
 
   void _saveToDisk() {
     try {

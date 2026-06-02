@@ -17,6 +17,7 @@ class DownloadTask {
   final String url;
   final String destination;
   final String title;
+  final String downloadType;
   final DownloadStatus status;
   final double progress; // 0.0 to 1.0
   final String speed;
@@ -33,6 +34,7 @@ class DownloadTask {
     required this.url,
     required this.destination,
     required this.title,
+    this.downloadType = 'generic',
     this.status = DownloadStatus.pending,
     this.progress = 0.0,
     this.speed = '',
@@ -46,6 +48,8 @@ class DownloadTask {
   });
 
   DownloadTask copyWith({
+    String? title,
+    String? downloadType,
     DownloadStatus? status,
     double? progress,
     String? speed,
@@ -60,7 +64,8 @@ class DownloadTask {
       id: id,
       url: url,
       destination: destination,
-      title: title,
+      title: title ?? this.title,
+      downloadType: downloadType ?? this.downloadType,
       status: status ?? this.status,
       progress: progress ?? this.progress,
       speed: speed ?? this.speed,
@@ -175,6 +180,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     required String url,
     required String destination,
     required String title,
+    String downloadType = 'generic',
     MediaFormat? format,
     bool audioOnly = false,
     bool mute = false,
@@ -194,6 +200,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       url: url,
       destination: destination,
       title: title,
+      downloadType: downloadType,
       status: DownloadStatus.pending,
       createdAt: DateTime.now(),
     );

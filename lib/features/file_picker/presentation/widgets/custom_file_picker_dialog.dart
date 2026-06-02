@@ -18,11 +18,17 @@ class CustomFilePickerDialog extends ConsumerStatefulWidget {
   final String? title;
   final bool allowMultiple;
   final List<String>? allowedExtensions;
+  final bool saveMode;
+  final String? initialFileName;
+  final String? initialDirectory;
 
   const CustomFilePickerDialog({
     this.title,
     this.allowMultiple = false,
     this.allowedExtensions,
+    this.saveMode = false,
+    this.initialFileName,
+    this.initialDirectory,
     super.key,
   });
 
@@ -30,6 +36,9 @@ class CustomFilePickerDialog extends ConsumerStatefulWidget {
     String? title, 
     bool allowMultiple = false,
     List<String>? allowedExtensions,
+    bool saveMode = false,
+    String? initialFileName,
+    String? initialDirectory,
   }) {
     return showDialog<List<File>>(
       context: context,
@@ -38,6 +47,9 @@ class CustomFilePickerDialog extends ConsumerStatefulWidget {
         title: title,
         allowMultiple: allowMultiple,
         allowedExtensions: allowedExtensions,
+        saveMode: saveMode,
+        initialFileName: initialFileName,
+        initialDirectory: initialDirectory,
       ),
     );
   }
@@ -51,6 +63,8 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
   late double _width;
   late double _height;
   bool _isResizing = false;
+  final TextEditingController _fileNameController = TextEditingController();
+  final FocusNode _fileNameFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -58,14 +72,34 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
     final settings = ref.read(settingsProvider).value;
     _width = settings?.filePickerWidth ?? 1000;
     _height = settings?.filePickerHeight ?? 650;
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(filePickerConfigProvider.notifier).state = widget.allowedExtensions;
+      ref.read(filePickerProvider.notifier).initialize(
+        allowedExtensions: widget.allowedExtensions,
+        initialDirectory: widget.initialDirectory,
+      );
     });
+
+    _fileNameController.text = widget.initialFileName ?? '';
+    _fileNameController.addListener(() {
+      if (widget.saveMode) setState(() {});
+    });
+
+    if (widget.saveMode && widget.initialFileName != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fileNameFocusNode.requestFocus();
+        _fileNameController.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _fileNameController.text.length,
+        );
+      });
+    }
   }
 
   @override
   void dispose() {
+    _fileNameFocusNode.dispose();
+    _fileNameController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -130,14 +164,16 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                                   child: _buildMainContent(stateAsync),
                                 ),
 
-                                // Preview Pane
-                                Container(
-                                  width: 1,
-                                  color: Colors.white.withOpacity(0.05),
-                                ),
-                                FilePickerPreviewPane(
-                                  selectedPaths: stateAsync.value?.selection.toList() ?? [],
-                                ),
+                                if (!widget.saveMode) ...[
+                                  // Preview Pane
+                                  Container(
+                                    width: 1,
+                                    color: Colors.white.withOpacity(0.05),
+                                  ),
+                                  FilePickerPreviewPane(
+                                    selectedPaths: stateAsync.value?.selection.toList() ?? [],
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -194,7 +230,7 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
       child: Row(
         children: [
           Text(
-            widget.title ?? 'SELECT FILES',
+            widget.title ?? (widget.saveMode ? 'SAVE FILE' : 'SELECT FILES'),
             style: AppTheme.labelStyle.copyWith(letterSpacing: 1.5),
           ),
           const Spacer(),
@@ -272,19 +308,30 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                entry.value,
-                style: GoogleFonts.manrope(
-                  color: isLast ? Colors.white : Colors.white38,
-                  fontSize: 13,
-                  fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+              InkWell(
+                onTap: isLast ? null : () {
+                  final originalIndex = entry.key + (parts.length > 3 ? parts.length - 3 : 0);
+                  final targetPath = '/${parts.sublist(0, originalIndex + 1).join('/')}';
+                  ref.read(filePickerProvider.notifier).goToDirectory(targetPath);
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    entry.value,
+                    style: GoogleFonts.manrope(
+                      color: isLast ? Colors.white : Colors.white38,
+                      fontSize: 13,
+                      fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
               if (!isLast)
-                const Text(' / ', style: TextStyle(color: Colors.white10)),
+                const Text('/', style: TextStyle(color: Colors.white10)),
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -398,6 +445,11 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                 entity: entity,
                 isSelected: isSelected,
                 onTap: () {
+                  if (widget.saveMode && entity is File) {
+                    _fileNameController.text = p.basename(entity.path);
+                    return;
+                  }
+                  
                   final isShift = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
                                   HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
                   final isCtrl = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
@@ -425,6 +477,15 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
   }
 
   bool _isSelectionValid(FilePickerState? state) {
+    if (widget.saveMode) {
+      if (_fileNameController.text.trim().isEmpty) return false;
+      if (widget.allowedExtensions != null && widget.allowedExtensions!.isNotEmpty) {
+         final ext = p.extension(_fileNameController.text).toLowerCase().replaceFirst('.', '');
+         if (!widget.allowedExtensions!.contains(ext)) return false;
+      }
+      return true;
+    }
+    
     if (state == null || state.selection.isEmpty) return false;
     if (widget.allowedExtensions == null || widget.allowedExtensions!.isEmpty) return true;
 
@@ -446,7 +507,7 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
   }
 
   Widget _buildFooter(FilePickerState? state) {
-    final hasSelection = state?.selection.isNotEmpty ?? false;
+    final hasSelection = widget.saveMode ? _fileNameController.text.isNotEmpty : (state?.selection.isNotEmpty ?? false);
     final selectionCount = state?.selection.length ?? 0;
     final isValid = _isSelectionValid(state);
 
@@ -458,31 +519,65 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
       ),
       child: Row(
         children: [
-          if (hasSelection)
-            Text(
-              '$selectionCount item${selectionCount > 1 ? 's' : ''} selected',
-              style: GoogleFonts.manrope(
-                color: AppColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          const Spacer(),
-          if (!isValid && hasSelection)
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [AppColors.magenta, AppColors.violet],
-              ).createShader(bounds),
-              child: Text(
-                '* Select only ${widget.allowedExtensions?.join(', ') ?? 'valid'} files',
-                style: GoogleFonts.manrope(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+          if (widget.saveMode)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: TextField(
+                  controller: _fileNameController,
+                  focusNode: _fileNameFocusNode,
+                  onSubmitted: (_) {
+                    if (isValid) _handleOpenOrSave(state);
+                  },
+                  style: GoogleFonts.manrope(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'File name',
+                    hintStyle: GoogleFonts.manrope(color: Colors.white24),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: AppColors.violet),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          const Spacer(),
+            )
+          else ...[
+            if (hasSelection)
+              Text(
+                '$selectionCount item${selectionCount > 1 ? 's' : ''} selected',
+                style: GoogleFonts.manrope(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            const Spacer(),
+            if (!isValid && hasSelection)
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [AppColors.magenta, AppColors.violet],
+                ).createShader(bounds),
+                child: Text(
+                  '* Select only ${widget.allowedExtensions?.join(', ') ?? 'valid'} files',
+                  style: GoogleFonts.manrope(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            const Spacer(),
+          ],
           TextButton(
             onPressed: () => Navigator.pop(context, null),
             child: Text(
@@ -502,20 +597,27 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
     );
   }
 
+  void _handleOpenOrSave(FilePickerState? state) {
+    if (widget.saveMode) {
+      if (state == null) return;
+      final service = ref.read(fileSystemServiceProvider);
+      final file = service.getFile(p.join(state.currentDirectory, _fileNameController.text));
+      Navigator.pop(context, [file]);
+    } else {
+      final service = ref.read(fileSystemServiceProvider);
+      final files = state!.selection
+          .map((path) => service.getFile(path))
+          .where((f) => f.existsSync())
+          .toList();
+      if (files.isNotEmpty) {
+        Navigator.pop(context, files);
+      }
+    }
+  }
+
   Widget _buildOpenButton(bool isValid, FilePickerState? state) {
     return InkWell(
-      onTap: isValid 
-          ? () {
-              final service = ref.read(fileSystemServiceProvider);
-              final files = state!.selection
-                  .map((path) => service.getFile(path))
-                  .where((f) => f.existsSync())
-                  .toList();
-              if (files.isNotEmpty) {
-                Navigator.pop(context, files);
-              }
-            }
-          : null,
+      onTap: isValid ? () => _handleOpenOrSave(state) : null,
       borderRadius: BorderRadius.circular(10),
       child: Opacity(
         opacity: isValid ? 1.0 : 0.2,
@@ -530,7 +632,7 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
-            'OPEN',
+            widget.saveMode ? 'SAVE' : 'OPEN',
             style: GoogleFonts.manrope(
               color: Colors.white,
               fontSize: 12,

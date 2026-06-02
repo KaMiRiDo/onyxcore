@@ -71,6 +71,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       confirmDeleteDocument: _prefs.getBool('confirmDeleteDocument') ?? true,
       confirmDeleteAudio: _prefs.getBool('confirmDeleteAudio') ?? true,
       downloadBrowser: _prefs.getString('downloadBrowser'),
+      downloadToCurrentFolder: _prefs.getBool('downloadToCurrentFolder') ?? true,
     );
 
   }
@@ -109,6 +110,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
     } else {
       await _prefs.remove('downloadBrowser');
     }
+    
+    await _prefs.setBool('downloadToCurrentFolder', settings.downloadToCurrentFolder);
   }
 
   @override
@@ -191,6 +194,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
     } else {
       await _prefs.remove('downloadBrowser');
     }
+  }
+
+  @override
+  Future<void> setDownloadToCurrentFolder({required bool value}) async {
+    await _prefs.setBool('downloadToCurrentFolder', value);
   }
 
   // ——— Gallery Sorting ———

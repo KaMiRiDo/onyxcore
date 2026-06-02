@@ -110,6 +110,12 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ref.invalidateSelf();
   }
 
+  Future<void> setDownloadToCurrentFolder({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setDownloadToCurrentFolder(value: value);
+    ref.invalidateSelf();
+  }
+
   Future<void> saveSettings(AppSettings settings) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.saveSettings(settings);

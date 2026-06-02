@@ -49,16 +49,6 @@ final fileSystemServiceProvider = Provider<FileSystemService>((ref) {
   return FileSystemService();
 });
 
-/// Configuration provider for the File Picker.
-class FilePickerConfigNotifier extends Notifier<List<String>?> {
-  @override
-  List<String>? build() => null;
-  
-  set state(List<String>? value) => super.state = value;
-}
-
-final filePickerConfigProvider = NotifierProvider<FilePickerConfigNotifier, List<String>?>(FilePickerConfigNotifier.new);
-
 /// Notifier for the File Picker state.
 class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
   final List<String> _history = [];
@@ -66,18 +56,23 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
   int? _anchorIndex;
 
   @override
-  FutureOr<FilePickerState> build() async {
-    final arg = ref.watch(filePickerConfigProvider);
-    final home = _getHomeDirectory();
-    
-    // Initialize history
-    if (_history.isEmpty) {
-      _history.add(home);
-      _historyIndex = 0;
-    }
+  FutureOr<FilePickerState> build() {
+    // Return a dummy state initially. The actual loading will happen in initialize().
+    return FilePickerState(currentDirectory: _getHomeDirectory());
+  }
 
-    final initialState = FilePickerState(currentDirectory: home, allowedExtensions: arg);
-    return await _loadDirectoryContents(initialState);
+  Future<void> initialize({List<String>? allowedExtensions, String? initialDirectory}) async {
+    final home = initialDirectory ?? _getHomeDirectory();
+    
+    _history.clear();
+    _history.add(home);
+    _historyIndex = 0;
+
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final initialState = FilePickerState(currentDirectory: home, allowedExtensions: allowedExtensions);
+      return await _loadDirectoryContents(initialState);
+    });
   }
 
   String _getHomeDirectory() {
@@ -123,8 +118,8 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
   }
 
   Future<void> goToDirectory(String path) async {
-    final currentState = state.value;
-    if (currentState == null || currentState.currentDirectory == path) return;
+    final currentState = await future;
+    if (currentState.currentDirectory == path) return;
 
     // Update history
     if (_historyIndex < _history.length - 1) {
@@ -135,7 +130,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
 
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final currentState = state.value!;
+      final currentState = await future;
       final newState = currentState.copyWith(currentDirectory: path);
       return await _loadDirectoryContents(newState);
     });

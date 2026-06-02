@@ -83,11 +83,30 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                     ? Image.network(
                                         item.first.thumbnail!,
                                         fit: BoxFit.contain,
+                                        headers: const {
+                                          'User-Agent':
+                                              'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
+                                          'Referer':
+                                              'https://www.instagram.com/',
+                                        },
+                                        loadingBuilder:
+                                            (context, child, loadingProgress) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return const SizedBox(
+                                                height: 210,
+                                                child: Center(
+                                                  child: _JugglingBallsLoader(),
+                                                ),
+                                              );
+                                            },
                                         errorBuilder: (_, __, ___) =>
                                             const FallbackThumb(),
                                       )
                                     : const FallbackThumb(),
-                                if (item.isSingle && item.first.isVideo && item.first.duration != null)
+                                if (item.isSingle &&
+                                    item.first.isVideo &&
+                                    item.first.duration != null)
                                   Positioned(
                                     bottom: 8,
                                     right: 8,
@@ -110,7 +129,6 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                       ),
                                     ),
                                   ),
-
                               ],
                             ),
                           ),
@@ -156,9 +174,10 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                     ),
                                   ],
                                   Text(
-                                    !item.isSingle 
+                                    !item.isSingle
                                         ? _formatBytes(item.totalFilesize)
-                                        : (_getFileSize(item.first, config) ?? 'Unknown size'),
+                                        : (_getFileSize(item.first, config) ??
+                                              'Unknown size'),
                                     style: GoogleFonts.manrope(
                                       color: Colors.white70,
                                       fontSize: 11,
@@ -176,7 +195,9 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                       ),
                                     ),
                                   ),
-                                  CopyUrlButton(url: item.first.originalUrl ?? ''),
+                                  CopyUrlButton(
+                                    url: item.first.originalUrl ?? '',
+                                  ),
                                 ],
                               ),
                             ],
@@ -187,7 +208,8 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                           child: Row(
                             children: [
-                              if (item.isSingle && item.first.formats.isNotEmpty)
+                              if (item.isSingle &&
+                                  item.first.formats.isNotEmpty)
                                 Expanded(
                                   child: Align(
                                     alignment: Alignment.centerLeft,
@@ -207,7 +229,10 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                     alignment: Alignment.centerLeft,
                                     child: SizedBox(
                                       width: 140,
-                                      child: _buildGroupFilterDropdown(config, item),
+                                      child: _buildGroupFilterDropdown(
+                                        config,
+                                        item,
+                                      ),
                                     ),
                                   ),
                                 )
@@ -268,7 +293,9 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   ),
                                 ),
                                 child: Text(
-                                  (!item.isSingle || item.first.isProfile || item.first.isPlaylist)
+                                  (!item.isSingle ||
+                                          item.first.isProfile ||
+                                          item.first.isPlaylist)
                                       ? 'Download All'
                                       : 'Download',
                                   style: GoogleFonts.manrope(
@@ -291,7 +318,6 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
       ),
     );
   }
-
 
   Widget _buildGroupPreviewOverlay() {
     final group = _previewItem;
@@ -328,7 +354,10 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
     }
 
     final currentItem = visibleItems[_previewCarouselIndex];
-    final totalSize = visibleItems.fold<int>(0, (sum, i) => sum + (i.filesize ?? 0));
+    final totalSize = visibleItems.fold<int>(
+      0,
+      (sum, i) => sum + (i.filesize ?? 0),
+    );
 
     return Positioned.fill(
       child: Focus(
@@ -364,322 +393,447 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
           child: Container(
             color: Colors.black.withOpacity(0.8),
             child: Center(
-            child: GestureDetector(
-              onTap: () {}, // Absorb taps
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                  child: Container(
-                    margin: const EdgeInsets.all(24),
-                    width: 650, // Fixed width for better carousel look
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2C2C35).withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.15)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.5),
-                          blurRadius: 30,
-                          offset: const Offset(0, 15),
+              child: GestureDetector(
+                onTap: () {}, // Absorb taps
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    child: Container(
+                      margin: const EdgeInsets.all(24),
+                      width: 650, // Fixed width for better carousel look
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2C2C35).withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.15),
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Header
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Row 1: Title and Close Button
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      displayTitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.manrope(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 30,
+                            offset: const Offset(0, 15),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Header
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Row 1: Title and Close Button
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        displayTitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.manrope(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.white, size: 20),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () {
-                                      setState(() {
-                                        _previewItem = null;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              // Row 2: Source • Size
-                              Row(
-                                children: [
-                                  if (group.first.extractor != null) ...[
+                                    const SizedBox(width: 16),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () {
+                                        setState(() {
+                                          _previewItem = null;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                // Row 2: Source • Size
+                                Row(
+                                  children: [
+                                    if (group.first.extractor != null) ...[
+                                      Text(
+                                        group.first.extractor!,
+                                        style: GoogleFonts.manrope(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                        child: Text(
+                                          '•',
+                                          style: TextStyle(
+                                            color: Colors.white38,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                     Text(
-                                      group.first.extractor!,
+                                      _formatBytes(totalSize),
                                       style: GoogleFonts.manrope(
                                         color: Colors.white70,
                                         fontSize: 12,
                                       ),
                                     ),
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 6),
-                                      child: Text('•', style: TextStyle(color: Colors.white38, fontSize: 12)),
-                                    ),
                                   ],
-                                  Text(
-                                    _formatBytes(totalSize),
-                                    style: GoogleFonts.manrope(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              // Row 3: Dropdown & Download All
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  SizedBox(
-                                    width: 140,
-                                    child: _buildGroupFilterDropdown(config, group),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      _startDownload(groupIndex);
-                                      setState(() {
-                                        _previewItem = null;
-                                      });
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.violet.withOpacity(0.2),
-                                      foregroundColor: AppColors.violet,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      fixedSize: const Size.fromHeight(32),
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
+                                ),
+                                const SizedBox(height: 12),
+                                // Row 3: Dropdown & Download All
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    SizedBox(
+                                      width: 140,
+                                      child: _buildGroupFilterDropdown(
+                                        config,
+                                        group,
                                       ),
                                     ),
-                                    child: Text(
-                                      'Download All',
-                                      style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Image Carousel
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Row(
-                            children: [
-                              // Prev Button
-                              IconButton(
-                                icon: Icon(
-                                  Icons.arrow_back_ios,
-                                  color: _previewCarouselIndex > 0 ? Colors.white : Colors.white24,
-                                ),
-                                onPressed: _previewCarouselIndex > 0
-                                    ? () {
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        _startDownload(groupIndex);
                                         setState(() {
-                                          _previewCarouselIndex--;
+                                          _previewItem = null;
                                         });
-                                      }
-                                    : null,
-                              ),
-                              Expanded(
-                                child: SizedBox(
-                                  height: 280,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      currentItem.thumbnail != null
-                                          ? Image.network(
-                                              currentItem.thumbnail!,
-                                              fit: BoxFit.contain,
-                                              headers: const {
-                                                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
-                                                'Referer': 'https://www.instagram.com/',
-                                              },
-                                              loadingBuilder: (context, child, loadingProgress) {
-                                                if (loadingProgress == null) return child;
-                                                return const Center(
-                                                  child: _JugglingBallsLoader(),
-                                                );
-                                              },
-                                              errorBuilder: (_, __, ___) => group.first.isProfile
-                                                  ? Container(color: const Color(0xFF1E1E26), child: const Center(child: Icon(Icons.account_circle_rounded, size: 80, color: AppColors.violet)))
-                                                  : const FallbackThumb(),
-                                            )
-                                          : group.first.isProfile
-                                              ? Container(color: const Color(0xFF1E1E26), child: const Center(child: Icon(Icons.account_circle_rounded, size: 80, color: AppColors.violet)))
-                                              : const FallbackThumb(),
-                                      if (currentItem.isVideo && currentItem.duration != null)
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.violet
+                                            .withOpacity(0.2),
+                                        foregroundColor: AppColors.violet,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                        fixedSize: const Size.fromHeight(32),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Download All',
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Image Carousel
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Row(
+                              children: [
+                                // Prev Button
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.arrow_back_ios,
+                                    color: _previewCarouselIndex > 0
+                                        ? Colors.white
+                                        : Colors.white24,
+                                  ),
+                                  onPressed: _previewCarouselIndex > 0
+                                      ? () {
+                                          setState(() {
+                                            _previewCarouselIndex--;
+                                          });
+                                        }
+                                      : null,
+                                ),
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 280,
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        currentItem.thumbnail != null
+                                            ? Image.network(
+                                                currentItem.thumbnail!,
+                                                fit: BoxFit.contain,
+                                                headers: const {
+                                                  'User-Agent':
+                                                      'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
+                                                  'Referer':
+                                                      'https://www.instagram.com/',
+                                                },
+                                                loadingBuilder:
+                                                    (
+                                                      context,
+                                                      child,
+                                                      loadingProgress,
+                                                    ) {
+                                                      if (loadingProgress ==
+                                                          null)
+                                                        return child;
+                                                      return const Center(
+                                                        child:
+                                                            _JugglingBallsLoader(),
+                                                      );
+                                                    },
+                                                errorBuilder: (_, __, ___) =>
+                                                    group.first.isProfile
+                                                    ? Container(
+                                                        color: const Color(
+                                                          0xFF1E1E26,
+                                                        ),
+                                                        child: const Center(
+                                                          child: Icon(
+                                                            Icons
+                                                                .account_circle_rounded,
+                                                            size: 80,
+                                                            color: AppColors
+                                                                .violet,
+                                                          ),
+                                                        ),
+                                                      )
+                                                    : const FallbackThumb(),
+                                              )
+                                            : group.first.isProfile
+                                            ? Container(
+                                                color: const Color(0xFF1E1E26),
+                                                child: const Center(
+                                                  child: Icon(
+                                                    Icons
+                                                        .account_circle_rounded,
+                                                    size: 80,
+                                                    color: AppColors.violet,
+                                                  ),
+                                                ),
+                                              )
+                                            : const FallbackThumb(),
+                                        if (currentItem.isVideo &&
+                                            currentItem.duration != null)
+                                          Positioned(
+                                            bottom: 8,
+                                            right: 8,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(
+                                                  0.7,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                _formatDuration(
+                                                  currentItem.duration!,
+                                                ),
+                                                style: GoogleFonts.manrope(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         Positioned(
-                                          bottom: 8,
+                                          top: 8,
                                           right: 8,
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.7),
-                                              borderRadius: BorderRadius.circular(4),
+                                              color: Colors.black.withOpacity(
+                                                0.7,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                             child: Text(
-                                              _formatDuration(currentItem.duration!),
+                                              '${_previewCarouselIndex + 1} / ${visibleItems.length}',
                                               style: GoogleFonts.manrope(
                                                 color: Colors.white,
-                                                fontSize: 10,
+                                                fontSize: 12,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                           ),
                                         ),
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.7),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            '${_previewCarouselIndex + 1} / ${visibleItems.length}',
-                                            style: GoogleFonts.manrope(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
+                                        if (_backgroundLoadingProfiles.contains(
+                                          group.originalUrl,
+                                        ))
+                                          Positioned.fill(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(
+                                                  0.6,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: const Center(
+                                                child: _JugglingBallsLoader(),
+                                              ),
                                             ),
                                           ),
-                                          ),
-                                        ),
-                                      if (_backgroundLoadingProfiles.contains(group.originalUrl))
-                                        Positioned.fill(
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.6),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: const Center(
-                                              child: _JugglingBallsLoader(),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              // Next Button
-                              IconButton(
-                                icon: Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: _previewCarouselIndex < visibleItems.length - 1 ? Colors.white : Colors.white24,
+                                // Next Button
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.arrow_forward_ios,
+                                    color:
+                                        _previewCarouselIndex <
+                                            visibleItems.length - 1
+                                        ? Colors.white
+                                        : Colors.white24,
+                                  ),
+                                  onPressed:
+                                      _previewCarouselIndex <
+                                          visibleItems.length - 1
+                                      ? () {
+                                          setState(() {
+                                            _previewCarouselIndex++;
+                                          });
+                                        }
+                                      : null,
                                 ),
-                                onPressed: _previewCarouselIndex < visibleItems.length - 1
-                                    ? () {
-                                        setState(() {
-                                          _previewCarouselIndex++;
-                                        });
-                                      }
-                                    : null,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        // Footer
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                _trimMiddle(currentItem.title, 40) + ' (${_getFileSize(currentItem, config) ?? "Unknown size"})',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.manrope(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                          // Footer
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  _trimMiddle(currentItem.title, 40) +
+                                      ' (${_getFileSize(currentItem, config) ?? "Unknown size"})',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.manrope(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              CopyUrlButton(url: currentItem.originalUrl ?? ''),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  if (currentItem.formats.isNotEmpty)
-                                    SizedBox(
-                                      width: 140,
-                                      child: _buildFormatDropdown(currentItem, config, groupIndex, isItemLevel: true),
-                                    )
-                                  else
+                                const SizedBox(height: 6),
+                                CopyUrlButton(
+                                  url: currentItem.originalUrl ?? '',
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    if (currentItem.formats.isNotEmpty)
+                                      SizedBox(
+                                        width: 140,
+                                        child: _buildFormatDropdown(
+                                          currentItem,
+                                          config,
+                                          groupIndex,
+                                          isItemLevel: true,
+                                        ),
+                                      )
+                                    else
+                                      const Spacer(),
                                     const Spacer(),
-                                  const Spacer(),
-                                  OutlinedButton(
-                                    onPressed: () {
-                                      _removeSingleItem(groupIndex, currentItem.id);
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
-                                      backgroundColor: Colors.white.withOpacity(0.05),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      fixedSize: const Size.fromHeight(32),
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    OutlinedButton(
+                                      onPressed: () {
+                                        _removeSingleItem(
+                                          groupIndex,
+                                          currentItem.id,
+                                        );
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.1),
+                                        ),
+                                        backgroundColor: Colors.white
+                                            .withOpacity(0.05),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                        fixedSize: const Size.fromHeight(32),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Remove',
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                    child: Text(
-                                      'Remove',
-                                      style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        _startDownload(
+                                          groupIndex,
+                                          singleItemId: currentItem.id,
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.violet
+                                            .withOpacity(0.2),
+                                        foregroundColor: AppColors.violet,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                        fixedSize: const Size.fromHeight(32),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Download',
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      _startDownload(groupIndex, singleItemId: currentItem.id);
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.violet.withOpacity(0.2),
-                                      foregroundColor: AppColors.violet,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      fixedSize: const Size.fromHeight(32),
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    ),
-                                    child: Text(
-                                      'Download',
-                                      style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             ),
           ),
         ),

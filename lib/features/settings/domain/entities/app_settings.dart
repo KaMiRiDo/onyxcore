@@ -44,6 +44,7 @@ class AppSettings extends Equatable {
     this.confirmDeleteAudio = true,
     this.showHiddenAudioFiles = false,
     this.downloadBrowser,
+    this.downloadToCurrentFolder = true,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -124,6 +125,9 @@ class AppSettings extends Equatable {
   /// The browser used for cookie extraction in the downloader. If null, use the default. If 'None', disable.
   final String? downloadBrowser;
 
+  /// Whether to download to the current folder by default.
+  final bool downloadToCurrentFolder;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -151,6 +155,7 @@ class AppSettings extends Equatable {
     bool? confirmDeleteAudio,
     bool? showHiddenAudioFiles,
     String? downloadBrowser,
+    bool? downloadToCurrentFolder,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -179,6 +184,7 @@ class AppSettings extends Equatable {
       confirmDeleteAudio: confirmDeleteAudio ?? this.confirmDeleteAudio,
       showHiddenAudioFiles: showHiddenAudioFiles ?? this.showHiddenAudioFiles,
       downloadBrowser: downloadBrowser ?? this.downloadBrowser,
+      downloadToCurrentFolder: downloadToCurrentFolder ?? this.downloadToCurrentFolder,
     );
   }
 
@@ -210,5 +216,6 @@ class AppSettings extends Equatable {
     confirmDeleteAudio,
     showHiddenAudioFiles,
     downloadBrowser,
+    downloadToCurrentFolder,
   ];
 }

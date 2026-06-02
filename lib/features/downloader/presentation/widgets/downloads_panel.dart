@@ -1,11 +1,16 @@
 import 'dart:io';
 import 'dart:ui';
 import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
@@ -20,6 +25,7 @@ import 'package:onyxcore/features/downloader/services/downloader_update_service.
 import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
+import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_header.dart';
@@ -115,12 +121,44 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   List<MediaGroup>? _parsedItems;
   final Map<int, DownloadConfig> _configs = {};
 
-  String _destinationMode = 'current';
+  String? _importedListName;
+  String? _importedListPath;
+  bool _isListChanged = false;
   bool _binariesExist = false;
   bool _isDownloadsDrawerOpen = false;
 
+  int _totalListSize = 0;
+  int _totalListImages = 0;
+  int _totalListVideos = 0;
+
+  void _recalculateFilteredStatistics() {
+    _totalListSize = 0;
+    _totalListImages = 0;
+    _totalListVideos = 0;
+    final items = _filteredItems;
+    for (var entry in items) {
+      _totalListSize += entry.value.totalFilesize;
+      for (var item in entry.value.items) {
+        if (item.isVideo) {
+          _totalListVideos++;
+        } else if (!item.isPlaylist && !item.isProfile) {
+          _totalListImages++;
+        }
+      }
+    }
+  }
+
   String _selectedEngine = 'auto';
   String _sortFilter = 'added_desc';
+  
+  void _setSortFilter(String val) {
+    if (_sortFilter != val) {
+      setState(() {
+        _sortFilter = val;
+        _recalculateFilteredStatistics();
+      });
+    }
+  }
 
   final Set<int> _selectedIndices = {};
   int _lastSelectedIndex = -1;
@@ -239,6 +277,158 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     return false;
   }
 
+  String? _toastMessage;
+  bool _showToast = false;
+  bool _isDraggingFile = false;
+
+  void _showLocalToast(String message) {
+    if (!mounted) return;
+    setState(() {
+      _toastMessage = message;
+      _showToast = true;
+    });
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && _toastMessage == message) {
+        setState(() {
+          _showToast = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _exportList() async {
+    if (_parsedItems == null || _parsedItems!.isEmpty) return;
+    try {
+      final currentDir = ref.read(currentPathProvider);
+      final saveLocation = await CustomFilePickerDialog.show(
+        context,
+        title: 'EXPORT LIST',
+        allowMultiple: false,
+        allowedExtensions: ['json'],
+        saveMode: true,
+        initialFileName: 'export_list.json',
+        initialDirectory: currentDir,
+      );
+      if (saveLocation == null || saveLocation.isEmpty) return;
+
+      final itemsData = _parsedItems!.map((e) => e.toMap()).toList();
+      _recalculateFilteredStatistics();
+      final data = {
+        'items': itemsData,
+        'statistics': {
+          'totalSize': _totalListSize,
+          'images': _totalListImages,
+          'videos': _totalListVideos,
+        }
+      };
+      final jsonString = jsonEncode(data);
+      await File(saveLocation.first.path).writeAsString(jsonString);
+
+      setState(() {
+        _parsedItems?.clear();
+        _configs.clear();
+        _selectedIndices.clear();
+        _lastSelectedIndex = -1;
+        _previewItem = null;
+        _importedListName = null;
+        _importedListPath = null;
+        _isListChanged = false;
+      });
+      _showLocalToast('List exported successfully');
+    } catch (e) {
+      _showLocalToast('Failed to export list');
+    }
+  }
+
+  Future<void> _updateList() async {
+    if (_importedListPath == null) return;
+    try {
+      final itemsData = _parsedItems?.map((e) => e.toMap()).toList() ?? [];
+      _recalculateFilteredStatistics();
+      final data = {
+        'items': itemsData,
+        'statistics': {
+          'totalSize': _totalListSize,
+          'images': _totalListImages,
+          'videos': _totalListVideos,
+        }
+      };
+      final jsonString = jsonEncode(data);
+      await File(_importedListPath!).writeAsString(jsonString);
+
+      setState(() {
+        if (data.isEmpty) {
+          _parsedItems = null;
+          _configs.clear();
+          _selectedIndices.clear();
+          _lastSelectedIndex = -1;
+          _previewItem = null;
+          _importedListName = null;
+          _importedListPath = null;
+        }
+        _isListChanged = false;
+      });
+      _showLocalToast('List updated successfully');
+    } catch (e) {
+      _showLocalToast('Failed to update list');
+    }
+  }
+
+  Future<void> _importList([String? path]) async {
+    try {
+      String? filePath = path;
+      if (filePath == null) {
+        final currentDir = ref.read(currentPathProvider);
+        final files = await CustomFilePickerDialog.show(
+          context,
+          title: 'IMPORT LIST',
+          allowMultiple: false,
+          allowedExtensions: ['json'],
+          initialDirectory: currentDir,
+        );
+        if (files == null || files.isEmpty) return;
+        filePath = files.first.path;
+      }
+
+      final content = await File(filePath).readAsString();
+      final decoded = jsonDecode(content);
+      
+      List<dynamic> itemsList;
+      if (decoded is List) {
+        itemsList = decoded;
+      } else if (decoded is Map) {
+        itemsList = decoded['items'] as List<dynamic>? ?? [];
+      } else {
+        throw Exception('Invalid JSON format');
+      }
+
+      final importedItems = itemsList
+          .map((e) => MediaGroup.fromMap(e as Map<String, dynamic>))
+          .toList();
+
+      setState(() {
+        _parsedItems = importedItems;
+        _configs.clear();
+        for (int i = 0; i < importedItems.length; i++) {
+          _configs[i] = DownloadConfig(
+            mode: DownloadMode.normal,
+            groupFilter: GroupDownloadType.all,
+          );
+        }
+        _importedListPath = filePath;
+        _importedListName = filePath!.split(Platform.pathSeparator).last;
+        _isListChanged = false;
+        _selectedIndices.clear();
+        _lastSelectedIndex = -1;
+        _previewItem = null;
+        _recalculateFilteredStatistics();
+      });
+      _showLocalToast('List imported successfully');
+    } catch (e) {
+      _showLocalToast('Invalid JSON file');
+    }
+  }
+
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
@@ -273,13 +463,18 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           if (!mounted) return;
           setState(() {
             if (_parsedItems != null) {
-              final groupIndex = _parsedItems!.indexWhere((g) => g.originalUrl == url);
+              final groupIndex = _parsedItems!.indexWhere(
+                (g) => g.originalUrl == url,
+              );
               if (groupIndex != -1) {
                 final group = _parsedItems![groupIndex];
-                if (info.isProfile && group.items.any((e) => e.isProfile)) return; // Skip duplicate fallback profile
+                if (info.isProfile && group.items.any((e) => e.isProfile))
+                  return; // Skip duplicate fallback profile
 
                 // Check if it already exists, if not, append to show progressive update
-                final existsIndex = group.items.indexWhere((existing) => existing.id == info.id);
+                final existsIndex = group.items.indexWhere(
+                  (existing) => existing.id == info.id,
+                );
                 if (existsIndex == -1) {
                   group.items.add(info);
                 } else {
@@ -353,8 +548,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           if (!isDuplicate) {
             final group = MediaGroup(originalUrl: entry.key, items: groupItems);
             _parsedItems!.add(group);
-            
-            if (group.first.isProfile && group.items.length <= 13 && entry.key != null) {
+
+            if (group.first.isProfile &&
+                group.items.length <= 13 &&
+                entry.key != null) {
               _hydrateProfile(entry.key!);
             }
           }
@@ -364,10 +561,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           if (!_configs.containsKey(i)) {
             final group = _parsedItems![i];
             final info = group.first;
-            
+
             bool hasImages = group.items.any((item) => !item.isVideo);
             bool hasVideos = group.items.any((item) => item.isVideo);
-            
+
             GroupDownloadType defaultFilter = GroupDownloadType.all;
             if (!info.isProfile) {
               if (hasImages && !hasVideos) {
@@ -383,6 +580,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             );
           }
         }
+        _isListChanged = true;
         _urlController.clear();
       });
     } catch (e) {
@@ -405,171 +603,199 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       final group = _parsedItems![index];
       final config = _configs[index]!;
 
-      String dest = _destinationMode == 'current'
+      final downloadToCurrent =
+          ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
+      String dest = downloadToCurrent
           ? ref.read(currentPathProvider)
           : '${Platform.environment['HOME']}/Downloads';
 
       // Use a copy to prevent concurrent modification if background tasks update group.items
       final itemsToDownload = List<MediaInfo>.from(group.items);
 
-    // Batch download logic for profiles AND grouped posts
-    if ((group.first.isProfile || group.items.length > 1) && singleItemId == null) {
-      String safeName = group.first.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-      final itemDest = group.first.isProfile ? p.join(dest, safeName) : dest;
-      if (group.first.isProfile && !Directory(itemDest).existsSync()) {
-        Directory(itemDest).createSync(recursive: true);
-      }
-      
-      if (!group.first.isProfile) {
-        final dir = Directory(itemDest);
-        List<File> existingFiles = [];
-        if (dir.existsSync()) {
-          existingFiles = dir.listSync().whereType<File>().toList();
-        }
-        
-        bool groupExists = existingFiles.any((f) {
-          final base = p.basenameWithoutExtension(f.path);
-          return base.startsWith('${safeName}_') || base == safeName;
-        });
-
-        if (groupExists) {
-          int conflictCounter = 1;
-          while (existingFiles.any((f) {
-            final base = p.basenameWithoutExtension(f.path);
-            return base.startsWith('${safeName} ($conflictCounter)_') || base == '${safeName} ($conflictCounter)';
-          })) {
-            conflictCounter++;
-          }
-          safeName = '$safeName ($conflictCounter)';
-        }
-      }
-
-      String? filterType;
-      int? totalFilteredItems;
-      bool isHydrating = _backgroundLoadingProfiles.contains(group.originalUrl);
-      bool shouldAbortHydration = false;
-
-      if (config.groupFilter == GroupDownloadType.images) {
-        filterType = 'images';
-        totalFilteredItems = isHydrating ? null : itemsToDownload.where((item) => !item.isVideo && !item.isProfile).length;
-      } else if (config.groupFilter == GroupDownloadType.videos) {
-        filterType = 'videos';
-        totalFilteredItems = isHydrating ? null : itemsToDownload.where((item) => item.isVideo && !item.isProfile).length;
-      } else {
-        if (isHydrating) {
-           totalFilteredItems = group.first.itemCount ?? 0;
-           if (totalFilteredItems != null && totalFilteredItems > 0) {
-              shouldAbortHydration = true;
-           }
-        } else {
-           totalFilteredItems = itemsToDownload.where((item) => !item.isProfile).length; 
-        }
-      }
-      
-      ref.read(downloadTaskProvider.notifier).startDownload(
-            url: group.originalUrl,
-            destination: itemDest,
-            title: group.first.isProfile ? '$safeName Profile' : safeName,
-            format: config.format,
-            audioOnly: config.mode == DownloadMode.audioOnly,
-            mute: config.mode == DownloadMode.mute,
-            engine: _selectedEngine,
-            isPlaylist: false,
-            isProfile: group.first.isProfile,
-            isZip: false, // Ensure zip is off
-            filterType: filterType,
-            totalItems: totalFilteredItems,
-          );
-      
-      setState(() {
-        if (_parsedItems != null) {
-          final currentIndex = _parsedItems!.indexOf(group);
-          if (currentIndex != -1) {
-            _removeParsedItems([currentIndex], abortHydration: shouldAbortHydration);
-            if (_previewItem == group) {
-              _previewItem = null;
-            }
-          }
-        }
-      });
-      return;
-    }
-
-    final Map<String, List<File>> dirCache = {};
-    int count = 0;
-
-    for (final info in itemsToDownload) {
-      if (count++ % 20 == 0) await Future.delayed(Duration.zero);
-      if (singleItemId != null && info.id != singleItemId) continue;
-
-      if (config.groupFilter == GroupDownloadType.images && info.isVideo)
-        continue;
-      if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
-        continue;
-
-      final format = config.itemFormats[info.id] ?? config.format;
-
-      String itemDest = dest;
-      if (group.first.isPlaylist) {
-        final safeName = group.first.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-        itemDest = p.join(dest, safeName);
-        if (!Directory(itemDest).existsSync()) {
+      // Batch download logic for profiles AND grouped posts
+      if ((group.first.isProfile || group.items.length > 1) &&
+          singleItemId == null) {
+        String safeName = group.first.title.replaceAll(
+          RegExp(r'[\\/:*?"<>|]'),
+          '_',
+        );
+        final itemDest = group.first.isProfile ? p.join(dest, safeName) : dest;
+        if (group.first.isProfile && !Directory(itemDest).existsSync()) {
           Directory(itemDest).createSync(recursive: true);
         }
-      }
 
-      String finalTitle = info.title;
-      String suffix = '';
-      final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
-      if (match != null) {
-        suffix = ' - ${match.group(1)}';
-        finalTitle = finalTitle.replaceAll(
-          RegExp(r' \(\d+\)$'),
-          '',
-        );
-      } else if (info.galleryIndex != null) {
-        suffix = ' - ${info.galleryIndex}';
-      }
-
-      if (finalTitle.runes.length > 80) {
-        finalTitle = String.fromCharCodes(finalTitle.runes.take(80)).trim();
-      }
-      finalTitle = '$finalTitle$suffix';
-
-      if (!info.isPlaylist) {
-        final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-        if (!dirCache.containsKey(itemDest)) {
+        if (!group.first.isProfile) {
           final dir = Directory(itemDest);
+          List<File> existingFiles = [];
           if (dir.existsSync()) {
-            dirCache[itemDest] = dir.listSync().whereType<File>().toList();
-          } else {
-            dirCache[itemDest] = [];
+            existingFiles = dir.listSync().whereType<File>().toList();
+          }
+
+          bool groupExists = existingFiles.any((f) {
+            final base = p.basenameWithoutExtension(f.path);
+            return base.startsWith('${safeName}_') || base == safeName;
+          });
+
+          if (groupExists) {
+            int conflictCounter = 1;
+            while (existingFiles.any((f) {
+              final base = p.basenameWithoutExtension(f.path);
+              return base.startsWith('${safeName} ($conflictCounter)_') ||
+                  base == '${safeName} ($conflictCounter)';
+            })) {
+              conflictCounter++;
+            }
+            safeName = '$safeName ($conflictCounter)';
           }
         }
-        final existingFiles = dirCache[itemDest]!;
-        
-        final exists = existingFiles.any(
-          (f) => p.basenameWithoutExtension(f.path) == safeName,
+
+        String? filterType;
+        int? totalFilteredItems;
+        bool isHydrating = _backgroundLoadingProfiles.contains(
+          group.originalUrl,
         );
-        if (exists) {
-          int conflictCounter = 1;
-          while (existingFiles.any(
-            (f) =>
-                p.basenameWithoutExtension(f.path) ==
-                '$safeName ($conflictCounter)',
-          )) {
-            conflictCounter++;
+        bool shouldAbortHydration = false;
+
+        if (config.groupFilter == GroupDownloadType.images) {
+          filterType = 'images';
+          totalFilteredItems = isHydrating
+              ? null
+              : itemsToDownload
+                    .where((item) => !item.isVideo && !item.isProfile)
+                    .length;
+        } else if (config.groupFilter == GroupDownloadType.videos) {
+          filterType = 'videos';
+          totalFilteredItems = isHydrating
+              ? null
+              : itemsToDownload
+                    .where((item) => item.isVideo && !item.isProfile)
+                    .length;
+        } else {
+          if (isHydrating) {
+            totalFilteredItems = group.first.itemCount ?? 0;
+            if (totalFilteredItems != null && totalFilteredItems > 0) {
+              shouldAbortHydration = true;
+            }
+          } else {
+            totalFilteredItems = itemsToDownload
+                .where((item) => !item.isProfile)
+                .length;
           }
-          finalTitle = '$finalTitle ($conflictCounter)';
         }
+
+        ref
+            .read(downloadTaskProvider.notifier)
+            .startDownload(
+              url: group.originalUrl,
+              destination: itemDest,
+              title: group.first.isProfile ? '$safeName Profile' : safeName,
+              downloadType: group.first.isProfile ? 'profile' : (group.first.isPlaylist ? 'playlist' : 'generic'),
+              format: config.format,
+              audioOnly: config.mode == DownloadMode.audioOnly,
+              mute: config.mode == DownloadMode.mute,
+              engine: _selectedEngine,
+              isPlaylist: false,
+              isProfile: group.first.isProfile,
+              isZip: false, // Ensure zip is off
+              filterType: filterType,
+              totalItems: totalFilteredItems,
+            );
+
+        setState(() {
+          if (_parsedItems != null) {
+            final currentIndex = _parsedItems!.indexOf(group);
+            if (currentIndex != -1) {
+              _removeParsedItems([
+                currentIndex,
+              ], abortHydration: shouldAbortHydration);
+              if (_previewItem == group) {
+                _previewItem = null;
+              }
+            }
+          }
+        });
+        return;
       }
 
-      ref
+      final Map<String, List<File>> dirCache = {};
+      int count = 0;
+
+      for (final info in itemsToDownload) {
+        if (count++ % 20 == 0) await Future.delayed(Duration.zero);
+        if (singleItemId != null && info.id != singleItemId) continue;
+
+        if (config.groupFilter == GroupDownloadType.images && info.isVideo)
+          continue;
+        if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
+          continue;
+
+        final format = config.itemFormats[info.id] ?? config.format;
+
+        String itemDest = dest;
+        if (group.first.isPlaylist) {
+          final safeName = group.first.title.replaceAll(
+            RegExp(r'[\\/:*?"<>|]'),
+            '_',
+          );
+          itemDest = p.join(dest, safeName);
+          if (!Directory(itemDest).existsSync()) {
+            Directory(itemDest).createSync(recursive: true);
+          }
+        }
+
+        String finalTitle = info.title;
+        String suffix = '';
+        final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
+        if (match != null) {
+          suffix = ' - ${match.group(1)}';
+          finalTitle = finalTitle.replaceAll(
+            RegExp(r' \(\d+\)$'),
+            '',
+          );
+        } else if (info.galleryIndex != null) {
+          suffix = ' - ${info.galleryIndex}';
+        }
+
+        if (finalTitle.runes.length > 80) {
+          finalTitle = String.fromCharCodes(finalTitle.runes.take(80)).trim();
+        }
+        finalTitle = '$finalTitle$suffix';
+
+        if (!info.isPlaylist) {
+          final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+          if (!dirCache.containsKey(itemDest)) {
+            final dir = Directory(itemDest);
+            if (dir.existsSync()) {
+              dirCache[itemDest] = dir.listSync().whereType<File>().toList();
+            } else {
+              dirCache[itemDest] = [];
+            }
+          }
+          final existingFiles = dirCache[itemDest]!;
+
+          final exists = existingFiles.any(
+            (f) => p.basenameWithoutExtension(f.path) == safeName,
+          );
+          if (exists) {
+            int conflictCounter = 1;
+            while (existingFiles.any(
+              (f) =>
+                  p.basenameWithoutExtension(f.path) ==
+                  '$safeName ($conflictCounter)',
+            )) {
+              conflictCounter++;
+            }
+            finalTitle = '$finalTitle ($conflictCounter)';
+          }
+        }
+
+        ref
             .read(downloadTaskProvider.notifier)
             .startDownload(
               url: info.originalUrl,
               destination: itemDest,
               title: finalTitle,
+              downloadType: info.isPlaylist ? 'playlist' : (info.isProfile ? 'profile' : (info.isVideo ? 'video' : 'image')),
               format: format,
               audioOnly: config.mode == DownloadMode.audioOnly,
               mute: config.mode == DownloadMode.mute,
@@ -579,26 +805,26 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               browser: ref.read(settingsProvider).value?.downloadBrowser,
               totalItems: 1,
             );
-    }
+      }
 
-    setState(() {
-      if (_parsedItems != null) {
-        final currentIndex = _parsedItems!.indexOf(group);
-        if (currentIndex != -1) {
-          if (singleItemId != null) {
-            group.items.removeWhere((i) => i.id == singleItemId);
-            if (group.items.isEmpty) {
-              _removeParsedItems([currentIndex]);
-              if (_previewItem == group) {
-                _previewItem = null;
+      setState(() {
+        if (_parsedItems != null) {
+          final currentIndex = _parsedItems!.indexOf(group);
+          if (currentIndex != -1) {
+            if (singleItemId != null) {
+              group.items.removeWhere((i) => i.id == singleItemId);
+              if (group.items.isEmpty) {
+                _removeParsedItems([currentIndex]);
+                if (_previewItem == group) {
+                  _previewItem = null;
+                }
               }
+            } else {
+              _removeParsedItems([currentIndex]);
             }
-          } else {
-            _removeParsedItems([currentIndex]);
           }
         }
-      }
-    });
+      });
     } finally {
       ref.read(conflictProvider.notifier).clearGlobalResolution();
     }
@@ -617,7 +843,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       final groupsToProcess = <MediaGroup, DownloadConfig>{};
       for (final item in itemsToDownload) {
         if (_parsedItems != null && item.key < _parsedItems!.length) {
-           groupsToProcess[_parsedItems![item.key]] = _configs[item.key]!;
+          groupsToProcess[_parsedItems![item.key]] = _configs[item.key]!;
         }
       }
 
@@ -627,160 +853,191 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         final group = entry.key;
         final config = entry.value;
 
-        String dest = _destinationMode == 'current'
+        final downloadToCurrent =
+            ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
+        String dest = downloadToCurrent
             ? ref.read(currentPathProvider)
             : '${Platform.environment['HOME']}/Downloads';
 
         // Use a copy to prevent concurrent modification if background tasks update group.items
         final itemsToDownloadLocal = List<MediaInfo>.from(group.items);
 
-      // Batch download logic for profiles AND grouped posts
-      if (group.first.isProfile || group.items.length > 1) {
-        String safeName = group.first.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-        final itemDest = group.first.isProfile ? p.join(dest, safeName) : dest;
-        if (group.first.isProfile && !Directory(itemDest).existsSync()) {
-          Directory(itemDest).createSync(recursive: true);
-        }
-        
-        if (!group.first.isProfile) {
-          if (!dirCache.containsKey(itemDest)) {
-            final dir = Directory(itemDest);
-            if (dir.existsSync()) {
-              dirCache[itemDest] = dir.listSync().whereType<File>().toList();
-            } else {
-              dirCache[itemDest] = [];
-            }
-          }
-          final existingFiles = dirCache[itemDest]!;
-          
-          bool groupExists = existingFiles.any((f) {
-            final base = p.basenameWithoutExtension(f.path);
-            return base.startsWith('${safeName}_') || base == safeName;
-          });
-
-          if (groupExists || sessionNames.contains(safeName)) {
-            int conflictCounter = 1;
-            while (existingFiles.any((f) {
-              final base = p.basenameWithoutExtension(f.path);
-              return base.startsWith('${safeName} ($conflictCounter)_') || base == '${safeName} ($conflictCounter)';
-            }) || sessionNames.contains('$safeName ($conflictCounter)')) {
-              conflictCounter++;
-            }
-            safeName = '$safeName ($conflictCounter)';
-          }
-        }
-        
-        sessionNames.add(safeName);
-
-        String? filterType;
-        int? totalFilteredItems;
-        bool isHydrating = _backgroundLoadingProfiles.contains(group.originalUrl);
-        bool shouldAbortHydration = false;
-
-        if (config.groupFilter == GroupDownloadType.images) {
-          filterType = 'images';
-          totalFilteredItems = isHydrating ? null : itemsToDownloadLocal.where((item) => !item.isVideo && !item.isProfile).length;
-        } else if (config.groupFilter == GroupDownloadType.videos) {
-          filterType = 'videos';
-          totalFilteredItems = isHydrating ? null : itemsToDownloadLocal.where((item) => item.isVideo && !item.isProfile).length;
-        } else {
-          if (isHydrating) {
-             totalFilteredItems = group.first.itemCount ?? 0;
-             if (totalFilteredItems != null && totalFilteredItems > 0) {
-                 shouldAbortHydration = true;
-             }
-          } else {
-             totalFilteredItems = itemsToDownloadLocal.where((item) => !item.isProfile).length;
-          }
-        }
-        
-        ref.read(downloadTaskProvider.notifier).startDownload(
-              url: group.originalUrl,
-              destination: itemDest,
-              title: group.first.isProfile ? '$safeName Profile' : safeName,
-              format: config.format,
-              audioOnly: config.mode == DownloadMode.audioOnly,
-              mute: config.mode == DownloadMode.mute,
-              engine: _selectedEngine,
-              isPlaylist: false,
-              isProfile: group.first.isProfile,
-              isZip: false, // Ensure zip is off
-              filterType: filterType,
-              totalItems: totalFilteredItems,
-            );
-        continue;
-      }
-
-      int count = 0;
-
-      for (final info in itemsToDownloadLocal) {
-        if (count++ % 20 == 0) await Future.delayed(Duration.zero);
-        if (config.groupFilter == GroupDownloadType.images && info.isVideo)
-          continue;
-        if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
-          continue;
-
-        String itemDest = dest;
-        if (info.isPlaylist) {
-          final safeName = info.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-          itemDest = p.join(dest, safeName);
-          if (!Directory(itemDest).existsSync()) {
+        // Batch download logic for profiles AND grouped posts
+        if (group.first.isProfile || group.items.length > 1) {
+          String safeName = group.first.title.replaceAll(
+            RegExp(r'[\\/:*?"<>|]'),
+            '_',
+          );
+          final itemDest = group.first.isProfile
+              ? p.join(dest, safeName)
+              : dest;
+          if (group.first.isProfile && !Directory(itemDest).existsSync()) {
             Directory(itemDest).createSync(recursive: true);
           }
-        }
 
-        String finalTitle = info.title;
-        String suffix = '';
-        final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
-        if (match != null) {
-          suffix = ' - ${match.group(1)}';
-          finalTitle = finalTitle.replaceAll(RegExp(r' \(\d+\)$'), '');
-        } else if (info.galleryIndex != null) {
-          suffix = ' - ${info.galleryIndex}';
-        }
+          if (!group.first.isProfile) {
+            if (!dirCache.containsKey(itemDest)) {
+              final dir = Directory(itemDest);
+              if (dir.existsSync()) {
+                dirCache[itemDest] = dir.listSync().whereType<File>().toList();
+              } else {
+                dirCache[itemDest] = [];
+              }
+            }
+            final existingFiles = dirCache[itemDest]!;
 
-        if (finalTitle.runes.length > 80) {
-          finalTitle = String.fromCharCodes(finalTitle.runes.take(80)).trim();
-        }
-        finalTitle = '$finalTitle$suffix';
+            bool groupExists = existingFiles.any((f) {
+              final base = p.basenameWithoutExtension(f.path);
+              return base.startsWith('${safeName}_') || base == safeName;
+            });
 
-        if (!info.isPlaylist && !info.isProfile) {
-          final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-          
-          if (!dirCache.containsKey(itemDest)) {
-            final dir = Directory(itemDest);
-            if (dir.existsSync()) {
-              dirCache[itemDest] = dir.listSync().whereType<File>().toList();
-            } else {
-              dirCache[itemDest] = [];
+            if (groupExists || sessionNames.contains(safeName)) {
+              int conflictCounter = 1;
+              while (existingFiles.any((f) {
+                    final base = p.basenameWithoutExtension(f.path);
+                    return base.startsWith('${safeName} ($conflictCounter)_') ||
+                        base == '${safeName} ($conflictCounter)';
+                  }) ||
+                  sessionNames.contains('$safeName ($conflictCounter)')) {
+                conflictCounter++;
+              }
+              safeName = '$safeName ($conflictCounter)';
             }
           }
-          final existingFiles = dirCache[itemDest]!;
-          final exists = existingFiles.any(
-            (f) => p.basenameWithoutExtension(f.path) == safeName,
+
+          sessionNames.add(safeName);
+
+          String? filterType;
+          int? totalFilteredItems;
+          bool isHydrating = _backgroundLoadingProfiles.contains(
+            group.originalUrl,
           );
+          bool shouldAbortHydration = false;
 
-          if (exists || sessionNames.contains(safeName)) {
-            int conflictCounter = 1;
-            while (existingFiles.any(
-                  (f) =>
-                      p.basenameWithoutExtension(f.path) ==
-                      '$safeName ($conflictCounter)',
-                ) ||
-                sessionNames.contains('$safeName ($conflictCounter)')) {
-              conflictCounter++;
+          if (config.groupFilter == GroupDownloadType.images) {
+            filterType = 'images';
+            totalFilteredItems = isHydrating
+                ? null
+                : itemsToDownloadLocal
+                      .where((item) => !item.isVideo && !item.isProfile)
+                      .length;
+          } else if (config.groupFilter == GroupDownloadType.videos) {
+            filterType = 'videos';
+            totalFilteredItems = isHydrating
+                ? null
+                : itemsToDownloadLocal
+                      .where((item) => item.isVideo && !item.isProfile)
+                      .length;
+          } else {
+            if (isHydrating) {
+              totalFilteredItems = group.first.itemCount ?? 0;
+              if (totalFilteredItems != null && totalFilteredItems > 0) {
+                shouldAbortHydration = true;
+              }
+            } else {
+              totalFilteredItems = itemsToDownloadLocal
+                  .where((item) => !item.isProfile)
+                  .length;
             }
-            finalTitle = '$finalTitle ($conflictCounter)';
           }
+
+          ref
+              .read(downloadTaskProvider.notifier)
+              .startDownload(
+                url: group.originalUrl,
+                destination: itemDest,
+                title: group.first.isProfile ? '$safeName Profile' : safeName,
+                downloadType: group.first.isProfile ? 'profile' : (group.first.isPlaylist ? 'playlist' : 'generic'),
+                format: config.format,
+                audioOnly: config.mode == DownloadMode.audioOnly,
+                mute: config.mode == DownloadMode.mute,
+                engine: _selectedEngine,
+                isPlaylist: false,
+                isProfile: group.first.isProfile,
+                isZip: false, // Ensure zip is off
+                filterType: filterType,
+                totalItems: totalFilteredItems,
+              );
+          continue;
         }
 
-        sessionNames.add(finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_'));
-        ref
-            .read(downloadTaskProvider.notifier)
+        int count = 0;
+
+        for (final info in itemsToDownloadLocal) {
+          if (count++ % 20 == 0) await Future.delayed(Duration.zero);
+          if (config.groupFilter == GroupDownloadType.images && info.isVideo)
+            continue;
+          if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
+            continue;
+
+          String itemDest = dest;
+          if (info.isPlaylist) {
+            final safeName = info.title.replaceAll(
+              RegExp(r'[\\/:*?"<>|]'),
+              '_',
+            );
+            itemDest = p.join(dest, safeName);
+            if (!Directory(itemDest).existsSync()) {
+              Directory(itemDest).createSync(recursive: true);
+            }
+          }
+
+          String finalTitle = info.title;
+          String suffix = '';
+          final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
+          if (match != null) {
+            suffix = ' - ${match.group(1)}';
+            finalTitle = finalTitle.replaceAll(RegExp(r' \(\d+\)$'), '');
+          } else if (info.galleryIndex != null) {
+            suffix = ' - ${info.galleryIndex}';
+          }
+
+          if (finalTitle.runes.length > 80) {
+            finalTitle = String.fromCharCodes(finalTitle.runes.take(80)).trim();
+          }
+          finalTitle = '$finalTitle$suffix';
+
+          if (!info.isPlaylist && !info.isProfile) {
+            final safeName = finalTitle.replaceAll(
+              RegExp(r'[\\/:*?"<>|]'),
+              '_',
+            );
+
+            if (!dirCache.containsKey(itemDest)) {
+              final dir = Directory(itemDest);
+              if (dir.existsSync()) {
+                dirCache[itemDest] = dir.listSync().whereType<File>().toList();
+              } else {
+                dirCache[itemDest] = [];
+              }
+            }
+            final existingFiles = dirCache[itemDest]!;
+            final exists = existingFiles.any(
+              (f) => p.basenameWithoutExtension(f.path) == safeName,
+            );
+
+            if (exists || sessionNames.contains(safeName)) {
+              int conflictCounter = 1;
+              while (existingFiles.any(
+                    (f) =>
+                        p.basenameWithoutExtension(f.path) ==
+                        '$safeName ($conflictCounter)',
+                  ) ||
+                  sessionNames.contains('$safeName ($conflictCounter)')) {
+                conflictCounter++;
+              }
+              finalTitle = '$finalTitle ($conflictCounter)';
+            }
+          }
+
+          sessionNames.add(finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_'));
+          ref
+              .read(downloadTaskProvider.notifier)
               .startDownload(
                 url: info.originalUrl,
                 destination: itemDest,
                 title: finalTitle,
+                downloadType: info.isPlaylist ? 'playlist' : (info.isProfile ? 'profile' : (info.isVideo ? 'video' : 'image')),
                 format: config.format,
                 audioOnly: config.mode == DownloadMode.audioOnly,
                 mute: config.mode == DownloadMode.mute,
@@ -790,34 +1047,36 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 browser: ref.read(settingsProvider).value?.downloadBrowser,
                 totalItems: 1,
               );
-      }
-    }
-
-    setState(() {
-      if (_parsedItems != null) {
-        final currentIndices = groupsToProcess.keys
-            .map((g) => _parsedItems!.indexOf(g))
-            .where((i) => i != -1)
-            .toList();
-        if (currentIndices.isNotEmpty) {
-          bool shouldAbort = false;
-          for (final group in groupsToProcess.keys) {
-            final config = groupsToProcess[group];
-            if (config != null && config.groupFilter == GroupDownloadType.all) {
-              final groupItems = group.items;
-              if (groupItems.isNotEmpty && (groupItems.first.itemCount ?? 0) > 0) {
-                shouldAbort = true;
-              }
-            }
-          }
-          _removeParsedItems(currentIndices, abortHydration: shouldAbort);
         }
       }
-    });
 
-    setState(() {
-      _sortFilter = 'added_desc';
-    });
+      setState(() {
+        if (_parsedItems != null) {
+          final currentIndices = groupsToProcess.keys
+              .map((g) => _parsedItems!.indexOf(g))
+              .where((i) => i != -1)
+              .toList();
+          if (currentIndices.isNotEmpty) {
+            bool shouldAbort = false;
+            for (final group in groupsToProcess.keys) {
+              final config = groupsToProcess[group];
+              if (config != null &&
+                  config.groupFilter == GroupDownloadType.all) {
+                final groupItems = group.items;
+                if (groupItems.isNotEmpty &&
+                    (groupItems.first.itemCount ?? 0) > 0) {
+                  shouldAbort = true;
+                }
+              }
+            }
+            _removeParsedItems(currentIndices, abortHydration: shouldAbort);
+          }
+        }
+      });
+
+      setState(() {
+        _sortFilter = 'added_desc';
+      });
     } finally {
       ref.read(conflictProvider.notifier).clearGlobalResolution();
     }
@@ -825,7 +1084,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   void _removeParsedItems(List<int> indices, {bool abortHydration = true}) {
     if (_parsedItems == null) return;
-    
+
     for (final i in indices) {
       if (i >= 0 && i < _parsedItems!.length) {
         final url = _parsedItems![i].originalUrl;
@@ -836,8 +1095,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         }
       }
     }
-    
-    final sortedIndices = List<int>.from(indices)..sort((a, b) => b.compareTo(a));
+
+    final sortedIndices = List<int>.from(indices)
+      ..sort((a, b) => b.compareTo(a));
     final remainingItems = <MediaGroup>[];
     final remainingConfigs = <DownloadConfig>[];
 
@@ -867,11 +1127,13 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     _selectedIndices.clear();
     _lastSelectedIndex = -1;
     _anchorIndex = -1;
+    _isListChanged = true;
     if (_parsedItems!.isEmpty) {
       _parsedItems = null;
       FocusScope.of(context).unfocus();
     }
     _previewItem = null;
+    _recalculateFilteredStatistics();
   }
 
   void _removeSingleItem(int groupIndex, String itemId) {
@@ -884,7 +1146,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       _removeParsedItems([groupIndex]);
     } else {
       // Re-trigger rebuild
-      setState(() {});
+      setState(() {
+        _isListChanged = true;
+        _recalculateFilteredStatistics();
+      });
     }
   }
 
@@ -904,71 +1169,135 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   @override
   Widget build(BuildContext context) {
-    return TapRegion(
-      onTapOutside: (_) {
-        _listFocusNode.unfocus();
-      },
-      child: Focus(
-        autofocus: false,
-        canRequestFocus: false,
-        descendantsAreFocusable: true,
-        child: Listener(
-          onPointerDown: (_) {
-             if (_listFocusNode.canRequestFocus) _listFocusNode.requestFocus();
-          },
-          onPointerSignal: (_) {
-             if (_listFocusNode.canRequestFocus) _listFocusNode.requestFocus();
-          },
-          child: MouseRegion(
-            onEnter: (_) {
-               if (_listFocusNode.canRequestFocus) _listFocusNode.requestFocus();
+    return Container(
+      color: Colors.transparent,
+      child: TapRegion(
+        onTapOutside: (_) {
+          _listFocusNode.unfocus();
+        },
+        child: Focus(
+          autofocus: false,
+          canRequestFocus: false,
+          descendantsAreFocusable: true,
+          child: Listener(
+            onPointerDown: (_) {
+              if (_listFocusNode.canRequestFocus) _listFocusNode.requestFocus();
             },
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () {
-                setState(() {
-                  _selectedIndices.clear();
-                  _anchorIndex = -1;
-                  _previewItem = null;
-                });
+            onPointerSignal: (_) {
+              if (_listFocusNode.canRequestFocus) _listFocusNode.requestFocus();
+            },
+            child: MouseRegion(
+              onEnter: (_) {
+                if (_listFocusNode.canRequestFocus)
+                  _listFocusNode.requestFocus();
               },
-              child: Stack(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const DownloadsHeader(),
-                      const Divider(color: Colors.white10, height: 1),
-                      Expanded(
-                        child: !_binariesExist
-                            ? DownloadsMissingBinariesView(
-                                onCheckBinaries: _checkBinaries,
-                              )
-                            : Column(
-                                children: [
-                                  _buildInputView(),
-                                  const Divider(
-                                    color: Colors.white10,
-                                    height: 1,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () {
+                  setState(() {
+                    _selectedIndices.clear();
+                    _anchorIndex = -1;
+                    _previewItem = null;
+                  });
+                },
+                child: Stack(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const DownloadsHeader(),
+                        const Divider(color: Colors.white10, height: 1),
+                        Expanded(
+                          child: !_binariesExist
+                              ? DownloadsMissingBinariesView(
+                                  onCheckBinaries: _checkBinaries,
+                                )
+                              : Column(
+                                  children: [
+                                    _buildInputView(),
+                                    const Divider(
+                                      color: Colors.white10,
+                                      height: 1,
+                                    ),
+                                    Expanded(
+                                      child: Container(
+                                        color: Colors.black.withOpacity(
+                                          0.2,
+                                        ), // Differentiate the results section
+                                        child: _buildResultsView(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ],
+                    ),
+                    if (_previewItem != null)
+                      (_previewItem!.isSingle && !_previewItem!.first.isProfile)
+                          ? _buildSinglePreviewOverlay()
+                          : _buildGroupPreviewOverlay(),
+
+
+
+                    // Local Toast Overlay
+                    Positioned(
+                      top: 60,
+                      left: 20,
+                      right: 20,
+                      child: AnimatedSlide(
+                        offset: _showToast
+                            ? Offset.zero
+                            : const Offset(0, -1.5),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                        child: AnimatedOpacity(
+                          opacity: _showToast ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceBase.withOpacity(0.95),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.5),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  Expanded(
-                                    child: Container(
-                                      color: Colors.black.withOpacity(
-                                        0.2,
-                                      ), // Differentiate the results section
-                                      child: _buildResultsView(),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.info_outline,
+                                    color: AppColors.violet,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _toastMessage ?? '',
+                                    style: GoogleFonts.manrope(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ],
                               ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                  if (_previewItem != null)
-                    (_previewItem!.isSingle && !_previewItem!.first.isProfile)
-                        ? _buildSinglePreviewOverlay()
-                        : _buildGroupPreviewOverlay(),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1039,28 +1368,37 @@ class _JugglingBallsLoaderState extends State<_JugglingBallsLoader>
 
 class _GradientBorderPainter extends CustomPainter {
   final double animation;
-  _GradientBorderPainter(this.animation);
+  final List<Color> colors;
+  final double radius;
+  final double strokeWidth;
+
+  _GradientBorderPainter(
+    this.animation, {
+    this.colors = const [
+      AppColors.magenta,
+      AppColors.violet,
+      AppColors.indigo,
+      AppColors.magenta,
+    ],
+    this.radius = 12.0,
+    this.strokeWidth = 1.5,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(radius));
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
+      ..strokeWidth = strokeWidth
       ..shader = SweepGradient(
-        colors: const [
-          AppColors.magenta,
-          AppColors.violet,
-          AppColors.indigo,
-          AppColors.magenta,
-        ],
-        transform: GradientRotation(animation * 2 * pi),
+        colors: colors,
+        transform: GradientRotation(animation * 2 * 3.141592653589793),
       ).createShader(rect);
     canvas.drawRRect(rrect, paint);
   }
 
   @override
   bool shouldRepaint(covariant _GradientBorderPainter old) =>
-      old.animation != animation;
+      old.animation != animation || old.colors != colors || old.radius != radius || old.strokeWidth != strokeWidth;
 }

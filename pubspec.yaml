@@ -39,6 +39,7 @@ dependencies:
   audiotags: ^1.4.5
   file_selector: ^1.1.0
   sqlite3: ^3.3.2
+  desktop_drop: ^0.7.1
 
 dev_dependencies:
   flutter_test:

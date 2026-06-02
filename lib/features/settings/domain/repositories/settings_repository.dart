@@ -53,6 +53,9 @@ abstract class SettingsRepository {
   /// Update the browser used for cookie extraction.
   Future<void> setDownloadBrowser(String? browser);
 
+  /// Update whether to download to the current folder by default.
+  Future<void> setDownloadToCurrentFolder({required bool value});
+
   // ——— Gallery Sorting ———
 
   /// Get the sort key for a specific folder path.
