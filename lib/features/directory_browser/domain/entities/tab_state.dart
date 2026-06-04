@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
@@ -31,7 +32,12 @@ class TabState {
     this.filterSettings = const FilterSettings(),
   });
 
-  String get title => currentPath == '/' ? 'Root' : p.basename(currentPath);
+  String get title {
+    if (currentPath == '/') return 'Root';
+    if (currentPath == Platform.environment['HOME']) return 'Home';
+    if (currentPath.endsWith('.local/share/Trash/files') || currentPath == 'trash:///') return 'Trash';
+    return p.basename(currentPath);
+  }
 
   bool get canGoBack => historyIndex > 0;
   bool get canGoForward => historyIndex < history.length - 1;

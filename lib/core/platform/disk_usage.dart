@@ -13,14 +13,16 @@ class DiskUsage {
   final int availableBytes;
 
   /// Usage as a fraction (0.0 to 1.0).
-  double get usageFraction =>
-      totalBytes > 0 ? usedBytes / totalBytes : 0;
+  double get usageFraction {
+    final totalUsable = usedBytes + availableBytes;
+    return totalUsable > 0 ? usedBytes / totalUsable : 0.0;
+  }
 
   /// Usage as a percentage string (e.g., "60%").
   String get usagePercent => '${(usageFraction * 100).round()}%';
 
   /// Total size as a human-readable string.
-  String get totalHuman => _bytesToHuman(totalBytes);
+  String get totalHuman => _bytesToHuman(usedBytes + availableBytes);
 
   /// Used size as a human-readable string.
   String get usedHuman => _bytesToHuman(usedBytes);

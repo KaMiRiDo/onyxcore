@@ -335,19 +335,30 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                             final tabId = ref.read(tabIdProvider);
                                             final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
                                             final allPaths = items.map((e) => e.path).toList();
+                                            final isInTrash = currentPath.contains('.local/share/Trash/files') || currentPath.endsWith('Trash/files') || currentPath == 'trash:///';
 
                                             ContextMenu.show(context, details.globalPosition, [
-                                              ContextMenuItem(
-                                                title: 'New Folder',
-                                                icon: Icons.create_new_folder_rounded,
-                                                shortcut: 'Ctrl+Shift+N',
-                                                onTap: () => _handleNewItem(initialIsFolder: true),
-                                              ),
-                                              ContextMenuItem(
-                                                title: 'New Document',
-                                                icon: Icons.note_add_rounded,
-                                                onTap: () => _handleNewItem(initialIsFolder: false),
-                                              ),
+                                              if (!isInTrash) ...[
+                                                ContextMenuItem(
+                                                  title: 'New Folder',
+                                                  icon: Icons.create_new_folder_rounded,
+                                                  shortcut: 'Ctrl+Shift+N',
+                                                  onTap: () => _handleNewItem(initialIsFolder: true),
+                                                ),
+                                                ContextMenuItem(
+                                                  title: 'New Document',
+                                                  icon: Icons.note_add_rounded,
+                                                  onTap: () => _handleNewItem(initialIsFolder: false),
+                                                ),
+                                              ],
+                                              if (isInTrash) ...[
+                                                ContextMenuItem(
+                                                  title: 'Empty Trash',
+                                                  icon: Icons.delete_forever_rounded,
+                                                  onTap: _handleEmptyTrash,
+                                                ),
+                                                ContextMenuItem.divider(),
+                                              ],
                                               ContextMenuItem(
                                                 title: 'Open With',
                                                 icon: Icons.open_in_new_rounded,
@@ -625,6 +636,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       // Global Shortcuts
       const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(!isSearchActive),
       const SingleActivator(LogicalKeyboardKey.keyR, control: true): _refresh,
+      const SingleActivator(LogicalKeyboardKey.period, control: true): _toggleHiddenFiles,
       const SingleActivator(LogicalKeyboardKey.f5): _refresh,
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
         ref.read(backgroundPanelOpenProvider.notifier).state = !ref.read(backgroundPanelOpenProvider);
@@ -1112,6 +1124,67 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       ref.read(directoryItemsProvider.notifier).refresh();
     } catch (e) {
       debugPrint('Delete error: $e');
+    }
+  }
+
+  void _toggleHiddenFiles() {
+    final current = ref.read(settingsProvider).value;
+    if (current != null) {
+      ref.read(settingsProvider.notifier).setShowHiddenFiles(
+        value: !current.showHiddenFiles,
+      );
+    }
+  }
+
+  Future<void> _handleEmptyTrash() async {
+    final currentPath = ref.read(currentPathProvider);
+    final isInTrash = currentPath.contains('.local/share/Trash/files') || currentPath.endsWith('Trash/files') || currentPath == 'trash:///';
+    if (!isInTrash) return;
+
+    final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
+    if (items.isEmpty) return;
+    
+    final allPaths = items.map((e) => e.path).toList();
+    final stats = await _calculateSelectionStats(allPaths);
+
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => PermanentDeleteDialog(
+        filesCount: stats.filesCount,
+        foldersCount: stats.foldersCount,
+        totalSize: StringUtils.formatBytes(stats.size),
+      ),
+    ) ?? false;
+
+    if (!confirmed) return;
+
+    final taskId = ref.read(taskProvider.notifier).addTask(
+      title: 'Emptying Trash',
+      subtitle: 'Permanent deletion',
+      sourcePaths: allPaths,
+      isLight: true,
+    );
+
+    final repo = ref.read(directoryRepositoryProvider);
+    try {
+      await repo.deleteItems(
+        allPaths,
+        permanent: true,
+        taskId: taskId,
+        onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+        onProgress: (p, t) {
+          ref.read(taskProvider.notifier).updateProgress(taskId, p / t);
+          ref.read(taskProvider.notifier).updateItemCounts(taskId, p, t);
+        },
+      );
+      ref.read(taskProvider.notifier).completeTask(taskId);
+      ref.read(selectionProvider.notifier).deselectAll();
+      ref.read(directoryItemsProvider.notifier).refresh();
+    } catch (e) {
+      debugPrint('Empty trash error: $e');
+      ref.read(taskProvider.notifier).failTask(taskId, e.toString());
     }
   }
 

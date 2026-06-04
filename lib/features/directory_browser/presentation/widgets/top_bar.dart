@@ -13,6 +13,8 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/navig
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
+
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
@@ -139,7 +141,7 @@ class _TopBarState extends ConsumerState<TopBar> {
         clipBehavior: Clip.none,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            padding: const EdgeInsets.fromLTRB(15, 12, 15, 4),
             child: Row(
               children: [
                 // Combined Breadcrumb/Search Container + Toggle
@@ -453,6 +455,30 @@ class _TopBarState extends ConsumerState<TopBar> {
                 const Spacer(flex: 4),
                 
                 const SizedBox(width: 16),
+                Builder(
+                  builder: (context) {
+                    final showHidden = ref.watch(settingsProvider.select((s) => s.value?.showHiddenFiles ?? false));
+                    return Tooltip(
+                      message: showHidden ? 'Hide Hidden Files (Ctrl+.)' : 'Show Hidden Files (Ctrl+.)',
+                      waitDuration: const Duration(milliseconds: 500),
+                      child: _buildActionIcon(
+                        icon: showHidden ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                        customIcon: showHidden ? _buildGradientIcon(Icons.visibility_rounded, size: 20) : null,
+                        isActive: showHidden,
+                        backgroundColor: Colors.transparent,
+                        onPressed: () {
+                          final current = ref.read(settingsProvider).value;
+                          if (current != null) {
+                            ref.read(settingsProvider.notifier).setShowHiddenFiles(
+                              value: !current.showHiddenFiles,
+                            );
+                          }
+                        },
+                      ),
+                    );
+                  }
+                ),
+                const SizedBox(width: 8),
                 
                 Tooltip(
                   message: 'Settings',
@@ -551,6 +577,7 @@ class _TopBarState extends ConsumerState<TopBar> {
     bool isActive = false,
     Color? backgroundColor,
     Color? iconColor,
+    Widget? customIcon,
   }) {
     return InkWell(
       onTap: onPressed,
@@ -562,10 +589,12 @@ class _TopBarState extends ConsumerState<TopBar> {
           color: backgroundColor ?? (isActive ? AppColors.violet.withOpacity(0.2) : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-          icon,
-          color: iconColor ?? (isActive ? AppColors.violet : Colors.white70),
-          size: 20,
+        child: Center(
+          child: customIcon ?? Icon(
+            icon,
+            color: iconColor ?? (isActive ? AppColors.violet : Colors.white70),
+            size: 20,
+          ),
         ),
       ),
     );

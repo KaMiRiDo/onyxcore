@@ -28,7 +28,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
         '--json', 
         '--bytes',
         '-p',
-        '-o', 'NAME,MOUNTPOINT,SIZE,FSUSED,FSSIZE,TYPE,LABEL,MODEL,RM,FSTYPE'
+        '-o', 'NAME,MOUNTPOINT,SIZE,FSUSED,FSSIZE,FSAVAIL,TYPE,LABEL,MODEL,RM,FSTYPE'
       ]);
       
       if (result.exitCode != 0) {
@@ -48,6 +48,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
           final mountpoint = item['mountpoint'] as String?;
           final fssizeStr = item['fssize']?.toString();
           final fsusedStr = item['fsused']?.toString();
+          final fsavailStr = item['fsavail']?.toString();
           final fstype = item['fstype']?.toString() ?? '';
           final isRemovable = (item['rm'] == true || item['rm'] == 1 || item['rm'] == "1");
 
@@ -71,7 +72,12 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
             if (isMounted) {
             
             double usage = 0.0;
-            if (fssizeStr != null && fsusedStr != null) {
+            if (fsavailStr != null && fsusedStr != null) {
+              final used = double.tryParse(fsusedStr) ?? 0.0;
+              final avail = double.tryParse(fsavailStr) ?? 0.0;
+              final totalUsable = used + avail;
+              if (totalUsable > 0) usage = (used / totalUsable).clamp(0.0, 1.0);
+            } else if (fssizeStr != null && fsusedStr != null) {
               final used = double.tryParse(fsusedStr) ?? 0.0;
               final total = double.tryParse(fssizeStr) ?? 0.0;
               if (total > 0) usage = (used / total).clamp(0.0, 1.0);

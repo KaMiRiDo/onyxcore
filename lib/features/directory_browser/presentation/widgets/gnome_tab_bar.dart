@@ -22,7 +22,7 @@ class GnomeTabBar extends ConsumerStatefulWidget {
 class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
   final ScrollController _scrollController = ScrollController();
   static const double _minTabWidth = 140;
-  static const double _height = 56;
+  static const double _height = 40;
 
   @override
   void dispose() {
@@ -55,6 +55,8 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
 
     return Container(
       height: _height,
+      margin: const EdgeInsets.only(left: 10, right: 10, top: 10),
+      padding: const EdgeInsets.only(bottom: 6),
       decoration: const BoxDecoration(
         color: Colors.transparent,
       ),
@@ -135,8 +137,8 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
 
   @override
   Widget build(BuildContext context) {
-    const activeBg = Color(0xFF212121);
-    const inactiveBg = Color(0xFF141414);
+    const activeBg = Color(0xFF38383C);
+    const inactiveBg = Colors.transparent;
     const borderColor = Color(0xFF2A2A2A);
     
     final currentRef = ref;
@@ -182,80 +184,53 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
           child: GestureDetector(
             onTap: widget.onTap,
             child: AnimatedContainer(
+              height: double.infinity,
               duration: const Duration(milliseconds: 150),
+              margin: widget.isActive 
+                  ? const EdgeInsets.symmetric(horizontal: 4) 
+                  : EdgeInsets.zero,
               decoration: BoxDecoration(
                 color: isOver 
                     ? AppColors.violet.withOpacity(0.1) 
                     : (widget.isActive ? activeBg : inactiveBg),
-                border: const Border(
+                borderRadius: widget.isActive ? BorderRadius.circular(6) : BorderRadius.zero,
+                border: widget.isActive ? null : const Border(
                   right: BorderSide(color: borderColor, width: 1),
-                  bottom: BorderSide(color: borderColor, width: 1),
                 ),
               ),
               child: Stack(
+                alignment: Alignment.center,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (widget.isActive)
-                          ShaderMask(
-                            shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-                            child: Icon(
-                              _getTabIcon(widget.tab.title),
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                          )
-                        else
-                          Icon(
-                            _getTabIcon(widget.tab.title),
-                            size: 16,
-                            color: Colors.white54,
-                          ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: widget.isActive 
-                            ? ShaderMask(
-                                shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-                                child: Text(
-                                  widget.tab.title,
-                                  style: GoogleFonts.manrope(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.2,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              )
-                            : Text(
-                                widget.tab.title,
-                                style: GoogleFonts.manrope(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.2,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                        Icon(
+                          _getTabIcon(widget.tab.title),
+                          size: 14,
+                          color: widget.isActive ? Colors.white : Colors.white54,
                         ),
-                        if (widget.isActive || _isHovered)
-                          _CloseButton(onTap: widget.onClose, isActive: widget.isActive),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            widget.tab.title,
+                            style: GoogleFonts.manrope(
+                              color: widget.isActive ? Colors.white : Colors.white70,
+                              fontSize: 13,
+                              fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w500,
+                              letterSpacing: 0.2,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  if (widget.isActive)
+                  if (widget.isActive || _isHovered)
                     Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        height: 3,
-                        decoration: const BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                        ),
-                      ),
+                      right: 6,
+                      child: _CloseButton(onTap: widget.onClose, isActive: widget.isActive),
                     ),
                 ],
               ),

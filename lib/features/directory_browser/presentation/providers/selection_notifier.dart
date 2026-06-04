@@ -24,6 +24,9 @@ class SelectionNotifier extends Notifier<SelectionState> {
   }
 
   void _update(Set<String> selection) {
+    if (selection.isEmpty) {
+      _anchorIndex = null;
+    }
     final tabId = ref.read(tabIdProvider);
     ref.read(tabManagerProvider.notifier).updateSelection(tabId, selection);
   }

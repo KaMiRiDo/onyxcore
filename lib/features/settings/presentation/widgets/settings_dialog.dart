@@ -41,6 +41,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   final _generalScrollController = ScrollController();
   final _viewersScrollController = ScrollController();
   final _securityScrollController = ScrollController();
+  final _shortcutsScrollController = ScrollController();
 
   // Keys for sections to enable auto-scrolling
   final _generalKeys = {
@@ -59,10 +60,19 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     'Vault': GlobalKey(),
     'Encryption': GlobalKey(),
   };
+  final _shortcutsKeys = {
+    'General': GlobalKey(),
+    'Download Manager': GlobalKey(),
+    'Image Viewer': GlobalKey(),
+    'Video Player': GlobalKey(),
+    'Audio Player': GlobalKey(),
+    'Document Viewer': GlobalKey(),
+  };
 
   String _activeGeneralSection = 'Files & Folders';
   String _activeViewersSection = 'Image';
   String _activeSecuritySection = 'Vault';
+  String _activeShortcutsSection = 'General';
 
   late double _width;
   late double _height;
@@ -79,7 +89,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 3, 
+      length: 4, 
       vsync: this, 
       initialIndex: widget.initialTab,
     );
@@ -96,12 +106,13 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final tabName = widget.initialTab == 0 
             ? 'General' 
-            : (widget.initialTab == 1 ? 'Viewers/Players' : 'Security');
+            : (widget.initialTab == 1 ? 'Viewers/Players' : (widget.initialTab == 2 ? 'Security' : 'Shortcuts'));
         
         GlobalKey? targetKey;
         if (tabName == 'General') targetKey = _generalKeys[widget.initialSection];
         if (tabName == 'Viewers/Players') targetKey = _viewersKeys[widget.initialSection];
         if (tabName == 'Security') targetKey = _securityKeys[widget.initialSection];
+        if (tabName == 'Shortcuts') targetKey = _shortcutsKeys[widget.initialSection];
 
         if (targetKey != null) {
           _scrollToSection(targetKey, widget.initialSection!, tabName);
@@ -129,6 +140,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     _generalScrollController.dispose();
     _viewersScrollController.dispose();
     _securityScrollController.dispose();
+    _shortcutsScrollController.dispose();
     super.dispose();
   }
 
@@ -137,6 +149,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
       if (tab == 'General') _activeGeneralSection = sectionName;
       if (tab == 'Viewers/Players') _activeViewersSection = sectionName;
       if (tab == 'Security') _activeSecuritySection = sectionName;
+      if (tab == 'Shortcuts') _activeShortcutsSection = sectionName;
     });
 
     final context = key.currentContext;
@@ -145,7 +158,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           ? _generalScrollController
           : tab == 'Viewers/Players'
               ? _viewersScrollController
-              : _securityScrollController;
+              : tab == 'Security'
+                  ? _securityScrollController
+                  : _shortcutsScrollController;
 
       final RenderBox box = context.findRenderObject() as RenderBox;
       final RenderBox? viewport = scrollController.position.context.storageContext.findRenderObject() as RenderBox?;
@@ -225,6 +240,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                                         _buildGeneralTab(_draftSettings!),
                                         _buildViewersTab(),
                                         _buildSecurityTab(),
+                                        _buildShortcutsTab(),
                                       ],
                                     ),
                                   ),
@@ -402,6 +418,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
         _buildTab(0, 'General'),
         _buildTab(1, 'Viewers/Players'),
         _buildTab(2, 'Security'),
+        _buildTab(3, 'Shortcuts'),
       ],
     );
   }
@@ -442,11 +459,13 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           onSelected: (section) => _scrollToSection(_generalKeys[section]!, section, 'General'),
         ),
         Expanded(
-          child: ListView(
+          child: SingleChildScrollView(
             controller: _generalScrollController,
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            children: [
-              _buildSectionHeader('Files & Folders', _generalKeys['Files & Folders']!),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionHeader('Files & Folders', _generalKeys['Files & Folders']!),
               _buildSettingTile(
                 title: 'Show hidden files',
                 subtitle: 'Show hidden files like dot files in the file manager',
@@ -551,6 +570,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               const SizedBox(height: 100), // Space to allow scrolling to final section
             ],
           ),
+          ),
         ),
       ],
     );
@@ -565,11 +585,13 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           onSelected: (section) => _scrollToSection(_viewersKeys[section]!, section, 'Viewers/Players'),
         ),
         Expanded(
-          child: ListView(
+          child: SingleChildScrollView(
             controller: _viewersScrollController,
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            children: [
-              _buildSectionHeader('Image', _viewersKeys['Image']!),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionHeader('Image', _viewersKeys['Image']!),
               _buildSettingTile(
                 title: 'Confirm delete',
                 subtitle: 'Show confirmation dialog before moving an image to Trash',
@@ -719,6 +741,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               const SizedBox(height: 40),
             ],
           ),
+          ),
         ),
       ],
     );
@@ -733,19 +756,190 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           onSelected: (section) => _scrollToSection(_securityKeys[section]!, section, 'Security'),
         ),
         Expanded(
-          child: ListView(
+          child: SingleChildScrollView(
             controller: _securityScrollController,
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            children: [
-              _buildSectionHeader('Vault', _securityKeys['Vault']!),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionHeader('Vault', _securityKeys['Vault']!),
               _buildEmptySection('Secure vault storage and access control.'),
               _buildSectionHeader('Encryption', _securityKeys['Encryption']!),
               _buildEmptySection('End-to-end encryption for file operations.'),
               const SizedBox(height: 40),
             ],
           ),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildShortcutsTab() {
+    return Row(
+      children: [
+        _buildSubSidebar(
+          items: [
+            'General',
+            'Download Manager',
+            'Image Viewer',
+            'Video Player',
+            'Audio Player',
+            'Document Viewer',
+          ],
+          activeItem: _activeShortcutsSection,
+          onSelected: (section) => _scrollToSection(_shortcutsKeys[section]!, section, 'Shortcuts'),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            controller: _shortcutsScrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionHeader('General', _shortcutsKeys['General']!),
+              _buildShortcutTile('Select All', ['Ctrl', 'A']),
+              _buildShortcutTile('Copy', ['Ctrl', 'C']),
+              _buildShortcutTile('Cut', ['Ctrl', 'X']),
+              _buildShortcutTile('Paste', ['Ctrl', 'V']),
+              _buildShortcutTile('Move to Trash', ['Del']),
+              _buildShortcutTile('Delete Permanently', ['Shift', 'Del']),
+              _buildShortcutTile('Rename', ['F2']),
+              _buildShortcutTile('New Folder', ['Ctrl', 'Shift', 'N']),
+              _buildShortcutTile('Compress', ['Ctrl', 'Alt', 'C']),
+              _buildShortcutTile('Zoom In', ['Ctrl', '+']),
+              _buildShortcutTile('Zoom Out', ['Ctrl', '-']),
+              _buildShortcutTile('Reset Zoom', ['Ctrl', '0']),
+              _buildShortcutTile('Toggle Search', ['Ctrl', 'F']),
+              _buildShortcutTile('Refresh', ['Ctrl', 'R', 'or', 'F5']),
+              _buildShortcutTile('Toggle Hidden Files', ['Ctrl', '.']),
+              _buildShortcutTile('Toggle Sidebar', ['Ctrl', 'B']),
+              _buildShortcutTile('Focus Path Input', ['Alt', 'D']),
+              _buildShortcutTile('Add New Tab', ['Ctrl', 'T']),
+              _buildShortcutTile('Close Active Tab', ['Ctrl', 'W']),
+              _buildShortcutTile('Switch to Next Tab', ['Ctrl', 'Tab']),
+              _buildShortcutTile('Switch to Previous Tab', ['Ctrl', 'Shift', 'Tab']),
+              _buildShortcutTile('Open Selected Item', ['Enter']),
+              _buildShortcutTile('Show Properties', ['Alt', 'Enter']),
+              _buildShortcutTile('Go Back', ['Backspace', 'or', 'Alt', 'Left']),
+              _buildShortcutTile('Go Forward', ['Alt', 'Right']),
+              _buildShortcutTile('Clear Selection', ['Esc']),
+
+              _buildSectionHeader('Download Manager', _shortcutsKeys['Download Manager']!),
+              _buildShortcutTile('Update List (Save)', ['Ctrl', 'S']),
+              _buildShortcutTile('Select All Items', ['Ctrl', 'A']),
+              _buildShortcutTile('Remove Selected Items', ['Del']),
+              _buildShortcutTile('Next Item', ['Down']),
+              _buildShortcutTile('Select Next Item', ['Shift', 'Down']),
+              _buildShortcutTile('Previous Item', ['Up']),
+              _buildShortcutTile('Select Previous Item', ['Shift', 'Up']),
+              _buildShortcutTile('Cancel / Dismiss Dialog', ['Esc']),
+
+              _buildSectionHeader('Image Viewer', _shortcutsKeys['Image Viewer']!),
+              _buildShortcutTile('Toggle Fullscreen', ['F']),
+              _buildShortcutTile('Next Image', ['Right']),
+              _buildShortcutTile('Previous Image', ['Left']),
+              _buildShortcutTile('Zoom In', ['Ctrl', '+']),
+              _buildShortcutTile('Zoom Out', ['Ctrl', '-']),
+              _buildShortcutTile('Reset Zoom', ['Ctrl', '0']),
+              _buildShortcutTile('Move to Trash', ['Del']),
+              _buildShortcutTile('Go Back / Close', ['Backspace', 'or', 'Alt', 'Left']),
+              _buildShortcutTile('Close Viewer', ['Ctrl', 'W']),
+
+              _buildSectionHeader('Video Player', _shortcutsKeys['Video Player']!),
+              _buildShortcutTile('Play / Pause', ['Space']),
+              _buildShortcutTile('Seek Backward', ['Left']),
+              _buildShortcutTile('Seek Forward', ['Right']),
+              _buildShortcutTile('Volume Up', ['Up']),
+              _buildShortcutTile('Volume Down', ['Down']),
+              _buildShortcutTile('Mute / Unmute', ['M']),
+              _buildShortcutTile('Toggle Fullscreen', ['F']),
+              _buildShortcutTile('Take Snapshot', ['S']),
+              _buildShortcutTile('Toggle Marker Editor', ['T']),
+              _buildShortcutTile('Save Marker', ['Enter']),
+              _buildShortcutTile('Move to Trash', ['Del']),
+              _buildShortcutTile('Go Back', ['Backspace', 'or', 'Alt', 'Left']),
+              _buildShortcutTile('Close Player', ['Ctrl', 'W']),
+
+              _buildSectionHeader('Audio Player', _shortcutsKeys['Audio Player']!),
+              _buildShortcutTile('Play / Pause', ['Space']),
+              _buildShortcutTile('Seek Backward', ['Left']),
+              _buildShortcutTile('Seek Forward', ['Right']),
+              _buildShortcutTile('Volume Up', ['Up']),
+              _buildShortcutTile('Volume Down', ['Down']),
+              _buildShortcutTile('Mute / Unmute', ['M']),
+              _buildShortcutTile('Reveal in File Manager', ['Ctrl', 'R']),
+              _buildShortcutTile('Rename', ['F2']),
+              _buildShortcutTile('Move to Trash', ['Del']),
+              _buildShortcutTile('Show Properties', ['Alt', 'Enter']),
+              _buildShortcutTile('Close Dialogs', ['Esc']),
+
+              _buildSectionHeader('Document Viewer', _shortcutsKeys['Document Viewer']!),
+              _buildShortcutTile('Next Document', ['Right']),
+              _buildShortcutTile('Previous Document', ['Left']),
+              _buildShortcutTile('Move to Trash', ['Del']),
+              _buildShortcutTile('Go Back', ['Backspace', 'or', 'Alt', 'Left']),
+              _buildShortcutTile('Close Viewer', ['Ctrl', 'W']),
+              const SizedBox(height: 100),
+            ],
+          ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildShortcutTile(String description, List<String> keys) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            description,
+            style: GoogleFonts.manrope(
+              color: Colors.white.withOpacity(0.85),
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: keys.map((keyStr) {
+              if (keyStr.toLowerCase() == 'or') {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'or',
+                    style: GoogleFonts.manrope(
+                      color: AppColors.textMuted.withOpacity(0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }
+              return Container(
+                margin: const EdgeInsets.only(left: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Text(
+                  keyStr,
+                  style: GoogleFonts.firaCode(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
