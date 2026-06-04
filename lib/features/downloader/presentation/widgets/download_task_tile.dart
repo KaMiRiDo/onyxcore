@@ -77,17 +77,20 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                             ),
                           ),
                           // Subtitle for non-running tasks
-                          if (task.status != DownloadStatus.running)
+                          if (task.status != DownloadStatus.running &&
+                              task.status != DownloadStatus.cancelling)
                             Text(
-                              task.status == DownloadStatus.completed 
+                              task.status == DownloadStatus.completed
                                   ? 'Download finished successfully'
-                                  : task.status == DownloadStatus.pending 
-                                      ? 'Waiting to start...'
-                                      : task.status == DownloadStatus.error
-                                          ? 'Failed to download'
-                                          : 'Cancelled by user',
+                                  : task.status == DownloadStatus.pending
+                                  ? 'Waiting to start...'
+                                  : task.status == DownloadStatus.error
+                                  ? 'Failed to download'
+                                  : 'Cancelled by user',
                               style: GoogleFonts.manrope(
-                                color: task.status == DownloadStatus.error ? AppColors.error : AppColors.textMuted,
+                                color: task.status == DownloadStatus.error
+                                    ? AppColors.error
+                                    : AppColors.textMuted,
                                 fontSize: 12,
                               ),
                               maxLines: 1,
@@ -97,7 +100,8 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                       ),
                     ),
                     // Cancel button
-                    if (task.status == DownloadStatus.running || task.status == DownloadStatus.pending)
+                    if (task.status == DownloadStatus.running ||
+                        task.status == DownloadStatus.pending)
                       InkWell(
                         onTap: () {
                           setState(() => _showCancelConfirm = true);
@@ -112,10 +116,26 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                           ),
                         ),
                       )
+                    else if (task.status == DownloadStatus.cancelling)
+                      Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.orange.withOpacity(0.6),
+                            ),
+                          ),
+                        ),
+                      )
                     else
                       InkWell(
                         onTap: () {
-                          ref.read(downloadTaskProvider.notifier).removeTask(task.id);
+                          ref
+                              .read(downloadTaskProvider.notifier)
+                              .removeTask(task.id);
                         },
                         borderRadius: BorderRadius.circular(6),
                         child: Padding(
@@ -130,9 +150,11 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                   ],
                 ),
               ),
-              
+
               // Progress + ETA row
-              if (task.status == DownloadStatus.running || task.status == DownloadStatus.pending) ...[
+              if (task.status == DownloadStatus.running ||
+                  task.status == DownloadStatus.pending ||
+                  task.status == DownloadStatus.cancelling) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Column(
@@ -141,24 +163,42 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                         borderRadius: BorderRadius.circular(3),
                         child: SizedBox(
                           height: 4,
-                          child: TweenAnimationBuilder<double>(
-                            tween: Tween<double>(
-                              end: task.status == DownloadStatus.pending ? 0.0 : task.progress,
-                            ),
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.linear,
-                            builder: (context, animatedProgress, _) {
-                              return LinearProgressIndicator(
-                                value: task.progress == 0.0 && task.status == DownloadStatus.running ? null : animatedProgress,
-                                backgroundColor: Colors.white.withOpacity(0.06),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  task.status == DownloadStatus.pending 
-                                      ? Colors.white.withOpacity(0.1)
-                                      : AppColors.violet.withOpacity(0.8),
+                          child: task.status == DownloadStatus.cancelling
+                              ? LinearProgressIndicator(
+                                  backgroundColor: Colors.white.withOpacity(
+                                    0.06,
+                                  ),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.orange.withOpacity(0.6),
+                                  ),
+                                )
+                              : TweenAnimationBuilder<double>(
+                                  tween: Tween<double>(
+                                    end: task.status == DownloadStatus.pending
+                                        ? 0.0
+                                        : task.progress,
+                                  ),
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.linear,
+                                  builder: (context, animatedProgress, _) {
+                                    return LinearProgressIndicator(
+                                      value:
+                                          task.progress == 0.0 &&
+                                              task.status ==
+                                                  DownloadStatus.running
+                                          ? null
+                                          : animatedProgress,
+                                      backgroundColor: Colors.white.withOpacity(
+                                        0.06,
+                                      ),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        task.status == DownloadStatus.pending
+                                            ? Colors.white.withOpacity(0.1)
+                                            : AppColors.violet.withOpacity(0.8),
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                            },
-                          ),
                         ),
                       ),
                     ],
@@ -170,48 +210,73 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        task.progress == 0.0 && task.status == DownloadStatus.running 
-                            ? 'Processing...' 
+                        task.status == DownloadStatus.cancelling
+                            ? 'Cancelling...'
+                            : task.progress == 0.0 &&
+                                  task.status == DownloadStatus.running
+                            ? 'Processing...'
                             : '${(task.progress * 100).toStringAsFixed(1)}%',
                         style: GoogleFonts.manrope(
-                          color: AppColors.textMuted.withOpacity(0.6),
+                          color: task.status == DownloadStatus.cancelling
+                              ? Colors.orange.withOpacity(0.7)
+                              : AppColors.textMuted.withOpacity(0.6),
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (task.status == DownloadStatus.running && (task.speed.isNotEmpty || task.totalSize.isNotEmpty || task.eta.isNotEmpty))
-                        Row(
-                          children: [
-                            if (task.totalSize.isNotEmpty)
-                              Text(
-                                task.totalSize,
-                                style: GoogleFonts.manrope(
-                                  color: AppColors.textMuted.withOpacity(0.6),
-                                  fontSize: 11,
+                      if (task.status == DownloadStatus.running &&
+                          (task.speed.isNotEmpty ||
+                              task.totalSize.isNotEmpty ||
+                              task.eta.isNotEmpty))
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (task.totalSize.isNotEmpty)
+                                Flexible(
+                                  child: Text(
+                                    task.totalSize,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.manrope(
+                                      color: AppColors.textMuted.withOpacity(
+                                        0.6,
+                                      ),
+                                      fontSize: 11,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            if (task.speed.isNotEmpty) ...[
-                              if (task.totalSize.isNotEmpty) const SizedBox(width: 8),
-                              Text(
-                                task.speed,
-                                style: GoogleFonts.manrope(
-                                  color: AppColors.violet.withOpacity(0.7),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                              if (task.speed.isNotEmpty) ...[
+                                if (task.totalSize.isNotEmpty)
+                                  const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    task.speed,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.manrope(
+                                      color: AppColors.violet.withOpacity(0.7),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
+                              if (task.eta.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'ETA ${task.eta}',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.manrope(
+                                      color: AppColors.textMuted.withOpacity(
+                                        0.6,
+                                      ),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
-                            if (task.eta.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              Text(
-                                'ETA ${task.eta}',
-                                style: GoogleFonts.manrope(
-                                  color: AppColors.textMuted.withOpacity(0.6),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
                     ],
                   ),
@@ -275,7 +340,9 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                   AppColors.error.withOpacity(0.2),
                   AppColors.error,
                   () {
-                    ref.read(downloadTaskProvider.notifier).cancelDownload(widget.task.id);
+                    ref
+                        .read(downloadTaskProvider.notifier)
+                        .cancelDownload(widget.task.id);
                     setState(() => _showCancelConfirm = false);
                   },
                 ),
@@ -287,7 +354,12 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
     );
   }
 
-  Widget _confirmButton(String label, Color bgColor, Color textColor, VoidCallback onTap) {
+  Widget _confirmButton(
+    String label,
+    Color bgColor,
+    Color textColor,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
@@ -340,6 +412,11 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
         bgColor = Colors.orange.withOpacity(0.1);
         textColor = Colors.orange;
         label = 'Cancelled';
+        break;
+      case DownloadStatus.cancelling:
+        bgColor = Colors.orange.withOpacity(0.15);
+        textColor = Colors.orange;
+        label = 'Cancelling';
         break;
     }
 

@@ -88,10 +88,14 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
     if (widget.saveMode && widget.initialFileName != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _fileNameFocusNode.requestFocus();
-        _fileNameController.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _fileNameController.text.length,
-        );
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (mounted) {
+            _fileNameController.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: p.basenameWithoutExtension(_fileNameController.text).length,
+            );
+          }
+        });
       });
     }
   }

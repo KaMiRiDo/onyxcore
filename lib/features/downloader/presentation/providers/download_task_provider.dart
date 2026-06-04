@@ -10,7 +10,7 @@ import 'package:onyxcore/features/downloader/presentation/providers/download_his
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 
-enum DownloadStatus { pending, running, completed, error, cancelled }
+enum DownloadStatus { pending, running, cancelling, completed, error, cancelled }
 
 class DownloadTask {
   final String id;
@@ -95,10 +95,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
   @override
   void onWindowClose() {
-    // Zombie Process Prevention
+    // Zombie Process Prevention — must be sync since window is closing
     for (final task in state) {
-      if (task.status == DownloadStatus.running && task.process != null) {
-        ProcessUtils.killProcessTree(task.process!.pid);
+      if ((task.status == DownloadStatus.running || task.status == DownloadStatus.cancelling) && task.process != null) {
+        ProcessUtils.killProcessTreeSync(task.process!.pid);
       }
     }
   }
@@ -125,32 +125,35 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     final args = _taskArgs[id];
     if (args == null) return;
 
+    StreamSubscription? stdoutSub;
+    StreamSubscription? stderrSub;
+
     try {
       final process = await MediaDownloaderBackend.startDownload(
-        url: args['url'],
-        destination: args['destination'],
-        title: args['title'],
-        format: args['format'],
-        audioOnly: args['audioOnly'],
-        mute: args['mute'],
-        galleryIndex: args['galleryIndex'],
-        engine: args['engine'],
-        isPlaylist: args['isPlaylist'],
-        isProfile: args['isProfile'],
-        browser: args['browser'],
-        isZip: args['isZip'],
-        filterType: args['filterType'],
-        totalItems: args['totalItems'],
+        url: args['url'] as String,
+        destination: args['destination'] as String,
+        title: args['title'] as String?,
+        format: args['format'] as MediaFormat?,
+        audioOnly: args['audioOnly'] as bool? ?? false,
+        mute: args['mute'] as bool? ?? false,
+        galleryIndex: args['galleryIndex'] as int?,
+        engine: args['engine'] as String? ?? 'auto',
+        isPlaylist: args['isPlaylist'] as bool? ?? false,
+        isProfile: args['isProfile'] as bool? ?? false,
+        browser: args['browser'] as String?,
+        isZip: args['isZip'] as bool? ?? false,
+        filterType: args['filterType'] as String?,
+        totalItems: args['totalItems'] as int?,
       );
 
       _updateTask(id, process: process);
 
-      process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
+      stdoutSub = process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
         _parseProgress(id, data);
         _appendLog(id, data);
       });
 
-      process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
+      stderrSub = process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
         _appendLog(id, data);
       });
 
@@ -170,6 +173,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     } catch (e) {
       _updateTask(id, status: DownloadStatus.error, error: e.toString(), completedAt: DateTime.now());
     } finally {
+      stdoutSub?.cancel();
+      stderrSub?.cancel();
       _processQueue();
     }
   }
@@ -230,11 +235,39 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     _processQueue();
   }
 
-  void cancelDownload(String id) {
+  Future<void> _cleanupTempFiles(String destination) async {
+    try {
+      final dir = Directory(destination);
+      if (await dir.exists()) {
+        final files = dir.listSync(recursive: true);
+        for (final file in files) {
+          if (file is File) {
+            if (file.path.endsWith('.temp') || file.path.endsWith('.part') || file.path.endsWith('.ytdl')) {
+              try {
+                await file.delete();
+              } catch (_) {}
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> cancelDownload(String id) async {
     try {
         final task = state.firstWhere((t) => t.id == id);
         if (task.status == DownloadStatus.running && task.process != null) {
-          ProcessUtils.killProcessTree(task.process!.pid);
+          // Show cancelling state for UI feedback
+          _updateTask(id, status: DownloadStatus.cancelling);
+          await ProcessUtils.killProcessTree(task.process!.pid);
+          
+          final args = _taskArgs[id];
+          if (args != null) {
+            final destination = args['destination'] as String?;
+            if (destination != null) {
+              await _cleanupTempFiles(destination);
+            }
+          }
         }
         _updateTask(id, status: DownloadStatus.cancelled, completedAt: DateTime.now());
     } catch (_) {}
@@ -247,7 +280,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   void clearHistory() {
-     state = state.where((t) => t.status == DownloadStatus.running || t.status == DownloadStatus.pending).toList();
+     state = state.where((t) => t.status == DownloadStatus.running || t.status == DownloadStatus.pending || t.status == DownloadStatus.cancelling).toList();
   }
 
   final Map<String, Timer> _removalTimers = {};

@@ -37,13 +37,15 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     state = const DownloaderUpdateState(isUpdating: true, progress: 0.0);
 
     try {
-      final binDir = Directory(p.join(
-        Platform.environment['HOME'] ?? '',
-        '.local',
-        'share',
-        'onyxcore',
-        'bin',
-      ));
+      final binDir = Directory(
+        p.join(
+          Platform.environment['HOME'] ?? '',
+          '.local',
+          'share',
+          'onyxcore',
+          'bin',
+        ),
+      );
 
       if (!await binDir.exists()) {
         await binDir.create(recursive: true);
@@ -53,6 +55,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       await _downloadLatestRelease(
         apiUrl: 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest',
         assetName: 'yt-dlp_linux',
+        checksumAssetName: 'SHA2-256SUMS',
         savePath: p.join(binDir.path, 'yt-dlp'),
         progressWeight: 0.5,
         progressOffset: 0.0,
@@ -60,7 +63,8 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
       // Update gallery-dl
       await _downloadLatestRelease(
-        apiUrl: 'https://codeberg.org/api/v1/repos/mikf/gallery-dl/releases/latest',
+        apiUrl:
+            'https://codeberg.org/api/v1/repos/mikf/gallery-dl/releases/latest',
         assetName: 'gallery-dl.bin',
         savePath: p.join(binDir.path, 'gallery-dl'),
         progressWeight: 0.5,
@@ -70,13 +74,17 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       state = const DownloaderUpdateState(isUpdating: false, progress: 1.0);
     } catch (e) {
       state = DownloaderUpdateState(
-          isUpdating: false, progress: 0.0, error: e.toString());
+        isUpdating: false,
+        progress: 0.0,
+        error: e.toString(),
+      );
     }
   }
 
   Future<void> _downloadLatestRelease({
     required String apiUrl,
     required String assetName,
+    String? checksumAssetName,
     required String savePath,
     required double progressWeight,
     required double progressOffset,
@@ -115,8 +123,9 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         throw Exception('Failed to download asset: ${downloadRes.statusCode}');
       }
 
-      final contentLength =
-          downloadRes.contentLength > 0 ? downloadRes.contentLength : 1;
+      final contentLength = downloadRes.contentLength > 0
+          ? downloadRes.contentLength
+          : 1;
       int downloaded = 0;
 
       final file = File(savePath);
@@ -128,11 +137,46 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
         final subProgress = (downloaded / contentLength).clamp(0.0, 1.0);
         state = state.copyWith(
-            progress: progressOffset + (subProgress * progressWeight));
+          progress: progressOffset + (subProgress * progressWeight),
+        );
       }
 
       await sink.flush();
       await sink.close();
+
+      if (checksumAssetName != null) {
+        final checksumAsset = assets.firstWhere(
+          (a) => a['name'] == checksumAssetName,
+          orElse: () => null,
+        );
+        if (checksumAsset != null) {
+          final checksumUrl = checksumAsset['browser_download_url'] as String;
+          final checksumReq = await client.getUrl(Uri.parse(checksumUrl));
+          final checksumRes = await checksumReq.close();
+          if (checksumRes.statusCode == 200 || checksumRes.statusCode == 302) {
+            final sumsBody = await checksumRes.transform(utf8.decoder).join();
+            for (final line in sumsBody.split('\n')) {
+              if (line.contains(assetName)) {
+                final expectedHash = line.split(' ').first.trim();
+                final processResult = Process.runSync('sha256sum', [savePath]);
+                if (processResult.exitCode == 0) {
+                  final actualHash = (processResult.stdout as String)
+                      .split(' ')
+                      .first
+                      .trim();
+                  if (actualHash != expectedHash) {
+                    File(savePath).deleteSync();
+                    throw Exception(
+                      'Integrity verification failed for $assetName! Expected $expectedHash, got $actualHash',
+                    );
+                  }
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
 
       // chmod +x
       final chmodRes = Process.runSync('chmod', ['+x', savePath]);
@@ -147,4 +191,5 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
 final downloaderUpdateProvider =
     NotifierProvider<DownloaderUpdateNotifier, DownloaderUpdateState>(
-        DownloaderUpdateNotifier.new);
+      DownloaderUpdateNotifier.new,
+    );

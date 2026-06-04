@@ -3,6 +3,7 @@ import 'dart:io' as io;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
+import '../../services/download_history_database.dart';
 import 'download_task_provider.dart';
 
 class DownloadHistoryEntry {
@@ -85,107 +86,88 @@ class DownloadHistoryEntry {
 
 class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
   static const int _pageSize = 50;
-  List<DownloadHistoryEntry> _allEntries = [];
+  late final DownloadHistoryDatabase _db;
+  List<DownloadHistoryEntry> _currentEntries = [];
   int _loadedCount = 0;
 
   @override
   List<DownloadHistoryEntry> build() {
-    return _loadFromDisk();
+    _db = DownloadHistoryDatabase();
+    _db.init();
+    
+    // Register a dispose listener to close the DB if the provider is destroyed
+    ref.onDispose(() {
+      _db.dispose();
+    });
+
+    return _loadInitial();
   }
 
-  String get _historyFilePath {
-    final home = io.Platform.environment['HOME'] ?? '/tmp';
-    return '$home/.config/onyxcore/download_history.json';
-  }
+  bool get hasMore => _loadedCount < _db.getTotalCount();
+  int get totalEntries => _db.getTotalCount();
 
-  bool get hasMore => _loadedCount < _allEntries.length;
-  int get totalEntries => _allEntries.length;
-
-  List<DownloadHistoryEntry> _loadFromDisk() {
-    try {
-      final file = io.File(_historyFilePath);
-      if (file.existsSync()) {
-        final content = file.readAsStringSync();
-        final List<dynamic> jsonList = jsonDecode(content) as List<dynamic>;
-        _allEntries = jsonList
-            .map((e) => DownloadHistoryEntry.fromJson(e as Map<String, dynamic>))
-            .toList();
-        _allEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      }
-    } catch (e) {
-      _allEntries = [];
-    }
-
-    _loadedCount = _allEntries.length.clamp(0, _pageSize);
-    return _allEntries.take(_loadedCount).toList();
+  List<DownloadHistoryEntry> _loadInitial() {
+    _loadedCount = _pageSize;
+    _currentEntries = _db.getEntries(limit: _loadedCount, offset: 0);
+    return _currentEntries;
   }
 
   void loadMore() {
     if (!hasMore) return;
-    final newCount = (_loadedCount + _pageSize).clamp(0, _allEntries.length);
-    _loadedCount = newCount;
-    state = _allEntries.take(_loadedCount).toList();
+    final additional = _db.getEntries(limit: _pageSize, offset: _loadedCount);
+    _loadedCount += additional.length;
+    _currentEntries.addAll(additional);
+    state = List.from(_currentEntries);
   }
 
   void addEntry(DownloadTask task) {
     final entry = DownloadHistoryEntry.fromTask(task);
-    _allEntries.insert(0, entry);
+    _db.insertEntry(entry);
+    
+    // Update local state without full reload if it's already at top
+    _currentEntries.insert(0, entry);
     _loadedCount++;
-    state = _allEntries.take(_loadedCount).toList();
-    _saveToDisk();
+    state = List.from(_currentEntries);
   }
 
   DownloadHistoryEntry? getEntry(String id) {
-    try {
-      return _allEntries.firstWhere((e) => e.id == id);
-    } catch (_) {
-      return null;
-    }
+    return _db.getEntry(id);
   }
 
   void clearAll() {
-    _allEntries.clear();
+    _db.clearAll();
+    _currentEntries.clear();
     _loadedCount = 0;
     state = [];
-    _saveToDisk();
   }
 
   void deleteEntries(Set<String> ids) {
-    _allEntries.removeWhere((e) => ids.contains(e.id));
-    _loadedCount = (_allEntries.length < _loadedCount) ? _allEntries.length : _loadedCount;
-    state = _allEntries.take(_loadedCount).toList();
-    _saveToDisk();
+    _db.deleteEntries(ids);
+    _currentEntries.removeWhere((e) => ids.contains(e.id));
+    _loadedCount -= ids.length;
+    if (_loadedCount < 0) _loadedCount = 0;
+    state = List.from(_currentEntries);
   }
 
   void deleteEntry(String id) {
     deleteEntries({id});
   }
 
-
-  void _saveToDisk() {
-    try {
-      final file = io.File(_historyFilePath);
-      file.parent.createSync(recursive: true);
-      final jsonList = _allEntries.map((e) => e.toJson()).toList();
-      file.writeAsStringSync(jsonEncode(jsonList));
-    } catch (e) {
-      // Silently fail
-    }
-  }
-
   int get historyFileSize {
-    try {
-      final file = io.File(_historyFilePath);
-      if (file.existsSync()) return file.lengthSync();
-    } catch (_) {}
-    return 0;
+    return _db.fileSize;
   }
 
   void deleteFiltered(DownloadHistoryFilter filter) {
-    _allEntries.removeWhere((entry) => _matchesFilter(entry, filter));
-    _loadedCount = (_allEntries.length < _loadedCount) ? _allEntries.length : _loadedCount;
-    state = _allEntries.take(_loadedCount).toList();
-    _saveToDisk();
+    // Note: To truly delete filtered in SQLite efficiently we would translate 
+    // the filter to a DELETE query. For now, since deleteFiltered requires 
+    // examining all items, we can fetch all, filter them in Dart, and delete by ID.
+    // However, if the db gets large, we might want to do this in batches.
+    
+    // As a simple implementation for now: fetch all IDs that match and delete them
+    final allItems = _db.getEntries(limit: 9999999);
+    final toDelete = allItems.where((entry) => _matchesFilter(entry, filter)).map((e) => e.id).toSet();
+    
+    deleteEntries(toDelete);
   }
 
   static bool _matchesFilter(DownloadHistoryEntry entry, DownloadHistoryFilter filter) {

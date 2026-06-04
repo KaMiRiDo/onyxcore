@@ -34,7 +34,9 @@ class CountIndicator extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: disabled ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.7),
+        color: disabled
+            ? Colors.black.withOpacity(0.3)
+            : Colors.black.withOpacity(0.7),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -58,7 +60,7 @@ class CountIndicator extends StatelessWidget {
 
 class CopyUrlButton extends StatefulWidget {
   final String url;
-  
+
   const CopyUrlButton({super.key, required this.url});
 
   @override

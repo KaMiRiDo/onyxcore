@@ -35,6 +35,15 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
                 child: Focus(
                   onKeyEvent: (node, event) {
                     if (event is KeyDownEvent) {
+                      if (event.logicalKey == LogicalKeyboardKey.keyA &&
+                          HardwareKeyboard.instance.isControlPressed) {
+                        _urlController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: _urlController.text.length,
+                        );
+                        return KeyEventResult.handled;
+                      }
+
                       if (event.logicalKey == LogicalKeyboardKey.enter &&
                           HardwareKeyboard.instance.isControlPressed) {
                         _analyzeUrls();
@@ -82,7 +91,6 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
                   ),
                 ),
               ),
-
             ],
           ),
           const SizedBox(height: 12),
@@ -106,69 +114,69 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-              IgnorePointer(
-                ignoring: hasItems,
-                child: Opacity(
-                  opacity: hasItems ? 0.4 : 1.0,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _importList(),
-                    icon: const Icon(Icons.upload_file, size: 16),
-                    label: const Text('Import'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.surfaceBase,
-                      foregroundColor: Colors.white,
-                      fixedSize: const Size.fromHeight(36),
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: const BorderSide(color: Colors.white10),
+                  IgnorePointer(
+                    ignoring: hasItems,
+                    child: Opacity(
+                      opacity: hasItems ? 0.4 : 1.0,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _importList(),
+                        icon: const Icon(Icons.upload_file, size: 16),
+                        label: const Text('Import'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.surfaceBase,
+                          foregroundColor: Colors.white,
+                          fixedSize: const Size.fromHeight(36),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: const BorderSide(color: Colors.white10),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                height: 32,
-                width: 140,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      AppColors.magenta,
-                      AppColors.violet,
-                      AppColors.indigo,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _analyzeUrls,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    fixedSize: const Size(140, 32),
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 32,
+                    width: 140,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          AppColors.magenta,
+                          AppColors.violet,
+                          AppColors.indigo,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          child: _JugglingBallsLoader(),
-                        )
-                      : Text(
-                          'Fetch',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _analyzeUrls,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        fixedSize: const Size(140, 32),
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                ),
-              ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 24,
+                              child: _JugglingBallsLoader(),
+                            )
+                          : Text(
+                              'Fetch',
+                              style: GoogleFonts.manrope(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                    ),
+                  ),
                 ],
               ),
             ],

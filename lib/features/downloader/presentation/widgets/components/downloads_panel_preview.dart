@@ -104,9 +104,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                             const FallbackThumb(),
                                       )
                                     : const FallbackThumb(),
-                                if (item.isSingle &&
-                                    item.first.isVideo &&
-                                    item.first.duration != null)
+                                if (item.isSingle && item.first.isVideo)
                                   Positioned(
                                     bottom: 8,
                                     right: 8,
@@ -120,7 +118,11 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        _formatDuration(item.first.duration!),
+                                        item.first.duration != null
+                                            ? _formatDuration(
+                                                item.first.duration!,
+                                              )
+                                            : '--:--',
                                         style: GoogleFonts.manrope(
                                           color: Colors.white,
                                           fontSize: 10,
@@ -175,7 +177,9 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   ],
                                   Text(
                                     !item.isSingle
-                                        ? _formatBytes(item.totalFilesize)
+                                        ? _formatBytes(
+                                            _getGroupBytes(item, config),
+                                          )
                                         : (_getFileSize(item.first, config) ??
                                               'Unknown size'),
                                     style: GoogleFonts.manrope(
@@ -501,10 +505,17 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   children: [
                                     SizedBox(
                                       width: 140,
-                                      child: _buildGroupFilterDropdown(
-                                        config,
-                                        group,
-                                      ),
+                                      child: group.first.isPlaylist
+                                          ? _buildFormatDropdown(
+                                              group.first,
+                                              config,
+                                              groupIndex,
+                                              group: group,
+                                            )
+                                          : _buildGroupFilterDropdown(
+                                              config,
+                                              group,
+                                            ),
                                     ),
                                     ElevatedButton(
                                       onPressed: () {
@@ -623,8 +634,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                 ),
                                               )
                                             : const FallbackThumb(),
-                                        if (currentItem.isVideo &&
-                                            currentItem.duration != null)
+                                        if (currentItem.isVideo)
                                           Positioned(
                                             bottom: 8,
                                             right: 8,
@@ -642,9 +652,11 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                     BorderRadius.circular(4),
                                               ),
                                               child: Text(
-                                                _formatDuration(
-                                                  currentItem.duration!,
-                                                ),
+                                                currentItem.duration != null
+                                                    ? _formatDuration(
+                                                        currentItem.duration!,
+                                                      )
+                                                    : '--:--',
                                                 style: GoogleFonts.manrope(
                                                   color: Colors.white,
                                                   fontSize: 10,

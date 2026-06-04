@@ -40,7 +40,7 @@ class MediaFormat {
               : 'audio only'),
       videoCodec: json['vcodec']?.toString(),
       audioCodec: json['acodec']?.toString(),
-      filesize: json['filesize'] as int?,
+      filesize: json['filesize'] as int? ?? json['filesize_approx'] as int?,
       formatNote: json['format_note']?.toString(),
       formatString: json['format']?.toString() ?? '',
     );
@@ -76,6 +76,8 @@ class MediaInfo {
   final int? height;
   final int? filesize;
   final String originalUrl;
+  final bool isError;
+  final String? errorMessage;
 
   const MediaInfo({
     required this.id,
@@ -93,6 +95,8 @@ class MediaInfo {
     this.height,
     this.filesize,
     this.originalUrl = '',
+    this.isError = false,
+    this.errorMessage,
   });
 
   factory MediaInfo.fromJson(Map<String, dynamic> json, {String originalUrl = ''}) {
@@ -146,7 +150,7 @@ class MediaInfo {
       title: parsedTitle,
       thumbnail: json['thumbnail']?.toString() ?? (json['thumbnails'] is List && (json['thumbnails'] as List).isNotEmpty ? (json['thumbnails'] as List).last['url']?.toString() : null),
       duration: json['duration'] as int?,
-      filesize: json['filesize'] as int? ?? json['file_size'] as int? ?? json['size'] as int?,
+      filesize: json['filesize'] as int? ?? json['filesize_approx'] as int? ?? json['file_size'] as int? ?? json['size'] as int?,
       extractor: json['extractor']?.toString() ?? json['category']?.toString(),
       formats: parsedFormats,
       isVideo: isVid,

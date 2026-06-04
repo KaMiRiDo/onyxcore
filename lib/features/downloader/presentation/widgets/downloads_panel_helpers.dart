@@ -10,7 +10,8 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
 
   String _formatResolution(String res) {
     if (res.isEmpty) return 'Unknown';
-    if (res == 'audio only' || res.toLowerCase() == 'audio') return 'Audio Only';
+    if (res == 'audio only' || res.toLowerCase() == 'audio')
+      return 'Audio Only';
 
     final parts = res.toLowerCase().split('x');
     if (parts.length == 2) {
@@ -32,7 +33,8 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   }
 
   int _getHeight(String res) {
-    if (res.isEmpty || res == 'audio only' || res.toLowerCase() == 'audio') return 0;
+    if (res.isEmpty || res == 'audio only' || res.toLowerCase() == 'audio')
+      return 0;
     final parts = res.toLowerCase().split('x');
     if (parts.length == 2) {
       return int.tryParse(parts[1]) ?? 0;
@@ -56,22 +58,27 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   String? _getFileSize(MediaInfo item, DownloadConfig config) {
     int? bytes;
     final currentFormat = config.itemFormats[item.id] ?? config.format;
-    
-    if (config.mode == DownloadMode.mute || config.mode == DownloadMode.normal) {
+
+    if (config.mode == DownloadMode.mute ||
+        config.mode == DownloadMode.normal) {
       final formatId = currentFormat?.formatId;
       if (formatId != null) {
-        final format = item.formats.where((f) => f.formatId == formatId).firstOrNull;
+        final format = item.formats
+            .where((f) => f.formatId == formatId)
+            .firstOrNull;
         bytes = format?.filesize;
       }
     } else if (config.mode == DownloadMode.audioOnly) {
-      final audioFormat = item.formats.where((f) => f.resolution == 'audio only').firstOrNull;
+      final audioFormat = item.formats
+          .where((f) => f.resolution == 'audio only')
+          .firstOrNull;
       bytes = audioFormat?.filesize;
     }
 
     bytes ??= item.filesize;
 
     if (bytes != null && bytes > 0) {
-      return _formatBytes(bytes);
+      return StringUtils.formatBytes(bytes);
     }
     return null;
   }
@@ -79,33 +86,36 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   int _getGroupBytes(MediaGroup group, DownloadConfig config) {
     int total = 0;
     for (final item in group.items) {
-      if (config.groupFilter == GroupDownloadType.images && item.isVideo) continue;
-      if (config.groupFilter == GroupDownloadType.videos && !item.isVideo) continue;
-      
+      if (item.isProfile || item.isPlaylist) continue;
+      if (config.groupFilter == GroupDownloadType.images && item.isVideo)
+        continue;
+      if (config.groupFilter == GroupDownloadType.videos && !item.isVideo)
+        continue;
+
       int? bytes;
       final currentFormat = config.itemFormats[item.id] ?? config.format;
-      
-      if (config.mode == DownloadMode.mute || config.mode == DownloadMode.normal) {
+
+      if (config.mode == DownloadMode.mute ||
+          config.mode == DownloadMode.normal) {
         final formatId = currentFormat?.formatId;
         if (formatId != null) {
-          final format = item.formats.where((f) => f.formatId == formatId).firstOrNull;
+          final format = item.formats
+              .where((f) => f.formatId == formatId)
+              .firstOrNull;
           bytes = format?.filesize;
         }
       } else if (config.mode == DownloadMode.audioOnly) {
-        final audioFormat = item.formats.where((f) => f.resolution == 'audio only').firstOrNull;
+        final audioFormat = item.formats
+            .where((f) => f.resolution == 'audio only')
+            .firstOrNull;
         bytes = audioFormat?.filesize;
       }
-      
+
       bytes ??= item.filesize;
       total += bytes ?? 0;
     }
     return total;
   }
 
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
+  String _formatBytes(int bytes) => StringUtils.formatBytes(bytes);
 }

@@ -15,10 +15,12 @@ class DownloadHistoryDetailView extends ConsumerStatefulWidget {
   const DownloadHistoryDetailView({super.key});
 
   @override
-  ConsumerState<DownloadHistoryDetailView> createState() => _DownloadHistoryDetailViewState();
+  ConsumerState<DownloadHistoryDetailView> createState() =>
+      _DownloadHistoryDetailViewState();
 }
 
-class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetailView> {
+class _DownloadHistoryDetailViewState
+    extends ConsumerState<DownloadHistoryDetailView> {
   bool _logsExpanded = false;
   bool _isCopied = false;
 
@@ -28,10 +30,15 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
     if (entryId == null) {
       return const SizedBox();
     }
-    
+
     final entry = ref.watch(downloadHistoryProvider.notifier).getEntry(entryId);
     if (entry == null) {
-      return Center(child: Text('History not found', style: GoogleFonts.manrope(color: Colors.white)));
+      return Center(
+        child: Text(
+          'History not found',
+          style: GoogleFonts.manrope(color: Colors.white),
+        ),
+      );
     }
 
     final isSuccess = entry.statusName.toLowerCase() == 'completed';
@@ -60,8 +67,10 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
             children: [
               InkWell(
                 onTap: () {
-                  ref.read(selectedDownloadHistoryIdProvider.notifier).state = null;
-                  ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.history;
+                  ref.read(selectedDownloadHistoryIdProvider.notifier).state =
+                      null;
+                  ref.read(downloadsPanelViewProvider.notifier).state =
+                      DownloadsPanelView.history;
                 },
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
@@ -85,12 +94,20 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.error.withOpacity(0.7)),
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 20,
+                  color: AppColors.error.withOpacity(0.7),
+                ),
                 tooltip: 'Delete History',
                 onPressed: () {
-                  ref.read(downloadHistoryProvider.notifier).deleteEntry(entryId);
-                  ref.read(selectedDownloadHistoryIdProvider.notifier).state = null;
-                  ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.history;
+                  ref
+                      .read(downloadHistoryProvider.notifier)
+                      .deleteEntry(entryId);
+                  ref.read(selectedDownloadHistoryIdProvider.notifier).state =
+                      null;
+                  ref.read(downloadsPanelViewProvider.notifier).state =
+                      DownloadsPanelView.history;
                 },
               ),
               Tooltip(
@@ -98,8 +115,10 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                 waitDuration: const Duration(milliseconds: 500),
                 child: InkWell(
                   onTap: () {
-                    ref.read(selectedDownloadHistoryIdProvider.notifier).state = null;
-                    ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+                    ref.read(selectedDownloadHistoryIdProvider.notifier).state =
+                        null;
+                    ref.read(downloadsPanelViewProvider.notifier).state =
+                        DownloadsPanelView.tasks;
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
@@ -163,18 +182,25 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                           _buildStatusBadge(entry.statusName),
                         ],
                       ),
-                      if (entry.errorMessage != null && entry.errorMessage!.isNotEmpty) ...[
+                      if (entry.errorMessage != null &&
+                          entry.errorMessage!.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AppColors.error.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.error.withOpacity(0.2)),
+                            border: Border.all(
+                              color: AppColors.error.withOpacity(0.2),
+                            ),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.error_outline_rounded, size: 16, color: AppColors.error),
+                              const Icon(
+                                Icons.error_outline_rounded,
+                                size: 16,
+                                color: AppColors.error,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -193,9 +219,9 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Path Visualization
                 Text(
                   'FLOW',
@@ -217,8 +243,8 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildPathItem(
-                        Icons.link_rounded, 
-                        'Source URL', 
+                        Icons.link_rounded,
+                        'Source URL',
                         entry.url,
                         true,
                         isUrl: true,
@@ -238,20 +264,35 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                         },
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(left: 10, top: 4, bottom: 4),
-                        child: Icon(Icons.south_rounded, size: 14, color: Colors.white.withOpacity(0.1)),
+                        padding: const EdgeInsets.only(
+                          left: 10,
+                          top: 4,
+                          bottom: 4,
+                        ),
+                        child: Icon(
+                          Icons.south_rounded,
+                          size: 14,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
                       ),
                       _buildPathItem(
-                        Icons.download_for_offline_rounded, 
-                        'Destination', 
+                        Icons.download_for_offline_rounded,
+                        'Destination',
                         entry.destination,
-                        File(entry.destination).existsSync() || Directory(entry.destination).existsSync(),
+                        File(entry.destination).existsSync() ||
+                            Directory(entry.destination).existsSync(),
                         onTap: () {
-                          final dir = Directory(entry.destination).existsSync() ? entry.destination : p.dirname(entry.destination);
+                          final dir = Directory(entry.destination).existsSync()
+                              ? entry.destination
+                              : p.dirname(entry.destination);
                           if (Directory(dir).existsSync()) {
-                            ref.read(navigationProvider.notifier).navigateTo(dir);
+                            ref
+                                .read(navigationProvider.notifier)
+                                .navigateTo(dir);
                             if (File(entry.destination).existsSync()) {
-                               ref.read(selectionProvider.notifier).selectMultiple([entry.destination]);
+                              ref
+                                  .read(selectionProvider.notifier)
+                                  .selectMultiple([entry.destination]);
                             }
                           }
                         },
@@ -264,7 +305,7 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                   int size = 0;
                   int itemCount = 0;
                   List<String> processedFilePaths = [];
-                  
+
                   // Parse logs to find downloaded files
                   for (final log in entry.logs) {
                     if (log.startsWith('/') || log.startsWith(r'C:\')) {
@@ -274,12 +315,14 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                       }
                     }
                   }
-                  
+
                   itemCount = processedFilePaths.length;
                   for (final path in processedFilePaths) {
                     final f = File(path);
                     if (f.existsSync()) {
-                      try { size += f.lengthSync(); } catch (_) {}
+                      try {
+                        size += f.lengthSync();
+                      } catch (_) {}
                     }
                   }
 
@@ -300,7 +343,9 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.02),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.04)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.04),
+                          ),
                         ),
                         child: ListView.builder(
                           padding: EdgeInsets.zero,
@@ -309,41 +354,63 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                             final path = processedFilePaths[index];
                             final f = File(path);
                             final exists = f.existsSync();
-                            
+
                             return MouseRegion(
                               cursor: SystemMouseCursors.click,
                               child: GestureDetector(
                                 onTap: () {
                                   final dir = p.dirname(path);
                                   if (Directory(dir).existsSync()) {
-                                    ref.read(navigationProvider.notifier).navigateTo(dir);
+                                    ref
+                                        .read(navigationProvider.notifier)
+                                        .navigateTo(dir);
                                     if (exists) {
-                                      ref.read(selectionProvider.notifier).selectMultiple([path]);
+                                      ref
+                                          .read(selectionProvider.notifier)
+                                          .selectMultiple([path]);
                                     }
                                   }
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
                                   decoration: BoxDecoration(
-                                    border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5)),
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.white.withOpacity(0.04),
+                                        width: 0.5,
+                                      ),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
                                       Icon(
-                                        Icons.insert_drive_file_rounded, 
-                                        size: 16, 
-                                        color: exists ? AppColors.violet.withOpacity(0.6) : Colors.white24
+                                        Icons.insert_drive_file_rounded,
+                                        size: 16,
+                                        color: exists
+                                            ? AppColors.violet.withOpacity(0.6)
+                                            : Colors.white24,
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
                                           p.basename(path),
                                           style: GoogleFonts.manrope(
-                                            color: exists ? Colors.white.withOpacity(0.8) : Colors.white54,
+                                            color: exists
+                                                ? Colors.white.withOpacity(0.8)
+                                                : Colors.white54,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,
-                                            decoration: exists ? TextDecoration.underline : TextDecoration.lineThrough,
-                                            decorationColor: exists ? AppColors.violet.withOpacity(0.5) : Colors.white24,
+                                            decoration: exists
+                                                ? TextDecoration.underline
+                                                : TextDecoration.lineThrough,
+                                            decorationColor: exists
+                                                ? AppColors.violet.withOpacity(
+                                                    0.5,
+                                                  )
+                                                : Colors.white24,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -353,7 +420,9 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                                         Text(
                                           'Deleted',
                                           style: GoogleFonts.manrope(
-                                            color: Colors.redAccent.withOpacity(0.5),
+                                            color: Colors.redAccent.withOpacity(
+                                              0.5,
+                                            ),
                                             fontSize: 10,
                                             fontWeight: FontWeight.w800,
                                           ),
@@ -385,40 +454,46 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.03),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.05),
+                        ),
                       ),
                       child: Row(
                         children: [
                           Expanded(
                             child: _buildStatItem(
-                              Icons.timer_outlined, 
-                              'Duration', 
-                              entry.duration != null ? _formatDuration(entry.duration!) : 'N/A'
+                              Icons.timer_outlined,
+                              'Duration',
+                              entry.duration != null
+                                  ? _formatDuration(entry.duration!)
+                                  : 'N/A',
                             ),
                           ),
                           _buildStatDivider(),
                           Expanded(
                             child: _buildStatItem(
-                              Icons.inventory_2_outlined, 
-                              'Items', 
-                              '$itemCount'
+                              Icons.inventory_2_outlined,
+                              'Items',
+                              '$itemCount',
                             ),
                           ),
                           _buildStatDivider(),
                           Expanded(
                             child: _buildStatItem(
-                              Icons.sd_storage_outlined, 
-                              'Size', 
-                              StringUtils.formatBytes(size)
+                              Icons.sd_storage_outlined,
+                              'Size',
+                              StringUtils.formatBytes(size),
                             ),
                           ),
-                          if (entry.duration != null && entry.duration!.inSeconds > 0 && size > 0) ...[
+                          if (entry.duration != null &&
+                              entry.duration!.inSeconds > 0 &&
+                              size > 0) ...[
                             _buildStatDivider(),
                             Expanded(
                               child: _buildStatItem(
-                                Icons.speed_outlined, 
-                                'Speed', 
-                                '${StringUtils.formatBytes((size / entry.duration!.inSeconds).round())}/s'
+                                Icons.speed_outlined,
+                                'Speed',
+                                '${StringUtils.formatBytes((size / entry.duration!.inSeconds).round())}/s',
                               ),
                             ),
                           ],
@@ -441,7 +516,8 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                 ),
                 const SizedBox(height: 12),
                 _buildTimelineItem('Created', entry.createdAt),
-                if (entry.completedAt != null) _buildTimelineItem('Finished', entry.completedAt!),
+                if (entry.completedAt != null)
+                  _buildTimelineItem('Finished', entry.completedAt!),
                 const SizedBox(height: 24),
 
                 // Logs
@@ -455,12 +531,20 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                         color: Colors.white.withOpacity(0.03),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _logsExpanded ? AppColors.violet.withOpacity(0.2) : Colors.white.withOpacity(0.04)
+                          color: _logsExpanded
+                              ? AppColors.violet.withOpacity(0.2)
+                              : Colors.white.withOpacity(0.04),
                         ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.terminal_rounded, size: 18, color: _logsExpanded ? AppColors.violet : AppColors.textMuted),
+                          Icon(
+                            Icons.terminal_rounded,
+                            size: 18,
+                            color: _logsExpanded
+                                ? AppColors.violet
+                                : AppColors.textMuted,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -486,7 +570,9 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                             ),
                           ),
                           Icon(
-                            _logsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                            _logsExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
                             color: Colors.white.withOpacity(0.3),
                           ),
                         ],
@@ -501,7 +587,9 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withOpacity(0.04)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.04),
+                        ),
                       ),
                       child: ListView.builder(
                         itemCount: entry.logs.length,
@@ -597,10 +685,25 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
     );
   }
 
-  Widget _buildPathItem(IconData icon, String label, String path, bool exists, {bool isUrl = false, VoidCallback? onTap, bool isCopied = false, VoidCallback? onCopy}) {
+  Widget _buildPathItem(
+    IconData icon,
+    String label,
+    String path,
+    bool exists, {
+    bool isUrl = false,
+    VoidCallback? onTap,
+    bool isCopied = false,
+    VoidCallback? onCopy,
+  }) {
     final content = Row(
       children: [
-        Icon(icon, size: 20, color: exists ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.05)),
+        Icon(
+          icon,
+          size: 20,
+          color: exists
+              ? Colors.white.withOpacity(0.2)
+              : Colors.white.withOpacity(0.05),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -617,12 +720,16 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
               Text(
                 StringUtils.truncateMiddle(path, maxLength: 60),
                 style: GoogleFonts.manrope(
-                  color: exists ? (onTap != null ? AppColors.violet : Colors.white.withOpacity(0.7)) : Colors.white.withOpacity(0.2),
+                  color: exists
+                      ? (onTap != null
+                            ? AppColors.violet
+                            : Colors.white.withOpacity(0.7))
+                      : Colors.white.withOpacity(0.2),
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  decoration: exists 
-                    ? (onTap != null ? TextDecoration.underline : null) 
-                    : TextDecoration.lineThrough,
+                  decoration: exists
+                      ? (onTap != null ? TextDecoration.underline : null)
+                      : TextDecoration.lineThrough,
                   decorationColor: AppColors.violet.withOpacity(0.5),
                 ),
               ),
@@ -634,7 +741,9 @@ class _DownloadHistoryDetailViewState extends ConsumerState<DownloadHistoryDetai
             icon: Icon(
               isCopied ? Icons.check_rounded : Icons.copy_rounded,
               size: 16,
-              color: isCopied ? Colors.greenAccent : Colors.white.withOpacity(0.5),
+              color: isCopied
+                  ? Colors.greenAccent
+                  : Colors.white.withOpacity(0.5),
             ),
             onPressed: onCopy,
             tooltip: isCopied ? 'Copied!' : 'Copy URL',

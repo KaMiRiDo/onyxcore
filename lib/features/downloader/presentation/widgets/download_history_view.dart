@@ -14,7 +14,8 @@ class DownloadHistoryView extends ConsumerStatefulWidget {
   const DownloadHistoryView({super.key});
 
   @override
-  ConsumerState<DownloadHistoryView> createState() => _DownloadHistoryViewState();
+  ConsumerState<DownloadHistoryView> createState() =>
+      _DownloadHistoryViewState();
 }
 
 class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
@@ -72,14 +73,12 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
               children: [
                 // Header
                 _buildHeader(hasSelection, selection),
-                
+
                 // Toolbar
                 _buildToolbar(),
-                
+
                 Expanded(
-                  child: _isFiltering 
-                    ? _buildLoader()
-                    : _buildList(selection),
+                  child: _isFiltering ? _buildLoader() : _buildList(selection),
                 ),
               ],
             ),
@@ -95,8 +94,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
               _buildFilterOverlay(),
             ],
 
-            if (_showClearConfirm)
-              _buildClearAllConfirmOverlay(),
+            if (_showClearConfirm) _buildClearAllConfirmOverlay(),
 
             if (_showDeleteSelectedConfirm)
               _buildDeleteSelectedConfirmOverlay(),
@@ -147,7 +145,8 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
             waitDuration: const Duration(milliseconds: 500),
             child: InkWell(
               onTap: () {
-                ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+                ref.read(downloadsPanelViewProvider.notifier).state =
+                    DownloadsPanelView.tasks;
               },
               borderRadius: BorderRadius.circular(8),
               child: Padding(
@@ -176,35 +175,60 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.02),
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5)),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5),
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.history_rounded, size: 12, color: Colors.white.withOpacity(0.2)),
+          Icon(
+            Icons.history_rounded,
+            size: 12,
+            color: Colors.white.withOpacity(0.2),
+          ),
           const SizedBox(width: 8),
           Text(
             '$totalCount Tasks',
-            style: GoogleFonts.manrope(color: Colors.white.withOpacity(0.4), fontSize: 11, fontWeight: FontWeight.w600),
+            style: GoogleFonts.manrope(
+              color: Colors.white.withOpacity(0.4),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text('•', style: TextStyle(color: Colors.white.withOpacity(0.1), fontSize: 10)),
+            child: Text(
+              '•',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.1),
+                fontSize: 10,
+              ),
+            ),
           ),
           Text(
             totalSize,
-            style: GoogleFonts.manrope(color: Colors.white.withOpacity(0.3), fontSize: 11, fontWeight: FontWeight.w500),
+            style: GoogleFonts.manrope(
+              color: Colors.white.withOpacity(0.3),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const Spacer(),
           if (isFiltered)
             IconButton(
               onPressed: () {
-                ref.read(downloadHistoryFilterProvider.notifier).state = const DownloadHistoryFilter();
+                ref.read(downloadHistoryFilterProvider.notifier).state =
+                    const DownloadHistoryFilter();
                 setState(() {
                   _tempFilter = const DownloadHistoryFilter();
                   _showFilterBox = false;
                 });
               },
-              icon: Icon(Icons.close_rounded, size: 14, color: AppColors.error.withOpacity(0.6)),
+              icon: Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: AppColors.error.withOpacity(0.6),
+              ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               tooltip: 'Clear Filter',
@@ -225,18 +249,32 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     );
   }
 
-  Widget _buildToolButton({required IconData icon, required bool active, required VoidCallback onTap}) {
+  Widget _buildToolButton({
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: active ? AppColors.violet.withOpacity(0.2) : Colors.transparent,
+          color: active
+              ? AppColors.violet.withOpacity(0.2)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: active ? AppColors.violet.withOpacity(0.3) : Colors.transparent),
+          border: Border.all(
+            color: active
+                ? AppColors.violet.withOpacity(0.3)
+                : Colors.transparent,
+          ),
         ),
-        child: Icon(icon, size: 14, color: active ? AppColors.violet : Colors.white.withOpacity(0.4)),
+        child: Icon(
+          icon,
+          size: 14,
+          color: active ? AppColors.violet : Colors.white.withOpacity(0.4),
+        ),
       ),
     );
   }
@@ -249,7 +287,8 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
       child: Focus(
         autofocus: true,
         onKeyEvent: (node, event) {
-          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
             setState(() => _showFilterBox = false);
             return KeyEventResult.handled;
           }
@@ -259,96 +298,131 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
           borderRadius: BorderRadius.circular(16),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            width: 280,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 40, spreadRadius: -10)],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _SimpleCalendar(
-                  selectedDates: _tempFilter.selectedDates ?? {},
-                  availableDates: availableDates,
-                  onDatesChanged: (dates) => setState(() => _tempFilter = _tempFilter.copyWith(selectedDates: dates)),
-                ),
-                const SizedBox(height: 16),
-                _buildStatusDropdown(
-                  _tempFilter.status ?? 'All', 
-                  (val) => setState(() => _tempFilter = _tempFilter.copyWith(status: val))
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => setState(() => _showFilterBox = false),
-                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
-                        child: Text('CANCEL', style: GoogleFonts.manrope(color: Colors.white30, fontSize: 11, fontWeight: FontWeight.bold)),
+            child: Container(
+              width: 280,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.03),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 40,
+                    spreadRadius: -10,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _SimpleCalendar(
+                    selectedDates: _tempFilter.selectedDates ?? {},
+                    availableDates: availableDates,
+                    onDatesChanged: (dates) => setState(
+                      () => _tempFilter = _tempFilter.copyWith(
+                        selectedDates: dates,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Container(
-                        height: 36,
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.violet.withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildStatusDropdown(
+                    _tempFilter.status ?? 'All',
+                    (val) => setState(
+                      () => _tempFilter = _tempFilter.copyWith(status: val),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () =>
+                              setState(() => _showFilterBox = false),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text(
+                            'CANCEL',
+                            style: GoogleFonts.manrope(
+                              color: Colors.white30,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
+                          ),
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () async {
-                              setState(() {
-                                _isFiltering = true;
-                                _showFilterBox = false;
-                              });
-                              await Future.delayed(const Duration(milliseconds: 300));
-                              ref.read(downloadHistoryFilterProvider.notifier).state = _tempFilter;
-                              if (mounted) setState(() => _isFiltering = false);
-                            },
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          height: 36,
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.primaryGradient,
                             borderRadius: BorderRadius.circular(10),
-                            child: Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.filter_list_rounded, color: Colors.white, size: 14),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'FILTER',
-                                    style: GoogleFonts.manrope(
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.violet.withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () async {
+                                setState(() {
+                                  _isFiltering = true;
+                                  _showFilterBox = false;
+                                });
+                                await Future.delayed(
+                                  const Duration(milliseconds: 300),
+                                );
+                                ref
+                                        .read(
+                                          downloadHistoryFilterProvider
+                                              .notifier,
+                                        )
+                                        .state =
+                                    _tempFilter;
+                                if (mounted)
+                                  setState(() => _isFiltering = false);
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: Center(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.filter_list_rounded,
                                       color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.0,
+                                      size: 14,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'FILTER',
+                                      style: GoogleFonts.manrope(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -386,7 +460,9 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                color: isSelected ? Colors.white : Colors.white.withOpacity(0.8),
+                color: isSelected
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.8),
               ),
             ),
           ),
@@ -407,7 +483,11 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
               value,
               style: GoogleFonts.manrope(color: Colors.white, fontSize: 11),
             ),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white24),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 16,
+              color: Colors.white24,
+            ),
           ],
         ),
       ),
@@ -424,14 +504,19 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
             height: 40,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.violet.withOpacity(0.5)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.violet.withOpacity(0.5),
+              ),
               backgroundColor: Colors.white.withOpacity(0.05),
             ),
           ),
           const SizedBox(height: 16),
           Text(
             'Filtering history...',
-            style: GoogleFonts.manrope(color: Colors.white.withOpacity(0.3), fontSize: 13),
+            style: GoogleFonts.manrope(
+              color: Colors.white.withOpacity(0.3),
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -445,48 +530,51 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     return Column(
       children: [
         Expanded(
-          child: history.isEmpty 
-            ? _buildEmptyState() 
-            : ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.only(bottom: 100),
-                itemCount: history.length,
-                itemBuilder: (context, index) {
-                  final entry = history[index];
-                  final prevEntry = index > 0 ? history[index - 1] : null;
-                  final isNewDay = prevEntry == null || 
-                      entry.createdAt.day != prevEntry.createdAt.day ||
-                      entry.createdAt.month != prevEntry.createdAt.month ||
-                      entry.createdAt.year != prevEntry.createdAt.year;
+          child: history.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.only(bottom: 100),
+                  itemCount: history.length,
+                  itemBuilder: (context, index) {
+                    final entry = history[index];
+                    final prevEntry = index > 0 ? history[index - 1] : null;
+                    final isNewDay =
+                        prevEntry == null ||
+                        entry.createdAt.day != prevEntry.createdAt.day ||
+                        entry.createdAt.month != prevEntry.createdAt.month ||
+                        entry.createdAt.year != prevEntry.createdAt.year;
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (isNewDay)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                          child: Text(
-                            _formatDate(entry.createdAt),
-                            style: GoogleFonts.manrope(
-                              color: Colors.white.withOpacity(0.2),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isNewDay)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                            child: Text(
+                              _formatDate(entry.createdAt),
+                              style: GoogleFonts.manrope(
+                                color: Colors.white.withOpacity(0.2),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                              ),
                             ),
                           ),
-                        ),
-                      _buildHistoryItem(context, entry, selection),
-                    ],
-                  );
-                },
-              ),
+                        _buildHistoryItem(context, entry, selection),
+                      ],
+                    );
+                  },
+                ),
         ),
         // Bottom Actions
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.black26,
-            border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+            border: Border(
+              top: BorderSide(color: Colors.white.withOpacity(0.05)),
+            ),
           ),
           child: Row(
             children: [
@@ -497,7 +585,8 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                     label: 'Delete Selected',
                     icon: Icons.delete_outline_rounded,
                     color: AppColors.error,
-                    onPressed: () => setState(() => _showDeleteSelectedConfirm = true),
+                    onPressed: () =>
+                        setState(() => _showDeleteSelectedConfirm = true),
                   ),
                 )
               else
@@ -526,13 +615,17 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isFilterActive ? Icons.filter_list_off_rounded : Icons.history_rounded,
+            isFilterActive
+                ? Icons.filter_list_off_rounded
+                : Icons.history_rounded,
             size: 48,
             color: Colors.white.withOpacity(0.05),
           ),
           const SizedBox(height: 16),
           Text(
-            isFilterActive ? 'No downloads matching the filter' : 'No download history yet',
+            isFilterActive
+                ? 'No downloads matching the filter'
+                : 'No download history yet',
             style: GoogleFonts.manrope(
               color: AppColors.textMuted.withOpacity(0.5),
               fontSize: 14,
@@ -543,14 +636,25 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
             const SizedBox(height: 20),
             TextButton.icon(
               onPressed: () {
-                ref.read(downloadHistoryFilterProvider.notifier).state = const DownloadHistoryFilter();
+                ref.read(downloadHistoryFilterProvider.notifier).state =
+                    const DownloadHistoryFilter();
                 setState(() => _tempFilter = const DownloadHistoryFilter());
               },
               icon: const Icon(Icons.close_rounded, size: 16),
-              label: Text('CLEAR FILTER', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              label: Text(
+                'CLEAR FILTER',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.violet,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
               ),
             ),
           ],
@@ -594,12 +698,16 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     );
   }
 
-  Widget _buildBaseOverlay({required Widget child, required VoidCallback onDismiss}) {
+  Widget _buildBaseOverlay({
+    required Widget child,
+    required VoidCallback onDismiss,
+  }) {
     return Positioned.fill(
       child: Focus(
         autofocus: true,
         onKeyEvent: (node, event) {
-          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
             onDismiss();
             return KeyEventResult.handled;
           }
@@ -616,11 +724,20 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     );
   }
 
-  Widget _buildActionButton(BuildContext context, {required String label, required IconData icon, required Color color, required VoidCallback onPressed}) {
+  Widget _buildActionButton(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18),
-      label: Text(label, style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13)),
+      label: Text(
+        label,
+        style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: color.withOpacity(0.1),
         foregroundColor: color,
@@ -635,11 +752,13 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
   }
 
   Widget _buildHistoryItem(
-    BuildContext context, 
+    BuildContext context,
     DownloadHistoryEntry entry,
     Set<String> selection,
   ) {
-    final isSelected = selection.contains(entry.id) || ref.watch(selectedDownloadHistoryIdProvider) == entry.id;
+    final isSelected =
+        selection.contains(entry.id) ||
+        ref.watch(selectedDownloadHistoryIdProvider) == entry.id;
     final isSuccess = entry.statusName.toLowerCase() == 'completed';
     final isError = entry.statusName.toLowerCase() == 'error';
     final isCancelled = entry.statusName.toLowerCase() == 'cancelled';
@@ -655,13 +774,16 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     }
 
     Color statusColor = Colors.white54;
-    if (isSuccess) statusColor = Colors.greenAccent;
-    else if (isError) statusColor = Colors.redAccent;
-    else if (isCancelled) statusColor = Colors.orangeAccent;
+    if (isSuccess)
+      statusColor = Colors.greenAccent;
+    else if (isError)
+      statusColor = Colors.redAccent;
+    else if (isCancelled)
+      statusColor = Colors.orangeAccent;
 
     IconData typeIcon = Icons.file_download_rounded;
     Color typeColor = Colors.white54;
-    
+
     switch (entry.downloadType) {
       case 'video':
         typeIcon = Icons.videocam_rounded;
@@ -686,35 +808,55 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
 
     // Subtitle logic
     String subtitle = 'in ${p.basename(entry.destination)}';
-    
+
     // We try to find the size from the current file on disk if it is a single file.
     // If it's a directory, this provides the folder name.
-    
+
     return InkWell(
       onTap: () {
         _focusNode.requestFocus();
-        final isShiftPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
-                              HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
-        final isControlPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
-                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlRight) ||
-                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.metaLeft) ||
-                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.metaRight);
+        final isShiftPressed =
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.shiftLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.shiftRight,
+            );
+        final isControlPressed =
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.controlLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.controlRight,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.metaLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.metaRight,
+            );
 
         final selection = ref.read(downloadHistorySelectionProvider);
         final hasSelection = selection.isNotEmpty;
 
         if (isShiftPressed) {
           final history = ref.read(filteredDownloadHistoryProvider);
-          ref.read(downloadHistorySelectionProvider.notifier).selectRange(history, entry.id);
+          ref
+              .read(downloadHistorySelectionProvider.notifier)
+              .selectRange(history, entry.id);
         } else if (isControlPressed || hasSelection) {
           ref.read(downloadHistorySelectionProvider.notifier).toggle(entry.id);
-          ref.read(downloadHistorySelectionProvider.notifier).setAnchor(entry.id);
+          ref
+              .read(downloadHistorySelectionProvider.notifier)
+              .setAnchor(entry.id);
           if (ref.read(downloadHistorySelectionProvider).isEmpty) {
-             ref.read(selectedDownloadHistoryIdProvider.notifier).state = null;
+            ref.read(selectedDownloadHistoryIdProvider.notifier).state = null;
           }
         } else {
           ref.read(downloadHistorySelectionProvider.notifier).clear();
-          ref.read(downloadHistorySelectionProvider.notifier).setAnchor(entry.id);
+          ref
+              .read(downloadHistorySelectionProvider.notifier)
+              .setAnchor(entry.id);
           ref.read(selectedDownloadHistoryIdProvider.notifier).state = entry.id;
           ref.read(downloadsPanelViewProvider.notifier).state =
               DownloadsPanelView.historyDetail;
@@ -730,14 +872,14 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? AppColors.violet.withOpacity(0.15) 
+          color: isSelected
+              ? AppColors.violet.withOpacity(0.15)
               : statusColor.withOpacity(0.02),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? AppColors.violet.withOpacity(0.4) 
-                : statusColor.withOpacity(0.05)
+            color: isSelected
+                ? AppColors.violet.withOpacity(0.4)
+                : statusColor.withOpacity(0.05),
           ),
         ),
         child: Row(
@@ -749,9 +891,9 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                typeIcon, 
-                size: 16, 
-                color: isSelected ? Colors.white : typeColor.withOpacity(0.8)
+                typeIcon,
+                size: 16,
+                color: isSelected ? Colors.white : typeColor.withOpacity(0.8),
               ),
             ),
             const SizedBox(width: 12),
@@ -778,11 +920,17 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                       if (itemCount > 0)
                         Container(
                           margin: const EdgeInsets.only(right: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.05),
                             borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.white.withOpacity(0.05), width: 0.5),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.05),
+                              width: 0.5,
+                            ),
                           ),
                           child: Text(
                             '$itemCount ITEM${itemCount > 1 ? 'S' : ''}',
@@ -796,11 +944,17 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                         ),
                       // Status Label
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: statusColor.withOpacity(0.1), width: 0.5),
+                          border: Border.all(
+                            color: statusColor.withOpacity(0.1),
+                            width: 0.5,
+                          ),
                         ),
                         child: Text(
                           entry.statusName.toUpperCase(),
@@ -886,7 +1040,8 @@ class _ClearHistoryDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_ClearHistoryDialog> createState() => _ClearHistoryDialogState();
+  ConsumerState<_ClearHistoryDialog> createState() =>
+      _ClearHistoryDialogState();
 }
 
 class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
@@ -896,7 +1051,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
   @override
   Widget build(BuildContext context) {
     final availableDates = ref.watch(availableDownloadDatesProvider);
-    
+
     return Container(
       width: 320,
       padding: const EdgeInsets.all(24),
@@ -909,7 +1064,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
             color: Colors.black.withOpacity(0.5),
             blurRadius: 40,
             spreadRadius: -10,
-          )
+          ),
         ],
       ),
       child: Column(
@@ -926,25 +1081,36 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
           ),
           const SizedBox(height: 12),
           Text(
-            _customOps ? 'Select what you want to remove' : 'Are you sure you want to clear all download history?',
+            _customOps
+                ? 'Select what you want to remove'
+                : 'Are you sure you want to clear all download history?',
             style: GoogleFonts.manrope(
               color: Colors.white70,
               fontSize: 13,
             ),
           ),
           const SizedBox(height: 16),
-          
+
           InkWell(
             onTap: () => setState(() => _customOps = !_customOps),
             child: Row(
               children: [
                 Checkbox(
-                  value: _customOps, 
+                  value: _customOps,
                   onChanged: (val) => setState(() => _customOps = val ?? false),
                   activeColor: AppColors.violet,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-                Text('Custom operations', style: GoogleFonts.manrope(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(
+                  'Custom operations',
+                  style: GoogleFonts.manrope(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -954,7 +1120,9 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
             _SimpleCalendar(
               selectedDates: _filter.selectedDates ?? {},
               availableDates: availableDates,
-              onDatesChanged: (dates) => setState(() => _filter = _filter.copyWith(selectedDates: dates)),
+              onDatesChanged: (dates) => setState(
+                () => _filter = _filter.copyWith(selectedDates: dates),
+              ),
             ),
             const SizedBox(height: 16),
             PopupMenuButton<String>(
@@ -967,7 +1135,8 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
               elevation: 24,
               tooltip: '',
               padding: EdgeInsets.zero,
-              onSelected: (val) => setState(() => _filter = _filter.copyWith(status: val)),
+              onSelected: (val) =>
+                  setState(() => _filter = _filter.copyWith(status: val)),
               itemBuilder: (context) {
                 final ops = ['All', 'Completed', 'Error', 'Cancelled'];
                 return ops.map((opt) {
@@ -978,17 +1147,26 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.white.withAlpha(15) : Colors.transparent,
+                        color: isSelected
+                            ? Colors.white.withAlpha(15)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         opt,
                         style: GoogleFonts.manrope(
                           fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                          color: isSelected ? Colors.white : Colors.white.withOpacity(0.8),
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.8),
                         ),
                       ),
                     ),
@@ -1008,9 +1186,16 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                   children: [
                     Text(
                       _filter.status ?? 'All',
-                      style: GoogleFonts.manrope(color: Colors.white, fontSize: 11),
+                      style: GoogleFonts.manrope(
+                        color: Colors.white,
+                        fontSize: 11,
+                      ),
                     ),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white24),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 16,
+                      color: Colors.white24,
+                    ),
                   ],
                 ),
               ),
@@ -1025,19 +1210,25 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                   onPressed: widget.onCancel,
                   child: Text(
                     'Cancel',
-                    style: GoogleFonts.manrope(color: Colors.white54, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.manrope(
+                      color: Colors.white54,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () => widget.onConfirm(_customOps ? _filter : null),
+                  onPressed: () =>
+                      widget.onConfirm(_customOps ? _filter : null),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent.withOpacity(0.8),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: Text(
                     _customOps ? 'Delete' : 'Clear All',
@@ -1082,7 +1273,7 @@ class _DeleteConfirmDialog extends StatelessWidget {
             color: Colors.black.withOpacity(0.5),
             blurRadius: 40,
             spreadRadius: -10,
-          )
+          ),
         ],
       ),
       child: Column(
@@ -1113,7 +1304,10 @@ class _DeleteConfirmDialog extends StatelessWidget {
                   onPressed: onCancel,
                   child: Text(
                     'Cancel',
-                    style: GoogleFonts.manrope(color: Colors.white54, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.manrope(
+                      color: Colors.white54,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -1125,7 +1319,9 @@ class _DeleteConfirmDialog extends StatelessWidget {
                     backgroundColor: Colors.redAccent.withOpacity(0.8),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: Text(
                     confirmLabel,
@@ -1184,21 +1380,34 @@ class _SimpleCalendarState extends State<_SimpleCalendar> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              icon: const Icon(Icons.chevron_left, size: 16, color: Colors.white54),
+              icon: const Icon(
+                Icons.chevron_left,
+                size: 16,
+                color: Colors.white54,
+              ),
               onPressed: () => setState(
-                  () => _viewDate = DateTime(_viewDate.year, _viewDate.month - 1)),
+                () => _viewDate = DateTime(_viewDate.year, _viewDate.month - 1),
+              ),
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
             ),
             Text(
               '${_viewDate.year}-${_viewDate.month.toString().padLeft(2, '0')}',
               style: GoogleFonts.manrope(
-                  color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             IconButton(
-              icon: const Icon(Icons.chevron_right, size: 16, color: Colors.white54),
+              icon: const Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: Colors.white54,
+              ),
               onPressed: () => setState(
-                  () => _viewDate = DateTime(_viewDate.year, _viewDate.month + 1)),
+                () => _viewDate = DateTime(_viewDate.year, _viewDate.month + 1),
+              ),
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
             ),
@@ -1208,8 +1417,9 @@ class _SimpleCalendarState extends State<_SimpleCalendar> {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+          ),
           itemCount: 42,
           itemBuilder: (context, index) {
             if (index < firstWeekday ||
@@ -1217,11 +1427,16 @@ class _SimpleCalendarState extends State<_SimpleCalendar> {
               return const SizedBox.shrink();
             }
             final date = DateTime(
-                _viewDate.year, _viewDate.month, index - firstWeekday + 1);
-            final isAvailable =
-                widget.availableDates.any((d) => _isSameDay(d, date));
-            final isSelected =
-                widget.selectedDates.any((d) => _isSameDay(d, date));
+              _viewDate.year,
+              _viewDate.month,
+              index - firstWeekday + 1,
+            );
+            final isAvailable = widget.availableDates.any(
+              (d) => _isSameDay(d, date),
+            );
+            final isSelected = widget.selectedDates.any(
+              (d) => _isSameDay(d, date),
+            );
 
             return InkWell(
               onTap: isAvailable
@@ -1250,7 +1465,9 @@ class _SimpleCalendarState extends State<_SimpleCalendar> {
                     color: isSelected
                         ? Colors.white
                         : (isAvailable ? Colors.white70 : Colors.white24),
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ),

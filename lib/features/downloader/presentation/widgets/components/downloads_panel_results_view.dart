@@ -2,25 +2,34 @@ part of '../downloads_panel.dart';
 
 extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
   List<MapEntry<int, MediaGroup>> get _filteredItems {
+    if (_cachedFilteredItems != null) return _cachedFilteredItems!;
     if (_parsedItems == null) return [];
     var entries = _parsedItems!.asMap().entries.toList();
 
     if (_sortFilter == 'image') {
       entries = entries
-          .where((e) => !e.value.first.isVideo && !e.value.first.isPlaylist && !e.value.first.isProfile)
+          .where(
+            (e) =>
+                !e.value.first.isVideo &&
+                !e.value.first.isPlaylist &&
+                !e.value.first.isProfile,
+          )
           .toList();
     } else if (_sortFilter == 'video') {
       entries = entries
-          .where((e) => e.value.first.isVideo && !e.value.first.isPlaylist && !e.value.first.isProfile)
+          .where(
+            (e) =>
+                e.value.first.isVideo &&
+                !e.value.first.isPlaylist &&
+                !e.value.first.isProfile,
+          )
           .toList();
     } else if (_sortFilter == 'playlist') {
       entries = entries
           .where((e) => e.value.first.isPlaylist && !e.value.first.isProfile)
           .toList();
     } else if (_sortFilter == 'profile') {
-      entries = entries
-          .where((e) => e.value.first.isProfile)
-          .toList();
+      entries = entries.where((e) => e.value.first.isProfile).toList();
     }
 
     // Then apply sorting (added_desc is default, meaning newest at top. Assuming parse order is old -> new, so reverse order)
@@ -28,8 +37,14 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
       entries.sort((a, b) => a.key.compareTo(b.key));
     } else if (_sortFilter == 'size_asc' || _sortFilter == 'size_desc') {
       entries.sort((a, b) {
-        final aSize = a.value.totalFilesize;
-        final bSize = b.value.totalFilesize;
+        final configA = _configs[a.key];
+        final configB = _configs[b.key];
+        final aSize = configA != null
+            ? _getGroupBytes(a.value, configA)
+            : a.value.totalFilesize;
+        final bSize = configB != null
+            ? _getGroupBytes(b.value, configB)
+            : b.value.totalFilesize;
         return _sortFilter == 'size_asc'
             ? aSize.compareTo(bSize)
             : bSize.compareTo(aSize);
@@ -39,21 +54,49 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
       entries.sort((a, b) => b.key.compareTo(a.key));
     }
 
+    _cachedFilteredItems = entries;
     return entries;
   }
 
   Widget _buildResultsView() {
     final sortOptions = [
-      {'value': 'added_desc', 'label': 'Added', 'icon': Icons.arrow_upward_rounded},
-      {'value': 'added_asc', 'label': 'Added', 'icon': Icons.arrow_downward_rounded},
-      {'value': 'size_desc', 'label': 'Size', 'icon': Icons.arrow_upward_rounded},
-      {'value': 'size_asc', 'label': 'Size', 'icon': Icons.arrow_downward_rounded},
+      {
+        'value': 'added_desc',
+        'label': 'Added',
+        'icon': Icons.arrow_upward_rounded,
+      },
+      {
+        'value': 'added_asc',
+        'label': 'Added',
+        'icon': Icons.arrow_downward_rounded,
+      },
+      {
+        'value': 'size_desc',
+        'label': 'Size',
+        'icon': Icons.arrow_upward_rounded,
+      },
+      {
+        'value': 'size_asc',
+        'label': 'Size',
+        'icon': Icons.arrow_downward_rounded,
+      },
       {'value': 'image', 'label': 'Images', 'icon': Icons.image_outlined},
       {'value': 'video', 'label': 'Videos', 'icon': Icons.videocam_outlined},
-      {'value': 'playlist', 'label': 'Playlists', 'icon': Icons.queue_music_rounded},
-      {'value': 'profile', 'label': 'Profiles', 'icon': Icons.person_outline_rounded},
+      {
+        'value': 'playlist',
+        'label': 'Playlists',
+        'icon': Icons.queue_music_rounded,
+      },
+      {
+        'value': 'profile',
+        'label': 'Profiles',
+        'icon': Icons.person_outline_rounded,
+      },
     ];
-    final activeSortOpt = sortOptions.firstWhere((opt) => opt['value'] == _sortFilter, orElse: () => sortOptions.first);
+    final activeSortOpt = sortOptions.firstWhere(
+      (opt) => opt['value'] == _sortFilter,
+      orElse: () => sortOptions.first,
+    );
 
     final displayItems = _filteredItems;
     final hasItems = _parsedItems != null && _parsedItems!.isNotEmpty;
@@ -79,7 +122,9 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                             decoration: BoxDecoration(
                               color: const Color(0xFF2A2A35),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white.withOpacity(0.1)),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.1),
+                              ),
                             ),
                             textStyle: GoogleFonts.manrope(
                               color: Colors.white.withOpacity(0.9),
@@ -104,15 +149,18 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(6),
                               onTap: () {
-                                setState(() {
-                                  _parsedItems?.clear();
-                                  _configs.clear();
-                                  _selectedIndices.clear();
-                                  _lastSelectedIndex = -1;
-                                  _previewItem = null;
-                                  _importedListName = null;
-                                  _importedListPath = null;
-                                  _isListChanged = false;
+                                _handleClearRequest(() {
+                                  setState(() {
+                                    _parsedItems?.clear();
+                                    _configs.clear();
+                                    _selectedIndices.clear();
+                                    _lastSelectedIndex = -1;
+                                    _previewItem = null;
+                                    _importedListName = null;
+                                    _importedListPath = null;
+                                    _isListChanged = false;
+                                    _recalculateFilteredStatistics();
+                                  });
                                 });
                               },
                               child: Container(
@@ -146,13 +194,13 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                     height: 32,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
-                      color: _sortFilter != 'added_desc' 
-                          ? AppColors.violet.withOpacity(0.1) 
+                      color: _sortFilter != 'added_desc'
+                          ? AppColors.violet.withOpacity(0.1)
                           : Colors.white.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: _sortFilter != 'added_desc' 
-                            ? AppColors.violet.withOpacity(0.5) 
+                        color: _sortFilter != 'added_desc'
+                            ? AppColors.violet.withOpacity(0.5)
                             : Colors.white.withOpacity(0.1),
                       ),
                     ),
@@ -181,15 +229,21 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                 Icon(
                                   opt['icon'] as IconData,
                                   size: 16,
-                                  color: isSelected ? AppColors.violet : Colors.white70,
+                                  color: isSelected
+                                      ? AppColors.violet
+                                      : Colors.white70,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   opt['label'] as String,
                                   style: GoogleFonts.manrope(
-                                    color: isSelected ? Colors.white : Colors.white70,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.white70,
                                     fontSize: 13,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
                                 ),
                               ],
@@ -203,15 +257,17 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                           Icon(
                             activeSortOpt['icon'] as IconData,
                             size: 16,
-                            color: _sortFilter != 'added_desc' 
-                                ? AppColors.violet 
+                            color: _sortFilter != 'added_desc'
+                                ? AppColors.violet
                                 : Colors.white70,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             activeSortOpt['label'] as String,
                             style: GoogleFonts.manrope(
-                              color: _sortFilter != 'added_desc' ? AppColors.violet : Colors.white,
+                              color: _sortFilter != 'added_desc'
+                                  ? AppColors.violet
+                                  : Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -222,10 +278,18 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                               onTap: () {
                                 _setSortFilter('added_desc');
                               },
-                              child: const Icon(Icons.close_rounded, size: 16, color: Colors.white70),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: Colors.white70,
+                              ),
                             )
                           else
-                            const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white54),
+                            const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 16,
+                              color: Colors.white54,
+                            ),
                         ],
                       ),
                     ),
@@ -242,18 +306,23 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                     height: 32,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        setState(() {
-                          if (_selectedIndices.isNotEmpty) {
+                        if (_selectedIndices.isNotEmpty) {
+                          setState(() {
                             _removeParsedItems(_selectedIndices.toList());
-                          } else {
-                            _parsedItems?.clear();
-                            _configs.clear();
-                            _selectedIndices.clear();
-                            _lastSelectedIndex = -1;
-                            _previewItem = null;
-                            _isListChanged = true;
-                          }
-                        });
+                          });
+                        } else {
+                          _handleClearRequest(() {
+                            setState(() {
+                              _parsedItems?.clear();
+                              _configs.clear();
+                              _selectedIndices.clear();
+                              _lastSelectedIndex = -1;
+                              _previewItem = null;
+                              _isListChanged = true;
+                              _recalculateFilteredStatistics();
+                            });
+                          });
+                        }
                       },
                       icon: const Icon(Icons.clear_all_rounded, size: 16),
                       label: Text(
@@ -285,38 +354,113 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
         ),
         // Statistics Strip
         if (hasItems)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.2),
-              border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.sd_storage_rounded, size: 14, color: Colors.white54),
-                const SizedBox(width: 6),
-                Text(
-                  StringUtils.formatBytes(_totalListSize),
-                  style: GoogleFonts.manrope(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
+          ValueListenableBuilder<int>(
+            valueListenable: _hydrationNotifier,
+            builder: (context, _, __) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  ),
                 ),
-                const SizedBox(width: 20),
-                Icon(Icons.image_outlined, size: 14, color: Colors.white54),
-                const SizedBox(width: 6),
-                Text(
-                  '$_totalListImages Images',
-                  style: GoogleFonts.manrope(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
+                child: Row(
+                  children: [
+                    Icon(Icons.sd_storage_rounded, size: 14, color: Colors.white54),
+                    const SizedBox(width: 6),
+                    Text(
+                      StringUtils.formatBytes(_totalListSize),
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Icon(Icons.image_outlined, size: 14, color: Colors.white54),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$_totalListImages',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Icon(Icons.videocam_outlined, size: 14, color: Colors.white54),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$_totalListVideos',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final settings = ref.watch(settingsProvider).value;
+                        final isCurrentFolder =
+                            settings?.downloadToCurrentFolder ?? true;
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Current Folder',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () {
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .setDownloadToCurrentFolder(
+                                      value: !isCurrentFolder,
+                                    );
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 32,
+                                height: 16,
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  gradient: isCurrentFolder
+                                      ? AppTheme.primaryGradient
+                                      : null,
+                                  color: isCurrentFolder ? null : Colors.white12,
+                                ),
+                                child: AnimatedAlign(
+                                  duration: const Duration(milliseconds: 200),
+                                  alignment: isCurrentFolder
+                                      ? Alignment.centerRight
+                                      : Alignment.centerLeft,
+                                  child: Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 20),
-                Icon(Icons.videocam_outlined, size: 14, color: Colors.white54),
-                const SizedBox(width: 6),
-                Text(
-                  '$_totalListVideos Videos',
-                  style: GoogleFonts.manrope(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         // List View
         Expanded(
@@ -330,7 +474,8 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
             },
             onAcceptWithDetails: (details) async {
               setState(() => _isDraggingFile = false);
-              if ((_parsedItems != null && _parsedItems!.isNotEmpty) || _importedListPath != null) {
+              if ((_parsedItems != null && _parsedItems!.isNotEmpty) ||
+                  _importedListPath != null) {
                 _showLocalToast('Please clear the list before importing');
                 return;
               }
@@ -349,183 +494,58 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                 children: [
                   // Critical for hit-testing the Drag-and-Drop over empty space
                   Container(color: Colors.transparent),
-              displayItems.isEmpty
-                  ? const DownloadsEmptyState()
-                  : CallbackShortcuts(
-                      bindings: {
-                        const SingleActivator(LogicalKeyboardKey.escape): () {
-                          setState(() {
-                            _selectedIndices.clear();
-                            _anchorIndex = -1;
-                            _previewItem = null;
-                          });
-                        },
-                        const SingleActivator(LogicalKeyboardKey.delete): () {
-                          if (_selectedIndices.isNotEmpty) {
-                            setState(() {
-                              _removeParsedItems(_selectedIndices.toList());
-                            });
-                          }
-                        },
-                        const SingleActivator(
-                          LogicalKeyboardKey.keyA,
-                          control: true,
-                        ): () {
-                          setState(() {
-                            final items = _filteredItems;
-                            if (items.isNotEmpty) {
-                              _selectedIndices.clear();
-                              for (var item in items) {
-                                _selectedIndices.add(item.key);
-                              }
-                              _anchorIndex = items.first.key;
-                              _lastSelectedIndex = items.last.key;
-                            }
-                          });
-                        },
-                        const SingleActivator(
-                          LogicalKeyboardKey.arrowDown,
-                        ): () {
-                          setState(() {
-                            final items = _filteredItems;
-                            if (items.isEmpty) return;
-                            int currentVisualIndex = items.indexWhere(
-                              (e) => e.key == _lastSelectedIndex,
-                            );
-                            if (currentVisualIndex < items.length - 1) {
-                              _lastSelectedIndex =
-                                  items[currentVisualIndex + 1].key;
-                              _anchorIndex = _lastSelectedIndex;
-                              _selectedIndices.clear();
-                              _selectedIndices.add(_lastSelectedIndex);
-                              _scrollToIndex(_lastSelectedIndex);
-                            }
-                          });
-                        },
-                        const SingleActivator(
-                          LogicalKeyboardKey.arrowDown,
-                          shift: true,
-                        ): () {
-                          setState(() {
-                            final items = _filteredItems;
-                            if (items.isEmpty) return;
-                            if (_anchorIndex == -1)
-                              _anchorIndex = _lastSelectedIndex;
-                            int currentVisualIndex = items.indexWhere(
-                              (e) => e.key == _lastSelectedIndex,
-                            );
-                            if (currentVisualIndex < items.length - 1) {
-                              _lastSelectedIndex =
-                                  items[currentVisualIndex + 1].key;
-                              _updateShiftSelection(items);
-                              _scrollToIndex(_lastSelectedIndex);
-                            }
-                          });
-                        },
-                        const SingleActivator(
-                          LogicalKeyboardKey.arrowUp,
-                        ): () {
-                          setState(() {
-                            final items = _filteredItems;
-                            if (items.isEmpty) return;
-                            int currentVisualIndex = items.indexWhere(
-                              (e) => e.key == _lastSelectedIndex,
-                            );
-                            if (currentVisualIndex > 0) {
-                              _lastSelectedIndex =
-                                  items[currentVisualIndex - 1].key;
-                              _anchorIndex = _lastSelectedIndex;
-                              _selectedIndices.clear();
-                              _selectedIndices.add(_lastSelectedIndex);
-                              _scrollToIndex(_lastSelectedIndex);
-                            } else if (currentVisualIndex == -1 &&
-                                items.isNotEmpty) {
-                              _lastSelectedIndex = items.last.key;
-                              _anchorIndex = _lastSelectedIndex;
-                              _selectedIndices.clear();
-                              _selectedIndices.add(_lastSelectedIndex);
-                              _scrollToIndex(_lastSelectedIndex);
-                            }
-                          });
-                        },
-                        const SingleActivator(
-                          LogicalKeyboardKey.arrowUp,
-                          shift: true,
-                        ): () {
-                          setState(() {
-                            final items = _filteredItems;
-                            if (items.isEmpty) return;
-                            if (_anchorIndex == -1)
-                              _anchorIndex = _lastSelectedIndex;
-                            int currentVisualIndex = items.indexWhere(
-                              (e) => e.key == _lastSelectedIndex,
-                            );
-                            if (currentVisualIndex > 0) {
-                              _lastSelectedIndex =
-                                  items[currentVisualIndex - 1].key;
-                              _updateShiftSelection(items);
-                              _scrollToIndex(_lastSelectedIndex);
-                            }
-                          });
-                        },
-                      },
-                      child: Focus(
-                        focusNode: _listFocusNode,
-                        autofocus: false,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 8,
-                          ),
-                          itemCount: displayItems.length,
-                          itemBuilder: (context, listIndex) {
-                            final entry = displayItems[listIndex];
-                            final index = entry.key;
-                            final item = entry.value;
-                            final key = _itemKeys.putIfAbsent(
-                              index,
-                              () => GlobalKey(),
-                            );
+                  displayItems.isEmpty
+                      ? const DownloadsEmptyState()
+                      : Focus(
+                          focusNode: _listFocusNode,
+                          autofocus: false,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
+                            itemCount: displayItems.length,
+                            itemBuilder: (context, listIndex) {
+                              final entry = displayItems[listIndex];
+                              final index = entry.key;
+                              final item = entry.value;
+                              final key = _itemKeys.putIfAbsent(
+                                index,
+                                () => GlobalKey(),
+                              );
 
-                            Widget tile;
-                            if (item.first.isPlaylist) {
-                              tile = _buildGroupTile(index, item);
-                            } else {
-                              tile = _buildMediaTile(index, item);
-                            }
-                            return Container(key: key, child: tile);
-                          },
-                        ),
-                      ),
-                    ),
-              if (_isDraggingFile)
-                IgnorePointer(
-                  child: Builder(
-                    builder: (context) {
-                      final hasConflict = (_parsedItems != null && _parsedItems!.isNotEmpty) || _importedListPath != null;
-                      return Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: hasConflict 
-                              ? [Colors.black.withOpacity(0.85), Colors.black.withOpacity(0.85)]
-                              : [AppColors.violet.withOpacity(0.15), Colors.transparent],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
+                              Widget tile = _buildMediaTile(index, item);
+                              return Container(key: key, child: tile);
+                            },
                           ),
                         ),
-                        child: Center(
-                          child: AnimatedBuilder(
-                            animation: _gradientController,
-                            builder: (context, child) {
-                              return CustomPaint(
-                                painter: _GradientBorderPainter(
-                                  _gradientController.value,
-                                  radius: 16.0,
-                                  strokeWidth: 2.0,
-                                  colors: hasConflict 
-                                    ? [Colors.redAccent, Colors.orangeAccent, Colors.red, Colors.redAccent]
-                                    : [AppColors.magenta, AppColors.violet, AppColors.indigo, AppColors.magenta],
-                                ),
+                  if (_isDraggingFile)
+                    IgnorePointer(
+                      child: Builder(
+                        builder: (context) {
+                          final hasConflict =
+                              (_parsedItems != null &&
+                                  _parsedItems!.isNotEmpty) ||
+                              _importedListPath != null;
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: hasConflict
+                                    ? [
+                                        Colors.black.withOpacity(0.85),
+                                        Colors.black.withOpacity(0.85),
+                                      ]
+                                    : [
+                                        AppColors.violet.withOpacity(0.15),
+                                        Colors.transparent,
+                                      ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                            ),
+                            child: Center(
+                              child: AnimatedBuilder(
+                                animation: _gradientController,
                                 child: Container(
                                   padding: const EdgeInsets.all(2.0),
                                   child: Container(
@@ -534,20 +554,30 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                       vertical: 16,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.surfaceBase.withOpacity(0.8),
+                                      color: AppColors.surfaceBase.withOpacity(
+                                        0.8,
+                                      ),
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         ShaderMask(
-                                          shaderCallback: (bounds) => LinearGradient(
-                                            colors: hasConflict 
-                                              ? [Colors.redAccent, Colors.orangeAccent]
-                                              : [AppColors.magenta, AppColors.violet, AppColors.indigo],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ).createShader(bounds),
+                                          shaderCallback: (bounds) =>
+                                              LinearGradient(
+                                                colors: hasConflict
+                                                    ? [
+                                                        Colors.redAccent,
+                                                        Colors.orangeAccent,
+                                                      ]
+                                                    : [
+                                                        AppColors.magenta,
+                                                        AppColors.violet,
+                                                        AppColors.indigo,
+                                                      ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ).createShader(bounds),
                                           child: Icon(
                                             hasConflict
                                                 ? Icons.error_outline
@@ -571,20 +601,41 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                     ),
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
+                                builder: (context, child) {
+                                  return CustomPaint(
+                                    painter: _GradientBorderPainter(
+                                      _gradientController.value,
+                                      radius: 16.0,
+                                      strokeWidth: 2.0,
+                                      colors: hasConflict
+                                          ? [
+                                              Colors.redAccent,
+                                              Colors.orangeAccent,
+                                              Colors.red,
+                                              Colors.redAccent,
+                                            ]
+                                          : [
+                                              AppColors.magenta,
+                                              AppColors.violet,
+                                              AppColors.indigo,
+                                              AppColors.magenta,
+                                            ],
+                                    ),
+                                    child: child,
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
         ),
-      ),
-      // Bottom Block (Controls + Drawer)
+        // Bottom Block (Controls + Drawer)
         Container(
           decoration: BoxDecoration(
             color: const Color(0xFF161616),
@@ -710,6 +761,126 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                   ],
                 ),
               ),
+              // Active Downloading Strip
+              Consumer(
+                builder: (context, ref, child) {
+                  final activeTasks = ref.watch(activeDownloadTaskProvider);
+                  if (activeTasks.isEmpty) return const SizedBox.shrink();
+
+                  final totalProgress =
+                      activeTasks.fold<double>(
+                        0,
+                        (sum, task) => sum + task.progress,
+                      ) /
+                      activeTasks.length;
+
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isDownloadsDrawerOpen = !_isDownloadsDrawerOpen;
+                      });
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16161D),
+                            border: Border(
+                              top: BorderSide(
+                                color: Colors.white.withOpacity(0.03),
+                              ),
+                              bottom: BorderSide(
+                                color: Colors.white.withOpacity(0.03),
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                'Downloading ${activeTasks.length} items...',
+                                style: GoogleFonts.manrope(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Container(
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.3),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return totalProgress > 0
+                                          ? Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: AnimatedContainer(
+                                                duration: const Duration(
+                                                  milliseconds: 300,
+                                                ),
+                                                width:
+                                                    constraints.maxWidth *
+                                                    totalProgress,
+                                                decoration: BoxDecoration(
+                                                  gradient:
+                                                      const LinearGradient(
+                                                        colors: [
+                                                          AppColors.magenta,
+                                                          AppColors.violet,
+                                                          AppColors.indigo,
+                                                        ],
+                                                        begin: Alignment
+                                                            .centerLeft,
+                                                        end: Alignment
+                                                            .centerRight,
+                                                      ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(2),
+                                                ),
+                                              ),
+                                            )
+                                          : ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(2),
+                                              child:
+                                                  const LinearProgressIndicator(
+                                                    backgroundColor:
+                                                        Colors.transparent,
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                          Color
+                                                        >(AppColors.violet),
+                                                  ),
+                                            );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Icon(
+                                _isDownloadsDrawerOpen
+                                    ? Icons.keyboard_arrow_down_rounded
+                                    : Icons.keyboard_arrow_up_rounded,
+                                color: Colors.white54,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
               // 2. Drawer Content
               AnimatedSize(
                 duration: const Duration(milliseconds: 350),
@@ -723,61 +894,297 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                           height: MediaQuery.of(context).size.height * 0.34,
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                            child: Stack(
                               children: [
-                                Text(
-                                  'Active Downloads',
-                                  style: GoogleFonts.manrope(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
+                                Positioned.fill(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        'Active Downloads',
+                                        style: GoogleFonts.manrope(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Expanded(
+                                        child: Consumer(
+                                          builder: (context, ref, child) {
+                                            final activeTasks = ref.watch(
+                                              activeDownloadTaskProvider,
+                                            );
+                                            if (activeTasks.isEmpty) {
+                                              return Center(
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons
+                                                          .download_done_rounded,
+                                                      color: Colors.white24,
+                                                      size: 32,
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    Text(
+                                                      'No active downloads',
+                                                      style:
+                                                          GoogleFonts.manrope(
+                                                            color:
+                                                                Colors.white54,
+                                                            fontSize: 13,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }
+
+                                            return ListView.builder(
+                                              padding: const EdgeInsets.only(
+                                                top: 8,
+                                              ),
+                                              itemCount: activeTasks.length,
+                                              itemBuilder: (context, index) {
+                                                return DownloadTaskTile(
+                                                  task: activeTasks[index],
+                                                );
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 16),
-                                Expanded(
+                                Positioned(
+                                  bottom: 4,
+                                  right: 8,
                                   child: Consumer(
                                     builder: (context, ref, child) {
                                       final activeTasks = ref.watch(
                                         activeDownloadTaskProvider,
                                       );
-                                      if (activeTasks.isEmpty) {
-                                        return Center(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(
-                                                Icons.download_done_rounded,
-                                                color: Colors.white24,
-                                                size: 32,
+                                      if (activeTasks.isEmpty)
+                                        return const SizedBox.shrink();
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(
+                                                0.5,
                                               ),
-                                              const SizedBox(height: 12),
-                                              Text(
-                                                'No active downloads',
-                                                style: GoogleFonts.manrope(
-                                                  color: Colors.white54,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ],
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                          borderRadius: BorderRadius.circular(
+                                            8,
                                           ),
-                                        );
-                                      }
-
-                                      return ListView.builder(
-                                        padding: const EdgeInsets.only(
-                                          top: 8,
                                         ),
-                                        itemCount: activeTasks.length,
-                                        itemBuilder: (context, index) {
-                                          return DownloadTaskTile(
-                                            task: activeTasks[index],
-                                          );
-                                        },
+                                        child: ElevatedButton.icon(
+                                          onPressed: () {
+                                            setState(() {
+                                              _showCancelAllConfirmation = true;
+                                            });
+                                          },
+                                          icon: const Icon(
+                                            Icons.close_rounded,
+                                            size: 16,
+                                          ),
+                                          label: Text(
+                                            'Cancel All',
+                                            style: GoogleFonts.manrope(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xFF1E1E26,
+                                            ).withOpacity(0.95),
+                                            foregroundColor: Colors.redAccent,
+                                            elevation: 0,
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 14,
+                                            ),
+                                            side: BorderSide(
+                                              color: Colors.redAccent
+                                                  .withOpacity(0.4),
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                        ),
                                       );
                                     },
                                   ),
                                 ),
+                                if (_showCancelAllConfirmation)
+                                  Positioned.fill(
+                                    child: Container(
+                                      color: Colors.black.withOpacity(0.6),
+                                      alignment: Alignment.center,
+                                      child: Container(
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                        ),
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF1E1E26),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(
+                                              0.1,
+                                            ),
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(
+                                                0.5,
+                                              ),
+                                              blurRadius: 16,
+                                              offset: const Offset(0, 8),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                const Icon(
+                                                  Icons.warning_amber_rounded,
+                                                  color: Colors.orange,
+                                                  size: 20,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Cancel All Downloads?',
+                                                  style: GoogleFonts.manrope(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                TextButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _showCancelAllConfirmation =
+                                                          false;
+                                                    });
+                                                  },
+                                                  style: TextButton.styleFrom(
+                                                    foregroundColor:
+                                                        Colors.white70,
+                                                    minimumSize: const Size(
+                                                      60,
+                                                      32,
+                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    'No',
+                                                    style: GoogleFonts.manrope(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Consumer(
+                                                  builder: (context, ref, child) {
+                                                    return TextButton(
+                                                      onPressed: () {
+                                                        final activeTasks = ref
+                                                            .read(
+                                                              activeDownloadTaskProvider,
+                                                            );
+                                                        final notifier = ref.read(
+                                                          downloadTaskProvider
+                                                              .notifier,
+                                                        );
+                                                        for (final task
+                                                            in activeTasks) {
+                                                          notifier
+                                                              .cancelDownload(
+                                                                task.id,
+                                                              );
+                                                        }
+                                                        setState(() {
+                                                          _showCancelAllConfirmation =
+                                                              false;
+                                                        });
+                                                      },
+                                                      style: TextButton.styleFrom(
+                                                        backgroundColor: Colors
+                                                            .redAccent
+                                                            .withOpacity(0.15),
+                                                        foregroundColor:
+                                                            Colors.redAccent,
+                                                        minimumSize: const Size(
+                                                          80,
+                                                          32,
+                                                        ),
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 16,
+                                                            ),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                6,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        'Yes',
+                                                        style:
+                                                            GoogleFonts.manrope(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 12,
+                                                            ),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
