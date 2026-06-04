@@ -139,6 +139,7 @@ class TabManager extends Notifier<TabManagerState> {
       selectedPaths: {}, // Clear selection on navigate
       sortSettings: SortSettings(option: folderSort),
       filterSettings: const FilterSettings(), // Reset filter on navigate? 
+      isAnalysisActive: false, // Reset analysis on navigate
       // Usually users want filters cleared when moving between folders.
     );
 
@@ -220,6 +221,15 @@ class TabManager extends Notifier<TabManagerState> {
       isSearchActive: active,
       searchQuery: active ? null : '',
     );
+    final newTabs = List<TabState>.from(state.tabs)..[index] = updatedTab;
+    state = state.copyWith(tabs: newTabs);
+  }
+
+  void setAnalysisActive(String tabId, bool active) {
+    final index = state.tabs.indexWhere((t) => t.id == tabId);
+    if (index == -1) return;
+
+    final updatedTab = state.tabs[index].copyWith(isAnalysisActive: active);
     final newTabs = List<TabState>.from(state.tabs)..[index] = updatedTab;
     state = state.copyWith(tabs: newTabs);
   }

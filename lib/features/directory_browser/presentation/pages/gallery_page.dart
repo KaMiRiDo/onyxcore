@@ -27,6 +27,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar
 import 'package:onyxcore/features/directory_browser/presentation/widgets/preview_container.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/gnome_tab_bar.dart';
+import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
@@ -410,6 +411,12 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                                 icon: Icons.info_outline_rounded,
                                                 shortcut: 'Alt+Enter',
                                                 onTap: _showProperties,
+                                               ),
+                                               ContextMenuItem(
+                                                 title: 'Analyse',
+                                                 icon: Icons.analytics_rounded,
+                                                 shortcut: 'Ctrl+Alt+Enter',
+                                                 onTap: _toggleAnalysis,
                                               ),
                                             ]);
                                           },
@@ -566,12 +573,17 @@ class _TabBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isAnalysisActive = ref.watch(isAnalysisActiveProvider);
+    final currentPath = ref.watch(currentPathProvider);
+
     return Column(
       children: [
         Expanded(
-          child: RubberBandOverlay(
-            child: const FileGrid(),
-          ),
+          child: isAnalysisActive
+            ? DirectoryAnalysisPage(path: currentPath)
+            : const RubberBandOverlay(
+                child: FileGrid(),
+              ),
         ),
       ],
     );
@@ -637,6 +649,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(!isSearchActive),
       const SingleActivator(LogicalKeyboardKey.keyR, control: true): _refresh,
       const SingleActivator(LogicalKeyboardKey.period, control: true): _toggleHiddenFiles,
+      const SingleActivator(LogicalKeyboardKey.enter, control: true, alt: true): _toggleAnalysis,
       const SingleActivator(LogicalKeyboardKey.f5): _refresh,
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
         ref.read(backgroundPanelOpenProvider.notifier).state = !ref.read(backgroundPanelOpenProvider);
@@ -1134,6 +1147,10 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         value: !current.showHiddenFiles,
       );
     }
+  }
+
+  void _toggleAnalysis() {
+    ref.read(isAnalysisActiveProvider.notifier).toggle();
   }
 
   Future<void> _handleEmptyTrash() async {

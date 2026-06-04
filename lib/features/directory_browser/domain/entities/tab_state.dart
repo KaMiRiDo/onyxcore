@@ -11,6 +11,7 @@ class TabState {
   final Set<String> selectedPaths;
   final String searchQuery;
   final bool isSearchActive;
+  final bool isAnalysisActive;
   final bool isLocationEditing;
   final int refreshCount;
   final bool isRefreshing;
@@ -25,6 +26,7 @@ class TabState {
     this.selectedPaths = const {},
     this.searchQuery = '',
     this.isSearchActive = false,
+    this.isAnalysisActive = false,
     this.isLocationEditing = false,
     this.refreshCount = 0,
     this.isRefreshing = false,
@@ -50,6 +52,7 @@ class TabState {
     Set<String>? selectedPaths,
     String? searchQuery,
     bool? isSearchActive,
+    bool? isAnalysisActive,
     bool? isLocationEditing,
     int? refreshCount,
     bool? isRefreshing,
@@ -64,6 +67,7 @@ class TabState {
       selectedPaths: selectedPaths ?? this.selectedPaths,
       searchQuery: searchQuery ?? this.searchQuery,
       isSearchActive: isSearchActive ?? this.isSearchActive,
+      isAnalysisActive: isAnalysisActive ?? this.isAnalysisActive,
       isLocationEditing: isLocationEditing ?? this.isLocationEditing,
       refreshCount: refreshCount ?? this.refreshCount,
       isRefreshing: isRefreshing ?? this.isRefreshing,

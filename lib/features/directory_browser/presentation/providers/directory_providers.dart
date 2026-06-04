@@ -138,6 +138,31 @@ class IsSearchActiveNotifier extends Notifier<bool> {
 }
 final isSearchActiveProvider = NotifierProvider<IsSearchActiveNotifier, bool>(IsSearchActiveNotifier.new);
 
+/// Whether analysis mode is active, scoped to the current tab.
+class IsAnalysisActiveNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    final tabId = ref.watch(tabIdProvider);
+    return ref.watch(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive
+    ));
+  }
+
+  void set(bool value) {
+    final tabId = ref.read(tabIdProvider);
+    ref.read(tabManagerProvider.notifier).setAnalysisActive(tabId, value);
+  }
+
+  void toggle() {
+    final tabId = ref.read(tabIdProvider);
+    final current = ref.read(tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive
+    ));
+    ref.read(tabManagerProvider.notifier).setAnalysisActive(tabId, !current);
+  }
+}
+final isAnalysisActiveProvider = NotifierProvider<IsAnalysisActiveNotifier, bool>(IsAnalysisActiveNotifier.new);
+
 /// Whether location editing mode is active, scoped to the current tab.
 class IsLocationEditingNotifier extends Notifier<bool> {
   @override

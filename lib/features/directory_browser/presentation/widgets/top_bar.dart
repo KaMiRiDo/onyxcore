@@ -657,6 +657,11 @@ class _TopBarState extends ConsumerState<TopBar> {
       }
     }
 
+    final isAnalysisActive = ref.read(isAnalysisActiveProvider);
+    if (isAnalysisActive) {
+      parts.add(const MapEntry('Overview', 'virtual:analysis_overview'));
+    }
+
     if (previewFileName != null) {
       parts.add(MapEntry(StringUtils.truncateMiddle(previewFileName, maxLength: 32), ''));
     }
