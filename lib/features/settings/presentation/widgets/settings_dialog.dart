@@ -542,6 +542,22 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   },
                 ),
               ),
+              _buildSettingTile(
+                title: 'Max concurrent downloads',
+                subtitle: 'Maximum number of media downloads running simultaneously',
+                trailing: _buildDropdown<int>(
+                  value: settings.maxConcurrentDownloads.clamp(1, 10),
+                  options: [1, 2, 3, 5, 8, 10]
+                      .map((v) => MapEntry(v, '$v'))
+                      .toList(),
+                  minWidth: 60,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(maxConcurrentDownloads: value);
+                    });
+                  },
+                ),
+              ),
               _buildSectionHeader('Sync', _generalKeys['Sync']!),
               _buildEmptySection('Sync settings and cloud integration options will appear here.'),
               _buildSectionHeader('Performance', _generalKeys['Performance']!),

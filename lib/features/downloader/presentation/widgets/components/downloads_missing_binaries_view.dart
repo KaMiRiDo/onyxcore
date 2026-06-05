@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
+import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 
 class DownloadsMissingBinariesView extends ConsumerWidget {
   final VoidCallback onCheckBinaries;

@@ -104,7 +104,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   final Map<String, Map<String, dynamic>> _taskArgs = {};
-  static const int _maxConcurrent = 3;
+
+  int get _maxConcurrent {
+    return ref.read(settingsProvider).value?.maxConcurrentDownloads ?? 3;
+  }
 
   void _processQueue() async {
     final runningCount = state.where((t) => t.status == DownloadStatus.running).length;

@@ -166,8 +166,11 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
 
   Widget _buildToolbar() {
     final historyNotifier = ref.read(downloadHistoryProvider.notifier);
-    final totalCount = ref.watch(downloadHistoryProvider).length;
-    final totalSize = StringUtils.formatBytes(historyNotifier.historyFileSize);
+    ref.watch(downloadHistoryProvider); // Trigger rebuilds when history changes
+    final totalCount = historyNotifier.totalEntries;
+    final totalSize = totalCount == 0 
+        ? '0 B' 
+        : StringUtils.formatBytes(historyNotifier.historyFileSize);
     final currentFilter = ref.watch(downloadHistoryFilterProvider);
     final isFiltered = !currentFilter.isEmpty;
 

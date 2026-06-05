@@ -138,6 +138,7 @@ class DownloadHistoryDatabase {
 
   void clearAll() {
     _db.execute('DELETE FROM history');
+    _db.execute('VACUUM');
   }
 
   int get fileSize {

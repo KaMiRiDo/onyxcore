@@ -17,6 +17,7 @@ import 'package:onyxcore/features/downloader/presentation/widgets/download_histo
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
+import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:path/path.dart' as p;
@@ -128,6 +129,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   int _totalListSize = 0;
   int _totalListImages = 0;
   int _totalListVideos = 0;
+  int _pendingStatsUpdate = 0; // C5: throttle counter for stats recalculation
 
   void _recalculateFilteredStatistics() {
     _cachedFilteredItems = null; // RISK-004: Invalidate cache before reading
@@ -283,11 +285,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   }
 
   void _checkBinaries() {
-    final binDir = '${Platform.environment['HOME']}/.local/share/onyxcore/bin';
     setState(() {
-      _binariesExist =
-          File('$binDir/yt-dlp').existsSync() &&
-          File('$binDir/gallery-dl').existsSync();
+      _binariesExist = EngineRegistry.allInstalled;
     });
   }
 
@@ -538,7 +537,11 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 // Update it in case metadata changed
                 group.items[existsIndex] = info;
               }
-              _recalculateFilteredStatistics();
+              // C5: Throttle stats recalculation to every 5th item
+              _pendingStatsUpdate++;
+              if (_pendingStatsUpdate % 5 == 0) {
+                _recalculateFilteredStatistics();
+              }
               _hydrationNotifier
                   .value++; // Trigger UI update via ValueNotifier instead of full setState rebuild
             }
@@ -609,9 +612,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             _parsedItems!.add(group);
 
             if ((group.first.isProfile || group.first.isPlaylist) &&
-                group.items.length <= 13 &&
-                entry.key != null) {
-              _hydrateProfile(entry.key!);
+                group.items.length <= 13) {
+              _hydrateProfile(entry.key);
             }
           }
         }
@@ -647,6 +649,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                       formatString: '1080p mp4',
                     ) : null),
               groupFilter: defaultFilter,
+              engine: _selectedEngine, // C3: capture engine at fetch time
             );
           }
         }
@@ -772,9 +775,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               format: config.format,
               audioOnly: config.mode == DownloadMode.audioOnly,
               mute: config.mode == DownloadMode.mute,
-              engine: _selectedEngine,
-              isPlaylist: false,
+              engine: config.engine, // C3: use engine captured at fetch time
+              isPlaylist: group.first.isPlaylist, // C2: pass actual isPlaylist
               isProfile: group.first.isProfile,
+              browser: ref.read(settingsProvider).value?.downloadBrowser, // C4: add missing browser
               isZip: false, // Ensure zip is off
               filterType: filterType,
               totalItems: totalFilteredItems,
@@ -883,7 +887,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               audioOnly: config.mode == DownloadMode.audioOnly,
               mute: config.mode == DownloadMode.mute,
               galleryIndex: info.galleryIndex,
-              engine: _selectedEngine,
+              engine: config.engine, // C3: use engine captured at fetch time
               isPlaylist: info.isPlaylist,
               browser: ref.read(settingsProvider).value?.downloadBrowser,
               totalItems: 1,
@@ -1036,9 +1040,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 format: config.format,
                 audioOnly: config.mode == DownloadMode.audioOnly,
                 mute: config.mode == DownloadMode.mute,
-                engine: _selectedEngine,
-                isPlaylist: false,
+                engine: config.engine, // C3: use engine captured at fetch time
+                isPlaylist: group.first.isPlaylist, // C2: pass actual isPlaylist
                 isProfile: group.first.isProfile,
+                browser: ref.read(settingsProvider).value?.downloadBrowser, // C4: add missing browser
                 isZip: false, // Ensure zip is off
                 filterType: filterType,
                 totalItems: totalFilteredItems,
@@ -1131,7 +1136,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 audioOnly: config.mode == DownloadMode.audioOnly,
                 mute: config.mode == DownloadMode.mute,
                 galleryIndex: info.galleryIndex,
-                engine: _selectedEngine,
+                engine: config.engine, // C3: use engine captured at fetch time
                 isPlaylist: info.isPlaylist,
                 browser: ref.read(settingsProvider).value?.downloadBrowser,
                 totalItems: 1,

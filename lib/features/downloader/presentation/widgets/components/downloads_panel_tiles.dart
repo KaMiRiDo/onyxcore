@@ -633,6 +633,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                       ),
                                     if ((group.isSingle &&
                                             item.formats.isNotEmpty) ||
+                                        item.isPlaylist ||
                                         !group.isSingle ||
                                         item.isProfile)
                                       const SizedBox(width: 8),
@@ -744,26 +745,26 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
       formats = formatSet.values.toList();
       
       if (formats.isEmpty) {
-        formats = const [
-          MediaFormat(
+        formats = [
+          const MediaFormat(
             formatId: 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
             extension: 'mp4',
             resolution: '1080p',
             formatString: '1080p mp4',
           ),
-          MediaFormat(
+          const MediaFormat(
             formatId: 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
             extension: 'mp4',
             resolution: '720p',
             formatString: '720p mp4',
           ),
-          MediaFormat(
+          const MediaFormat(
             formatId: 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best',
             extension: 'mp4',
             resolution: '480p',
             formatString: '480p mp4',
           ),
-          MediaFormat(
+          const MediaFormat(
             formatId: 'bestaudio[ext=m4a]/bestaudio',
             extension: 'm4a',
             resolution: 'audio',

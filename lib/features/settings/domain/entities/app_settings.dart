@@ -45,6 +45,7 @@ class AppSettings extends Equatable {
     this.showHiddenAudioFiles = false,
     this.downloadBrowser,
     this.downloadToCurrentFolder = true,
+    this.maxConcurrentDownloads = 3,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -128,6 +129,9 @@ class AppSettings extends Equatable {
   /// Whether to download to the current folder by default.
   final bool downloadToCurrentFolder;
 
+  /// Maximum number of simultaneous download processes.
+  final int maxConcurrentDownloads;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -156,6 +160,7 @@ class AppSettings extends Equatable {
     bool? showHiddenAudioFiles,
     String? downloadBrowser,
     bool? downloadToCurrentFolder,
+    int? maxConcurrentDownloads,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -185,6 +190,7 @@ class AppSettings extends Equatable {
       showHiddenAudioFiles: showHiddenAudioFiles ?? this.showHiddenAudioFiles,
       downloadBrowser: downloadBrowser ?? this.downloadBrowser,
       downloadToCurrentFolder: downloadToCurrentFolder ?? this.downloadToCurrentFolder,
+      maxConcurrentDownloads: maxConcurrentDownloads ?? this.maxConcurrentDownloads,
     );
   }
 
@@ -217,5 +223,6 @@ class AppSettings extends Equatable {
     showHiddenAudioFiles,
     downloadBrowser,
     downloadToCurrentFolder,
+    maxConcurrentDownloads,
   ];
 }

@@ -72,6 +72,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       confirmDeleteAudio: _prefs.getBool('confirmDeleteAudio') ?? true,
       downloadBrowser: _prefs.getString('downloadBrowser'),
       downloadToCurrentFolder: _prefs.getBool('downloadToCurrentFolder') ?? true,
+      maxConcurrentDownloads: _prefs.getInt('maxConcurrentDownloads') ?? 3,
     );
 
   }
@@ -112,6 +113,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     }
     
     await _prefs.setBool('downloadToCurrentFolder', settings.downloadToCurrentFolder);
+    await _prefs.setInt('maxConcurrentDownloads', settings.maxConcurrentDownloads);
   }
 
   @override

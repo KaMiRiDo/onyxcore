@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:path/path.dart' as p;
 
 class DownloaderUpdateState {
@@ -51,25 +52,25 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         await binDir.create(recursive: true);
       }
 
-      // Update yt-dlp
-      await _downloadLatestRelease(
-        apiUrl: 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest',
-        assetName: 'yt-dlp_linux',
-        checksumAssetName: 'SHA2-256SUMS',
-        savePath: p.join(binDir.path, 'yt-dlp'),
-        progressWeight: 0.5,
-        progressOffset: 0.0,
-      );
+      // Iterate over all registered engines with update info
+      final engines = EngineRegistry.allEngines.where((e) => e.updateInfo != null).toList();
+      if (engines.isEmpty) {
+        state = const DownloaderUpdateState(isUpdating: false, progress: 1.0);
+        return;
+      }
+      final progressPerEngine = 1.0 / engines.length;
 
-      // Update gallery-dl
-      await _downloadLatestRelease(
-        apiUrl:
-            'https://codeberg.org/api/v1/repos/mikf/gallery-dl/releases/latest',
-        assetName: 'gallery-dl.bin',
-        savePath: p.join(binDir.path, 'gallery-dl'),
-        progressWeight: 0.5,
-        progressOffset: 0.5,
-      );
+      for (int i = 0; i < engines.length; i++) {
+        final engine = engines[i];
+        await _downloadLatestRelease(
+          apiUrl: engine.updateInfo!.apiUrl,
+          assetName: engine.updateInfo!.assetName,
+          checksumAssetName: engine.updateInfo!.checksumAssetName,
+          savePath: engine.binaryPath!,
+          progressWeight: progressPerEngine,
+          progressOffset: i * progressPerEngine,
+        );
+      }
 
       state = const DownloaderUpdateState(isUpdating: false, progress: 1.0);
     } catch (e) {

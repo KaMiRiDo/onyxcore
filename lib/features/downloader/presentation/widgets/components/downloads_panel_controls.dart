@@ -2,6 +2,7 @@ part of '../downloads_panel.dart';
 
 extension DownloadsPanelControls on _MediaDownloaderPanelState {
   Widget _buildEngineDropdown() {
+    final engines = EngineRegistry.allEngines;
     final options = [
       {
         'key': 'auto',
@@ -9,18 +10,12 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
         'icon': Icons.auto_awesome_rounded,
         'color': AppColors.violet,
       },
-      {
-        'key': 'yt-dlp',
-        'label': 'yt-dlp',
-        'icon': Icons.video_library_rounded,
-        'color': Colors.redAccent,
-      },
-      {
-        'key': 'gallery-dl',
-        'label': 'gallery-dl',
-        'icon': Icons.photo_library_rounded,
-        'color': Colors.blueAccent,
-      },
+      ...engines.map((e) => {
+            'key': e.id,
+            'label': e.displayName,
+            'icon': e.icon,
+            'color': e.color,
+          }),
     ];
 
     final selected = options.firstWhere((o) => o['key'] == _selectedEngine);
