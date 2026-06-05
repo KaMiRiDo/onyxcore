@@ -22,6 +22,7 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `window_manager` | ^0.5.1 | Window lifecycle control |
 | **Storage** | `hive` / `hive_flutter` | ^2.2.3 / ^1.1.0 | Local key-value persistence |
 | | `shared_preferences` | ^2.2.3 | Settings persistence |
+| | `sqlite3` | ^3.3.2 | Download history database |
 | **UI** | `google_fonts` | ^6.2.1 | Typography (Manrope, Outfit, JetBrains Mono) |
 | | `flutter_svg` | ^2.2.4 | SVG icon rendering |
 | | `flutter_markdown` | ^0.7.1 | Markdown rendering |
@@ -42,6 +43,8 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `ffprobe` (CLI) | system | Audio properties extraction (duration, bitrate, sample rate) |
 | | `lsblk` / `udisksctl` (CLI) | system | Device detection & mounting |
 | | `gio` (CLI) | system | Trash operations |
+| | `yt-dlp` (CLI) | auto-updated | Video/audio download engine (YouTube, Instagram, etc.) |
+| | `gallery-dl` (CLI) | auto-updated | Image gallery download engine (Reddit, Pixiv, etc.) |
 
 ---
 
@@ -101,6 +104,17 @@ graph TB
             SettingsRepo["SettingsRepository (SharedPreferences)"]
             SettingsUI["SettingsDialog"]
         end
+
+        subgraph Downloader["downloader"]
+            DlDomain["MediaInfo / MediaGroup / DownloadConfig"]
+            DlEngines["EngineRegistry / YtDlpEngine / GalleryDlEngine"]
+            DlServices["DownloaderProcessWrapper / CookieHelper / DownloadHistoryDatabase"]
+            DlUpdate["DownloaderUpdateService (GitHub API)"]
+            DlProviders["DownloadTaskProvider / DownloadHistoryProvider / DownloadsPanelProvider"]
+            DlPanel["DownloadsPanel (StatefulWidget + part files)"]
+            DlHistory["DownloadHistoryView / DownloadHistoryDetailView"]
+            DlTaskTile["DownloadTaskTile"]
+        end
     end
 
     App --> Pages
@@ -148,6 +162,8 @@ onyxcore/
 │   │   │   ├── extensions.dart            # Dart extension methods
 │   │   │   ├── formatters.dart            # Date/number formatters
 │   │   │   ├── media_uri_helper.dart      # HTTP proxy for media_kit
+│   │   │   ├── browser_detector.dart      # Installed browser discovery (which + flatpak)
+│   │   │   ├── process_utils.dart         # Graceful SIGTERM/SIGKILL process tree killer
 │   │   │   └── logger.dart                # Logging utility
 │   │   ├── widgets/
 │   │   │   ├── bubble_loader.dart         # Animated bubble loading indicator
@@ -285,14 +301,49 @@ onyxcore/
 │       │   └── presentation/
 │       │       ├── providers/settings_providers.dart  # Settings state
 │       │       └── widgets/settings_dialog.dart       # Settings dialog UI
-│       └── file_picker/
+│       ├── file_picker/
+│       │   └── presentation/
+│       │       ├── providers/
+│       │       │   └── file_picker_notifier.dart     # Picker state + FS provider
+│       │       └── widgets/
+│       │           ├── custom_file_picker_dialog.dart # Picker dialog UI
+│       │           ├── file_entity_tile.dart          # File list tile
+│       │           └── file_picker_preview_pane.dart  # Selection preview pane
+│       └── downloader/
+│           ├── domain/entities/
+│           │   ├── media_info.dart                   # MediaInfo, MediaFormat, MediaGroup entities
+│           │   └── download_config.dart              # DownloadConfig, DownloadMode, GroupDownloadType
+│           ├── services/
+│           │   ├── engines/
+│           │   │   ├── download_engine.dart          # Abstract DownloadEngine interface
+│           │   │   ├── engine_registry.dart          # EngineRegistry singleton (tool resolution)
+│           │   │   ├── ytdlp_engine.dart             # yt-dlp CLI wrapper (video/audio)
+│           │   │   └── gallery_dl_engine.dart         # gallery-dl CLI wrapper (image galleries)
+│           │   ├── downloader_process_wrapper.dart    # MediaDownloaderBackend (CLI orchestrator)
+│           │   ├── download_history_database.dart     # SQLite3 history persistence
+│           │   ├── downloader_update_service.dart     # GitHub Releases auto-updater
+│           │   └── cookie_helper.dart                 # Browser cookie extraction for auth
 │           └── presentation/
 │               ├── providers/
-│               │   └── file_picker_notifier.dart     # Picker state + FS provider
+│               │   ├── download_task_provider.dart    # DownloadTask state + concurrency queue
+│               │   ├── download_history_provider.dart # History notifier + filter/selection state
+│               │   └── downloads_panel_provider.dart  # Panel open/view state providers
 │               └── widgets/
-│                   ├── custom_file_picker_dialog.dart # Picker dialog UI
-│                   ├── file_entity_tile.dart          # File list tile
-│                   └── file_picker_preview_pane.dart  # Selection preview pane
+│                   ├── downloads_panel.dart           # Main StatefulWidget controller (2300+ lines)
+│                   ├── downloads_panel_helpers.dart   # Formatting mixin (bytes, duration, sizes)
+│                   ├── download_task_tile.dart        # Active download task tile
+│                   ├── download_history_view.dart     # History list with calendar filter
+│                   ├── download_history_detail_view.dart # History detail with stats + logs
+│                   └── components/
+│                       ├── downloads_header.dart          # Gradient panel header
+│                       ├── downloads_empty_state.dart     # Empty media state
+│                       ├── downloads_shared_components.dart # FallbackThumb, CountIndicator, CopyUrlButton
+│                       ├── downloads_missing_binaries_view.dart # Binary dependency installer
+│                       ├── downloads_panel_input.dart     # URL input bar + engine selector
+│                       ├── downloads_panel_controls.dart  # Engine dropdown + group filter dropdown
+│                       ├── downloads_panel_results_view.dart # Results list, sort/filter, statistics strip
+│                       ├── downloads_panel_tiles.dart     # Media tile + error tile builders
+│                       └── downloads_panel_preview.dart   # Single + group preview overlay with carousel
 ├── services/
 │   └── file_system_service.dart           # (mirrored above under lib/)
 ├── test/
@@ -309,7 +360,7 @@ onyxcore/
 └── pubspec.yaml
 ```
 
-**Total: 123 Dart source files across 8 feature modules, core infrastructure, and services layer + 5 test files.**
+**Total: 159 Dart source files across 9 feature modules (including 27 downloader files), core infrastructure, and services layer + 5 test files.**
 
 ---
 
@@ -1034,4 +1085,246 @@ onyxcore/
 
 ---
 
-*Generated: 2026-05-23 | Comprehensive audit of 123 Dart source files + 5 test files across 8 feature modules, core infrastructure, and services layer.*
+### 10. Download Manager
+
+#### 10.1 Architecture Overview
+- **Feature module** at `lib/features/downloader/` — 27 Dart source files organized in Clean Architecture layers (domain, services, presentation)
+- **Engine-based CLI orchestration**: Downloads are executed by spawning `yt-dlp` or `gallery-dl` as child processes via `Process.start()`, with stdout/stderr streaming for real-time progress parsing
+- **State management**: Riverpod `NotifierProvider` pattern — `DownloadTaskNotifier` manages active/pending tasks, `DownloadHistoryNotifier` manages persisted completed tasks, `DownloadsPanelProvider` controls panel UI state
+- **Panel architecture**: `DownloadsPanel` is a 2300+ line `StatefulWidget` split across 7 `part` files using Dart extension methods on the widget state, enabling modular code organization while sharing mutable state
+
+#### 10.2 Domain Entities
+- **`MediaInfo`**: Core entity representing a single downloadable media item
+  - Fields: `id`, `title`, `thumbnail`, `originalUrl`, `duration` (seconds), `filesize`, `formats` (list of `MediaFormat`), `extractor` (source platform), `isVideo`, `isProfile`, `isPlaylist`, `itemCount`, `errorMessage`
+  - **`isError`**: Computed property — `true` when `errorMessage` is non-null, used to route to error tile rendering
+- **`MediaFormat`**: Represents a selectable download quality option
+  - Fields: `formatId` (yt-dlp format selector string), `extension`, `resolution` (e.g., "1080p", "720p", "audio only"), `formatString` (display label), `filesize`
+  - Implements `Equatable` for deduplication in format dropdowns
+- **`MediaGroup`**: A grouping container for related media items (e.g., all items from a single URL)
+  - Fields: `items` (list of `MediaInfo`), `originalUrl` (the source URL that produced this group)
+  - Computed properties: `first`, `isSingle`, `imageCount`, `videoCount`, `totalFilesize`
+  - **Multi-item grouping**: Profile/playlist URLs produce groups with multiple `MediaInfo` entries; single video URLs produce groups with one entry
+- **`DownloadConfig`**: Per-item configuration for the download
+  - Fields: `mode` (`DownloadMode` enum: `auto`, `video`, `audio`), `formatId` (selected quality), `groupFilter` (`GroupDownloadType` enum: `all`, `images`, `videos`)
+  - **Mutable**: Config is modified in-place via UI dropdowns (format selection, media type filter)
+
+#### 10.3 Engine System
+- **`DownloadEngine`** (abstract): Interface defining `id`, `displayName`, `icon`, `color`, `binaryPath`, `updateInfo`, `canHandle(url)`, `buildFetchArgs(url, settings)`, `buildDownloadArgs(mediaInfo, config, destination, settings)`, `parseFetchOutput(stdout)`, `parseProgress(line)`
+- **`EngineRegistry`**: Singleton registry that holds all engine instances and resolves the correct engine for a URL via `canHandle()` matching
+  - **Auto-select mode**: Iterates all engines in priority order; falls back to yt-dlp as default
+  - **Manual override**: User can select a specific engine via the engine dropdown
+  - `allEngines` getter returns all registered engine instances
+  - `findEngine(url)` returns the first engine that can handle the URL
+- **`YtDlpEngine`**: CLI wrapper for `yt-dlp`
+  - **Binary resolution**: Checks `~/.local/share/onyxcore/bin/yt-dlp` first, then system `yt-dlp`
+  - **URL matching**: Handles YouTube, Instagram, Twitter/X, TikTok, Vimeo, Dailymotion, SoundCloud, Bilibili, and generic video URLs
+  - **Fetch args**: `--dump-json --flat-playlist --no-warnings` with optional `--cookies-from-browser` from settings
+  - **Download args**: Constructs format selectors (`-f formatId`), output templates (`-o`), playlist handling, progress templates (`--progress-template`), and `--cookies-from-browser` for authenticated downloads
+  - **Progress parsing**: Regex-based extraction of percentage, speed, ETA, and total size from `--progress-template` output
+  - **Playlist fallback formats**: When a playlist has no per-item formats, generates synthetic format options: 1080p, 720p, 480p MP4, and Audio Only (m4a)
+- **`GalleryDlEngine`**: CLI wrapper for `gallery-dl`
+  - **Binary resolution**: Checks `~/.local/share/onyxcore/bin/gallery-dl` first, then system `gallery-dl`
+  - **URL matching**: Handles Reddit, Imgur, Pixiv, DeviantArt, ArtStation, Danbooru, Gelbooru, Rule34, Konachan, Yande.re, and generic gallery URLs
+  - **Fetch args**: `--dump-json --no-download` with optional `--cookies-from-browser`
+  - **Download args**: Output directory (`-d`), `--cookies-from-browser` for authenticated downloads
+  - **Progress parsing**: Monitors stdout for file paths (lines starting with `/` or `C:\`) to track downloaded items
+
+#### 10.4 Services
+- **`MediaDownloaderBackend`**: The central process orchestrator
+  - **Fetch flow**: Spawns engine CLI with fetch args → streams stdout → parses JSON output into `MediaInfo` objects → groups results into `MediaGroup` → returns to UI
+  - **Download flow**: Spawns engine CLI with download args → streams stdout/stderr → parses progress via engine's `parseProgress()` → updates `DownloadTask` state → records to history on completion
+  - **Process lifecycle**: Tracks PIDs for cancellation; uses `ProcessUtils.killProcessTree()` for graceful SIGTERM → SIGKILL cascade
+  - **Error handling**: Captures stderr, detects non-zero exit codes, and surfaces error messages to UI
+- **`CookieHelper`**: Browser cookie extraction utility
+  - Detects installed browsers via `BrowserDetector.getInstalledBrowsers()`
+  - Resolves the configured `downloadBrowser` setting to a `--cookies-from-browser` CLI argument
+  - Supports: Firefox, Chrome, Chromium, Brave, Vivaldi, Opera, Edge (native and Flatpak)
+- **`DownloadHistoryDatabase`**: SQLite3-backed persistent history
+  - **Schema**: `download_history` table with columns: `id` (TEXT PK), `title`, `url`, `destination`, `download_type`, `status_name`, `error_message`, `created_at`, `completed_at`, `duration_ms`, `logs` (JSON-serialized list)
+  - **Operations**: `insert`, `getAll` (paginated with LIMIT/OFFSET), `getEntry`, `delete`, `deleteAll`, `deleteFiltered`, `getAvailableDates` (distinct dates for calendar filter), `getFileSize` (database file size on disk)
+  - **File path**: `~/.local/share/onyxcore/downloads.db`
+- **`DownloaderUpdateService`**: Auto-updater for engine binaries
+  - **`DownloaderUpdateNotifier`**: Riverpod notifier managing update state (`isUpdating`, `progress`, `error`)
+  - **Flow**: Fetches latest GitHub Release via API → finds platform-specific asset → downloads binary to `~/.local/share/onyxcore/bin/` → verifies SHA256 checksum → `chmod +x`
+  - **Progress tracking**: Per-engine progress with proportional weighting (e.g., 50% per engine for 2 engines)
+  - **Integrity verification**: Downloads `SHA256SUMS` asset, computes local hash via `sha256sum` CLI, deletes binary on mismatch
+
+#### 10.5 State Providers
+- **`downloadTaskProvider`** (`NotifierProvider<DownloadTaskNotifier, List<DownloadTask>>`)
+  - **`DownloadTask`** entity: `id`, `title`, `url`, `destination`, `status` (`DownloadStatus` enum), `progress` (0.0–1.0), `speed`, `eta`, `totalSize`, `error`, `pid`, `args` (serialized CLI arguments)
+  - **`DownloadStatus`** enum: `pending`, `running`, `completed`, `error`, `cancelled`, `cancelling`
+  - **Concurrency queue**: Respects `maxConcurrentDownloads` setting (default 3, configurable 1–10); pending tasks auto-promote when a slot opens
+  - **`addTask()`**: Creates task with `pending` status, immediately attempts to start if slots available
+  - **`cancelDownload(id)`**: Sets status to `cancelling` → kills process tree via `ProcessUtils.killProcessTree(pid)` → transitions to `cancelled`
+  - **`removeTask(id)`**: Removes completed/error/cancelled tasks from the active list
+  - **Process tree cleanup**: On app window close, `killProcessTreeSync()` is called for all active PIDs to prevent orphaned CLI processes
+  - **History archival**: Completed, errored, and cancelled tasks are automatically persisted to `DownloadHistoryDatabase` and removed from the active list after a 3-second delay
+- **`downloadHistoryProvider`** (`NotifierProvider<DownloadHistoryNotifier, List<DownloadHistoryEntry>>`)
+  - **`DownloadHistoryEntry`**: `id`, `title`, `url`, `destination`, `downloadType`, `statusName`, `errorMessage`, `createdAt`, `completedAt`, `duration`, `logs` (list of strings — file paths and CLI output)
+  - **Lazy pagination**: `loadMore()` fetches next page (50 entries) from SQLite; triggered by scroll position within 200px of bottom
+  - **`clearAll()`**: Deletes all history entries
+  - **`deleteEntry(id)` / `deleteEntries(ids)`**: Single and batch deletion
+  - **`deleteFiltered(filter)`**: Deletes entries matching `DownloadHistoryFilter` criteria
+  - **`totalEntries`**: Cached total count for toolbar display
+  - **`historyFileSize`**: Returns SQLite database file size for toolbar display
+- **`activeDownloadTaskProvider`** (derived): Filters `downloadTaskProvider` to only running/pending/cancelling tasks — used by the active downloads strip
+- **`downloadsPanelOpenProvider`** (`StateProvider<bool>`): Controls panel visibility
+- **`downloadsPanelViewProvider`** (`StateProvider<DownloadsPanelView>`): Routes between `tasks` (main panel), `history`, and `historyDetail` views
+- **`selectedDownloadHistoryIdProvider`** (`StateProvider<String?>`): Tracks which history entry is shown in the detail view
+- **`downloadHistoryFilterProvider`** (`StateProvider<DownloadHistoryFilter>`): Filter criteria for history (selected dates, status)
+- **`downloadHistorySelectionProvider`** (`NotifierProvider<..., Set<String>>`): Multi-select set for batch history deletion
+- **`filteredDownloadHistoryProvider`** (derived): Applies `DownloadHistoryFilter` to the raw history list
+- **`availableDownloadDatesProvider`** (derived): Queries SQLite for distinct download dates — populates the calendar filter
+- **`DownloadHistoryFilter`**: Immutable filter model with `selectedDates` (Set<String>) and `status` (String?); `isEmpty` computed property; `copyWith()` support
+
+#### 10.6 Panel UI — Main Controller (`DownloadsPanel`)
+- **Architecture**: `StatefulWidget` with state split across 7 `part` files via Dart extensions on `_MediaDownloaderPanelState`:
+  - `downloads_panel_input.dart` — URL input bar and fetch logic
+  - `downloads_panel_controls.dart` — Engine dropdown and group filter dropdown
+  - `downloads_panel_results_view.dart` — Results list, sort/filter, statistics strip, drag-and-drop import
+  - `downloads_panel_tiles.dart` — Media tile and error tile builders
+  - `downloads_panel_preview.dart` — Single and group preview overlays with carousel
+  - `downloads_panel_helpers.dart` — Formatting mixin (bytes, duration, file sizes)
+  - `downloads_panel.dart` — Core state machine, initialization, lifecycle, and view routing
+- **Binary check on init**: `_checkBinaries()` scans `EngineRegistry.allEngines` for missing binaries; routes to `DownloadsMissingBinariesView` if any are absent
+- **View routing**: Three-state machine managed by `downloadsPanelViewProvider`:
+  1. **Tasks view** (default) — URL input → fetch → media list → download
+  2. **History view** — Paginated history list with filter/search
+  3. **History detail view** — Single entry deep-dive with stats, timeline, logs
+- **State fields**: `_parsedItems` (list of `MediaGroup`), `_configs` (map of index → `DownloadConfig`), `_selectedIndices` (set), `_previewItem`/`_previewIndex` (preview overlay state), `_isFetching`, `_fetchError`, `_sortFilter`, `_selectedEngine`, `_importedListName`/`_importedListPath` (JSON import), `_isListChanged`, `_backgroundLoadingProfiles` (set of URLs currently being hydrated)
+- **Animated gradient border**: `_gradientController` drives a rotating sweep gradient for the drag-and-drop import overlay border via `_GradientBorderPainter`
+
+#### 10.7 URL Input & Fetch
+- **Input bar**: Full-width text field with gradient focus border, engine selector dropdown on the left, "Fetch" button on the right
+- **Multi-URL support**: Splits input by newlines and commas; each URL is fetched independently
+- **Engine selector**: `PopupMenuButton` dropdown listing "Auto Select" + all registered engines with colored icons; selected engine determines which CLI tool processes the URL
+- **Fetch process**:
+  1. Validates input (non-empty, valid URL format)
+  2. Spawns engine CLI with fetch arguments via `MediaDownloaderBackend`
+  3. Streams stdout line-by-line → parses JSON into `MediaInfo` objects
+  4. Groups results into `MediaGroup` entries → appends to `_parsedItems`
+  5. Auto-generates `DownloadConfig` for each group (default: auto mode, best quality)
+- **Error handling**: Failed URLs produce `MediaInfo` entries with `isError: true` and `errorMessage` — rendered as red error tiles with "Error Logs" button
+- **Loading state**: `_JugglingBallsLoader` animated indicator (3 orbiting balls with scale+opacity animation) during fetch
+
+#### 10.8 Results View & Media Tiles
+- **Sort/Filter dropdown**: `PopupMenuButton` with 8 options:
+  - Sort: Added (desc), Added (asc), Size (desc), Size (asc)
+  - Filter: Images only, Videos only, Playlists only, Profiles only
+  - Active filter shown with violet highlight; clear button (×) when non-default
+- **Statistics strip**: Real-time aggregate statistics bar showing: total size (formatted bytes), image count, video count; includes "Current Folder" toggle to control download destination
+- **Media tiles** (`_buildMediaTile`): Rich cards with:
+  - **160×104 thumbnail** with network image loading (custom User-Agent headers for Instagram compatibility), `BubbleLoader` during load, `FallbackThumb` on error
+  - **Source badge**: Platform name overlay (e.g., "YouTube", "instagram.com") on top-left
+  - **Type icon badge**: Top-right icon indicating media type (video camera, image, multi-item stack, profile avatar, playlist)
+  - **Duration badge**: Bottom-left for single videos (formatted as HH:MM:SS)
+  - **Count indicators**: Bottom-left image/video count badges for multi-item groups (disabled styling when filtered out by `groupFilter`)
+  - **Size badge**: Bottom-right formatted file size
+  - **Title**: 2-line max with ellipsis; profiles display `@username` instead of generic "item" title
+  - **Copy URL button**: Animated checkmark feedback on copy (3s reset timer)
+  - **Format dropdown**: Quality selector (resolution sorted descending, audio-only at bottom, sub-480p filtered out when ≥480p exists)
+  - **Group filter dropdown**: All / Images Only / Videos Only selector (enabled only when group has mixed content)
+  - **Download button**: "Download" for single items, "Download All" for groups/profiles/playlists
+  - **Remove button** (×): Removes item from list
+- **Error tiles** (`_buildErrorTile`): Red-themed cards with error icon, original URL, copy URL button, and "Error Logs" button that opens a fullscreen log overlay
+- **Selection system**: Click, Ctrl+Click (additive), Shift+Click (range with anchor); keyboard support via `_listFocusNode` — Delete key removes selected items
+- **Hydration indicator**: `ValueListenableBuilder<int>` on `_hydrationNotifier` triggers rebuild of count/size badges when background profile analysis updates group contents
+
+#### 10.9 Profile & Playlist Hydration
+- **Background analysis**: When a user clicks the thumbnail of a profile/playlist group that has only a stub entry, `_hydrateProfile()` is triggered
+- **Process**: Spawns engine CLI with the original URL → streams results → progressively appends `MediaInfo` items to the existing `MediaGroup` → updates UI via `_hydrationNotifier` without clearing the list
+- **Loading overlay**: `BubbleLoader` overlay on the thumbnail while hydration is in progress; `_backgroundLoadingProfiles` set tracks which URLs are currently being analyzed
+- **Interaction**: Thumbnail click is blocked during hydration; completed hydration automatically opens the group preview overlay
+
+#### 10.10 Preview Overlay
+- **Single preview** (`_buildSinglePreviewOverlay`): Glassmorphic modal showing:
+  - Full-size thumbnail (max 210px height) with duration badge for videos
+  - Title, extractor, file size, and copy URL button
+  - Format dropdown (if formats available) or group filter dropdown (if multi-item)
+  - Remove and Download buttons
+- **Group preview** (`_buildGroupPreviewOverlay`): Fixed 650px-wide carousel modal:
+  - Header: Group title (profile shows `@username`), extractor, total size, format/group filter dropdown, "Download All" button
+  - **Image carousel**: Left/right arrow buttons, 280px thumbnail area with counter overlay ("3 / 15"), keyboard navigation (← → arrow keys) via `_previewFocusNode`
+  - Footer: Current item title with size, copy URL button, per-item format dropdown, Remove (single item) and Download (single item) buttons
+  - **Hydration loading**: BubbleLoader overlay on carousel during background profile analysis
+- **Dismiss**: Click outside modal or press close button; both reset `_previewItem` to null
+
+#### 10.11 Download Execution
+- **Single download** (`_startDownload(index)`): Creates a `DownloadTask` with the selected format/config and dispatches to `DownloadTaskNotifier`
+- **Batch download** (`_startDownloadAll`): If items are selected, downloads only selected indices; otherwise downloads all items in `_parsedItems`
+- **Destination resolution**: If "Download to Current Folder" is enabled, uses the current navigation directory; otherwise uses `~/Downloads`
+- **Conflict resolution**: Integrates with the main app's `ConflictProvider` for filename collision handling (skip/overwrite/rename)
+- **Concurrency**: Respects `maxConcurrentDownloads` setting (1–10, default 3); excess tasks queue as `pending` and auto-start when slots open
+
+#### 10.12 Active Downloads Drawer
+- **Strip**: Collapsible footer strip in the results view showing aggregate progress of all active tasks (averaged progress percentage, task count)
+- **Drawer**: Expandable section listing `DownloadTaskTile` widgets for each active/pending/completed task
+- **`DownloadTaskTile`**: Compact card showing:
+  - Title with `DownloadStatus` badge (color-coded: Running=violet, Pending=amber, Completed=green, Error=red, Cancelled=orange, Cancelling=orange spinner)
+  - Destination path
+  - Animated progress bar (`TweenAnimationBuilder` with 500ms linear tween; indeterminate mode when progress is 0% and status is running)
+  - Progress percentage, speed, total size, and ETA in the footer row
+  - Cancel button with inline confirmation overlay ("Cancel this download?" → "No" / "Yes, Cancel")
+  - Delete button for completed/error/cancelled tasks
+  - Error message display (2-line max) for failed downloads
+
+#### 10.13 List Import/Export
+- **Export**: Serializes `_parsedItems` to a JSON file saved to the current directory (named `onyxcore_downloads_<timestamp>.json`)
+- **Import**: Drag-and-drop a JSON file onto the results view area, or programmatic import via `_importList(path)`
+  - **Drag overlay**: Animated gradient border with rotating sweep gradient (`_GradientBorderPainter`); shows violet gradient for valid drop, red gradient with error message if list is not empty
+  - **Validation**: Only `.json` files accepted; must clear existing list before importing
+- **Update**: When an imported list is modified (items removed), the "Export List" button changes to "Update List" — saves changes back to the original file path
+
+#### 10.14 Download History
+- **History View** (`DownloadHistoryView`): Paginated list of past downloads with:
+  - **Toolbar**: Total task count, total database file size, filter button
+  - **Calendar filter overlay**: `_SimpleCalendar` widget showing months with selectable dates (highlighted dates where downloads occurred, sourced from `availableDownloadDatesProvider`); status dropdown (All, Completed, Error, Cancelled); Apply/Cancel buttons with glassmorphic overlay
+  - **Day separators**: Entries grouped by date with formatted date headers (e.g., "TODAY", "YESTERDAY", "Mon, 25 May")
+  - **History items**: Compact tiles showing: type icon (video=blue, image=pink, playlist=purple, profile=teal, file=default), title, status badge (color-coded), destination path, item count, timestamps
+  - **Multi-select**: Tap to select, `Delete` key to bulk delete with confirmation
+  - **Tap to detail**: Clicking a history entry navigates to the detail view
+  - **Bottom actions**: "Clear All History" or "Delete Selected" (when selection active) with confirmation overlays
+  - **Infinite scroll**: `_onScroll` listener triggers `loadMore()` when within 200px of the bottom
+- **History Detail View** (`DownloadHistoryDetailView`): Deep-dive view for a single entry:
+  - **Title card**: Download icon, title, status badge, error message (if applicable) in red container
+  - **Flow section**: Source URL (with copy button) → Destination path (clickable — navigates to directory in main file browser and selects the file)
+  - **Processed items**: Scrollable list of downloaded file paths; each clickable to navigate; shows "Deleted" badge for files that no longer exist on disk; file icon colored violet for existing files, muted for deleted
+  - **Statistics grid**: Duration (formatted HH:MM:SS), Items count, Total size (formatted bytes), Average speed (bytes/s — only shown when duration > 0 and size > 0)
+  - **Timeline**: Created and Finished timestamps with violet dot indicators
+  - **Execution logs**: Expandable section with entry count; shows raw CLI output in `FiraCode` monospace font (10px, 0.4 opacity) in a 250px scrollable container
+  - **Delete button**: Removes the entry and navigates back to history list
+
+#### 10.15 Missing Binaries View
+- **`DownloadsMissingBinariesView`**: Shown when `yt-dlp` or `gallery-dl` binaries are not found
+- **UI**: Warning amber icon, "Dependencies Needed" title, description text
+- **Download button**: Triggers `DownloaderUpdateNotifier.updateBinaries()` which fetches latest releases from GitHub API
+- **Progress**: `LinearProgressIndicator` with percentage text during download
+- **Error display**: Red error text if download fails
+- **Auto-transition**: Listens to `downloaderUpdateProvider` — when update completes without error, triggers `onCheckBinaries()` callback to re-verify and transition to the main panel
+
+#### 10.16 Shared Components
+- **`FallbackThumb`**: 160×104 dark placeholder with broken image icon for failed thumbnail loads
+- **`CountIndicator`**: Compact pill showing icon + count (e.g., image icon + "12"); supports `disabled` styling (30% opacity) when the group filter excludes that media type
+- **`CopyUrlButton`**: Animated copy button with "URL" label; shows green checkmark for 3 seconds after copy via `Clipboard.setData()` with `AnimatedSwitcher` scale transition
+- **`DownloadsHeader`**: Gradient "Download Manager" title (ShaderMask with `AppTheme.primaryGradient`), History text button, and Close panel button
+- **`DownloadsEmptyState`**: Centered cloud download icon (64px, white10) with "No Media to Download" title and "Paste URLs above and click Fetch" subtitle
+- **`_JugglingBallsLoader`**: Three animated balls (magenta, violet, indigo) orbiting in a circular path with scale+opacity animations; used during fetch loading
+
+#### 10.17 Settings Integration
+- **`downloadBrowser`** (`String?`): Selected browser for cookie extraction; auto-detected via `BrowserDetector.getDefaultBrowser()` on first launch; dropdown in Settings shows all installed browsers + "None"
+- **`downloadToCurrentFolder`** (`bool`, default `true`): When enabled, downloads save to the currently browsed directory; when disabled, saves to `~/Downloads`; toggle available in both Settings dialog and results view statistics strip
+- **`maxConcurrentDownloads`** (`int`, default `3`): Maximum parallel download tasks (1–10); slider in Settings dialog
+
+#### 10.18 Core Utilities (Cross-Cutting)
+- **`ProcessUtils`**: Graceful process tree killer used by the download task system
+  - `killProcessTree(pid)`: Async — discovers children via `pgrep -P`, recursively kills bottom-up, sends SIGTERM first with 1s grace period, then SIGKILL
+  - `killProcessTreeSync(pid)`: Sync variant for window close handlers — immediate SIGKILL cascade (no async await possible in dispose)
+  - **Platform-aware**: Full tree kill on Linux/macOS; direct SIGKILL on other platforms
+- **`BrowserDetector`**: Installed browser discovery utility
+  - `getInstalledBrowsers()`: Checks 10 known browsers via `which` command + Flatpak installations (`flatpak info`); returns sorted deduplicated list
+  - `getDefaultBrowser()`: Queries `xdg-settings get default-web-browser` and matches against known browser names
+  - **Known browsers**: Firefox, Chrome, Chromium, Brave, Vivaldi, Opera, Edge (+ Flatpak variants)
+
+---
+
+*Generated: 2026-06-05 | Comprehensive audit of 159 Dart source files + 5 test files across 9 feature modules, core infrastructure, and services layer.*
