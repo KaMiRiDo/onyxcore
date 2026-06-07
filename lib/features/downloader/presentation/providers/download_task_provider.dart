@@ -9,6 +9,7 @@ import 'package:onyxcore/features/downloader/services/downloader_process_wrapper
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
 
 enum DownloadStatus { pending, running, cancelling, completed, error, cancelled }
 
@@ -104,6 +105,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   final Map<String, Map<String, dynamic>> _taskArgs = {};
+  final Map<String, Timer> _liveMonitors = {};
 
   int get _maxConcurrent {
     return ref.read(settingsProvider).value?.maxConcurrentDownloads ?? 3;
@@ -147,6 +149,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         isZip: args['isZip'] as bool? ?? false,
         filterType: args['filterType'] as String?,
         totalItems: args['totalItems'] as int?,
+        singleItemId: args['singleItemId'] as String?,
+        directUrl: args['directUrl'] as String?,
       );
 
       _updateTask(id, process: process);
@@ -161,6 +165,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       });
 
       final exitCode = await process.exitCode;
+
+      // Stop live stream monitor if running
+      _liveMonitors[id]?.cancel();
+      _liveMonitors.remove(id);
 
       if (exitCode == 0) {
         _updateTask(id, status: DownloadStatus.completed, progress: 1.0, completedAt: DateTime.now());
@@ -178,6 +186,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     } finally {
       stdoutSub?.cancel();
       stderrSub?.cancel();
+      _liveMonitors[id]?.cancel();
+      _liveMonitors.remove(id);
       _processQueue();
     }
   }
@@ -200,6 +210,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     bool isZip = false,
     String? filterType,
     int? totalItems,
+    String? singleItemId,
+    String? directUrl,
   }) {
 
     final id = _uuid.v4();
@@ -228,6 +240,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       'isZip': isZip,
       'filterType': filterType,
       'totalItems': totalItems,
+      'singleItemId': singleItemId,
+      'directUrl': directUrl,
     };
 
     if (totalItems != null) {
@@ -238,17 +252,34 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     _processQueue();
   }
 
-  Future<void> _cleanupTempFiles(String destination) async {
+  Future<void> _cleanupTempFiles(String destination, String? title, bool isDedicatedFolder) async {
     try {
       final dir = Directory(destination);
       if (await dir.exists()) {
-        final files = dir.listSync(recursive: true);
+        final files = dir.listSync(); // non-recursive to avoid deleting files in subfolders
+        final safeTitle = title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+
         for (final file in files) {
           if (file is File) {
-            if (file.path.endsWith('.temp') || file.path.endsWith('.part') || file.path.endsWith('.ytdl')) {
-              try {
-                await file.delete();
-              } catch (_) {}
+            final fileName = file.path.split(Platform.pathSeparator).last;
+            
+            if (fileName.endsWith('.temp') || 
+                fileName.endsWith('.part') || 
+                fileName.endsWith('.ytdl') || 
+                fileName.endsWith('.aria2') || 
+                fileName.endsWith('.frag')) {
+              
+              if (isDedicatedFolder) {
+                // If downloading into a dedicated playlist/profile folder, all temp files here belong to this task
+                try {
+                  await file.delete();
+                } catch (_) {}
+              } else if (safeTitle != null && fileName.contains(safeTitle)) {
+                // Otherwise, ensure the temp file matches the task title to avoid deleting other active downloads
+                try {
+                  await file.delete();
+                } catch (_) {}
+              }
             }
           }
         }
@@ -262,16 +293,37 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         if (task.status == DownloadStatus.running && task.process != null) {
           // Show cancelling state for UI feedback
           _updateTask(id, status: DownloadStatus.cancelling);
-          await ProcessUtils.killProcessTree(task.process!.pid);
+
+          // Live stream tasks (Streamlink) need SIGINT for clean container closure
+          final isLive = _taskArgs[id]?['isLive'] as bool? ?? false;
+          if (isLive) {
+            task.process!.kill(ProcessSignal.sigint);
+            await Future.delayed(const Duration(seconds: 3));
+            // If still running after 3s, force kill
+            try {
+              await task.process!.exitCode.timeout(const Duration(seconds: 1));
+            } on TimeoutException {
+              await ProcessUtils.killProcessTree(task.process!.pid);
+            }
+          } else {
+            await ProcessUtils.killProcessTree(task.process!.pid);
+          }
           
           final args = _taskArgs[id];
           if (args != null) {
             final destination = args['destination'] as String?;
+            final title = args['title'] as String?;
+            final isPlaylist = args['isPlaylist'] as bool? ?? false;
+            final isProfile = args['isProfile'] as bool? ?? false;
+            
             if (destination != null) {
-              await _cleanupTempFiles(destination);
+              await _cleanupTempFiles(destination, title, isPlaylist || isProfile);
             }
           }
         }
+        // Stop live monitor if running
+        _liveMonitors[id]?.cancel();
+        _liveMonitors.remove(id);
         _updateTask(id, status: DownloadStatus.cancelled, completedAt: DateTime.now());
     } catch (_) {}
   }
@@ -379,7 +431,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   void _parseProgress(String id, String data) {
-    // Handle standard yt-dlp output
+    // 1. Handle standard yt-dlp output: [download] 45.2% of 150.3MiB at 5.2MiB/s ETA 00:15
     final RegExp progressRegExp = RegExp(
         r'\[download\]\s+([\d\.]+)\%\s+of\s+(.*?)\s+at\s+(.*?)\s+ETA\s+(.*)');
     final match = progressRegExp.firstMatch(data);
@@ -395,7 +447,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       return;
     }
 
-    // Handle aria2c output if injected
+    // 2. Handle aria2c output if injected: [...(20%)...DL:5.2MiB ETA:8s]
     final RegExp ariaRegExp = RegExp(r'\[.*?\((\d+)%\).*?DL:(.*?) ETA:(.*?)\]');
     final ariaMatch = ariaRegExp.firstMatch(data);
     if (ariaMatch != null) {
@@ -407,13 +459,82 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       return;
     }
 
-    // Handle gallery-dl file output
+    // 3. Handle aria2c standalone: [#hash 10MiB/50MiB(20%) CN:16 DL:5.2MiB/s ETA:8s]
+    final ariaStandalone = RegExp(r'(\d+)MiB/(\d+)MiB\((\d+)%\).*?DL:(\S+).*?ETA:(\S+)');
+    final ariaStdMatch = ariaStandalone.firstMatch(data);
+    if (ariaStdMatch != null) {
+      final percentage = double.tryParse(ariaStdMatch.group(3) ?? '0.0') ?? 0.0;
+      final speed = ariaStdMatch.group(4) ?? '';
+      final eta = ariaStdMatch.group(5) ?? '';
+      final totalSize = '${ariaStdMatch.group(1)}/${ariaStdMatch.group(2)} MiB';
+      _updateTask(id,
+          progress: percentage / 100.0, speed: speed.trim(), eta: eta.trim(), totalSize: totalSize);
+      return;
+    }
+
+    // 4. Handle aria2c download complete
+    if (data.contains('Download complete:')) {
+      _updateTask(id, progress: 1.0);
+      return;
+    }
+
+    // 5. Handle You-Get progress: 98.5% ( 24.0/ 24.4MB) [==============>]
+    final youGetProgress = RegExp(r'(\d+\.?\d*)%\s+\(\s*[\d.]+/\s*([\d.]+\s*\w+)\)');
+    final youGetMatch = youGetProgress.firstMatch(data);
+    if (youGetMatch != null) {
+      final percentage = double.tryParse(youGetMatch.group(1) ?? '0.0') ?? 0.0;
+      final totalSize = youGetMatch.group(2) ?? '';
+      _updateTask(id, progress: percentage / 100.0, totalSize: totalSize.trim());
+      return;
+    }
+
+    // 6. Handle You-Get download complete
+    if (data.contains('(✓)') && data.contains('Downloaded to:')) {
+      _updateTask(id, progress: 1.0);
+      return;
+    }
+
+    // 7. Handle Lux progress: 50.00% |████████░░░░| 25.0/50.0 MiB 5.0 MiB/s 5s
+    final luxProgress = RegExp(r'(\d+\.?\d*)%\s+\|.*?\|\s+([\d.]+/[\d.]+\s+\w+)\s+([\d.]+\s+\w+/s)\s+(\S+)');
+    final luxMatch = luxProgress.firstMatch(data);
+    if (luxMatch != null) {
+      final percentage = double.tryParse(luxMatch.group(1) ?? '0.0') ?? 0.0;
+      final totalSize = luxMatch.group(2) ?? '';
+      final speed = luxMatch.group(3) ?? '';
+      final eta = luxMatch.group(4) ?? '';
+      _updateTask(id,
+          progress: percentage / 100.0, speed: speed.trim(), eta: eta.trim(), totalSize: totalSize.trim());
+      return;
+    }
+
+    // 8. Handle FFmpeg progress (Playwright pipeline): time=00:01:30
+    final ffmpegProgress = RegExp(r'time=(\d+:\d+:\d+)');
+    final ffmpegMatch = ffmpegProgress.firstMatch(data);
+    if (ffmpegMatch != null) {
+      final time = ffmpegMatch.group(1) ?? '';
+      // FFmpeg doesn't give percentage for streams — show elapsed time
+      _updateTask(id, totalSize: 'Elapsed: $time');
+      return;
+    }
+
+    // 9. Handle Streamlink output: Writing output to ...
+    if (data.contains('Writing output to') || data.contains('Stream ended')) {
+      // Start file-size monitoring for live streams
+      final destination = _taskArgs[id]?['destination'] as String?;
+      final title = _taskArgs[id]?['title'] as String?;
+      if (destination != null && !_liveMonitors.containsKey(id)) {
+        _startFileSizeMonitor(id, destination, title);
+      }
+      return;
+    }
+
+    // 10. Handle gallery-dl file output
     // gallery-dl usually prints the full file path to stdout when a file completes downloading.
     final currentTotal = _taskArgs[id]?['totalItems'] as int?;
     
     // Check if it's not a log message
     if (!data.trim().startsWith('[') && data.trim().isNotEmpty) {
-      final extRegExp = RegExp(r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv)$', caseSensitive: false);
+      final extRegExp = RegExp(r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv|ts)$', caseSensitive: false);
       if (extRegExp.hasMatch(data.trim()) || data.contains('/') || data.contains('\\')) {
         _downloadedCounts[id] = (_downloadedCounts[id] ?? 0) + 1;
         final count = _downloadedCounts[id]!;
@@ -427,6 +548,41 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         }
       }
     }
+  }
+
+  /// Monitor file size growth for live stream recordings (Streamlink).
+  ///
+  /// Polls the output file every 2 seconds and updates the task with
+  /// current file size and recording speed.
+  void _startFileSizeMonitor(String id, String destination, String? title) {
+    final safeTitle = title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ?? 'live_recording';
+    // Streamlink outputs to .ts files
+    final possiblePaths = [
+      '$destination/$safeTitle.ts',
+      '$destination/$safeTitle.mp4',
+    ];
+
+    _liveMonitors[id] = Timer.periodic(const Duration(seconds: 2), (_) {
+      for (final path in possiblePaths) {
+        final file = File(path);
+        if (file.existsSync()) {
+          try {
+            final size = file.lengthSync();
+            final task = state.where((t) => t.id == id).firstOrNull;
+            if (task != null && task.status == DownloadStatus.running) {
+              final elapsed = DateTime.now().difference(task.createdAt);
+              final speedBps = elapsed.inSeconds > 0 ? size ~/ elapsed.inSeconds : 0;
+              _updateTask(
+                id,
+                totalSize: StringUtils.formatBytes(size),
+                speed: '${StringUtils.formatBytes(speedBps)}/s',
+              );
+            }
+          } catch (_) {}
+          return;
+        }
+      }
+    });
   }
 }
 

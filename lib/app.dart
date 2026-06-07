@@ -6,19 +6,20 @@ import 'package:window_manager/window_manager.dart';
 import 'core/theme/app_theme.dart';
 import 'features/directory_browser/presentation/pages/gallery_page.dart';
 import 'features/archive_manager/services/archive_service.dart';
+import 'features/downloader/services/downloader_update_service.dart';
 
 /// Global navigator key for accessing context outside widgets.
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 /// Root widget of the OnyxCore application.
-class OnyxCoreApp extends StatefulWidget {
+class OnyxCoreApp extends ConsumerStatefulWidget {
   const OnyxCoreApp({super.key});
 
   @override
-  State<OnyxCoreApp> createState() => _OnyxCoreAppState();
+  ConsumerState<OnyxCoreApp> createState() => _OnyxCoreAppState();
 }
 
-class _OnyxCoreAppState extends State<OnyxCoreApp> with WindowListener {
+class _OnyxCoreAppState extends ConsumerState<OnyxCoreApp> with WindowListener {
 
   @override
   void initState() {
@@ -26,6 +27,16 @@ class _OnyxCoreAppState extends State<OnyxCoreApp> with WindowListener {
     windowManager.addListener(this);
     // Prevent immediate close to allow for clean process termination
     windowManager.setPreventClose(true);
+
+    Future.microtask(() async {
+      if (mounted) {
+        final notifier = ref.read(downloaderUpdateProvider.notifier);
+        await notifier.checkForUpdates();
+        if (mounted) {
+          notifier.updateAll(defaultOnly: true);
+        }
+      }
+    });
   }
 
   @override

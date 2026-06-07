@@ -26,6 +26,7 @@ void main(List<String> args) async {
   // Unified initialization for all engine instances (main and secondary)
   await windowManager.ensureInitialized();
   await Hive.initFlutter();
+  await Hive.openBox('ui_settings');
   MediaKit.ensureInitialized();
 
   final windowController = await WindowController.fromCurrentEngine();

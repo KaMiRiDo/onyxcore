@@ -46,6 +46,7 @@ class AppSettings extends Equatable {
     this.downloadBrowser,
     this.downloadToCurrentFolder = true,
     this.maxConcurrentDownloads = 3,
+    this.maxLiveRecordingMinutes = 0,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -132,6 +133,9 @@ class AppSettings extends Equatable {
   /// Maximum number of simultaneous download processes.
   final int maxConcurrentDownloads;
 
+  /// Maximum recording duration for live streams (minutes). 0 = unlimited.
+  final int maxLiveRecordingMinutes;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -161,6 +165,7 @@ class AppSettings extends Equatable {
     String? downloadBrowser,
     bool? downloadToCurrentFolder,
     int? maxConcurrentDownloads,
+    int? maxLiveRecordingMinutes,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -191,6 +196,7 @@ class AppSettings extends Equatable {
       downloadBrowser: downloadBrowser ?? this.downloadBrowser,
       downloadToCurrentFolder: downloadToCurrentFolder ?? this.downloadToCurrentFolder,
       maxConcurrentDownloads: maxConcurrentDownloads ?? this.maxConcurrentDownloads,
+      maxLiveRecordingMinutes: maxLiveRecordingMinutes ?? this.maxLiveRecordingMinutes,
     );
   }
 
@@ -224,5 +230,6 @@ class AppSettings extends Equatable {
     downloadBrowser,
     downloadToCurrentFolder,
     maxConcurrentDownloads,
+    maxLiveRecordingMinutes,
   ];
 }

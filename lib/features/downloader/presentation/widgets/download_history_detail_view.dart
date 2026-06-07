@@ -23,6 +23,7 @@ class _DownloadHistoryDetailViewState
     extends ConsumerState<DownloadHistoryDetailView> {
   bool _logsExpanded = false;
   bool _isCopied = false;
+  bool _isLogsCopied = false;
 
   @override
   Widget build(BuildContext context) {
@@ -308,10 +309,24 @@ class _DownloadHistoryDetailViewState
 
                   // Parse logs to find downloaded files
                   for (final log in entry.logs) {
-                    if (log.startsWith('/') || log.startsWith(r'C:\')) {
-                      final ext = p.extension(log).toLowerCase();
-                      if (ext != '.json') {
-                        processedFilePaths.add(log);
+                    String? path;
+                    if (log.contains('[download] Destination: ')) {
+                      path = log.split('[download] Destination: ')[1].trim();
+                    } else if (log.contains('[Merger] Merging formats into "')) {
+                      path = log.split('[Merger] Merging formats into "')[1].replaceAll('"', '').trim();
+                    } else if (log.contains('has already been downloaded')) {
+                      final idx = log.indexOf('has already been downloaded');
+                      if (log.startsWith('[download] ')) {
+                        path = log.substring(11, idx).trim();
+                      }
+                    } else if (log.startsWith('/') || log.startsWith(r'C:\')) {
+                        path = log;
+                    }
+                    
+                    if (path != null) {
+                      final ext = p.extension(path).toLowerCase();
+                      if (ext != '.json' && !processedFilePaths.contains(path)) {
+                        processedFilePaths.add(path);
                       }
                     }
                   }
@@ -581,32 +596,41 @@ class _DownloadHistoryDetailViewState
                   ),
                   if (_logsExpanded) ...[
                     const SizedBox(height: 8),
-                    Container(
-                      height: 250,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.04),
-                        ),
-                      ),
-                      child: ListView.builder(
-                        itemCount: entry.logs.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              entry.logs[index],
-                              style: GoogleFonts.firaCode(
-                                color: Colors.white.withOpacity(0.4),
-                                fontSize: 10,
-                                height: 1.5,
-                              ),
+                    Stack(
+                      children: [
+                        Container(
+                          height: 250,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.04),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                          child: ListView.builder(
+                            itemCount: entry.logs.length,
+                            itemBuilder: (context, index) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  entry.logs[index],
+                                  style: GoogleFonts.firaCode(
+                                    color: Colors.white.withOpacity(0.4),
+                                    fontSize: 10,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 12,
+                          right: 12,
+                          child: _buildLogsCopyButton(entry.logs),
+                        ),
+                      ],
                     ),
                   ],
                 ],
@@ -794,6 +818,34 @@ class _DownloadHistoryDetailViewState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLogsCopyButton(List<String> logs) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: logs.join('\n')));
+          setState(() => _isLogsCopied = true);
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted) setState(() => _isLogsCopied = false);
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            _isLogsCopied ? Icons.check_rounded : Icons.copy_rounded,
+            size: 16,
+            color: _isLogsCopied ? Colors.greenAccent : Colors.white70,
+          ),
+        ),
+      ),
     );
   }
 

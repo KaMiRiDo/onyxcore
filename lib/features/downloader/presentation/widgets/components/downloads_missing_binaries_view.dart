@@ -5,6 +5,11 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 
+/// Shows a blocking view when REQUIRED engines (yt-dlp, gallery-dl) are missing.
+///
+/// Optional engines (you-get, lux, streamlink, playwright) are managed
+/// exclusively from Settings → Downloads → Installed Engines and never block
+/// the panel here.
 class DownloadsMissingBinariesView extends ConsumerWidget {
   final VoidCallback onCheckBinaries;
 
@@ -16,6 +21,7 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final updateState = ref.watch(downloaderUpdateProvider);
+    final missingEngines = EngineRegistry.missingRequired;
 
     ref.listen(downloaderUpdateProvider, (prev, next) {
       if (prev?.isUpdating == true && !next.isUpdating && next.error == null) {
@@ -36,7 +42,7 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Dependencies Needed',
+            'Required Dependencies Missing',
             style: GoogleFonts.outfit(
               color: Colors.white,
               fontSize: 16,
@@ -45,14 +51,55 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Requires yt-dlp and gallery-dl binaries.',
+            'Missing: ${missingEngines.map((e) => e.displayName).join(", ")}',
             style: GoogleFonts.manrope(
               color: Colors.white70,
               fontSize: 12,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // Per-engine status indicators
+          ...missingEngines.map((engine) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(engine.icon, size: 16, color: engine.color),
+                const SizedBox(width: 8),
+                Text(
+                  engine.displayName,
+                  style: GoogleFonts.manrope(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Missing',
+                    style: GoogleFonts.manrope(
+                      color: AppColors.error,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+
+          const SizedBox(height: 16),
           if (updateState.error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
@@ -83,7 +130,7 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
               },
               icon: const Icon(Icons.cloud_download, size: 16),
               label: Text(
-                'Download',
+                'Download Required Engines',
                 style: GoogleFonts.manrope(
                   fontWeight: FontWeight.w700,
                   fontSize: 12,

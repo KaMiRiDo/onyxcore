@@ -46,7 +46,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/confl
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/unified_side_panel.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/core/utils/directory_size_utils.dart';
@@ -297,7 +297,12 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           },
           child: Scaffold(
             backgroundColor: AppColors.background,
-              body: Stack(
+              body: Consumer(
+                builder: (context, ref, child) {
+                  final isDraggingPanel = ref.watch(isDownloadsPanelDraggingProvider);
+                  return MouseRegion(
+                    cursor: isDraggingPanel ? SystemMouseCursors.resizeLeftRight : MouseCursor.defer,
+                    child: Stack(
                 children: [
                   Row(
                     children: [
@@ -311,6 +316,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                 const GnomeTabBar(),
                                 Expanded(
                                   child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
                                       Expanded(
                                         child: Listener(
@@ -425,8 +431,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                                         ),
                                       ),
                                       ),
-                                      const DownloadsPanel(),
-                                      const BackgroundPanel(),
+                                      const UnifiedSidePanel(),
                                     ],
                                   ),
                                 ),
@@ -504,6 +509,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
                   ),
                 ],
               ),
+            );
+          },
+        ),
             ),
           ),
         ),
@@ -652,7 +660,28 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       const SingleActivator(LogicalKeyboardKey.enter, control: true, alt: true): _toggleAnalysis,
       const SingleActivator(LogicalKeyboardKey.f5): _refresh,
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
-        ref.read(backgroundPanelOpenProvider.notifier).state = !ref.read(backgroundPanelOpenProvider);
+        final isOpen = ref.read(backgroundPanelOpenProvider);
+        ref.read(backgroundPanelOpenProvider.notifier).state = !isOpen;
+        if (!isOpen) {
+          ref.read(downloadsPanelOpenProvider.notifier).state = false;
+          ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+        }
+      },
+      const SingleActivator(LogicalKeyboardKey.keyD, control: true): () {
+        final isOpen = ref.read(downloadsPanelOpenProvider);
+        final isFocused = ref.read(isDownloadInputFocusedProvider);
+        
+        if (!isOpen) {
+          ref.read(downloadsPanelOpenProvider.notifier).state = true;
+          ref.read(backgroundPanelOpenProvider.notifier).state = false;
+          ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+          ref.read(downloadUrlFocusRequestProvider.notifier).state++;
+        } else if (!isFocused) {
+          ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+          ref.read(downloadUrlFocusRequestProvider.notifier).state++;
+        } else {
+          ref.read(downloadsPanelOpenProvider.notifier).state = false;
+        }
       },
       const SingleActivator(LogicalKeyboardKey.keyD, alt: true): () {
         if (!isSearchActive) {

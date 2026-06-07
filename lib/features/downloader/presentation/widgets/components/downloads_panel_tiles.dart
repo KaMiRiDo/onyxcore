@@ -92,41 +92,37 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (item.errorMessage != null && item.errorMessage!.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            item.errorMessage!,
+                            style: GoogleFonts.manrope(
+                              color: Colors.redAccent.withOpacity(0.8),
+                              fontSize: 11,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            CopyUrlButton(url: item.originalUrl),
-                            const SizedBox(width: 8),
-                            TextButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _errorLogsMessage =
-                                      item.errorMessage ??
-                                      'Unknown error occurred';
-                                });
+                            InkWell(
+                              onTap: () {
+                                _showLogs(item);
                               },
-                              icon: const Icon(
-                                Icons.receipt_long_rounded,
-                                size: 14,
-                                color: Colors.redAccent,
-                              ),
-                              label: Text(
-                                'Error Logs',
-                                style: GoogleFonts.manrope(
-                                  color: Colors.redAccent,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                child: Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 16,
+                                  color: (item.errorMessage != null && item.errorMessage!.isNotEmpty) ? Colors.redAccent : AppColors.violet,
                                 ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                             ),
+                            const SizedBox(width: 8),
+                            CopyUrlButton(url: item.directUrl ?? item.originalUrl),
                           ],
                         ),
                       ],
@@ -269,11 +265,18 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                           child: Stack(
                             children: [
                               item.thumbnail != null
-                                  ? Image.network(
-                                      item.thumbnail!,
-                                      width: 160,
-                                      height: 104,
-                                      fit: BoxFit.cover,
+                                  ? (item.thumbnail!.startsWith('data:image')
+                                      ? Image.memory(
+                                          base64Decode(item.thumbnail!.split(',').last),
+                                          width: 160,
+                                          height: 104,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.network(
+                                          item.thumbnail!,
+                                          width: 160,
+                                          height: 104,
+                                          fit: BoxFit.cover,
                                       headers: const {
                                         'User-Agent':
                                             'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
@@ -320,7 +323,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                               ),
                                             )
                                           : const FallbackThumb(),
-                                    )
+                                    ) )
                                   : item.isProfile
                                   ? Container(
                                       width: 160,
@@ -592,7 +595,61 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              CopyUrlButton(url: group.originalUrl ?? ''),
+                              Row(
+                                children: [
+                                  InkWell(
+                                    onTap: () {
+                                      _showLogs(item);
+                                    },
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      child: Icon(
+                                        Icons.info_outline_rounded,
+                                        size: 16,
+                                        color: (item.errorMessage != null && item.errorMessage!.isNotEmpty) ? Colors.redAccent : AppColors.violet,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Builder(
+                                    builder: (context) {
+                                      final engineObj = EngineRegistry.findById(config.engine);
+                                      if (engineObj == null) return const SizedBox.shrink();
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            engineObj.icon,
+                                            size: 12,
+                                            color: engineObj.color,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            engineObj.displayName,
+                                            style: GoogleFonts.manrope(
+                                              color: engineObj.color.withOpacity(0.8),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(horizontal: 8),
+                                            child: Text(
+                                              '•',
+                                              style: TextStyle(
+                                                color: Colors.white38,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  CopyUrlButton(url: group.originalUrl ?? ''),
+                                ],
+                              ),
                             ],
                           ),
 
@@ -863,15 +920,21 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              '${_formatResolution(f.resolution)} (${f.extension})',
-              style: GoogleFonts.manrope(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Builder(
+              builder: (context) {
+                final sizeBytes = _getFormatBytes(item, f, config);
+                final sizeStr = sizeBytes != null ? ' - ${StringUtils.formatBytes(sizeBytes)}' : '';
+                return Text(
+                  '${_formatResolution(f.resolution)} (${f.extension})$sizeStr',
+                  style: GoogleFonts.manrope(
+                    color: isSelected ? Colors.white : Colors.white70,
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                );
+              }
             ),
           ),
         );
@@ -890,26 +953,31 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Text(
-                isMixed
-                    ? 'Mixed'
-                    : (displayFormat != null
-                          ? '${_formatResolution(displayFormat.resolution)} (${displayFormat.extension})'
-                          : 'Select'),
-                style: GoogleFonts.manrope(
-                  color: hasMultiple ? Colors.white : Colors.white54,
-                  fontSize: 11,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Builder(
+                builder: (context) {
+                  final sizeBytes = displayFormat != null ? _getFormatBytes(item, displayFormat, config) : null;
+                  final sizeStr = sizeBytes != null ? ' - ${StringUtils.formatBytes(sizeBytes)}' : '';
+                  return Text(
+                    isMixed
+                        ? 'Mixed'
+                        : (displayFormat != null
+                              ? '${_formatResolution(displayFormat.resolution)} (${displayFormat.extension})$sizeStr'
+                              : 'Select'),
+                    style: GoogleFonts.manrope(
+                      color: hasMultiple ? Colors.white : Colors.white54,
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                }
               ),
             ),
-            if (hasMultiple)
-              const Icon(
-                Icons.keyboard_arrow_down,
-                color: Colors.white70,
-                size: 14,
-              ),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: hasMultiple ? Colors.white54 : Colors.white24,
+              size: 16,
+            ),
           ],
         ),
       ),

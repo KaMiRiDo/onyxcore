@@ -110,32 +110,76 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
             crossAxisAlignment: WrapCrossAlignment.center,
             runSpacing: 8,
             children: [
-              _buildEngineDropdown(),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IgnorePointer(
-                    ignoring: hasItems,
-                    child: Opacity(
-                      opacity: hasItems ? 0.4 : 1.0,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _importList(),
-                        icon: const Icon(Icons.upload_file, size: 16),
-                        label: const Text('Import'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.surfaceBase,
-                          foregroundColor: Colors.white,
-                          fixedSize: const Size.fromHeight(36),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          shape: RoundedRectangleBorder(
+                  _buildEngineDropdown(),
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: 'Downloader Settings',
+                    child: Material(
+                      color: AppColors.surfaceBase,
+                      borderRadius: BorderRadius.circular(8),
+                      child: InkWell(
+                        onTap: () => SettingsDialog.show(context, initialTab: 0, section: 'Download Manager'),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
-                            side: const BorderSide(color: Colors.white10),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: const Icon(
+                            Icons.settings_outlined,
+                            size: 18,
+                            color: Colors.white70,
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isLoading) ...[
+                    Tooltip(
+                      message: 'Cancel Fetch',
+                      child: Material(
+                        color: AppColors.surfaceBase,
+                        borderRadius: BorderRadius.circular(8),
+                        child: InkWell(
+                          onTap: () {
+                            if (_activeAnalyzePid != null) {
+                              try {
+                                Process.killPid(_activeAnalyzePid!);
+                              } catch (_) {}
+                            }
+                            setState(() {
+                              _isLoading = false;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Container(
                     height: 32,
                     width: 140,
@@ -166,6 +210,7 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
                       child: _isLoading
                           ? const SizedBox(
                               height: 24,
+                              width: 40,
                               child: _JugglingBallsLoader(),
                             )
                           : Text(
@@ -186,3 +231,4 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
     );
   }
 }
+

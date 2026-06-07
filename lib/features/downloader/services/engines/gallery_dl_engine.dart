@@ -60,11 +60,57 @@ class GalleryDlEngine extends DownloadEngine {
     assetName: 'gallery-dl.bin',
   );
 
+  @override
+  Future<String?> getInstalledVersion() async {
+    if (!isInstalled) return null;
+    try {
+      final res = await Process.run(binaryPath!, ['--version']);
+      if (res.exitCode == 0) {
+        return (res.stdout as String).trim();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  Future<String?> getLatestVersion() async {
+    try {
+      final res = await Process.run('curl', ['-s', 'https://codeberg.org/api/v1/repos/mikf/gallery-dl/releases/latest']);
+      if (res.exitCode == 0) {
+        final json = jsonDecode(res.stdout as String);
+        return json['tag_name']?.toString().replaceFirst('v', '');
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Detect if the URL is a social profile (not a single post).
   bool _isSocialProfile(String url) {
-    return !url.contains('/p/') &&
-        !url.contains('/reel/') &&
-        !url.contains('/status/');
+    if (url.contains('instagram.com')) {
+      return !url.contains('/p/') && !url.contains('/reel/') && !url.contains('/tv/');
+    }
+    if (url.contains('twitter.com') || url.contains('x.com')) {
+      return !url.contains('/status/');
+    }
+    if (url.contains('reddit.com')) {
+      return !url.contains('/comments/');
+    }
+    if (url.contains('pinterest.com')) {
+      return !url.contains('/pin/');
+    }
+    if (url.contains('tumblr.com')) {
+      return !url.contains('/post/');
+    }
+    if (url.contains('tiktok.com')) {
+      return !url.contains('/video/');
+    }
+    if (url.contains('artstation.com')) {
+      return !url.contains('/artwork/');
+    }
+    if (url.contains('deviantart.com')) {
+      return !url.contains('/art/');
+    }
+    return false;
   }
 
   @override
@@ -72,6 +118,7 @@ class GalleryDlEngine extends DownloadEngine {
     required String url,
     String? browser,
     bool fetchDeep = false,
+    bool isPlaylist = false,
     void Function(MediaInfo info)? onProgress,
     void Function(int pid)? onProcessStarted,
   }) async {
@@ -104,6 +151,7 @@ class GalleryDlEngine extends DownloadEngine {
     }
 
     args.add('-q'); // Suppress logs in stdout to prevent JSON parser corruption
+    
     if (isSocialProfile) {
       if (fetchDeep) {
         args.addAll(['-J', url]);
@@ -265,10 +313,11 @@ class GalleryDlEngine extends DownloadEngine {
     }
 
     try {
-      return await processOutput().timeout(const Duration(minutes: 3));
+      final timeoutDuration = fetchDeep ? const Duration(minutes: 30) : const Duration(minutes: 3);
+      return await processOutput().timeout(timeoutDuration);
     } on TimeoutException {
       ProcessUtils.killProcessTreeSync(process.pid);
-      throw Exception('Metadata fetch timed out after 3 minutes');
+      throw Exception('Metadata fetch timed out after ${fetchDeep ? 30 : 3} minutes');
     }
   }
 
@@ -287,6 +336,8 @@ class GalleryDlEngine extends DownloadEngine {
     bool isZip = false,
     String? filterType,
     int? totalItems,
+    String? singleItemId,
+    String? directUrl,
   }) async {
     final args = <String>[];
 
@@ -491,6 +542,20 @@ class GalleryDlEngine extends DownloadEngine {
                   sharedMeta['description']?.toString();
               if (title == null || title.isEmpty) title = 'Item';
 
+              String? itemUrl;
+              if (sharedMeta['shortcode'] != null) {
+                itemUrl = 'https://www.instagram.com/p/${sharedMeta['shortcode']}/';
+              } else if (sharedMeta['tweet_id'] != null) {
+                final author = (sharedMeta['user'] is Map ? sharedMeta['user']['screen_name'] : null) ?? 
+                               (sharedMeta['author'] is Map ? sharedMeta['author']['name'] : null) ?? 
+                               sharedMeta['author']?.toString() ?? 'i';
+                itemUrl = 'https://x.com/$author/status/${sharedMeta['tweet_id']}';
+              } else if (sharedMeta['permalink'] != null && sharedMeta['permalink'].toString().startsWith('/r/')) {
+                itemUrl = 'https://www.reddit.com${sharedMeta['permalink']}';
+              } else if (sharedMeta['post_url'] != null) {
+                itemUrl = sharedMeta['post_url'].toString();
+              }
+
               final info = MediaInfo.fromJson(sharedMeta, originalUrl: url)
                   .copyWith(
                     isProfile: false,
@@ -500,6 +565,7 @@ class GalleryDlEngine extends DownloadEngine {
                         fileUrl,
                     title: title,
                     galleryIndex: fileCount,
+                    originalUrl: itemUrl,
                   );
               if (fileUrl != null) {
                 final ext = fileUrl.split('?').first.split('.').last;
@@ -519,7 +585,8 @@ class GalleryDlEngine extends DownloadEngine {
           }
         }
 
-        if (isSocialProfile && sharedMeta.isNotEmpty && existingCount == 0) {
+        bool hasProfileData = sharedMeta.containsKey('user') || sharedMeta.containsKey('username');
+        if (isSocialProfile && sharedMeta.isNotEmpty && existingCount == 0 && (fileCount > 0 || hasProfileData)) {
           String title = '';
           String? profilePic;
           final userMeta = sharedMeta['user'] as Map<String, dynamic>?;

@@ -7,6 +7,7 @@ class MediaFormat {
   final int? filesize;
   final String? formatNote;
   final String formatString;
+  final String? url;
 
   const MediaFormat({
     required this.formatId,
@@ -17,6 +18,7 @@ class MediaFormat {
     this.filesize,
     this.formatNote,
     required this.formatString,
+    this.url,
   });
 
   @override
@@ -43,6 +45,7 @@ class MediaFormat {
       filesize: json['filesize'] as int? ?? json['filesize_approx'] as int?,
       formatNote: json['format_note']?.toString(),
       formatString: json['format']?.toString() ?? '',
+      url: json['url']?.toString(),
     );
   }
 
@@ -56,6 +59,7 @@ class MediaFormat {
       if (filesize != null) 'filesize': filesize,
       if (formatNote != null) 'format_note': formatNote,
       'format': formatString,
+      if (url != null) 'url': url,
     };
   }
 }
@@ -66,6 +70,7 @@ class MediaInfo {
   final String? thumbnail;
   final int? duration;
   final String? extractor; // 'youtube', 'gallery-dl', etc.
+  final String? engineId;
   final List<MediaFormat> formats;
   final bool isVideo;
   final bool isPlaylist;
@@ -76,8 +81,11 @@ class MediaInfo {
   final int? height;
   final int? filesize;
   final String originalUrl;
+  final String? directUrl;
   final bool isError;
   final String? errorMessage;
+  final String? fetchLogs;
+  final bool isLive;
 
   const MediaInfo({
     required this.id,
@@ -85,6 +93,7 @@ class MediaInfo {
     this.thumbnail,
     this.duration,
     this.extractor,
+    this.engineId,
     this.formats = const [],
     this.isVideo = true,
     this.isPlaylist = false,
@@ -94,9 +103,12 @@ class MediaInfo {
     this.width,
     this.height,
     this.filesize,
-    this.originalUrl = '',
+    required this.originalUrl,
+    this.directUrl,
     this.isError = false,
     this.errorMessage,
+    this.fetchLogs,
+    this.isLive = false,
   });
 
   factory MediaInfo.fromJson(Map<String, dynamic> json, {String originalUrl = ''}) {
@@ -149,9 +161,10 @@ class MediaInfo {
       id: json['id']?.toString() ?? '',
       title: parsedTitle,
       thumbnail: json['thumbnail']?.toString() ?? (json['thumbnails'] is List && (json['thumbnails'] as List).isNotEmpty ? (json['thumbnails'] as List).last['url']?.toString() : null),
-      duration: json['duration'] as int?,
-      filesize: json['filesize'] as int? ?? json['filesize_approx'] as int? ?? json['file_size'] as int? ?? json['size'] as int?,
+      duration: (json['duration'] as num?)?.toInt(),
+      filesize: (json['filesize'] as num?)?.toInt() ?? (json['filesize_approx'] as num?)?.toInt() ?? (json['file_size'] as num?)?.toInt() ?? (json['size'] as num?)?.toInt(),
       extractor: json['extractor']?.toString() ?? json['category']?.toString(),
+      engineId: json['engineId']?.toString(),
       formats: parsedFormats,
       isVideo: isVid,
       isPlaylist: isPlaylist,
@@ -160,11 +173,16 @@ class MediaInfo {
       galleryIndex: json['galleryIndex'] as int?,
       width: json['width'] as int?,
       height: json['height'] as int?,
-      originalUrl: json['webpage_url']?.toString() ?? originalUrl,
+      originalUrl: originalUrl.isNotEmpty ? originalUrl : (json['webpage_url']?.toString() ?? ''),
+      directUrl: json['url']?.toString(),
+      isError: false,
+      errorMessage: null,
+      fetchLogs: null,
+      isLive: json['is_live'] == true,
     );
   }
 
-  MediaInfo copyWith({String? id, bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize}) {
+  MediaInfo copyWith({String? id, bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize, bool? isLive, String? originalUrl, String? directUrl, String? engineId, String? errorMessage, String? fetchLogs}) {
     return MediaInfo(
       id: id ?? this.id,
       title: title ?? this.title,
@@ -180,7 +198,12 @@ class MediaInfo {
       width: width,
       height: height,
       filesize: filesize ?? this.filesize,
-      originalUrl: originalUrl,
+      originalUrl: originalUrl ?? this.originalUrl,
+      directUrl: directUrl ?? this.directUrl,
+      isLive: isLive ?? this.isLive,
+      engineId: engineId ?? this.engineId,
+      errorMessage: errorMessage ?? this.errorMessage,
+      fetchLogs: fetchLogs ?? this.fetchLogs,
     );
   }
 
@@ -204,6 +227,12 @@ class MediaInfo {
       height: map['height'] as int?,
       filesize: map['filesize'] as int?,
       originalUrl: map['originalUrl']?.toString() ?? '',
+      directUrl: map['directUrl']?.toString(),
+      isLive: map['isLive'] as bool? ?? false,
+      engineId: map['engineId']?.toString(),
+      isError: map['isError'] as bool? ?? false,
+      errorMessage: map['errorMessage']?.toString(),
+      fetchLogs: map['fetchLogs']?.toString(),
     );
   }
 
@@ -224,6 +253,12 @@ class MediaInfo {
       if (height != null) 'height': height,
       if (filesize != null) 'filesize': filesize,
       'originalUrl': originalUrl,
+      if (directUrl != null) 'directUrl': directUrl,
+      'isLive': isLive,
+      if (engineId != null) 'engineId': engineId,
+      'isError': isError,
+      if (errorMessage != null) 'errorMessage': errorMessage,
+      if (fetchLogs != null) 'fetchLogs': fetchLogs,
     };
   }
 }

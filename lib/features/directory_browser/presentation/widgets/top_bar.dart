@@ -16,6 +16,7 @@ import 'package:onyxcore/core/utils/string_utils.dart';
 
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
@@ -500,6 +501,9 @@ class _TopBarState extends ConsumerState<TopBar> {
                          isActive: isDownloadsOpen,
                          onPressed: () {
                             ref.read(downloadsPanelOpenProvider.notifier).state = !isDownloadsOpen;
+                            if (!isDownloadsOpen) {
+                              ref.read(backgroundPanelOpenProvider.notifier).state = false;
+                            }
                          },
                        ),
                      );

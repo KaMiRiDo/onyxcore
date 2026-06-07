@@ -21,45 +21,8 @@ class BackgroundPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isOpen = ref.watch(backgroundPanelOpenProvider);
     final currentView = ref.watch(backgroundPanelViewProvider);
-
-    // 25% of the total screen width
-    final screenWidth = MediaQuery.of(context).size.width;
-    final panelWidth = screenWidth * 0.25;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
-      width: isOpen ? panelWidth : 0,
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        border: isOpen
-            ? Border(
-                left: BorderSide(
-                  color: Colors.white.withOpacity(0.12),
-                  width: 1,
-                ),
-              )
-            : null,
-        boxShadow: isOpen
-            ? [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
-                  blurRadius: 30,
-                  offset: const Offset(-6, 0),
-                ),
-              ]
-            : null,
-      ),
-      child: OverflowBox(
-        alignment: Alignment.topLeft,
-        minWidth: panelWidth,
-        maxWidth: panelWidth,
-        child: _buildCurrentView(currentView, ref, context),
-      ),
-    );
+    return _buildCurrentView(currentView, ref, context);
   }
 
   Widget _buildCurrentView(

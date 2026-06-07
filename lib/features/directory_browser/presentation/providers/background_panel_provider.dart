@@ -13,3 +13,6 @@ final backgroundPanelViewProvider =
 
 /// The ID of the history entry being viewed in detail.
 final selectedHistoryIdProvider = StateProvider<String?>((ref) => null);
+
+final backgroundPanelWidthFractionProvider = StateProvider<double>((ref) => 0.25);
+final isBackgroundPanelDraggingProvider = StateProvider<bool>((ref) => false);

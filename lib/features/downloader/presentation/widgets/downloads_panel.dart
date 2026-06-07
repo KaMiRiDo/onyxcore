@@ -15,6 +15,7 @@ import 'package:onyxcore/features/downloader/presentation/widgets/download_task_
 import 'package:onyxcore/features/downloader/presentation/widgets/download_history_view.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/download_history_detail_view.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
@@ -24,6 +25,7 @@ import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_header.dart';
@@ -45,59 +47,28 @@ class DownloadsPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isOpen = ref.watch(downloadsPanelOpenProvider);
     final view = ref.watch(downloadsPanelViewProvider);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final panelWidth = screenWidth * 0.25;
 
-    Widget content;
+    int viewIndex = 0;
     switch (view) {
       case DownloadsPanelView.tasks:
-        content = const _MediaDownloaderPanel();
+        viewIndex = 0;
         break;
       case DownloadsPanelView.history:
-        content = const DownloadHistoryView();
+        viewIndex = 1;
         break;
       case DownloadsPanelView.historyDetail:
-        content = const DownloadHistoryDetailView();
+        viewIndex = 2;
         break;
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
-      width: isOpen ? panelWidth : 0,
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        border: isOpen
-            ? Border(
-                left: BorderSide(
-                  color: Colors.white.withOpacity(0.12),
-                  width: 1,
-                ),
-              )
-            : null,
-        boxShadow: isOpen
-            ? [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
-                  blurRadius: 30,
-                  offset: const Offset(-6, 0),
-                ),
-              ]
-            : null,
-      ),
-      child: OverflowBox(
-        alignment: Alignment.topLeft,
-        minWidth: panelWidth,
-        maxWidth: panelWidth,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: content,
-        ),
-      ),
+    return IndexedStack(
+      index: viewIndex,
+      children: const [
+        _MediaDownloaderPanel(),
+        DownloadHistoryView(),
+        DownloadHistoryDetailView(),
+      ],
     );
   }
 }
@@ -116,13 +87,23 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   bool _isLoading = false;
   String? _error;
 
-  List<MediaGroup>? _parsedItems;
-  List<MapEntry<int, MediaGroup>>? _cachedFilteredItems;
-  final Map<int, DownloadConfig> _configs = {};
+  DownloadsListCache get _cache => ref.read(downloadsListCacheProvider);
 
-  String? _importedListName;
-  String? _importedListPath;
-  bool _isListChanged = false;
+  List<MediaGroup>? get _parsedItems => _cache.parsedItems;
+  set _parsedItems(List<MediaGroup>? value) => _cache.parsedItems = value;
+
+  List<MapEntry<int, MediaGroup>>? _cachedFilteredItems;
+  Map<int, DownloadConfig> get _configs => _cache.configs;
+
+  String? get _importedListName => _cache.importedListName;
+  set _importedListName(String? value) => _cache.importedListName = value;
+
+  String? get _importedListPath => _cache.importedListPath;
+  set _importedListPath(String? value) => _cache.importedListPath = value;
+
+  bool get _isListChanged => _cache.isListChanged;
+  set _isListChanged(bool value) => _cache.isListChanged = value;
+
   bool _binariesExist = false;
   bool _isDownloadsDrawerOpen = false;
 
@@ -130,6 +111,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   int _totalListImages = 0;
   int _totalListVideos = 0;
   int _pendingStatsUpdate = 0; // C5: throttle counter for stats recalculation
+  int? _activeAnalyzePid;
 
   void _recalculateFilteredStatistics() {
     _cachedFilteredItems = null; // RISK-004: Invalidate cache before reading
@@ -152,6 +134,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       int groupImages = 0;
 
       for (var item in itemGrp.items) {
+        if (item.isError) continue;
+        
         if (config?.groupFilter == GroupDownloadType.images && item.isVideo)
           continue;
         if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo)
@@ -183,7 +167,50 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   bool _showUnsavedConfirmation = false;
   bool _showCancelAllConfirmation = false;
   String? _errorLogsMessage;
+  MediaInfo? _activeLogItem;
+  final ScrollController _logsScrollController = ScrollController();
   VoidCallback? _pendingClearAction;
+
+
+  void _showLogs(MediaInfo item) {
+    setState(() {
+      _activeLogItem = item;
+      _updateLogsMessage();
+    });
+    _scrollToBottomLogs();
+  }
+
+  void _updateLogsMessage() {
+    if (_activeLogItem == null) return;
+    try {
+      final latestItem = _parsedItems?.expand((group) => group.items).firstWhere(
+        (i) => i.id == _activeLogItem!.id, 
+        orElse: () => _activeLogItem!
+      );
+      if (latestItem != null) {
+        _activeLogItem = latestItem;
+      }
+      _errorLogsMessage = (_activeLogItem!.fetchLogs != null && _activeLogItem!.fetchLogs!.isNotEmpty) 
+          ? _activeLogItem!.fetchLogs 
+          : (_activeLogItem!.errorMessage != null && _activeLogItem!.errorMessage!.isNotEmpty) 
+              ? _activeLogItem!.errorMessage 
+              : '[${_activeLogItem!.engineId ?? 'yt-dlp'}]: Fetch completed successfully.';
+    } catch (e) {
+      _errorLogsMessage = _activeLogItem!.fetchLogs ?? _activeLogItem!.errorMessage ?? 'Fetch completed successfully.';
+    }
+  }
+
+  void _scrollToBottomLogs() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_logsScrollController.hasClients) {
+        _logsScrollController.animateTo(
+          _logsScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   void _handleClearRequest(VoidCallback clearAction) {
     if (_importedListName != null && _isListChanged) {
@@ -218,7 +245,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   int? _previewIndex;
   int _previewCarouselIndex = 0;
 
-  final Map<String, int> _activeHydrationPids = {};
+  final Map<String, List<int>> _activeHydrationPids = {};
   final ValueNotifier<int> _hydrationNotifier = ValueNotifier<int>(0);
 
   List<MediaInfo> get _visiblePreviewItems {
@@ -244,7 +271,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   }
 
   late FocusNode _urlFocusNode;
-  final FocusNode _listFocusNode = FocusNode();
+  late FocusNode _listFocusNode;
   final FocusNode _previewFocusNode = FocusNode();
   late AnimationController _gradientController;
 
@@ -252,13 +279,45 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   void initState() {
     super.initState();
     _urlController = TextEditingController();
-    _urlFocusNode = FocusNode()
-      ..addListener(() {
+    _urlFocusNode = FocusNode(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
+          if (event.logicalKey == LogicalKeyboardKey.keyD) {
+            ref.read(downloadsPanelOpenProvider.notifier).state = false;
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.keyB) {
+            ref.read(downloadsPanelOpenProvider.notifier).state = false;
+            ref.read(backgroundPanelOpenProvider.notifier).state = true;
+            ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+    )..addListener(() {
         ref.read(isDownloadInputFocusedProvider.notifier).state =
             _urlFocusNode.hasFocus;
         setState(() {});
       });
-    _listFocusNode.addListener(() {
+    
+    _listFocusNode = FocusNode(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
+          if (event.logicalKey == LogicalKeyboardKey.keyD) {
+            _urlFocusNode.requestFocus();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.keyB) {
+            ref.read(downloadsPanelOpenProvider.notifier).state = false;
+            ref.read(backgroundPanelOpenProvider.notifier).state = true;
+            ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+    )..addListener(() {
       ref.read(isDownloadsPanelFocusedProvider.notifier).state =
           _listFocusNode.hasFocus;
     });
@@ -268,6 +327,18 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _urlFocusNode.canRequestFocus) {
+        if (ref.read(downloadsPanelViewProvider) == DownloadsPanelView.tasks) {
+          _urlFocusNode.requestFocus();
+        }
+      }
+    });
+
+    if (_parsedItems != null && _parsedItems!.isNotEmpty) {
+      _recalculateFilteredStatistics();
+    }
   }
 
   void _scrollToIndex(int index) {
@@ -286,7 +357,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   void _checkBinaries() {
     setState(() {
-      _binariesExist = EngineRegistry.allInstalled;
+      _binariesExist = EngineRegistry.requiredInstalled;
     });
   }
 
@@ -306,27 +377,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         return true;
       }
 
-      if (event.logicalKey == LogicalKeyboardKey.keyD ||
-          event.physicalKey == PhysicalKeyboardKey.keyD) {
-        if (mounted) {
-          final isOpen = ref.read(downloadsPanelOpenProvider);
-          if (isOpen) {
-            if (!_urlFocusNode.hasFocus) {
-              _urlFocusNode.requestFocus();
-            } else {
-              ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            }
-          } else {
-            ref.read(downloadsPanelOpenProvider.notifier).state = true;
-            Future.delayed(const Duration(milliseconds: 50), () {
-              if (mounted) {
-                _urlFocusNode.requestFocus();
-              }
-            });
-          }
-          return true;
-        }
-      }
     }
     return false;
   }
@@ -469,6 +519,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           _configs[i] = DownloadConfig(
             mode: DownloadMode.normal,
             groupFilter: GroupDownloadType.all,
+            engine: importedItems[i].first.engineId ?? 'auto',
           );
         }
         _importedListPath = filePath;
@@ -487,6 +538,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   @override
   void dispose() {
+    _logsScrollController.dispose();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _gradientController.dispose();
     _urlFocusNode.dispose();
@@ -505,15 +557,17 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
     try {
       final browser = ref.read(settingsProvider).value?.downloadBrowser;
+      final isPlaylist = _parsedItems?.any((g) => g.originalUrl == url && g.items.isNotEmpty && g.items.first.isPlaylist) ?? false;
       final items = await MediaDownloaderBackend.analyzeUrls(
         [url],
         engine: _selectedEngine,
         browser: browser,
         fetchDeep: true,
+        isPlaylist: isPlaylist,
         onProcessStarted: (int pid) {
           if (!mounted) return;
           setState(() {
-            _activeHydrationPids[url] = pid;
+            _activeHydrationPids.putIfAbsent(url, () => []).add(pid);
           });
         },
         onProgress: (MediaInfo info) {
@@ -537,6 +591,11 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 // Update it in case metadata changed
                 group.items[existsIndex] = info;
               }
+              
+              if (group.items.isNotEmpty && group.items.first.isPlaylist) {
+                group.items[0] = group.items[0].copyWith(fetchLogs: info.fetchLogs);
+              }
+              
               // C5: Throttle stats recalculation to every 5th item
               _pendingStatsUpdate++;
               if (_pendingStatsUpdate % 5 == 0) {
@@ -553,6 +612,44 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       setState(() {
         _backgroundLoadingProfiles.remove(url);
         _activeHydrationPids.remove(url);
+        
+        // Ensure sorted items from generic extractors replace the old unsorted items
+        if (_parsedItems != null) {
+          final groupIndex = _parsedItems!.indexWhere((g) => g.originalUrl == url);
+          if (groupIndex != -1) {
+            final group = _parsedItems![groupIndex];
+            final playlistInfo = group.items.isNotEmpty && group.items.first.isPlaylist ? group.items.first : null;
+            final isGenericGroup = playlistInfo?.extractor?.toLowerCase() == 'generic' || 
+                                   (items.isNotEmpty && items.any((i) => i.extractor?.toLowerCase() == 'generic'));
+            
+            if (isGenericGroup) {
+              items.sort((a, b) {
+                final durA = a.duration ?? 0;
+                final durB = b.duration ?? 0;
+                if (durA != durB) return durB.compareTo(durA);
+                
+                final sizeA = a.filesize ?? 0;
+                final sizeB = b.filesize ?? 0;
+                return sizeB.compareTo(sizeA);
+              });
+            }
+
+            group.items.clear();
+            if (playlistInfo != null) {
+              final String? errorMsg = items.isNotEmpty ? items.first.errorMessage : null;
+              final String? fetchLogs = items.isNotEmpty ? items.first.fetchLogs : null;
+              if (errorMsg != null || fetchLogs != null) {
+                group.items.add(playlistInfo.copyWith(errorMessage: errorMsg, fetchLogs: fetchLogs));
+              } else {
+                group.items.add(playlistInfo);
+              }
+            }
+            group.items.addAll(items);
+            _recalculateFilteredStatistics();
+            _hydrationNotifier.value++;
+          }
+        }
+
         ref.read(downloadTaskProvider.notifier).onHydrationFinished(url, items);
       });
     } catch (e) {
@@ -587,9 +684,17 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         urls,
         engine: _selectedEngine,
         browser: browser,
+        onProcessStarted: (pid) {
+          if (!mounted) return;
+          setState(() {
+            _activeAnalyzePid = pid;
+          });
+        },
       );
 
+      if (!mounted) return;
       setState(() {
+        _activeAnalyzePid = null;
         if (_parsedItems == null) {
           _parsedItems = [];
         }
@@ -649,7 +754,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                       formatString: '1080p mp4',
                     ) : null),
               groupFilter: defaultFilter,
-              engine: _selectedEngine, // C3: capture engine at fetch time
+              engine: info.engineId ?? 'auto', // C3: capture actual resolved engine at fetch time
             );
           }
         }
@@ -891,6 +996,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               isPlaylist: info.isPlaylist,
               browser: ref.read(settingsProvider).value?.downloadBrowser,
               totalItems: 1,
+              singleItemId: singleItemId,
+              directUrl: info.directUrl,
             );
       }
 
@@ -1183,7 +1290,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       if (i >= 0 && i < _parsedItems!.length) {
         final url = _parsedItems![i].originalUrl;
         if (abortHydration && _activeHydrationPids.containsKey(url)) {
-          ProcessUtils.killProcessTreeSync(_activeHydrationPids[url]!);
+          for (final pid in _activeHydrationPids[url]!) {
+            ProcessUtils.killProcessTreeSync(pid);
+          }
           _activeHydrationPids.remove(url);
           _backgroundLoadingProfiles.remove(url);
         }
@@ -1263,6 +1372,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   }
 
   Widget _buildErrorLogsOverlay() {
+    bool isCopied = false;
+
     return Positioned.fill(
       child: GestureDetector(
         onTap: () {
@@ -1277,10 +1388,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               onTap: () {}, // Prevent taps inside the dialog from bubbling up
               child: Container(
                 width: 400,
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
-                ),
-                padding: const EdgeInsets.all(24),
+                height: 375,
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceBase,
                   borderRadius: BorderRadius.circular(16),
@@ -1298,43 +1407,85 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Error Logs',
+                          'Pipeline Logs',
                           style: GoogleFonts.manrope(
-                            color: Colors.redAccent,
+                            color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.copy_rounded,
-                            color: Colors.white70,
-                            size: 18,
-                          ),
-                          onPressed: () {
-                            if (_errorLogsMessage != null) {
-                              Clipboard.setData(
-                                ClipboardData(text: _errorLogsMessage!),
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Logs copied to clipboard'),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
-                          tooltip: 'Copy Logs',
+                        const Spacer(),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            StatefulBuilder(
+                              builder: (context, setStateOverlay) {
+                                return IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                  splashRadius: 18,
+                                  icon: Icon(
+                                    isCopied ? Icons.check_rounded : Icons.copy_rounded,
+                                    color: isCopied ? Colors.greenAccent : Colors.white70,
+                                    size: 18,
+                                  ),
+                                  onPressed: () {
+                                    if (_errorLogsMessage != null && !isCopied) {
+                                      Clipboard.setData(
+                                        ClipboardData(text: _errorLogsMessage!),
+                                      );
+                                      setStateOverlay(() {
+                                        isCopied = true;
+                                      });
+                                      Future.delayed(const Duration(seconds: 3), () {
+                                        if (mounted) {
+                                          setStateOverlay(() {
+                                            isCopied = false;
+                                          });
+                                        }
+                                      });
+                                    }
+                                  },
+                                  tooltip: 'Copy Logs',
+                                );
+                              },
+                            ),
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              splashRadius: 18,
+                              icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _updateLogsMessage();
+                                });
+                                _scrollToBottomLogs();
+                              },
+                              tooltip: 'Refresh Logs',
+                            ),
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              splashRadius: 18,
+                              icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _errorLogsMessage = null;
+                                  _activeLogItem = null;
+                                });
+                              },
+                              tooltip: 'Close',
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Flexible(
+                    const SizedBox(height: 12),
+                    Expanded(
                       child: Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.3),
@@ -1347,6 +1498,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                           controller: TextEditingController(
                             text: _errorLogsMessage ?? '',
                           ),
+                          scrollController: _logsScrollController,
                           readOnly: true,
                           maxLines: null,
                           style: GoogleFonts.firaCode(
@@ -1357,34 +1509,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.zero,
                             isDense: true,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _errorLogsMessage = null;
-                          });
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.1),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          'Close',
-                          style: GoogleFonts.manrope(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -1523,6 +1647,22 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(downloadUrlFocusRequestProvider, (_, __) {
+      if (mounted && _urlFocusNode.canRequestFocus) {
+        if (ref.read(downloadsPanelViewProvider) == DownloadsPanelView.tasks) {
+          _urlFocusNode.requestFocus();
+        }
+      }
+    });
+
+    ref.listen<DownloadsPanelView>(downloadsPanelViewProvider, (_, next) {
+      if (next == DownloadsPanelView.tasks) {
+        if (mounted && _urlFocusNode.canRequestFocus) {
+          _urlFocusNode.requestFocus();
+        }
+      }
+    });
+
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(
@@ -1663,7 +1803,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           },
           child: Focus(
             autofocus: false,
-            canRequestFocus: false,
             descendantsAreFocusable: true,
             child: Listener(
               onPointerDown: (_) {
@@ -1843,12 +1982,12 @@ class _JugglingBallsLoaderState extends State<_JugglingBallsLoader>
             return Transform.translate(
               offset: Offset(0, y),
               child: Padding(
-                padding: EdgeInsets.only(right: index < 2 ? 15 : 0),
+                padding: EdgeInsets.only(right: index < 2 ? 5 : 0),
                 child: Container(
                   width: 10,
                   height: 10,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8 - (index * 0.2)),
                     shape: BoxShape.circle,
                   ),
                 ),

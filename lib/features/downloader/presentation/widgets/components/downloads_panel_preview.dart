@@ -80,29 +80,34 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                               alignment: Alignment.center,
                               children: [
                                 item.first.thumbnail != null
-                                    ? Image.network(
-                                        item.first.thumbnail!,
-                                        fit: BoxFit.contain,
-                                        headers: const {
-                                          'User-Agent':
-                                              'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
-                                          'Referer':
-                                              'https://www.instagram.com/',
-                                        },
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
-                                              if (loadingProgress == null)
-                                                return child;
-                                              return const SizedBox(
-                                                height: 210,
-                                                child: Center(
-                                                  child: _JugglingBallsLoader(),
-                                                ),
-                                              );
+                                    ? (item.first.thumbnail!.startsWith('data:image')
+                                        ? Image.memory(
+                                            base64Decode(item.first.thumbnail!.split(',').last),
+                                            fit: BoxFit.contain,
+                                          )
+                                        : Image.network(
+                                            item.first.thumbnail!,
+                                            fit: BoxFit.contain,
+                                            headers: const {
+                                              'User-Agent':
+                                                  'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
+                                              'Referer':
+                                                  'https://www.instagram.com/',
                                             },
-                                        errorBuilder: (_, __, ___) =>
-                                            const FallbackThumb(),
-                                      )
+                                            loadingBuilder:
+                                                (context, child, loadingProgress) {
+                                                  if (loadingProgress == null)
+                                                    return child;
+                                                  return const SizedBox(
+                                                    height: 210,
+                                                    child: Center(
+                                                      child: _JugglingBallsLoader(),
+                                                    ),
+                                                  );
+                                                },
+                                            errorBuilder: (_, __, ___) =>
+                                                const FallbackThumb(),
+                                          ) )
                                     : const FallbackThumb(),
                                 if (item.isSingle && item.first.isVideo)
                                   Positioned(
@@ -200,7 +205,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                     ),
                                   ),
                                   CopyUrlButton(
-                                    url: item.first.originalUrl ?? '',
+                                    url: item.first.directUrl ?? item.first.originalUrl,
                                   ),
                                 ],
                               ),
@@ -580,47 +585,46 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                       alignment: Alignment.center,
                                       children: [
                                         currentItem.thumbnail != null
-                                            ? Image.network(
-                                                currentItem.thumbnail!,
-                                                fit: BoxFit.contain,
-                                                headers: const {
-                                                  'User-Agent':
-                                                      'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
-                                                  'Referer':
-                                                      'https://www.instagram.com/',
-                                                },
-                                                loadingBuilder:
-                                                    (
-                                                      context,
-                                                      child,
-                                                      loadingProgress,
-                                                    ) {
-                                                      if (loadingProgress ==
-                                                          null)
-                                                        return child;
-                                                      return const Center(
-                                                        child:
-                                                            _JugglingBallsLoader(),
-                                                      );
+                                            ? (currentItem.thumbnail!.startsWith('data:image')
+                                                ? Image.memory(
+                                                    base64Decode(currentItem.thumbnail!.split(',').last),
+                                                    fit: BoxFit.contain,
+                                                  )
+                                                : Image.network(
+                                                    currentItem.thumbnail!,
+                                                    fit: BoxFit.contain,
+                                                    headers: const {
+                                                      'User-Agent':
+                                                          'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
+                                                      'Referer':
+                                                          'https://www.instagram.com/',
                                                     },
-                                                errorBuilder: (_, __, ___) =>
-                                                    group.first.isProfile
-                                                    ? Container(
-                                                        color: const Color(
-                                                          0xFF1E1E26,
-                                                        ),
-                                                        child: const Center(
-                                                          child: Icon(
-                                                            Icons
-                                                                .account_circle_rounded,
-                                                            size: 80,
-                                                            color: AppColors
-                                                                .violet,
-                                                          ),
-                                                        ),
-                                                      )
-                                                    : const FallbackThumb(),
-                                              )
+                                                    loadingBuilder:
+                                                        (
+                                                          context,
+                                                          child,
+                                                          loadingProgress,
+                                                        ) {
+                                                          if (loadingProgress == null)
+                                                            return child;
+                                                          return const Center(
+                                                            child: _JugglingBallsLoader(),
+                                                          );
+                                                        },
+                                                    errorBuilder: (_, __, ___) =>
+                                                        group.first.isProfile
+                                                        ? Container(
+                                                            color: const Color(0xFF1E1E26),
+                                                            child: const Center(
+                                                              child: Icon(
+                                                                Icons.account_circle_rounded,
+                                                                size: 80,
+                                                                color: AppColors.violet,
+                                                              ),
+                                                            ),
+                                                          )
+                                                        : const FallbackThumb(),
+                                                  ) )
                                             : group.first.isProfile
                                             ? Container(
                                                 color: const Color(0xFF1E1E26),
@@ -753,7 +757,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                 ),
                                 const SizedBox(height: 6),
                                 CopyUrlButton(
-                                  url: currentItem.originalUrl ?? '',
+                                  url: currentItem.directUrl ?? currentItem.originalUrl,
                                 ),
                                 const SizedBox(height: 12),
                                 Row(

@@ -5,6 +5,7 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 /// Pie-chart style progress button for background processes.
@@ -87,6 +88,7 @@ class _BackgroundProcessesButtonState
         onTap: () {
           ref.read(backgroundPanelOpenProvider.notifier).state = !isOpen;
           if (!isOpen) {
+            ref.read(downloadsPanelOpenProvider.notifier).state = false;
             // Reset to tasks view when opening
             ref.read(backgroundPanelViewProvider.notifier).state =
                 BackgroundPanelView.tasks;

@@ -73,6 +73,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       downloadBrowser: _prefs.getString('downloadBrowser'),
       downloadToCurrentFolder: _prefs.getBool('downloadToCurrentFolder') ?? true,
       maxConcurrentDownloads: _prefs.getInt('maxConcurrentDownloads') ?? 3,
+      maxLiveRecordingMinutes: _prefs.getInt('maxLiveRecordingMinutes') ?? 0,
     );
 
   }
@@ -114,6 +115,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     
     await _prefs.setBool('downloadToCurrentFolder', settings.downloadToCurrentFolder);
     await _prefs.setInt('maxConcurrentDownloads', settings.maxConcurrentDownloads);
+    await _prefs.setInt('maxLiveRecordingMinutes', settings.maxLiveRecordingMinutes);
   }
 
   @override

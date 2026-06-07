@@ -55,27 +55,58 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
     return '$hours:${remainingMinutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
-  String? _getFileSize(MediaInfo item, DownloadConfig config) {
-    int? bytes;
-    final currentFormat = config.itemFormats[item.id] ?? config.format;
+  int? _getFormatBytes(MediaInfo item, MediaFormat? format, DownloadConfig config) {
+    if (format == null) return item.filesize;
 
-    if (config.mode == DownloadMode.mute ||
-        config.mode == DownloadMode.normal) {
-      final formatId = currentFormat?.formatId;
-      if (formatId != null) {
-        final format = item.formats
-            .where((f) => f.formatId == formatId)
-            .firstOrNull;
-        bytes = format?.filesize;
+    int? bytes = format.filesize;
+
+    if (config.mode == DownloadMode.normal && 
+        format.resolution != 'audio only' && 
+        format.resolution.toLowerCase() != 'audio') {
+      
+      final bool noAudio = format.audioCodec == 'none' || format.audioCodec == null || format.audioCodec!.isEmpty;
+      if (noAudio) {
+        final audioFormats = item.formats
+            .where((f) => (f.resolution == 'audio only' || f.resolution.toLowerCase() == 'audio') && f.filesize != null)
+            .toList();
+            
+        if (audioFormats.isNotEmpty) {
+          audioFormats.sort((a, b) => b.filesize!.compareTo(a.filesize!));
+          if (bytes != null) {
+            bytes += audioFormats.first.filesize!;
+          }
+        }
       }
     } else if (config.mode == DownloadMode.audioOnly) {
-      final audioFormat = item.formats
-          .where((f) => f.resolution == 'audio only')
-          .firstOrNull;
-      bytes = audioFormat?.filesize;
+       final audioFormats = item.formats
+            .where((f) => (f.resolution == 'audio only' || f.resolution.toLowerCase() == 'audio') && f.filesize != null)
+            .toList();
+        if (audioFormats.isNotEmpty) {
+           audioFormats.sort((a, b) => b.filesize!.compareTo(a.filesize!));
+           return audioFormats.first.filesize;
+        }
+    }
+    
+    // Only fallback to item.filesize if we are selecting the absolute best format 
+    // or if the item only has one format anyway.
+    if (bytes == null) {
+        final bestVideo = item.formats.where((f) => f.videoCodec != null && f.videoCodec != 'none').toList();
+        if (bestVideo.isNotEmpty) {
+            bestVideo.sort((a, b) => _getHeight(b.resolution).compareTo(_getHeight(a.resolution)));
+            if (format.formatId == bestVideo.first.formatId) {
+                bytes = item.filesize;
+            }
+        } else {
+            bytes = item.filesize;
+        }
     }
 
-    bytes ??= item.filesize;
+    return bytes;
+  }
+
+  String? _getFileSize(MediaInfo item, DownloadConfig config) {
+    final currentFormat = config.itemFormats[item.id] ?? config.format;
+    final bytes = _getFormatBytes(item, currentFormat, config);
 
     if (bytes != null && bytes > 0) {
       return StringUtils.formatBytes(bytes);
@@ -87,31 +118,11 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
     int total = 0;
     for (final item in group.items) {
       if (item.isProfile || item.isPlaylist) continue;
-      if (config.groupFilter == GroupDownloadType.images && item.isVideo)
-        continue;
-      if (config.groupFilter == GroupDownloadType.videos && !item.isVideo)
-        continue;
+      if (config.groupFilter == GroupDownloadType.images && item.isVideo) continue;
+      if (config.groupFilter == GroupDownloadType.videos && !item.isVideo) continue;
 
-      int? bytes;
       final currentFormat = config.itemFormats[item.id] ?? config.format;
-
-      if (config.mode == DownloadMode.mute ||
-          config.mode == DownloadMode.normal) {
-        final formatId = currentFormat?.formatId;
-        if (formatId != null) {
-          final format = item.formats
-              .where((f) => f.formatId == formatId)
-              .firstOrNull;
-          bytes = format?.filesize;
-        }
-      } else if (config.mode == DownloadMode.audioOnly) {
-        final audioFormat = item.formats
-            .where((f) => f.resolution == 'audio only')
-            .firstOrNull;
-        bytes = audioFormat?.filesize;
-      }
-
-      bytes ??= item.filesize;
+      final bytes = _getFormatBytes(item, currentFormat, config);
       total += bytes ?? 0;
     }
     return total;

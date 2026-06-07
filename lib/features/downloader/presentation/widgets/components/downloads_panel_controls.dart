@@ -9,12 +9,14 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
         'label': 'Auto Select',
         'icon': Icons.auto_awesome_rounded,
         'color': AppColors.violet,
+        'installed': true,
       },
       ...engines.map((e) => {
             'key': e.id,
             'label': e.displayName,
             'icon': e.icon,
             'color': e.color,
+            'installed': e.isInstalled,
           }),
     ];
 
@@ -35,8 +37,10 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
       },
       itemBuilder: (context) => options.map((opt) {
         final isSelected = opt['key'] == _selectedEngine;
+        final isInstalled = opt['installed'] as bool;
         return PopupMenuItem<String>(
           value: opt['key'] as String,
+          enabled: isInstalled,
           height: 38,
           padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Container(
@@ -54,7 +58,9 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
                 Icon(
                   opt['icon'] as IconData,
                   size: 16,
-                  color: opt['color'] as Color,
+                  color: isInstalled 
+                      ? (opt['color'] as Color) 
+                      : (opt['color'] as Color).withOpacity(0.3),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -62,9 +68,9 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    color: isSelected
-                        ? Colors.white
-                        : Colors.white.withOpacity(0.8),
+                    color: isInstalled
+                        ? (isSelected ? Colors.white : Colors.white.withOpacity(0.8))
+                        : Colors.white.withOpacity(0.3),
                   ),
                 ),
               ],

@@ -11,6 +11,9 @@ import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/core/utils/browser_detector.dart';
+import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
+import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
+import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
 
 class SettingsDialog extends ConsumerStatefulWidget {
   final int initialTab;
@@ -124,8 +127,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   }
 
   Future<void> _loadBrowsers() async {
-    final installed = BrowserDetector.getInstalledBrowsers();
-    final defaultB = BrowserDetector.getDefaultBrowser();
+    final installed = await BrowserDetector.getInstalledBrowsers();
+    final defaultB = await BrowserDetector.getDefaultBrowser();
     if (mounted) {
       setState(() {
         _installedBrowsers = installed;
@@ -196,12 +199,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           },
           child: Stack(
             children: [
-              // Full-screen background blur
+              // Full-screen background semi-transparent
               Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Container(color: Colors.black.withAlpha(50)),
-                ),
+                child: Container(color: Colors.black.withAlpha(120)),
               ),
               Center(
                 child: Material(
@@ -213,40 +213,37 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(24),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF161616).withOpacity(0.98),
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: Colors.white.withOpacity(0.08)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.6),
-                                    blurRadius: 60,
-                                    offset: const Offset(0, 30),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF161616),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: Colors.white.withOpacity(0.08)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.6),
+                                  blurRadius: 60,
+                                  offset: const Offset(0, 30),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildHeader(),
+                                _buildTabBarSection(),
+                                Expanded(
+                                  child: TabBarView(
+                                    controller: _tabController,
+                                    children: [
+                                      _buildGeneralTab(_draftSettings!),
+                                      _buildViewersTab(),
+                                      _buildSecurityTab(),
+                                      _buildShortcutsTab(),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildHeader(),
-                                  _buildTabBarSection(),
-                                  Expanded(
-                                    child: TabBarView(
-                                      controller: _tabController,
-                                      children: [
-                                        _buildGeneralTab(_draftSettings!),
-                                        _buildViewersTab(),
-                                        _buildSecurityTab(),
-                                        _buildShortcutsTab(),
-                                      ],
-                                    ),
-                                  ),
-                                  _buildFooter(),
-                                ],
-                              ),
+                                ),
+                                _buildFooter(),
+                              ],
                             ),
                           ),
                         ),
@@ -558,6 +555,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   },
                 ),
               ),
+              _buildInstalledEnginesSection(),
               _buildSectionHeader('Sync', _generalKeys['Sync']!),
               _buildEmptySection('Sync settings and cloud integration options will appear here.'),
               _buildSectionHeader('Performance', _generalKeys['Performance']!),
@@ -988,13 +986,19 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                     color: isSelected ? Colors.white.withAlpha(20) : Colors.transparent,
                   ),
                 ),
-                child: Text(
-                  item,
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? Colors.white.withOpacity(0.9) : AppColors.textMuted.withOpacity(0.6),
-                    letterSpacing: 0.3,
+                child: Tooltip(
+                  message: item,
+                  waitDuration: const Duration(milliseconds: 500),
+                  child: Text(
+                    item,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? Colors.white.withOpacity(0.9) : AppColors.textMuted.withOpacity(0.6),
+                      letterSpacing: 0.3,
+                    ),
                   ),
                 ),
               ),
@@ -1144,6 +1148,489 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               Icons.keyboard_arrow_down_rounded,
               color: Colors.white.withOpacity(0.3),
               size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstalledEnginesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 20, bottom: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'INSTALLED ENGINES',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                  color: AppColors.violet.withOpacity(0.8),
+                ),
+              ),
+              if (ref.watch(downloaderUpdateProvider).isUpdating)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.violet.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.violet.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.violet,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Updating...',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.violet,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (ref.watch(downloaderUpdateProvider).isCheckingForUpdates)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.violet.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.violet.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.violet,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Checking...',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.violet,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else (() {
+                final updateState = ref.watch(downloaderUpdateProvider);
+                final hasUpdates = EngineRegistry.allEngines.any((e) {
+                  final vInst = updateState.installedVersions[e.id];
+                  final vLat = updateState.latestVersions[e.id];
+                  return e.isInstalled && vInst != null && vLat != null && vInst != vLat;
+                });
+                
+                if (hasUpdates) {
+                  return GestureDetector(
+                    onTap: () {
+                      ref.read(downloaderUpdateProvider.notifier).updateAll();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.violet,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.system_update_alt_rounded, size: 14, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Update All',
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                
+                return _buildEngineActionButton(
+                  label: 'Check for Updates',
+                  icon: Icons.sync_rounded,
+                  color: AppColors.violet,
+                  onTap: () {
+                    ref.read(downloaderUpdateProvider.notifier).checkForUpdates();
+                  },
+                );
+              })(),
+            ],
+          ),
+        ),
+        // Engine list
+        ...EngineRegistry.allEngines.map((engine) {
+          final installed = engine.isInstalled;
+          final updateState = ref.watch(downloaderUpdateProvider);
+          final progress = updateState.engineProgress[engine.id];
+          final isUpdating = progress != null || (updateState.isUpdating && engine.updateInfo != null);
+          
+          double displayProgress = progress ?? 0.0;
+          if (updateState.isUpdating && engine.updateInfo != null && progress == null) {
+            displayProgress = -1.0; // Show indeterminate if global update is running
+          }
+
+          final vInst = updateState.installedVersions[engine.id];
+          final vLat = updateState.latestVersions[engine.id];
+          final hasUpdate = vInst != null && vLat != null && vInst != vLat;
+          final errorString = updateState.error;
+          final engineError = (errorString != null && errorString.startsWith('${engine.id}:')) ? errorString.substring(engine.id.length + 1) : null;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.02),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: engineError != null
+                        ? Colors.redAccent.withOpacity(0.3)
+                        : (installed ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.03)),
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Progress Background
+                    if (isUpdating && displayProgress >= 0.0)
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: TweenAnimationBuilder<double>(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutCubic,
+                            tween: Tween<double>(begin: 0, end: displayProgress.clamp(0.0, 1.0)),
+                            builder: (context, value, child) {
+                              return FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: value,
+                                child: Container(color: Colors.green.withOpacity(0.15)),
+                              );
+                            },
+                          ),
+                        ),
+                      )
+                    else if (isUpdating && displayProgress < 0.0)
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            backgroundColor: Colors.transparent,
+                            color: Colors.green.withOpacity(0.15),
+                          ),
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      child: Row(
+                        children: [
+                          // Engine icon
+                          Icon(
+                            engine.icon,
+                            size: 18,
+                            color: installed ? engine.color : engine.color.withOpacity(0.3),
+                          ),
+                          const SizedBox(width: 10),
+                          // Engine name
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  installed && vInst != null ? '${engine.displayName} (v$vInst)' : engine.displayName,
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: installed
+                                        ? Colors.white.withOpacity(0.85)
+                                        : Colors.white.withOpacity(0.4),
+                                  ),
+                                ),
+                                if (engine.isOptional)
+                                  Text(
+                                    'Optional',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 10,
+                                      color: AppColors.textMuted.withOpacity(0.4),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          // Status badge
+                          if (!installed || engineError != null || isUpdating)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: engineError != null
+                                    ? Colors.redAccent.withOpacity(0.12)
+                                    : isUpdating
+                                        ? Colors.blue.withOpacity(0.12)
+                                        : Colors.white.withOpacity(0.04),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                engineError != null
+                                    ? 'Error'
+                                    : isUpdating
+                                        ? (vInst != null ? 'Updating...' : 'Installing...')
+                                        : 'Not Installed',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: engineError != null
+                                      ? Colors.redAccent
+                                      : isUpdating
+                                          ? Colors.blue.shade300
+                                          : AppColors.textMuted.withOpacity(0.4),
+                                ),
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          // Action buttons
+                          if (!isUpdating) ...[
+                            if (engineError != null)
+                              _buildEngineActionButton(
+                                label: 'Error',
+                                icon: Icons.error_outline_rounded,
+                                color: Colors.redAccent,
+                                onTap: () {},
+                              )
+                            else if (installed) ...[
+                              if (hasUpdate)
+                                _buildEngineActionButton(
+                                  label: 'Update',
+                                  icon: Icons.refresh_rounded,
+                                  color: AppColors.violet,
+                                  onTap: () {
+                                    ref.read(downloaderUpdateProvider.notifier).updateEngine(engine);
+                                  },
+                                )
+                              else if (vInst != null)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  child: Text('Up to date', style: GoogleFonts.manrope(fontSize: 10, color: Colors.white.withOpacity(0.3))),
+                                ),
+                              // Delete button
+                              if (engine.isOptional)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: _buildEngineActionButton(
+                                    label: switch (engine.id) {
+                                      'playwright' => 'Uninstall (~300 MB)',
+                                      'streamlink' => 'Uninstall (~25 MB)',
+                                      'lux' => 'Uninstall (~15 MB)',
+                                      'you-get' => 'Uninstall (~10 MB)',
+                                      _ => 'Uninstall',
+                                    },
+                                    icon: Icons.delete_outline_rounded,
+                                    color: Colors.redAccent.shade100,
+                                    onTap: () async {
+                                      final confirm = await showVibrantConfirmDialog(
+                                        context: context,
+                                        title: 'Uninstall ${engine.displayName}?',
+                                        message: engine.id == 'playwright'
+                                            ? 'This will remove Playwright and Chromium browser (~300 MB). You can reinstall it later.'
+                                            : 'This will uninstall ${engine.displayName}. You can reinstall it later.',
+                                        confirmLabel: 'Uninstall',
+                                        confirmColor: Colors.redAccent,
+                                      );
+                                      if (confirm && mounted) {
+                                        final processFuture = engine.uninstall();
+                                        if (processFuture != null) {
+                                          ref.read(downloaderUpdateProvider.notifier).installProcessEngine(engine, processFuture);
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ),
+                            ] else ...[
+                              // Install button
+                              _buildEngineActionButton(
+                                label: engine.updateInfo != null ? 'Download' : 'Install',
+                                icon: Icons.download_rounded,
+                                color: AppColors.violet,
+                                onTap: () {
+                                  if (engine.updateInfo != null) {
+                                    ref.read(downloaderUpdateProvider.notifier).updateEngine(engine);
+                                  } else if (engine.install != null) {
+                                    final processFuture = engine.install();
+                                    if (processFuture != null) {
+                                      ref.read(downloaderUpdateProvider.notifier).installProcessEngine(engine, processFuture);
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (engineError != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Installation Error',
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Text(
+                            engineError,
+                            style: GoogleFonts.firaCode(
+                              fontSize: 10,
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        }),
+        // aria2 accelerator
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.02),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withOpacity(0.06)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.speed_rounded,
+                size: 18,
+                color: Aria2Accelerator.isAvailable ? Colors.cyanAccent : Colors.cyanAccent.withOpacity(0.3),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'aria2 — Download Accelerator',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Aria2Accelerator.isAvailable ? Colors.white.withOpacity(0.85) : Colors.white.withOpacity(0.4),
+                      ),
+                    ),
+                    if (!Aria2Accelerator.isAvailable)
+                      Text(
+                        'Install via: sudo apt install aria2',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          color: AppColors.textMuted.withOpacity(0.5),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Aria2Accelerator.isAvailable ? Colors.green.withOpacity(0.12) : Colors.white.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  Aria2Accelerator.isAvailable ? 'Active' : 'Not Found',
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Aria2Accelerator.isAvailable ? Colors.green.shade300 : AppColors.textMuted.withOpacity(0.4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEngineActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ],
         ),
