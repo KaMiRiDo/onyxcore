@@ -297,45 +297,40 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   void initState() {
     super.initState();
     _urlController = TextEditingController();
-    _urlFocusNode = FocusNode(
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
-          if (event.logicalKey == LogicalKeyboardKey.keyD) {
+    KeyEventResult handlePanelShortcuts(FocusNode node, KeyEvent event) {
+      if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
+        if (event.logicalKey == LogicalKeyboardKey.keyD) {
+          final dOpen = ref.read(downloadsPanelOpenProvider);
+          if (!dOpen) {
+            ref.read(downloadsPanelOpenProvider.notifier).state = true;
+            ref.read(backgroundPanelOpenProvider.notifier).state = false;
+            ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+            ref.read(downloadUrlFocusRequestProvider.notifier).state++;
+          } else {
             ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            return KeyEventResult.handled;
           }
-          if (event.logicalKey == LogicalKeyboardKey.keyB) {
-            ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            ref.read(backgroundPanelOpenProvider.notifier).state = true;
-            ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
-            return KeyEventResult.handled;
-          }
+          return KeyEventResult.handled;
         }
-        return KeyEventResult.ignored;
-      },
-    )..addListener(() {
+        if (event.logicalKey == LogicalKeyboardKey.keyB) {
+          final bOpen = ref.read(backgroundPanelOpenProvider);
+          ref.read(backgroundPanelOpenProvider.notifier).state = !bOpen;
+          if (!bOpen) {
+            ref.read(downloadsPanelOpenProvider.notifier).state = false;
+            ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+          }
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    }
+
+    _urlFocusNode = FocusNode(onKeyEvent: handlePanelShortcuts)..addListener(() {
         ref.read(isDownloadInputFocusedProvider.notifier).state =
             _urlFocusNode.hasFocus;
         setState(() {});
       });
     
-    _listFocusNode = FocusNode(
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
-          if (event.logicalKey == LogicalKeyboardKey.keyD) {
-            _urlFocusNode.requestFocus();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.keyB) {
-            ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            ref.read(backgroundPanelOpenProvider.notifier).state = true;
-            ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
-            return KeyEventResult.handled;
-          }
-        }
-        return KeyEventResult.ignored;
-      },
-    )..addListener(() {
+    _listFocusNode = FocusNode(onKeyEvent: handlePanelShortcuts)..addListener(() {
       ref.read(isDownloadsPanelFocusedProvider.notifier).state =
           _listFocusNode.hasFocus;
     });
@@ -1710,6 +1705,25 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
     return CallbackShortcuts(
       bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyD, control: true): () {
+          final dOpen = ref.read(downloadsPanelOpenProvider);
+          if (!dOpen) {
+            ref.read(downloadsPanelOpenProvider.notifier).state = true;
+            ref.read(backgroundPanelOpenProvider.notifier).state = false;
+            ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+            ref.read(downloadUrlFocusRequestProvider.notifier).state++;
+          } else {
+            ref.read(downloadsPanelOpenProvider.notifier).state = false;
+          }
+        },
+        const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
+          final bOpen = ref.read(backgroundPanelOpenProvider);
+          ref.read(backgroundPanelOpenProvider.notifier).state = !bOpen;
+          if (!bOpen) {
+            ref.read(downloadsPanelOpenProvider.notifier).state = false;
+            ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+          }
+        },
         const SingleActivator(
           LogicalKeyboardKey.keyS,
           control: true,

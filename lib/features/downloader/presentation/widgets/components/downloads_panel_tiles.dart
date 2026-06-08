@@ -239,25 +239,22 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                   Flexible(
                     flex: 0,
                     child: GestureDetector(
-                      onTap:
-                          _backgroundLoadingProfiles.contains(group.originalUrl)
-                          ? null
-                          : () {
-                              if ((item.isProfile || item.isPlaylist) &&
-                                  group.isSingle &&
-                                  !_backgroundLoadingProfiles.contains(
-                                    group.originalUrl,
-                                  )) {
-                                _hydrateProfile(group.originalUrl);
-                              } else {
-                                setState(() {
-                                  _previewItem = group;
-                                  _previewIndex = index;
-                                  _previewCarouselIndex = 0;
-                                });
-                                _previewFocusNode.requestFocus();
-                              }
-                            },
+                      onTap: () {
+                        if ((item.isProfile || item.isPlaylist) &&
+                            group.isSingle &&
+                            !_backgroundLoadingProfiles.contains(
+                              group.originalUrl,
+                            )) {
+                          _hydrateProfile(group.originalUrl);
+                        } else {
+                          setState(() {
+                            _previewItem = group;
+                            _previewIndex = index;
+                            _previewCarouselIndex = 0;
+                          });
+                          _previewFocusNode.requestFocus();
+                        }
+                      },
                       child: MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: ClipRRect(

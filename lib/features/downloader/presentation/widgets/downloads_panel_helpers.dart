@@ -1,6 +1,23 @@
 part of 'downloads_panel.dart';
 
 mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
+  final Map<String, int> _resolvedFileSizes = {};
+  final Set<String> _fetchingFileSizes = {};
+
+  Future<void> _fetchLazySize(String id, String url) async {
+    try {
+      final req = await HttpClient().headUrl(Uri.parse(url));
+      final res = await req.close();
+      if (res.statusCode == 200 && res.contentLength > 0) {
+        if (mounted) {
+          setState(() {
+            _resolvedFileSizes[id] = res.contentLength;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   String _trimMiddle(String text, int maxLength) {
     if (text.characters.length <= maxLength) return text;
     final half = (maxLength - 3) ~/ 2;
@@ -56,9 +73,16 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   }
 
   int? _getFormatBytes(MediaInfo item, MediaFormat? format, DownloadConfig config) {
-    if (format == null) return item.filesize;
+    if (format == null) {
+      final size = item.filesize ?? _resolvedFileSizes[item.id];
+      if (size == null && item.directUrl != null && !_fetchingFileSizes.contains(item.id)) {
+        _fetchingFileSizes.add(item.id);
+        _fetchLazySize(item.id, item.directUrl!);
+      }
+      return size;
+    }
 
-    int? bytes = format.filesize;
+    int? bytes = format.filesize ?? _resolvedFileSizes[item.id];
 
     if (config.mode == DownloadMode.normal && 
         format.resolution != 'audio only' && 
@@ -99,6 +123,11 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
         } else {
             bytes = item.filesize;
         }
+    }
+
+    if (bytes == null && item.directUrl != null && !_fetchingFileSizes.contains(item.id)) {
+      _fetchingFileSizes.add(item.id);
+      _fetchLazySize(item.id, item.directUrl!);
     }
 
     return bytes;

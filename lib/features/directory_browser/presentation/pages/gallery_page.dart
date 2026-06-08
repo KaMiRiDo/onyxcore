@@ -669,14 +669,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       },
       const SingleActivator(LogicalKeyboardKey.keyD, control: true): () {
         final isOpen = ref.read(downloadsPanelOpenProvider);
-        final isFocused = ref.read(isDownloadInputFocusedProvider);
-        
         if (!isOpen) {
           ref.read(downloadsPanelOpenProvider.notifier).state = true;
           ref.read(backgroundPanelOpenProvider.notifier).state = false;
-          ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
-          ref.read(downloadUrlFocusRequestProvider.notifier).state++;
-        } else if (!isFocused) {
           ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
           ref.read(downloadUrlFocusRequestProvider.notifier).state++;
         } else {

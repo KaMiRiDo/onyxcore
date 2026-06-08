@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
@@ -85,6 +86,37 @@ class _UnifiedSidePanelState extends ConsumerState<UnifiedSidePanel> {
               focusNode: _panelFocusNode,
               autofocus: false,
               descendantsAreFocusable: true,
+              onKeyEvent: (node, event) {
+                if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
+                  if (event.logicalKey == LogicalKeyboardKey.keyD) {
+                    final dOpen = ref.read(downloadsPanelOpenProvider);
+                    final isFocused = ref.read(isDownloadInputFocusedProvider);
+                    
+                    if (!dOpen) {
+                      ref.read(downloadsPanelOpenProvider.notifier).state = true;
+                      ref.read(backgroundPanelOpenProvider.notifier).state = false;
+                      ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+                      ref.read(downloadUrlFocusRequestProvider.notifier).state++;
+                    } else if (!isFocused) {
+                      ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+                      ref.read(downloadUrlFocusRequestProvider.notifier).state++;
+                    } else {
+                      ref.read(downloadsPanelOpenProvider.notifier).state = false;
+                    }
+                    return KeyEventResult.handled;
+                  }
+                  if (event.logicalKey == LogicalKeyboardKey.keyB) {
+                    final bOpen = ref.read(backgroundPanelOpenProvider);
+                    ref.read(backgroundPanelOpenProvider.notifier).state = !bOpen;
+                    if (!bOpen) {
+                      ref.read(downloadsPanelOpenProvider.notifier).state = false;
+                      ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+                    }
+                    return KeyEventResult.handled;
+                  }
+                }
+                return KeyEventResult.ignored;
+              },
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {

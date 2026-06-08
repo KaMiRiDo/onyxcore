@@ -140,10 +140,16 @@ class GalleryDlEngine extends DownloadEngine {
 
     final isSocialProfile = _isSocialProfile(url);
 
-    // Try Instagram API shortcut for profiles (non-deep fetch)
+    String? actualBrowser = browser;
+    if (actualBrowser == null) {
+      final defaultBrowser = await BrowserDetector.getDefaultBrowser();
+      if (defaultBrowser != null) actualBrowser = defaultBrowser;
+    }
+
+    // Try Instagram API shortcut for profiles (only if not deep fetching)
     if (url.contains('instagram.com') && isSocialProfile && !fetchDeep) {
       try {
-        final profileInfos = await _fetchInstagramProfile(url, browser);
+        final profileInfos = await _fetchInstagramProfile(url, actualBrowser, fetchDeep: fetchDeep);
         if (profileInfos != null) return profileInfos;
       } catch (e) {
         debugPrint('Instagram API fallback failed: $e, trying gallery-dl...');
@@ -151,12 +157,6 @@ class GalleryDlEngine extends DownloadEngine {
     }
 
     final args = <String>[];
-
-    String? actualBrowser = browser;
-    if (actualBrowser == null) {
-      final defaultBrowser = await BrowserDetector.getDefaultBrowser();
-      if (defaultBrowser != null) actualBrowser = defaultBrowser;
-    }
 
     if (actualBrowser != null && actualBrowser.toLowerCase() != 'none') {
       args.addAll(['--cookies-from-browser', actualBrowser]);
@@ -170,12 +170,12 @@ class GalleryDlEngine extends DownloadEngine {
     
     if (isSocialProfile) {
       if (fetchDeep) {
-        args.addAll(['-j', url]);
+        args.addAll(['-J', url]);
       } else {
-        args.addAll(['-j', '--range', '1-1', url]);
+        args.addAll(['-J', '--range', '1-1', url]);
       }
     } else {
-      args.addAll(['-j', url]);
+      args.addAll(['-J', url]);
     }
 
     final process = await Process.start(
@@ -220,12 +220,14 @@ class GalleryDlEngine extends DownloadEngine {
       StringBuffer currentBlock = StringBuffer();
 
       await for (var chunk in process.stdout.transform(utf8.decoder)) {
-        for (int i = 0; i < chunk.length; i++) {
-          final c = chunk[i];
+        final codeUnits = chunk.codeUnits;
+        for (int i = 0; i < codeUnits.length; i++) {
+          final c = codeUnits[i];
 
           if (!initialized) {
-            if (c.trim().isEmpty) continue;
-            if (c == '[') {
+            // 32 = space, 9 = tab, 10 = LF, 13 = CR
+            if (c == 32 || c == 9 || c == 10 || c == 13) continue;
+            if (c == 91) { // '['
               isOuterArray = true;
               bracketCount = 1;
               initialized = true;
@@ -237,21 +239,21 @@ class GalleryDlEngine extends DownloadEngine {
 
           if (escape) {
             escape = false;
-            if (tracking) currentBlock.write(c);
+            if (tracking) currentBlock.writeCharCode(c);
             continue;
           }
-          if (c == '\\') {
+          if (c == 92) { // '\'
             escape = true;
-            if (tracking) currentBlock.write(c);
+            if (tracking) currentBlock.writeCharCode(c);
             continue;
           }
-          if (c == '"') {
+          if (c == 34) { // '"'
             inString = !inString;
-            if (tracking) currentBlock.write(c);
+            if (tracking) currentBlock.writeCharCode(c);
             continue;
           }
           if (!inString) {
-            if (c == '{' || c == '[') {
+            if (c == 123 || c == 91) { // '{' or '['
               if (!tracking) {
                 if ((isOuterArray && bracketCount == 1 && braceCount == 0) ||
                     (!isOuterArray && bracketCount == 0 && braceCount == 0)) {
@@ -259,16 +261,16 @@ class GalleryDlEngine extends DownloadEngine {
                   currentBlock.clear();
                 }
               }
-              if (c == '{') braceCount++;
-              if (c == '[') bracketCount++;
-            } else if (c == '}' || c == ']') {
-              if (c == '}') braceCount--;
-              if (c == ']') bracketCount--;
+              if (c == 123) braceCount++;
+              if (c == 91) bracketCount++;
+            } else if (c == 125 || c == 93) { // '}' or ']'
+              if (c == 125) braceCount--;
+              if (c == 93) bracketCount--;
             }
           }
 
           if (tracking) {
-            currentBlock.write(c);
+            currentBlock.writeCharCode(c);
             bool blockComplete = false;
             if (isOuterArray) {
               blockComplete =
@@ -324,14 +326,16 @@ class GalleryDlEngine extends DownloadEngine {
                 
                 if (isDuplicate) continue;
 
-                if (parsedInfos.isNotEmpty || infos.length > 1) {
+                if (!info.isProfile) {
+                  if (parsedInfos.isNotEmpty || infos.length > 1) {
+                    info = info.copyWith(
+                      title: '${info.title} (${parsedInfos.length + 1})',
+                    );
+                  }
                   info = info.copyWith(
-                    title: '${info.title} (${parsedInfos.length + 1})',
+                    id: '${info.id}_${parsedInfos.length + 1}',
                   );
                 }
-                info = info.copyWith(
-                  id: '${info.id}_${parsedInfos.length + 1}',
-                );
                 
                 hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
                 String currentLogs = hydrationLogsBuffer.toString();
@@ -468,10 +472,7 @@ class GalleryDlEngine extends DownloadEngine {
 
   // ——— Private helpers ———
 
-  Future<List<MediaInfo>?> _fetchInstagramProfile(
-    String url,
-    String? browser,
-  ) async {
+  Future<List<MediaInfo>?> _fetchInstagramProfile(String url, String? browser, {bool fetchDeep = false}) async {
     final uri = Uri.parse(url);
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) {
@@ -519,7 +520,7 @@ class GalleryDlEngine extends DownloadEngine {
         final title = fullName.isNotEmpty ? '$fullName (@$uname)' : '@$uname';
 
         final profileInfo = MediaInfo(
-          id: uname,
+          id: 'profile_${url.hashCode}',
           title: title,
           thumbnail:
               user['profile_pic_url_hd']?.toString() ??
@@ -531,7 +532,40 @@ class GalleryDlEngine extends DownloadEngine {
           originalUrl: url,
         );
 
-        return [profileInfo];
+        final List<MediaInfo> results = [profileInfo];
+
+        if (fetchDeep) {
+          final edges = user['edge_owner_to_timeline_media']?['edges'] as List<dynamic>? ?? [];
+          for (final edge in edges) {
+            final node = edge['node'] as Map<String, dynamic>?;
+            if (node == null) continue;
+
+            final isVideo = node['is_video'] == true;
+            final shortcode = node['shortcode']?.toString() ?? '';
+            final itemUrl = shortcode.isNotEmpty ? 'https://www.instagram.com/p/$shortcode/' : url;
+            
+            String itemTitle = title; // default to profile title
+            final captionEdges = node['edge_media_to_caption']?['edges'] as List<dynamic>? ?? [];
+            if (captionEdges.isNotEmpty) {
+              itemTitle = captionEdges.first['node']?['text']?.toString() ?? itemTitle;
+            }
+
+            results.add(MediaInfo(
+              id: node['id']?.toString() ?? shortcode,
+              title: itemTitle,
+              thumbnail: node['display_url']?.toString() ?? node['thumbnail_src']?.toString(),
+              extractor: 'instagram',
+              isVideo: isVideo,
+              originalUrl: itemUrl,
+              directUrl: node['video_url']?.toString() ?? node['display_url']?.toString(),
+              width: node['dimensions']?['width'] as int?,
+              height: node['dimensions']?['height'] as int?,
+              duration: node['video_duration'] != null ? (node['video_duration'] as num).toInt() : null,
+            ));
+          }
+        }
+
+        return results;
       } finally {
         client.close();
       }
@@ -718,7 +752,7 @@ class GalleryDlEngine extends DownloadEngine {
           }
         }
 
-        bool hasProfileData = sharedMeta.containsKey('user') || sharedMeta.containsKey('username');
+        bool hasProfileData = sharedMeta.containsKey('user') || sharedMeta.containsKey('username') || (sharedMeta['subcategory'] == 'user' && sharedMeta['category'] == 'instagram');
         if (isSocialProfile && sharedMeta.isNotEmpty && existingCount == 0 && (fileCount > 0 || hasProfileData)) {
           String title = '';
           String? profilePic;
@@ -744,6 +778,11 @@ class GalleryDlEngine extends DownloadEngine {
               final uri = Uri.tryParse(url);
               if (uri != null && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'r') {
                 title = 'r/${uri.pathSegments[1]}';
+              }
+            } else if (url.contains('instagram.com/')) {
+              final uri = Uri.tryParse(url);
+              if (uri != null && uri.pathSegments.isNotEmpty) {
+                title = '@${uri.pathSegments.first}';
               }
             }
             if (title.isEmpty && sharedMeta['author'] != null) {
