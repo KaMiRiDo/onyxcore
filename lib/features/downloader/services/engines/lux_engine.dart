@@ -7,6 +7,7 @@ import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
+import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:path/path.dart' as p;
 
 /// Concrete [DownloadEngine] implementation for Lux (formerly Annie).
@@ -118,11 +119,28 @@ class LuxEngine extends DownloadEngine {
     final results = <MediaInfo>[];
 
     Future<void> processOutput() async {
+      final stderrBuffer = StringBuffer();
+      final hydrationLogsBuffer = StringBuffer();
+      process.stderr.transform(utf8.decoder).listen((data) {
+        stderrBuffer.write(data);
+        MediaDownloaderBackend.activeLogs[url] = stderrBuffer.toString();
+      });
+
+      if (onProgress != null) {
+        onProgress(MediaInfo(
+          id: 'hydration_loading',
+          title: 'Fetching...',
+          originalUrl: url,
+          fetchLogs: 'Waiting for output...',
+          isVideo: false,
+        ));
+      }
+
       final rawOutput = await process.stdout.transform(utf8.decoder).join();
       final exitCode = await process.exitCode;
 
       if (exitCode != 0 && rawOutput.trim().isEmpty) {
-        final stderrStr = await process.stderr.transform(utf8.decoder).join();
+        final stderrStr = stderrBuffer.toString();
         throw Exception('Lux failed: $stderrStr');
       }
 
@@ -188,12 +206,30 @@ class LuxEngine extends DownloadEngine {
           originalUrl: json['url']?.toString() ?? url,
         );
 
-        results.add(info);
-        onProgress?.call(info);
+        hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
+        String currentLogs = hydrationLogsBuffer.toString();
+        if (stderrBuffer.isNotEmpty) {
+          final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+          currentLogs += '\n\n--- lux Raw Logs ---\n$formattedErrors';
+        }
+        final infoWithLogs = info.copyWith(fetchLogs: currentLogs.trim());
+
+        results.add(infoWithLogs);
+        onProgress?.call(infoWithLogs);
       }
 
       if (results.isEmpty) {
         throw Exception('Lux returned no parseable results');
+      }
+      
+      // Update all results with final combined logs
+      String combinedLogs = hydrationLogsBuffer.toString();
+      if (stderrBuffer.isNotEmpty) {
+        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        combinedLogs += '\n\n--- lux Raw Logs ---\n$formattedErrors';
+      }
+      for (int i = 0; i < results.length; i++) {
+        results[i] = results[i].copyWith(fetchLogs: combinedLogs.trim());
       }
     }
 

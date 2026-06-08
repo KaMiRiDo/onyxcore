@@ -187,6 +187,7 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
       }).toList(),
       child: Container(
         height: 32,
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(isEnabled ? 0.05 : 0.02),

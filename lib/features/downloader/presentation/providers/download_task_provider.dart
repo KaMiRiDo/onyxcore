@@ -24,6 +24,8 @@ class DownloadTask {
   final String speed;
   final String eta;
   final String totalSize;
+  final int expectedBytes;
+  final int downloadedBytes;
   final String? error;
   final Process? process;
   final List<String> logs;
@@ -41,6 +43,8 @@ class DownloadTask {
     this.speed = '',
     this.eta = '',
     this.totalSize = '',
+    this.expectedBytes = 0,
+    this.downloadedBytes = 0,
     this.error,
     this.process,
     this.logs = const [],
@@ -56,6 +60,8 @@ class DownloadTask {
     String? speed,
     String? eta,
     String? totalSize,
+    int? expectedBytes,
+    int? downloadedBytes,
     String? error,
     Process? process,
     List<String>? logs,
@@ -72,6 +78,8 @@ class DownloadTask {
       speed: speed ?? this.speed,
       eta: eta ?? this.eta,
       totalSize: totalSize ?? this.totalSize,
+      expectedBytes: expectedBytes ?? this.expectedBytes,
+      downloadedBytes: downloadedBytes ?? this.downloadedBytes,
       error: error ?? this.error,
       process: process ?? this.process,
       logs: logs ?? this.logs,
@@ -155,6 +163,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
       _updateTask(id, process: process);
 
+      if ((args['isProfile'] as bool? ?? false) || (args['isPlaylist'] as bool? ?? false)) {
+        _startFolderSizeMonitor(id, args['destination'] as String);
+      }
+
       stdoutSub = process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
         _parseProgress(id, data);
         _appendLog(id, data);
@@ -212,6 +224,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    int expectedBytes = 0,
   }) {
 
     final id = _uuid.v4();
@@ -222,6 +235,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       title: title,
       downloadType: downloadType,
       status: DownloadStatus.pending,
+      expectedBytes: expectedBytes,
       createdAt: DateTime.now(),
     );
 
@@ -390,6 +404,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       String? speed,
       String? eta,
       String? totalSize,
+      int? expectedBytes,
+      int? downloadedBytes,
       String? error,
       Process? process,
       DateTime? completedAt}) {
@@ -401,6 +417,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           speed: speed,
           eta: eta,
           totalSize: totalSize,
+          expectedBytes: expectedBytes,
+          downloadedBytes: downloadedBytes,
           error: error,
           process: process,
           completedAt: completedAt,
@@ -582,6 +600,28 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           return;
         }
       }
+    });
+  }
+
+  void _startFolderSizeMonitor(String id, String destination) {
+    if (_liveMonitors.containsKey(id)) return;
+
+    _liveMonitors[id] = Timer.periodic(const Duration(seconds: 1), (_) {
+      try {
+        final dir = Directory(destination);
+        if (dir.existsSync()) {
+          int size = 0;
+          for (final entity in dir.listSync(recursive: true)) {
+            if (entity is File) {
+              size += entity.lengthSync();
+            }
+          }
+          final task = state.where((t) => t.id == id).firstOrNull;
+          if (task != null && task.status == DownloadStatus.running) {
+            _updateTask(id, downloadedBytes: size);
+          }
+        }
+      } catch (_) {}
     });
   }
 }

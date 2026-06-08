@@ -277,17 +277,16 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                             fontSize: 11,
                           ),
                         ),
-                        if (task.progress > 0 || task.totalSizeBytes > 0)
+                        if (task.progress > 0 || task.totalSizeBytes > 0 || task.processedSizeBytes > 0)
                           Row(
                             children: [
-                                if (task.totalSizeBytes > 0)
-                                  Text(
-                                    '${StringUtils.formatBytes(task.processedSizeBytes)} / ${StringUtils.formatBytes(task.totalSizeBytes)}',
-                                    style: GoogleFonts.manrope(
-                                      color: AppColors.textMuted.withOpacity(0.6),
-                                      fontSize: 11,
-                                    ),
+                                Text(
+                                  '${StringUtils.formatBytes(task.processedSizeBytes)} / ${task.totalSizeBytes > 0 ? StringUtils.formatBytes(task.totalSizeBytes) : '?'}',
+                                  style: GoogleFonts.manrope(
+                                    color: AppColors.textMuted.withOpacity(0.6),
+                                    fontSize: 11,
                                   ),
+                                ),
                                 if (task.speed != null && task.speed! > 0) ...[
                                   const SizedBox(width: 8),
                                   Text(

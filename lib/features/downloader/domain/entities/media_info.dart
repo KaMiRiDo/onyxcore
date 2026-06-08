@@ -182,7 +182,7 @@ class MediaInfo {
     );
   }
 
-  MediaInfo copyWith({String? id, bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize, bool? isLive, String? originalUrl, String? directUrl, String? engineId, String? errorMessage, String? fetchLogs}) {
+  MediaInfo copyWith({String? id, bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize, bool? isLive, String? originalUrl, String? directUrl, String? engineId, String? errorMessage, String? fetchLogs, bool? isVideo}) {
     return MediaInfo(
       id: id ?? this.id,
       title: title ?? this.title,
@@ -190,7 +190,7 @@ class MediaInfo {
       duration: duration,
       extractor: extractor,
       formats: formats,
-      isVideo: isVideo,
+      isVideo: isVideo ?? this.isVideo,
       isPlaylist: isPlaylist,
       isProfile: isProfile ?? this.isProfile,
       itemCount: itemCount,
@@ -294,5 +294,50 @@ class MediaGroup {
 
   int get imageCount => items.where((i) => !i.isVideo).length;
   int get videoCount => items.where((i) => i.isVideo).length;
-  int get totalFilesize => items.fold<int>(0, (sum, i) => sum + (i.filesize ?? 0));
+  int get totalFilesize {
+    int totalVideo = 0;
+    int videoWithSize = 0;
+    int videoWithoutSize = 0;
+
+    int totalImage = 0;
+    int imageWithSize = 0;
+    int imageWithoutSize = 0;
+
+    for (final item in items) {
+      final bytes = item.filesize;
+      if (item.isVideo) {
+        if (bytes != null && bytes > 0) {
+          totalVideo += bytes;
+          videoWithSize++;
+        } else {
+          videoWithoutSize++;
+        }
+      } else {
+        if (bytes != null && bytes > 0) {
+          totalImage += bytes;
+          imageWithSize++;
+        } else {
+          imageWithoutSize++;
+        }
+      }
+    }
+
+    if (videoWithoutSize > 0) {
+      if (videoWithSize > 0) {
+        totalVideo += ((totalVideo / videoWithSize) * videoWithoutSize).round();
+      } else {
+        totalVideo += videoWithoutSize * 15 * 1024 * 1024;
+      }
+    }
+
+    if (imageWithoutSize > 0) {
+      if (imageWithSize > 0) {
+        totalImage += ((totalImage / imageWithSize) * imageWithoutSize).round();
+      } else {
+        totalImage += imageWithoutSize * 1 * 1024 * 1024;
+      }
+    }
+
+    return totalVideo + totalImage;
+  }
 }

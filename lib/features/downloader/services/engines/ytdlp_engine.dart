@@ -7,6 +7,7 @@ import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
+import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:path/path.dart' as p;
 import 'dart:async';
 
@@ -161,7 +162,20 @@ class YtDlpEngine extends DownloadEngine {
     final parsedInfos = <MediaInfo>[];
     final stderrBuffer = StringBuffer();
     final hydrationLogsBuffer = StringBuffer();
-    process.stderr.transform(utf8.decoder).listen((data) => stderrBuffer.write(data));
+    process.stderr.transform(utf8.decoder).listen((data) {
+      stderrBuffer.write(data);
+      MediaDownloaderBackend.activeLogs[url] = stderrBuffer.toString();
+    });
+
+    if (onProgress != null) {
+      onProgress(MediaInfo(
+        id: 'hydration_loading',
+        title: 'Fetching...',
+        originalUrl: url,
+        fetchLogs: 'Waiting for output...',
+        isVideo: false,
+      ));
+    }
 
     Future<void> processOutput() async {
       if (!fetchDeep) {

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
+import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 
 /// Concrete [DownloadEngine] implementation for Streamlink.
 ///
@@ -143,11 +144,28 @@ class StreamlinkEngine extends DownloadEngine {
     final parsedInfos = <MediaInfo>[];
 
     Future<void> processOutput() async {
+      final stderrBuffer = StringBuffer();
+      final hydrationLogsBuffer = StringBuffer();
+      process.stderr.transform(utf8.decoder).listen((data) {
+        stderrBuffer.write(data);
+        MediaDownloaderBackend.activeLogs[url] = stderrBuffer.toString();
+      });
+
+      if (onProgress != null) {
+        onProgress(MediaInfo(
+          id: 'hydration_loading',
+          title: 'Fetching...',
+          originalUrl: url,
+          fetchLogs: 'Waiting for output...',
+          isVideo: false,
+        ));
+      }
+
       final rawOutput = await process.stdout.transform(utf8.decoder).join();
       final exitCode = await process.exitCode;
 
       if (exitCode != 0 && rawOutput.trim().isEmpty) {
-        final stderrStr = await process.stderr.transform(utf8.decoder).join();
+        final stderrStr = stderrBuffer.toString();
         throw Exception('Streamlink failed: $stderrStr');
       }
 
@@ -219,8 +237,16 @@ class StreamlinkEngine extends DownloadEngine {
         originalUrl: url,
       );
 
-      parsedInfos.add(info);
-      onProgress?.call(info);
+      hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
+      String currentLogs = hydrationLogsBuffer.toString();
+      if (stderrBuffer.isNotEmpty) {
+        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        currentLogs += '\n\n--- Streamlink Raw Logs ---\n$formattedErrors';
+      }
+      var finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
+
+      parsedInfos.add(finalInfo);
+      onProgress?.call(finalInfo);
     }
 
     try {

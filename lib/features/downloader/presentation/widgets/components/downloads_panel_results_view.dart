@@ -369,7 +369,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                     Icon(Icons.sd_storage_rounded, size: 14, color: Colors.white54),
                     const SizedBox(width: 6),
                     Text(
-                      StringUtils.formatBytes(_totalListSize),
+                      (_hasUnderestimatedSize && _totalListSize > 0 ? '~ ' : '') + StringUtils.formatBytes(_totalListSize),
                       style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: Colors.white70,

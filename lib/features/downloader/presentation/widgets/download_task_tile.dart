@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
 
 class DownloadTaskTile extends ConsumerStatefulWidget {
   final DownloadTask task;
@@ -209,19 +210,42 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        task.status == DownloadStatus.cancelling
-                            ? 'Cancelling...'
-                            : task.progress == 0.0 &&
-                                  task.status == DownloadStatus.running
-                            ? 'Processing...'
-                            : '${(task.progress * 100).toStringAsFixed(1)}%',
-                        style: GoogleFonts.manrope(
-                          color: task.status == DownloadStatus.cancelling
-                              ? Colors.orange.withOpacity(0.7)
-                              : AppColors.textMuted.withOpacity(0.6),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              task.status == DownloadStatus.cancelling
+                                  ? 'Cancelling...'
+                                  : task.progress == 0.0 &&
+                                        task.status == DownloadStatus.running
+                                  ? 'Processing...'
+                                  : '${(task.progress * 100).toStringAsFixed(1)}%',
+                              style: GoogleFonts.manrope(
+                                color: task.status == DownloadStatus.cancelling
+                                    ? Colors.orange.withOpacity(0.7)
+                                    : AppColors.textMuted.withOpacity(0.6),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (task.expectedBytes > 0 || task.downloadedBytes > 0) ...[
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                child: Text('•', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  '${StringUtils.formatBytes(task.downloadedBytes)} / ${task.expectedBytes > 0 ? StringUtils.formatBytes(task.expectedBytes) : '?'}',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.manrope(
+                                    color: AppColors.textMuted.withOpacity(0.6),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                       if (task.status == DownloadStatus.running &&
@@ -231,6 +255,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                         Flexible(
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               if (task.totalSize.isNotEmpty)
                                 Flexible(
@@ -238,16 +263,17 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                     task.totalSize,
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.manrope(
-                                      color: AppColors.textMuted.withOpacity(
-                                        0.6,
-                                      ),
+                                      color: AppColors.textMuted.withOpacity(0.6),
                                       fontSize: 11,
                                     ),
                                   ),
                                 ),
                               if (task.speed.isNotEmpty) ...[
                                 if (task.totalSize.isNotEmpty)
-                                  const SizedBox(width: 8),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 8),
+                                    child: Text('•', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                  ),
                                 Flexible(
                                   child: Text(
                                     task.speed,
@@ -261,15 +287,17 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                 ),
                               ],
                               if (task.eta.isNotEmpty) ...[
-                                const SizedBox(width: 8),
+                                if (task.totalSize.isNotEmpty || task.speed.isNotEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 8),
+                                    child: Text('•', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                  ),
                                 Flexible(
                                   child: Text(
                                     'ETA ${task.eta}',
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.manrope(
-                                      color: AppColors.textMuted.withOpacity(
-                                        0.6,
-                                      ),
+                                      color: AppColors.textMuted.withOpacity(0.6),
                                       fontSize: 11,
                                     ),
                                   ),

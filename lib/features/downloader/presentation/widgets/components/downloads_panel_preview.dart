@@ -223,7 +223,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   child: Align(
                                     alignment: Alignment.centerLeft,
                                     child: SizedBox(
-                                      width: 140,
+                                      width: 210,
                                       child: _buildFormatDropdown(
                                         item.first,
                                         config,
@@ -237,7 +237,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   child: Align(
                                     alignment: Alignment.centerLeft,
                                     child: SizedBox(
-                                      width: 140,
+                                      width: 210,
                                       child: _buildGroupFilterDropdown(
                                         config,
                                         item,
@@ -293,7 +293,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   ),
                                   foregroundColor: AppColors.violet,
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
+                                    horizontal: 24,
                                   ),
                                   fixedSize: const Size.fromHeight(32),
                                   elevation: 0,
@@ -509,7 +509,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     SizedBox(
-                                      width: 140,
+                                      width: 210,
                                       child: group.first.isPlaylist
                                           ? _buildFormatDropdown(
                                               group.first,
@@ -534,7 +534,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                             .withOpacity(0.2),
                                         foregroundColor: AppColors.violet,
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
+                                          horizontal: 24,
                                         ),
                                         fixedSize: const Size.fromHeight(32),
                                         elevation: 0,
@@ -584,7 +584,14 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
-                                        currentItem.thumbnail != null
+                                        currentItem.id == 'hydration_loading'
+                                            ? Container(
+                                                color: Colors.black.withOpacity(0.6),
+                                                child: const Center(
+                                                  child: _JugglingBallsLoader(),
+                                                ),
+                                              )
+                                            : currentItem.thumbnail != null
                                             ? (currentItem.thumbnail!.startsWith('data:image')
                                                 ? Image.memory(
                                                     base64Decode(currentItem.thumbnail!.split(',').last),
@@ -607,8 +614,11 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                         ) {
                                                           if (loadingProgress == null)
                                                             return child;
-                                                          return const Center(
-                                                            child: _JugglingBallsLoader(),
+                                                          return Center(
+                                                            child: CircularProgressIndicator(
+                                                              color: AppColors.violet.withOpacity(0.5),
+                                                              strokeWidth: 2,
+                                                            ),
                                                           );
                                                         },
                                                     errorBuilder: (_, __, ___) =>
@@ -764,7 +774,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   children: [
                                     if (currentItem.formats.isNotEmpty)
                                       SizedBox(
-                                        width: 140,
+                                        width: 210,
                                         child: _buildFormatDropdown(
                                           currentItem,
                                           config,
@@ -821,7 +831,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                             .withOpacity(0.2),
                                         foregroundColor: AppColors.violet,
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
+                                          horizontal: 24,
                                         ),
                                         fixedSize: const Size.fromHeight(32),
                                         elevation: 0,

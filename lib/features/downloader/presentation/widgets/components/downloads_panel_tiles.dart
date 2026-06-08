@@ -656,9 +656,9 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                           Builder(
                             builder: (context) {
                               return Align(
-                                alignment: Alignment.centerRight,
+                                alignment: Alignment.centerLeft,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     if ((group.isSingle &&
                                             item.formats.isNotEmpty) ||

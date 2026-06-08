@@ -112,12 +112,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   int _totalListVideos = 0;
   int _pendingStatsUpdate = 0; // C5: throttle counter for stats recalculation
   int? _activeAnalyzePid;
+  bool _hasUnderestimatedSize = false;
 
   void _recalculateFilteredStatistics() {
     _cachedFilteredItems = null; // RISK-004: Invalidate cache before reading
     _totalListSize = 0;
     _totalListImages = 0;
     _totalListVideos = 0;
+    _hasUnderestimatedSize = false;
     if (_parsedItems == null) return;
     for (int i = 0; i < _parsedItems!.length; i++) {
       var itemGrp = _parsedItems![i];
@@ -158,6 +160,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         }
       }
       
+      if (itemGrp.first.isPlaylist || itemGrp.first.isProfile) {
+        _hasUnderestimatedSize = true;
+      }
+      
       _totalListSize += groupSize;
       _totalListVideos += groupVideos;
       _totalListImages += groupImages;
@@ -190,8 +196,20 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       if (latestItem != null) {
         _activeLogItem = latestItem;
       }
-      _errorLogsMessage = (_activeLogItem!.fetchLogs != null && _activeLogItem!.fetchLogs!.isNotEmpty) 
-          ? _activeLogItem!.fetchLogs 
+
+      String? logsToUse = _activeLogItem!.fetchLogs;
+      
+      // If the item is actively hydrating, pull live logs from backend
+      if (_backgroundLoadingProfiles.contains(_activeLogItem!.originalUrl) || _activeLogItem!.id == 'hydration_loading') {
+        final liveLogs = MediaDownloaderBackend.activeLogs[_activeLogItem!.originalUrl];
+        if (liveLogs != null && liveLogs.isNotEmpty) {
+           final formattedErrors = liveLogs.trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+           logsToUse = '--- Live Hydration Logs ---\n$formattedErrors';
+        }
+      }
+
+      _errorLogsMessage = (logsToUse != null && logsToUse.isNotEmpty) 
+          ? logsToUse 
           : (_activeLogItem!.errorMessage != null && _activeLogItem!.errorMessage!.isNotEmpty) 
               ? _activeLogItem!.errorMessage 
               : '[${_activeLogItem!.engineId ?? 'yt-dlp'}]: Fetch completed successfully.';
@@ -592,6 +610,15 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 group.items[existsIndex] = info;
               }
               
+              // Ensure hydration_loading stays at the end of the list
+              if (info.id != 'hydration_loading') {
+                final loadingIndex = group.items.indexWhere((e) => e.id == 'hydration_loading');
+                if (loadingIndex != -1 && loadingIndex < group.items.length - 1) {
+                  final loadingItem = group.items.removeAt(loadingIndex);
+                  group.items.add(loadingItem);
+                }
+              }
+              
               if (group.items.isNotEmpty && group.items.first.isPlaylist) {
                 group.items[0] = group.items[0].copyWith(fetchLogs: info.fetchLogs);
               }
@@ -868,6 +895,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           }
         }
 
+        int expectedBytes = 0;
+        for (final item in itemsToDownload) {
+          if (filterType == 'images' && (item.isVideo || item.isProfile || item.isPlaylist)) continue;
+          if (filterType == 'videos' && (!item.isVideo || item.isProfile || item.isPlaylist)) continue;
+          if (filterType == null && (item.isProfile || item.isPlaylist)) continue;
+          expectedBytes += item.filesize ?? 0;
+        }
+
         ref
             .read(downloadTaskProvider.notifier)
             .startDownload(
@@ -887,6 +922,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               isZip: false, // Ensure zip is off
               filterType: filterType,
               totalItems: totalFilteredItems,
+              expectedBytes: expectedBytes,
             );
 
         setState(() {
@@ -1135,6 +1171,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
           }
 
+          int expectedBytes = 0;
+          for (final item in itemsToDownloadLocal) {
+            if (filterType == 'images' && (item.isVideo || item.isProfile || item.isPlaylist)) continue;
+            if (filterType == 'videos' && (!item.isVideo || item.isProfile || item.isPlaylist)) continue;
+            if (filterType == null && (item.isProfile || item.isPlaylist)) continue;
+            expectedBytes += item.filesize ?? 0;
+          }
+
           ref
               .read(downloadTaskProvider.notifier)
               .startDownload(
@@ -1154,6 +1198,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 isZip: false, // Ensure zip is off
                 filterType: filterType,
                 totalItems: totalFilteredItems,
+                expectedBytes: expectedBytes,
               );
           continue;
         }

@@ -11,6 +11,8 @@ import 'package:onyxcore/features/downloader/services/engines/engine_registry.da
 /// Internally, each call resolves the appropriate engine via [EngineRegistry]
 /// and delegates to it.
 class MediaDownloaderBackend {
+  static final Map<String, String> activeLogs = {};
+
   static Future<List<MediaInfo>> fetchMetadata(
     String url, {
     String engine = 'auto',

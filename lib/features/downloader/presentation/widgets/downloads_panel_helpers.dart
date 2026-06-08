@@ -115,7 +115,14 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   }
 
   int _getGroupBytes(MediaGroup group, DownloadConfig config) {
-    int total = 0;
+    int totalVideo = 0;
+    int videoWithSize = 0;
+    int videoWithoutSize = 0;
+
+    int totalImage = 0;
+    int imageWithSize = 0;
+    int imageWithoutSize = 0;
+
     for (final item in group.items) {
       if (item.isProfile || item.isPlaylist) continue;
       if (config.groupFilter == GroupDownloadType.images && item.isVideo) continue;
@@ -123,9 +130,41 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
 
       final currentFormat = config.itemFormats[item.id] ?? config.format;
       final bytes = _getFormatBytes(item, currentFormat, config);
-      total += bytes ?? 0;
+
+      if (item.isVideo) {
+        if (bytes != null && bytes > 0) {
+          totalVideo += bytes;
+          videoWithSize++;
+        } else {
+          videoWithoutSize++;
+        }
+      } else {
+        if (bytes != null && bytes > 0) {
+          totalImage += bytes;
+          imageWithSize++;
+        } else {
+          imageWithoutSize++;
+        }
+      }
     }
-    return total;
+
+    if (videoWithoutSize > 0) {
+      if (videoWithSize > 0) {
+        totalVideo += ((totalVideo / videoWithSize) * videoWithoutSize).round();
+      } else {
+        totalVideo += videoWithoutSize * 15 * 1024 * 1024; // 15MB fallback
+      }
+    }
+
+    if (imageWithoutSize > 0) {
+      if (imageWithSize > 0) {
+        totalImage += ((totalImage / imageWithSize) * imageWithoutSize).round();
+      } else {
+        totalImage += imageWithoutSize * 1 * 1024 * 1024; // 1MB fallback
+      }
+    }
+
+    return totalVideo + totalImage;
   }
 
   String _formatBytes(int bytes) => StringUtils.formatBytes(bytes);
