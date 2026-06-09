@@ -60,7 +60,8 @@ class GalleryPage extends ConsumerStatefulWidget {
   ConsumerState<GalleryPage> createState() => _GalleryPageState();
 }
 
-class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingObserver {
+class _GalleryPageState extends ConsumerState<GalleryPage>
+    with WidgetsBindingObserver {
   late final FocusNode _focusNode;
 
   @override
@@ -76,7 +77,8 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached || state == AppLifecycleState.hidden) {
+    if (state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
       ref.read(taskProvider.notifier).cancelAllTasks();
     }
   }
@@ -109,7 +111,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           final currentPath = data['currentPath'] as String;
           final String typeStr = data['type'] as String;
           final String targetWindowId = data['targetWindowId'].toString();
-          
+
           final self = await WindowController.fromCurrentEngine();
           final String selfId = self.windowId;
 
@@ -117,39 +119,54 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           if (items.isEmpty) return 'error: no items';
 
           // Filter by requested media type
-          final targetType = typeStr == 'video' 
-              ? FileItemType.video 
-              : (typeStr == 'audio' ? FileItemType.audio : (typeStr == "document" ? FileItemType.document : FileItemType.image));
+          final targetType = typeStr == 'video'
+              ? FileItemType.video
+              : (typeStr == 'audio'
+                    ? FileItemType.audio
+                    : (typeStr == "document"
+                          ? FileItemType.document
+                          : FileItemType.image));
           final mediaItems = items.where((i) => i.type == targetType).toList();
-      
+
           if (mediaItems.isEmpty) return 'error: no media items';
 
-          final currentIndex = mediaItems.indexWhere((i) => i.path == currentPath);
+          final currentIndex = mediaItems.indexWhere(
+            (i) => i.path == currentPath,
+          );
           if (currentIndex == -1) return 'error: current item not found';
 
           int nextIndex;
           if (direction == 'next') {
             nextIndex = (currentIndex + 1) % mediaItems.length;
           } else {
-            nextIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+            nextIndex =
+                (currentIndex - 1 + mediaItems.length) % mediaItems.length;
           }
 
           final nextItem = mediaItems[nextIndex];
-          
+
           // Calculate adjacent items for preloading
           List<String> preloadPaths = [];
           if (mediaItems.isNotEmpty) {
             for (int i = 1; i <= 2; i++) {
-              preloadPaths.add(mediaItems[(nextIndex + i) % mediaItems.length].path);
-              preloadPaths.add(mediaItems[(nextIndex - i + mediaItems.length) % mediaItems.length].path);
+              preloadPaths.add(
+                mediaItems[(nextIndex + i) % mediaItems.length].path,
+              );
+              preloadPaths.add(
+                mediaItems[(nextIndex - i + mediaItems.length) %
+                        mediaItems.length]
+                    .path,
+              );
             }
           }
 
           // Command the sub-window to load the new item
           final params = WindowParams(
-            viewerType: nextItem.type == FileItemType.video 
-                ? ViewerType.video 
-                : (nextItem.type == FileItemType.audio ? ViewerType.audio : ViewerType.image),
+            viewerType: nextItem.type == FileItemType.video
+                ? ViewerType.video
+                : (nextItem.type == FileItemType.audio
+                      ? ViewerType.audio
+                      : ViewerType.image),
             file: nextItem,
             parentWindowId: selfId,
             initParams: {
@@ -157,7 +174,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
             },
           );
 
-          await WindowController.fromWindowId(targetWindowId).invokeMethod('load_media', params.toJson());
+          await WindowController.fromWindowId(
+            targetWindowId,
+          ).invokeMethod('load_media', params.toJson());
           return 'ok';
         } catch (e) {
           debugPrint('[Main] IPC Navigation Error: $e');
@@ -166,7 +185,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
       }
 
       if (call.method == 'save_playback_position') {
-        debugPrint('[Main] IPC save_playback_position received: ${call.arguments}');
+        debugPrint(
+          '[Main] IPC save_playback_position received: ${call.arguments}',
+        );
         try {
           final data = jsonDecode(call.arguments as String);
           final String path = data['path'] as String;
@@ -184,20 +205,27 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           final data = jsonDecode(call.arguments as String);
           final String currentPath = data['currentPath'] as String;
           final String typeStr = data['type'] as String;
-          
+
           final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-          final targetType = typeStr == 'video' 
-              ? FileItemType.video 
-              : (typeStr == 'audio' ? FileItemType.audio : (typeStr == "document" ? FileItemType.document : FileItemType.image));
+          final targetType = typeStr == 'video'
+              ? FileItemType.video
+              : (typeStr == 'audio'
+                    ? FileItemType.audio
+                    : (typeStr == "document"
+                          ? FileItemType.document
+                          : FileItemType.image));
           final mediaItems = items.where((i) => i.type == targetType).toList();
-          
+
           if (mediaItems.isEmpty) return null;
-          final currentIndex = mediaItems.indexWhere((i) => i.path == currentPath);
+          final currentIndex = mediaItems.indexWhere(
+            (i) => i.path == currentPath,
+          );
           if (currentIndex == -1) return null;
-          
+
           final nextIndex = (currentIndex + 1) % mediaItems.length;
-          final prevIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
-          
+          final prevIndex =
+              (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+
           return jsonEncode({
             'nextPath': mediaItems[nextIndex].path,
             'nextName': mediaItems[nextIndex].name,
@@ -218,23 +246,28 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           final data = jsonDecode(call.arguments as String);
           final String path = data['path'] as String;
           final bool permanent = data['permanent'] as bool;
-          
+
           final repo = ref.read(directoryRepositoryProvider);
           final currentPath = ref.read(currentPathProvider);
-          
-          final taskId = ref.read(taskProvider.notifier).addTask(
-            title: permanent ? 'Deleting item permanently' : 'Moving item to Trash',
-            subtitle: permanent ? 'Delete' : 'Trash',
-            sourcePaths: [path],
-            isLight: true,
-          );
-          
+
+          final taskId = ref
+              .read(taskProvider.notifier)
+              .addTask(
+                title: permanent
+                    ? 'Deleting item permanently'
+                    : 'Moving item to Trash',
+                subtitle: permanent ? 'Delete' : 'Trash',
+                sourcePaths: [path],
+                isLight: true,
+              );
+
           try {
             await repo.deleteItems(
               [path],
               permanent: permanent,
               taskId: taskId,
-              onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+              onLog: (msg) =>
+                  ref.read(taskProvider.notifier).addLog(taskId, msg),
             );
             ref.read(taskProvider.notifier).completeTask(taskId);
           } catch (e) {
@@ -242,11 +275,12 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
             ref.read(taskProvider.notifier).failTask(taskId, e.toString());
             rethrow;
           }
-          
+
           ref.read(directoryRepositoryProvider).invalidateCache(currentPath);
-          ref.read(refreshCountProvider.notifier).state = ref.read(refreshCountProvider) + 1;
+          ref.read(refreshCountProvider.notifier).state =
+              ref.read(refreshCountProvider) + 1;
           ref.read(directoryItemsProvider.notifier).refresh();
-          
+
           return 'ok';
         } catch (e) {
           debugPrint('[Main] IPC delete_item error: $e');
@@ -255,7 +289,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
       }
 
       if (call.method == 'get_playback_position') {
-        debugPrint('[Main] IPC get_playback_position received: ${call.arguments}');
+        debugPrint(
+          '[Main] IPC get_playback_position received: ${call.arguments}',
+        );
         try {
           final data = jsonDecode(call.arguments as String);
           final String path = data['path'] as String;
@@ -280,9 +316,15 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
     final isPreviewActive = ref.watch(previewFileProvider) != null;
     final isDownloadInputFocused = ref.watch(isDownloadInputFocusedProvider);
     final isDownloadsPanelFocused = ref.watch(isDownloadsPanelFocusedProvider);
-    
+
     return CallbackShortcuts(
-      bindings: _buildKeyBindings(isSearchActive, isLocationEditing, isMarkerEditorActive, isPreviewActive, isDownloadInputFocused || isDownloadsPanelFocused),
+      bindings: _buildKeyBindings(
+        isSearchActive,
+        isLocationEditing,
+        isMarkerEditorActive,
+        isPreviewActive,
+        isDownloadInputFocused || isDownloadsPanelFocused,
+      ),
       child: Focus(
         focusNode: _focusNode,
         autofocus: true,
@@ -297,233 +339,394 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
           },
           child: Scaffold(
             backgroundColor: AppColors.background,
-              body: Consumer(
-                builder: (context, ref, child) {
-                  final isDraggingPanel = ref.watch(isDownloadsPanelDraggingProvider);
-                  return MouseRegion(
-                    cursor: isDraggingPanel ? SystemMouseCursors.resizeLeftRight : MouseCursor.defer,
-                    child: Stack(
-                children: [
-                  Row(
+            body: Consumer(
+              builder: (context, ref, child) {
+                final isDraggingPanel = ref.watch(
+                  isDownloadsPanelDraggingProvider,
+                );
+                return MouseRegion(
+                  cursor: isDraggingPanel
+                      ? SystemMouseCursors.resizeLeftRight
+                      : MouseCursor.defer,
+                  child: Stack(
                     children: [
-                      const Sidebar(),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Column(
+                      Row(
+                        children: [
+                          const Sidebar(),
+                          Expanded(
+                            child: Stack(
                               children: [
-                                const TopBar(),
-                                const GnomeTabBar(),
-                                Expanded(
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      Expanded(
-                                        child: Listener(
-                                          onPointerDown: (_) => _focusNode.requestFocus(),
-                                          onPointerSignal: (_) => _focusNode.requestFocus(),
-                                          child: MouseRegion(
-                                            onEnter: (_) => _focusNode.requestFocus(),
-                                            child: GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onTap: () {
-                                            _focusNode.requestFocus();
-                                            final isModifierPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
-                                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight) ||
-                                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
-                                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlRight);
-                                            if (!isModifierPressed) {
-                                              ref.read(selectionProvider.notifier).deselectAll();
-                                            }
-                                          },
-                                          onSecondaryTapUp: (details) {
-                                            final clipboard = ref.read(clipboardProvider);
-                                            final currentPath = ref.read(currentPathProvider);
-                                            final tabId = ref.read(tabIdProvider);
-                                            final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
-                                            final allPaths = items.map((e) => e.path).toList();
-                                            final isInTrash = currentPath.contains('.local/share/Trash/files') || currentPath.endsWith('Trash/files') || currentPath == 'trash:///';
+                                Column(
+                                  children: [
+                                    const TopBar(),
+                                    const GnomeTabBar(),
+                                    Expanded(
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Expanded(
+                                            child: Listener(
+                                              onPointerDown: (_) =>
+                                                  _focusNode.requestFocus(),
+                                              onPointerSignal: (_) =>
+                                                  _focusNode.requestFocus(),
+                                              child: MouseRegion(
+                                                onEnter: (_) =>
+                                                    _focusNode.requestFocus(),
+                                                child: GestureDetector(
+                                                  behavior:
+                                                      HitTestBehavior.opaque,
+                                                  onTap: () {
+                                                    _focusNode.requestFocus();
+                                                    final isModifierPressed =
+                                                        HardwareKeyboard
+                                                            .instance
+                                                            .logicalKeysPressed
+                                                            .contains(
+                                                              LogicalKeyboardKey
+                                                                  .shiftLeft,
+                                                            ) ||
+                                                        HardwareKeyboard
+                                                            .instance
+                                                            .logicalKeysPressed
+                                                            .contains(
+                                                              LogicalKeyboardKey
+                                                                  .shiftRight,
+                                                            ) ||
+                                                        HardwareKeyboard
+                                                            .instance
+                                                            .logicalKeysPressed
+                                                            .contains(
+                                                              LogicalKeyboardKey
+                                                                  .controlLeft,
+                                                            ) ||
+                                                        HardwareKeyboard
+                                                            .instance
+                                                            .logicalKeysPressed
+                                                            .contains(
+                                                              LogicalKeyboardKey
+                                                                  .controlRight,
+                                                            );
+                                                    if (!isModifierPressed) {
+                                                      ref
+                                                          .read(
+                                                            selectionProvider
+                                                                .notifier,
+                                                          )
+                                                          .deselectAll();
+                                                    }
+                                                  },
+                                                  onSecondaryTapUp: (details) {
+                                                    final clipboard = ref.read(
+                                                      clipboardProvider,
+                                                    );
+                                                    final currentPath = ref
+                                                        .read(
+                                                          currentPathProvider,
+                                                        );
+                                                    final tabId = ref.read(
+                                                      tabIdProvider,
+                                                    );
+                                                    final items =
+                                                        ref
+                                                            .read(
+                                                              filteredDirectoryItemsProvider,
+                                                            )
+                                                            .value ??
+                                                        [];
+                                                    final allPaths = items
+                                                        .map((e) => e.path)
+                                                        .toList();
+                                                    final isInTrash =
+                                                        currentPath.contains(
+                                                          '.local/share/Trash/files',
+                                                        ) ||
+                                                        currentPath.endsWith(
+                                                          'Trash/files',
+                                                        ) ||
+                                                        currentPath ==
+                                                            'trash:///';
 
-                                            ContextMenu.show(context, details.globalPosition, [
-                                              if (!isInTrash) ...[
-                                                ContextMenuItem(
-                                                  title: 'New Folder',
-                                                  icon: Icons.create_new_folder_rounded,
-                                                  shortcut: 'Ctrl+Shift+N',
-                                                  onTap: () => _handleNewItem(initialIsFolder: true),
+                                                    ContextMenu.show(
+                                                      context,
+                                                      details.globalPosition,
+                                                      [
+                                                        if (!isInTrash) ...[
+                                                          ContextMenuItem(
+                                                            title: 'New Folder',
+                                                            icon: Icons
+                                                                .create_new_folder_rounded,
+                                                            shortcut:
+                                                                'Ctrl+Shift+N',
+                                                            onTap: () =>
+                                                                _handleNewItem(
+                                                                  initialIsFolder:
+                                                                      true,
+                                                                ),
+                                                          ),
+                                                          ContextMenuItem(
+                                                            title:
+                                                                'New Document',
+                                                            icon: Icons
+                                                                .note_add_rounded,
+                                                            onTap: () =>
+                                                                _handleNewItem(
+                                                                  initialIsFolder:
+                                                                      false,
+                                                                ),
+                                                          ),
+                                                        ],
+                                                        if (isInTrash) ...[
+                                                          ContextMenuItem(
+                                                            title:
+                                                                'Empty Trash',
+                                                            icon: Icons
+                                                                .delete_forever_rounded,
+                                                            onTap:
+                                                                _handleEmptyTrash,
+                                                          ),
+                                                          ContextMenuItem.divider(),
+                                                        ],
+                                                        ContextMenuItem(
+                                                          title: 'Open With',
+                                                          icon: Icons
+                                                              .open_in_new_rounded,
+                                                          onTap: () =>
+                                                              OpenWithDialog.show(
+                                                                context,
+                                                                currentPath,
+                                                              ),
+                                                        ),
+                                                        ContextMenuItem(
+                                                          title: 'Sort By',
+                                                          icon: Icons
+                                                              .sort_rounded,
+                                                          subItems: [
+                                                            _buildSortItem(
+                                                              'A to Z',
+                                                              SortOption.aToZ,
+                                                              tabId,
+                                                            ),
+                                                            _buildSortItem(
+                                                              'Z to A',
+                                                              SortOption.zToA,
+                                                              tabId,
+                                                            ),
+                                                            ContextMenuItem.divider(),
+                                                            _buildSortItem(
+                                                              'Last Modified',
+                                                              SortOption
+                                                                  .lastModified,
+                                                              tabId,
+                                                            ),
+                                                            _buildSortItem(
+                                                              'First Modified',
+                                                              SortOption
+                                                                  .firstModified,
+                                                              tabId,
+                                                            ),
+                                                            ContextMenuItem.divider(),
+                                                            _buildSortItem(
+                                                              'Size (Small to Large)',
+                                                              SortOption
+                                                                  .sizeSmallToLarge,
+                                                              tabId,
+                                                            ),
+                                                            _buildSortItem(
+                                                              'Size (Large to Small)',
+                                                              SortOption
+                                                                  .sizeLargeToSmall,
+                                                              tabId,
+                                                            ),
+                                                          ],
+                                                          onTap: () {},
+                                                        ),
+                                                        ContextMenuItem.divider(),
+                                                        ContextMenuItem(
+                                                          title: 'Refresh',
+                                                          icon: Icons
+                                                              .refresh_rounded,
+                                                          shortcut:
+                                                              'F5, Ctrl+R',
+                                                          onTap: _refresh,
+                                                        ),
+                                                        ContextMenuItem(
+                                                          title: 'Paste',
+                                                          icon: Icons
+                                                              .paste_rounded,
+                                                          shortcut: 'Ctrl+V',
+                                                          isEnabled: clipboard
+                                                              .paths
+                                                              .isNotEmpty,
+                                                          onTap: _handlePaste,
+                                                        ),
+                                                        ContextMenuItem(
+                                                          title: 'Select All',
+                                                          icon: Icons
+                                                              .select_all_rounded,
+                                                          shortcut: 'Ctrl+A',
+                                                          onTap: () => ref
+                                                              .read(
+                                                                selectionProvider
+                                                                    .notifier,
+                                                              )
+                                                              .selectAll(
+                                                                allPaths,
+                                                              ),
+                                                        ),
+                                                        ContextMenuItem(
+                                                          title:
+                                                              'Open in Terminal',
+                                                          icon: Icons
+                                                              .terminal_rounded,
+                                                          onTap: () => Process.start(
+                                                            'gnome-terminal',
+                                                            [
+                                                              '--working-directory=$currentPath',
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        ContextMenuItem.divider(),
+                                                        ContextMenuItem(
+                                                          title: 'Properties',
+                                                          icon: Icons
+                                                              .info_outline_rounded,
+                                                          shortcut: 'Alt+Enter',
+                                                          onTap:
+                                                              _showProperties,
+                                                        ),
+                                                        ContextMenuItem(
+                                                          title: 'Analyse',
+                                                          icon: Icons
+                                                              .analytics_rounded,
+                                                          shortcut:
+                                                              'Ctrl+Alt+Enter',
+                                                          onTap:
+                                                              _toggleAnalysis,
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                  child: _buildContentInner(),
                                                 ),
-                                                ContextMenuItem(
-                                                  title: 'New Document',
-                                                  icon: Icons.note_add_rounded,
-                                                  onTap: () => _handleNewItem(initialIsFolder: false),
-                                                ),
-                                              ],
-                                              if (isInTrash) ...[
-                                                ContextMenuItem(
-                                                  title: 'Empty Trash',
-                                                  icon: Icons.delete_forever_rounded,
-                                                  onTap: _handleEmptyTrash,
-                                                ),
-                                                ContextMenuItem.divider(),
-                                              ],
-                                              ContextMenuItem(
-                                                title: 'Open With',
-                                                icon: Icons.open_in_new_rounded,
-                                                onTap: () => OpenWithDialog.show(context, currentPath),
                                               ),
-                                              ContextMenuItem(
-                                                title: 'Sort By',
-                                                icon: Icons.sort_rounded,
-                                                subItems: [
-                                                  _buildSortItem('A to Z', SortOption.aToZ, tabId),
-                                                  _buildSortItem('Z to A', SortOption.zToA, tabId),
-                                                  ContextMenuItem.divider(),
-                                                  _buildSortItem('Last Modified', SortOption.lastModified, tabId),
-                                                  _buildSortItem('First Modified', SortOption.firstModified, tabId),
-                                                  ContextMenuItem.divider(),
-                                                  _buildSortItem('Size (Small to Large)', SortOption.sizeSmallToLarge, tabId),
-                                                  _buildSortItem('Size (Large to Small)', SortOption.sizeLargeToSmall, tabId),
-                                                ],
-                                                onTap: () {},
-                                              ),
-                                              ContextMenuItem.divider(),
-                                              ContextMenuItem(
-                                                title: 'Refresh',
-                                                icon: Icons.refresh_rounded,
-                                                shortcut: 'F5, Ctrl+R',
-                                                onTap: _refresh,
-                                              ),
-                                              ContextMenuItem(
-                                                title: 'Paste',
-                                                icon: Icons.paste_rounded,
-                                                shortcut: 'Ctrl+V',
-                                                isEnabled: clipboard.paths.isNotEmpty,
-                                                onTap: _handlePaste,
-                                              ),
-                                              ContextMenuItem(
-                                                title: 'Select All',
-                                                icon: Icons.select_all_rounded,
-                                                shortcut: 'Ctrl+A',
-                                                onTap: () => ref.read(selectionProvider.notifier).selectAll(allPaths),
-                                              ),
-                                              ContextMenuItem(
-                                                title: 'Open in Terminal',
-                                                icon: Icons.terminal_rounded,
-                                                onTap: () => Process.start('gnome-terminal', ['--working-directory=$currentPath']),
-                                              ),
-                                              ContextMenuItem.divider(),
-                                              ContextMenuItem(
-                                                title: 'Properties',
-                                                icon: Icons.info_outline_rounded,
-                                                shortcut: 'Alt+Enter',
-                                                onTap: _showProperties,
-                                               ),
-                                               ContextMenuItem(
-                                                 title: 'Analyse',
-                                                 icon: Icons.analytics_rounded,
-                                                 shortcut: 'Ctrl+Alt+Enter',
-                                                 onTap: _toggleAnalysis,
-                                              ),
-                                            ]);
-                                          },
-                                          child: _buildContentInner(),
+                                            ),
                                           ),
-                                        ),
+                                          const UnifiedSidePanel(),
+                                        ],
                                       ),
+                                    ),
+                                  ],
+                                ),
+                                // Immersive Media Preview Overlay (Covers tabs and top bar)
+                                Consumer(
+                                  builder: (context, ref, child) {
+                                    final previewFile = ref.watch(
+                                      previewFileProvider,
+                                    );
+                                    if (previewFile == null)
+                                      return const SizedBox.shrink();
+                                    return Positioned.fill(
+                                      child: PreviewContainer(
+                                        key: ValueKey(previewFile.path),
+                                        item: previewFile,
                                       ),
-                                      const UnifiedSidePanel(),
-                                    ],
-                                  ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
-                            // Immersive Media Preview Overlay (Covers tabs and top bar)
-                            Consumer(
-                              builder: (context, ref, child) {
-                                final previewFile = ref.watch(previewFileProvider);
-                                if (previewFile == null) return const SizedBox.shrink();
-                                return Positioned.fill(
-                                  child: PreviewContainer(
-                                    key: ValueKey(previewFile.path),
-                                    item: previewFile,
-                                  ),
-                                );
-                              },
+                          ),
+                        ],
+                      ),
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final isDragging = ref.watch(isDraggingProvider);
+                          if (!isDragging) return const SizedBox.shrink();
+
+                          return Positioned(
+                            top: 12,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: RepaintBoundary(
+                                child: DragTarget<List<String>>(
+                                  onAccept: (_) {
+                                    ref
+                                            .read(isDraggingProvider.notifier)
+                                            .state =
+                                        false;
+                                  },
+                                  builder:
+                                      (context, candidateData, rejectedData) {
+                                        final isOver = candidateData.isNotEmpty;
+                                        return ClipOval(
+                                          clipBehavior:
+                                              Clip.antiAliasWithSaveLayer,
+                                          child: BackdropFilter(
+                                            filter: ImageFilter.blur(
+                                              sigmaX: 12,
+                                              sigmaY: 12,
+                                            ),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              width: 56,
+                                              height: 56,
+                                              decoration: BoxDecoration(
+                                                color: isOver
+                                                    ? Colors.red.withOpacity(
+                                                        0.6,
+                                                      )
+                                                    : Colors.white.withOpacity(
+                                                        0.08,
+                                                      ),
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: isOver
+                                                      ? Colors.white
+                                                      : Colors.white10,
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: Icon(
+                                                  isOver
+                                                      ? Icons.delete_forever
+                                                      : Icons.close,
+                                                  color: Colors.white,
+                                                  size: 24,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ],
                   ),
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final isDragging = ref.watch(isDraggingProvider);
-                      if (!isDragging) return const SizedBox.shrink();
-                      
-                      return Positioned(
-                        top: 12,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: RepaintBoundary(
-                            child: DragTarget<List<String>>(
-                              onAccept: (_) {
-                                ref.read(isDraggingProvider.notifier).state = false;
-                              },
-                              builder: (context, candidateData, rejectedData) {
-                                final isOver = candidateData.isNotEmpty;
-                                return ClipOval(
-                                  clipBehavior: Clip.antiAliasWithSaveLayer,
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      width: 56,
-                                      height: 56,
-                                      decoration: BoxDecoration(
-                                        color: isOver 
-                                            ? Colors.red.withOpacity(0.6) 
-                                            : Colors.white.withOpacity(0.08),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isOver ? Colors.white : Colors.white10,
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          isOver ? Icons.delete_forever : Icons.close,
-                                          color: Colors.white,
-                                          size: 24,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+                );
+              },
             ),
           ),
         ),
-      );
-  } 
+      ),
+    );
+  }
 
   Widget _buildContent() {
     final previewFile = ref.watch(previewFileProvider);
     if (previewFile != null) {
       return Expanded(child: PreviewContainer(item: previewFile));
     }
-    
+
     return Expanded(
       child: Column(
         children: [
@@ -541,7 +744,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
   /// Same as _buildContent but without the Expanded wrapper (for inline Row layout).
   Widget _buildContentInner() {
     final tabState = ref.watch(tabManagerProvider);
-    
+
     return IndexedStack(
       index: tabState.activeTabIndex,
       children: tabState.tabs.map((tab) {
@@ -554,15 +757,23 @@ class _GalleryPageState extends ConsumerState<GalleryPage> with WidgetsBindingOb
             filteredDirectoryItemsProvider.overrideWith((ref) {
               final itemsAsync = ref.watch(directoryItemsProvider);
               final query = ref.watch(searchQueryProvider).toLowerCase();
-              final showHidden = ref.watch(settingsProvider.select((s) => s.value?.showHiddenFiles ?? false));
-              
+              final showHidden = ref.watch(
+                settingsProvider.select(
+                  (s) => s.value?.showHiddenFiles ?? false,
+                ),
+              );
+
               return itemsAsync.whenData((items) {
                 var filtered = items;
                 if (!showHidden) {
-                  filtered = filtered.where((item) => !item.name.startsWith(".")).toList();
+                  filtered = filtered
+                      .where((item) => !item.name.startsWith("."))
+                      .toList();
                 }
                 if (query.isNotEmpty) {
-                  filtered = filtered.where((item) => item.name.toLowerCase().contains(query)).toList();
+                  filtered = filtered
+                      .where((item) => item.name.toLowerCase().contains(query))
+                      .toList();
                 }
                 return filtered;
               });
@@ -588,10 +799,10 @@ class _TabBody extends ConsumerWidget {
       children: [
         Expanded(
           child: isAnalysisActive
-            ? DirectoryAnalysisPage(path: currentPath)
-            : const RubberBandOverlay(
-                child: FileGrid(),
-              ),
+              ? DirectoryAnalysisPage(path: currentPath)
+              : const RubberBandOverlay(
+                  child: FileGrid(),
+                ),
         ),
       ],
     );
@@ -600,8 +811,8 @@ class _TabBody extends ConsumerWidget {
 
 extension _GalleryPageStateShortcuts on _GalleryPageState {
   Map<ShortcutActivator, VoidCallback> _buildKeyBindings(
-    bool isSearchActive, 
-    bool isLocationEditing, 
+    bool isSearchActive,
+    bool isLocationEditing,
     bool isMarkerEditorActive,
     bool isPreviewActive,
     bool isDownloadInputFocused,
@@ -611,33 +822,58 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       if (!isLocationEditing && !isDownloadInputFocused) ...{
         const SingleActivator(LogicalKeyboardKey.backspace): _goBack,
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _goBack,
-        const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): _goForward,
+        const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true):
+            _goForward,
       },
 
       // Selection
       if (!isPreviewActive)
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             ref.read(selectionProvider.notifier).deselectAll(),
-      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive && !isDownloadInputFocused)
-        const SingleActivator(LogicalKeyboardKey.keyA, control: true): _selectAll,
+      if (!isSearchActive &&
+          !isLocationEditing &&
+          !isMarkerEditorActive &&
+          !isPreviewActive &&
+          !isDownloadInputFocused)
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true):
+            _selectAll,
 
       // Properties
-      if (!isSearchActive && !isLocationEditing && !isMarkerEditorActive && !isPreviewActive && !isDownloadInputFocused)
-        const SingleActivator(LogicalKeyboardKey.enter, alt: true): _showProperties,
+      if (!isSearchActive &&
+          !isLocationEditing &&
+          !isMarkerEditorActive &&
+          !isPreviewActive &&
+          !isDownloadInputFocused)
+        const SingleActivator(LogicalKeyboardKey.enter, alt: true):
+            _showProperties,
 
       // File Operations
-      if (!isLocationEditing && !isMarkerEditorActive && !isPreviewActive && !isDownloadInputFocused) ...{
-        const SingleActivator(LogicalKeyboardKey.keyC, control: true): _handleCopy,
-        const SingleActivator(LogicalKeyboardKey.keyX, control: true): _handleCut,
-        const SingleActivator(LogicalKeyboardKey.keyV, control: true): _handlePaste,
+      if (!isLocationEditing &&
+          !isMarkerEditorActive &&
+          !isPreviewActive &&
+          !isDownloadInputFocused) ...{
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true):
+            _handleCopy,
+        const SingleActivator(LogicalKeyboardKey.keyX, control: true):
+            _handleCut,
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true):
+            _handlePaste,
         const SingleActivator(LogicalKeyboardKey.delete): () =>
             _handleDelete(permanent: false),
         const SingleActivator(LogicalKeyboardKey.delete, shift: true): () =>
             _handleDelete(permanent: true),
         const SingleActivator(LogicalKeyboardKey.f2): _onF2Pressed,
-        const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true):
-            () => _handleNewItem(initialIsFolder: true),
-        const SingleActivator(LogicalKeyboardKey.keyC, control: true, alt: true): _handleCompress,
+        const SingleActivator(
+          LogicalKeyboardKey.keyN,
+          control: true,
+          shift: true,
+        ): () =>
+            _handleNewItem(initialIsFolder: true),
+        const SingleActivator(
+          LogicalKeyboardKey.keyC,
+          control: true,
+          alt: true,
+        ): _handleCompress,
       },
 
       // Zoom
@@ -648,23 +884,30 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           _zoom(-0.1),
       const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true): () =>
           _zoom(0.1),
-      const SingleActivator(LogicalKeyboardKey.numpadSubtract, control: true):
-          () => _zoom(-0.1),
+      const SingleActivator(
+        LogicalKeyboardKey.numpadSubtract,
+        control: true,
+      ): () =>
+          _zoom(-0.1),
       const SingleActivator(LogicalKeyboardKey.digit0, control: true):
           _resetZoom,
-      
+
       // Global Shortcuts
-      const SingleActivator(LogicalKeyboardKey.keyF, control: true): () => _toggleSearch(!isSearchActive),
+      const SingleActivator(LogicalKeyboardKey.keyF, control: true): () =>
+          _toggleSearch(!isSearchActive),
       const SingleActivator(LogicalKeyboardKey.keyR, control: true): _refresh,
-      const SingleActivator(LogicalKeyboardKey.period, control: true): _toggleHiddenFiles,
-      const SingleActivator(LogicalKeyboardKey.enter, control: true, alt: true): _toggleAnalysis,
+      const SingleActivator(LogicalKeyboardKey.period, control: true):
+          _toggleHiddenFiles,
+      const SingleActivator(LogicalKeyboardKey.enter, control: true, alt: true):
+          _toggleAnalysis,
       const SingleActivator(LogicalKeyboardKey.f5): _refresh,
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
         final isOpen = ref.read(backgroundPanelOpenProvider);
         ref.read(backgroundPanelOpenProvider.notifier).state = !isOpen;
         if (!isOpen) {
           ref.read(downloadsPanelOpenProvider.notifier).state = false;
-          ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+          ref.read(backgroundPanelViewProvider.notifier).state =
+              BackgroundPanelView.tasks;
         }
       },
       const SingleActivator(LogicalKeyboardKey.keyD, control: true): () {
@@ -672,10 +915,18 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         if (!isOpen) {
           ref.read(downloadsPanelOpenProvider.notifier).state = true;
           ref.read(backgroundPanelOpenProvider.notifier).state = false;
-          ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+          ref.read(downloadsPanelViewProvider.notifier).state =
+              DownloadsPanelView.tasks;
           ref.read(downloadUrlFocusRequestProvider.notifier).state++;
         } else {
-          ref.read(downloadsPanelOpenProvider.notifier).state = false;
+          final isFocused = ref.read(isDownloadInputFocusedProvider);
+          if (!isFocused) {
+            ref.read(downloadsPanelViewProvider.notifier).state =
+                DownloadsPanelView.tasks;
+            ref.read(downloadUrlFocusRequestProvider.notifier).state++;
+          } else {
+            ref.read(downloadsPanelOpenProvider.notifier).state = false;
+          }
         }
       },
       const SingleActivator(LogicalKeyboardKey.keyD, alt: true): () {
@@ -686,9 +937,12 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
       // Tab Management
       const SingleActivator(LogicalKeyboardKey.keyT, control: true): _addNewTab,
-      const SingleActivator(LogicalKeyboardKey.keyW, control: true): _closeActiveTab,
-      const SingleActivator(LogicalKeyboardKey.tab, control: true): _switchToNextTab,
-      const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): _switchToPreviousTab,
+      const SingleActivator(LogicalKeyboardKey.keyW, control: true):
+          _closeActiveTab,
+      const SingleActivator(LogicalKeyboardKey.tab, control: true):
+          _switchToNextTab,
+      const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true):
+          _switchToPreviousTab,
 
       // Item Opening
       if (!isLocationEditing && !isDownloadInputFocused) ...{
@@ -700,11 +954,13 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
   void _addNewTab() {
     final activeTab = ref.read(tabManagerProvider).activeTab;
-    ref.read(tabManagerProvider.notifier).addTab(
-      path: activeTab.currentPath,
-      history: activeTab.history,
-      historyIndex: activeTab.historyIndex,
-    );
+    ref
+        .read(tabManagerProvider.notifier)
+        .addTab(
+          path: activeTab.currentPath,
+          history: activeTab.history,
+          historyIndex: activeTab.historyIndex,
+        );
   }
 
   void _closeActiveTab() {
@@ -731,7 +987,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     debugPrint("Refresh triggered via Ctrl+R");
     final currentPath = ref.read(currentPathProvider);
     ref.read(directoryRepositoryProvider).invalidateCache(currentPath);
-    ref.read(refreshCountProvider.notifier).state = ref.read(refreshCountProvider) + 1;
+    ref.read(refreshCountProvider.notifier).state =
+        ref.read(refreshCountProvider) + 1;
     ref.read(isRefreshingProvider.notifier).state = true;
     ref.read(directoryItemsProvider.notifier).refresh();
     // Subtle blink duration
@@ -745,7 +1002,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
     final selectedPath = selection.selectedPaths.first;
     final itemsAsync = ref.read(filteredDirectoryItemsProvider);
-    
+
     itemsAsync.whenData((items) {
       try {
         final item = items.firstWhere((i) => i.path == selectedPath);
@@ -763,11 +1020,13 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       ref.read(currentPathProvider.notifier).state = item.path;
     } else if (item.type == FileItemType.archive) {
       final currentDir = ref.read(currentPathProvider);
-      ref.read(archiveProvider.notifier).extractArchive(context, item.path, currentDir);
-    } else if (item.type == FileItemType.image || 
-               item.type == FileItemType.video || 
-               item.type == FileItemType.audio || 
-               item.type == FileItemType.document) {
+      ref
+          .read(archiveProvider.notifier)
+          .extractArchive(context, item.path, currentDir);
+    } else if (item.type == FileItemType.image ||
+        item.type == FileItemType.video ||
+        item.type == FileItemType.audio ||
+        item.type == FileItemType.document) {
       ref.read(previewFileProvider.notifier).state = item;
     }
   }
@@ -788,7 +1047,10 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     try {
       final dir = Directory(path);
       if (dir.existsSync()) {
-        for (final entity in dir.listSync(recursive: true, followLinks: false)) {
+        for (final entity in dir.listSync(
+          recursive: true,
+          followLinks: false,
+        )) {
           if (entity is File) {
             total += entity.lengthSync();
           }
@@ -802,7 +1064,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
   void _showProperties() {
     final selection = ref.read(selectionProvider);
-    final paths = selection.selectedPaths.isEmpty 
+    final paths = selection.selectedPaths.isEmpty
         ? [ref.read(currentPathProvider)]
         : selection.selectedPaths.toList();
 
@@ -814,7 +1076,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
   void _goBack() {
     if (ref.read(previewFileProvider) != null) return;
-    
+
     ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goBack();
@@ -826,7 +1088,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
   void _goForward() {
     if (ref.read(previewFileProvider) != null) return;
-    
+
     ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goForward();
@@ -836,45 +1098,62 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     }
   }
 
-  ContextMenuItem _buildSortItem(String title, SortOption option, String tabId) {
-    final tab = ref.read(tabManagerProvider).tabs.firstWhere((t) => t.id == tabId);
+  ContextMenuItem _buildSortItem(
+    String title,
+    SortOption option,
+    String tabId,
+  ) {
+    final tab = ref
+        .read(tabManagerProvider)
+        .tabs
+        .firstWhere((t) => t.id == tabId);
     final currentSort = tab.sortSettings.option;
     return ContextMenuItem(
       title: title,
       isSelected: currentSort == option,
       onTap: () {
-        ref.read(tabManagerProvider.notifier).updateSortSettings(tabId, SortSettings(option: option));
+        ref
+            .read(tabManagerProvider.notifier)
+            .updateSortSettings(tabId, SortSettings(option: option));
       },
     );
   }
 
   void _selectAll() {
     final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
-    ref.read(selectionProvider.notifier).selectAll(
-      items.map((i) => i.path).toList(),
-    );
+    ref
+        .read(selectionProvider.notifier)
+        .selectAll(
+          items.map((i) => i.path).toList(),
+        );
   }
 
   void _handleCopy() {
     final selection = ref.read(selectionProvider);
     if (selection.selectedPaths.isNotEmpty) {
-      ref.read(clipboardProvider.notifier).copy(selection.selectedPaths.toList());
+      ref
+          .read(clipboardProvider.notifier)
+          .copy(selection.selectedPaths.toList());
     }
   }
 
   void _handleCut() {
     final selection = ref.read(selectionProvider);
     if (selection.selectedPaths.isNotEmpty) {
-      ref.read(clipboardProvider.notifier).cut(selection.selectedPaths.toList());
+      ref
+          .read(clipboardProvider.notifier)
+          .cut(selection.selectedPaths.toList());
     }
   }
 
   void _handleCompress() {
     final selection = ref.read(selectionProvider);
     if (selection.selectedPaths.isEmpty) return;
-    
+
     final currentDir = ref.read(currentPathProvider);
-    ref.read(archiveProvider.notifier).compressItems(context, selection.selectedPaths.toList(), currentDir);
+    ref
+        .read(archiveProvider.notifier)
+        .compressItems(context, selection.selectedPaths.toList(), currentDir);
   }
 
   void _handlePaste() async {
@@ -887,7 +1166,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     // Phase 1: Pre-check all items for conflicts and resolve them
     final List<_PasteOperation> operations = [];
     ref.read(conflictProvider.notifier).clearGlobalResolution();
-    
+
     for (final source in clipboard.paths) {
       final name = p.basename(source);
       final destPath = p.join(targetDir, name);
@@ -913,8 +1192,10 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         await showDialog(
           context: context,
           builder: (context) => ErrorDialog(
-            title: 'You cannot ${clipboard.isCut ? "move" : "copy"} a $typeStr over itself.',
-            message: 'The source $typeStr would be overwritten by the destination.',
+            title:
+                'You cannot ${clipboard.isCut ? "move" : "copy"} a $typeStr over itself.',
+            message:
+                'The source $typeStr would be overwritten by the destination.',
           ),
         );
         continue;
@@ -926,7 +1207,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           context: context,
           builder: (context) => ErrorDialog(
             title: 'You cannot move a $typeStr over itself.',
-            message: 'The source $typeStr would be overwritten by the destination.',
+            message:
+                'The source $typeStr would be overwritten by the destination.',
           ),
         );
         continue;
@@ -935,22 +1217,26 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       // 4. Conflict check
       String finalDestPath = destPath;
       if (File(destPath).existsSync() || Directory(destPath).existsSync()) {
-        final resolution = await ref.read(conflictProvider.notifier).resolveConflict(
-          fileName: name,
-          destinationPath: destPath,
-          isFolder: isFolder,
-          context: context,
-        );
+        final resolution = await ref
+            .read(conflictProvider.notifier)
+            .resolveConflict(
+              fileName: name,
+              destinationPath: destPath,
+              isFolder: isFolder,
+              context: context,
+            );
 
         if (resolution == ConflictResolution.skip) {
           continue;
-        } else if (resolution == ConflictResolution.replace && 
-                  (absSource == absDest || absSource.startsWith(absDest + p.separator))) {
+        } else if (resolution == ConflictResolution.replace &&
+            (absSource == absDest ||
+                absSource.startsWith(absDest + p.separator))) {
           await showDialog(
             context: context,
             builder: (context) => ErrorDialog(
               title: 'You cannot copy a $typeStr over itself.',
-              message: 'The source $typeStr would be overwritten by the destination.',
+              message:
+                  'The source $typeStr would be overwritten by the destination.',
             ),
           );
           continue;
@@ -959,8 +1245,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           final base = p.basenameWithoutExtension(name);
           var counter = 1;
           var newName = "$base($counter)$ext";
-          while (File(p.join(targetDir, newName)).existsSync() || 
-                 Directory(p.join(targetDir, newName)).existsSync()) {
+          while (File(p.join(targetDir, newName)).existsSync() ||
+              Directory(p.join(targetDir, newName)).existsSync()) {
             counter++;
             newName = "$base($counter)$ext";
           }
@@ -977,24 +1263,28 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         size = stat.size;
       }
 
-      operations.add(_PasteOperation(
-        source: source,
-        target: finalDestPath,
-        name: name,
-        size: size,
-      ));
+      operations.add(
+        _PasteOperation(
+          source: source,
+          target: finalDestPath,
+          name: name,
+          size: size,
+        ),
+      );
     }
 
     if (operations.isEmpty) return;
 
     // Phase 2: Start background task for resolved operations
-    final String taskId = ref.read(taskProvider.notifier).addTask(
-      title: clipboard.isCut ? 'Moving Files' : 'Copying Files',
-      subtitle: '${operations.length} items to ${p.basename(targetDir)}',
-      totalCount: operations.length,
-      sourcePaths: operations.map((o) => o.source).toList(),
-      targetPath: targetDir,
-    );
+    final String taskId = ref
+        .read(taskProvider.notifier)
+        .addTask(
+          title: clipboard.isCut ? 'Moving Files' : 'Copying Files',
+          subtitle: '${operations.length} items to ${p.basename(targetDir)}',
+          totalCount: operations.length,
+          sourcePaths: operations.map((o) => o.source).toList(),
+          targetPath: targetDir,
+        );
 
     int totalSizeBytes = operations.fold(0, (sum, o) => sum + o.size);
     ref.read(taskProvider.notifier).updateByteCounts(taskId, 0, totalSizeBytes);
@@ -1012,7 +1302,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
         final op = operations[i];
         final operationVerb = clipboard.isCut ? 'Moving' : 'Copying';
-        ref.read(taskProvider.notifier).addLog(taskId, '$operationVerb ${op.name}...');
+        ref
+            .read(taskProvider.notifier)
+            .addLog(taskId, '$operationVerb ${op.name}...');
         ref.read(taskProvider.notifier).updateCurrentItem(taskId, op.name);
 
         int lastItemBytesProcessed = 0;
@@ -1021,10 +1313,14 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           final delta = bytesCopied - lastItemBytesProcessed;
           lastItemBytesProcessed = bytesCopied;
           totalBytesProcessed += delta;
-          
-          ref.read(taskProvider.notifier).updateByteCounts(taskId, totalBytesProcessed, totalSizeBytes);
+
+          ref
+              .read(taskProvider.notifier)
+              .updateByteCounts(taskId, totalBytesProcessed, totalSizeBytes);
           if (totalSizeBytes > 0) {
-            ref.read(taskProvider.notifier).updateProgress(taskId, totalBytesProcessed / totalSizeBytes);
+            ref
+                .read(taskProvider.notifier)
+                .updateProgress(taskId, totalBytesProcessed / totalSizeBytes);
           }
         }
 
@@ -1034,27 +1330,37 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         void onSyncing() {
           if (isLastOperation) {
             ref.read(taskProvider.notifier).setSyncing(taskId, true);
-            ref.read(taskProvider.notifier).addLog(taskId, 'Syncing to disk...');
+            ref
+                .read(taskProvider.notifier)
+                .addLog(taskId, 'Syncing to disk...');
           }
         }
 
         if (clipboard.isCut) {
-          await repo.moveItemTo(op.source, op.target, 
-            onProgress: onProgress, 
+          await repo.moveItemTo(
+            op.source,
+            op.target,
+            onProgress: onProgress,
             onSyncing: onSyncing,
             taskId: taskId,
-            onPort: (port, isolate) => ref.read(taskProvider.notifier).registerPort(taskId, port, isolate: isolate),
+            onPort: (port, isolate) => ref
+                .read(taskProvider.notifier)
+                .registerPort(taskId, port, isolate: isolate),
           );
         } else {
           // Trigger a refresh at the start to show the file as soon as it's created
           if (ref.read(currentPathProvider) == targetDir) {
             ref.read(directoryItemsProvider.notifier).refresh();
           }
-          await repo.copyItemTo(op.source, op.target, 
-            onProgress: onProgress, 
+          await repo.copyItemTo(
+            op.source,
+            op.target,
+            onProgress: onProgress,
             onSyncing: onSyncing,
             taskId: taskId,
-            onPort: (port, isolate) => ref.read(taskProvider.notifier).registerPort(taskId, port, isolate: isolate),
+            onPort: (port, isolate) => ref
+                .read(taskProvider.notifier)
+                .registerPort(taskId, port, isolate: isolate),
           );
         }
 
@@ -1068,12 +1374,16 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           ref.read(refreshCountProvider.notifier).state++;
         }
 
-        ref.read(taskProvider.notifier).updateItemCounts(taskId, i + 1, operations.length);
-        ref.read(taskProvider.notifier).updateProgress(taskId, (i + 1) / operations.length);
+        ref
+            .read(taskProvider.notifier)
+            .updateItemCounts(taskId, i + 1, operations.length);
+        ref
+            .read(taskProvider.notifier)
+            .updateProgress(taskId, (i + 1) / operations.length);
       }
 
       ref.read(taskProvider.notifier).completeTask(taskId);
-      
+
       if (clipboard.isCut) {
         ref.read(clipboardProvider.notifier).clear();
       }
@@ -1090,27 +1400,31 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     final currentPath = ref.read(currentPathProvider);
     final home = Platform.environment['HOME'] ?? '/';
     final trashPath = '$home/.local/share/Trash/files';
-    
+
     // If we are in trash, every delete is permanent
     final isDeletingFromTrash = currentPath == trashPath;
     final effectivelyPermanent = permanent || isDeletingFromTrash;
-    
+
     final count = selection.selectedPaths.length;
     bool confirmed = false;
     if (effectivelyPermanent) {
       // Calculate detailed stats for the confirmation dialog
-      final stats = await _calculateSelectionStats(selection.selectedPaths.toList());
-      
+      final stats = await _calculateSelectionStats(
+        selection.selectedPaths.toList(),
+      );
+
       if (!mounted) return;
 
-      confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => PermanentDeleteDialog(
-          filesCount: stats.filesCount,
-          foldersCount: stats.foldersCount,
-          totalSize: StringUtils.formatBytes(stats.size),
-        ),
-      ) ?? false;
+      confirmed =
+          await showDialog<bool>(
+            context: context,
+            builder: (context) => PermanentDeleteDialog(
+              filesCount: stats.filesCount,
+              foldersCount: stats.foldersCount,
+              totalSize: StringUtils.formatBytes(stats.size),
+            ),
+          ) ??
+          false;
     } else {
       confirmed = true;
     }
@@ -1118,19 +1432,24 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (!confirmed) return;
 
     final paths = selection.selectedPaths.toList();
-    final taskId = ref.read(taskProvider.notifier).addTask(
-      title: effectivelyPermanent ? 'Deleting ${paths.length} items' : 'Moving ${paths.length} items to Trash',
-      subtitle: effectivelyPermanent ? 'Permanent deletion' : 'Trash',
-      sourcePaths: paths,
-      isLight: true,
-    );
+    final taskId = ref
+        .read(taskProvider.notifier)
+        .addTask(
+          title: effectivelyPermanent
+              ? 'Deleting ${paths.length} items'
+              : 'Moving ${paths.length} items to Trash',
+          subtitle: effectivelyPermanent ? 'Permanent deletion' : 'Trash',
+          sourcePaths: paths,
+          isLight: true,
+        );
 
     final repo = ref.read(directoryRepositoryProvider);
     try {
       if (effectivelyPermanent) {
-        await repo.deleteItems(paths, 
-          permanent: true, 
-          taskId: taskId, 
+        await repo.deleteItems(
+          paths,
+          permanent: true,
+          taskId: taskId,
           onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
           onProgress: (p, t) {
             ref.read(taskProvider.notifier).updateProgress(taskId, p / t);
@@ -1139,8 +1458,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         );
       } else {
         try {
-          await repo.trashItems(paths, 
-            taskId: taskId, 
+          await repo.trashItems(
+            paths,
+            taskId: taskId,
             onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
             onProgress: (p, t) {
               ref.read(taskProvider.notifier).updateProgress(taskId, p / t);
@@ -1149,10 +1469,14 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           );
         } catch (e) {
           ref.read(taskProvider.notifier).failTask(taskId, e.toString());
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("System trash utility not found. Use Shift+Delete."),
-            backgroundColor: AppColors.error,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "System trash utility not found. Use Shift+Delete.",
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
           return;
         }
       }
@@ -1167,9 +1491,11 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   void _toggleHiddenFiles() {
     final current = ref.read(settingsProvider).value;
     if (current != null) {
-      ref.read(settingsProvider.notifier).setShowHiddenFiles(
-        value: !current.showHiddenFiles,
-      );
+      ref
+          .read(settingsProvider.notifier)
+          .setShowHiddenFiles(
+            value: !current.showHiddenFiles,
+          );
     }
   }
 
@@ -1179,34 +1505,41 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
   Future<void> _handleEmptyTrash() async {
     final currentPath = ref.read(currentPathProvider);
-    final isInTrash = currentPath.contains('.local/share/Trash/files') || currentPath.endsWith('Trash/files') || currentPath == 'trash:///';
+    final isInTrash =
+        currentPath.contains('.local/share/Trash/files') ||
+        currentPath.endsWith('Trash/files') ||
+        currentPath == 'trash:///';
     if (!isInTrash) return;
 
     final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
     if (items.isEmpty) return;
-    
+
     final allPaths = items.map((e) => e.path).toList();
     final stats = await _calculateSelectionStats(allPaths);
 
     if (!mounted) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => PermanentDeleteDialog(
-        filesCount: stats.filesCount,
-        foldersCount: stats.foldersCount,
-        totalSize: StringUtils.formatBytes(stats.size),
-      ),
-    ) ?? false;
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => PermanentDeleteDialog(
+            filesCount: stats.filesCount,
+            foldersCount: stats.foldersCount,
+            totalSize: StringUtils.formatBytes(stats.size),
+          ),
+        ) ??
+        false;
 
     if (!confirmed) return;
 
-    final taskId = ref.read(taskProvider.notifier).addTask(
-      title: 'Emptying Trash',
-      subtitle: 'Permanent deletion',
-      sourcePaths: allPaths,
-      isLight: true,
-    );
+    final taskId = ref
+        .read(taskProvider.notifier)
+        .addTask(
+          title: 'Emptying Trash',
+          subtitle: 'Permanent deletion',
+          sourcePaths: allPaths,
+          isLight: true,
+        );
 
     final repo = ref.read(directoryRepositoryProvider);
     try {
@@ -1241,9 +1574,13 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       final key = itemKeys[path];
       if (key?.currentContext != null) {
         final box = key!.currentContext!.findRenderObject() as RenderBox;
-        anchorPosition = box.localToGlobal(Offset(box.size.width / 2, box.size.height));
+        anchorPosition = box.localToGlobal(
+          Offset(box.size.width / 2, box.size.height),
+        );
       } else {
-        debugPrint('[GalleryPage] Anchor key not found or context null for: $path. Map size: ${itemKeys.length}');
+        debugPrint(
+          '[GalleryPage] Anchor key not found or context null for: $path. Map size: ${itemKeys.length}',
+        );
       }
     } else {
       double minX = double.infinity, minY = double.infinity;
@@ -1269,7 +1606,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     }
 
     if (selection.selectedPaths.length == 1 && anchorPosition != null) {
-      final existingItems = ref.read(filteredDirectoryItemsProvider).value ?? [];
+      final existingItems =
+          ref.read(filteredDirectoryItemsProvider).value ?? [];
       final existingNames = existingItems.map((i) => i.name).toList();
 
       RenamePopover.show(
@@ -1283,16 +1621,21 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           try {
             if (result is String) {
               final oldPath = selection.selectedPaths.first;
-              final taskId = ref.read(taskProvider.notifier).addTask(
-                title: 'Renaming item',
-                subtitle: '${p.basename(oldPath)} -> $result',
-                sourcePaths: [oldPath],
-                isLight: true,
-              );
+              final taskId = ref
+                  .read(taskProvider.notifier)
+                  .addTask(
+                    title: 'Renaming item',
+                    subtitle: '${p.basename(oldPath)} -> $result',
+                    sourcePaths: [oldPath],
+                    isLight: true,
+                  );
               try {
-                final newPath = await repo.renameItem(oldPath, result, 
+                final newPath = await repo.renameItem(
+                  oldPath,
+                  result,
                   taskId: taskId,
-                  onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+                  onLog: (msg) =>
+                      ref.read(taskProvider.notifier).addLog(taskId, msg),
                 );
                 ref.read(selectionProvider.notifier).deselectAll();
                 ref.read(selectionProvider.notifier).selectMultiple([newPath]);
@@ -1305,7 +1648,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
             ref.read(directoryItemsProvider.notifier).refresh();
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
             }
           } finally {
             _focusNode.requestFocus();
@@ -1316,7 +1661,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       // Bulk rename or fallback: Centered Dialog
       final result = await showDialog(
         context: context,
-        builder: (context) => RenameDialog(paths: selection.selectedPaths.toList()),
+        builder: (context) =>
+            RenameDialog(paths: selection.selectedPaths.toList()),
       );
 
       if (result == null) {
@@ -1328,16 +1674,21 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       try {
         if (result is String) {
           final oldPath = selection.selectedPaths.first;
-          final taskId = ref.read(taskProvider.notifier).addTask(
-            title: 'Renaming item',
-            subtitle: '${p.basename(oldPath)} -> $result',
-            sourcePaths: [oldPath],
-            isLight: true,
-          );
+          final taskId = ref
+              .read(taskProvider.notifier)
+              .addTask(
+                title: 'Renaming item',
+                subtitle: '${p.basename(oldPath)} -> $result',
+                sourcePaths: [oldPath],
+                isLight: true,
+              );
           try {
-            final newPath = await repo.renameItem(oldPath, result, 
+            final newPath = await repo.renameItem(
+              oldPath,
+              result,
               taskId: taskId,
-              onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+              onLog: (msg) =>
+                  ref.read(taskProvider.notifier).addLog(taskId, msg),
             );
             ref.read(selectionProvider.notifier).deselectAll();
             ref.read(selectionProvider.notifier).selectMultiple([newPath]);
@@ -1351,25 +1702,33 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           final value = result['value'] as String;
           List<String> newPaths = [];
           final paths = selection.selectedPaths.toList();
-          final taskId = ref.read(taskProvider.notifier).addTask(
-            title: 'Bulk renaming ${paths.length} items',
-            subtitle: mode == RenameMode.prefix ? 'Prefix: $value' : 'Index: $value',
-            sourcePaths: paths,
-            isLight: true,
-          );
+          final taskId = ref
+              .read(taskProvider.notifier)
+              .addTask(
+                title: 'Bulk renaming ${paths.length} items',
+                subtitle: mode == RenameMode.prefix
+                    ? 'Prefix: $value'
+                    : 'Index: $value',
+                sourcePaths: paths,
+                isLight: true,
+              );
 
           try {
             if (mode == RenameMode.prefix) {
-              newPaths = await repo.bulkRename(paths, 
-                prefix: value, 
+              newPaths = await repo.bulkRename(
+                paths,
+                prefix: value,
                 taskId: taskId,
-                onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+                onLog: (msg) =>
+                    ref.read(taskProvider.notifier).addLog(taskId, msg),
               );
             } else {
-              newPaths = await repo.bulkRename(paths, 
-                baseName: value, 
+              newPaths = await repo.bulkRename(
+                paths,
+                baseName: value,
                 taskId: taskId,
-                onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+                onLog: (msg) =>
+                    ref.read(taskProvider.notifier).addLog(taskId, msg),
               );
             }
             ref.read(taskProvider.notifier).completeTask(taskId);
@@ -1383,7 +1742,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         ref.read(directoryItemsProvider.notifier).refresh();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
         }
       } finally {
         _focusNode.requestFocus();
@@ -1408,11 +1769,13 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       final type = parts[0];
       final name = parts[1];
 
-      final taskId = ref.read(taskProvider.notifier).addTask(
-        title: type == 'folder' ? 'New Folder' : 'New Document',
-        subtitle: name,
-        isLight: true,
-      );
+      final taskId = ref
+          .read(taskProvider.notifier)
+          .addTask(
+            title: type == 'folder' ? 'New Folder' : 'New Document',
+            subtitle: name,
+            isLight: true,
+          );
 
       final repo = ref.read(directoryRepositoryProvider);
       final newItemPath = p.join(currentPath, name);
@@ -1423,7 +1786,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         } else {
           await repo.createFile(currentPath, name, taskId: taskId);
         }
-        
+
         ref.read(taskProvider.notifier).completeTask(taskId);
         await ref.read(directoryItemsProvider.notifier).refresh();
         // Auto-select the new item
@@ -1431,14 +1794,18 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       } catch (e) {
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error creating $type: $e')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error creating $type: $e')));
         }
       }
     }
     _focusNode.requestFocus();
   }
 
-  Future<DirectorySizeUpdate> _calculateSelectionStats(List<String> paths) async {
+  Future<DirectorySizeUpdate> _calculateSelectionStats(
+    List<String> paths,
+  ) async {
     final receivePort = ReceivePort();
     try {
       await Isolate.spawn(
@@ -1449,7 +1816,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         ),
       );
 
-      final result = await receivePort.firstWhere((m) => m is DirectorySizeUpdate && m.isFinished);
+      final result = await receivePort.firstWhere(
+        (m) => m is DirectorySizeUpdate && m.isFinished,
+      );
       return result as DirectorySizeUpdate;
     } finally {
       receivePort.close();

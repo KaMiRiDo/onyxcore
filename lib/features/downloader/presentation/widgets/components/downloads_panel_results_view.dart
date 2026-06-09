@@ -357,7 +357,10 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
             valueListenable: _hydrationNotifier,
             builder: (context, _, __) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.2),
                   border: Border(
@@ -366,10 +369,17 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.sd_storage_rounded, size: 14, color: Colors.white54),
+                    Icon(
+                      Icons.sd_storage_rounded,
+                      size: 14,
+                      color: Colors.white54,
+                    ),
                     const SizedBox(width: 6),
                     Text(
-                      (_hasUnderestimatedSize && _totalListSize > 0 ? '~ ' : '') + StringUtils.formatBytes(_totalListSize),
+                      (_hasUnderestimatedSize && _totalListSize > 0
+                              ? '~ '
+                              : '') +
+                          StringUtils.formatBytes(_totalListSize),
                       style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: Colors.white70,
@@ -388,7 +398,11 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                       ),
                     ),
                     const SizedBox(width: 20),
-                    Icon(Icons.videocam_outlined, size: 14, color: Colors.white54),
+                    Icon(
+                      Icons.videocam_outlined,
+                      size: 14,
+                      color: Colors.white54,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       '$_totalListVideos',
@@ -434,7 +448,9 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                   gradient: isCurrentFolder
                                       ? AppTheme.primaryGradient
                                       : null,
-                                  color: isCurrentFolder ? null : Colors.white12,
+                                  color: isCurrentFolder
+                                      ? null
+                                      : Colors.white12,
                                 ),
                                 child: AnimatedAlign(
                                   duration: const Duration(milliseconds: 200),
@@ -664,7 +680,9 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                     return SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                        constraints: BoxConstraints(
+                          minWidth: constraints.maxWidth,
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -672,95 +690,138 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                  IgnorePointer(
-                                    ignoring: _importedListPath != null ? !_isListChanged : !hasItems,
-                                    child: Opacity(
-                                      opacity: (_importedListPath != null ? !_isListChanged : !hasItems) ? 0.4 : 1.0,
-                                      child: ElevatedButton.icon(
-                                        onPressed: _importedListPath != null ? _updateList : _exportList,
-                                        icon: Icon(
-                                          _importedListPath != null ? Icons.save_alt : Icons.file_download_outlined,
-                                          size: 16,
+                                IgnorePointer(
+                                  ignoring: _importedListPath != null
+                                      ? !_isListChanged
+                                      : !hasItems,
+                                  child: Opacity(
+                                    opacity:
+                                        (_importedListPath != null
+                                            ? !_isListChanged
+                                            : !hasItems)
+                                        ? 0.4
+                                        : 1.0,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _importedListPath != null
+                                          ? _updateList
+                                          : _exportList,
+                                      icon: Icon(
+                                        _importedListPath != null
+                                            ? Icons.save_alt
+                                            : Icons.file_download_outlined,
+                                        size: 16,
+                                      ),
+                                      label: Text(
+                                        _importedListPath != null
+                                            ? 'Update'
+                                            : 'Export',
+                                        style: GoogleFonts.manrope(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
                                         ),
-                                        label: Text(
-                                          _importedListPath != null ? 'Update' : 'Export',
-                                          style: GoogleFonts.manrope(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF2A2A35,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        minimumSize: const Size(0, 34),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
                                           ),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF2A2A35),
-                                          foregroundColor: Colors.white,
-                                          elevation: 0,
-                                          minimumSize: const Size(0, 34),
-                                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
-                                            side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                          side: BorderSide(
+                                            color: Colors.white.withOpacity(
+                                              0.1,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  IgnorePointer(
-                                    ignoring: hasItems,
-                                    child: Opacity(
-                                      opacity: hasItems ? 0.4 : 1.0,
-                                      child: ElevatedButton.icon(
-                                        onPressed: () => _importList(),
-                                        icon: const Icon(Icons.upload_file, size: 16),
-                                        label: Text(
-                                          'Import',
-                                          style: GoogleFonts.manrope(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
+                                ),
+                                const SizedBox(width: 8),
+                                IgnorePointer(
+                                  ignoring: hasItems,
+                                  child: Opacity(
+                                    opacity: hasItems ? 0.4 : 1.0,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _importList(),
+                                      icon: const Icon(
+                                        Icons.upload_file,
+                                        size: 16,
+                                      ),
+                                      label: Text(
+                                        'Import',
+                                        style: GoogleFonts.manrope(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
                                         ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF2A2A35),
-                                          foregroundColor: Colors.white,
-                                          elevation: 0,
-                                          minimumSize: const Size(0, 34),
-                                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
-                                            side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF2A2A35,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        minimumSize: const Size(0, 34),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          side: BorderSide(
+                                            color: Colors.white.withOpacity(
+                                              0.1,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
+                                ),
                               ],
                             ),
-                             IgnorePointer(
-                               ignoring: !hasItems,
-                               child: Opacity(
-                                 opacity: hasItems ? 1.0 : 0.4,
-                                 child: ElevatedButton.icon(
-                                   onPressed: _startDownloadAll,
-                                   icon: const Icon(Icons.download_rounded, size: 16),
-                                   label: Text(
-                                     _selectedIndices.isNotEmpty ? 'Download ${_selectedIndices.length}' : 'Download All',
-                                     style: GoogleFonts.manrope(
-                                       fontWeight: FontWeight.bold,
-                                       fontSize: 13,
-                                     ),
-                                   ),
-                                   style: ElevatedButton.styleFrom(
-                                     backgroundColor: AppColors.violet,
-                                     foregroundColor: Colors.white,
-                                     elevation: 0,
-                                     minimumSize: const Size(0, 34),
-                                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                                     shape: RoundedRectangleBorder(
-                                       borderRadius: BorderRadius.circular(8),
-                                     ),
-                                   ),
-                                 ),
-                               ),
-                             ),
+                            IgnorePointer(
+                              ignoring: !hasItems,
+                              child: Opacity(
+                                opacity: hasItems ? 1.0 : 0.4,
+                                child: ElevatedButton.icon(
+                                  onPressed: _startDownloadAll,
+                                  icon: const Icon(
+                                    Icons.download_rounded,
+                                    size: 16,
+                                  ),
+                                  label: Text(
+                                    _selectedIndices.isNotEmpty
+                                        ? 'Download ${_selectedIndices.length}'
+                                        : 'Download All',
+                                    style: GoogleFonts.manrope(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.violet,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    minimumSize: const Size(0, 34),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -908,7 +969,6 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-
                                       const SizedBox(height: 16),
                                       Expanded(
                                         child: Consumer(
@@ -974,12 +1034,16 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                         decoration: BoxDecoration(
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.5),
+                                              color: Colors.black.withOpacity(
+                                                0.5,
+                                              ),
                                               blurRadius: 8,
                                               offset: const Offset(0, 4),
                                             ),
                                           ],
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: ElevatedButton.icon(
                                           onPressed: () {
@@ -999,14 +1063,23 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                             ),
                                           ),
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFF2A2A35),
+                                            backgroundColor: const Color(
+                                              0xFF2A2A35,
+                                            ),
                                             foregroundColor: Colors.redAccent,
                                             elevation: 0,
                                             minimumSize: const Size(0, 34),
-                                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                            ),
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                              side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              side: BorderSide(
+                                                color: Colors.white.withOpacity(
+                                                  0.1,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),

@@ -168,8 +168,8 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     final historyNotifier = ref.read(downloadHistoryProvider.notifier);
     ref.watch(downloadHistoryProvider); // Trigger rebuilds when history changes
     final totalCount = historyNotifier.totalEntries;
-    final totalSize = totalCount == 0 
-        ? '0 B' 
+    final totalSize = totalCount == 0
+        ? '0 B'
         : StringUtils.formatBytes(historyNotifier.historyFileSize);
     final currentFilter = ref.watch(downloadHistoryFilterProvider);
     final isFiltered = !currentFilter.isEmpty;

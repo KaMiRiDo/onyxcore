@@ -121,7 +121,11 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
                       color: AppColors.surfaceBase,
                       borderRadius: BorderRadius.circular(8),
                       child: InkWell(
-                        onTap: () => SettingsDialog.show(context, initialTab: 0, section: 'Download Manager'),
+                        onTap: () => SettingsDialog.show(
+                          context,
+                          initialTab: 0,
+                          section: 'Download Manager',
+                        ),
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
                           width: 36,
@@ -231,4 +235,3 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
     );
   }
 }
-

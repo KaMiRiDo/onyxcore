@@ -11,7 +11,14 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 
-enum DownloadStatus { pending, running, cancelling, completed, error, cancelled }
+enum DownloadStatus {
+  pending,
+  running,
+  cancelling,
+  completed,
+  error,
+  cancelled,
+}
 
 class DownloadTask {
   final String id;
@@ -106,7 +113,9 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   void onWindowClose() {
     // Zombie Process Prevention — must be sync since window is closing
     for (final task in state) {
-      if ((task.status == DownloadStatus.running || task.status == DownloadStatus.cancelling) && task.process != null) {
+      if ((task.status == DownloadStatus.running ||
+              task.status == DownloadStatus.cancelling) &&
+          task.process != null) {
         ProcessUtils.killProcessTreeSync(task.process!.pid);
       }
     }
@@ -120,13 +129,19 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   void _processQueue() async {
-    final runningCount = state.where((t) => t.status == DownloadStatus.running).length;
+    final runningCount = state
+        .where((t) => t.status == DownloadStatus.running)
+        .length;
     if (runningCount >= _maxConcurrent) return;
 
-    final pendingTasks = state.where((t) => t.status == DownloadStatus.pending).toList();
+    final pendingTasks = state
+        .where((t) => t.status == DownloadStatus.pending)
+        .toList();
     if (pendingTasks.isEmpty) return;
 
-    final tasksToStart = pendingTasks.take(_maxConcurrent - runningCount).toList();
+    final tasksToStart = pendingTasks
+        .take(_maxConcurrent - runningCount)
+        .toList();
 
     for (final task in tasksToStart) {
       _startProcessForTask(task.id);
@@ -163,18 +178,25 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
       _updateTask(id, process: process);
 
-      if ((args['isProfile'] as bool? ?? false) || (args['isPlaylist'] as bool? ?? false)) {
+      if ((args['isProfile'] as bool? ?? false) ||
+          (args['isPlaylist'] as bool? ?? false)) {
         _startFolderSizeMonitor(id, args['destination'] as String);
       }
 
-      stdoutSub = process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
-        _parseProgress(id, data);
-        _appendLog(id, data);
-      });
+      stdoutSub = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((data) {
+            _parseProgress(id, data);
+            _appendLog(id, data);
+          });
 
-      stderrSub = process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((data) {
-        _appendLog(id, data);
-      });
+      stderrSub = process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((data) {
+            _appendLog(id, data);
+          });
 
       final exitCode = await process.exitCode;
 
@@ -183,18 +205,30 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       _liveMonitors.remove(id);
 
       if (exitCode == 0) {
-        _updateTask(id, status: DownloadStatus.completed, progress: 1.0, completedAt: DateTime.now());
+        _updateTask(
+          id,
+          status: DownloadStatus.completed,
+          progress: 1.0,
+          completedAt: DateTime.now(),
+        );
       } else {
         final currentTask = state.firstWhere((t) => t.id == id);
         if (currentTask.status != DownloadStatus.cancelled) {
-          _updateTask(id,
-              status: DownloadStatus.error,
-              error: 'Process exited with code $exitCode',
-              completedAt: DateTime.now());
+          _updateTask(
+            id,
+            status: DownloadStatus.error,
+            error: 'Process exited with code $exitCode',
+            completedAt: DateTime.now(),
+          );
         }
       }
     } catch (e) {
-      _updateTask(id, status: DownloadStatus.error, error: e.toString(), completedAt: DateTime.now());
+      _updateTask(
+        id,
+        status: DownloadStatus.error,
+        error: e.toString(),
+        completedAt: DateTime.now(),
+      );
     } finally {
       stdoutSub?.cancel();
       stderrSub?.cancel();
@@ -226,7 +260,6 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     String? directUrl,
     int expectedBytes = 0,
   }) {
-
     final id = _uuid.v4();
     final newTask = DownloadTask(
       id: id,
@@ -266,23 +299,27 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     _processQueue();
   }
 
-  Future<void> _cleanupTempFiles(String destination, String? title, bool isDedicatedFolder) async {
+  Future<void> _cleanupTempFiles(
+    String destination,
+    String? title,
+    bool isDedicatedFolder,
+  ) async {
     try {
       final dir = Directory(destination);
       if (await dir.exists()) {
-        final files = dir.listSync(); // non-recursive to avoid deleting files in subfolders
+        final files = dir
+            .listSync(); // non-recursive to avoid deleting files in subfolders
         final safeTitle = title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
 
         for (final file in files) {
           if (file is File) {
             final fileName = file.path.split(Platform.pathSeparator).last;
-            
-            if (fileName.endsWith('.temp') || 
-                fileName.endsWith('.part') || 
-                fileName.endsWith('.ytdl') || 
-                fileName.endsWith('.aria2') || 
+
+            if (fileName.endsWith('.temp') ||
+                fileName.endsWith('.part') ||
+                fileName.endsWith('.ytdl') ||
+                fileName.endsWith('.aria2') ||
                 fileName.endsWith('.frag')) {
-              
               if (isDedicatedFolder) {
                 // If downloading into a dedicated playlist/profile folder, all temp files here belong to this task
                 try {
@@ -303,42 +340,50 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
   Future<void> cancelDownload(String id) async {
     try {
-        final task = state.firstWhere((t) => t.id == id);
-        if (task.status == DownloadStatus.running && task.process != null) {
-          // Show cancelling state for UI feedback
-          _updateTask(id, status: DownloadStatus.cancelling);
+      final task = state.firstWhere((t) => t.id == id);
+      if (task.status == DownloadStatus.running && task.process != null) {
+        // Show cancelling state for UI feedback
+        _updateTask(id, status: DownloadStatus.cancelling);
 
-          // Live stream tasks (Streamlink) need SIGINT for clean container closure
-          final isLive = _taskArgs[id]?['isLive'] as bool? ?? false;
-          if (isLive) {
-            task.process!.kill(ProcessSignal.sigint);
-            await Future.delayed(const Duration(seconds: 3));
-            // If still running after 3s, force kill
-            try {
-              await task.process!.exitCode.timeout(const Duration(seconds: 1));
-            } on TimeoutException {
-              await ProcessUtils.killProcessTree(task.process!.pid);
-            }
-          } else {
+        // Live stream tasks (Streamlink) need SIGINT for clean container closure
+        final isLive = _taskArgs[id]?['isLive'] as bool? ?? false;
+        if (isLive) {
+          task.process!.kill(ProcessSignal.sigint);
+          await Future.delayed(const Duration(seconds: 3));
+          // If still running after 3s, force kill
+          try {
+            await task.process!.exitCode.timeout(const Duration(seconds: 1));
+          } on TimeoutException {
             await ProcessUtils.killProcessTree(task.process!.pid);
           }
-          
-          final args = _taskArgs[id];
-          if (args != null) {
-            final destination = args['destination'] as String?;
-            final title = args['title'] as String?;
-            final isPlaylist = args['isPlaylist'] as bool? ?? false;
-            final isProfile = args['isProfile'] as bool? ?? false;
-            
-            if (destination != null) {
-              await _cleanupTempFiles(destination, title, isPlaylist || isProfile);
-            }
+        } else {
+          await ProcessUtils.killProcessTree(task.process!.pid);
+        }
+
+        final args = _taskArgs[id];
+        if (args != null) {
+          final destination = args['destination'] as String?;
+          final title = args['title'] as String?;
+          final isPlaylist = args['isPlaylist'] as bool? ?? false;
+          final isProfile = args['isProfile'] as bool? ?? false;
+
+          if (destination != null) {
+            await _cleanupTempFiles(
+              destination,
+              title,
+              isPlaylist || isProfile,
+            );
           }
         }
-        // Stop live monitor if running
-        _liveMonitors[id]?.cancel();
-        _liveMonitors.remove(id);
-        _updateTask(id, status: DownloadStatus.cancelled, completedAt: DateTime.now());
+      }
+      // Stop live monitor if running
+      _liveMonitors[id]?.cancel();
+      _liveMonitors.remove(id);
+      _updateTask(
+        id,
+        status: DownloadStatus.cancelled,
+        completedAt: DateTime.now(),
+      );
     } catch (_) {}
   }
 
@@ -349,36 +394,50 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   void clearHistory() {
-     state = state.where((t) => t.status == DownloadStatus.running || t.status == DownloadStatus.pending || t.status == DownloadStatus.cancelling).toList();
+    state = state
+        .where(
+          (t) =>
+              t.status == DownloadStatus.running ||
+              t.status == DownloadStatus.pending ||
+              t.status == DownloadStatus.cancelling,
+        )
+        .toList();
   }
 
   final Map<String, Timer> _removalTimers = {};
 
   void onHydrationFinished(String url, List<MediaInfo> items) {
     for (final task in state) {
-      if (task.url == url && (task.status == DownloadStatus.running || task.status == DownloadStatus.pending)) {
+      if (task.url == url &&
+          (task.status == DownloadStatus.running ||
+              task.status == DownloadStatus.pending)) {
         final filterType = _taskArgs[task.id]?['filterType'] as String?;
         int newTotal = 0;
-        
+
         if (filterType == 'images') {
-          newTotal = items.where((item) => !item.isVideo && !item.isProfile).length;
+          newTotal = items
+              .where((item) => !item.isVideo && !item.isProfile)
+              .length;
         } else if (filterType == 'videos') {
-          newTotal = items.where((item) => item.isVideo && !item.isProfile).length;
+          newTotal = items
+              .where((item) => item.isVideo && !item.isProfile)
+              .length;
         } else {
           newTotal = items.where((item) => !item.isProfile).length;
         }
-        
+
         if (newTotal > 0) {
           _taskArgs[task.id]?['totalItems'] = newTotal;
-          
+
           if (!_downloadedCounts.containsKey(task.id)) {
             _downloadedCounts[task.id] = 0;
           }
-          
+
           // Force UI update to show progress bar if it just switched from indeterminate
-          _updateTask(task.id, 
-              progress: _downloadedCounts[task.id]! / newTotal,
-              totalSize: '${_downloadedCounts[task.id]!} / $newTotal'
+          _updateTask(
+            task.id,
+            progress: _downloadedCounts[task.id]! / newTotal,
+            totalSize: '${_downloadedCounts[task.id]!} / $newTotal',
           );
         }
       }
@@ -390,7 +449,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
     _removalTimers[id] = Timer(const Duration(seconds: 3), () {
       final task = state.where((t) => t.id == id).firstOrNull;
-      if (task != null && (task.status == DownloadStatus.completed || task.status == DownloadStatus.error || task.status == DownloadStatus.cancelled)) {
+      if (task != null &&
+          (task.status == DownloadStatus.completed ||
+              task.status == DownloadStatus.error ||
+              task.status == DownloadStatus.cancelled)) {
         ref.read(downloadHistoryProvider.notifier).addEntry(task);
         removeTask(id);
       }
@@ -398,32 +460,42 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     });
   }
 
-  void _updateTask(String id,
-      {DownloadStatus? status,
-      double? progress,
-      String? speed,
-      String? eta,
-      String? totalSize,
-      int? expectedBytes,
-      int? downloadedBytes,
-      String? error,
-      Process? process,
-      DateTime? completedAt}) {
+  void _updateTask(
+    String id, {
+    DownloadStatus? status,
+    double? progress,
+    String? speed,
+    String? eta,
+    String? totalSize,
+    int? expectedBytes,
+    int? downloadedBytes,
+    String? error,
+    Process? process,
+    DateTime? completedAt,
+    bool fromMonitor = false,
+  }) {
     state = state.map((task) {
       if (task.id == id) {
+        final ignoreProgress =
+            !fromMonitor && task.expectedBytes > 0 && progress != null;
+        final ignoreTotalSize =
+            !fromMonitor && task.expectedBytes > 0 && totalSize != null;
+
         final updated = task.copyWith(
           status: status,
-          progress: progress,
+          progress: ignoreProgress ? task.progress : progress,
           speed: speed,
           eta: eta,
-          totalSize: totalSize,
+          totalSize: ignoreTotalSize ? task.totalSize : totalSize,
           expectedBytes: expectedBytes,
           downloadedBytes: downloadedBytes,
           error: error,
           process: process,
           completedAt: completedAt,
         );
-        if (status == DownloadStatus.completed || status == DownloadStatus.error || status == DownloadStatus.cancelled) {
+        if (status == DownloadStatus.completed ||
+            status == DownloadStatus.error ||
+            status == DownloadStatus.cancelled) {
           _startAutoRemovalTimer(id);
         }
         return updated;
@@ -451,7 +523,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   void _parseProgress(String id, String data) {
     // 1. Handle standard yt-dlp output: [download] 45.2% of 150.3MiB at 5.2MiB/s ETA 00:15
     final RegExp progressRegExp = RegExp(
-        r'\[download\]\s+([\d\.]+)\%\s+of\s+(.*?)\s+at\s+(.*?)\s+ETA\s+(.*)');
+      r'\[download\]\s+([\d\.]+)\%\s+of\s+(.*?)\s+at\s+(.*?)\s+ETA\s+(.*)',
+    );
     final match = progressRegExp.firstMatch(data);
 
     if (match != null) {
@@ -460,8 +533,13 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       final speed = match.group(3) ?? '';
       final eta = match.group(4) ?? '';
 
-      _updateTask(id,
-          progress: percentage / 100.0, speed: speed.trim(), eta: eta.trim(), totalSize: size.trim());
+      _updateTask(
+        id,
+        progress: percentage / 100.0,
+        speed: speed.trim(),
+        eta: eta.trim(),
+        totalSize: size.trim(),
+      );
       return;
     }
 
@@ -472,21 +550,32 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       final percentage = double.tryParse(ariaMatch.group(1) ?? '0.0') ?? 0.0;
       final speed = ariaMatch.group(2) ?? '';
       final eta = ariaMatch.group(3) ?? '';
-      _updateTask(id,
-          progress: percentage / 100.0, speed: speed.trim(), eta: eta.trim());
+      _updateTask(
+        id,
+        progress: percentage / 100.0,
+        speed: speed.trim(),
+        eta: eta.trim(),
+      );
       return;
     }
 
     // 3. Handle aria2c standalone: [#hash 10MiB/50MiB(20%) CN:16 DL:5.2MiB/s ETA:8s]
-    final ariaStandalone = RegExp(r'(\d+)MiB/(\d+)MiB\((\d+)%\).*?DL:(\S+).*?ETA:(\S+)');
+    final ariaStandalone = RegExp(
+      r'(\d+)MiB/(\d+)MiB\((\d+)%\).*?DL:(\S+).*?ETA:(\S+)',
+    );
     final ariaStdMatch = ariaStandalone.firstMatch(data);
     if (ariaStdMatch != null) {
       final percentage = double.tryParse(ariaStdMatch.group(3) ?? '0.0') ?? 0.0;
       final speed = ariaStdMatch.group(4) ?? '';
       final eta = ariaStdMatch.group(5) ?? '';
       final totalSize = '${ariaStdMatch.group(1)}/${ariaStdMatch.group(2)} MiB';
-      _updateTask(id,
-          progress: percentage / 100.0, speed: speed.trim(), eta: eta.trim(), totalSize: totalSize);
+      _updateTask(
+        id,
+        progress: percentage / 100.0,
+        speed: speed.trim(),
+        eta: eta.trim(),
+        totalSize: totalSize,
+      );
       return;
     }
 
@@ -497,12 +586,18 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }
 
     // 5. Handle You-Get progress: 98.5% ( 24.0/ 24.4MB) [==============>]
-    final youGetProgress = RegExp(r'(\d+\.?\d*)%\s+\(\s*[\d.]+/\s*([\d.]+\s*\w+)\)');
+    final youGetProgress = RegExp(
+      r'(\d+\.?\d*)%\s+\(\s*[\d.]+/\s*([\d.]+\s*\w+)\)',
+    );
     final youGetMatch = youGetProgress.firstMatch(data);
     if (youGetMatch != null) {
       final percentage = double.tryParse(youGetMatch.group(1) ?? '0.0') ?? 0.0;
       final totalSize = youGetMatch.group(2) ?? '';
-      _updateTask(id, progress: percentage / 100.0, totalSize: totalSize.trim());
+      _updateTask(
+        id,
+        progress: percentage / 100.0,
+        totalSize: totalSize.trim(),
+      );
       return;
     }
 
@@ -513,15 +608,22 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }
 
     // 7. Handle Lux progress: 50.00% |████████░░░░| 25.0/50.0 MiB 5.0 MiB/s 5s
-    final luxProgress = RegExp(r'(\d+\.?\d*)%\s+\|.*?\|\s+([\d.]+/[\d.]+\s+\w+)\s+([\d.]+\s+\w+/s)\s+(\S+)');
+    final luxProgress = RegExp(
+      r'(\d+\.?\d*)%\s+\|.*?\|\s+([\d.]+/[\d.]+\s+\w+)\s+([\d.]+\s+\w+/s)\s+(\S+)',
+    );
     final luxMatch = luxProgress.firstMatch(data);
     if (luxMatch != null) {
       final percentage = double.tryParse(luxMatch.group(1) ?? '0.0') ?? 0.0;
       final totalSize = luxMatch.group(2) ?? '';
       final speed = luxMatch.group(3) ?? '';
       final eta = luxMatch.group(4) ?? '';
-      _updateTask(id,
-          progress: percentage / 100.0, speed: speed.trim(), eta: eta.trim(), totalSize: totalSize.trim());
+      _updateTask(
+        id,
+        progress: percentage / 100.0,
+        speed: speed.trim(),
+        eta: eta.trim(),
+        totalSize: totalSize.trim(),
+      );
       return;
     }
 
@@ -549,14 +651,19 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     // 10. Handle gallery-dl file output
     // gallery-dl usually prints the full file path to stdout when a file completes downloading.
     final currentTotal = _taskArgs[id]?['totalItems'] as int?;
-    
+
     // Check if it's not a log message
     if (!data.trim().startsWith('[') && data.trim().isNotEmpty) {
-      final extRegExp = RegExp(r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv|ts)$', caseSensitive: false);
-      if (extRegExp.hasMatch(data.trim()) || data.contains('/') || data.contains('\\')) {
+      final extRegExp = RegExp(
+        r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv|ts)$',
+        caseSensitive: false,
+      );
+      if (extRegExp.hasMatch(data.trim()) ||
+          data.contains('/') ||
+          data.contains('\\')) {
         _downloadedCounts[id] = (_downloadedCounts[id] ?? 0) + 1;
         final count = _downloadedCounts[id]!;
-        
+
         if (currentTotal != null && currentTotal > 0) {
           double prog = count / currentTotal;
           if (prog > 1.0) prog = 1.0;
@@ -573,7 +680,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   /// Polls the output file every 2 seconds and updates the task with
   /// current file size and recording speed.
   void _startFileSizeMonitor(String id, String destination, String? title) {
-    final safeTitle = title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ?? 'live_recording';
+    final safeTitle =
+        title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ?? 'live_recording';
     // Streamlink outputs to .ts files
     final possiblePaths = [
       '$destination/$safeTitle.ts',
@@ -589,7 +697,9 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
             final task = state.where((t) => t.id == id).firstOrNull;
             if (task != null && task.status == DownloadStatus.running) {
               final elapsed = DateTime.now().difference(task.createdAt);
-              final speedBps = elapsed.inSeconds > 0 ? size ~/ elapsed.inSeconds : 0;
+              final speedBps = elapsed.inSeconds > 0
+                  ? size ~/ elapsed.inSeconds
+                  : 0;
               _updateTask(
                 id,
                 totalSize: StringUtils.formatBytes(size),
@@ -618,7 +728,23 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           }
           final task = state.where((t) => t.id == id).firstOrNull;
           if (task != null && task.status == DownloadStatus.running) {
-            _updateTask(id, downloadedBytes: size);
+            double? newProgress = task.progress;
+            String? newTotalSize = task.totalSize;
+
+            if (task.expectedBytes > 0) {
+              newProgress = size / task.expectedBytes;
+              if (newProgress > 1.0) newProgress = 1.0;
+              newTotalSize =
+                  '${StringUtils.formatBytes(size)} / ${StringUtils.formatBytes(task.expectedBytes)}';
+            }
+
+            _updateTask(
+              id,
+              downloadedBytes: size,
+              progress: newProgress,
+              totalSize: newTotalSize,
+              fromMonitor: true,
+            );
           }
         }
       } catch (_) {}
@@ -627,23 +753,29 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 }
 
 final downloadTaskProvider =
-    NotifierProvider<DownloadTaskNotifier, List<DownloadTask>>(DownloadTaskNotifier.new);
+    NotifierProvider<DownloadTaskNotifier, List<DownloadTask>>(
+      DownloadTaskNotifier.new,
+    );
 
 final activeDownloadTaskProvider = Provider<List<DownloadTask>>((ref) {
   final tasks = ref.watch(downloadTaskProvider);
   return tasks
-      .where((t) =>
-          t.status == DownloadStatus.running ||
-          t.status == DownloadStatus.pending)
+      .where(
+        (t) =>
+            t.status == DownloadStatus.running ||
+            t.status == DownloadStatus.pending,
+      )
       .toList();
 });
 
 final completedDownloadTaskProvider = Provider<List<DownloadTask>>((ref) {
   final tasks = ref.watch(downloadTaskProvider);
   return tasks
-      .where((t) =>
-          t.status == DownloadStatus.completed ||
-          t.status == DownloadStatus.error ||
-          t.status == DownloadStatus.cancelled)
+      .where(
+        (t) =>
+            t.status == DownloadStatus.completed ||
+            t.status == DownloadStatus.error ||
+            t.status == DownloadStatus.cancelled,
+      )
       .toList();
 });

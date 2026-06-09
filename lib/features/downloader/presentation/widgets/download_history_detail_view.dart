@@ -312,20 +312,26 @@ class _DownloadHistoryDetailViewState
                     String? path;
                     if (log.contains('[download] Destination: ')) {
                       path = log.split('[download] Destination: ')[1].trim();
-                    } else if (log.contains('[Merger] Merging formats into "')) {
-                      path = log.split('[Merger] Merging formats into "')[1].replaceAll('"', '').trim();
+                    } else if (log.contains(
+                      '[Merger] Merging formats into "',
+                    )) {
+                      path = log
+                          .split('[Merger] Merging formats into "')[1]
+                          .replaceAll('"', '')
+                          .trim();
                     } else if (log.contains('has already been downloaded')) {
                       final idx = log.indexOf('has already been downloaded');
                       if (log.startsWith('[download] ')) {
                         path = log.substring(11, idx).trim();
                       }
                     } else if (log.startsWith('/') || log.startsWith(r'C:\')) {
-                        path = log;
+                      path = log;
                     }
-                    
+
                     if (path != null) {
                       final ext = p.extension(path).toLowerCase();
-                      if (ext != '.json' && !processedFilePaths.contains(path)) {
+                      if (ext != '.json' &&
+                          !processedFilePaths.contains(path)) {
                         processedFilePaths.add(path);
                       }
                     }

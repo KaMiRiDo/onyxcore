@@ -92,7 +92,8 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (item.errorMessage != null && item.errorMessage!.isNotEmpty) ...[
+                        if (item.errorMessage != null &&
+                            item.errorMessage!.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
                             item.errorMessage!,
@@ -113,16 +114,25 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                               },
                               borderRadius: BorderRadius.circular(4),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
                                 child: Icon(
                                   Icons.info_outline_rounded,
                                   size: 16,
-                                  color: (item.errorMessage != null && item.errorMessage!.isNotEmpty) ? Colors.redAccent : AppColors.violet,
+                                  color:
+                                      (item.errorMessage != null &&
+                                          item.errorMessage!.isNotEmpty)
+                                      ? Colors.redAccent
+                                      : AppColors.violet,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            CopyUrlButton(url: item.directUrl ?? item.originalUrl),
+                            CopyUrlButton(
+                              url: item.directUrl ?? item.originalUrl,
+                            ),
                           ],
                         ),
                       ],
@@ -263,64 +273,78 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                             children: [
                               item.thumbnail != null
                                   ? (item.thumbnail!.startsWith('data:image')
-                                      ? Image.memory(
-                                          base64Decode(item.thumbnail!.split(',').last),
-                                          width: 160,
-                                          height: 104,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Image.network(
-                                          item.thumbnail!,
-                                          width: 160,
-                                          height: 104,
-                                          fit: BoxFit.cover,
-                                      headers: const {
-                                        'User-Agent':
-                                            'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
-                                        'Referer': 'https://www.instagram.com/',
-                                      },
-                                      loadingBuilder:
-                                          (context, child, loadingProgress) {
-                                            if (loadingProgress == null)
-                                              return child;
-                                            return Container(
-                                              width: 160,
-                                              height: 104,
-                                              color: Colors.black12,
-                                              child: const Center(
-                                                child: _JugglingBallsLoader(),
-                                              ),
-                                            );
-                                          },
-                                      errorBuilder: (_, __, ___) =>
-                                          item.isProfile
-                                          ? Container(
-                                              width: 160,
-                                              height: 104,
-                                              color: const Color(0xFF1E1E26),
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.account_circle_rounded,
-                                                  size: 40,
-                                                  color: AppColors.violet,
-                                                ),
-                                              ),
-                                            )
-                                          : item.isPlaylist
-                                          ? Container(
-                                              width: 160,
-                                              height: 104,
-                                              color: const Color(0xFF1E1E26),
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.video_library_rounded,
-                                                  size: 40,
-                                                  color: AppColors.violet,
-                                                ),
-                                              ),
-                                            )
-                                          : const FallbackThumb(),
-                                    ) )
+                                        ? Image.memory(
+                                            base64Decode(
+                                              item.thumbnail!.split(',').last,
+                                            ),
+                                            width: 160,
+                                            height: 104,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Image.network(
+                                            item.thumbnail!,
+                                            width: 160,
+                                            height: 104,
+                                            fit: BoxFit.cover,
+                                            headers: const {
+                                              'User-Agent':
+                                                  'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
+                                              'Referer':
+                                                  'https://www.instagram.com/',
+                                            },
+                                            loadingBuilder:
+                                                (
+                                                  context,
+                                                  child,
+                                                  loadingProgress,
+                                                ) {
+                                                  if (loadingProgress == null)
+                                                    return child;
+                                                  return Container(
+                                                    width: 160,
+                                                    height: 104,
+                                                    color: Colors.black12,
+                                                    child: const Center(
+                                                      child:
+                                                          _JugglingBallsLoader(),
+                                                    ),
+                                                  );
+                                                },
+                                            errorBuilder: (_, __, ___) =>
+                                                item.isProfile
+                                                ? Container(
+                                                    width: 160,
+                                                    height: 104,
+                                                    color: const Color(
+                                                      0xFF1E1E26,
+                                                    ),
+                                                    child: const Center(
+                                                      child: Icon(
+                                                        Icons
+                                                            .account_circle_rounded,
+                                                        size: 40,
+                                                        color: AppColors.violet,
+                                                      ),
+                                                    ),
+                                                  )
+                                                : item.isPlaylist
+                                                ? Container(
+                                                    width: 160,
+                                                    height: 104,
+                                                    color: const Color(
+                                                      0xFF1E1E26,
+                                                    ),
+                                                    child: const Center(
+                                                      child: Icon(
+                                                        Icons
+                                                            .video_library_rounded,
+                                                        size: 40,
+                                                        color: AppColors.violet,
+                                                      ),
+                                                    ),
+                                                  )
+                                                : const FallbackThumb(),
+                                          ))
                                   : item.isProfile
                                   ? Container(
                                       width: 160,
@@ -465,14 +489,9 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                               item.isPlaylist)
                                             CountIndicator(
                                               icon: Icons.videocam_rounded,
-                                              count:
-                                                  item.isPlaylist &&
-                                                      item.itemCount != null &&
-                                                      item.itemCount! > 0
-                                                  ? item.itemCount!
-                                                  : (group.videoCount > 0
-                                                        ? group.videoCount
-                                                        : 0),
+                                              count: group.videoCount > 0
+                                                  ? group.videoCount
+                                                  : 0,
                                               disabled:
                                                   config.groupFilter ==
                                                   GroupDownloadType.images,
@@ -482,9 +501,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                     },
                                   ),
                                 )
-                              else if (item.isProfile &&
-                                  item.itemCount != null &&
-                                  item.itemCount! > 0)
+                              else if (item.isProfile)
                                 Positioned(
                                   bottom: 8,
                                   left: 8,
@@ -498,7 +515,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      '${item.itemCount} Posts',
+                                      '${group.items.length > 1 ? group.items.length - 1 : 0} Posts',
                                       style: GoogleFonts.manrope(
                                         color: Colors.white,
                                         fontSize: 9,
@@ -527,9 +544,13 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                             ? _formatBytes(
                                                 _getGroupBytes(group, config),
                                               )
-                                            : ((item.isPlaylist || item.isProfile)
+                                            : ((item.isPlaylist ||
+                                                      item.isProfile)
                                                   ? '0 B'
-                                                  : (_getFileSize(item, config) ??
+                                                  : (_getFileSize(
+                                                          item,
+                                                          config,
+                                                        ) ??
                                                         'Unknown size')),
                                         style: GoogleFonts.manrope(
                                           color: Colors.white,
@@ -600,19 +621,29 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                     },
                                     borderRadius: BorderRadius.circular(4),
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 2,
+                                      ),
                                       child: Icon(
                                         Icons.info_outline_rounded,
                                         size: 16,
-                                        color: (item.errorMessage != null && item.errorMessage!.isNotEmpty) ? Colors.redAccent : AppColors.violet,
+                                        color:
+                                            (item.errorMessage != null &&
+                                                item.errorMessage!.isNotEmpty)
+                                            ? Colors.redAccent
+                                            : AppColors.violet,
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Builder(
                                     builder: (context) {
-                                      final engineObj = EngineRegistry.findById(config.engine);
-                                      if (engineObj == null) return const SizedBox.shrink();
+                                      final engineObj = EngineRegistry.findById(
+                                        config.engine,
+                                      );
+                                      if (engineObj == null)
+                                        return const SizedBox.shrink();
                                       return Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -625,13 +656,16 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                           Text(
                                             engineObj.displayName,
                                             style: GoogleFonts.manrope(
-                                              color: engineObj.color.withOpacity(0.8),
+                                              color: engineObj.color
+                                                  .withOpacity(0.8),
                                               fontSize: 11,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           const Padding(
-                                            padding: EdgeInsets.symmetric(horizontal: 8),
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                            ),
                                             child: Text(
                                               '•',
                                               style: TextStyle(
@@ -655,7 +689,8 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                               return Align(
                                 alignment: Alignment.centerLeft,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     if ((group.isSingle &&
                                             item.formats.isNotEmpty) ||
@@ -797,23 +832,26 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
         }
       }
       formats = formatSet.values.toList();
-      
+
       if (formats.isEmpty) {
         formats = [
           const MediaFormat(
-            formatId: 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
+            formatId:
+                'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
             extension: 'mp4',
             resolution: '1080p',
             formatString: '1080p mp4',
           ),
           const MediaFormat(
-            formatId: 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
+            formatId:
+                'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
             extension: 'mp4',
             resolution: '720p',
             formatString: '720p mp4',
           ),
           const MediaFormat(
-            formatId: 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best',
+            formatId:
+                'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best',
             extension: 'mp4',
             resolution: '480p',
             formatString: '480p mp4',
@@ -919,19 +957,19 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
             ),
             child: Builder(
               builder: (context) {
-                final sizeBytes = _getFormatBytes(item, f, config);
-                final sizeStr = sizeBytes != null ? ' - ${StringUtils.formatBytes(sizeBytes)}' : '';
                 return Text(
-                  '${_formatResolution(f.resolution)} (${f.extension})$sizeStr',
+                  '${_formatResolution(f.resolution)} (${f.extension})',
                   style: GoogleFonts.manrope(
                     color: isSelected ? Colors.white : Colors.white70,
                     fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 );
-              }
+              },
             ),
           ),
         );
@@ -952,13 +990,11 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
             Expanded(
               child: Builder(
                 builder: (context) {
-                  final sizeBytes = displayFormat != null ? _getFormatBytes(item, displayFormat, config) : null;
-                  final sizeStr = sizeBytes != null ? ' - ${StringUtils.formatBytes(sizeBytes)}' : '';
                   return Text(
                     isMixed
                         ? 'Mixed'
                         : (displayFormat != null
-                              ? '${_formatResolution(displayFormat.resolution)} (${displayFormat.extension})$sizeStr'
+                              ? '${_formatResolution(displayFormat.resolution)} (${displayFormat.extension})'
                               : 'Select'),
                     style: GoogleFonts.manrope(
                       color: hasMultiple ? Colors.white : Colors.white54,
@@ -967,7 +1003,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   );
-                }
+                },
               ),
             ),
             Icon(

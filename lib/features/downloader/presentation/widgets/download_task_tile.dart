@@ -229,10 +229,17 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (task.expectedBytes > 0 || task.downloadedBytes > 0) ...[
+                            if (task.expectedBytes > 0 ||
+                                task.downloadedBytes > 0) ...[
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Text('•', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                child: Text(
+                                  '•',
+                                  style: TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 11,
+                                  ),
+                                ),
                               ),
                               Flexible(
                                 child: Text(
@@ -263,7 +270,9 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                     task.totalSize,
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.manrope(
-                                      color: AppColors.textMuted.withOpacity(0.6),
+                                      color: AppColors.textMuted.withOpacity(
+                                        0.6,
+                                      ),
                                       fontSize: 11,
                                     ),
                                   ),
@@ -271,8 +280,16 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                               if (task.speed.isNotEmpty) ...[
                                 if (task.totalSize.isNotEmpty)
                                   const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 8),
-                                    child: Text('•', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Text(
+                                      '•',
+                                      style: TextStyle(
+                                        color: Colors.white38,
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ),
                                 Flexible(
                                   child: Text(
@@ -287,17 +304,28 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                 ),
                               ],
                               if (task.eta.isNotEmpty) ...[
-                                if (task.totalSize.isNotEmpty || task.speed.isNotEmpty)
+                                if (task.totalSize.isNotEmpty ||
+                                    task.speed.isNotEmpty)
                                   const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 8),
-                                    child: Text('•', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Text(
+                                      '•',
+                                      style: TextStyle(
+                                        color: Colors.white38,
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ),
                                 Flexible(
                                   child: Text(
                                     'ETA ${task.eta}',
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.manrope(
-                                      color: AppColors.textMuted.withOpacity(0.6),
+                                      color: AppColors.textMuted.withOpacity(
+                                        0.6,
+                                      ),
                                       fontSize: 11,
                                     ),
                                   ),

@@ -61,43 +61,45 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Per-engine status indicators
-          ...missingEngines.map((engine) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(engine.icon, size: 16, color: engine.color),
-                const SizedBox(width: 8),
-                Text(
-                  engine.displayName,
-                  style: GoogleFonts.manrope(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Missing',
+          ...missingEngines.map(
+            (engine) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(engine.icon, size: 16, color: engine.color),
+                  const SizedBox(width: 8),
+                  Text(
+                    engine.displayName,
                     style: GoogleFonts.manrope(
-                      color: AppColors.error,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Missing',
+                      style: GoogleFonts.manrope(
+                        color: AppColors.error,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
+          ),
 
           const SizedBox(height: 16),
           if (updateState.error != null)

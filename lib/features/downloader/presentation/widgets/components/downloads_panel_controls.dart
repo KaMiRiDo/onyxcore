@@ -11,13 +11,15 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
         'color': AppColors.violet,
         'installed': true,
       },
-      ...engines.map((e) => {
-            'key': e.id,
-            'label': e.displayName,
-            'icon': e.icon,
-            'color': e.color,
-            'installed': e.isInstalled,
-          }),
+      ...engines.map(
+        (e) => {
+          'key': e.id,
+          'label': e.displayName,
+          'icon': e.icon,
+          'color': e.color,
+          'installed': e.isInstalled,
+        },
+      ),
     ];
 
     final selected = options.firstWhere((o) => o['key'] == _selectedEngine);
@@ -58,8 +60,8 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
                 Icon(
                   opt['icon'] as IconData,
                   size: 16,
-                  color: isInstalled 
-                      ? (opt['color'] as Color) 
+                  color: isInstalled
+                      ? (opt['color'] as Color)
                       : (opt['color'] as Color).withOpacity(0.3),
                 ),
                 const SizedBox(width: 8),
@@ -69,7 +71,9 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                     color: isInstalled
-                        ? (isSelected ? Colors.white : Colors.white.withOpacity(0.8))
+                        ? (isSelected
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.8))
                         : Colors.white.withOpacity(0.3),
                   ),
                 ),

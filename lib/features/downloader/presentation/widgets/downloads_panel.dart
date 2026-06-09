@@ -124,20 +124,20 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     for (int i = 0; i < _parsedItems!.length; i++) {
       var itemGrp = _parsedItems![i];
       final config = _configs[i];
-      
+
       int groupSize = 0;
       if (config != null) {
         groupSize = _getGroupBytes(itemGrp, config);
       } else {
         groupSize = itemGrp.totalFilesize;
       }
-      
+
       int groupVideos = 0;
       int groupImages = 0;
 
       for (var item in itemGrp.items) {
         if (item.isError) continue;
-        
+
         if (config?.groupFilter == GroupDownloadType.images && item.isVideo)
           continue;
         if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo)
@@ -149,21 +149,11 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           groupImages++;
         }
       }
-      
-      if (itemGrp.first.isPlaylist) {
-        final playlistCount = itemGrp.first.itemCount ?? 0;
-        if (playlistCount > groupVideos) {
-          groupVideos = playlistCount;
-        }
-        if (itemGrp.first.filesize != null && groupSize < itemGrp.first.filesize!) {
-          groupSize = itemGrp.first.filesize!;
-        }
-      }
-      
+      // Count inflation removed per user request for incremental stats
       if (itemGrp.first.isPlaylist || itemGrp.first.isProfile) {
         _hasUnderestimatedSize = true;
       }
-      
+
       _totalListSize += groupSize;
       _totalListVideos += groupVideos;
       _totalListImages += groupImages;
@@ -177,7 +167,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   final ScrollController _logsScrollController = ScrollController();
   VoidCallback? _pendingClearAction;
 
-
   void _showLogs(MediaInfo item) {
     setState(() {
       _activeLogItem = item;
@@ -189,32 +178,45 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   void _updateLogsMessage() {
     if (_activeLogItem == null) return;
     try {
-      final latestItem = _parsedItems?.expand((group) => group.items).firstWhere(
-        (i) => i.id == _activeLogItem!.id, 
-        orElse: () => _activeLogItem!
-      );
+      final latestItem = _parsedItems
+          ?.expand((group) => group.items)
+          .firstWhere(
+            (i) => i.id == _activeLogItem!.id,
+            orElse: () => _activeLogItem!,
+          );
       if (latestItem != null) {
         _activeLogItem = latestItem;
       }
 
       String? logsToUse = _activeLogItem!.fetchLogs;
-      
+
       // If the item is actively hydrating, pull live logs from backend
-      if (_backgroundLoadingProfiles.contains(_activeLogItem!.originalUrl) || _activeLogItem!.id == 'hydration_loading') {
-        final liveLogs = MediaDownloaderBackend.activeLogs[_activeLogItem!.originalUrl];
+      if (_backgroundLoadingProfiles.contains(_activeLogItem!.originalUrl) ||
+          _activeLogItem!.id == 'hydration_loading') {
+        final liveLogs =
+            MediaDownloaderBackend.activeLogs[_activeLogItem!.originalUrl];
         if (liveLogs != null && liveLogs.isNotEmpty) {
-           final formattedErrors = liveLogs.trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
-           logsToUse = '--- Live Hydration Logs ---\n$formattedErrors';
+          final formattedErrors = liveLogs
+              .trim()
+              .split('\n')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .join('\n\n');
+          logsToUse = '--- Live Hydration Logs ---\n$formattedErrors';
         }
       }
 
-      _errorLogsMessage = (logsToUse != null && logsToUse.isNotEmpty) 
-          ? logsToUse 
-          : (_activeLogItem!.errorMessage != null && _activeLogItem!.errorMessage!.isNotEmpty) 
-              ? _activeLogItem!.errorMessage 
-              : '[${_activeLogItem!.engineId ?? 'yt-dlp'}]: Fetch completed successfully.';
+      _errorLogsMessage = (logsToUse != null && logsToUse.isNotEmpty)
+          ? logsToUse
+          : (_activeLogItem!.errorMessage != null &&
+                _activeLogItem!.errorMessage!.isNotEmpty)
+          ? _activeLogItem!.errorMessage
+          : '[${_activeLogItem!.engineId ?? 'yt-dlp'}]: Fetch completed successfully.';
     } catch (e) {
-      _errorLogsMessage = _activeLogItem!.fetchLogs ?? _activeLogItem!.errorMessage ?? 'Fetch completed successfully.';
+      _errorLogsMessage =
+          _activeLogItem!.fetchLogs ??
+          _activeLogItem!.errorMessage ??
+          'Fetch completed successfully.';
     }
   }
 
@@ -279,11 +281,23 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       return true;
     }).toList();
 
-    // If hydrated (more than 1 item), hide the playlist/profile parent placeholder from the carousel
-    if (filtered.length > 1) {
-      return filtered
-          .where((info) => !info.isPlaylist && !info.isProfile)
-          .toList();
+    final isHydrating = _backgroundLoadingProfiles.contains(
+      _previewItem!.originalUrl,
+    );
+
+    final actualItems = filtered
+        .where((info) => !info.isPlaylist && !info.isProfile)
+        .toList();
+
+    if (actualItems.isNotEmpty) {
+      if (isHydrating) {
+        final placeholder = filtered.firstWhere(
+          (info) => info.isPlaylist || info.isProfile,
+          orElse: () => _previewItem!.first,
+        );
+        return [...actualItems, placeholder];
+      }
+      return actualItems;
     }
     return filtered;
   }
@@ -304,10 +318,18 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           if (!dOpen) {
             ref.read(downloadsPanelOpenProvider.notifier).state = true;
             ref.read(backgroundPanelOpenProvider.notifier).state = false;
-            ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+            ref.read(downloadsPanelViewProvider.notifier).state =
+                DownloadsPanelView.tasks;
             ref.read(downloadUrlFocusRequestProvider.notifier).state++;
           } else {
-            ref.read(downloadsPanelOpenProvider.notifier).state = false;
+            final isFocused = ref.read(isDownloadInputFocusedProvider);
+            if (!isFocused) {
+              ref.read(downloadsPanelViewProvider.notifier).state =
+                  DownloadsPanelView.tasks;
+              ref.read(downloadUrlFocusRequestProvider.notifier).state++;
+            } else {
+              ref.read(downloadsPanelOpenProvider.notifier).state = false;
+            }
           }
           return KeyEventResult.handled;
         }
@@ -316,7 +338,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           ref.read(backgroundPanelOpenProvider.notifier).state = !bOpen;
           if (!bOpen) {
             ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+            ref.read(backgroundPanelViewProvider.notifier).state =
+                BackgroundPanelView.tasks;
           }
           return KeyEventResult.handled;
         }
@@ -324,16 +347,18 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       return KeyEventResult.ignored;
     }
 
-    _urlFocusNode = FocusNode(onKeyEvent: handlePanelShortcuts)..addListener(() {
+    _urlFocusNode = FocusNode(onKeyEvent: handlePanelShortcuts)
+      ..addListener(() {
         ref.read(isDownloadInputFocusedProvider.notifier).state =
             _urlFocusNode.hasFocus;
         setState(() {});
       });
-    
-    _listFocusNode = FocusNode(onKeyEvent: handlePanelShortcuts)..addListener(() {
-      ref.read(isDownloadsPanelFocusedProvider.notifier).state =
-          _listFocusNode.hasFocus;
-    });
+
+    _listFocusNode = FocusNode(onKeyEvent: handlePanelShortcuts)
+      ..addListener(() {
+        ref.read(isDownloadsPanelFocusedProvider.notifier).state =
+            _listFocusNode.hasFocus;
+      });
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _checkBinaries();
     _gradientController = AnimationController(
@@ -389,7 +414,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         }
         return true;
       }
-
     }
     return false;
   }
@@ -570,7 +594,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
     try {
       final browser = ref.read(settingsProvider).value?.downloadBrowser;
-      final isPlaylist = _parsedItems?.any((g) => g.originalUrl == url && g.items.isNotEmpty && g.items.first.isPlaylist) ?? false;
+      final isPlaylist =
+          _parsedItems?.any(
+            (g) =>
+                g.originalUrl == url &&
+                g.items.isNotEmpty &&
+                g.items.first.isPlaylist,
+          ) ??
+          false;
       final items = await MediaDownloaderBackend.analyzeUrls(
         [url],
         engine: _selectedEngine,
@@ -604,20 +635,25 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 // Update it in case metadata changed
                 group.items[existsIndex] = info;
               }
-              
+
               // Ensure hydration_loading stays at the end of the list
               if (info.id != 'hydration_loading') {
-                final loadingIndex = group.items.indexWhere((e) => e.id == 'hydration_loading');
-                if (loadingIndex != -1 && loadingIndex < group.items.length - 1) {
+                final loadingIndex = group.items.indexWhere(
+                  (e) => e.id == 'hydration_loading',
+                );
+                if (loadingIndex != -1 &&
+                    loadingIndex < group.items.length - 1) {
                   final loadingItem = group.items.removeAt(loadingIndex);
                   group.items.add(loadingItem);
                 }
               }
-              
+
               if (group.items.isNotEmpty && group.items.first.isPlaylist) {
-                group.items[0] = group.items[0].copyWith(fetchLogs: info.fetchLogs);
+                group.items[0] = group.items[0].copyWith(
+                  fetchLogs: info.fetchLogs,
+                );
               }
-              
+
               // C5: Throttle stats recalculation to every 5th item
               _pendingStatsUpdate++;
               if (_pendingStatsUpdate % 5 == 0) {
@@ -634,22 +670,29 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       setState(() {
         _backgroundLoadingProfiles.remove(url);
         _activeHydrationPids.remove(url);
-        
+
         // Ensure sorted items from generic extractors replace the old unsorted items
         if (_parsedItems != null) {
-          final groupIndex = _parsedItems!.indexWhere((g) => g.originalUrl == url);
+          final groupIndex = _parsedItems!.indexWhere(
+            (g) => g.originalUrl == url,
+          );
           if (groupIndex != -1) {
             final group = _parsedItems![groupIndex];
-            final playlistInfo = group.items.isNotEmpty && group.items.first.isPlaylist ? group.items.first : null;
-            final isGenericGroup = playlistInfo?.extractor?.toLowerCase() == 'generic' || 
-                                   (items.isNotEmpty && items.any((i) => i.extractor?.toLowerCase() == 'generic'));
-            
+            final playlistInfo =
+                group.items.isNotEmpty && group.items.first.isPlaylist
+                ? group.items.first
+                : null;
+            final isGenericGroup =
+                playlistInfo?.extractor?.toLowerCase() == 'generic' ||
+                (items.isNotEmpty &&
+                    items.any((i) => i.extractor?.toLowerCase() == 'generic'));
+
             if (isGenericGroup) {
               items.sort((a, b) {
                 final durA = a.duration ?? 0;
                 final durB = b.duration ?? 0;
                 if (durA != durB) return durB.compareTo(durA);
-                
+
                 final sizeA = a.filesize ?? 0;
                 final sizeB = b.filesize ?? 0;
                 return sizeB.compareTo(sizeA);
@@ -658,10 +701,19 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
             group.items.clear();
             if (playlistInfo != null) {
-              final String? errorMsg = items.isNotEmpty ? items.first.errorMessage : null;
-              final String? fetchLogs = items.isNotEmpty ? items.first.fetchLogs : null;
+              final String? errorMsg = items.isNotEmpty
+                  ? items.first.errorMessage
+                  : null;
+              final String? fetchLogs = items.isNotEmpty
+                  ? items.first.fetchLogs
+                  : null;
               if (errorMsg != null || fetchLogs != null) {
-                group.items.add(playlistInfo.copyWith(errorMessage: errorMsg, fetchLogs: fetchLogs));
+                group.items.add(
+                  playlistInfo.copyWith(
+                    errorMessage: errorMsg,
+                    fetchLogs: fetchLogs,
+                  ),
+                );
               } else {
                 group.items.add(playlistInfo);
               }
@@ -767,16 +819,21 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
 
             _configs[i] = DownloadConfig(
-              format: info.formats.isNotEmpty 
-                  ? info.formats.last 
-                  : (info.isPlaylist ? const MediaFormat(
-                      formatId: 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
-                      extension: 'mp4',
-                      resolution: '1080p',
-                      formatString: '1080p mp4',
-                    ) : null),
+              format: info.formats.isNotEmpty
+                  ? info.formats.last
+                  : (info.isPlaylist
+                        ? const MediaFormat(
+                            formatId:
+                                'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
+                            extension: 'mp4',
+                            resolution: '1080p',
+                            formatString: '1080p mp4',
+                          )
+                        : null),
               groupFilter: defaultFilter,
-              engine: info.engineId ?? 'auto', // C3: capture actual resolved engine at fetch time
+              engine:
+                  info.engineId ??
+                  'auto', // C3: capture actual resolved engine at fetch time
             );
           }
         }
@@ -820,12 +877,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           RegExp(r'[\\/:*?"<>|]'),
           '_',
         );
-        final itemDest = group.first.isProfile ? p.join(dest, safeName) : dest;
-        if (group.first.isProfile && !Directory(itemDest).existsSync()) {
+        final isProfileOrPlaylist =
+            group.first.isProfile || group.first.isPlaylist;
+        final itemDest = isProfileOrPlaylist ? p.join(dest, safeName) : dest;
+        if (isProfileOrPlaylist && !Directory(itemDest).existsSync()) {
           Directory(itemDest).createSync(recursive: true);
         }
 
-        if (!group.first.isProfile) {
+        if (!isProfileOrPlaylist) {
           final dir = Directory(itemDest);
           List<File> existingFiles = [];
           if (dir.existsSync()) {
@@ -890,13 +949,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           }
         }
 
-        int expectedBytes = 0;
-        for (final item in itemsToDownload) {
-          if (filterType == 'images' && (item.isVideo || item.isProfile || item.isPlaylist)) continue;
-          if (filterType == 'videos' && (!item.isVideo || item.isProfile || item.isPlaylist)) continue;
-          if (filterType == null && (item.isProfile || item.isPlaylist)) continue;
-          expectedBytes += item.filesize ?? 0;
-        }
+        int expectedBytes = _getGroupBytes(
+          MediaGroup(originalUrl: group.originalUrl, items: itemsToDownload),
+          config,
+        );
 
         ref
             .read(downloadTaskProvider.notifier)
@@ -913,7 +969,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               engine: config.engine, // C3: use engine captured at fetch time
               isPlaylist: group.first.isPlaylist, // C2: pass actual isPlaylist
               isProfile: group.first.isProfile,
-              browser: ref.read(settingsProvider).value?.downloadBrowser, // C4: add missing browser
+              browser: ref
+                  .read(settingsProvider)
+                  .value
+                  ?.downloadBrowser, // C4: add missing browser
               isZip: false, // Ensure zip is off
               filterType: filterType,
               totalItems: totalFilteredItems,
@@ -951,7 +1010,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         final format = config.itemFormats[info.id] ?? config.format;
 
         String itemDest = dest;
-        if (group.first.isPlaylist) {
+        if ((group.first.isPlaylist || group.first.isProfile) &&
+            singleItemId == null) {
           final safeName = group.first.title.replaceAll(
             RegExp(r'[\\/:*?"<>|]'),
             '_',
@@ -1093,14 +1153,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             RegExp(r'[\\/:*?"<>|]'),
             '_',
           );
-          final itemDest = group.first.isProfile
-              ? p.join(dest, safeName)
-              : dest;
-          if (group.first.isProfile && !Directory(itemDest).existsSync()) {
+          final isProfileOrPlaylist =
+              group.first.isProfile || group.first.isPlaylist;
+          final itemDest = isProfileOrPlaylist ? p.join(dest, safeName) : dest;
+          if (isProfileOrPlaylist && !Directory(itemDest).existsSync()) {
             Directory(itemDest).createSync(recursive: true);
           }
 
-          if (!group.first.isProfile) {
+          if (!isProfileOrPlaylist) {
             if (!dirCache.containsKey(itemDest)) {
               final dir = Directory(itemDest);
               if (dir.existsSync()) {
@@ -1166,13 +1226,13 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
           }
 
-          int expectedBytes = 0;
-          for (final item in itemsToDownloadLocal) {
-            if (filterType == 'images' && (item.isVideo || item.isProfile || item.isPlaylist)) continue;
-            if (filterType == 'videos' && (!item.isVideo || item.isProfile || item.isPlaylist)) continue;
-            if (filterType == null && (item.isProfile || item.isPlaylist)) continue;
-            expectedBytes += item.filesize ?? 0;
-          }
+          int expectedBytes = _getGroupBytes(
+            MediaGroup(
+              originalUrl: group.originalUrl,
+              items: itemsToDownloadLocal,
+            ),
+            config,
+          );
 
           ref
               .read(downloadTaskProvider.notifier)
@@ -1187,9 +1247,13 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 audioOnly: config.mode == DownloadMode.audioOnly,
                 mute: config.mode == DownloadMode.mute,
                 engine: config.engine, // C3: use engine captured at fetch time
-                isPlaylist: group.first.isPlaylist, // C2: pass actual isPlaylist
+                isPlaylist:
+                    group.first.isPlaylist, // C2: pass actual isPlaylist
                 isProfile: group.first.isProfile,
-                browser: ref.read(settingsProvider).value?.downloadBrowser, // C4: add missing browser
+                browser: ref
+                    .read(settingsProvider)
+                    .value
+                    ?.downloadBrowser, // C4: add missing browser
                 isZip: false, // Ensure zip is off
                 filterType: filterType,
                 totalItems: totalFilteredItems,
@@ -1464,28 +1528,39 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                               builder: (context, setStateOverlay) {
                                 return IconButton(
                                   padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 36,
+                                    minHeight: 36,
+                                  ),
                                   splashRadius: 18,
                                   icon: Icon(
-                                    isCopied ? Icons.check_rounded : Icons.copy_rounded,
-                                    color: isCopied ? Colors.greenAccent : Colors.white70,
+                                    isCopied
+                                        ? Icons.check_rounded
+                                        : Icons.copy_rounded,
+                                    color: isCopied
+                                        ? Colors.greenAccent
+                                        : Colors.white70,
                                     size: 18,
                                   ),
                                   onPressed: () {
-                                    if (_errorLogsMessage != null && !isCopied) {
+                                    if (_errorLogsMessage != null &&
+                                        !isCopied) {
                                       Clipboard.setData(
                                         ClipboardData(text: _errorLogsMessage!),
                                       );
                                       setStateOverlay(() {
                                         isCopied = true;
                                       });
-                                      Future.delayed(const Duration(seconds: 3), () {
-                                        if (mounted) {
-                                          setStateOverlay(() {
-                                            isCopied = false;
-                                          });
-                                        }
-                                      });
+                                      Future.delayed(
+                                        const Duration(seconds: 3),
+                                        () {
+                                          if (mounted) {
+                                            setStateOverlay(() {
+                                              isCopied = false;
+                                            });
+                                          }
+                                        },
+                                      );
                                     }
                                   },
                                   tooltip: 'Copy Logs',
@@ -1494,9 +1569,16 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                             ),
                             IconButton(
                               padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              constraints: const BoxConstraints(
+                                minWidth: 36,
+                                minHeight: 36,
+                              ),
                               splashRadius: 18,
-                              icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 18),
+                              icon: const Icon(
+                                Icons.refresh_rounded,
+                                color: Colors.white70,
+                                size: 18,
+                              ),
                               onPressed: () {
                                 setState(() {
                                   _updateLogsMessage();
@@ -1507,9 +1589,16 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                             ),
                             IconButton(
                               padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              constraints: const BoxConstraints(
+                                minWidth: 36,
+                                minHeight: 36,
+                              ),
                               splashRadius: 18,
-                              icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white70,
+                                size: 18,
+                              ),
                               onPressed: () {
                                 setState(() {
                                   _errorLogsMessage = null;
@@ -1710,7 +1799,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           if (!dOpen) {
             ref.read(downloadsPanelOpenProvider.notifier).state = true;
             ref.read(backgroundPanelOpenProvider.notifier).state = false;
-            ref.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+            ref.read(downloadsPanelViewProvider.notifier).state =
+                DownloadsPanelView.tasks;
             ref.read(downloadUrlFocusRequestProvider.notifier).state++;
           } else {
             ref.read(downloadsPanelOpenProvider.notifier).state = false;
@@ -1721,7 +1811,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           ref.read(backgroundPanelOpenProvider.notifier).state = !bOpen;
           if (!bOpen) {
             ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            ref.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.tasks;
+            ref.read(backgroundPanelViewProvider.notifier).state =
+                BackgroundPanelView.tasks;
           }
         },
         const SingleActivator(
