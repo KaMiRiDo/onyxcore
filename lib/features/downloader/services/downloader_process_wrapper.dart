@@ -121,6 +121,7 @@ class MediaDownloaderBackend {
               height: successfulInfos[i].height,
               originalUrl: successfulInfos[i].originalUrl,
               directUrl: successfulInfos[i].directUrl,
+              webpageUrl: successfulInfos[i].webpageUrl,
               isError: successfulInfos[i].isError,
               isLive: successfulInfos[i].isLive,
               errorMessage: successfulInfos[i].errorMessage ?? (engineErrors.isNotEmpty ? engineErrors.values.first : null),

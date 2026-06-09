@@ -131,7 +131,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                             ),
                             const SizedBox(width: 8),
                             CopyUrlButton(
-                              url: item.directUrl ?? item.originalUrl,
+                              url: item.webpageUrl ?? item.directUrl ?? item.originalUrl,
                             ),
                           ],
                         ),
@@ -262,7 +262,9 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                             _previewIndex = index;
                             _previewCarouselIndex = 0;
                           });
-                          _previewFocusNode.requestFocus();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _previewFocusNode.requestFocus();
+                          });
                         }
                       },
                       child: MouseRegion(
@@ -824,9 +826,16 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
       final formatSet = <String, MediaFormat>{};
       for (final vid in group.items) {
         if (vid.isVideo) {
-          for (final f in vid.formats) {
+          final sortedFormats = vid.formats.toList()
+            ..sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+          for (final f in sortedFormats) {
             if (!formatSet.containsKey(f.resolution)) {
               formatSet[f.resolution] = f;
+            } else {
+              final existing = formatSet[f.resolution]!;
+              if ((f.filesize ?? 0) > (existing.filesize ?? 0)) {
+                formatSet[f.resolution] = f;
+              }
             }
           }
         }
@@ -874,7 +883,14 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
       final bAudio =
           b.resolution == 'audio only' || b.resolution.toLowerCase() == 'audio';
       if (aAudio != bAudio) return aAudio ? 1 : -1;
-      return _getHeight(b.resolution).compareTo(_getHeight(a.resolution));
+      
+      final hA = _getHeight(a.resolution);
+      final hB = _getHeight(b.resolution);
+      if (hA != hB) return hB.compareTo(hA);
+      
+      final sizeA = a.filesize ?? 0;
+      final sizeB = b.filesize ?? 0;
+      return sizeB.compareTo(sizeA);
     });
 
     final maxH = formats.fold<int>(0, (max, f) {
@@ -910,11 +926,14 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
     }
 
     final hasMultiple = formats.length > 1;
-    final displayFormat = formats.contains(currentFormat)
-        ? currentFormat
-        : (formats.isNotEmpty ? formats.first : null);
+    final displayFormat = isItemLevel
+        ? matchTargetFormat(item, currentFormat)
+        : (formats.contains(currentFormat)
+            ? currentFormat
+            : (formats.isNotEmpty ? formats.first : null));
 
     return PopupMenuButton<MediaFormat>(
+      initialValue: displayFormat,
       enabled: hasMultiple,
       offset: const Offset(0, 36),
       shape: RoundedRectangleBorder(
@@ -941,7 +960,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
         });
       },
       itemBuilder: (context) => formats.map((f) {
-        final isSelected = f == currentFormat;
+        final isSelected = f == displayFormat;
         return PopupMenuItem<MediaFormat>(
           value: f,
           height: 34,

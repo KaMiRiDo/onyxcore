@@ -217,6 +217,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   ),
                                   CopyUrlButton(
                                     url:
+                                        item.first.webpageUrl ??
                                         item.first.directUrl ??
                                         item.first.originalUrl,
                                   ),
@@ -379,9 +380,12 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
         }
 
         final currentItem = visibleItems[_previewCarouselIndex];
-        final totalSize = visibleItems.fold<int>(
-          0,
-          (sum, i) => sum + (i.filesize ?? 0),
+        final totalSize = _getGroupBytes(
+          MediaGroup(
+            items: visibleItems,
+            originalUrl: group.originalUrl,
+          ),
+          config,
         );
 
         return Positioned.fill(
@@ -842,6 +846,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                     const SizedBox(height: 6),
                                     CopyUrlButton(
                                       url:
+                                          currentItem.webpageUrl ??
                                           currentItem.directUrl ??
                                           currentItem.originalUrl,
                                     ),

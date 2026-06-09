@@ -50,13 +50,19 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   }
 
   int _getHeight(String res) {
-    if (res.isEmpty || res == 'audio only' || res.toLowerCase() == 'audio')
-      return 0;
-    final parts = res.toLowerCase().split('x');
+    if (res.isEmpty || res == 'audio only' || res.toLowerCase() == 'audio') return 0;
+    final lower = res.toLowerCase();
+    if (lower.contains('4k') || lower.contains('2160')) return 2160;
+    if (lower.contains('1440') || lower.contains('2k')) return 1440;
+    if (lower.contains('1080')) return 1080;
+    if (lower.contains('720')) return 720;
+    if (lower.contains('480')) return 480;
+
+    final parts = lower.split('x');
     if (parts.length == 2) {
       return int.tryParse(parts[1]) ?? 0;
     } else {
-      return int.tryParse(res.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      return int.tryParse(lower.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     }
   }
 
@@ -71,6 +77,51 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
     final remainingMinutes = minutes % 60;
     return '$hours:${remainingMinutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
+  MediaFormat? matchTargetFormat(MediaInfo item, MediaFormat? targetFormat) {
+    if (targetFormat == null) return null;
+    if (item.formats.isEmpty) return null;
+    if (item.formats.contains(targetFormat)) {
+      return item.formats.firstWhere((f) => f == targetFormat);
+    }
+
+    final isAudioOnly = targetFormat.resolution.toLowerCase() == 'audio only' ||
+                        targetFormat.resolution.toLowerCase() == 'audio';
+    if (isAudioOnly) {
+        final audios = item.formats.where((f) => f.resolution.toLowerCase() == 'audio only' || f.resolution.toLowerCase() == 'audio' || f.videoCodec == 'none').toList();
+        return audios.isNotEmpty ? audios.first : item.formats.first;
+    } else {
+        final bestVideo = item.formats.where((f) => f.videoCodec != null && f.videoCodec != 'none').toList();
+        if (bestVideo.isNotEmpty) {
+          bestVideo.sort((a, b) {
+            final hA = _getHeight(a.resolution);
+            final hB = _getHeight(b.resolution);
+            if (hA != hB) return hB.compareTo(hA);
+            
+            final noAudioA = a.audioCodec == 'none' || a.audioCodec == null || a.audioCodec!.isEmpty || a.audioCodec == 'video only';
+            final noAudioB = b.audioCodec == 'none' || b.audioCodec == null || b.audioCodec!.isEmpty || b.audioCodec == 'video only';
+            
+            if (noAudioA && !noAudioB) return -1;
+            if (!noAudioA && noAudioB) return 1;
+            
+            final sizeA = a.filesize ?? 0;
+            final sizeB = b.filesize ?? 0;
+            return sizeB.compareTo(sizeA);
+          });
+          final targetHeight = _getHeight(targetFormat.resolution);
+          MediaFormat? matched;
+          for (final f in bestVideo) {
+            if (_getHeight(f.resolution) <= targetHeight) {
+              matched = f;
+              break;
+            }
+          }
+          return matched ?? bestVideo.first;
+        } else {
+          return item.formats.first;
+        }
+    }
+  }
+
 
   int? _getFormatBytes(
     MediaInfo item,
@@ -96,7 +147,8 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
       final bool noAudio =
           format.audioCodec == 'none' ||
           format.audioCodec == null ||
-          format.audioCodec!.isEmpty;
+          format.audioCodec!.isEmpty ||
+          format.audioCodec == 'video only';
       if (noAudio) {
         final audioFormats = item.formats
             .where(
@@ -160,24 +212,9 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
 
   String? _getFileSize(MediaInfo item, DownloadConfig config) {
     MediaFormat? currentFormat = config.itemFormats[item.id] ?? config.format;
-
-    if (currentFormat != null && !item.formats.contains(currentFormat)) {
-      if (item.formats.isNotEmpty) {
-        final bestVideo = item.formats
-            .where((f) => f.videoCodec != null && f.videoCodec != 'none')
-            .toList();
-        if (bestVideo.isNotEmpty) {
-          bestVideo.sort(
-            (a, b) =>
-                _getHeight(b.resolution).compareTo(_getHeight(a.resolution)),
-          );
-          currentFormat = bestVideo.first;
-        } else {
-          currentFormat = item.formats.first;
-        }
-      } else {
-        currentFormat = null;
-      }
+    
+    if (currentFormat != null) {
+      currentFormat = matchTargetFormat(item, currentFormat);
     }
 
     final bytes = _getFormatBytes(item, currentFormat, config);
@@ -206,23 +243,8 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
 
       MediaFormat? currentFormat = config.itemFormats[item.id] ?? config.format;
 
-      if (currentFormat != null && !item.formats.contains(currentFormat)) {
-        if (item.formats.isNotEmpty) {
-          final bestVideo = item.formats
-              .where((f) => f.videoCodec != null && f.videoCodec != 'none')
-              .toList();
-          if (bestVideo.isNotEmpty) {
-            bestVideo.sort(
-              (a, b) =>
-                  _getHeight(b.resolution).compareTo(_getHeight(a.resolution)),
-            );
-            currentFormat = bestVideo.first;
-          } else {
-            currentFormat = item.formats.first;
-          }
-        } else {
-          currentFormat = null;
-        }
+      if (currentFormat != null) {
+        currentFormat = matchTargetFormat(item, currentFormat);
       }
 
       final bytes = _getFormatBytes(item, currentFormat, config);

@@ -42,7 +42,7 @@ class MediaFormat {
               : 'audio only'),
       videoCodec: json['vcodec']?.toString(),
       audioCodec: json['acodec']?.toString(),
-      filesize: json['filesize'] as int? ?? json['filesize_approx'] as int?,
+      filesize: (json['filesize'] as num?)?.toInt() ?? (json['filesize_approx'] as num?)?.toInt(),
       formatNote: json['format_note']?.toString(),
       formatString: json['format']?.toString() ?? '',
       url: json['url']?.toString(),
@@ -82,6 +82,7 @@ class MediaInfo {
   final int? filesize;
   final String originalUrl;
   final String? directUrl;
+  final String? webpageUrl;
   final bool isError;
   final String? errorMessage;
   final String? fetchLogs;
@@ -105,6 +106,7 @@ class MediaInfo {
     this.filesize,
     required this.originalUrl,
     this.directUrl,
+    this.webpageUrl,
     this.isError = false,
     this.errorMessage,
     this.fetchLogs,
@@ -175,6 +177,7 @@ class MediaInfo {
       height: json['height'] as int?,
       originalUrl: originalUrl.isNotEmpty ? originalUrl : (json['webpage_url']?.toString() ?? ''),
       directUrl: json['url']?.toString(),
+      webpageUrl: json['webpage_url']?.toString(),
       isError: false,
       errorMessage: null,
       fetchLogs: null,
@@ -182,7 +185,7 @@ class MediaInfo {
     );
   }
 
-  MediaInfo copyWith({String? id, bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize, bool? isLive, String? originalUrl, String? directUrl, String? engineId, String? errorMessage, String? fetchLogs, bool? isVideo}) {
+  MediaInfo copyWith({String? id, bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize, bool? isLive, String? originalUrl, String? directUrl, String? webpageUrl, String? engineId, String? errorMessage, String? fetchLogs, bool? isVideo}) {
     return MediaInfo(
       id: id ?? this.id,
       title: title ?? this.title,
@@ -200,6 +203,7 @@ class MediaInfo {
       filesize: filesize ?? this.filesize,
       originalUrl: originalUrl ?? this.originalUrl,
       directUrl: directUrl ?? this.directUrl,
+      webpageUrl: webpageUrl ?? this.webpageUrl,
       isLive: isLive ?? this.isLive,
       engineId: engineId ?? this.engineId,
       errorMessage: errorMessage ?? this.errorMessage,
@@ -228,6 +232,7 @@ class MediaInfo {
       filesize: map['filesize'] as int?,
       originalUrl: map['originalUrl']?.toString() ?? '',
       directUrl: map['directUrl']?.toString(),
+      webpageUrl: map['webpageUrl']?.toString(),
       isLive: map['isLive'] as bool? ?? false,
       engineId: map['engineId']?.toString(),
       isError: map['isError'] as bool? ?? false,
@@ -254,7 +259,8 @@ class MediaInfo {
       if (filesize != null) 'filesize': filesize,
       'originalUrl': originalUrl,
       if (directUrl != null) 'directUrl': directUrl,
-      'isLive': isLive,
+      if (webpageUrl != null) 'webpageUrl': webpageUrl,
+      if (isLive) 'isLive': isLive,
       if (engineId != null) 'engineId': engineId,
       'isError': isError,
       if (errorMessage != null) 'errorMessage': errorMessage,
