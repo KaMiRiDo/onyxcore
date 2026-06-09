@@ -185,6 +185,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                     return LinearProgressIndicator(
                                       value:
                                           task.progress == 0.0 &&
+                                              task.totalSize.isEmpty &&
                                               task.status ==
                                                   DownloadStatus.running
                                           ? null
@@ -229,29 +230,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (task.expectedBytes > 0 ||
-                                task.downloadedBytes > 0) ...[
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  '•',
-                                  style: TextStyle(
-                                    color: Colors.white38,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                              Flexible(
-                                child: Text(
-                                  '${StringUtils.formatBytes(task.downloadedBytes)} / ${task.expectedBytes > 0 ? StringUtils.formatBytes(task.expectedBytes) : '?'}',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.manrope(
-                                    color: AppColors.textMuted.withOpacity(0.6),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            // Left side stats removed to prefer the right side consolidated string
                           ],
                         ),
                       ),
@@ -260,78 +239,19 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                               task.totalSize.isNotEmpty ||
                               task.eta.isNotEmpty))
                         Flexible(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (task.totalSize.isNotEmpty)
-                                Flexible(
-                                  child: Text(
-                                    task.totalSize,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.manrope(
-                                      color: AppColors.textMuted.withOpacity(
-                                        0.6,
-                                      ),
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ),
-                              if (task.speed.isNotEmpty) ...[
-                                if (task.totalSize.isNotEmpty)
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                    ),
-                                    child: Text(
-                                      '•',
-                                      style: TextStyle(
-                                        color: Colors.white38,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ),
-                                Flexible(
-                                  child: Text(
-                                    task.speed,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.manrope(
-                                      color: AppColors.violet.withOpacity(0.7),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              if (task.eta.isNotEmpty) ...[
-                                if (task.totalSize.isNotEmpty ||
-                                    task.speed.isNotEmpty)
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                    ),
-                                    child: Text(
-                                      '•',
-                                      style: TextStyle(
-                                        color: Colors.white38,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ),
-                                Flexible(
-                                  child: Text(
-                                    'ETA ${task.eta}',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.manrope(
-                                      color: AppColors.textMuted.withOpacity(
-                                        0.6,
-                                      ),
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
+                          flex: 2,
+                          child: Text(
+                            [
+                              if (task.totalSize.isNotEmpty) task.totalSize,
+                              if (task.speed.isNotEmpty) task.speed,
+                              if (task.eta.isNotEmpty) 'ETA ${task.eta}',
+                            ].join('  •  '),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            style: GoogleFonts.manrope(
+                              color: AppColors.textMuted.withOpacity(0.8),
+                              fontSize: 11,
+                            ),
                           ),
                         ),
                     ],

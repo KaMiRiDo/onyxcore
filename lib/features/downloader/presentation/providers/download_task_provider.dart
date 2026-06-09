@@ -185,6 +185,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
       stdoutSub = process.stdout
           .transform(utf8.decoder)
+          .map((s) => s.replaceAll('\r', '\n'))
           .transform(const LineSplitter())
           .listen((data) {
             _parseProgress(id, data);
@@ -476,10 +477,20 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }) {
     state = state.map((task) {
       if (task.id == id) {
+        final isProfile = _taskArgs[id]?['isProfile'] as bool? ?? false;
+        final isPlaylist = _taskArgs[id]?['isPlaylist'] as bool? ?? false;
+        final isMonitorActive = isProfile || isPlaylist;
+
         final ignoreProgress =
-            !fromMonitor && task.expectedBytes > 0 && progress != null;
+            !fromMonitor &&
+            task.expectedBytes > 0 &&
+            isMonitorActive &&
+            progress != null;
         final ignoreTotalSize =
-            !fromMonitor && task.expectedBytes > 0 && totalSize != null;
+            !fromMonitor &&
+            task.expectedBytes > 0 &&
+            isMonitorActive &&
+            totalSize != null;
 
         final updated = task.copyWith(
           status: status,
@@ -521,59 +532,121 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   void _parseProgress(String id, String data) {
-    // 1. Handle standard yt-dlp output: [download] 45.2% of 150.3MiB at 5.2MiB/s ETA 00:15
+    // Strip ANSI escape codes (colors, clear lines) before parsing
+    data = data.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
+
+    void updateWithProgress(
+      double percentage, {
+      String? totalSize,
+      String? speed,
+      String? eta,
+    }) {
+      double finalProgress = percentage / 100.0;
+      String? finalTotalSize = totalSize;
+
+      final currentTotal = _taskArgs[id]?['totalItems'] as int?;
+      if (currentTotal != null && currentTotal > 1) {
+        final count = _downloadedCounts[id] ?? 0;
+        finalProgress = (count + (percentage / 100.0)) / currentTotal;
+        if (finalProgress > 1.0) finalProgress = 1.0;
+        finalTotalSize = '$count / $currentTotal';
+      }
+
+      _updateTask(
+        id,
+        progress: finalProgress,
+        speed: speed?.trim(),
+        eta: eta?.trim(),
+        totalSize: finalTotalSize?.trim(),
+      );
+    }
+
+    // 1. Handle standard yt-dlp output
+    // Handles variants like:
+    // [download]  13.0% of  107.0MiB at  16.0MiB/s ETA 00:05
+    // [download]  13.0% of ~10.0MiB at Unknown B/s ETA Unknown
+    // [download] 100% of 10.0MiB in 00:01
     final RegExp progressRegExp = RegExp(
-      r'\[download\]\s+([\d\.]+)\%\s+of\s+(.*?)\s+at\s+(.*?)\s+ETA\s+(.*)',
+      r'\[download\]\s+([\d\.]+)\%\s+of\s+([^\s]+)(?:.*?at\s+([^ ]+))?(?:.*?ETA\s+(.*))?',
     );
     final match = progressRegExp.firstMatch(data);
 
     if (match != null) {
       final percentage = double.tryParse(match.group(1) ?? '0.0') ?? 0.0;
-      final size = match.group(2) ?? '';
-      final speed = match.group(3) ?? '';
-      final eta = match.group(4) ?? '';
+      final size = match.group(2)?.trim() ?? '';
+      final speed = match.group(3)?.trim() ?? '';
+      final eta = match.group(4)?.trim() ?? '';
 
-      _updateTask(
-        id,
-        progress: percentage / 100.0,
-        speed: speed.trim(),
-        eta: eta.trim(),
-        totalSize: size.trim(),
+      updateWithProgress(
+        percentage,
+        speed: speed,
+        eta: eta,
+        totalSize: size,
       );
       return;
     }
 
-    // 2. Handle aria2c output if injected: [...(20%)...DL:5.2MiB ETA:8s]
-    final RegExp ariaRegExp = RegExp(r'\[.*?\((\d+)%\).*?DL:(.*?) ETA:(.*?)\]');
+    // 1.2 Track playlist item index: [download] Downloading video 1 of 25
+    final RegExp itemIndexRegExp = RegExp(
+      r'\[download\]\s+Downloading\s+(?:video|item)\s+(\d+)\s+of\s+(\d+)',
+    );
+    final indexMatch = itemIndexRegExp.firstMatch(data);
+    if (indexMatch != null) {
+      final index = int.tryParse(indexMatch.group(1) ?? '1') ?? 1;
+      // Index is 1-based. Completed count is index - 1.
+      if (index > 0) {
+        _downloadedCounts[id] = index - 1;
+      }
+      return;
+    }
+
+    // 1.5 Handle fragmented downloads: [download] Frag 1/10
+    final RegExp fragRegExp = RegExp(r'\[download\]\s+Frag\s+(\d+)/(\d+)');
+    final fragMatch = fragRegExp.firstMatch(data);
+    if (fragMatch != null) {
+      final frag = double.tryParse(fragMatch.group(1) ?? '0.0') ?? 0.0;
+      final total = double.tryParse(fragMatch.group(2) ?? '0.0') ?? 1.0;
+      updateWithProgress(
+        (frag / total) * 100.0,
+        totalSize: '${fragMatch.group(1)} / ${fragMatch.group(2)} Frags',
+      );
+      return;
+    }
+
+    // 1.6 Handle unknown total sizes: [download] 10.0MiB at 5.0MiB/s
+    final RegExp unknownTotalRegExp = RegExp(
+      r'\[download\]\s+([\d\.]+[a-zA-Z]+)\s+at\s+([^ ]+)(?:.*?ETA\s+(.*))?',
+    );
+    final unknownMatch = unknownTotalRegExp.firstMatch(data);
+    if (unknownMatch != null) {
+      final downloadedSize = unknownMatch.group(1) ?? '';
+      final speed = unknownMatch.group(2) ?? '';
+      final eta = unknownMatch.group(3) ?? '';
+      updateWithProgress(
+        0.0,
+        speed: speed,
+        eta: eta,
+        totalSize: '$downloadedSize / ?',
+      );
+      return;
+    }
+
+    // 2. Handle aria2c output
+    // Matches: [#bb8141 1.7MiB/113MiB(1%) CN:16 DL:2.7MiB ETA:41s]
+    final RegExp ariaRegExp = RegExp(
+      r'([\d.]+)([a-zA-Z]+)\s*/\s*([\d.]+)([a-zA-Z]+)\s*\(([\d.]+)%\).*?DL:\s*([^\s\]]+)(?:.*?ETA:\s*([^\s\]]+))?',
+    );
     final ariaMatch = ariaRegExp.firstMatch(data);
     if (ariaMatch != null) {
-      final percentage = double.tryParse(ariaMatch.group(1) ?? '0.0') ?? 0.0;
-      final speed = ariaMatch.group(2) ?? '';
-      final eta = ariaMatch.group(3) ?? '';
-      _updateTask(
-        id,
-        progress: percentage / 100.0,
-        speed: speed.trim(),
-        eta: eta.trim(),
-      );
-      return;
-    }
-
-    // 3. Handle aria2c standalone: [#hash 10MiB/50MiB(20%) CN:16 DL:5.2MiB/s ETA:8s]
-    final ariaStandalone = RegExp(
-      r'(\d+)MiB/(\d+)MiB\((\d+)%\).*?DL:(\S+).*?ETA:(\S+)',
-    );
-    final ariaStdMatch = ariaStandalone.firstMatch(data);
-    if (ariaStdMatch != null) {
-      final percentage = double.tryParse(ariaStdMatch.group(3) ?? '0.0') ?? 0.0;
-      final speed = ariaStdMatch.group(4) ?? '';
-      final eta = ariaStdMatch.group(5) ?? '';
-      final totalSize = '${ariaStdMatch.group(1)}/${ariaStdMatch.group(2)} MiB';
-      _updateTask(
-        id,
-        progress: percentage / 100.0,
-        speed: speed.trim(),
-        eta: eta.trim(),
+      final percentage = double.tryParse(ariaMatch.group(5) ?? '0.0') ?? 0.0;
+      final speed = ariaMatch.group(6) ?? '';
+      final eta = ariaMatch.group(7) ?? '';
+      final totalSize =
+          '${ariaMatch.group(1)}${ariaMatch.group(2)} / ${ariaMatch.group(3)}${ariaMatch.group(4)}';
+      updateWithProgress(
+        percentage,
+        speed: speed,
+        eta: eta,
         totalSize: totalSize,
       );
       return;
@@ -581,22 +654,24 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
     // 4. Handle aria2c download complete
     if (data.contains('Download complete:')) {
-      _updateTask(id, progress: 1.0);
+      final currentTotal = _taskArgs[id]?['totalItems'] as int?;
+      if (currentTotal == null || currentTotal <= 1) {
+        _updateTask(id, progress: 1.0);
+      }
       return;
     }
 
     // 5. Handle You-Get progress: 98.5% ( 24.0/ 24.4MB) [==============>]
-    final youGetProgress = RegExp(
+    final RegExp youGetProgress = RegExp(
       r'(\d+\.?\d*)%\s+\(\s*[\d.]+/\s*([\d.]+\s*\w+)\)',
     );
     final youGetMatch = youGetProgress.firstMatch(data);
     if (youGetMatch != null) {
       final percentage = double.tryParse(youGetMatch.group(1) ?? '0.0') ?? 0.0;
       final totalSize = youGetMatch.group(2) ?? '';
-      _updateTask(
-        id,
-        progress: percentage / 100.0,
-        totalSize: totalSize.trim(),
+      updateWithProgress(
+        percentage,
+        totalSize: totalSize,
       );
       return;
     }
@@ -608,7 +683,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }
 
     // 7. Handle Lux progress: 50.00% |████████░░░░| 25.0/50.0 MiB 5.0 MiB/s 5s
-    final luxProgress = RegExp(
+    final RegExp luxProgress = RegExp(
       r'(\d+\.?\d*)%\s+\|.*?\|\s+([\d.]+/[\d.]+\s+\w+)\s+([\d.]+\s+\w+/s)\s+(\S+)',
     );
     final luxMatch = luxProgress.firstMatch(data);
@@ -617,12 +692,11 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       final totalSize = luxMatch.group(2) ?? '';
       final speed = luxMatch.group(3) ?? '';
       final eta = luxMatch.group(4) ?? '';
-      _updateTask(
-        id,
-        progress: percentage / 100.0,
-        speed: speed.trim(),
-        eta: eta.trim(),
-        totalSize: totalSize.trim(),
+      updateWithProgress(
+        percentage,
+        speed: speed,
+        eta: eta,
+        totalSize: totalSize,
       );
       return;
     }
@@ -651,25 +725,32 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     // 10. Handle gallery-dl file output
     // gallery-dl usually prints the full file path to stdout when a file completes downloading.
     final currentTotal = _taskArgs[id]?['totalItems'] as int?;
+    final engine = _taskArgs[id]?['engine'] as String?;
 
-    // Check if it's not a log message
-    if (!data.trim().startsWith('[') && data.trim().isNotEmpty) {
-      final extRegExp = RegExp(
-        r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv|ts)$',
-        caseSensitive: false,
-      );
-      if (extRegExp.hasMatch(data.trim()) ||
-          data.contains('/') ||
-          data.contains('\\')) {
-        _downloadedCounts[id] = (_downloadedCounts[id] ?? 0) + 1;
-        final count = _downloadedCounts[id]!;
+    if (engine == 'gallery-dl') {
+      // Check if it's not a log message
+      if (!data.trim().startsWith('[') && data.trim().isNotEmpty) {
+        final extRegExp = RegExp(
+          r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv|ts)$',
+          caseSensitive: false,
+        );
+        if (extRegExp.hasMatch(data.trim()) ||
+            data.contains('/') ||
+            data.contains('\\')) {
+          _downloadedCounts[id] = (_downloadedCounts[id] ?? 0) + 1;
+          final count = _downloadedCounts[id]!;
 
-        if (currentTotal != null && currentTotal > 0) {
-          double prog = count / currentTotal;
-          if (prog > 1.0) prog = 1.0;
-          _updateTask(id, progress: prog, totalSize: '$count / $currentTotal');
-        } else {
-          _updateTask(id, progress: null, totalSize: '$count / ?');
+          if (currentTotal != null && currentTotal > 0) {
+            double prog = count / currentTotal;
+            if (prog > 1.0) prog = 1.0;
+            _updateTask(
+              id,
+              progress: prog,
+              totalSize: '$count / $currentTotal',
+            );
+          } else {
+            _updateTask(id, progress: null, totalSize: '$count / ?');
+          }
         }
       }
     }
@@ -750,6 +831,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       } catch (_) {}
     });
   }
+
+  void parseProgressForTesting(String id, String data) => _parseProgress(id, data);
 }
 
 final downloadTaskProvider =

@@ -348,7 +348,11 @@ class YtDlpEngine extends DownloadEngine {
     String? singleItemId,
     String? directUrl,
   }) async {
-    final args = <String>[];
+    final args = <String>[
+      '--newline',
+      '--compat-options',
+      'no-external-downloader-progress',
+    ];
 
     String? actualBrowser = browser;
     if (actualBrowser == null) {

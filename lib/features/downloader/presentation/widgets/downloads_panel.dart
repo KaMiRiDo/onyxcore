@@ -1071,7 +1071,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         ref
             .read(downloadTaskProvider.notifier)
             .startDownload(
-              url: info.originalUrl,
+              url: info.webpageUrl ?? info.directUrl ?? info.originalUrl,
               destination: itemDest,
               title: finalTitle,
               downloadType: info.isPlaylist
@@ -1084,7 +1084,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               mute: config.mode == DownloadMode.mute,
               galleryIndex: info.galleryIndex,
               engine: config.engine, // C3: use engine captured at fetch time
-              isPlaylist: info.isPlaylist,
+              isPlaylist:
+                  false, // Ensure isPlaylist is false for single items to avoid size monitor overrides
               browser: ref.read(settingsProvider).value?.downloadBrowser,
               totalItems: 1,
               singleItemId: singleItemId,
