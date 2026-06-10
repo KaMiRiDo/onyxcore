@@ -719,6 +719,40 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               }
             }
             group.items.addAll(items);
+
+            // Auto-select the highest available format after hydration
+            if (_configs.containsKey(groupIndex)) {
+              final config = _configs[groupIndex]!;
+              final formatSet = <String, MediaFormat>{};
+              for (final vid in group.items) {
+                if (vid.isVideo) {
+                  final sortedFormats = vid.formats.toList()
+                    ..sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+                  for (final f in sortedFormats) {
+                    if (!formatSet.containsKey(f.resolution)) {
+                      formatSet[f.resolution] = f;
+                    } else {
+                      final existing = formatSet[f.resolution]!;
+                      if ((f.filesize ?? 0) > (existing.filesize ?? 0)) {
+                        formatSet[f.resolution] = f;
+                      }
+                    }
+                  }
+                }
+              }
+              if (formatSet.isNotEmpty) {
+                final availableFormats = formatSet.values.toList();
+                availableFormats.sort((a, b) {
+                  final hA = _getHeight(a.resolution);
+                  final hB = _getHeight(b.resolution);
+                  if (hA != hB) return hB.compareTo(hA);
+                  return (b.filesize ?? 0).compareTo(a.filesize ?? 0);
+                });
+                config.format = availableFormats.first;
+                config.itemFormats.clear();
+              }
+            }
+
             _recalculateFilteredStatistics();
             _hydrationNotifier.value++;
           }
@@ -949,10 +983,12 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           }
         }
 
-        int expectedBytes = _getGroupBytes(
-          MediaGroup(originalUrl: group.originalUrl, items: itemsToDownload),
-          config,
-        );
+        int expectedBytes = isHydrating
+            ? 0
+            : _getGroupBytes(
+                MediaGroup(originalUrl: group.originalUrl, items: itemsToDownload),
+                config,
+              );
 
         ref
             .read(downloadTaskProvider.notifier)

@@ -33,6 +33,8 @@ class DownloadTask {
   final String totalSize;
   final int expectedBytes;
   final int downloadedBytes;
+  final int completedItems;
+  final int totalItems;
   final String? error;
   final Process? process;
   final List<String> logs;
@@ -52,6 +54,8 @@ class DownloadTask {
     this.totalSize = '',
     this.expectedBytes = 0,
     this.downloadedBytes = 0,
+    this.completedItems = 0,
+    this.totalItems = 0,
     this.error,
     this.process,
     this.logs = const [],
@@ -69,6 +73,8 @@ class DownloadTask {
     String? totalSize,
     int? expectedBytes,
     int? downloadedBytes,
+    int? completedItems,
+    int? totalItems,
     String? error,
     Process? process,
     List<String>? logs,
@@ -87,6 +93,8 @@ class DownloadTask {
       totalSize: totalSize ?? this.totalSize,
       expectedBytes: expectedBytes ?? this.expectedBytes,
       downloadedBytes: downloadedBytes ?? this.downloadedBytes,
+      completedItems: completedItems ?? this.completedItems,
+      totalItems: totalItems ?? this.totalItems,
       error: error ?? this.error,
       process: process ?? this.process,
       logs: logs ?? this.logs,
@@ -270,6 +278,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       downloadType: downloadType,
       status: DownloadStatus.pending,
       expectedBytes: expectedBytes,
+      totalItems: totalItems ?? 0,
       createdAt: DateTime.now(),
     );
 
@@ -438,7 +447,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           _updateTask(
             task.id,
             progress: _downloadedCounts[task.id]! / newTotal,
-            totalSize: '${_downloadedCounts[task.id]!} / $newTotal',
+            completedItems: _downloadedCounts[task.id]!,
+            totalItems: newTotal,
           );
         }
       }
@@ -470,36 +480,24 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     String? totalSize,
     int? expectedBytes,
     int? downloadedBytes,
+    int? completedItems,
+    int? totalItems,
     String? error,
     Process? process,
     DateTime? completedAt,
-    bool fromMonitor = false,
   }) {
     state = state.map((task) {
       if (task.id == id) {
-        final isProfile = _taskArgs[id]?['isProfile'] as bool? ?? false;
-        final isPlaylist = _taskArgs[id]?['isPlaylist'] as bool? ?? false;
-        final isMonitorActive = isProfile || isPlaylist;
-
-        final ignoreProgress =
-            !fromMonitor &&
-            task.expectedBytes > 0 &&
-            isMonitorActive &&
-            progress != null;
-        final ignoreTotalSize =
-            !fromMonitor &&
-            task.expectedBytes > 0 &&
-            isMonitorActive &&
-            totalSize != null;
-
         final updated = task.copyWith(
           status: status,
-          progress: ignoreProgress ? task.progress : progress,
+          progress: progress,
           speed: speed,
           eta: eta,
-          totalSize: ignoreTotalSize ? task.totalSize : totalSize,
+          totalSize: totalSize,
           expectedBytes: expectedBytes,
           downloadedBytes: downloadedBytes,
+          completedItems: completedItems,
+          totalItems: totalItems,
           error: error,
           process: process,
           completedAt: completedAt,
@@ -543,21 +541,40 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }) {
       double finalProgress = percentage / 100.0;
       String? finalTotalSize = totalSize;
+      int? completedItems;
+      int? updatedTotalItems;
 
       final currentTotal = _taskArgs[id]?['totalItems'] as int?;
       if (currentTotal != null && currentTotal > 1) {
         final count = _downloadedCounts[id] ?? 0;
-        finalProgress = (count + (percentage / 100.0)) / currentTotal;
+        // Formula: (completedItems * 100 + currentItemPercent) / (totalCount * 100)
+        // e.g. 3 done + 45% current out of 25 total → (300 + 45) / 2500 = 0.138
+        final numerator = (count * 100) + percentage;
+        final denominator = currentTotal * 100;
+        finalProgress = numerator / denominator;
         if (finalProgress > 1.0) finalProgress = 1.0;
-        finalTotalSize = '$count / $currentTotal';
+        completedItems = count;
+        updatedTotalItems = currentTotal;
+
+        // Enforce monotonic progress — never go backwards for multi-item downloads
+        final currentTask = state.where((t) => t.id == id).firstOrNull;
+        if (currentTask != null && finalProgress < currentTask.progress) {
+          finalProgress = currentTask.progress;
+        }
       }
+
+      // Only update speed/eta when we have actual values to avoid clearing them
+      final effectiveSpeed = (speed != null && speed.trim().isNotEmpty) ? speed.trim() : null;
+      final effectiveEta = (eta != null && eta.trim().isNotEmpty) ? eta.trim() : null;
 
       _updateTask(
         id,
         progress: finalProgress,
-        speed: speed?.trim(),
-        eta: eta?.trim(),
+        speed: effectiveSpeed,
+        eta: effectiveEta,
         totalSize: finalTotalSize?.trim(),
+        completedItems: completedItems,
+        totalItems: updatedTotalItems,
       );
     }
 
@@ -593,9 +610,26 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     final indexMatch = itemIndexRegExp.firstMatch(data);
     if (indexMatch != null) {
       final index = int.tryParse(indexMatch.group(1) ?? '1') ?? 1;
+      final total = int.tryParse(indexMatch.group(2) ?? '0') ?? 0;
       // Index is 1-based. Completed count is index - 1.
       if (index > 0) {
         _downloadedCounts[id] = index - 1;
+        // Update totalItems from yt-dlp's own count if available
+        if (total > 0) {
+          _taskArgs[id]?['totalItems'] = total;
+        }
+        final currentTotal = _taskArgs[id]?['totalItems'] as int? ?? total;
+        if (currentTotal > 0) {
+          final count = index - 1;
+          // Only update counts — don't set progress here to avoid juggling.
+          // Progress will be set by updateWithProgress when the actual
+          // per-item download percentage comes from yt-dlp/aria2c.
+          _updateTask(
+            id,
+            completedItems: count,
+            totalItems: currentTotal,
+          );
+        }
       }
       return;
     }
@@ -746,10 +780,14 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
             _updateTask(
               id,
               progress: prog,
-              totalSize: '$count / $currentTotal',
+              completedItems: count,
+              totalItems: currentTotal,
             );
           } else {
-            _updateTask(id, progress: null, totalSize: '$count / ?');
+            _updateTask(
+              id,
+              completedItems: count,
+            );
           }
         }
       }
@@ -809,22 +847,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           }
           final task = state.where((t) => t.id == id).firstOrNull;
           if (task != null && task.status == DownloadStatus.running) {
-            double? newProgress = task.progress;
-            String? newTotalSize = task.totalSize;
-
-            if (task.expectedBytes > 0) {
-              newProgress = size / task.expectedBytes;
-              if (newProgress > 1.0) newProgress = 1.0;
-              newTotalSize =
-                  '${StringUtils.formatBytes(size)} / ${StringUtils.formatBytes(task.expectedBytes)}';
-            }
-
+            // Only track downloaded bytes — progress is driven by yt-dlp/aria2c parser
             _updateTask(
               id,
               downloadedBytes: size,
-              progress: newProgress,
-              totalSize: newTotalSize,
-              fromMonitor: true,
             );
           }
         }

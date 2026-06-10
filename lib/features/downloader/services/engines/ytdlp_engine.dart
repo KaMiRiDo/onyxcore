@@ -406,8 +406,7 @@ class YtDlpEngine extends DownloadEngine {
       final safeTitle = title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       args.addAll(['-o', p.join(destination, '$safeTitle.%(ext)s')]);
     } else {
-      args.addAll(['-o', p.join(destination, '%(playlist_index)03d - %(title)s.%(ext)s')]);
-      args.addAll(['--trim-filenames', '80']);
+      args.addAll(['-o', p.join(destination, '%(playlist_index)03d_%(title).80s.%(ext)s')]);
     }
 
     if (Aria2Accelerator.isAvailable) {

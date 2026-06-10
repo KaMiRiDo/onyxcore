@@ -18,6 +18,91 @@ class DownloadTaskTile extends ConsumerStatefulWidget {
 class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
   bool _showCancelConfirm = false;
 
+  List<TextSpan> _buildStatsSpans(DownloadTask task) {
+    final spans = <TextSpan>[];
+    final separator = TextSpan(
+      text: '  •  ',
+      style: GoogleFonts.manrope(
+        color: AppColors.textMuted.withOpacity(0.4),
+        fontSize: 11,
+      ),
+    );
+
+    if (task.totalItems > 1) {
+      spans.add(TextSpan(text: '${task.completedItems}/${task.totalItems}'));
+    }
+
+    // For multi-item downloads (playlists/profiles), show folder downloaded size
+    if (task.totalItems > 1 && task.downloadedBytes > 0) {
+      if (spans.isNotEmpty) spans.add(separator);
+      final expectedStr = task.expectedBytes > 0
+          ? StringUtils.formatBytes(task.expectedBytes)
+          : '?';
+      spans.add(TextSpan(
+        text: '${StringUtils.formatBytes(task.downloadedBytes)} / $expectedStr',
+      ));
+    } else if (task.totalSize.isNotEmpty) {
+      // For single downloads, show the per-item size from yt-dlp/aria2c
+      if (spans.isNotEmpty) spans.add(separator);
+      spans.add(TextSpan(text: task.totalSize));
+    }
+
+    if (task.speed.isNotEmpty) {
+      if (spans.isNotEmpty) spans.add(separator);
+      spans.add(TextSpan(
+        text: task.speed,
+        style: GoogleFonts.manrope(
+          color: AppColors.violet,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ));
+    }
+
+    // Always show ETA — compute total remaining for playlists, use per-item for singles
+    final etaText = _computeEta(task);
+    if (spans.isNotEmpty) spans.add(separator);
+    if (etaText.isNotEmpty) {
+      spans.add(TextSpan(text: 'ETA $etaText'));
+    } else {
+      spans.add(TextSpan(text: 'ETA Calculating...'));
+    }
+    return spans;
+  }
+
+  /// Computes the best ETA string to display.
+  /// For multi-item downloads: estimates total remaining based on elapsed time and progress.
+  /// For single downloads: uses the per-item ETA from yt-dlp/aria2c.
+  String _computeEta(DownloadTask task) {
+    if (task.totalItems > 1 && task.completedItems > 0) {
+      // Estimate total ETA from elapsed time and items completed
+      final elapsed = DateTime.now().difference(task.createdAt);
+      final elapsedSecs = elapsed.inSeconds;
+      if (elapsedSecs > 0) {
+        // Use progress-based estimate: remaining = elapsed * (1 - progress) / progress
+        if (task.progress > 0.0 && task.progress < 1.0) {
+          final remainingSecs = (elapsedSecs * (1.0 - task.progress) / task.progress).round();
+          return _formatDuration(remainingSecs);
+        }
+      }
+    }
+    // Fall back to per-item ETA from the engine
+    return task.eta;
+  }
+
+  String _formatDuration(int totalSeconds) {
+    if (totalSeconds <= 0) return '';
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return '${hours}h ${minutes.toString().padLeft(2, '0')}m';
+    } else if (minutes > 0) {
+      return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    }
+    return '${seconds}s';
+  }
+
   @override
   Widget build(BuildContext context) {
     final task = widget.task;
@@ -237,20 +322,20 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                       if (task.status == DownloadStatus.running &&
                           (task.speed.isNotEmpty ||
                               task.totalSize.isNotEmpty ||
-                              task.eta.isNotEmpty))
+                              task.eta.isNotEmpty ||
+                              task.totalItems > 1 ||
+                              task.downloadedBytes > 0))
                         Flexible(
                           flex: 2,
-                          child: Text(
-                            [
-                              if (task.totalSize.isNotEmpty) task.totalSize,
-                              if (task.speed.isNotEmpty) task.speed,
-                              if (task.eta.isNotEmpty) 'ETA ${task.eta}',
-                            ].join('  •  '),
+                          child: RichText(
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.right,
-                            style: GoogleFonts.manrope(
-                              color: AppColors.textMuted.withOpacity(0.8),
-                              fontSize: 11,
+                            text: TextSpan(
+                              style: GoogleFonts.manrope(
+                                color: AppColors.textMuted.withOpacity(0.8),
+                                fontSize: 11,
+                              ),
+                              children: _buildStatsSpans(task),
                             ),
                           ),
                         ),
