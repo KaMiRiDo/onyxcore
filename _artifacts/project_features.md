@@ -45,6 +45,11 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `gio` (CLI) | system | Trash operations |
 | | `yt-dlp` (CLI) | auto-updated | Video/audio download engine (YouTube, Instagram, etc.) |
 | | `gallery-dl` (CLI) | auto-updated | Image gallery download engine (Reddit, Pixiv, etc.) |
+| | `playwright` (Node) | system | Browser automation engine for JS-heavy dynamic sites |
+| | `you-get` (CLI) | system | Media downloader (optimized for Asian platforms) |
+| | `streamlink` (CLI) | system | Live stream capture engine |
+| | `lux` (CLI) | system | High-speed video downloader (Bilibili, etc.) |
+| | `aria2` (CLI) | bundled | Multi-connection download accelerator |
 
 ---
 
@@ -107,8 +112,8 @@ graph TB
 
         subgraph Downloader["downloader"]
             DlDomain["MediaInfo / MediaGroup / DownloadConfig"]
-            DlEngines["EngineRegistry / YtDlpEngine / GalleryDlEngine"]
-            DlServices["DownloaderProcessWrapper / CookieHelper / DownloadHistoryDatabase"]
+            DlEngines["EngineRegistry / YtDlpEngine / GalleryDlEngine / PlaywrightEngine / YouGetEngine / StreamlinkEngine / LuxEngine"]
+            DlServices["DownloaderProcessWrapper / Aria2Accelerator / CookieHelper / DownloadHistoryDatabase"]
             DlUpdate["DownloaderUpdateService (GitHub API)"]
             DlProviders["DownloadTaskProvider / DownloadHistoryProvider / DownloadsPanelProvider"]
             DlPanel["DownloadsPanel (StatefulWidget + part files)"]
@@ -318,8 +323,13 @@ onyxcore/
 │           │   │   ├── download_engine.dart          # Abstract DownloadEngine interface
 │           │   │   ├── engine_registry.dart          # EngineRegistry singleton (tool resolution)
 │           │   │   ├── ytdlp_engine.dart             # yt-dlp CLI wrapper (video/audio)
-│           │   │   └── gallery_dl_engine.dart         # gallery-dl CLI wrapper (image galleries)
+│           │   │   ├── gallery_dl_engine.dart         # gallery-dl CLI wrapper (image galleries)
+│           │   │   ├── playwright_engine.dart         # Node.js Playwright engine
+│           │   │   ├── youget_engine.dart             # you-get CLI wrapper
+│           │   │   ├── streamlink_engine.dart         # streamlink CLI wrapper
+│           │   │   └── lux_engine.dart                # lux CLI wrapper
 │           │   ├── downloader_process_wrapper.dart    # MediaDownloaderBackend (CLI orchestrator)
+│           │   ├── aria2_accelerator.dart             # aria2c wrapper for multi-threading
 │           │   ├── download_history_database.dart     # SQLite3 history persistence
 │           │   ├── downloader_update_service.dart     # GitHub Releases auto-updater
 │           │   └── cookie_helper.dart                 # Browser cookie extraction for auth
@@ -1128,8 +1138,27 @@ onyxcore/
   - **Fetch args**: `--dump-json --no-download` with optional `--cookies-from-browser`
   - **Download args**: Output directory (`-d`), `--cookies-from-browser` for authenticated downloads
   - **Progress parsing**: Monitors stdout for file paths (lines starting with `/` or `C:\`) to track downloaded items
+- **`PlaywrightEngine`**: Python script wrapper using Playwright (`pip install playwright`)
+  - **Architecture**: Two-phase pipeline (URL Interceptor). Phase A: Headless Chromium navigates to URL, intercepts network requests, filters for `.m3u8`/`.mp4`/`.ts` URLs. Phase B: Passes intercepted URL to FFmpeg (for HLS muxing) or aria2c (direct downloads).
+  - **Installation**: User-managed via Settings. Installs Python package and a ~300 MB bundled Chromium binary via `playwright install chromium`.
+  - **Intercept Logic**: Custom embedded Python script (`intercept_media.py`) uses `sync_playwright` to intercept responses larger than 10KB (to ignore tracking pixels) and extracts thumbnails via `page.screenshot()`.
+  - **Usage**: Manual-only engine (`priority: 0`). Handles HLS natively by muxing with `ffmpeg` using `-bsf:a aac_adtstoasc` and `-c copy`.
+- **`YouGetEngine`**: Python CLI wrapper for `you-get` (`pip install you-get`)
+  - **Target**: Asian streaming platforms (Bilibili, Tencent, Youku, iQIYI, Tudou, AcFun, NicoVideo).
+  - **Execution**: Uses `--json` for metadata extraction, parsing formats mapping container types and resolutions.
+- **`StreamlinkEngine`**: Python CLI wrapper for `streamlink` (`pip install streamlink`)
+  - **Target**: Live streams (Twitch, Kick, YouTube Live, Crunchyroll, Dailymotion).
+  - **Execution**: Extracts streams mapping formats (e.g., 720p, 1080p60) to `.ts` outputs.
+  - **Graceful Termination**: Live streams have no definitive end. Termination requires `SIGINT` (not `SIGTERM`) for clean container closure. Implements `stopGracefully()` to send `SIGINT`, wait 3s, then force-kill if still running.
+- **`LuxEngine`**: Go CLI wrapper for `lux`
+  - **Architecture**: Fast, dependency-free, single statically-linked binary with zero memory footprint.
+  - **Target**: Alternative for Asian platforms (Bilibili, Youku, iQIYI, Douyin, Weibo, Tumblr).
+  - **Execution**: Uses `-j` for JSON extraction. Natively supports multi-threading via `-n 16` internally.
 
 #### 10.4 Services
+- **`Aria2Accelerator`**: Multi-connection download accelerator utility
+  - **Execution Configuration**: Uses `-x 16` (connections per server), `-s 16` (splits), `-k 1M` (min split size) and `--summary-interval=1`.
+  - **Integration Strategy**: Injected into `yt-dlp` via `--external-downloader aria2c`, and used directly by `PlaywrightEngine` for `.mp4` intercepts. Not applicable to live streams (`streamlink`).
 - **`MediaDownloaderBackend`**: The central process orchestrator
   - **Fetch flow**: Spawns engine CLI with fetch args → streams stdout → parses JSON output into `MediaInfo` objects → groups results into `MediaGroup` → returns to UI
   - **Download flow**: Spawns engine CLI with download args → streams stdout/stderr → parses progress via engine's `parseProgress()` → updates `DownloadTask` state → records to history on completion
