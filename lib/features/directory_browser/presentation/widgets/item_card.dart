@@ -229,19 +229,50 @@ class _ItemCardState extends ConsumerState<ItemCard> {
             ),
           ),
           SizedBox(height: 8 * widget.zoom),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              _truncateMiddle(widget.item.name),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 13 * (widget.zoom < 1 ? widget.zoom.clamp(0.8, 1.0) : (widget.zoom > 1.2 ? 1.1 : 1.0)),
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
+          Builder(
+            builder: (context) {
+              final isTruncated = widget.item.name.length > 35;
+              final textWidget = Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  _truncateMiddle(widget.item.name),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13 * (widget.zoom < 1 ? widget.zoom.clamp(0.8, 1.0) : (widget.zoom > 1.2 ? 1.1 : 1.0)),
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              );
+
+              if (isTruncated) {
+                return Tooltip(
+                  message: widget.item.name,
+                  waitDuration: const Duration(milliseconds: 600),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A).withOpacity(0.98),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  textStyle: GoogleFonts.manrope(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  child: textWidget,
+                );
+              }
+              return textWidget;
+            },
           ),
         ],
       ),

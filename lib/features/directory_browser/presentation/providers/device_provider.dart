@@ -9,6 +9,7 @@ import 'package:onyxcore/core/utils/logger.dart';
 final deviceProvider = StreamProvider<List<Device>>((ref) {
   final controller = StreamController<List<Device>>();
   final Set<String> attemptedMounts = {};
+  bool _isUpdating = false;
   
   Timer? timer;
 
@@ -22,6 +23,8 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
   }
 
   Future<void> updateDevices() async {
+    if (_isUpdating) return;
+    _isUpdating = true;
     try {
       // Use --bytes for raw sizes, -p for full paths, --json for easy parsing
       final result = await Process.run('lsblk', [
@@ -29,7 +32,10 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
         '--bytes',
         '-p',
         '-o', 'NAME,MOUNTPOINT,SIZE,FSUSED,FSSIZE,FSAVAIL,TYPE,LABEL,MODEL,RM,FSTYPE'
-      ]);
+      ]).timeout(
+        const Duration(milliseconds: 800),
+        onTimeout: () => ProcessResult(0, 1, '', ''),
+      );
       
       if (result.exitCode != 0) {
         if (!controller.isClosed) controller.add([]);
@@ -131,6 +137,71 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
       // Cleanup attemptedMounts: remove IDs that are no longer in the system
       attemptedMounts.retainAll(currentIds);
 
+      // Add GVFS mounts (e.g. MTP for mobile devices)
+      try {
+        final idRes = await Process.run('id', ['-u']);
+        final uid = idRes.stdout.toString().trim();
+        final gvfsDir = Directory('/run/user/$uid/gvfs');
+        if (await gvfsDir.exists()) {
+          final entities = await gvfsDir.list().toList();
+          for (final entity in entities) {
+            if (entity is Directory) {
+              final name = entity.path.split('/').last;
+              String displayName = name;
+              bool isMobile = false;
+              if (name.startsWith('mtp:host=')) {
+                isMobile = true;
+                try {
+                  displayName = Uri.decodeComponent(name.substring(9)).replaceAll('_', ' ');
+                } catch (_) {}
+              } else if (name.startsWith('gphoto2:host=')) {
+                isMobile = true;
+                try {
+                  displayName = Uri.decodeComponent(name.substring(13)).replaceAll('_', ' ');
+                } catch (_) {}
+              } else if (name.startsWith('smb-share:server=')) {
+                displayName = 'SMB Share';
+              }
+              
+              String sizeStr = 'Unknown';
+              double usage = 0.0;
+              try {
+                final dfRes = await Process.run('df', ['-k', entity.path]).timeout(
+                  const Duration(milliseconds: 500),
+                  onTimeout: () => ProcessResult(0, 1, '', ''),
+                );
+                if (dfRes.exitCode == 0) {
+                  final lines = dfRes.stdout.toString().trim().split('\n');
+                  if (lines.length >= 2) {
+                    final parts = lines[1].split(RegExp(r'\s+'));
+                    if (parts.length >= 4) {
+                      final totalKb = double.tryParse(parts[1]) ?? 0.0;
+                      final usedKb = double.tryParse(parts[2]) ?? 0.0;
+                      if (totalKb > 0) {
+                        sizeStr = _formatSize(totalKb * 1024);
+                        usage = (usedKb / totalKb).clamp(0.0, 1.0);
+                      }
+                    }
+                  }
+                }
+              } catch (_) {}
+
+              devices.add(Device(
+                id: name,
+                name: displayName,
+                path: entity.path,
+                size: sizeStr,
+                usage: usage,
+                isRemovable: true,
+                isMobile: isMobile,
+              ));
+            }
+          }
+        }
+      } catch (e) {
+        log('Error checking GVFS mounts: $e');
+      }
+
       // Sort devices: File System (/), Home (/home), then others
       devices.sort((a, b) {
         if (a.path == '/') return -1;
@@ -144,14 +215,16 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
     } catch (e) {
       log('Error detecting devices: $e');
       if (!controller.isClosed) controller.add([]);
+    } finally {
+      _isUpdating = false;
     }
   }
 
   // Initial update
   updateDevices();
 
-  // Poll every 2 seconds
-  timer = Timer.periodic(const Duration(seconds: 2), (_) => updateDevices());
+  // Poll every 1 second for near-instant UI refreshes
+  timer = Timer.periodic(const Duration(seconds: 1), (_) => updateDevices());
 
   ref.onDispose(() {
     timer?.cancel();

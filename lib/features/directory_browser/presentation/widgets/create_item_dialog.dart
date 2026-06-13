@@ -103,7 +103,9 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowDown || 
-          event.logicalKey == LogicalKeyboardKey.arrowUp) {
+          event.logicalKey == LogicalKeyboardKey.arrowUp ||
+          event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+          event.logicalKey == LogicalKeyboardKey.arrowRight) {
         _toggleType();
       } else if (event.logicalKey == LogicalKeyboardKey.enter) {
         _submit();
@@ -244,26 +246,30 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
   }
 
   Widget _buildTypeSelection() {
-    return Column(
+    return Row(
       children: [
-        _buildSelectionRow(
-          title: 'New Folder',
-          isSelected: _isFolder,
-          icon: Icons.folder_outlined,
-          onTap: () => setState(() {
-            _isFolder = true;
-            _validate();
-          }),
+        Expanded(
+          child: _buildSelectionRow(
+            title: 'Folder',
+            isSelected: _isFolder,
+            icon: Icons.folder_outlined,
+            onTap: () => setState(() {
+              _isFolder = true;
+              _validate();
+            }),
+          ),
         ),
-        const SizedBox(height: 8),
-        _buildSelectionRow(
-          title: 'New Document',
-          isSelected: !_isFolder,
-          icon: Icons.description_outlined,
-          onTap: () => setState(() {
-            _isFolder = false;
-            _validate();
-          }),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildSelectionRow(
+            title: 'Document',
+            isSelected: !_isFolder,
+            icon: Icons.description_outlined,
+            onTap: () => setState(() {
+              _isFolder = false;
+              _validate();
+            }),
+          ),
         ),
       ],
     );

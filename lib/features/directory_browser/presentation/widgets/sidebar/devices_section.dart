@@ -28,6 +28,7 @@ class DevicesSection extends ConsumerStatefulWidget {
 class _DevicesSectionState extends ConsumerState<DevicesSection> {
   final Map<String, String> _waitingToEject = {}; // path -> name
   final Map<String, Map<String, dynamic>> _busyDevices = {}; // deviceId -> {name, mountPath, startTime}
+  final Set<String> _isEjecting = {}; // device.id
   Timer? _busyTimer;
 
   @override
@@ -48,7 +49,8 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
       final now = DateTime.now();
       final toRemove = <String>[];
       
-      for (final entry in _busyDevices.entries) {
+      final entries = _busyDevices.entries.toList();
+      for (final entry in entries) {
         final deviceId = entry.key;
         final data = entry.value;
         final deviceName = data['name'] as String;
@@ -102,14 +104,25 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
     }
   }
 
-  void _showStyledSnackBar(BuildContext context, String message, {bool isSuccess = false}) {
+  void _showStyledSnackBar(BuildContext context, String message, {bool isSuccess = false, bool isWarning = false}) {
+    IconData iconData = Icons.info_outline_rounded;
+    Color iconColor = AppColors.violet;
+
+    if (isSuccess) {
+      iconData = Icons.check_circle_rounded;
+      iconColor = AppColors.success;
+    } else if (isWarning) {
+      iconData = Icons.warning_amber_rounded;
+      iconColor = Colors.orangeAccent;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Icon(
-              isSuccess ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-              color: isSuccess ? AppColors.success : AppColors.violet,
+              iconData,
+              color: iconColor,
               size: 20,
             ),
             const SizedBox(width: 12),
@@ -206,7 +219,7 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
             final storageText = _formatUsageString(device.usage, device.size);
             
             return SidebarItem(
-                icon: Icons.storage_outlined,
+                icon: device.isMobile ? Icons.smartphone_rounded : Icons.storage_outlined,
                 label: device.name,
                 path: device.path,
                 isActive: (widget.currentPath == device.path) || 
@@ -215,43 +228,77 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
                 storageText: storageText,
                 onEject: device.isRemovable
                     ? () async {
+                        if (_isEjecting.contains(device.id)) return;
+                        if (_busyDevices.containsKey(device.id) || _waitingToEject.containsKey(device.path)) {
+                           if (mounted) {
+                             _showStyledSnackBar(context, '${device.name} is busy. Will notify when safe to eject.', isWarning: true);
+                           }
+                           return;
+                        }
+
                         final tasks = ref.read(taskProvider);
                         if (_hasActiveTasksForDevice(tasks, device.path)) {
                            setState(() {
                              _waitingToEject[device.path] = device.name;
                            });
                            if (mounted) {
-                             _showStyledSnackBar(context, 'Operations are still running on ${device.name}. Please wait.');
+                             _showStyledSnackBar(context, 'Operations are still running on ${device.name}. Please wait.', isWarning: true);
                            }
                            return;
                         }
 
+                        setState(() {
+                          _isEjecting.add(device.id);
+                        });
+
                         try {
-                          final unmountRes = await Process.run('udisksctl', ['unmount', '-b', device.id]);
+                          ProcessResult unmountRes;
+                          final isGvfs = device.path.contains('/gvfs/');
+                          
+                          if (isGvfs) {
+                            unmountRes = await Process.run('gio', ['mount', '-u', device.path]);
+                          } else {
+                            unmountRes = await Process.run('udisksctl', ['unmount', '-b', device.id]);
+                          }
+                          
                           if (unmountRes.exitCode != 0) {
                              final stderr = unmountRes.stderr.toString().toLowerCase();
                              if (stderr.contains('busy')) {
-                               setState(() {
-                                 _busyDevices[device.id] = {
-                                   'name': device.name,
-                                   'mountPath': device.path,
-                                   'startTime': DateTime.now(),
-                                 };
-                               });
-                               _startBusyCheck();
-                               if (mounted) {
-                                 _showStyledSnackBar(context, '${device.name} is busy. Will notify when safe to eject.');
-                               }
-                               return;
+                                setState(() {
+                                  _busyDevices[device.id] = {
+                                    'name': device.name,
+                                    'mountPath': device.path,
+                                    'startTime': DateTime.now(),
+                                  };
+                                });
+                                _startBusyCheck();
+                                if (mounted) {
+                                  _showStyledSnackBar(context, '${device.name} is busy. Will notify when safe to eject.', isWarning: true);
+                                }
+                                return;
+                             } else {
+                                if (mounted) {
+                                  _showStyledSnackBar(context, 'Failed to eject ${device.name}.', isWarning: true);
+                                }
+                                return;
                              }
                           }
-                          await Process.run('udisksctl', ['power-off', '-b', device.id]);
+                          
+                          if (!isGvfs) {
+                            await Process.run('udisksctl', ['power-off', '-b', device.id]);
+                          }
                           _navigateToPreviouslyVisitedIfEjected(device.path);
                           if (mounted) {
                             _showStyledSnackBar(context, '${device.name} safely ejected.', isSuccess: true);
                           }
                         } catch (e) {
                           debugPrint('Eject error: $e');
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _isEjecting.remove(device.id);
+                            });
+                          }
                         }
                       }
                     : null,

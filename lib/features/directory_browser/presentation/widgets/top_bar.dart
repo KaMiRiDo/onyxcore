@@ -232,18 +232,39 @@ class _TopBarState extends ConsumerState<TopBar> {
                                     fontWeight: FontWeight.w600,
                                   ),
                                   onSubmitted: (value) {
+                                    if (value.isEmpty) {
+                                      ref.read(isLocationEditingProvider.notifier).set(false);
+                                      ref.read(mainFocusNodeProvider).requestFocus();
+                                      return;
+                                    }
                                     final dir = Directory(value);
+                                    final file = File(value);
+                                    
                                     if (dir.existsSync()) {
                                       ref.read(selectionProvider.notifier).deselectAll();
                                       ref.read(navigationProvider.notifier).navigateTo(value);
                                       ref.read(currentPathProvider.notifier).state = value;
-                                    } else if (value.isNotEmpty) {
-                                      ref.read(pathErrorProvider.notifier).state = 'Invalid directory path';
+                                      ref.read(isLocationEditingProvider.notifier).set(false);
+                                    } else if (file.existsSync()) {
+                                      final parentDir = p.dirname(value);
+                                      ref.read(selectionProvider.notifier).deselectAll();
+                                      ref.read(navigationProvider.notifier).navigateTo(parentDir);
+                                      ref.read(currentPathProvider.notifier).state = parentDir;
+                                      
+                                      // Wait slightly for directory to load, then select
+                                      Future.delayed(const Duration(milliseconds: 150), () {
+                                        ref.read(selectionProvider.notifier).select(value);
+                                      });
+                                      ref.read(isLocationEditingProvider.notifier).set(false);
+                                    } else {
+                                      ref.read(pathErrorProvider.notifier).state = 'Invalid path';
                                       Future.delayed(const Duration(seconds: 2), () {
                                         ref.read(pathErrorProvider.notifier).state = null;
                                       });
+                                      // Keep editing mode open to let user correct it
+                                      return;
                                     }
-                                    ref.read(isLocationEditingProvider.notifier).set(false);
+                                    
                                     // Request focus back to main node
                                     ref.read(mainFocusNodeProvider).requestFocus();
                                   },

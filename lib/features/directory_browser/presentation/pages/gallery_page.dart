@@ -1419,7 +1419,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     final trashPath = '$home/.local/share/Trash/files';
 
     // If we are in trash, every delete is permanent
-    final isDeletingFromTrash = currentPath == trashPath;
+    final isDeletingFromTrash = currentPath.contains('.local/share/Trash/files') ||
+        currentPath.endsWith('Trash/files') ||
+        currentPath == 'trash:///';
     final effectivelyPermanent = permanent || isDeletingFromTrash;
 
     final count = selection.selectedPaths.length;

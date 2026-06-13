@@ -61,6 +61,7 @@ void main(List<String> args) async {
   
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
+    await windowManager.maximize();
     await windowManager.focus();
   });
 

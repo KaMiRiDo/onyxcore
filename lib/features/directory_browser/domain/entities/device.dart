@@ -5,6 +5,7 @@ class Device {
   final String size;
   final double usage; // 0.0 to 1.0
   final bool isRemovable;
+  final bool isMobile;
 
   Device({
     required this.id,
@@ -13,5 +14,6 @@ class Device {
     required this.size,
     required this.usage,
     required this.isRemovable,
+    this.isMobile = false,
   });
 }

@@ -64,6 +64,8 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
                 AppTheme.primaryGradient.createShader(bounds),
             child: Text(
               widget.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
@@ -73,6 +75,8 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
           )
         : Text(
             widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.manrope(
               color: AppColors.textMuted,
               fontWeight: FontWeight.w500,

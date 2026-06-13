@@ -66,7 +66,7 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
               ref.read(previewHudVisibleProvider.notifier).state = true;
               
               return KeyEventResult.handled;
-            } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+            } else if (event.logicalKey == LogicalKeyboardKey.keyF && !isDocument) {
               final now = DateTime.now();
               if (now.difference(_lastToggle).inMilliseconds < 300) {
                 return KeyEventResult.handled;

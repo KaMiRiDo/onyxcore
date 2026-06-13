@@ -1,26 +1,37 @@
 import 'dart:io';
 
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:onyxcore/core/platform/disk_usage.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 
 /// Real disk usage storage indicator — pixel-perfect match of original _buildStorageIndicator().
-class StorageIndicator extends StatefulWidget {
+class StorageIndicator extends ConsumerStatefulWidget {
   const StorageIndicator({super.key});
 
   @override
-  State<StorageIndicator> createState() => _StorageIndicatorState();
+  ConsumerState<StorageIndicator> createState() => _StorageIndicatorState();
 }
 
-class _StorageIndicatorState extends State<StorageIndicator> {
+class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
   DiskUsage? _usage;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _loadUsage();
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _loadUsage());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUsage() async {
@@ -31,6 +42,7 @@ class _StorageIndicatorState extends State<StorageIndicator> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(refreshCountProvider, (_, __) => _loadUsage());
     final usage = _usage;
     final fraction = usage?.usageFraction ?? 0.6;
     final percentLabel = usage?.usagePercent ?? '60%';

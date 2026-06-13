@@ -11,9 +11,7 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/cloud_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/devices_section.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/overview_button.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/storage_indicator.dart';
 
@@ -38,7 +36,7 @@ class Sidebar extends ConsumerWidget {
           ),
         ),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.only(top: 24, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -147,13 +145,22 @@ class Sidebar extends ConsumerWidget {
 
                   const SizedBox(height: 16),
                   _buildSectionLabel('CLOUD STORAGE'),
-                  CloudItem(),
                   SidebarItem(
                     icon: Icons.add_circle_outline,
                     label: 'Add Account',
                     path: '',
                     isActive: false,
-                    onTap: () {},
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Cloud storage integration coming soon!', style: TextStyle(color: Colors.white)),
+                          backgroundColor: AppColors.surfaceBase,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          margin: const EdgeInsets.all(16),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -162,9 +169,7 @@ class Sidebar extends ConsumerWidget {
           ),
 
           const StorageIndicator(),
-          const SizedBox(height: 16),
-          const OverviewButton(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
         ],
       ),
     );
