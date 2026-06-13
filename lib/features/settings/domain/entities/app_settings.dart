@@ -47,6 +47,8 @@ class AppSettings extends Equatable {
     this.downloadToCurrentFolder = true,
     this.maxConcurrentDownloads = 3,
     this.maxLiveRecordingMinutes = 0,
+    this.documentSearchCaseSensitive = false,
+    this.documentSearchUseRegex = false,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -136,6 +138,12 @@ class AppSettings extends Equatable {
   /// Maximum recording duration for live streams (minutes). 0 = unlimited.
   final int maxLiveRecordingMinutes;
 
+  /// Whether document search should be case sensitive by default.
+  final bool documentSearchCaseSensitive;
+
+  /// Whether document search should use regular expressions by default.
+  final bool documentSearchUseRegex;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? showHiddenFiles,
@@ -166,6 +174,8 @@ class AppSettings extends Equatable {
     bool? downloadToCurrentFolder,
     int? maxConcurrentDownloads,
     int? maxLiveRecordingMinutes,
+    bool? documentSearchCaseSensitive,
+    bool? documentSearchUseRegex,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -197,6 +207,8 @@ class AppSettings extends Equatable {
       downloadToCurrentFolder: downloadToCurrentFolder ?? this.downloadToCurrentFolder,
       maxConcurrentDownloads: maxConcurrentDownloads ?? this.maxConcurrentDownloads,
       maxLiveRecordingMinutes: maxLiveRecordingMinutes ?? this.maxLiveRecordingMinutes,
+      documentSearchCaseSensitive: documentSearchCaseSensitive ?? this.documentSearchCaseSensitive,
+      documentSearchUseRegex: documentSearchUseRegex ?? this.documentSearchUseRegex,
     );
   }
 
@@ -231,5 +243,7 @@ class AppSettings extends Equatable {
     downloadToCurrentFolder,
     maxConcurrentDownloads,
     maxLiveRecordingMinutes,
+    documentSearchCaseSensitive,
+    documentSearchUseRegex,
   ];
 }

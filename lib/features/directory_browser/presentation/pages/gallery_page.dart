@@ -819,7 +819,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   ) {
     return {
       // General Navigation
-      if (!isLocationEditing && !isDownloadInputFocused) ...{
+      if (!isLocationEditing && !isDownloadInputFocused && !isPreviewActive) ...{
         const SingleActivator(LogicalKeyboardKey.backspace): _goBack,
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _goBack,
         const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true):
@@ -858,6 +858,11 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
             _handleCut,
         const SingleActivator(LogicalKeyboardKey.keyV, control: true):
             _handlePaste,
+        const SingleActivator(
+          LogicalKeyboardKey.keyV,
+          control: true,
+          shift: true,
+        ): _handlePreview,
         const SingleActivator(LogicalKeyboardKey.delete): () =>
             _handleDelete(permanent: false),
         const SingleActivator(LogicalKeyboardKey.delete, shift: true): () =>
@@ -945,7 +950,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           _switchToPreviousTab,
 
       // Item Opening
-      if (!isLocationEditing && !isDownloadInputFocused) ...{
+      if (!isLocationEditing && !isDownloadInputFocused && !isPreviewActive) ...{
         const SingleActivator(LogicalKeyboardKey.enter): _handleEnter,
         const SingleActivator(LogicalKeyboardKey.numpadEnter): _handleEnter,
       },
@@ -994,6 +999,18 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     // Subtle blink duration
     await Future.delayed(const Duration(milliseconds: 150));
     ref.read(isRefreshingProvider.notifier).state = false;
+  }
+
+  void _handlePreview() {
+    final selection = ref.read(selectionProvider);
+    if (selection.selectedPaths.isEmpty) return;
+
+    final selectedPath = selection.selectedPaths.first;
+    final items = ref.read(directoryItemsProvider).value ?? [];
+    try {
+      final selectedItem = items.firstWhere((i) => i.path == selectedPath);
+      ref.read(previewFileProvider.notifier).state = selectedItem;
+    } catch (_) {}
   }
 
   void _handleEnter() {

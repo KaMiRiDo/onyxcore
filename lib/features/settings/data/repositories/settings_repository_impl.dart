@@ -74,6 +74,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       downloadToCurrentFolder: _prefs.getBool('downloadToCurrentFolder') ?? true,
       maxConcurrentDownloads: _prefs.getInt('maxConcurrentDownloads') ?? 3,
       maxLiveRecordingMinutes: _prefs.getInt('maxLiveRecordingMinutes') ?? 0,
+      documentSearchCaseSensitive: _prefs.getBool('documentSearchCaseSensitive') ?? false,
+      documentSearchUseRegex: _prefs.getBool('documentSearchUseRegex') ?? false,
     );
 
   }
@@ -116,6 +118,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setBool('downloadToCurrentFolder', settings.downloadToCurrentFolder);
     await _prefs.setInt('maxConcurrentDownloads', settings.maxConcurrentDownloads);
     await _prefs.setInt('maxLiveRecordingMinutes', settings.maxLiveRecordingMinutes);
+    await _prefs.setBool('documentSearchCaseSensitive', settings.documentSearchCaseSensitive);
+    await _prefs.setBool('documentSearchUseRegex', settings.documentSearchUseRegex);
   }
 
   @override

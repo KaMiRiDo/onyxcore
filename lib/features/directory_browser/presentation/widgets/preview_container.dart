@@ -58,13 +58,8 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
             final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
 
-            final isVideo = widget.item.type == FileItemType.video;
-            final isAudio = widget.item.type == FileItemType.audio;
-            final canCloseWithKeys = !isVideo && !isAudio;
-            
-            if ((event.logicalKey == LogicalKeyboardKey.backspace && canCloseWithKeys) || 
-                (isAltPressed && event.logicalKey == LogicalKeyboardKey.arrowLeft && canCloseWithKeys) ||
-                (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyW)) {
+            final isDocument = widget.item.type == FileItemType.document;
+            if (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyW && !isDocument) {
               
               // Close preview immediately
               ref.read(previewFileProvider.notifier).state = null;
@@ -91,7 +86,7 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
           return KeyEventResult.ignored;
         },
         child: GestureDetector(
-          onDoubleTap: widget.item.type == FileItemType.audio ? null : () async {
+          onDoubleTap: (widget.item.type == FileItemType.audio || widget.item.type == FileItemType.document) ? null : () async {
             List<String> preloadPaths = [];
             if (widget.item.type == FileItemType.image) {
               final items = ref.read(directoryItemsProvider).value ?? [];

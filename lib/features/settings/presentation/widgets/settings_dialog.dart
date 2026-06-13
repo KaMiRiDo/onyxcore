@@ -752,6 +752,30 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   },
                 ),
               ),
+              _buildSettingTile(
+                title: 'Case sensitive search',
+                subtitle: 'Match exact casing when searching within documents',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.documentSearchCaseSensitive ?? false,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(documentSearchCaseSensitive: value);
+                    });
+                  },
+                ),
+              ),
+              _buildSettingTile(
+                title: 'Use regular expressions',
+                subtitle: 'Treat document search queries as regular expressions by default',
+                trailing: OnyxSwitch(
+                  value: _draftSettings?.documentSearchUseRegex ?? false,
+                  onChanged: (value) {
+                    setState(() {
+                      _draftSettings = _draftSettings!.copyWith(documentSearchUseRegex: value);
+                    });
+                  },
+                ),
+              ),
               const SizedBox(height: 40),
             ],
           ),
