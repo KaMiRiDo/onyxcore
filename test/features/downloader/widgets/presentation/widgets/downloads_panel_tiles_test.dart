@@ -136,6 +136,100 @@ class MockYtDlpEngine extends DownloadEngine {
   }
 }
 
+/// Simulates an engine that returns a grouped/carousel post from social media,
+/// matching the actual gallery-dl output pattern after the fix: all items share
+/// the same [originalUrl] (the canonical input post URL) so they group into one
+/// tile. Before the fix, gallery-dl was setting the per-slide sub-shortcode as
+/// [originalUrl], producing separate tiles for every carousel image.
+class MockGroupedPostEngine extends DownloadEngine {
+  static const String postUrl = 'https://instagram.com/p/abc123/';
+  static const String postTitle = 'Grouped Social Post';
+
+  @override
+  String get id => 'yt-dlp';
+  @override
+  String get name => 'mock-grouped';
+  @override
+  String get binaryName => 'yt-dlp';
+  @override
+  bool get isInstalled => true;
+  @override
+  int get priority => 9;
+  @override
+  List<RegExp> get urlPatterns => [];
+  @override
+  String? get binaryPath => null;
+  @override
+  Color get color => const Color(0xFF000000);
+  @override
+  String get displayName => 'Mock grouped';
+  @override
+  EngineType get engineType => EngineType.cli;
+  @override
+  IconData get icon => Icons.video_library;
+  @override
+  EngineUpdateInfo? get updateInfo => null;
+
+  @override
+  Future<List<MediaInfo>> fetchMetadata({
+    required String url,
+    String? browser,
+    bool fetchDeep = false,
+    bool isPlaylist = false,
+    void Function(MediaInfo info)? onProgress,
+    void Function(int pid)? onProcessStarted,
+  }) async {
+    // Simulate gallery-dl carousel output after the fix:
+    // All items share the same originalUrl (the canonical input post URL).
+    // This matches gallery_dl_engine.dart which now sets originalUrl: url
+    // for every carousel item, ensuring they collapse into one MediaGroup.
+    return [
+      MediaInfo(
+        id: 'img1',
+        title: postTitle,
+        originalUrl: url,
+        isVideo: false,
+        filesize: 512000,
+      ),
+      MediaInfo(
+        id: 'img2',
+        title: postTitle,
+        originalUrl: url,
+        isVideo: false,
+        filesize: 512000,
+      ),
+      MediaInfo(
+        id: 'img3',
+        title: postTitle,
+        originalUrl: url,
+        isVideo: false,
+        filesize: 512000,
+      ),
+    ];
+  }
+
+  @override
+  Future<Process> startDownload({
+    required String url,
+    required String destination,
+    String? title,
+    MediaFormat? format,
+    bool audioOnly = false,
+    bool mute = false,
+    int? galleryIndex,
+    bool isPlaylist = false,
+    bool isProfile = false,
+    String? browser,
+    bool isZip = false,
+    String? filterType,
+    int? totalItems,
+    String? singleItemId,
+    String? directUrl,
+  }) async {
+    throw UnimplementedError();
+  }
+}
+
 void main() {
   GoogleFonts.config.allowRuntimeFetching = true;
 
@@ -355,5 +449,58 @@ void main() {
       expect(find.textContaining('Mock Video Content'), findsNothing);
       expect(find.text('No Media to Download'), findsOneWidget);
     });
+
+    testWidgets(
+      'W-DL-PNL-30: Grouped social media post shows as ONE tile, not separate tiles',
+      (tester) async {
+        // Arrange: register engine that returns 3 items sharing the same webpageUrl
+        EngineRegistry.clearAllEnginesForTesting();
+        EngineRegistry.register(MockGroupedPostEngine());
+
+        await tester.pumpWidget(createTilesTestWidget(container));
+        while (container.read(settingsProvider).value == null) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await tester.pump(const Duration(seconds: 1));
+
+        // Act: enter the post URL and fetch
+        final urlField = find.byType(TextField);
+        await tester.tap(urlField);
+        await tester.enterText(urlField, MockGroupedPostEngine.postUrl);
+        await tester.pump();
+
+        final fetchButton = find.widgetWithText(ElevatedButton, 'Fetch');
+        await tester.tap(fetchButton);
+        await tester.pump();
+
+        await tester.runAsync(() async {
+          await Future.delayed(const Duration(seconds: 2));
+        });
+        for (int i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        // Assert: the post title appears (tile is rendered)
+        expect(
+          find.textContaining(MockGroupedPostEngine.postTitle),
+          findsWidgets,
+          reason: 'The grouped post title should be visible on the tile',
+        );
+
+        // Assert: there is exactly ONE close (remove) button, meaning ONE tile
+        // was created for the 3-item grouped post, not 3 separate tiles.
+        final closeFinders = find.byIcon(Icons.close);
+        expect(
+          closeFinders,
+          findsOneWidget,
+          reason:
+              'A grouped post with multiple items should appear as a single tile '
+              'with one close button, not one per item',
+        );
+
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(seconds: 1));
+      },
+    );
   });
 }

@@ -728,12 +728,33 @@ class GalleryDlEngine extends DownloadEngine {
               }
 
               final parsedJsonInfo = MediaInfo.fromJson(sharedMeta, originalUrl: url);
+
+              // Determine the canonical originalUrl for grouping:
+              // - Instagram carousels: always use the base input `url` (stripped
+              //   of query params like ?img_index=N) so all slides share one key.
+              //   Per-slide sub-shortcodes can make itemUrl unique per slide,
+              //   which was the root cause of each slide becoming a separate tile.
+              // - Twitter/X and Reddit: keep itemUrl — tweet_id / permalink are
+              //   post-level identifiers, already the same for all items in a
+              //   multi-image post, so grouping works without normalisation.
+              final String canonicalUrl;
+              if (sharedMeta['shortcode'] != null) {
+                // Instagram: strip query params (e.g. ?img_index=1) from input url
+                final uri = Uri.tryParse(url);
+                canonicalUrl = uri != null
+                    ? uri.replace(queryParameters: {}).toString()
+                    : url;
+              } else {
+                canonicalUrl = itemUrl ?? url;
+              }
+
               final info = parsedJsonInfo.copyWith(
                 isProfile: false,
                 thumbnail: thumb,
                 title: title,
                 galleryIndex: fileCount,
-                originalUrl: itemUrl,
+                originalUrl: canonicalUrl,
+                webpageUrl: itemUrl ?? parsedJsonInfo.webpageUrl,
                 isVideo: isVid || parsedJsonInfo.isVideo,
               );
               if (fileUrl != null) {
