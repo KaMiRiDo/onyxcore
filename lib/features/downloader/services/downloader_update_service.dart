@@ -50,10 +50,10 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
   @override
   DownloaderUpdateState build() => const DownloaderUpdateState();
 
-  Future<void> checkForUpdates() async {
+  Future<void> checkForUpdates({bool clearError = true}) async {
     if (state.isCheckingForUpdates) return;
     
-    state = state.copyWith(isCheckingForUpdates: true, clearError: true);
+    state = state.copyWith(isCheckingForUpdates: true, clearError: clearError);
     
     final installed = Map<String, String>.from(state.installedVersions);
     final latest = Map<String, String>.from(state.latestVersions);
@@ -75,7 +75,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
   Future<void> updateAll({bool defaultOnly = false}) async {
     if (state.isUpdating) return;
-    state = const DownloaderUpdateState(isUpdating: true, progress: 0.0, engineProgress: {});
+    state = state.copyWith(isUpdating: true, progress: 0.0, engineProgress: {}, clearError: true);
 
     final enginesToUpdate = EngineRegistry.allEngines.where((e) {
       final vInst = state.installedVersions[e.id];
@@ -122,7 +122,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       state = state.copyWith(error: 'Global update failed: $e');
     } finally {
       state = state.copyWith(isUpdating: false, engineProgress: {});
-      checkForUpdates();
+      await checkForUpdates(clearError: false);
     }
   }
 
@@ -209,7 +209,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       final updatedProgress = Map<String, double>.from(state.engineProgress);
       updatedProgress.remove(engine.id);
       state = state.copyWith(engineProgress: updatedProgress);
-      checkForUpdates();
+      await checkForUpdates(clearError: false);
     } catch (e) {
       final updatedProgress = Map<String, double>.from(state.engineProgress);
       updatedProgress.remove(engine.id);
@@ -239,7 +239,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         state = state.copyWith(error: '${engine.id}:$stderr', engineProgress: updatedProgress);
       } else {
         state = state.copyWith(engineProgress: updatedProgress);
-        checkForUpdates();
+        await checkForUpdates(clearError: false);
       }
     } catch (e) {
       final updatedProgress = Map<String, double>.from(state.engineProgress);

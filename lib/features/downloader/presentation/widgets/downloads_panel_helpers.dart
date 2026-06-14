@@ -286,4 +286,31 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   }
 
   String _formatBytes(int bytes) => StringUtils.formatBytes(bytes);
+
+  @visibleForTesting
+  String trimMiddleForTesting(String text, int maxLength) => _trimMiddle(text, maxLength);
+
+  @visibleForTesting
+  String formatResolutionForTesting(String res) => _formatResolution(res);
+
+  @visibleForTesting
+  int getHeightForTesting(String res) => _getHeight(res);
+
+  @visibleForTesting
+  String formatDurationForTesting(int seconds) => _formatDuration(seconds);
+
+  @visibleForTesting
+  int? getFormatBytesForTesting(MediaInfo item, MediaFormat? format, DownloadConfig config) => _getFormatBytes(item, format, config);
+
+  @visibleForTesting
+  String? getFileSizeForTesting(MediaInfo item, DownloadConfig config) => _getFileSize(item, config);
+
+  @visibleForTesting
+  int getGroupBytesForTesting(MediaGroup group, DownloadConfig config) => _getGroupBytes(group, config);
+
+  @visibleForTesting
+  Map<String, int> get resolvedFileSizesForTesting => _resolvedFileSizes;
+
+  @visibleForTesting
+  Set<String> get fetchingFileSizesForTesting => _fetchingFileSizes;
 }

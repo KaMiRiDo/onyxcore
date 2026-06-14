@@ -25,5 +25,5 @@
 | Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
 |---|---|---|---|---|---|---|
 | U-DL-YGT-07 | `youget_engine.dart` | `startDownload` | Construct download args with format ID | `format.formatId = 'flv'` | Call `startDownload` | Args contain `--format=flv` and output path |
-| U-DL-YGT-08 | `youget_engine.dart` | `startDownload` | **[EDGE]** Missing output directory | Directory does not exist on disk | Call `startDownload` | Process wrapper handles exit code safely |
-| U-DL-YGT-06 | `youget_engine.dart` | `startDownload` | Construct download args | `format=MediaFormat(formatId: 'mp4')`, `title='vid'` | Call `startDownload` | Args include `-O vid`, `--format=mp4`, `-o destination` |
+| U-DL-YGT-08 | `youget_engine.dart` | `startDownload` | Construct download args with title and destination | `format=MediaFormat(formatId: 'mp4')`, `title='vid'` | Call `startDownload` | Args include `-O vid`, `--format=mp4`, `-o destination` |
+| U-DL-YGT-09 | `youget_engine.dart` | `startDownload` | **[EDGE]** Missing output directory | Directory does not exist on disk | Call `startDownload` | Process wrapper handles exit code safely |

@@ -1106,12 +1106,14 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                Text(
-                  'Custom operations',
-                  style: GoogleFonts.manrope(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    'Custom operations',
+                    style: GoogleFonts.manrope(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],

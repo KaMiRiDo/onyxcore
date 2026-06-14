@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/gallery_dl_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
@@ -41,6 +42,20 @@ class EngineRegistry {
   /// Register a new engine (for future plugins).
   static void register(DownloadEngine engine) {
     _engines.add(engine);
+  }
+
+  @visibleForTesting
+  static void clearRegisteredEngines() {
+    _engines.clear();
+    _engines.addAll([
+      ..._requiredEngines,
+      ..._optionalEngines,
+    ]);
+  }
+
+  @visibleForTesting
+  static void clearAllEnginesForTesting() {
+    _engines.clear();
   }
 
   /// Resolve engine by preference or auto-detect from URL.

@@ -25,5 +25,5 @@
 | Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
 |---|---|---|---|---|---|---|
 | U-DL-LUX-07 | `lux_engine.dart` | `startDownload` | Construct proper `-f` argument | `format.formatId = 'mp4'` | Call `startDownload` | Args include `-f mp4` |
-| U-DL-LUX-08 | `lux_engine.dart` | `startDownload` | **[EDGE]** Path contains spaces | Output path is `/tmp/my video/` | Call `startDownload` | Passes path properly quoted/escaped via Process |
-| U-DL-LUX-05 | `lux_engine.dart` | `startDownload` | Construct download args | `format=MediaFormat(formatId: '1080p')` | Call `startDownload` | Args include `-O`, `-f 1080p`, `-n 16` |
+| U-DL-LUX-08 | `lux_engine.dart` | `startDownload` | Construct download args with output and threads | `format=MediaFormat(formatId: '1080p')` | Call `startDownload` | Args include `-O`, `-f 1080p`, `-n 16` |
+| U-DL-LUX-09 | `lux_engine.dart` | `startDownload` | **[EDGE]** Path contains spaces | Output path is `/tmp/my video/` | Call `startDownload` | Passes path properly via Process (no shell escaping needed) |

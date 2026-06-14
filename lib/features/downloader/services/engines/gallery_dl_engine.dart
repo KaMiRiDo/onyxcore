@@ -88,7 +88,8 @@ class GalleryDlEngine extends DownloadEngine {
   }
 
   /// Detect if the URL is a social profile (not a single post).
-  bool _isSocialProfile(String url) {
+  @visibleForTesting
+  bool isSocialProfile(String url) {
     if (url.contains('instagram.com')) {
       return !url.contains('/p/') && !url.contains('/reel/') && !url.contains('/tv/');
     }
@@ -131,14 +132,14 @@ class GalleryDlEngine extends DownloadEngine {
     void Function(MediaInfo info)? onProgress,
     void Function(int pid)? onProcessStarted,
   }) async {
-    if ((url.contains('twitter.com') || url.contains('x.com')) && _isSocialProfile(url)) {
+    if ((url.contains('twitter.com') || url.contains('x.com')) && isSocialProfile(url)) {
       final uri = Uri.tryParse(url);
       if (uri != null && uri.pathSegments.isNotEmpty && uri.pathSegments.length == 1) {
         url = url.endsWith('/') ? '${url}media' : '$url/media';
       }
     }
 
-    final isSocialProfile = _isSocialProfile(url);
+    final isSocialProfileVar = isSocialProfile(url);
 
     String? actualBrowser = browser;
     if (actualBrowser == null) {
@@ -147,9 +148,9 @@ class GalleryDlEngine extends DownloadEngine {
     }
 
     // Try Instagram API shortcut for profiles (only if not deep fetching)
-    if (url.contains('instagram.com') && isSocialProfile && !fetchDeep) {
+    if (url.contains('instagram.com') && isSocialProfileVar && !fetchDeep) {
       try {
-        final profileInfos = await _fetchInstagramProfile(url, actualBrowser, fetchDeep: fetchDeep);
+        final profileInfos = await fetchInstagramProfile(url, actualBrowser, fetchDeep: fetchDeep);
         if (profileInfos != null) return profileInfos;
       } catch (e) {
         debugPrint('Instagram API fallback failed: $e, trying gallery-dl...');
@@ -168,7 +169,7 @@ class GalleryDlEngine extends DownloadEngine {
 
     args.add('-q'); // Suppress logs in stdout to prevent JSON parser corruption
     
-    if (isSocialProfile) {
+    if (isSocialProfileVar) {
       if (fetchDeep) {
         args.addAll(['-J', url]);
       } else {
@@ -288,10 +289,10 @@ class GalleryDlEngine extends DownloadEngine {
               final infos = <MediaInfo>[];
               try {
                 infos.addAll(
-                  await _parseGalleryDlJsonBlock(
+                  await parseGalleryDlJsonBlock(
                     blockStr,
                     url,
-                    isSocialProfile,
+                    isSocialProfileVar,
                     browser,
                     parsedInfos.length,
                     fetchDeep,
@@ -368,7 +369,7 @@ class GalleryDlEngine extends DownloadEngine {
         throw Exception('Failed to parse gallery-dl JSON blocks');
       }
 
-      if (!fetchDeep && isSocialProfile) {
+      if (!fetchDeep && isSocialProfileVar) {
         parsedInfos.removeWhere((info) => !info.isProfile);
       }
       
@@ -410,7 +411,7 @@ class GalleryDlEngine extends DownloadEngine {
     String? singleItemId,
     String? directUrl,
   }) async {
-    if ((url.contains('twitter.com') || url.contains('x.com')) && _isSocialProfile(url)) {
+    if ((url.contains('twitter.com') || url.contains('x.com')) && isSocialProfile(url)) {
       final uri = Uri.tryParse(url);
       if (uri != null && uri.pathSegments.isNotEmpty && uri.pathSegments.length == 1) {
         url = url.endsWith('/') ? '${url}media' : '$url/media';
@@ -472,7 +473,8 @@ class GalleryDlEngine extends DownloadEngine {
 
   // ——— Private helpers ———
 
-  Future<List<MediaInfo>?> _fetchInstagramProfile(String url, String? browser, {bool fetchDeep = false}) async {
+  @visibleForTesting
+  Future<List<MediaInfo>?> fetchInstagramProfile(String url, String? browser, {bool fetchDeep = false}) async {
     final uri = Uri.parse(url);
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) {
@@ -575,7 +577,8 @@ class GalleryDlEngine extends DownloadEngine {
     }
   }
 
-  Future<List<MediaInfo>> _parseGalleryDlJsonBlock(
+  @visibleForTesting
+  Future<List<MediaInfo>> parseGalleryDlJsonBlock(
     String block,
     String url,
     bool isSocialProfile,

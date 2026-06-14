@@ -14,18 +14,20 @@ The `test/` directory mirrors `lib/` exactly, split by test type:
 
 ```
 test/
-├── unit/           ← Pure logic: entities, utils, isolates, providers
-│   └── features/
-│       └── <module>/
-│           └── domain/
-│               ├── entities/<name>_test.dart
-│               └── utils/<name>_test.dart
-├── widgets/        ← Widget/UI tests: dialogs, pages, widgets
-│   └── features/
-│       └── <module>/
+├── features/       ← Feature-first organization
+│   └── <module>/
+│       ├── unit/   ← Pure logic: entities, utils, isolates, providers
+│       │   └── domain/
+│       │       ├── entities/<name>_test.dart
+│       │       └── utils/<name>_test.dart
+│       └── widgets/← Widget/UI tests: dialogs, pages, widgets
 │           └── presentation/
 │               ├── pages/<name>_test.dart
-│               └── widgets/dialogs/<name>_test.dart
+│               └── widgets/<name>_test.dart
+│           └── mock_providers.dart ← Centralized mock providers for the module
+├── services/       ← Top-level shared services tests
+│   └── unit/
+│       └── <name>_test.dart
 ├── helpers/        ← Shared test utilities, factories, builders
 └── mocks/          ← Shared mock classes (mocktail)
 ```
@@ -74,6 +76,11 @@ void main() {
     test('scenario description', () { ... });
   });
 }
+
+// 4. Mock Providers (For Widget Tests)
+// Use centralized mock classes instead of initializing logic inside setUpAll
+class MockSettingsNotifier extends SettingsNotifier { ... }
+class MockDownloadTaskNotifier extends DownloadTaskNotifier { ... }
 ```
 
 ### 2.2 Test Case Naming

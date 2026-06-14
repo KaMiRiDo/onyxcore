@@ -136,7 +136,7 @@ class StreamlinkEngine extends DownloadEngine {
   }) async {
     final args = <String>['--json', url];
 
-    final process = await Process.start('streamlink', args);
+    final process = await Process.start(binaryPath!, args);
     if (onProcessStarted != null) {
       onProcessStarted(process.pid);
     }
@@ -298,7 +298,7 @@ class StreamlinkEngine extends DownloadEngine {
     ];
 
     return Process.start(
-      'streamlink',
+      binaryPath!,
       args,
       environment: {'PYTHONUNBUFFERED': '1'},
     );

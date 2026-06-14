@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:window_manager/window_manager.dart';
@@ -858,7 +859,17 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     });
   }
 
+  @visibleForTesting
   void parseProgressForTesting(String id, String data) => _parseProgress(id, data);
+  
+  @visibleForTesting
+  void appendLogForTesting(String id, String data) => _appendLog(id, data);
+  
+  @visibleForTesting
+  void processQueueForTesting() => _processQueue();
+  
+  @visibleForTesting
+  void startProcessForTaskForTesting(String id) => _startProcessForTask(id);
 }
 
 final downloadTaskProvider =

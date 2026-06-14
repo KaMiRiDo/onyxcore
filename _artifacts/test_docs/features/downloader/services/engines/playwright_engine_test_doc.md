@@ -4,8 +4,6 @@
 **Target Layer:** Services / Engines
 **Coverage Target:** >90%
 
-## 1. Engine Configuration & Python Script
-
 ## 1. Python Environment & Script Setup
 
 | Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
@@ -23,7 +21,7 @@
 | U-DL-PLW-06 | `playwright_engine.dart` | `fetchMetadata` | Parse embedded HLS/M3U8 streams | Python output contains `.m3u8` URL | Call `fetchMetadata` | Format `protocol` is marked as `m3u8_native` |
 | U-DL-PLW-07 | `playwright_engine.dart` | `fetchMetadata` | **[EDGE]** Bypass failure or CAPTCHA block | Python script hits hCaptcha and times out | Call `fetchMetadata` | Throws Exception mentioning bypass failure or bot detection |
 
-## 3. Download Execution (Aria2 Handoff)
+## 3. Download Execution (Aria2/FFmpeg/Curl Handoff)
 
 | Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
 |---|---|---|---|---|---|---|

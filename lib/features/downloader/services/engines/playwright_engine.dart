@@ -134,6 +134,15 @@ class PlaywrightEngine extends DownloadEngine {
     debugPrint('[PlaywrightEngine] Wrote intercept script at: ${binaryPath!}');
   }
 
+  @visibleForTesting
+  Future<Process> startPythonProcess(String url) async {
+    return Process.start('python3', [
+      binaryPath!,
+      url,
+      '15000', // timeout ms
+    ]);
+  }
+
   @override
   Future<List<MediaInfo>> fetchMetadata({
     required String url,
@@ -145,11 +154,7 @@ class PlaywrightEngine extends DownloadEngine {
   }) async {
     await _ensureScript();
 
-    final process = await Process.start('python3', [
-      binaryPath!,
-      url,
-      '15000', // timeout ms
-    ]);
+    final process = await startPythonProcess(url);
     if (onProcessStarted != null) {
       onProcessStarted(process.pid);
     }

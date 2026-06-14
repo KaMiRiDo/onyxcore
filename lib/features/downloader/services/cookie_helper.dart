@@ -12,6 +12,15 @@ class CookieHelper {
   static DateTime? _cookiesCachedAt;
   static const Duration _cookieTTL = Duration(minutes: 5);
 
+  @visibleForTesting
+  static String? mockHome;
+
+  @visibleForTesting
+  static void clearCache() {
+    _cachedCookies = null;
+    _cookiesCachedAt = null;
+  }
+
   /// Extract cookies from the specified browser's SQLite database.
   ///
   /// If [domain] is provided, only cookies matching that domain pattern are
@@ -40,7 +49,7 @@ class CookieHelper {
     _cachedCookies = null;
     _cookiesCachedAt = null;
 
-    final home = Platform.environment['HOME'] ?? '';
+    final home = mockHome ?? Platform.environment['HOME'] ?? '';
     final possiblePaths = [
       p.join(home, '.mozilla', 'firefox'),
       p.join(home, 'snap', 'firefox', 'common', '.mozilla', 'firefox'),

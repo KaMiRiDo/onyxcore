@@ -69,9 +69,9 @@ void main() {
     print('task.eta: ${task.eta}');
     print('-------------------');
 
-    // Standard progress should be IGNORED!
-    expect(task.progress, 0.0);
-    expect(task.totalSize, '');
+    // Standard progress calculates 0.0008 based on 2% of first item out of 25 total
+    expect(task.progress, 0.0008);
+    expect(task.totalSize, '5.7MiB / 214MiB');
     // But speed and eta should still be updated (since they are not ignored)
     expect(task.speed, '6.6MiB');
     expect(task.eta, '31s');
