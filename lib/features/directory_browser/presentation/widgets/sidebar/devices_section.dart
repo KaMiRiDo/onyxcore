@@ -27,7 +27,8 @@ class DevicesSection extends ConsumerStatefulWidget {
 
 class _DevicesSectionState extends ConsumerState<DevicesSection> {
   final Map<String, String> _waitingToEject = {}; // path -> name
-  final Map<String, Map<String, dynamic>> _busyDevices = {}; // deviceId -> {name, mountPath, startTime}
+  final Map<String, Map<String, dynamic>> _busyDevices =
+      {}; // deviceId -> {name, mountPath, startTime}
   final Set<String> _isEjecting = {}; // device.id
   Timer? _busyTimer;
 
@@ -48,7 +49,7 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
 
       final now = DateTime.now();
       final toRemove = <String>[];
-      
+
       final entries = _busyDevices.entries.toList();
       for (final entry in entries) {
         final deviceId = entry.key;
@@ -71,7 +72,11 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
             // Device is no longer busy!
             toRemove.add(deviceId);
             if (mounted) {
-              _showStyledSnackBar(context, 'Now it is safe to eject $deviceName.', isSuccess: true);
+              _showStyledSnackBar(
+                context,
+                'Now it is safe to eject $deviceName.',
+                isSuccess: true,
+              );
             }
           }
         } catch (e) {
@@ -93,7 +98,7 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
     if (widget.currentPath.startsWith(devicePath)) {
       final navNotifier = ref.read(navigationProvider.notifier);
       final lastValidPath = navNotifier.handleEject(devicePath);
-      
+
       if (lastValidPath != null) {
         ref.read(currentPathProvider.notifier).state = lastValidPath;
       } else {
@@ -104,7 +109,12 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
     }
   }
 
-  void _showStyledSnackBar(BuildContext context, String message, {bool isSuccess = false, bool isWarning = false}) {
+  void _showStyledSnackBar(
+    BuildContext context,
+    String message, {
+    bool isSuccess = false,
+    bool isWarning = false,
+  }) {
     IconData iconData = Icons.info_outline_rounded;
     Color iconColor = AppColors.violet;
 
@@ -150,26 +160,28 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
 
   bool _hasActiveTasksForDevice(List<FileTask> tasks, String devicePath) {
     return tasks.any((task) {
-      if (task.status != FileTaskStatus.running && task.status != FileTaskStatus.pending) {
+      if (task.status != FileTaskStatus.running &&
+          task.status != FileTaskStatus.pending) {
         return false;
       }
       final hasTarget = task.targetPath?.startsWith(devicePath) == true;
-      final hasSource = task.sourcePaths?.any((p) => p.startsWith(devicePath)) == true;
+      final hasSource =
+          task.sourcePaths?.any((p) => p.startsWith(devicePath)) == true;
       return hasTarget || hasSource;
     });
   }
 
   String _formatUsageString(double usage, String totalSizeStr) {
     if (usage <= 0 || totalSizeStr == '0 B') return totalSizeStr;
-    
+
     try {
       final parts = totalSizeStr.split(' ');
       if (parts.length != 2) return totalSizeStr;
-      
+
       final total = double.parse(parts[0]);
       final suffix = parts[1];
       final used = total * usage;
-      
+
       return '${used.toStringAsFixed(1)} / $totalSizeStr';
     } catch (_) {
       return totalSizeStr;
@@ -180,20 +192,24 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
   Widget build(BuildContext context) {
     ref.listen<List<FileTask>>(taskProvider, (previous, next) {
       if (_waitingToEject.isEmpty) return;
-      
+
       final completedPaths = <String>[];
-      
+
       for (final entry in _waitingToEject.entries) {
         final path = entry.key;
         final name = entry.value;
         if (!_hasActiveTasksForDevice(next, path)) {
           completedPaths.add(path);
           if (mounted) {
-            _showStyledSnackBar(context, 'Now it is safe to eject $name.', isSuccess: true);
+            _showStyledSnackBar(
+              context,
+              'Now it is safe to eject $name.',
+              isSuccess: true,
+            );
           }
         }
       }
-      
+
       for (final path in completedPaths) {
         _waitingToEject.remove(path);
       }
@@ -210,132 +226,188 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
           // We will keep it simple and just show all volumes that lsblk found.
           return true;
         }).toList();
-        
+
         if (filteredDevices.isEmpty) return const SizedBox.shrink();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: filteredDevices.map((device) {
             final storageText = _formatUsageString(device.usage, device.size);
-            
+
             return SidebarItem(
-                icon: device.isMobile ? Icons.smartphone_rounded : Icons.storage_outlined,
-                label: device.name,
-                path: device.path,
-                isActive: (widget.currentPath == device.path) || 
-                          (widget.currentPath.startsWith(device.path) && device.path != '/'),
-                progress: device.usage,
-                storageText: storageText,
-                onEject: device.isRemovable
-                    ? () async {
-                        if (_isEjecting.contains(device.id)) return;
-                        if (_busyDevices.containsKey(device.id) || _waitingToEject.containsKey(device.path)) {
-                           if (mounted) {
-                             _showStyledSnackBar(context, '${device.name} is busy. Will notify when safe to eject.', isWarning: true);
-                           }
-                           return;
+              icon: device.isMobile
+                  ? Icons.smartphone_rounded
+                  : Icons.storage_outlined,
+              label: device.name,
+              path: device.path,
+              isActive:
+                  (widget.currentPath == device.path) ||
+                  (widget.currentPath.startsWith(device.path) &&
+                      device.path != '/'),
+              progress: device.usage,
+              storageText: storageText,
+              onEject: device.isRemovable
+                  ? () async {
+                      if (_isEjecting.contains(device.id)) return;
+                      if (_busyDevices.containsKey(device.id) ||
+                          _waitingToEject.containsKey(device.path)) {
+                        if (mounted) {
+                          _showStyledSnackBar(
+                            context,
+                            '${device.name} is busy. Will notify when safe to eject.',
+                            isWarning: true,
+                          );
                         }
+                        return;
+                      }
 
-                        final tasks = ref.read(taskProvider);
-                        if (_hasActiveTasksForDevice(tasks, device.path)) {
-                           setState(() {
-                             _waitingToEject[device.path] = device.name;
-                           });
-                           if (mounted) {
-                             _showStyledSnackBar(context, 'Operations are still running on ${device.name}. Please wait.', isWarning: true);
-                           }
-                           return;
-                        }
-
+                      final tasks = ref.read(taskProvider);
+                      if (_hasActiveTasksForDevice(tasks, device.path)) {
                         setState(() {
-                          _isEjecting.add(device.id);
+                          _waitingToEject[device.path] = device.name;
                         });
+                        if (mounted) {
+                          _showStyledSnackBar(
+                            context,
+                            'Operations are still running on ${device.name}. Please wait.',
+                            isWarning: true,
+                          );
+                        }
+                        return;
+                      }
 
-                        try {
-                          ProcessResult unmountRes;
-                          final isGvfs = device.path.contains('/gvfs/');
-                          
-                          if (isGvfs) {
-                            unmountRes = await Process.run('gio', ['mount', '-u', device.path]);
-                          } else {
-                            unmountRes = await Process.run('udisksctl', ['unmount', '-b', device.id]);
-                          }
-                          
-                          if (unmountRes.exitCode != 0) {
-                             final stderr = unmountRes.stderr.toString().toLowerCase();
-                             if (stderr.contains('busy')) {
-                                setState(() {
-                                  _busyDevices[device.id] = {
-                                    'name': device.name,
-                                    'mountPath': device.path,
-                                    'startTime': DateTime.now(),
-                                  };
-                                });
-                                _startBusyCheck();
-                                if (mounted) {
-                                  _showStyledSnackBar(context, '${device.name} is busy. Will notify when safe to eject.', isWarning: true);
-                                }
-                                return;
-                             } else {
-                                if (mounted) {
-                                  _showStyledSnackBar(context, 'Failed to eject ${device.name}.', isWarning: true);
-                                }
-                                return;
-                             }
-                          }
-                          
-                          if (!isGvfs) {
-                            await Process.run('udisksctl', ['power-off', '-b', device.id]);
-                          }
-                          _navigateToPreviouslyVisitedIfEjected(device.path);
-                          if (mounted) {
-                            _showStyledSnackBar(context, '${device.name} safely ejected.', isSuccess: true);
-                          }
-                        } catch (e) {
-                          debugPrint('Eject error: $e');
-                        } finally {
-                          if (mounted) {
+                      setState(() {
+                        _isEjecting.add(device.id);
+                      });
+
+                      try {
+                        ProcessResult unmountRes;
+                        final isGvfs = device.path.contains('/gvfs/');
+
+                        if (isGvfs) {
+                          unmountRes = await Process.run('gio', [
+                            'mount',
+                            '-u',
+                            device.path,
+                          ]);
+                        } else {
+                          unmountRes = await Process.run('udisksctl', [
+                            'unmount',
+                            '-b',
+                            device.id,
+                          ]);
+                        }
+
+                        if (unmountRes.exitCode != 0) {
+                          final stderr = unmountRes.stderr
+                              .toString()
+                              .toLowerCase();
+                          if (stderr.contains('busy')) {
                             setState(() {
-                              _isEjecting.remove(device.id);
+                              _busyDevices[device.id] = {
+                                'name': device.name,
+                                'mountPath': device.path,
+                                'startTime': DateTime.now(),
+                              };
                             });
+                            _startBusyCheck();
+                            if (mounted) {
+                              _showStyledSnackBar(
+                                context,
+                                '${device.name} is busy. Will notify when safe to eject.',
+                                isWarning: true,
+                              );
+                            }
+                            return;
+                          } else {
+                            if (mounted) {
+                              _showStyledSnackBar(
+                                context,
+                                'Failed to eject ${device.name}.',
+                                isWarning: true,
+                              );
+                            }
+                            return;
                           }
                         }
-                      }
-                    : null,
-                onTap: () async {
-                  if (device.path.isEmpty) {
-                    if (mounted) {
-                      _showStyledSnackBar(context, 'Mounting ${device.name}...');
-                    }
-                    try {
-                      final mountRes = await Process.run('udisksctl', ['mount', '-b', device.id]);
-                      if (mountRes.exitCode != 0) {
-                        if (mounted) {
-                          _showStyledSnackBar(context, 'Failed to mount: ${mountRes.stderr}');
+
+                        if (!isGvfs) {
+                          await Process.run('udisksctl', [
+                            'power-off',
+                            '-b',
+                            device.id,
+                          ]);
                         }
-                      } else {
+                        _navigateToPreviouslyVisitedIfEjected(device.path);
                         if (mounted) {
-                          _showStyledSnackBar(context, '${device.name} mounted successfully.', isSuccess: true);
+                          _showStyledSnackBar(
+                            context,
+                            '${device.name} safely ejected.',
+                            isSuccess: true,
+                          );
+                        }
+                      } catch (e) {
+                        debugPrint('Eject error: $e');
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isEjecting.remove(device.id);
+                          });
                         }
                       }
-                    } catch (e) {
-                      debugPrint('Mount error: $e');
                     }
-                  } else {
-                    widget.onNavigate(device.path);
+                  : null,
+              onTap: () async {
+                if (device.path.isEmpty) {
+                  if (mounted) {
+                    _showStyledSnackBar(context, 'Mounting ${device.name}...');
                   }
-                },
-              );
+                  try {
+                    final mountRes = await Process.run('udisksctl', [
+                      'mount',
+                      '-b',
+                      device.id,
+                    ]);
+                    if (mountRes.exitCode != 0) {
+                      if (mounted) {
+                        _showStyledSnackBar(
+                          context,
+                          'Failed to mount: ${mountRes.stderr}',
+                        );
+                      }
+                    } else {
+                      if (mounted) {
+                        _showStyledSnackBar(
+                          context,
+                          '${device.name} mounted successfully.',
+                          isSuccess: true,
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint('Mount error: $e');
+                  }
+                } else {
+                  widget.onNavigate(device.path);
+                }
+              },
+            );
           }).toList(),
         );
       },
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(horizontal: 24),
-        child: Text('Loading devices...', style: TextStyle(color: Colors.white38, fontSize: 10)),
+        child: Text(
+          'Loading devices...',
+          style: TextStyle(color: Colors.white38, fontSize: 10),
+        ),
       ),
       error: (error, stack) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Text('Error: $error', style: const TextStyle(color: Colors.red, fontSize: 10)),
+        child: Text(
+          'Error: $error',
+          style: const TextStyle(color: Colors.red, fontSize: 10),
+        ),
       ),
     );
   }

@@ -25,11 +25,16 @@ class SettingsDialog extends ConsumerStatefulWidget {
     super.key,
   });
 
-  static Future<void> show(BuildContext context, {int initialTab = 0, String? section}) {
+  static Future<void> show(
+    BuildContext context, {
+    int initialTab = 0,
+    String? section,
+  }) {
     return showDialog(
       context: context,
       barrierColor: Colors.black.withAlpha(179),
-      builder: (context) => SettingsDialog(initialTab: initialTab, initialSection: section),
+      builder: (context) =>
+          SettingsDialog(initialTab: initialTab, initialSection: section),
     );
   }
 
@@ -37,7 +42,8 @@ class SettingsDialog extends ConsumerStatefulWidget {
   ConsumerState<SettingsDialog> createState() => _SettingsDialogState();
 }
 
-class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTickerProviderStateMixin {
+class _SettingsDialogState extends ConsumerState<SettingsDialog>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   // Scroll controllers for each tab
@@ -84,7 +90,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   // Draft state for buffered saving
   AppSettings? _draftSettings;
   AppSettings? _originalSettings;
-  
+
   List<String> _installedBrowsers = [];
   String? _defaultBrowser;
 
@@ -92,8 +98,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 4, 
-      vsync: this, 
+      length: 4,
+      vsync: this,
       initialIndex: widget.initialTab,
     );
     _tabController.addListener(() {
@@ -107,15 +113,21 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     // Handle initial section scrolling
     if (widget.initialSection != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final tabName = widget.initialTab == 0 
-            ? 'General' 
-            : (widget.initialTab == 1 ? 'Viewers/Players' : (widget.initialTab == 2 ? 'Security' : 'Shortcuts'));
-        
+        final tabName = widget.initialTab == 0
+            ? 'General'
+            : (widget.initialTab == 1
+                  ? 'Viewers/Players'
+                  : (widget.initialTab == 2 ? 'Security' : 'Shortcuts'));
+
         GlobalKey? targetKey;
-        if (tabName == 'General') targetKey = _generalKeys[widget.initialSection];
-        if (tabName == 'Viewers/Players') targetKey = _viewersKeys[widget.initialSection];
-        if (tabName == 'Security') targetKey = _securityKeys[widget.initialSection];
-        if (tabName == 'Shortcuts') targetKey = _shortcutsKeys[widget.initialSection];
+        if (tabName == 'General')
+          targetKey = _generalKeys[widget.initialSection];
+        if (tabName == 'Viewers/Players')
+          targetKey = _viewersKeys[widget.initialSection];
+        if (tabName == 'Security')
+          targetKey = _securityKeys[widget.initialSection];
+        if (tabName == 'Shortcuts')
+          targetKey = _shortcutsKeys[widget.initialSection];
 
         if (targetKey != null) {
           _scrollToSection(targetKey, widget.initialSection!, tabName);
@@ -160,18 +172,23 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
       final scrollController = tab == 'General'
           ? _generalScrollController
           : tab == 'Viewers/Players'
-              ? _viewersScrollController
-              : tab == 'Security'
-                  ? _securityScrollController
-                  : _shortcutsScrollController;
+          ? _viewersScrollController
+          : tab == 'Security'
+          ? _securityScrollController
+          : _shortcutsScrollController;
 
       final RenderBox box = context.findRenderObject() as RenderBox;
-      final RenderBox? viewport = scrollController.position.context.storageContext.findRenderObject() as RenderBox?;
-      
+      final RenderBox? viewport =
+          scrollController.position.context.storageContext.findRenderObject()
+              as RenderBox?;
+
       if (viewport != null) {
         final offset = box.localToGlobal(Offset.zero, ancestor: viewport);
         scrollController.animateTo(
-          (scrollController.offset + offset.dy).clamp(0.0, scrollController.position.maxScrollExtent),
+          (scrollController.offset + offset.dy).clamp(
+            0.0,
+            scrollController.position.maxScrollExtent,
+          ),
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeOutQuart,
         );
@@ -217,7 +234,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                             decoration: BoxDecoration(
                               color: const Color(0xFF161616),
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: Colors.white.withOpacity(0.08)),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.08),
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.6),
@@ -247,7 +266,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                             ),
                           ),
                         ),
-                        
+
                         // Resize Handle
                         Positioned(
                           right: 0,
@@ -255,22 +274,37 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                           child: MouseRegion(
                             cursor: SystemMouseCursors.resizeDownRight,
                             child: GestureDetector(
-                              onPanStart: (_) => setState(() => _isResizing = true),
+                              onPanStart: (_) =>
+                                  setState(() => _isResizing = true),
                               onPanUpdate: (details) {
                                 setState(() {
-                                  _width = (_width + details.delta.dx).clamp(600, 1200);
-                                  _height = (_height + details.delta.dy).clamp(400, 900);
+                                  _width = (_width + details.delta.dx).clamp(
+                                    600,
+                                    1200,
+                                  );
+                                  _height = (_height + details.delta.dy).clamp(
+                                    400,
+                                    900,
+                                  );
                                 });
                               },
                               onPanEnd: (_) {
                                 setState(() => _isResizing = false);
-                                ref.read(settingsProvider.notifier).setSettingsDimensions(_width, _height);
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .setSettingsDimensions(_width, _height);
                               },
                               child: Container(
                                 width: 30,
                                 height: 30,
                                 padding: const EdgeInsets.all(4),
-                                child: CustomPaint(painter: _ResizeHandlePainter(color: _isResizing ? Colors.white70 : Colors.white24)),
+                                child: CustomPaint(
+                                  painter: _ResizeHandlePainter(
+                                    color: _isResizing
+                                        ? Colors.white70
+                                        : Colors.white24,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -296,7 +330,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
       final discard = await showVibrantConfirmDialog(
         context: context,
         title: 'Discard Changes?',
-        message: 'You have unsaved changes. Are you sure you want to discard them?',
+        message:
+            'You have unsaved changes. Are you sure you want to discard them?',
         confirmLabel: 'Discard',
         confirmColor: Colors.redAccent,
       );
@@ -310,10 +345,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
 
   Future<void> _handleSave() async {
     if (_draftSettings != null) {
-      final hwDecChanged = _draftSettings!.selectedHwDec != _originalSettings?.selectedHwDec;
-      
+      final hwDecChanged =
+          _draftSettings!.selectedHwDec != _originalSettings?.selectedHwDec;
+
       await ref.read(settingsProvider.notifier).saveSettings(_draftSettings!);
-      
+
       if (mounted) {
         if (hwDecChanged) {
           await showDialog(
@@ -321,7 +357,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
             barrierDismissible: false,
             builder: (context) => AlertDialog(
               backgroundColor: const Color(0xFF1A1A1A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: Text(
                 'Restart Required',
                 style: GoogleFonts.manrope(
@@ -358,7 +396,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -387,7 +427,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.1),
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
       ),
       child: _buildTabBar(),
     );
@@ -444,16 +486,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
     );
   }
 
-
-
-
   Widget _buildGeneralTab(AppSettings settings) {
     return Row(
       children: [
         _buildSubSidebar(
           items: ['Files & Folders', 'Download Manager', 'Sync', 'Performance'],
           activeItem: _activeGeneralSection,
-          onSelected: (section) => _scrollToSection(_generalKeys[section]!, section, 'General'),
+          onSelected: (section) =>
+              _scrollToSection(_generalKeys[section]!, section, 'General'),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -462,128 +502,175 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionHeader('Files & Folders', _generalKeys['Files & Folders']!),
-              _buildSettingTile(
-                title: 'Show hidden files',
-                subtitle: 'Show hidden files like dot files in the file manager',
-                trailing: OnyxSwitch(
-                  value: settings.showHiddenFiles,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(showHiddenFiles: value);
-                    });
-                  },
+                _buildSectionHeader(
+                  'Files & Folders',
+                  _generalKeys['Files & Folders']!,
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Max concurrent tasks',
-                subtitle: 'Maximum number of background file operations running simultaneously',
-                trailing: _buildDropdown<int>(
-                  value: (settings.maxConcurrentTasks < 1 || settings.maxConcurrentTasks > 3) 
-                      ? 3 
-                      : settings.maxConcurrentTasks,
-                  options: List.generate(3, (i) => i + 1)
-                      .map((v) => MapEntry(v, '$v'))
-                      .toList(),
-                  minWidth: 60,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(maxConcurrentTasks: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Show hidden files',
+                  subtitle:
+                      'Show hidden files like dot files in the file manager',
+                  trailing: OnyxSwitch(
+                    value: settings.showHiddenFiles,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          showHiddenFiles: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Global default sort',
-                subtitle: 'The sort order used for folders without a specific preference',
-                trailing: _buildDropdown<SortOption>(
-                  value: settings.globalSortOption,
-                  options: SortOption.values
-                      .map((v) => MapEntry(v, v.label))
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(globalSortOption: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Max concurrent tasks',
+                  subtitle:
+                      'Maximum number of background file operations running simultaneously',
+                  trailing: _buildDropdown<int>(
+                    value:
+                        (settings.maxConcurrentTasks < 1 ||
+                            settings.maxConcurrentTasks > 3)
+                        ? 3
+                        : settings.maxConcurrentTasks,
+                    options: List.generate(
+                      3,
+                      (i) => i + 1,
+                    ).map((v) => MapEntry(v, '$v')).toList(),
+                    minWidth: 60,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          maxConcurrentTasks: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSectionHeader('Download Manager', _generalKeys['Download Manager']!),
-              _buildSettingTile(
-                title: 'Download to current folder',
-                subtitle: 'Save downloaded media to the currently viewed directory instead of the default Downloads folder',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.downloadToCurrentFolder ?? true,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(downloadToCurrentFolder: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Global default sort',
+                  subtitle:
+                      'The sort order used for folders without a specific preference',
+                  trailing: _buildDropdown<SortOption>(
+                    value: settings.globalSortOption,
+                    options: SortOption.values
+                        .map((v) => MapEntry(v, v.label))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          globalSortOption: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Browser for Cookie Extraction',
-                subtitle: 'Used for age-restricted or private downloads (e.g. Instagram). Default is system browser.',
-                trailing: _buildDropdown<String>(
-                  value: settings.downloadBrowser ?? _defaultBrowser ?? 'None',
-                  options: [
-                    if (_defaultBrowser != null) MapEntry(_defaultBrowser!, '$_defaultBrowser (Default)'),
-                    ..._installedBrowsers.where((b) => b != _defaultBrowser).map((b) => MapEntry(b, b)),
-                    const MapEntry('None', 'None (Disabled)'),
-                  ],
-                  minWidth: 150,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(downloadBrowser: value == 'None' ? 'None' : value);
-                    });
-                  },
+                _buildSectionHeader(
+                  'Download Manager',
+                  _generalKeys['Download Manager']!,
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Max concurrent downloads',
-                subtitle: 'Maximum number of media downloads running simultaneously',
-                trailing: _buildDropdown<int>(
-                  value: settings.maxConcurrentDownloads.clamp(1, 10),
-                  options: [1, 2, 3, 5, 8, 10]
-                      .map((v) => MapEntry(v, '$v'))
-                      .toList(),
-                  minWidth: 60,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(maxConcurrentDownloads: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Download to current folder',
+                  subtitle:
+                      'Save downloaded media to the currently viewed directory instead of the default Downloads folder',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.downloadToCurrentFolder ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          downloadToCurrentFolder: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildInstalledEnginesSection(),
-              _buildSectionHeader('Sync', _generalKeys['Sync']!),
-              _buildEmptySection('Sync settings and cloud integration options will appear here.'),
-              _buildSectionHeader('Performance', _generalKeys['Performance']!),
-              _buildSettingTile(
-                title: 'Hardware Decoder',
-                subtitle: 'Choose the driver used for video decoding. Restart required.',
-                trailing: _buildDropdown<String>(
-                  value: settings.selectedHwDec,
-                  options: const [
-                    MapEntry('auto', 'Auto (Recommended)'),
-                    MapEntry('vaapi', 'VA-API (AMD / Intel)'),
-                    MapEntry('nvdec', 'NVDEC (NVIDIA)'),
-                    MapEntry('d3d11va', 'D3D11VA (Windows)'),
-                    MapEntry('no', 'Software (CPU Fallback)'),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(
-                        selectedHwDec: value,
-                        cachedResolvedHwDec: null,
-                      );
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Browser for Cookie Extraction',
+                  subtitle:
+                      'Used for age-restricted or private downloads (e.g. Instagram). Default is system browser.',
+                  trailing: _buildDropdown<String>(
+                    value:
+                        settings.downloadBrowser ?? _defaultBrowser ?? 'None',
+                    options: [
+                      if (_defaultBrowser != null)
+                        MapEntry(
+                          _defaultBrowser!,
+                          '$_defaultBrowser (Default)',
+                        ),
+                      ..._installedBrowsers
+                          .where((b) => b != _defaultBrowser)
+                          .map((b) => MapEntry(b, b)),
+                      const MapEntry('None', 'None (Disabled)'),
+                    ],
+                    minWidth: 150,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          downloadBrowser: value == 'None' ? 'None' : value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 100), // Space to allow scrolling to final section
-            ],
-          ),
+                _buildSettingTile(
+                  title: 'Max concurrent downloads',
+                  subtitle:
+                      'Maximum number of media downloads running simultaneously',
+                  trailing: _buildDropdown<int>(
+                    value: settings.maxConcurrentDownloads.clamp(1, 10),
+                    options: [
+                      1,
+                      2,
+                      3,
+                      5,
+                      8,
+                      10,
+                    ].map((v) => MapEntry(v, '$v')).toList(),
+                    minWidth: 60,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          maxConcurrentDownloads: value,
+                        );
+                      });
+                    },
+                  ),
+                ),
+                _buildInstalledEnginesSection(),
+                _buildSectionHeader('Sync', _generalKeys['Sync']!),
+                _buildEmptySection(
+                  'Sync settings and cloud integration options will appear here.',
+                ),
+                _buildSectionHeader(
+                  'Performance',
+                  _generalKeys['Performance']!,
+                ),
+                _buildSettingTile(
+                  title: 'Hardware Decoder',
+                  subtitle:
+                      'Choose the driver used for video decoding. Restart required.',
+                  trailing: _buildDropdown<String>(
+                    value: settings.selectedHwDec,
+                    options: const [
+                      MapEntry('auto', 'Auto (Recommended)'),
+                      MapEntry('vaapi', 'VA-API (AMD / Intel)'),
+                      MapEntry('nvdec', 'NVDEC (NVIDIA)'),
+                      MapEntry('d3d11va', 'D3D11VA (Windows)'),
+                      MapEntry('no', 'Software (CPU Fallback)'),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          selectedHwDec: value,
+                          cachedResolvedHwDec: null,
+                        );
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(
+                  height: 100,
+                ), // Space to allow scrolling to final section
+              ],
+            ),
           ),
         ),
       ],
@@ -596,7 +683,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
         _buildSubSidebar(
           items: ['Image', 'Video', 'Audio', 'Documents'],
           activeItem: _activeViewersSection,
-          onSelected: (section) => _scrollToSection(_viewersKeys[section]!, section, 'Viewers/Players'),
+          onSelected: (section) => _scrollToSection(
+            _viewersKeys[section]!,
+            section,
+            'Viewers/Players',
+          ),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -606,179 +697,228 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSectionHeader('Image', _viewersKeys['Image']!),
-              _buildSettingTile(
-                title: 'Confirm delete',
-                subtitle: 'Show confirmation dialog before moving an image to Trash',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.confirmDeleteImage ?? true,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(confirmDeleteImage: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Confirm delete',
+                  subtitle:
+                      'Show confirmation dialog before moving an image to Trash',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.confirmDeleteImage ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          confirmDeleteImage: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSectionHeader('Video', _viewersKeys['Video']!),
-              _buildSettingTile(
-                title: 'Confirm delete',
-                subtitle: 'Show confirmation dialog before moving a video to Trash',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.confirmDeleteVideo ?? true,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(confirmDeleteVideo: value);
-                    });
-                  },
+                _buildSectionHeader('Video', _viewersKeys['Video']!),
+                _buildSettingTile(
+                  title: 'Confirm delete',
+                  subtitle:
+                      'Show confirmation dialog before moving a video to Trash',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.confirmDeleteVideo ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          confirmDeleteVideo: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Auto play next',
-                subtitle: 'Automatically play the next video in the folder when the current one finishes',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.autoPlayNext ?? true,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(autoPlayNext: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Auto play next',
+                  subtitle:
+                      'Automatically play the next video in the folder when the current one finishes',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.autoPlayNext ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          autoPlayNext: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Resume playback',
-                subtitle: 'Remember and resume from the last playback position for each video',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.resumePlayback ?? true,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(resumePlayback: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Resume playback',
+                  subtitle:
+                      'Remember and resume from the last playback position for each video',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.resumePlayback ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          resumePlayback: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Seek time',
-                subtitle: 'The number of seconds to seek when using double-tap or arrow keys',
-                trailing: _buildDropdown<int>(
-                  value: _draftSettings?.doubleTapSeekSeconds ?? 10,
-                  options: [5, 10, 15, 20, 25, 30]
-                      .map((v) => MapEntry(v, '${v}s'))
-                      .toList(),
-                  minWidth: 80,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(doubleTapSeekSeconds: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Seek time',
+                  subtitle:
+                      'The number of seconds to seek when using double-tap or arrow keys',
+                  trailing: _buildDropdown<int>(
+                    value: _draftSettings?.doubleTapSeekSeconds ?? 10,
+                    options: [
+                      5,
+                      10,
+                      15,
+                      20,
+                      25,
+                      30,
+                    ].map((v) => MapEntry(v, '${v}s')).toList(),
+                    minWidth: 80,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          doubleTapSeekSeconds: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Vertical Scroll Speed Control',
-                subtitle: 'Use the left side of the screen to control playback speed via trackpad',
-                trailing: _buildDropdown<SpeedControlOption>(
-                  value: _draftSettings?.trackpadSpeedControl ?? SpeedControlOption.off,
-                  options: SpeedControlOption.values
-                      .map((v) => MapEntry(v, v.label))
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(trackpadSpeedControl: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Vertical Scroll Speed Control',
+                  subtitle:
+                      'Use the left side of the screen to control playback speed via trackpad',
+                  trailing: _buildDropdown<SpeedControlOption>(
+                    value:
+                        _draftSettings?.trackpadSpeedControl ??
+                        SpeedControlOption.off,
+                    options: SpeedControlOption.values
+                        .map((v) => MapEntry(v, v.label))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          trackpadSpeedControl: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Show markers on timeline',
-                subtitle: 'Render saved markers above the video progress bar',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.showMarkersOnTimeline ?? true,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(showMarkersOnTimeline: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Show markers on timeline',
+                  subtitle: 'Render saved markers above the video progress bar',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.showMarkersOnTimeline ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          showMarkersOnTimeline: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSectionHeader('Audio', _viewersKeys['Audio']!),
-              _buildSettingTile(
-                title: 'Show hidden files',
-                subtitle: 'Show hidden files and folders starting with a dot in the audio player',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.showHiddenAudioFiles ?? false,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(showHiddenAudioFiles: value);
-                    });
-                  },
+                _buildSectionHeader('Audio', _viewersKeys['Audio']!),
+                _buildSettingTile(
+                  title: 'Show hidden files',
+                  subtitle:
+                      'Show hidden files and folders starting with a dot in the audio player',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.showHiddenAudioFiles ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          showHiddenAudioFiles: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Seek duration',
-                subtitle: 'Seconds to seek when using arrow keys in the audio player',
-                trailing: _buildDropdown<int>(
-                  value: _draftSettings?.audioSeekSeconds ?? 5,
-                  options: [3, 5, 10, 15, 30]
-                      .map((v) => MapEntry(v, '${v}s'))
-                      .toList(),
-                  minWidth: 80,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(audioSeekSeconds: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Seek duration',
+                  subtitle:
+                      'Seconds to seek when using arrow keys in the audio player',
+                  trailing: _buildDropdown<int>(
+                    value: _draftSettings?.audioSeekSeconds ?? 5,
+                    options: [
+                      3,
+                      5,
+                      10,
+                      15,
+                      30,
+                    ].map((v) => MapEntry(v, '${v}s')).toList(),
+                    minWidth: 80,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          audioSeekSeconds: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Confirm delete',
-                subtitle: 'Show confirmation dialog before moving an audio to Trash',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.confirmDeleteAudio ?? true,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(confirmDeleteAudio: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Confirm delete',
+                  subtitle:
+                      'Show confirmation dialog before moving an audio to Trash',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.confirmDeleteAudio ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          confirmDeleteAudio: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSectionHeader('Documents', _viewersKeys['Documents']!),
-              _buildSettingTile(
-                title: 'Confirm delete',
-                subtitle: 'Show confirmation dialog before moving a document to Trash',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.confirmDeleteDocument ?? true,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(confirmDeleteDocument: value);
-                    });
-                  },
+                _buildSectionHeader('Documents', _viewersKeys['Documents']!),
+                _buildSettingTile(
+                  title: 'Confirm delete',
+                  subtitle:
+                      'Show confirmation dialog before moving a document to Trash',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.confirmDeleteDocument ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          confirmDeleteDocument: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Case sensitive search',
-                subtitle: 'Match exact casing when searching within documents',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.documentSearchCaseSensitive ?? false,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(documentSearchCaseSensitive: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Case sensitive search',
+                  subtitle:
+                      'Match exact casing when searching within documents',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.documentSearchCaseSensitive ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          documentSearchCaseSensitive: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              _buildSettingTile(
-                title: 'Use regular expressions',
-                subtitle: 'Treat document search queries as regular expressions by default',
-                trailing: OnyxSwitch(
-                  value: _draftSettings?.documentSearchUseRegex ?? false,
-                  onChanged: (value) {
-                    setState(() {
-                      _draftSettings = _draftSettings!.copyWith(documentSearchUseRegex: value);
-                    });
-                  },
+                _buildSettingTile(
+                  title: 'Use regular expressions',
+                  subtitle:
+                      'Treat document search queries as regular expressions by default',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.documentSearchUseRegex ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          documentSearchUseRegex: value,
+                        );
+                      });
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ],
@@ -791,7 +931,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
         _buildSubSidebar(
           items: ['Vault', 'Encryption'],
           activeItem: _activeSecuritySection,
-          onSelected: (section) => _scrollToSection(_securityKeys[section]!, section, 'Security'),
+          onSelected: (section) =>
+              _scrollToSection(_securityKeys[section]!, section, 'Security'),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -801,12 +942,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSectionHeader('Vault', _securityKeys['Vault']!),
-              _buildEmptySection('Secure vault storage and access control.'),
-              _buildSectionHeader('Encryption', _securityKeys['Encryption']!),
-              _buildEmptySection('End-to-end encryption for file operations.'),
-              const SizedBox(height: 40),
-            ],
-          ),
+                _buildEmptySection('Secure vault storage and access control.'),
+                _buildSectionHeader('Encryption', _securityKeys['Encryption']!),
+                _buildEmptySection(
+                  'End-to-end encryption for file operations.',
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ],
@@ -826,7 +969,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
             'Document Viewer',
           ],
           activeItem: _activeShortcutsSection,
-          onSelected: (section) => _scrollToSection(_shortcutsKeys[section]!, section, 'Shortcuts'),
+          onSelected: (section) =>
+              _scrollToSection(_shortcutsKeys[section]!, section, 'Shortcuts'),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -836,91 +980,130 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSectionHeader('General', _shortcutsKeys['General']!),
-              _buildShortcutTile('Select All', ['Ctrl', 'A']),
-              _buildShortcutTile('Copy', ['Ctrl', 'C']),
-              _buildShortcutTile('Cut', ['Ctrl', 'X']),
-              _buildShortcutTile('Paste', ['Ctrl', 'V']),
-              _buildShortcutTile('Move to Trash', ['Del']),
-              _buildShortcutTile('Delete Permanently', ['Shift', 'Del']),
-              _buildShortcutTile('Rename', ['F2']),
-              _buildShortcutTile('New Folder', ['Ctrl', 'Shift', 'N']),
-              _buildShortcutTile('Compress', ['Ctrl', 'Alt', 'C']),
-              _buildShortcutTile('Zoom In', ['Ctrl', '+']),
-              _buildShortcutTile('Zoom Out', ['Ctrl', '-']),
-              _buildShortcutTile('Reset Zoom', ['Ctrl', '0']),
-              _buildShortcutTile('Toggle Search', ['Ctrl', 'F']),
-              _buildShortcutTile('Refresh', ['Ctrl', 'R', 'or', 'F5']),
-              _buildShortcutTile('Toggle Hidden Files', ['Ctrl', '.']),
-              _buildShortcutTile('Toggle Sidebar', ['Ctrl', 'B']),
-              _buildShortcutTile('Focus Path Input', ['Alt', 'D']),
-              _buildShortcutTile('Add New Tab', ['Ctrl', 'T']),
-              _buildShortcutTile('Close Active Tab', ['Ctrl', 'W']),
-              _buildShortcutTile('Switch to Next Tab', ['Ctrl', 'Tab']),
-              _buildShortcutTile('Switch to Previous Tab', ['Ctrl', 'Shift', 'Tab']),
-              _buildShortcutTile('Open Selected Item', ['Enter']),
-              _buildShortcutTile('Show Properties', ['Alt', 'Enter']),
-              _buildShortcutTile('Go Back', ['Backspace', 'or', 'Alt', 'Left']),
-              _buildShortcutTile('Go Forward', ['Alt', 'Right']),
-              _buildShortcutTile('Clear Selection', ['Esc']),
+                _buildShortcutTile('Select All', ['Ctrl', 'A']),
+                _buildShortcutTile('Copy', ['Ctrl', 'C']),
+                _buildShortcutTile('Cut', ['Ctrl', 'X']),
+                _buildShortcutTile('Paste', ['Ctrl', 'V']),
+                _buildShortcutTile('Move to Trash', ['Del']),
+                _buildShortcutTile('Delete Permanently', ['Shift', 'Del']),
+                _buildShortcutTile('Rename', ['F2']),
+                _buildShortcutTile('New Folder', ['Ctrl', 'Shift', 'N']),
+                _buildShortcutTile('Compress', ['Ctrl', 'Alt', 'C']),
+                _buildShortcutTile('Zoom In', ['Ctrl', '+']),
+                _buildShortcutTile('Zoom Out', ['Ctrl', '-']),
+                _buildShortcutTile('Reset Zoom', ['Ctrl', '0']),
+                _buildShortcutTile('Toggle Search', ['Ctrl', 'F']),
+                _buildShortcutTile('Refresh', ['Ctrl', 'R', 'or', 'F5']),
+                _buildShortcutTile('Toggle Hidden Files', ['Ctrl', '.']),
+                _buildShortcutTile('Toggle Sidebar', ['Ctrl', 'B']),
+                _buildShortcutTile('Focus Path Input', ['Alt', 'D']),
+                _buildShortcutTile('Add New Tab', ['Ctrl', 'T']),
+                _buildShortcutTile('Close Active Tab', ['Ctrl', 'W']),
+                _buildShortcutTile('Switch to Next Tab', ['Ctrl', 'Tab']),
+                _buildShortcutTile('Switch to Previous Tab', [
+                  'Ctrl',
+                  'Shift',
+                  'Tab',
+                ]),
+                _buildShortcutTile('Open Selected Item', ['Enter']),
+                _buildShortcutTile('Show Properties', ['Alt', 'Enter']),
+                _buildShortcutTile('Go Back', [
+                  'Backspace',
+                  'or',
+                  'Alt',
+                  'Left',
+                ]),
+                _buildShortcutTile('Go Forward', ['Alt', 'Right']),
+                _buildShortcutTile('Clear Selection', ['Esc']),
 
-              _buildSectionHeader('Download Manager', _shortcutsKeys['Download Manager']!),
-              _buildShortcutTile('Update List (Save)', ['Ctrl', 'S']),
-              _buildShortcutTile('Select All Items', ['Ctrl', 'A']),
-              _buildShortcutTile('Remove Selected Items', ['Del']),
-              _buildShortcutTile('Next Item', ['Down']),
-              _buildShortcutTile('Select Next Item', ['Shift', 'Down']),
-              _buildShortcutTile('Previous Item', ['Up']),
-              _buildShortcutTile('Select Previous Item', ['Shift', 'Up']),
-              _buildShortcutTile('Cancel / Dismiss Dialog', ['Esc']),
+                _buildSectionHeader(
+                  'Download Manager',
+                  _shortcutsKeys['Download Manager']!,
+                ),
+                _buildShortcutTile('Update List (Save)', ['Ctrl', 'S']),
+                _buildShortcutTile('Select All Items', ['Ctrl', 'A']),
+                _buildShortcutTile('Remove Selected Items', ['Del']),
+                _buildShortcutTile('Next Item', ['Down']),
+                _buildShortcutTile('Select Next Item', ['Shift', 'Down']),
+                _buildShortcutTile('Previous Item', ['Up']),
+                _buildShortcutTile('Select Previous Item', ['Shift', 'Up']),
+                _buildShortcutTile('Cancel / Dismiss Dialog', ['Esc']),
 
-              _buildSectionHeader('Image Viewer', _shortcutsKeys['Image Viewer']!),
-              _buildShortcutTile('Toggle Fullscreen', ['F']),
-              _buildShortcutTile('Next Image', ['Right']),
-              _buildShortcutTile('Previous Image', ['Left']),
-              _buildShortcutTile('Zoom In', ['Ctrl', '+']),
-              _buildShortcutTile('Zoom Out', ['Ctrl', '-']),
-              _buildShortcutTile('Reset Zoom', ['Ctrl', '0']),
-              _buildShortcutTile('Move to Trash', ['Del']),
-              _buildShortcutTile('Go Back / Close', ['Backspace', 'or', 'Alt', 'Left']),
-              _buildShortcutTile('Close Viewer', ['Ctrl', 'W']),
+                _buildSectionHeader(
+                  'Image Viewer',
+                  _shortcutsKeys['Image Viewer']!,
+                ),
+                _buildShortcutTile('Toggle Fullscreen', ['F']),
+                _buildShortcutTile('Next Image', ['Right']),
+                _buildShortcutTile('Previous Image', ['Left']),
+                _buildShortcutTile('Zoom In', ['Ctrl', '+']),
+                _buildShortcutTile('Zoom Out', ['Ctrl', '-']),
+                _buildShortcutTile('Reset Zoom', ['Ctrl', '0']),
+                _buildShortcutTile('Move to Trash', ['Del']),
+                _buildShortcutTile('Go Back / Close', [
+                  'Backspace',
+                  'or',
+                  'Alt',
+                  'Left',
+                ]),
+                _buildShortcutTile('Close Viewer', ['Ctrl', 'W']),
 
-              _buildSectionHeader('Video Player', _shortcutsKeys['Video Player']!),
-              _buildShortcutTile('Play / Pause', ['Space']),
-              _buildShortcutTile('Seek Backward', ['Left']),
-              _buildShortcutTile('Seek Forward', ['Right']),
-              _buildShortcutTile('Volume Up', ['Up']),
-              _buildShortcutTile('Volume Down', ['Down']),
-              _buildShortcutTile('Mute / Unmute', ['M']),
-              _buildShortcutTile('Toggle Fullscreen', ['F']),
-              _buildShortcutTile('Take Snapshot', ['S']),
-              _buildShortcutTile('Toggle Marker Editor', ['T']),
-              _buildShortcutTile('Save Marker', ['Enter']),
-              _buildShortcutTile('Move to Trash', ['Del']),
-              _buildShortcutTile('Go Back', ['Backspace', 'or', 'Alt', 'Left']),
-              _buildShortcutTile('Close Player', ['Ctrl', 'W']),
+                _buildSectionHeader(
+                  'Video Player',
+                  _shortcutsKeys['Video Player']!,
+                ),
+                _buildShortcutTile('Play / Pause', ['Space']),
+                _buildShortcutTile('Seek Backward', ['Left']),
+                _buildShortcutTile('Seek Forward', ['Right']),
+                _buildShortcutTile('Volume Up', ['Up']),
+                _buildShortcutTile('Volume Down', ['Down']),
+                _buildShortcutTile('Mute / Unmute', ['M']),
+                _buildShortcutTile('Toggle Fullscreen', ['F']),
+                _buildShortcutTile('Take Snapshot', ['S']),
+                _buildShortcutTile('Toggle Marker Editor', ['T']),
+                _buildShortcutTile('Save Marker', ['Enter']),
+                _buildShortcutTile('Move to Trash', ['Del']),
+                _buildShortcutTile('Go Back', [
+                  'Backspace',
+                  'or',
+                  'Alt',
+                  'Left',
+                ]),
+                _buildShortcutTile('Close Player', ['Ctrl', 'W']),
 
-              _buildSectionHeader('Audio Player', _shortcutsKeys['Audio Player']!),
-              _buildShortcutTile('Play / Pause', ['Space']),
-              _buildShortcutTile('Seek Backward', ['Left']),
-              _buildShortcutTile('Seek Forward', ['Right']),
-              _buildShortcutTile('Volume Up', ['Up']),
-              _buildShortcutTile('Volume Down', ['Down']),
-              _buildShortcutTile('Mute / Unmute', ['M']),
-              _buildShortcutTile('Reveal in File Manager', ['Ctrl', 'R']),
-              _buildShortcutTile('Rename', ['F2']),
-              _buildShortcutTile('Move to Trash', ['Del']),
-              _buildShortcutTile('Show Properties', ['Alt', 'Enter']),
-              _buildShortcutTile('Close Dialogs', ['Esc']),
+                _buildSectionHeader(
+                  'Audio Player',
+                  _shortcutsKeys['Audio Player']!,
+                ),
+                _buildShortcutTile('Play / Pause', ['Space']),
+                _buildShortcutTile('Seek Backward', ['Left']),
+                _buildShortcutTile('Seek Forward', ['Right']),
+                _buildShortcutTile('Volume Up', ['Up']),
+                _buildShortcutTile('Volume Down', ['Down']),
+                _buildShortcutTile('Mute / Unmute', ['M']),
+                _buildShortcutTile('Reveal in File Manager', ['Ctrl', 'R']),
+                _buildShortcutTile('Rename', ['F2']),
+                _buildShortcutTile('Move to Trash', ['Del']),
+                _buildShortcutTile('Show Properties', ['Alt', 'Enter']),
+                _buildShortcutTile('Close Dialogs', ['Esc']),
 
-              _buildSectionHeader('Document Viewer', _shortcutsKeys['Document Viewer']!),
-              _buildShortcutTile('Next Document', ['Right']),
-              _buildShortcutTile('Previous Document', ['Left']),
-              _buildShortcutTile('Move to Trash', ['Del']),
-              _buildShortcutTile('Go Back', ['Backspace', 'or', 'Alt', 'Left']),
-              _buildShortcutTile('Close Viewer', ['Ctrl', 'W']),
-              const SizedBox(height: 100),
-            ],
-          ),
+                _buildSectionHeader(
+                  'Document Viewer',
+                  _shortcutsKeys['Document Viewer']!,
+                ),
+                _buildShortcutTile('Next Document', ['Right']),
+                _buildShortcutTile('Previous Document', ['Left']),
+                _buildShortcutTile('Move to Trash', ['Del']),
+                _buildShortcutTile('Go Back', [
+                  'Backspace',
+                  'or',
+                  'Alt',
+                  'Left',
+                ]),
+                _buildShortcutTile('Close Viewer', ['Ctrl', 'W']),
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
         ),
       ],
@@ -1002,12 +1185,19 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               borderRadius: BorderRadius.circular(12),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withAlpha(15) : Colors.transparent,
+                  color: isSelected
+                      ? Colors.white.withAlpha(15)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? Colors.white.withAlpha(20) : Colors.transparent,
+                    color: isSelected
+                        ? Colors.white.withAlpha(20)
+                        : Colors.transparent,
                   ),
                 ),
                 child: Tooltip(
@@ -1019,8 +1209,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.manrope(
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? Colors.white.withOpacity(0.9) : AppColors.textMuted.withOpacity(0.6),
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: isSelected
+                          ? Colors.white.withOpacity(0.9)
+                          : AppColors.textMuted.withOpacity(0.6),
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -1032,7 +1226,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
       ),
     );
   }
-
 
   Widget _buildSectionHeader(String title, GlobalKey key) {
     return Padding(
@@ -1134,7 +1327,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: isSelected ? Colors.white.withOpacity(0.06) : Colors.transparent,
+              color: isSelected
+                  ? Colors.white.withOpacity(0.06)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -1142,7 +1337,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? Colors.white : Colors.white.withOpacity(0.7),
+                color: isSelected
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.7),
               ),
             ),
           ),
@@ -1199,11 +1396,16 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               ),
               if (ref.watch(downloaderUpdateProvider).isUpdating)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.violet.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.violet.withOpacity(0.2)),
+                    border: Border.all(
+                      color: AppColors.violet.withOpacity(0.2),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1230,11 +1432,16 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                 )
               else if (ref.watch(downloaderUpdateProvider).isCheckingForUpdates)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.violet.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.violet.withOpacity(0.2)),
+                    border: Border.all(
+                      color: AppColors.violet.withOpacity(0.2),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1259,53 +1466,66 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                     ],
                   ),
                 )
-              else (() {
-                final updateState = ref.watch(downloaderUpdateProvider);
-                final hasUpdates = EngineRegistry.allEngines.any((e) {
-                  final vInst = updateState.installedVersions[e.id];
-                  final vLat = updateState.latestVersions[e.id];
-                  return e.isInstalled && vInst != null && vLat != null && vInst != vLat;
-                });
-                
-                if (hasUpdates) {
-                  return GestureDetector(
-                    onTap: () {
-                      ref.read(downloaderUpdateProvider.notifier).updateAll();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.violet,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.system_update_alt_rounded, size: 14, color: Colors.white),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Update All',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+              else
+                (() {
+                  final updateState = ref.watch(downloaderUpdateProvider);
+                  final hasUpdates = EngineRegistry.allEngines.any((e) {
+                    final vInst = updateState.installedVersions[e.id];
+                    final vLat = updateState.latestVersions[e.id];
+                    return e.isInstalled &&
+                        vInst != null &&
+                        vLat != null &&
+                        vInst != vLat;
+                  });
+
+                  if (hasUpdates) {
+                    return GestureDetector(
+                      onTap: () {
+                        ref.read(downloaderUpdateProvider.notifier).updateAll();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.violet,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.system_update_alt_rounded,
+                              size: 14,
                               color: Colors.white,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 6),
+                            Text(
+                              'Update All',
+                              style: GoogleFonts.manrope(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    );
+                  }
+
+                  return _buildEngineActionButton(
+                    label: 'Check for Updates',
+                    icon: Icons.sync_rounded,
+                    color: AppColors.violet,
+                    onTap: () {
+                      ref
+                          .read(downloaderUpdateProvider.notifier)
+                          .checkForUpdates();
+                    },
                   );
-                }
-                
-                return _buildEngineActionButton(
-                  label: 'Check for Updates',
-                  icon: Icons.sync_rounded,
-                  color: AppColors.violet,
-                  onTap: () {
-                    ref.read(downloaderUpdateProvider.notifier).checkForUpdates();
-                  },
-                );
-              })(),
+                })(),
             ],
           ),
         ),
@@ -1314,18 +1534,26 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
           final installed = engine.isInstalled;
           final updateState = ref.watch(downloaderUpdateProvider);
           final progress = updateState.engineProgress[engine.id];
-          final isUpdating = progress != null || (updateState.isUpdating && engine.updateInfo != null);
-          
+          final isUpdating =
+              progress != null ||
+              (updateState.isUpdating && engine.updateInfo != null);
+
           double displayProgress = progress ?? 0.0;
-          if (updateState.isUpdating && engine.updateInfo != null && progress == null) {
-            displayProgress = -1.0; // Show indeterminate if global update is running
+          if (updateState.isUpdating &&
+              engine.updateInfo != null &&
+              progress == null) {
+            displayProgress =
+                -1.0; // Show indeterminate if global update is running
           }
 
           final vInst = updateState.installedVersions[engine.id];
           final vLat = updateState.latestVersions[engine.id];
           final hasUpdate = vInst != null && vLat != null && vInst != vLat;
           final errorString = updateState.error;
-          final engineError = (errorString != null && errorString.startsWith('${engine.id}:')) ? errorString.substring(engine.id.length + 1) : null;
+          final engineError =
+              (errorString != null && errorString.startsWith('${engine.id}:'))
+              ? errorString.substring(engine.id.length + 1)
+              : null;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1338,7 +1566,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   border: Border.all(
                     color: engineError != null
                         ? Colors.redAccent.withOpacity(0.3)
-                        : (installed ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.03)),
+                        : (installed
+                              ? Colors.white.withOpacity(0.06)
+                              : Colors.white.withOpacity(0.03)),
                   ),
                 ),
                 child: Stack(
@@ -1351,12 +1581,17 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                           child: TweenAnimationBuilder<double>(
                             duration: const Duration(milliseconds: 300),
                             curve: Curves.easeOutCubic,
-                            tween: Tween<double>(begin: 0, end: displayProgress.clamp(0.0, 1.0)),
+                            tween: Tween<double>(
+                              begin: 0,
+                              end: displayProgress.clamp(0.0, 1.0),
+                            ),
                             builder: (context, value, child) {
                               return FractionallySizedBox(
                                 alignment: Alignment.centerLeft,
                                 widthFactor: value,
-                                child: Container(color: Colors.green.withOpacity(0.15)),
+                                child: Container(
+                                  color: Colors.green.withOpacity(0.15),
+                                ),
                               );
                             },
                           ),
@@ -1373,14 +1608,19 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                         ),
                       ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       child: Row(
                         children: [
                           // Engine icon
                           Icon(
                             engine.icon,
                             size: 18,
-                            color: installed ? engine.color : engine.color.withOpacity(0.3),
+                            color: installed
+                                ? engine.color
+                                : engine.color.withOpacity(0.3),
                           ),
                           const SizedBox(width: 10),
                           // Engine name
@@ -1389,7 +1629,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  installed && vInst != null ? '${engine.displayName} (v$vInst)' : engine.displayName,
+                                  installed && vInst != null
+                                      ? '${engine.displayName} (v$vInst)'
+                                      : engine.displayName,
                                   style: GoogleFonts.manrope(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -1403,7 +1645,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                                     'Optional',
                                     style: GoogleFonts.manrope(
                                       fontSize: 10,
-                                      color: AppColors.textMuted.withOpacity(0.4),
+                                      color: AppColors.textMuted.withOpacity(
+                                        0.4,
+                                      ),
                                     ),
                                   ),
                               ],
@@ -1412,29 +1656,34 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                           // Status badge
                           if (!installed || engineError != null || isUpdating)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: engineError != null
                                     ? Colors.redAccent.withOpacity(0.12)
                                     : isUpdating
-                                        ? Colors.blue.withOpacity(0.12)
-                                        : Colors.white.withOpacity(0.04),
+                                    ? Colors.blue.withOpacity(0.12)
+                                    : Colors.white.withOpacity(0.04),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 engineError != null
                                     ? 'Error'
                                     : isUpdating
-                                        ? (vInst != null ? 'Updating...' : 'Installing...')
-                                        : 'Not Installed',
+                                    ? (vInst != null
+                                          ? 'Updating...'
+                                          : 'Installing...')
+                                    : 'Not Installed',
                                 style: GoogleFonts.manrope(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: engineError != null
                                       ? Colors.redAccent
                                       : isUpdating
-                                          ? Colors.blue.shade300
-                                          : AppColors.textMuted.withOpacity(0.4),
+                                      ? Colors.blue.shade300
+                                      : AppColors.textMuted.withOpacity(0.4),
                                 ),
                               ),
                             ),
@@ -1455,13 +1704,24 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                                   icon: Icons.refresh_rounded,
                                   color: AppColors.violet,
                                   onTap: () {
-                                    ref.read(downloaderUpdateProvider.notifier).updateEngine(engine);
+                                    ref
+                                        .read(downloaderUpdateProvider.notifier)
+                                        .updateEngine(engine);
                                   },
                                 )
                               else if (vInst != null)
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  child: Text('Up to date', style: GoogleFonts.manrope(fontSize: 10, color: Colors.white.withOpacity(0.3))),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  child: Text(
+                                    'Up to date',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 10,
+                                      color: Colors.white.withOpacity(0.3),
+                                    ),
+                                  ),
                                 ),
                               // Delete button
                               if (engine.isOptional)
@@ -1480,7 +1740,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                                     onTap: () async {
                                       final confirm = await showVibrantConfirmDialog(
                                         context: context,
-                                        title: 'Uninstall ${engine.displayName}?',
+                                        title:
+                                            'Uninstall ${engine.displayName}?',
                                         message: engine.id == 'playwright'
                                             ? 'This will remove Playwright and Chromium browser (~300 MB). You can reinstall it later.'
                                             : 'This will uninstall ${engine.displayName}. You can reinstall it later.',
@@ -1488,9 +1749,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                                         confirmColor: Colors.redAccent,
                                       );
                                       if (confirm && mounted) {
-                                        final processFuture = engine.uninstall();
+                                        final processFuture = engine
+                                            .uninstall();
                                         if (processFuture != null) {
-                                          ref.read(downloaderUpdateProvider.notifier).installProcessEngine(engine, processFuture);
+                                          ref
+                                              .read(
+                                                downloaderUpdateProvider
+                                                    .notifier,
+                                              )
+                                              .installProcessEngine(
+                                                engine,
+                                                processFuture,
+                                              );
                                         }
                                       }
                                     },
@@ -1499,16 +1769,27 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                             ] else ...[
                               // Install button
                               _buildEngineActionButton(
-                                label: engine.updateInfo != null ? 'Download' : 'Install',
+                                label: engine.updateInfo != null
+                                    ? 'Download'
+                                    : 'Install',
                                 icon: Icons.download_rounded,
                                 color: AppColors.violet,
                                 onTap: () {
                                   if (engine.updateInfo != null) {
-                                    ref.read(downloaderUpdateProvider.notifier).updateEngine(engine);
+                                    ref
+                                        .read(downloaderUpdateProvider.notifier)
+                                        .updateEngine(engine);
                                   } else if (engine.install != null) {
                                     final processFuture = engine.install();
                                     if (processFuture != null) {
-                                      ref.read(downloaderUpdateProvider.notifier).installProcessEngine(engine, processFuture);
+                                      ref
+                                          .read(
+                                            downloaderUpdateProvider.notifier,
+                                          )
+                                          .installProcessEngine(
+                                            engine,
+                                            processFuture,
+                                          );
                                     }
                                   }
                                 },
@@ -1529,7 +1810,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   decoration: BoxDecoration(
                     color: Colors.redAccent.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+                    border: Border.all(
+                      color: Colors.redAccent.withOpacity(0.2),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1579,7 +1862,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               Icon(
                 Icons.speed_rounded,
                 size: 18,
-                color: Aria2Accelerator.isAvailable ? Colors.cyanAccent : Colors.cyanAccent.withOpacity(0.3),
+                color: Aria2Accelerator.isAvailable
+                    ? Colors.cyanAccent
+                    : Colors.cyanAccent.withOpacity(0.3),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1591,7 +1876,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                       style: GoogleFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Aria2Accelerator.isAvailable ? Colors.white.withOpacity(0.85) : Colors.white.withOpacity(0.4),
+                        color: Aria2Accelerator.isAvailable
+                            ? Colors.white.withOpacity(0.85)
+                            : Colors.white.withOpacity(0.4),
                       ),
                     ),
                     if (!Aria2Accelerator.isAvailable)
@@ -1608,7 +1895,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Aria2Accelerator.isAvailable ? Colors.green.withOpacity(0.12) : Colors.white.withOpacity(0.04),
+                  color: Aria2Accelerator.isAvailable
+                      ? Colors.green.withOpacity(0.12)
+                      : Colors.white.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -1616,7 +1905,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> with SingleTick
                   style: GoogleFonts.manrope(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: Aria2Accelerator.isAvailable ? Colors.green.shade300 : AppColors.textMuted.withOpacity(0.4),
+                    color: Aria2Accelerator.isAvailable
+                        ? Colors.green.shade300
+                        : AppColors.textMuted.withOpacity(0.4),
                   ),
                 ),
               ),
@@ -1714,7 +2005,7 @@ class GradientUnderlineTabIndicator extends Decoration {
 
 class _GradientUnderlinePainter extends BoxPainter {
   _GradientUnderlinePainter(this.decoration, VoidCallback? onChanged)
-      : super(onChanged);
+    : super(onChanged);
 
   final GradientUnderlineTabIndicator decoration;
 
@@ -1757,12 +2048,23 @@ class _ResizeHandlePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Draw three diagonal lines for the handle
-    canvas.drawLine(Offset(size.width * 0.7, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.7), paint);
-    canvas.drawLine(Offset(size.width * 0.4, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.4), paint);
-    canvas.drawLine(Offset(size.width * 0.1, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.1), paint);
+    canvas.drawLine(
+      Offset(size.width * 0.7, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.7),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.4, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.4),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.1, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.1),
+      paint,
+    );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

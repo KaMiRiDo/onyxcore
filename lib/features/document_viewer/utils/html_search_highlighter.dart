@@ -24,11 +24,14 @@ class HtmlSearchHighlighter {
     // A simple approach is to split the string by tags, process the text chunks, and reassemble.
     final tagRegex = RegExp(r'(<[^>]+>)');
     final parts = htmlContent.split(tagRegex);
-    final tags = tagRegex.allMatches(htmlContent).map((m) => m.group(1)!).toList();
+    final tags = tagRegex
+        .allMatches(htmlContent)
+        .map((m) => m.group(1)!)
+        .toList();
 
     final buffer = StringBuffer();
     int globalMatchCounter = 0;
-    
+
     for (int i = 0; i < parts.length; i++) {
       String textPart = parts[i];
       if (textPart.isNotEmpty) {
@@ -39,14 +42,16 @@ class HtmlSearchHighlighter {
             buffer.write(textPart.substring(lastMatchEnd, match.start));
           }
           final matchedText = match.group(0)!;
-          
+
           final bool isCurrentMatch = globalMatchCounter == currentMatchIndex;
           final backgroundColor = isCurrentMatch ? '#808A3FFC' : '#80E845C9';
           final textColor = '#FFFFFF';
-          
+
           // Use span tag with custom styling because flutter_html supports inline styles on spans better
-          buffer.write('<span style="background-color: $backgroundColor; color: $textColor;">$matchedText</span>');
-          
+          buffer.write(
+            '<span style="background-color: $backgroundColor; color: $textColor;">$matchedText</span>',
+          );
+
           lastMatchEnd = match.end;
           globalMatchCounter++;
         }

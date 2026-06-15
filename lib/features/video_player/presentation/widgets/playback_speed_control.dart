@@ -13,7 +13,16 @@ class PlaybackSpeedControl extends StatefulWidget {
     super.key,
   });
 
-  static const List<double> speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+  static const List<double> speeds = [
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.25,
+    1.5,
+    1.75,
+    2.0,
+  ];
 
   @override
   State<PlaybackSpeedControl> createState() => _PlaybackSpeedControlState();
@@ -53,7 +62,10 @@ class _PlaybackSpeedControlState extends State<PlaybackSpeedControl> {
                 },
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       Text(
@@ -61,7 +73,9 @@ class _PlaybackSpeedControlState extends State<PlaybackSpeedControl> {
                         style: GoogleFonts.manrope(
                           color: isSelected ? Colors.white : Colors.white60,
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                         ),
                       ),
                       if (isSelected) ...[

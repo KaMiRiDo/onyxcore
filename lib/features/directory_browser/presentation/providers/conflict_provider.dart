@@ -39,9 +39,9 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
     );
 
     state = [...state, request];
-    
+
     _processQueue(context);
-    
+
     return completer.future;
   }
 
@@ -73,15 +73,15 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
 
     // If resolution is null, default to skip.
     final finalResolution = result?.resolution ?? ConflictResolution.skip;
-    
+
     if (result?.applyToAll == true) {
       _globalResolution = finalResolution;
     }
-    
+
     request.completer.complete(finalResolution);
     state = state.skip(1).toList();
     _isShowingDialog = false;
-    
+
     // Process next if any
     if (state.isNotEmpty && context.mounted) {
       _processQueue(context);
@@ -91,9 +91,9 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
   void clearGlobalResolution() {
     _globalResolution = null;
   }
-
 }
 
-final conflictProvider = NotifierProvider<ConflictNotifier, List<ConflictRequest>>(() {
-  return ConflictNotifier();
-});
+final conflictProvider =
+    NotifierProvider<ConflictNotifier, List<ConflictRequest>>(() {
+      return ConflictNotifier();
+    });

@@ -56,8 +56,8 @@ class DownloadHistoryEntry {
       url: json['url']?.toString() ?? '',
       destination: json['destination']?.toString() ?? '',
       logs: (json['logs'] as List<dynamic>?)?.cast<String>() ?? [],
-      createdAt: json['createdAt'] != null 
-          ? DateTime.parse(json['createdAt'] as String) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
       completedAt: json['completedAt'] != null
           ? DateTime.parse(json['completedAt'] as String)
@@ -94,7 +94,7 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
   List<DownloadHistoryEntry> build() {
     _db = DownloadHistoryDatabase();
     _db.init();
-    
+
     // Register a dispose listener to close the DB if the provider is destroyed
     ref.onDispose(() {
       _db.dispose();
@@ -123,7 +123,7 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
   void addEntry(DownloadTask task) {
     final entry = DownloadHistoryEntry.fromTask(task);
     _db.insertEntry(entry);
-    
+
     // Update local state without full reload if it's already at top
     _currentEntries.insert(0, entry);
     _loadedCount++;
@@ -158,27 +158,34 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
   }
 
   void deleteFiltered(DownloadHistoryFilter filter) {
-    // Note: To truly delete filtered in SQLite efficiently we would translate 
-    // the filter to a DELETE query. For now, since deleteFiltered requires 
+    // Note: To truly delete filtered in SQLite efficiently we would translate
+    // the filter to a DELETE query. For now, since deleteFiltered requires
     // examining all items, we can fetch all, filter them in Dart, and delete by ID.
     // However, if the db gets large, we might want to do this in batches.
-    
+
     // As a simple implementation for now: fetch all IDs that match and delete them
     final allItems = _db.getEntries(limit: 9999999);
-    final toDelete = allItems.where((entry) => _matchesFilter(entry, filter)).map((e) => e.id).toSet();
-    
+    final toDelete = allItems
+        .where((entry) => _matchesFilter(entry, filter))
+        .map((e) => e.id)
+        .toSet();
+
     deleteEntries(toDelete);
   }
 
-  static bool _matchesFilter(DownloadHistoryEntry entry, DownloadHistoryFilter filter) {
+  static bool _matchesFilter(
+    DownloadHistoryEntry entry,
+    DownloadHistoryFilter filter,
+  ) {
     if (filter.isEmpty) return true;
 
     bool dateMatch = true;
     if (filter.selectedDates != null && filter.selectedDates!.isNotEmpty) {
-      dateMatch = filter.selectedDates!.any((d) => 
-        entry.createdAt.year == d.year && 
-        entry.createdAt.month == d.month && 
-        entry.createdAt.day == d.day
+      dateMatch = filter.selectedDates!.any(
+        (d) =>
+            entry.createdAt.year == d.year &&
+            entry.createdAt.month == d.month &&
+            entry.createdAt.day == d.day,
       );
     }
 
@@ -197,7 +204,9 @@ class DownloadHistoryFilter {
 
   const DownloadHistoryFilter({this.selectedDates, this.status});
 
-  bool get isEmpty => (selectedDates == null || selectedDates!.isEmpty) && (status == null || status == 'All');
+  bool get isEmpty =>
+      (selectedDates == null || selectedDates!.isEmpty) &&
+      (status == null || status == 'All');
 
   DownloadHistoryFilter copyWith({
     Set<DateTime>? selectedDates,
@@ -210,20 +219,30 @@ class DownloadHistoryFilter {
   }
 }
 
-final downloadHistoryFilterProvider = StateProvider<DownloadHistoryFilter>((ref) => const DownloadHistoryFilter());
+final downloadHistoryFilterProvider = StateProvider<DownloadHistoryFilter>(
+  (ref) => const DownloadHistoryFilter(),
+);
 
 final availableDownloadDatesProvider = Provider<Set<DateTime>>((ref) {
   final history = ref.watch(downloadHistoryProvider);
-  return history.map((e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day)).toSet();
+  return history
+      .map(
+        (e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day),
+      )
+      .toSet();
 });
 
-final filteredDownloadHistoryProvider = Provider<List<DownloadHistoryEntry>>((ref) {
+final filteredDownloadHistoryProvider = Provider<List<DownloadHistoryEntry>>((
+  ref,
+) {
   final history = ref.watch(downloadHistoryProvider);
   final filter = ref.watch(downloadHistoryFilterProvider);
 
   if (filter.isEmpty) return history;
 
-  return history.where((entry) => DownloadHistoryNotifier._matchesFilter(entry, filter)).toList();
+  return history
+      .where((entry) => DownloadHistoryNotifier._matchesFilter(entry, filter))
+      .toList();
 });
 
 class DownloadHistorySelectionNotifier extends Notifier<Set<String>> {
@@ -269,7 +288,7 @@ class DownloadHistorySelectionNotifier extends Notifier<Set<String>> {
     for (var i = min; i <= max; i++) {
       next.add(entries[i].id);
     }
-    
+
     state = next;
     _lastSelectedId = targetId;
   }
@@ -282,8 +301,10 @@ class DownloadHistorySelectionNotifier extends Notifier<Set<String>> {
 
 final downloadHistoryProvider =
     NotifierProvider<DownloadHistoryNotifier, List<DownloadHistoryEntry>>(
-        DownloadHistoryNotifier.new);
+      DownloadHistoryNotifier.new,
+    );
 
 final downloadHistorySelectionProvider =
     NotifierProvider<DownloadHistorySelectionNotifier, Set<String>>(
-        DownloadHistorySelectionNotifier.new);
+      DownloadHistorySelectionNotifier.new,
+    );

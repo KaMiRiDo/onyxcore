@@ -14,20 +14,20 @@ import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_p
 import 'package:image/image.dart' as img;
 
 class CustomEmojiSet {
-  final String rawData; 
+  final String rawData;
   final Map<String, String> parsedMap;
 
   CustomEmojiSet({required this.rawData, required this.parsedMap});
 
   Map<String, dynamic> toJson() => {
-        'rawData': rawData,
-        'parsedMap': parsedMap,
-      };
+    'rawData': rawData,
+    'parsedMap': parsedMap,
+  };
 
   factory CustomEmojiSet.fromJson(Map<String, dynamic> json) => CustomEmojiSet(
-        rawData: json['rawData'] as String,
-        parsedMap: Map<String, String>.from(json['parsedMap'] as Map),
-      );
+    rawData: json['rawData'] as String,
+    parsedMap: Map<String, String>.from(json['parsedMap'] as Map),
+  );
 }
 
 class CustomIconSet {
@@ -37,14 +37,14 @@ class CustomIconSet {
   CustomIconSet({required this.imageBytes, required this.tags});
 
   Map<String, dynamic> toJson() => {
-        'imageBytes': base64Encode(imageBytes),
-        'tags': tags,
-      };
+    'imageBytes': base64Encode(imageBytes),
+    'tags': tags,
+  };
 
   factory CustomIconSet.fromJson(Map<String, dynamic> json) => CustomIconSet(
-        imageBytes: base64Decode(json['imageBytes'] as String),
-        tags: json['tags'] as String,
-      );
+    imageBytes: base64Decode(json['imageBytes'] as String),
+    tags: json['tags'] as String,
+  );
 }
 
 class IconUploadItem {
@@ -70,14 +70,25 @@ Future<Uint8List?> _processAndResizeImage(Uint8List bytes) async {
     try {
       final img.Image? original = img.decodeImage(data);
       if (original == null) return null;
-      
+
       int size = min(original.width, original.height);
       int x = (original.width - size) ~/ 2;
       int y = (original.height - size) ~/ 2;
-      img.Image cropped = img.copyCrop(original, x: x, y: y, width: size, height: size);
-      
-      img.Image resized = img.copyResize(cropped, width: 96, height: 96, interpolation: img.Interpolation.linear);
-      
+      img.Image cropped = img.copyCrop(
+        original,
+        x: x,
+        y: y,
+        width: size,
+        height: size,
+      );
+
+      img.Image resized = img.copyResize(
+        cropped,
+        width: 96,
+        height: 96,
+        interpolation: img.Interpolation.linear,
+      );
+
       return Uint8List.fromList(img.encodePng(resized));
     } catch (e) {
       return null;
@@ -91,7 +102,7 @@ class MarkerEditorOverlay extends StatefulWidget {
   final Duration timestamp;
   final Function(String, String) onSave;
   final VoidCallback onCancel;
-  final double notchOffset; 
+  final double notchOffset;
 
   const MarkerEditorOverlay({
     this.initialContent,
@@ -107,27 +118,28 @@ class MarkerEditorOverlay extends StatefulWidget {
   State<MarkerEditorOverlay> createState() => MarkerEditorOverlayState();
 }
 
-class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTickerProviderStateMixin {
+class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
+    with SingleTickerProviderStateMixin {
   late final TextEditingController _controller;
   late final AnimationController _shakeController;
   late final Animation<double> _shakeAnimation;
   late final FocusNode _textFieldFocusNode;
-  
+
   String _searchQuery = '';
   final List<String> _recentlyUsed = ['📍'];
   String? _selectedIcon;
   bool _isExpanded = false;
   int _activeTabIndex = 0; // 0: EMOJIS, 1: ICONS
-  
+
   // Icon Cache for Recents
   final Map<String, Uint8List> _base64Cache = {};
-  
+
   // Icon Upload State
   bool _isAddingIcon = false;
   List<IconUploadItem> _iconUploads = [];
   String? _editorError;
   List<CustomIconSet> _customIcons = [];
-  
+
   // Custom Sets State
   List<CustomEmojiSet> _customSets = [];
   bool _isCreatingCustom = false;
@@ -145,9 +157,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
     super.initState();
     _controller = TextEditingController(text: widget.initialContent);
     _controller.addListener(() => setState(() {}));
-    
+
     _selectedIcon = widget.initialIcon ?? '📍';
-    
+
     _customDataController = TextEditingController();
     _customFocusNode = FocusNode();
     _sidebarScrollController = ScrollController();
@@ -159,7 +171,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
+
     _shakeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
@@ -181,20 +193,27 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
       if (savedSets != null) {
         setState(() {
           _customSets = savedSets
-              .map((e) => CustomEmojiSet.fromJson(Map<String, dynamic>.from(e as Map)))
+              .map(
+                (e) => CustomEmojiSet.fromJson(
+                  Map<String, dynamic>.from(e as Map),
+                ),
+              )
               .toList();
         });
       }
-      
+
       final List? savedIcons = box.get('custom_icons');
       if (savedIcons != null) {
         setState(() {
           _customIcons = savedIcons
-              .map((e) => CustomIconSet.fromJson(Map<String, dynamic>.from(e as Map)))
+              .map(
+                (e) =>
+                    CustomIconSet.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
               .toList();
         });
       }
-      
+
       final List<dynamic>? recent = box.get(_recentIconsKey);
       if (recent != null) {
         setState(() {
@@ -214,7 +233,10 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
     try {
       final box = await Hive.openBox(_hiveBoxName);
       await box.put('custom_sets', _customSets.map((e) => e.toJson()).toList());
-      await box.put('custom_icons', _customIcons.map((e) => e.toJson()).toList());
+      await box.put(
+        'custom_icons',
+        _customIcons.map((e) => e.toJson()).toList(),
+      );
       await box.put(_recentIconsKey, _recentlyUsed);
     } catch (e) {
       debugPrint('Error saving marker editor settings: $e');
@@ -247,19 +269,23 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
         setState(() => _editorError = 'Please wait for processing to finish');
         return;
       }
-      
-      final validItems = _iconUploads.where((item) => item.processedBytes != null).toList();
+
+      final validItems = _iconUploads
+          .where((item) => item.processedBytes != null)
+          .toList();
       if (validItems.isEmpty) {
         setState(() => _editorError = 'Please add at least one valid image');
         return;
       }
-      
+
       setState(() {
         for (var item in validItems) {
-          _customIcons.add(CustomIconSet(
-            imageBytes: item.processedBytes!,
-            tags: item.tagController.text.trim(),
-          ));
+          _customIcons.add(
+            CustomIconSet(
+              imageBytes: item.processedBytes!,
+              tags: item.tagController.text.trim(),
+            ),
+          );
         }
         _isAddingIcon = false;
         _editorError = null;
@@ -320,15 +346,15 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
           child: child,
         );
       },
-          child: GestureDetector(
-            onTap: () {},
-            onScaleStart: (_) {},
-            onScaleUpdate: (_) {},
-            onScaleEnd: (_) {},
-            behavior: HitTestBehavior.opaque,
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
+      child: GestureDetector(
+        onTap: () {},
+        onScaleStart: (_) {},
+        onScaleUpdate: (_) {},
+        onScaleEnd: (_) {},
+        behavior: HitTestBehavior.opaque,
+        child: Material(
+          color: Colors.transparent,
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ClipRRect(
@@ -345,7 +371,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.08),
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.4),
@@ -354,20 +382,20 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                           ),
                         ],
                       ),
-                      child: _isCreatingCustom 
-                          ? _buildCustomSetForm() 
-                          : _isAddingIcon 
-                              ? _buildIconEditorView()
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _buildExpandButton(),
-                                    if (_isExpanded)
-                                      Expanded(child: _buildMainContent())
-                                    else
-                                      _buildMainContent(),
-                                  ],
-                                ),
+                      child: _isCreatingCustom
+                          ? _buildCustomSetForm()
+                          : _isAddingIcon
+                          ? _buildIconEditorView()
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildExpandButton(),
+                                if (_isExpanded)
+                                  Expanded(child: _buildMainContent())
+                                else
+                                  _buildMainContent(),
+                              ],
+                            ),
                     ),
                   ),
                 ),
@@ -424,7 +452,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
         ),
         alignment: Alignment.center,
         child: Icon(
-          _isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+          _isExpanded
+              ? Icons.keyboard_arrow_down_rounded
+              : Icons.keyboard_arrow_up_rounded,
           color: Colors.white.withOpacity(0.2),
           size: 20,
         ),
@@ -445,7 +475,11 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
-              Icon(Icons.search_rounded, color: Colors.white.withOpacity(0.15), size: 18),
+              Icon(
+                Icons.search_rounded,
+                color: Colors.white.withOpacity(0.15),
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
@@ -484,7 +518,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: isSelected ? AppColors.magenta : Colors.white.withOpacity(0.05),
+                color: isSelected
+                    ? AppColors.magenta
+                    : Colors.white.withOpacity(0.05),
                 width: 2,
               ),
             ),
@@ -518,7 +554,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
       final Set<String> allEmojis = {};
       for (final cat in EmojiData.categories) allEmojis.addAll(cat.emojis);
       for (final set in _customSets) allEmojis.addAll(set.parsedMap.keys);
-      
+
       filteredEmojis = allEmojis.where((e) {
         if (e.contains(query)) return true;
         final k = EmojiData.keywords[e]?.toLowerCase() ?? '';
@@ -527,69 +563,102 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
       }).toList();
     }
 
-    final mainContent = _activeTabIndex == 1 
-      ? _customIcons.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.category_outlined, color: Colors.white.withOpacity(0.05), size: 40),
-                  const SizedBox(height: 12),
-                  Text(
-                    'NO ICONS ADDED YET',
-                    style: GoogleFonts.manrope(color: Colors.white10, fontSize: 12, fontWeight: FontWeight.bold),
+    final mainContent = _activeTabIndex == 1
+        ? _customIcons.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.category_outlined,
+                        color: Colors.white.withOpacity(0.05),
+                        size: 40,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'NO ICONS ADDED YET',
+                        style: GoogleFonts.manrope(
+                          color: Colors.white10,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            )
-          : ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-              child: RawScrollbar(
-                controller: _gridScrollController ?? (_gridScrollController = ScrollController()),
-                thumbVisibility: true,
-                thumbColor: AppColors.magenta.withOpacity(0.5),
-                thickness: 5,
-                radius: const Radius.circular(2.5),
-                padding: const EdgeInsets.only(bottom: 52, top: 4, right: 2),
-                child: GridView.builder(
-                  controller: _gridScrollController,
-                  padding: const EdgeInsets.only(right: 8, bottom: 56, top: 4),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
+                )
+              : ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(
+                    context,
+                  ).copyWith(scrollbars: false),
+                  child: RawScrollbar(
+                    controller:
+                        _gridScrollController ??
+                        (_gridScrollController = ScrollController()),
+                    thumbVisibility: true,
+                    thumbColor: AppColors.magenta.withOpacity(0.5),
+                    thickness: 5,
+                    radius: const Radius.circular(2.5),
+                    padding: const EdgeInsets.only(
+                      bottom: 52,
+                      top: 4,
+                      right: 2,
+                    ),
+                    child: GridView.builder(
+                      controller: _gridScrollController,
+                      padding: const EdgeInsets.only(
+                        right: 8,
+                        bottom: 56,
+                        top: 4,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 7,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
+                      itemCount: _customIcons.length,
+                      itemBuilder: (context, index) {
+                        return _buildCustomIconItem(_customIcons[index]);
+                      },
+                    ),
                   ),
-                  itemCount: _customIcons.length,
-                  itemBuilder: (context, index) {
-                    return _buildCustomIconItem(_customIcons[index]);
-                  },
+                )
+        : ScrollConfiguration(
+            behavior: ScrollConfiguration.of(
+              context,
+            ).copyWith(scrollbars: false),
+            child: RawScrollbar(
+              controller:
+                  _gridScrollController ??
+                  (_gridScrollController = ScrollController()),
+              thumbVisibility: true,
+              thumbColor: AppColors.magenta.withOpacity(0.5),
+              thickness: 5,
+              radius: const Radius.circular(2.5),
+              padding: const EdgeInsets.only(
+                bottom: 52,
+                top: 4,
+                right: 2,
+              ), // Shortens ONLY the scrollbar track
+              child: GridView.builder(
+                controller: _gridScrollController,
+                padding: const EdgeInsets.only(
+                  right: 8,
+                  bottom: 56,
+                  top: 4,
+                ), // Emojis scroll full height but don't permanently hide
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
                 ),
+                itemCount: filteredEmojis.length,
+                itemBuilder: (context, index) {
+                  return _buildEmojiItem(filteredEmojis[index]);
+                },
               ),
-            )
-      : ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-          child: RawScrollbar(
-            controller: _gridScrollController ?? (_gridScrollController = ScrollController()),
-            thumbVisibility: true,
-            thumbColor: AppColors.magenta.withOpacity(0.5),
-            thickness: 5,
-            radius: const Radius.circular(2.5),
-            padding: const EdgeInsets.only(bottom: 52, top: 4, right: 2), // Shortens ONLY the scrollbar track
-            child: GridView.builder(
-              controller: _gridScrollController,
-              padding: const EdgeInsets.only(right: 8, bottom: 56, top: 4), // Emojis scroll full height but don't permanently hide
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-              ),
-              itemCount: filteredEmojis.length,
-              itemBuilder: (context, index) {
-                return _buildEmojiItem(filteredEmojis[index]);
-              },
             ),
-          ),
-        );
+          );
 
     return Container(
       decoration: BoxDecoration(
@@ -624,7 +693,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
             _isAddingIcon = true;
             _editorError = null;
             _iconUploads.clear();
-            _iconUploads.add(IconUploadItem(tagController: TextEditingController()));
+            _iconUploads.add(
+              IconUploadItem(tagController: TextEditingController()),
+            );
           }
         });
       },
@@ -659,13 +730,14 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
         allowedExtensions: ['png', 'jpg', 'jpeg'],
         allowMultiple: true,
       );
-      
+
       if (result != null && result.isNotEmpty) {
         setState(() {
-          if (_iconUploads[index].rawFilePath == null && _iconUploads[index].originalBytes == null) {
+          if (_iconUploads[index].rawFilePath == null &&
+              _iconUploads[index].originalBytes == null) {
             _iconUploads.removeAt(index);
           }
-          
+
           for (var file in result) {
             if (file.path == null) continue;
             final item = IconUploadItem(
@@ -677,9 +749,11 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
             index++;
             _processIcon(item);
           }
-          
+
           if (_iconUploads.isEmpty || _iconUploads.last.rawFilePath != null) {
-            _iconUploads.add(IconUploadItem(tagController: TextEditingController()));
+            _iconUploads.add(
+              IconUploadItem(tagController: TextEditingController()),
+            );
           }
         });
       }
@@ -692,9 +766,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
     try {
       final bytes = await File(item.rawFilePath!).readAsBytes();
       setState(() => item.originalBytes = bytes);
-      
+
       final processed = await _processAndResizeImage(bytes);
-      
+
       if (mounted) {
         setState(() {
           item.isProcessing = false;
@@ -729,7 +803,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+              border: Border(
+                bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -748,10 +824,16 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                       _isAddingIcon = false;
                       _editorError = null;
                       _iconUploads.clear();
-                      _iconUploads.add(IconUploadItem(tagController: TextEditingController()));
+                      _iconUploads.add(
+                        IconUploadItem(tagController: TextEditingController()),
+                      );
                     });
                   },
-                  child: Icon(Icons.close_rounded, color: Colors.white.withOpacity(0.5), size: 18),
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: Colors.white.withOpacity(0.5),
+                    size: 18,
+                  ),
                 ),
               ],
             ),
@@ -778,7 +860,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                           color: const Color(0xFF1A1A1A),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: item.error != null ? Colors.redAccent : Colors.white.withOpacity(0.1),
+                            color: item.error != null
+                                ? Colors.redAccent
+                                : Colors.white.withOpacity(0.1),
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,
@@ -786,7 +870,14 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text(':', style: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(
+                      ':',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.2),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Container(
@@ -794,15 +885,22 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.04),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.05),
+                          ),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: TextField(
                           controller: item.tagController,
-                          style: GoogleFonts.manrope(color: Colors.white, fontSize: 13),
+                          style: GoogleFonts.manrope(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
                           decoration: InputDecoration(
                             hintText: 'space separated search tags...',
-                            hintStyle: GoogleFonts.manrope(color: Colors.white10),
+                            hintStyle: GoogleFonts.manrope(
+                              color: Colors.white10,
+                            ),
                             border: InputBorder.none,
                           ),
                         ),
@@ -816,7 +914,11 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                             setState(() {
                               _iconUploads.removeAt(index);
                               if (_iconUploads.isEmpty) {
-                                _iconUploads.add(IconUploadItem(tagController: TextEditingController()));
+                                _iconUploads.add(
+                                  IconUploadItem(
+                                    tagController: TextEditingController(),
+                                  ),
+                                );
                               }
                             });
                           },
@@ -827,7 +929,11 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                               color: Colors.redAccent.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.close_rounded, color: Colors.redAccent, size: 16),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.redAccent,
+                              size: 16,
+                            ),
                           ),
                         ),
                       ),
@@ -841,7 +947,14 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
               padding: const EdgeInsets.only(bottom: 8.0, right: 16.0),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: Text(_editorError!, style: GoogleFonts.manrope(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                child: Text(
+                  _editorError!,
+                  style: GoogleFonts.manrope(
+                    color: Colors.redAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           Padding(
@@ -855,15 +968,26 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                       _isAddingIcon = false;
                       _editorError = null;
                       _iconUploads.clear();
-                      _iconUploads.add(IconUploadItem(tagController: TextEditingController()));
+                      _iconUploads.add(
+                        IconUploadItem(tagController: TextEditingController()),
+                      );
                     });
                   },
-                  child: Text('CANCEL', style: GoogleFonts.manrope(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w900)),
+                  child: Text(
+                    'CANCEL',
+                    style: GoogleFonts.manrope(
+                      color: Colors.white38,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [AppColors.magenta, AppColors.violet]),
+                    gradient: const LinearGradient(
+                      colors: [AppColors.magenta, AppColors.violet],
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ElevatedButton(
@@ -872,10 +996,21 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                       backgroundColor: Colors.transparent,
                       foregroundColor: Colors.white,
                       shadowColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: Text('SAVE', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w900)),
+                    child: Text(
+                      'SAVE',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -888,7 +1023,11 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
 
   Widget _buildUploadBoxContent(IconUploadItem item) {
     if (item.error != null) {
-      return const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 24);
+      return const Icon(
+        Icons.error_outline_rounded,
+        color: Colors.redAccent,
+        size: 24,
+      );
     }
     if (item.isProcessing) {
       return Stack(
@@ -903,7 +1042,10 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
             child: SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.magenta),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.magenta,
+              ),
             ),
           ),
         ],
@@ -916,8 +1058,10 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
   }
 
   Widget _buildEmojiItem(String emoji) {
-    final bool isCustom = _customSets.any((set) => set.parsedMap.containsKey(emoji));
-    
+    final bool isCustom = _customSets.any(
+      (set) => set.parsedMap.containsKey(emoji),
+    );
+
     return Stack(
       children: [
         GestureDetector(
@@ -983,7 +1127,12 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
             padding: const EdgeInsets.all(4),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: Image.memory(icon.imageBytes, width: 24, height: 24, fit: BoxFit.cover),
+              child: Image.memory(
+                icon.imageBytes,
+                width: 24,
+                height: 24,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
         ),
@@ -996,15 +1145,20 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                 final base64String = "B64:${base64Encode(icon.imageBytes)}";
                 _customIcons.remove(icon);
                 _removeBase64FromRecents(icon.imageBytes);
-                _recentlyUsed.removeWhere((item) => item == base64String); // Fallback exact match
+                _recentlyUsed.removeWhere(
+                  (item) => item == base64String,
+                ); // Fallback exact match
                 _saveSettingsToHive();
-                if (_selectedIcon != null && _selectedIcon!.startsWith('B64:')) {
-                   try {
-                     final selectedBytes = base64Decode(_selectedIcon!.substring(4));
-                     if (listEquals(selectedBytes, icon.imageBytes)) {
-                       _selectedIcon = null;
-                     }
-                   } catch (_) {}
+                if (_selectedIcon != null &&
+                    _selectedIcon!.startsWith('B64:')) {
+                  try {
+                    final selectedBytes = base64Decode(
+                      _selectedIcon!.substring(4),
+                    );
+                    if (listEquals(selectedBytes, icon.imageBytes)) {
+                      _selectedIcon = null;
+                    }
+                  } catch (_) {}
                 }
               });
             },
@@ -1029,17 +1183,22 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('RECENT TAG ICONS', 
+            Text(
+              'RECENT TAG ICONS',
               style: GoogleFonts.manrope(
-                color: Colors.white38, 
-                fontSize: 10, 
+                color: Colors.white38,
+                fontSize: 10,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.5,
-              )
+              ),
             ),
             IconButton(
               onPressed: _resetRecentlyUsed,
-              icon: Icon(Icons.refresh_rounded, color: Colors.white.withOpacity(0.3), size: 18),
+              icon: Icon(
+                Icons.refresh_rounded,
+                color: Colors.white.withOpacity(0.3),
+                size: 18,
+              ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               splashRadius: 20,
@@ -1060,7 +1219,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
           child: Theme(
             data: ThemeData(
               scrollbarTheme: ScrollbarThemeData(
-                thumbColor: WidgetStateProperty.all(AppColors.magenta.withOpacity(0.3)),
+                thumbColor: WidgetStateProperty.all(
+                  AppColors.magenta.withOpacity(0.3),
+                ),
                 thickness: WidgetStateProperty.all(2), // Sleeker thickness
                 radius: const Radius.circular(1),
                 mainAxisMargin: 8,
@@ -1068,26 +1229,43 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
               ),
             ),
             child: Scrollbar(
-              controller: _recentScrollController ?? (_recentScrollController = ScrollController()),
+              controller:
+                  _recentScrollController ??
+                  (_recentScrollController = ScrollController()),
               thumbVisibility: true,
               child: SingleChildScrollView(
                 controller: _recentScrollController,
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
-                  children: _recentlyUsed.where((item) {
-                    if (item == '📍') return true;
-                    if (item.startsWith('B64:')) {
-                       try {
-                         final itemBytes = base64Decode(item.substring(4));
-                         return _customIcons.any((custom) => listEquals(custom.imageBytes, itemBytes));
-                       } catch (_) { return false; }
-                    }
-                    bool isBuiltIn = EmojiData.categories.any((cat) => cat.emojis.contains(item));
-                    if (isBuiltIn) return true;
-                    bool isCustom = _customSets.any((set) => set.parsedMap.containsKey(item));
-                    return isCustom;
-                  }).map((e) => _buildRecentItem(e)).toList(),
+                  children: _recentlyUsed
+                      .where((item) {
+                        if (item == '📍') return true;
+                        if (item.startsWith('B64:')) {
+                          try {
+                            final itemBytes = base64Decode(item.substring(4));
+                            return _customIcons.any(
+                              (custom) =>
+                                  listEquals(custom.imageBytes, itemBytes),
+                            );
+                          } catch (_) {
+                            return false;
+                          }
+                        }
+                        bool isBuiltIn = EmojiData.categories.any(
+                          (cat) => cat.emojis.contains(item),
+                        );
+                        if (isBuiltIn) return true;
+                        bool isCustom = _customSets.any(
+                          (set) => set.parsedMap.containsKey(item),
+                        );
+                        return isCustom;
+                      })
+                      .map((e) => _buildRecentItem(e))
+                      .toList(),
                 ),
               ),
             ),
@@ -1100,7 +1278,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
   Widget _buildRecentItem(String icon) {
     final isSelected = _selectedIcon == icon;
     final isBase64 = icon.startsWith('B64:');
-    
+
     return GestureDetector(
       onTap: () => setState(() => _selectedIcon = icon),
       child: AnimatedContainer(
@@ -1109,17 +1287,24 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
         width: 48,
         height: 56, // 48px box + 8px tail
         child: CustomPaint(
-          painter: isSelected ? BubbleTailPainter(color: const Color(0xFF3B2F4C)) : null, // Dark violet tint
+          painter: isSelected
+              ? BubbleTailPainter(color: const Color(0xFF3B2F4C))
+              : null, // Dark violet tint
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 8.0), // Vertically center the emoji inside the 48px square
+              padding: const EdgeInsets.only(
+                bottom: 8.0,
+              ), // Vertically center the emoji inside the 48px square
               child: isBase64
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: Image.memory(
-                        _base64Cache.putIfAbsent(icon, () => base64Decode(icon.substring(4))), 
-                        width: 24, 
-                        height: 24, 
+                        _base64Cache.putIfAbsent(
+                          icon,
+                          () => base64Decode(icon.substring(4)),
+                        ),
+                        width: 24,
+                        height: 24,
                         fit: BoxFit.cover,
                         gaplessPlayback: true,
                       ),
@@ -1141,7 +1326,10 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.white.withOpacity(0.1)),
             gradient: LinearGradient(
-              colors: [AppColors.magenta.withOpacity(0.3), AppColors.violet.withOpacity(0.3)],
+              colors: [
+                AppColors.magenta.withOpacity(0.3),
+                AppColors.violet.withOpacity(0.3),
+              ],
             ),
           ),
           padding: const EdgeInsets.all(1),
@@ -1170,24 +1358,45 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('${_controller.text.characters.length}/50',
-              style: GoogleFonts.manrope(color: Colors.white10, fontSize: 12, fontWeight: FontWeight.bold),
+            Text(
+              '${_controller.text.characters.length}/50',
+              style: GoogleFonts.manrope(
+                color: Colors.white10,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             Row(
               children: [
                 if (_editorError != null)
                   Padding(
                     padding: const EdgeInsets.only(right: 12.0),
-                    child: Text(_editorError!, style: GoogleFonts.manrope(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      _editorError!,
+                      style: GoogleFonts.manrope(
+                        color: Colors.redAccent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 TextButton(
                   onPressed: widget.onCancel,
-                  child: Text('CANCEL', style: GoogleFonts.manrope(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w900)),
+                  child: Text(
+                    'CANCEL',
+                    style: GoogleFonts.manrope(
+                      color: Colors.white38,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [AppColors.magenta, AppColors.violet]),
+                    gradient: const LinearGradient(
+                      colors: [AppColors.magenta, AppColors.violet],
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ElevatedButton(
@@ -1196,10 +1405,21 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                       backgroundColor: Colors.transparent,
                       foregroundColor: Colors.white,
                       shadowColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: Text('SAVE', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w900)),
+                    child: Text(
+                      'SAVE',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -1248,7 +1468,11 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
           color: AppColors.magenta,
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: AppColors.magenta.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: AppColors.magenta.withOpacity(0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: const Icon(Icons.add, color: Colors.white, size: 20),
@@ -1261,7 +1485,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
       width: 420,
       alignment: Alignment.centerLeft,
       child: Padding(
-        padding: EdgeInsets.only(left: (widget.notchOffset - 16).clamp(0.0, 420.0 - 32.0)),
+        padding: EdgeInsets.only(
+          left: (widget.notchOffset - 16).clamp(0.0, 420.0 - 32.0),
+        ),
         child: ClipPath(
           clipper: TriangleClipper(),
           child: BackdropFilter(
@@ -1270,7 +1496,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
               width: 32,
               height: 16,
               decoration: BoxDecoration(color: Colors.white.withOpacity(0.04)),
-              child: CustomPaint(painter: NotchPainter(color: Colors.transparent)),
+              child: CustomPaint(
+                painter: NotchPainter(color: Colors.transparent),
+              ),
             ),
           ),
         ),
@@ -1286,7 +1514,11 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
         children: [
           Text(
             _editingCustomIndex != null ? 'EDIT CUSTOM SET' : 'ADD CUSTOM SET',
-            style: GoogleFonts.manrope(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            style: GoogleFonts.manrope(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -1299,15 +1531,21 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
               padding: const EdgeInsets.all(12),
               child: Focus(
                 onKeyEvent: (node, event) {
-                  if (event is KeyDownEvent && 
-                      (event.logicalKey == LogicalKeyboardKey.enter || 
-                       event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                  if (event is KeyDownEvent &&
+                      (event.logicalKey == LogicalKeyboardKey.enter ||
+                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
                     final text = _customDataController.text;
                     final selection = _customDataController.selection;
-                    final newText = text.replaceRange(selection.start, selection.end, '\n');
+                    final newText = text.replaceRange(
+                      selection.start,
+                      selection.end,
+                      '\n',
+                    );
                     _customDataController.value = TextEditingValue(
                       text: newText,
-                      selection: TextSelection.collapsed(offset: selection.start + 1),
+                      selection: TextSelection.collapsed(
+                        offset: selection.start + 1,
+                      ),
                     );
                     return KeyEventResult.handled;
                   }
@@ -1321,7 +1559,8 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                   textInputAction: TextInputAction.newline,
                   style: GoogleFonts.manrope(color: Colors.white, fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: "'😀': 'happy, smile, face',\n'🚀': 'launch, space, rocket'",
+                    hintText:
+                        "'😀': 'happy, smile, face',\n'🚀': 'launch, space, rocket'",
                     hintStyle: GoogleFonts.manrope(color: Colors.white10),
                     border: InputBorder.none,
                   ),
@@ -1337,7 +1576,14 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                 Positioned(
                   right: 0,
                   bottom: 52, // Hover just above the buttons
-                  child: Text(_editorError!, style: GoogleFonts.manrope(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    _editorError!,
+                    style: GoogleFonts.manrope(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -1347,30 +1593,41 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                       _isCreatingCustom = false;
                       _editorError = null;
                     }),
-                    child: Text('CANCEL', 
+                    child: Text(
+                      'CANCEL',
                       style: GoogleFonts.manrope(
                         color: Colors.white38,
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.1,
-                      )
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Container(
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [AppColors.magenta, AppColors.violet]),
+                      gradient: const LinearGradient(
+                        colors: [AppColors.magenta, AppColors.violet],
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: ElevatedButton(
                       onPressed: () {
-                        final map = _parseCustomData(_customDataController.text);
+                        final map = _parseCustomData(
+                          _customDataController.text,
+                        );
                         if (map.isEmpty) {
-                          setState(() => _editorError = 'Invalid format. Use \'emoji\': \'tags\'');
+                          setState(
+                            () => _editorError =
+                                'Invalid format. Use \'emoji\': \'tags\'',
+                          );
                           return;
                         }
                         setState(() {
-                          final newSet = CustomEmojiSet(rawData: _customDataController.text, parsedMap: map);
+                          final newSet = CustomEmojiSet(
+                            rawData: _customDataController.text,
+                            parsedMap: map,
+                          );
                           if (_editingCustomIndex != null) {
                             _customSets[_editingCustomIndex!] = newSet;
                           } else {
@@ -1385,10 +1642,21 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
                         backgroundColor: Colors.transparent,
                         foregroundColor: Colors.white,
                         shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: Text('SAVE SET', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w900)),
+                      child: Text(
+                        'SAVE SET',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1408,7 +1676,12 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay> with SingleTic
         final parts = line.split(':');
         if (parts.length >= 2) {
           final emoji = parts[0].trim().replaceAll("'", "").replaceAll('"', "");
-          final keywords = parts.sublist(1).join(':').trim().replaceAll("'", "").replaceAll('"', "");
+          final keywords = parts
+              .sublist(1)
+              .join(':')
+              .trim()
+              .replaceAll("'", "")
+              .replaceAll('"', "");
           if (emoji.isNotEmpty) {
             result[emoji] = keywords;
           }
@@ -1437,14 +1710,22 @@ class NotchPainter extends CustomPainter {
       ..close();
 
     canvas.drawPath(path, paint);
-    
+
     final borderPaint = Paint()
       ..color = Colors.white.withOpacity(0.12)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
-    
-    canvas.drawLine(const Offset(0, 0), Offset(size.width / 2, size.height), borderPaint);
-    canvas.drawLine(Offset(size.width / 2, size.height), Offset(size.width, 0), borderPaint);
+
+    canvas.drawLine(
+      const Offset(0, 0),
+      Offset(size.width / 2, size.height),
+      borderPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width / 2, size.height),
+      Offset(size.width, 0),
+      borderPaint,
+    );
   }
 
   @override
@@ -1492,13 +1773,18 @@ class BubbleTailPainter extends CustomPainter {
     // Right line
     path.lineTo(size.width, rectHeight - radius);
     // Bottom-right corner
-    path.quadraticBezierTo(size.width, rectHeight, size.width - radius, rectHeight);
-    
+    path.quadraticBezierTo(
+      size.width,
+      rectHeight,
+      size.width - radius,
+      rectHeight,
+    );
+
     // Bottom line with tail
     path.lineTo((size.width + tailWidth) / 2, rectHeight);
     path.lineTo(size.width / 2, size.height); // Tip of tail
     path.lineTo((size.width - tailWidth) / 2, rectHeight);
-    
+
     // Bottom-left corner
     path.lineTo(radius, rectHeight);
     path.quadraticBezierTo(0, rectHeight, 0, rectHeight - radius);
@@ -1506,7 +1792,7 @@ class BubbleTailPainter extends CustomPainter {
     path.lineTo(0, radius);
     // Top-left corner
     path.quadraticBezierTo(0, 0, radius, 0);
-    
+
     path.close();
 
     canvas.drawPath(path, paint);

@@ -55,8 +55,9 @@ class MetadataCache {
 
   /// Remove all entries whose paths start with [folderPath].
   Future<void> removeForFolder(String folderPath) async {
-    final keysToRemove =
-        _aspectRatios.keys.where((k) => k.startsWith(folderPath)).toList();
+    final keysToRemove = _aspectRatios.keys
+        .where((k) => k.startsWith(folderPath))
+        .toList();
     if (keysToRemove.isEmpty) return;
 
     for (final key in keysToRemove) {

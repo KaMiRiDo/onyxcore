@@ -5,7 +5,8 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 enum SpeedControlOption {
   off('Off'),
   releaseToNormal('Release to Normal'),
-  releaseToFix('Release to Fix');
+  releaseToFix('Release to Fix')
+  ;
 
   final String label;
   const SpeedControlOption(this.label);
@@ -77,7 +78,7 @@ class AppSettings extends Equatable {
 
   /// Global fallback sort option.
   final SortOption globalSortOption;
-  
+
   /// Whether to resume video playback from last known position.
   final bool resumePlayback;
 
@@ -191,7 +192,8 @@ class AppSettings extends Equatable {
       selectedHwDec: selectedHwDec ?? this.selectedHwDec,
       cachedResolvedHwDec: cachedResolvedHwDec ?? this.cachedResolvedHwDec,
       trackpadSpeedControl: trackpadSpeedControl ?? this.trackpadSpeedControl,
-      showMarkersOnTimeline: showMarkersOnTimeline ?? this.showMarkersOnTimeline,
+      showMarkersOnTimeline:
+          showMarkersOnTimeline ?? this.showMarkersOnTimeline,
       filePickerWidth: filePickerWidth ?? this.filePickerWidth,
       filePickerHeight: filePickerHeight ?? this.filePickerHeight,
       settingsWidth: settingsWidth ?? this.settingsWidth,
@@ -200,15 +202,21 @@ class AppSettings extends Equatable {
       downloaderHeight: downloaderHeight ?? this.downloaderHeight,
       confirmDeleteImage: confirmDeleteImage ?? this.confirmDeleteImage,
       confirmDeleteVideo: confirmDeleteVideo ?? this.confirmDeleteVideo,
-      confirmDeleteDocument: confirmDeleteDocument ?? this.confirmDeleteDocument,
+      confirmDeleteDocument:
+          confirmDeleteDocument ?? this.confirmDeleteDocument,
       confirmDeleteAudio: confirmDeleteAudio ?? this.confirmDeleteAudio,
       showHiddenAudioFiles: showHiddenAudioFiles ?? this.showHiddenAudioFiles,
       downloadBrowser: downloadBrowser ?? this.downloadBrowser,
-      downloadToCurrentFolder: downloadToCurrentFolder ?? this.downloadToCurrentFolder,
-      maxConcurrentDownloads: maxConcurrentDownloads ?? this.maxConcurrentDownloads,
-      maxLiveRecordingMinutes: maxLiveRecordingMinutes ?? this.maxLiveRecordingMinutes,
-      documentSearchCaseSensitive: documentSearchCaseSensitive ?? this.documentSearchCaseSensitive,
-      documentSearchUseRegex: documentSearchUseRegex ?? this.documentSearchUseRegex,
+      downloadToCurrentFolder:
+          downloadToCurrentFolder ?? this.downloadToCurrentFolder,
+      maxConcurrentDownloads:
+          maxConcurrentDownloads ?? this.maxConcurrentDownloads,
+      maxLiveRecordingMinutes:
+          maxLiveRecordingMinutes ?? this.maxLiveRecordingMinutes,
+      documentSearchCaseSensitive:
+          documentSearchCaseSensitive ?? this.documentSearchCaseSensitive,
+      documentSearchUseRegex:
+          documentSearchUseRegex ?? this.documentSearchUseRegex,
     );
   }
 

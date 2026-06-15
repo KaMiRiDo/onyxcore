@@ -7,6 +7,7 @@ class ViewerTopBar extends StatelessWidget {
   final VoidCallback? onPopOut;
   final VoidCallback? onClose;
   final bool isStandalone;
+  final List<Widget>? leadingActions;
   final List<Widget>? extraActions;
 
   const ViewerTopBar({
@@ -16,6 +17,7 @@ class ViewerTopBar extends StatelessWidget {
     this.onClose,
     this.isStandalone = false,
     this.extraActions,
+    this.leadingActions,
     super.key,
   });
 
@@ -35,6 +37,10 @@ class ViewerTopBar extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            if (leadingActions != null) ...[
+              ...leadingActions!,
+              const SizedBox(width: 16),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

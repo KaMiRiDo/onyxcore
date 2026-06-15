@@ -15,9 +15,10 @@ class LineNumbersPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final RenderBox? renderTextField = editorKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? renderTextField =
+        editorKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderTextField == null) return;
-    
+
     RenderEditable? renderEditable;
     void findRenderEditable(RenderObject element) {
       if (element is RenderEditable) {
@@ -26,22 +27,26 @@ class LineNumbersPainter extends CustomPainter {
       }
       element.visitChildren(findRenderEditable);
     }
+
     findRenderEditable(renderTextField);
-    
+
     if (renderEditable == null) return;
 
-    final Offset offset = renderEditable!.localToGlobal(Offset.zero, ancestor: renderTextField);
+    final Offset offset = renderEditable!.localToGlobal(
+      Offset.zero,
+      ancestor: renderTextField,
+    );
     final double dyOffset = offset.dy;
 
     final text = controller.text;
     final lines = text.split('\n');
     int currentOffset = 0;
     double lastDy = dyOffset;
-    
+
     for (int i = 0; i < lines.length; i++) {
       final selection = TextSelection.collapsed(offset: currentOffset);
       final endpoints = renderEditable!.getEndpointsForSelection(selection);
-      
+
       double dy;
       if (endpoints.isNotEmpty) {
         // endpoints[0].point.dy is the BOTTOM of the caret on that line
@@ -54,7 +59,7 @@ class LineNumbersPainter extends CustomPainter {
         dy = lastDy + 22.5;
         lastDy = dy;
       }
-      
+
       final textSpan = TextSpan(text: '${i + 1}', style: textStyle);
       final textPainter = TextPainter(
         text: textSpan,
@@ -65,17 +70,18 @@ class LineNumbersPainter extends CustomPainter {
           forceStrutHeight: true,
         ),
       )..layout(maxWidth: size.width);
-      
+
       // 16px right padding from the edge of the line number column (56px total width)
       final dx = 56.0 - textPainter.width - 16;
       textPainter.paint(canvas, Offset(dx, dy));
-      
+
       currentOffset += lines[i].length + 1;
     }
   }
 
   @override
   bool shouldRepaint(covariant LineNumbersPainter oldDelegate) {
-    return oldDelegate.controller != controller || oldDelegate.textStyle != textStyle;
+    return oldDelegate.controller != controller ||
+        oldDelegate.textStyle != textStyle;
   }
 }

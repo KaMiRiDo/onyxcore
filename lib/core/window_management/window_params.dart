@@ -51,7 +51,9 @@ class WindowParams {
         name: fileMap['name'] as String,
         path: fileMap['path'] as String,
         sizeBytes: fileMap['sizeBytes'] as int?,
-        modified: DateTime.fromMillisecondsSinceEpoch(fileMap['modified'] as int),
+        modified: DateTime.fromMillisecondsSinceEpoch(
+          fileMap['modified'] as int,
+        ),
         type: FileItemType.values.firstWhere(
           (e) => e.name == fileMap['type'],
           orElse: () => FileItemType.other,

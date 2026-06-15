@@ -63,7 +63,7 @@ class Sidebar extends ConsumerWidget {
 
           // Navigation Items
           const SizedBox(height: 24),
- 
+
           // Scrollable Navigation Area
           Expanded(
             child: SingleChildScrollView(
@@ -133,7 +133,8 @@ class Sidebar extends ConsumerWidget {
                     label: 'Trash',
                     path: '$home/.local/share/Trash/files',
                     isActive: currentPath == '$home/.local/share/Trash/files',
-                    onTap: () => _navigate(ref, '$home/.local/share/Trash/files'),
+                    onTap: () =>
+                        _navigate(ref, '$home/.local/share/Trash/files'),
                   ),
 
                   const SizedBox(height: 16),
@@ -153,10 +154,15 @@ class Sidebar extends ConsumerWidget {
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: const Text('Cloud storage integration coming soon!', style: TextStyle(color: Colors.white)),
+                          content: const Text(
+                            'Cloud storage integration coming soon!',
+                            style: TextStyle(color: Colors.white),
+                          ),
                           backgroundColor: AppColors.surfaceBase,
                           behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           margin: const EdgeInsets.all(16),
                         ),
                       );

@@ -20,13 +20,14 @@ class BrowserDetector {
   /// Returns a list of supported browsers installed on the Linux system.
   static Future<List<String>> getInstalledBrowsers() async {
     if (_cachedBrowsers != null) return _cachedBrowsers!;
-    
+
     final installed = <String>{};
 
     for (final browser in _knownBrowsers) {
       try {
         final result = await Process.run('which', [browser]);
-        if (result.exitCode == 0 && result.stdout.toString().trim().isNotEmpty) {
+        if (result.exitCode == 0 &&
+            result.stdout.toString().trim().isNotEmpty) {
           installed.add(browser);
         }
       } catch (_) {}
@@ -57,10 +58,13 @@ class BrowserDetector {
   static Future<String?> getDefaultBrowser() async {
     if (_cachedDefault != null) return _cachedDefault;
     try {
-      final result = await Process.run('xdg-settings', ['get', 'default-web-browser']);
+      final result = await Process.run('xdg-settings', [
+        'get',
+        'default-web-browser',
+      ]);
       if (result.exitCode == 0) {
         final output = result.stdout.toString().trim().toLowerCase();
-        
+
         for (final browser in _knownBrowsers) {
           if (output.contains(browser)) {
             _cachedDefault = browser;
@@ -69,7 +73,7 @@ class BrowserDetector {
         }
       }
     } catch (_) {}
-    
+
     return null;
   }
 }

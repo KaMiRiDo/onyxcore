@@ -90,12 +90,18 @@ class StreamlinkEngine extends DownloadEngine {
 
   @override
   Future<Process>? install() {
-    return Process.start('bash', ['-c', 'pip3 install streamlink --break-system-packages']);
+    return Process.start('bash', [
+      '-c',
+      'pip3 install streamlink --break-system-packages',
+    ]);
   }
 
   @override
   Future<Process>? uninstall() {
-    return Process.start('bash', ['-c', 'pip3 uninstall streamlink -y --break-system-packages']);
+    return Process.start('bash', [
+      '-c',
+      'pip3 uninstall streamlink -y --break-system-packages',
+    ]);
   }
 
   @override
@@ -116,7 +122,10 @@ class StreamlinkEngine extends DownloadEngine {
   @override
   Future<String?> getLatestVersion() async {
     try {
-      final res = await Process.run('curl', ['-s', 'https://pypi.org/pypi/streamlink/json']);
+      final res = await Process.run('curl', [
+        '-s',
+        'https://pypi.org/pypi/streamlink/json',
+      ]);
       if (res.exitCode == 0) {
         final json = jsonDecode(res.stdout as String);
         return json['info']?['version']?.toString();
@@ -152,13 +161,15 @@ class StreamlinkEngine extends DownloadEngine {
       });
 
       if (onProgress != null) {
-        onProgress(MediaInfo(
-          id: 'hydration_loading',
-          title: 'Fetching...',
-          originalUrl: url,
-          fetchLogs: 'Waiting for output...',
-          isVideo: false,
-        ));
+        onProgress(
+          MediaInfo(
+            id: 'hydration_loading',
+            title: 'Fetching...',
+            originalUrl: url,
+            fetchLogs: 'Waiting for output...',
+            isVideo: false,
+          ),
+        );
       }
 
       final rawOutput = await process.stdout.transform(utf8.decoder).join();
@@ -197,16 +208,19 @@ class StreamlinkEngine extends DownloadEngine {
 
       final formats = <MediaFormat>[];
       for (final entry in streams.entries) {
-        final quality = entry.key; // e.g., "720p", "1080p60", "best", "audio_only"
+        final quality =
+            entry.key; // e.g., "720p", "1080p60", "best", "audio_only"
         final stream = entry.value as Map<String, dynamic>? ?? {};
         final type = stream['type']?.toString() ?? 'hls';
 
-        formats.add(MediaFormat(
-          formatId: quality,
-          extension: 'ts',
-          resolution: quality,
-          formatString: '$quality ($type)',
-        ));
+        formats.add(
+          MediaFormat(
+            formatId: quality,
+            extension: 'ts',
+            resolution: quality,
+            formatString: '$quality ($type)',
+          ),
+        );
       }
 
       // Extract stream title for display
@@ -237,10 +251,18 @@ class StreamlinkEngine extends DownloadEngine {
         originalUrl: url,
       );
 
-      hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
+      hydrationLogsBuffer.writeln(
+        'Successfully fetched metadata for: "${info.title}"\n',
+      );
       String currentLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
-        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        final formattedErrors = stderrBuffer
+            .toString()
+            .trim()
+            .split('\n')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .join('\n\n');
         currentLogs += '\n\n--- Streamlink Raw Logs ---\n$formattedErrors';
       }
       var finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
@@ -259,7 +281,8 @@ class StreamlinkEngine extends DownloadEngine {
       }
       throw PartialMetadataException(
         partialInfos: parsedInfos,
-        message: 'Hydration timed out after 10 minutes. Showing partial results.',
+        message:
+            'Hydration timed out after 10 minutes. Showing partial results.',
       );
     }
   }
@@ -282,7 +305,8 @@ class StreamlinkEngine extends DownloadEngine {
     String? singleItemId,
     String? directUrl,
   }) async {
-    final safeTitle = title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ??
+    final safeTitle =
+        title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ??
         'live_recording_${DateTime.now().millisecondsSinceEpoch}';
 
     final outputPath = '$destination/$safeTitle.ts';

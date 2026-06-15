@@ -38,13 +38,21 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   }
 
   @override
-  Future<void> createFolder(String parentPath, String name, {String? taskId}) async {
+  Future<void> createFolder(
+    String parentPath,
+    String name, {
+    String? taskId,
+  }) async {
     await datasource.createFolder(parentPath, name);
     cache.invalidate(parentPath);
   }
 
   @override
-  Future<void> createFile(String parentPath, String name, {String? taskId}) async {
+  Future<void> createFile(
+    String parentPath,
+    String name, {
+    String? taskId,
+  }) async {
     await datasource.createFile(parentPath, name);
     cache.invalidate(parentPath);
   }
@@ -58,29 +66,69 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
     void Function(String message)? onLog,
   }) async {
     if (permanent) {
-      await datasource.deleteItemsPermanent(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
+      await datasource.deleteItemsPermanent(
+        paths,
+        onProgress: onProgress,
+        taskId: taskId,
+        onLog: onLog,
+      );
     } else {
-      await datasource.moveToTrash(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
+      await datasource.moveToTrash(
+        paths,
+        onProgress: onProgress,
+        taskId: taskId,
+        onLog: onLog,
+      );
     }
 
     _invalidateParents(paths);
   }
 
   @override
-  Future<void> moveToTrash(List<String> paths, {String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog}) async {
-    await datasource.moveToTrash(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
+  Future<void> moveToTrash(
+    List<String> paths, {
+    String? taskId,
+    void Function(int processed, int total)? onProgress,
+    void Function(String message)? onLog,
+  }) async {
+    await datasource.moveToTrash(
+      paths,
+      onProgress: onProgress,
+      taskId: taskId,
+      onLog: onLog,
+    );
     _invalidateParents(paths);
   }
 
   @override
-  Future<void> restoreFromTrash(List<String> paths, {String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog}) async {
-    await datasource.restoreFromTrash(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
+  Future<void> restoreFromTrash(
+    List<String> paths, {
+    String? taskId,
+    void Function(int processed, int total)? onProgress,
+    void Function(String message)? onLog,
+  }) async {
+    await datasource.restoreFromTrash(
+      paths,
+      onProgress: onProgress,
+      taskId: taskId,
+      onLog: onLog,
+    );
     _invalidateParents(paths);
   }
 
   @override
-  Future<void> trashItems(List<String> paths, {String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog}) async {
-    await datasource.trashItems(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
+  Future<void> trashItems(
+    List<String> paths, {
+    String? taskId,
+    void Function(int processed, int total)? onProgress,
+    void Function(String message)? onLog,
+  }) async {
+    await datasource.trashItems(
+      paths,
+      onProgress: onProgress,
+      taskId: taskId,
+      onLog: onLog,
+    );
     _invalidateParents(paths);
   }
 
@@ -91,8 +139,22 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   }
 
   @override
-  Future<void> copyItemTo(String source, String destinationPath, {void Function(int bytesCopied)? onProgress, void Function()? onSyncing, String? taskId, void Function(SendPort port, Isolate? isolate)? onPort}) async {
-    await datasource.copyItemTo(source, destinationPath, onProgress: onProgress, onSyncing: onSyncing, taskId: taskId, onPort: onPort);
+  Future<void> copyItemTo(
+    String source,
+    String destinationPath, {
+    void Function(int bytesCopied)? onProgress,
+    void Function()? onSyncing,
+    String? taskId,
+    void Function(SendPort port, Isolate? isolate)? onPort,
+  }) async {
+    await datasource.copyItemTo(
+      source,
+      destinationPath,
+      onProgress: onProgress,
+      onSyncing: onSyncing,
+      taskId: taskId,
+      onPort: onPort,
+    );
     cache.invalidateRecursive(destinationPath);
     cache.invalidate(p.dirname(destinationPath));
   }
@@ -108,8 +170,22 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   }
 
   @override
-  Future<void> moveItemTo(String source, String destinationPath, {void Function(int bytesCopied)? onProgress, void Function()? onSyncing, String? taskId, void Function(SendPort port, Isolate? isolate)? onPort}) async {
-    await datasource.moveItemTo(source, destinationPath, onProgress: onProgress, onSyncing: onSyncing, taskId: taskId, onPort: onPort);
+  Future<void> moveItemTo(
+    String source,
+    String destinationPath, {
+    void Function(int bytesCopied)? onProgress,
+    void Function()? onSyncing,
+    String? taskId,
+    void Function(SendPort port, Isolate? isolate)? onPort,
+  }) async {
+    await datasource.moveItemTo(
+      source,
+      destinationPath,
+      onProgress: onProgress,
+      onSyncing: onSyncing,
+      taskId: taskId,
+      onPort: onPort,
+    );
     cache.invalidateRecursive(source);
     cache.invalidateRecursive(destinationPath);
     cache.invalidate(p.dirname(source));
@@ -117,16 +193,38 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   }
 
   @override
-  Future<String> renameItem(String path, String newName, {String? taskId, void Function(String message)? onLog}) async {
-    final newPath = await datasource.renameItem(path, newName, taskId: taskId, onLog: onLog);
+  Future<String> renameItem(
+    String path,
+    String newName, {
+    String? taskId,
+    void Function(String message)? onLog,
+  }) async {
+    final newPath = await datasource.renameItem(
+      path,
+      newName,
+      taskId: taskId,
+      onLog: onLog,
+    );
     cache.invalidateRecursive(path);
     _invalidateParents([path]);
     return newPath;
   }
 
   @override
-  Future<List<String>> bulkRename(List<String> paths, {String? prefix, String? baseName, String? taskId, void Function(String message)? onLog}) async {
-    final newPaths = await datasource.bulkRename(paths, prefix: prefix, baseName: baseName, taskId: taskId, onLog: onLog);
+  Future<List<String>> bulkRename(
+    List<String> paths, {
+    String? prefix,
+    String? baseName,
+    String? taskId,
+    void Function(String message)? onLog,
+  }) async {
+    final newPaths = await datasource.bulkRename(
+      paths,
+      prefix: prefix,
+      baseName: baseName,
+      taskId: taskId,
+      onLog: onLog,
+    );
     for (final path in paths) {
       cache.invalidateRecursive(path);
     }

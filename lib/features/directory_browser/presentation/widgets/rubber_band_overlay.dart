@@ -10,7 +10,9 @@ class SelectionRectNotifier extends Notifier<Rect?> {
   set state(Rect? value) => super.state = value;
 }
 
-final selectionRectProvider = NotifierProvider<SelectionRectNotifier, Rect?>(SelectionRectNotifier.new);
+final selectionRectProvider = NotifierProvider<SelectionRectNotifier, Rect?>(
+  SelectionRectNotifier.new,
+);
 
 class RubberBandOverlay extends ConsumerStatefulWidget {
   final Widget child;
@@ -30,16 +32,21 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onPanStart: (details) {
-        final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
-                .contains(LogicalKeyboardKey.controlLeft) ||
-            HardwareKeyboard.instance.logicalKeysPressed
-                .contains(LogicalKeyboardKey.controlRight);
+        final isCtrl =
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.controlLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.controlRight,
+            );
 
         setState(() {
           _startPoint = details.localPosition;
           _currentPoint = details.localPosition;
           _isDragging = true;
-          _initialSelection = isCtrl ? ref.read(selectionProvider).selectedPaths.toSet() : {};
+          _initialSelection = isCtrl
+              ? ref.read(selectionProvider).selectedPaths.toSet()
+              : {};
         });
       },
       onPanUpdate: (details) {
@@ -48,13 +55,17 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
             _currentPoint = details.localPosition;
           });
           if (_startPoint != null && _currentPoint != null) {
-            _updateInteractiveSelection(Rect.fromPoints(_startPoint!, _currentPoint!));
+            _updateInteractiveSelection(
+              Rect.fromPoints(_startPoint!, _currentPoint!),
+            );
           }
         }
       },
       onPanEnd: (details) {
         if (_isDragging && _startPoint != null && _currentPoint != null) {
-          _updateInteractiveSelection(Rect.fromPoints(_startPoint!, _currentPoint!));
+          _updateInteractiveSelection(
+            Rect.fromPoints(_startPoint!, _currentPoint!),
+          );
         }
         setState(() {
           _isDragging = false;
@@ -92,7 +103,7 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
         if (renderBox != null && renderBox.attached) {
           final itemPos = renderBox.localToGlobal(Offset.zero);
           final localItemRect = (itemPos - origin) & renderBox.size;
-          
+
           if (selectionRect.overlaps(localItemRect)) {
             currentRectPaths.add((element.widget as ItemCard).item.path);
           }
@@ -102,9 +113,12 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
     }
 
     context.visitChildElements(visitor);
-    
-    final combined = Set<String>.from(_initialSelection)..addAll(currentRectPaths);
-    ref.read(selectionProvider.notifier).selectMultiple(combined.toList(), isCtrl: false);
+
+    final combined = Set<String>.from(_initialSelection)
+      ..addAll(currentRectPaths);
+    ref
+        .read(selectionProvider.notifier)
+        .selectMultiple(combined.toList(), isCtrl: false);
   }
 }
 
@@ -127,5 +141,6 @@ class _SimpleSelectionPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_SimpleSelectionPainter oldDelegate) => rect != oldDelegate.rect;
+  bool shouldRepaint(_SimpleSelectionPainter oldDelegate) =>
+      rect != oldDelegate.rect;
 }

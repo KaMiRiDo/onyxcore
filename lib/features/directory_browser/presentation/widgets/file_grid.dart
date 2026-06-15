@@ -23,7 +23,6 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/tab_m
 import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 
-
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
 class FileGrid extends ConsumerStatefulWidget {
   const FileGrid({super.key});
@@ -32,8 +31,8 @@ class FileGrid extends ConsumerStatefulWidget {
   ConsumerState<FileGrid> createState() => _FileGridState();
 }
 
-
-class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver {
+class _FileGridState extends ConsumerState<FileGrid>
+    with WidgetsBindingObserver {
   String? _hoveredPath;
   late final FocusNode _focusNode;
 
@@ -52,7 +51,8 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached || state == AppLifecycleState.hidden) {
+    if (state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
       ref.read(taskProvider.notifier).cancelAllTasks();
     }
   }
@@ -119,23 +119,31 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
     return DragTarget<List<String>>(
       onWillAcceptWithDetails: (details) {
         return !details.data.every((path) {
-          final parts = (path.endsWith('/') ? path.substring(0, path.length - 1) : path).split('/');
-          final parent = parts.take(parts.length > 1 ? parts.length - 1 : 0).join('/');
-          final curr = currentPath.endsWith('/') ? currentPath.substring(0, currentPath.length - 1) : currentPath;
+          final parts =
+              (path.endsWith('/') ? path.substring(0, path.length - 1) : path)
+                  .split('/');
+          final parent = parts
+              .take(parts.length > 1 ? parts.length - 1 : 0)
+              .join('/');
+          final curr = currentPath.endsWith('/')
+              ? currentPath.substring(0, currentPath.length - 1)
+              : currentPath;
           return parent == curr;
         });
       },
       onAcceptWithDetails: (details) async {
         final repo = ref.read(directoryRepositoryProvider);
         final sources = details.data;
-        
-        final taskId = ref.read(taskProvider.notifier).addTask(
-          title: 'Moving Files',
-          subtitle: '${sources.length} items to current folder',
-          totalCount: sources.length,
-          sourcePaths: sources,
-          targetPath: currentPath,
-        );
+
+        final taskId = ref
+            .read(taskProvider.notifier)
+            .addTask(
+              title: 'Moving Files',
+              subtitle: '${sources.length} items to current folder',
+              totalCount: sources.length,
+              sourcePaths: sources,
+              targetPath: currentPath,
+            );
 
         try {
           ref.read(selectionProvider.notifier).deselectAll();
@@ -151,14 +159,17 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
 
             String finalDestPath = destPath;
 
-            if (File(destPath).existsSync() || Directory(destPath).existsSync()) {
-              final resolution = await ref.read(conflictProvider.notifier).resolveConflict(
-                fileName: name,
-                destinationPath: destPath,
-                isFolder: isFolder,
-                context: context,
-              );
-              
+            if (File(destPath).existsSync() ||
+                Directory(destPath).existsSync()) {
+              final resolution = await ref
+                  .read(conflictProvider.notifier)
+                  .resolveConflict(
+                    fileName: name,
+                    destinationPath: destPath,
+                    isFolder: isFolder,
+                    context: context,
+                  );
+
               if (resolution == ConflictResolution.skip) {
                 continue;
               } else if (resolution == ConflictResolution.rename) {
@@ -166,8 +177,8 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
                 final base = p.basenameWithoutExtension(name);
                 var counter = 1;
                 var newName = "$base($counter)$ext";
-                while (File(p.join(currentPath, newName)).existsSync() || 
-                       Directory(p.join(currentPath, newName)).existsSync()) {
+                while (File(p.join(currentPath, newName)).existsSync() ||
+                    Directory(p.join(currentPath, newName)).existsSync()) {
                   counter++;
                   newName = "$base($counter)$ext";
                 }
@@ -179,15 +190,21 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
             ref.read(taskProvider.notifier).updateCurrentItem(taskId, name);
 
             await repo.moveItemTo(
-              source, 
+              source,
               finalDestPath,
               taskId: taskId,
-              onPort: (port, isolate) => ref.read(taskProvider.notifier).registerPort(taskId, port, isolate: isolate),
+              onPort: (port, isolate) => ref
+                  .read(taskProvider.notifier)
+                  .registerPort(taskId, port, isolate: isolate),
             );
             ref.read(taskProvider.notifier).addLog(taskId, 'Completed: $name');
             ref.read(selectionProvider.notifier).select(finalDestPath);
-            ref.read(taskProvider.notifier).updateItemCounts(taskId, i + 1, sources.length);
-            ref.read(taskProvider.notifier).updateProgress(taskId, (i + 1) / sources.length);
+            ref
+                .read(taskProvider.notifier)
+                .updateItemCounts(taskId, i + 1, sources.length);
+            ref
+                .read(taskProvider.notifier)
+                .updateProgress(taskId, (i + 1) / sources.length);
           }
 
           ref.read(taskProvider.notifier).completeTask(taskId);
@@ -211,18 +228,26 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
   }
 
   void _handleTap(List<FileItem> items, int index) {
-    final isShift = HardwareKeyboard.instance.logicalKeysPressed
-            .contains(LogicalKeyboardKey.shiftLeft) ||
-        HardwareKeyboard.instance.logicalKeysPressed
-            .contains(LogicalKeyboardKey.shiftRight);
+    final isShift =
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.shiftLeft,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.shiftRight,
+        );
 
-    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
-            .contains(LogicalKeyboardKey.controlLeft) ||
-        HardwareKeyboard.instance.logicalKeysPressed
-            .contains(LogicalKeyboardKey.controlRight);
+    final isCtrl =
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.controlLeft,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.controlRight,
+        );
 
     ref.read(mainFocusNodeProvider).requestFocus();
-    ref.read(selectionProvider.notifier).onItemTap(
+    ref
+        .read(selectionProvider.notifier)
+        .onItemTap(
           currentIndex: index,
           allPaths: items.map((i) => i.path).toList(),
           isShift: isShift,
@@ -240,9 +265,9 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
       return;
     }
 
-    if (item.type == FileItemType.image || 
-        item.type == FileItemType.video || 
-        item.type == FileItemType.audio || 
+    if (item.type == FileItemType.image ||
+        item.type == FileItemType.video ||
+        item.type == FileItemType.audio ||
         item.type == FileItemType.document) {
       ref.read(previewFileProvider.notifier).state = item;
       return;
@@ -250,7 +275,9 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
 
     if (item.type == FileItemType.archive) {
       final currentPath = ref.read(currentPathProvider);
-      ref.read(archiveProvider.notifier).extractArchive(context, item.path, currentPath);
+      ref
+          .read(archiveProvider.notifier)
+          .extractArchive(context, item.path, currentPath);
       return;
     }
   }
@@ -262,13 +289,18 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
     return Icons.folder_open_rounded;
   }
 
-  Widget _buildGrid(List<FileItem> items, SelectionState selection, double zoom, String currentPath) {
+  Widget _buildGrid(
+    List<FileItem> items,
+    SelectionState selection,
+    double zoom,
+    String currentPath,
+  ) {
     if (items.isEmpty) {
       final isSearchActive = ref.watch(isSearchActiveProvider);
       final query = ref.watch(searchQueryProvider);
       final filter = ref.watch(filterSettingsProvider);
       final isFilterActive = !filter.isEmpty;
-      
+
       if (isSearchActive && query.isNotEmpty) {
         return EmptyStateView(
           icon: Icons.manage_search_rounded,
@@ -283,14 +315,14 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
         return EmptyStateView(
           icon: Icons.filter_list_off_rounded,
           title: 'No Items Match',
-          subtitle: 'Try adjusting your filters to find what you\'re looking for',
+          subtitle:
+              'Try adjusting your filters to find what you\'re looking for',
           actionLabel: 'Clear All Filters',
           onAction: () {
             final tabId = ref.read(tabIdProvider);
-            ref.read(tabManagerProvider.notifier).updateFilterSettings(
-              tabId, 
-              const FilterSettings()
-            );
+            ref
+                .read(tabManagerProvider.notifier)
+                .updateFilterSettings(tabId, const FilterSettings());
           },
         );
       }
@@ -298,7 +330,7 @@ class _FileGridState extends ConsumerState<FileGrid> with WidgetsBindingObserver
       String message = 'This folder is empty';
       if (currentPath == 'virtual:recent') message = 'No recent files found';
       if (currentPath == 'virtual:starred') message = 'No starred items yet';
-      
+
       return EmptyStateView(
         icon: _getEmptyIcon(currentPath),
         title: 'Empty Folder',

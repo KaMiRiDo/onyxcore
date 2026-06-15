@@ -9,7 +9,8 @@ class PlayingEqAnimation extends StatefulWidget {
   State<PlayingEqAnimation> createState() => _PlayingEqAnimationState();
 }
 
-class _PlayingEqAnimationState extends State<PlayingEqAnimation> with SingleTickerProviderStateMixin {
+class _PlayingEqAnimationState extends State<PlayingEqAnimation>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -60,7 +61,7 @@ class _EqBar extends StatelessWidget {
         final value = ((animation.value + offset) % 1.0);
         // Use a sine wave for smooth bouncing
         final height = 4.0 + (math.sin(value * math.pi) * 8.0);
-        
+
         return Container(
           width: 3,
           height: height,

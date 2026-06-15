@@ -39,10 +39,12 @@ class TabManager extends Notifier<TabManagerState> {
           history: [home],
           historyIndex: 0,
           sortSettings: SortSettings(
-            option: ref.read(settingsRepositoryProvider).getFolderSort(
-              home, 
-              SortOption.aToZ // Fallback during initial build
-            ),
+            option: ref
+                .read(settingsRepositoryProvider)
+                .getFolderSort(
+                  home,
+                  SortOption.aToZ, // Fallback during initial build
+                ),
           ),
         ),
       ],
@@ -54,7 +56,8 @@ class TabManager extends Notifier<TabManagerState> {
     final home = Platform.environment['HOME'] ?? '/';
     final newPath = path ?? home;
     final settingsRepo = ref.read(settingsRepositoryProvider);
-    final globalSort = ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
+    final globalSort =
+        ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
     final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
 
     final newTab = TabState(
@@ -64,7 +67,7 @@ class TabManager extends Notifier<TabManagerState> {
       historyIndex: historyIndex ?? 0,
       sortSettings: SortSettings(option: folderSort),
     );
-    
+
     state = state.copyWith(
       tabs: [...state.tabs, newTab],
       activeTabIndex: state.tabs.length,
@@ -106,7 +109,8 @@ class TabManager extends Notifier<TabManagerState> {
   }
 
   void switchToPreviousTab() {
-    final prevIndex = (state.activeTabIndex - 1 + state.tabs.length) % state.tabs.length;
+    final prevIndex =
+        (state.activeTabIndex - 1 + state.tabs.length) % state.tabs.length;
     state = state.copyWith(activeTabIndex: prevIndex);
   }
 
@@ -129,7 +133,8 @@ class TabManager extends Notifier<TabManagerState> {
 
     // Load folder-specific sort settings
     final settingsRepo = ref.read(settingsRepositoryProvider);
-    final globalSort = ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
+    final globalSort =
+        ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
     final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
 
     final updatedTab = tab.copyWith(
@@ -138,7 +143,7 @@ class TabManager extends Notifier<TabManagerState> {
       historyIndex: historyIndex,
       selectedPaths: {}, // Clear selection on navigate
       sortSettings: SortSettings(option: folderSort),
-      filterSettings: const FilterSettings(), // Reset filter on navigate? 
+      filterSettings: const FilterSettings(), // Reset filter on navigate?
       isAnalysisActive: false, // Reset analysis on navigate
       // Usually users want filters cleared when moving between folders.
     );
@@ -155,9 +160,10 @@ class TabManager extends Notifier<TabManagerState> {
     if (!tab.canGoBack) return;
 
     final newPath = tab.history[tab.historyIndex - 1];
-    
+
     final settingsRepo = ref.read(settingsRepositoryProvider);
-    final globalSort = ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
+    final globalSort =
+        ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
     final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
 
     final updatedTab = tab.copyWith(
@@ -181,7 +187,8 @@ class TabManager extends Notifier<TabManagerState> {
     final newPath = tab.history[tab.historyIndex + 1];
 
     final settingsRepo = ref.read(settingsRepositoryProvider);
-    final globalSort = ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
+    final globalSort =
+        ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
     final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
 
     final updatedTab = tab.copyWith(
@@ -257,7 +264,7 @@ class TabManager extends Notifier<TabManagerState> {
     if (index == -1) return;
 
     final updatedTab = state.tabs[index].copyWith(
-      refreshCount: state.tabs[index].refreshCount + 1
+      refreshCount: state.tabs[index].refreshCount + 1,
     );
     final newTabs = List<TabState>.from(state.tabs)..[index] = updatedTab;
     state = state.copyWith(tabs: newTabs);
@@ -275,7 +282,7 @@ class TabManager extends Notifier<TabManagerState> {
     // Persist folder-specific sort
     final settingsRepo = ref.read(settingsRepositoryProvider);
     settingsRepo.setFolderSort(tab.currentPath, sort.option);
-    
+
     // Also notify settings provider that something changed (if needed)
     // ref.invalidate(settingsProvider); // Optional
   }
@@ -290,7 +297,9 @@ class TabManager extends Notifier<TabManagerState> {
   }
 }
 
-final tabManagerProvider = NotifierProvider<TabManager, TabManagerState>(TabManager.new);
+final tabManagerProvider = NotifierProvider<TabManager, TabManagerState>(
+  TabManager.new,
+);
 
 final activeTabIdProvider = Provider<String>((ref) {
   final state = ref.watch(tabManagerProvider);

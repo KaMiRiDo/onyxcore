@@ -4,7 +4,10 @@
 /// while background verification ensures cache freshness.
 /// Integrates with [DirectoryWatcher] to auto-invalidate on inotify events.
 class DirectoryCache<T> {
-  DirectoryCache({this.maxEntries = 50, this.ttl = const Duration(seconds: 30)});
+  DirectoryCache({
+    this.maxEntries = 50,
+    this.ttl = const Duration(seconds: 30),
+  });
 
   final int maxEntries;
   final Duration ttl;

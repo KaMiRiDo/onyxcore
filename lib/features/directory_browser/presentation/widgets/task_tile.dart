@@ -48,7 +48,8 @@ class _TaskTileState extends ConsumerState<TaskTile> {
     _updateEta();
 
     // Auto-scroll logs when new entries arrive
-    if (_logsExpanded && widget.task.logs.length != oldWidget.task.logs.length) {
+    if (_logsExpanded &&
+        widget.task.logs.length != oldWidget.task.logs.length) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_logScrollController.hasClients) {
           _logScrollController.animateTo(
@@ -138,7 +139,8 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                           ),
                           const SizedBox(height: 6),
                           // Paths details
-                          if (task.sourcePaths != null && task.sourcePaths!.isNotEmpty)
+                          if (task.sourcePaths != null &&
+                              task.sourcePaths!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 4),
                               child: Text(
@@ -162,9 +164,10 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                 ),
                               ),
                             ),
-                          
+
                           // Current item + ETA
-                          if (task.currentItem != null && task.status == FileTaskStatus.running)
+                          if (task.currentItem != null &&
+                              task.status == FileTaskStatus.running)
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -186,16 +189,21 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                     child: Text(
                                       _etaText,
                                       style: GoogleFonts.manrope(
-                                        color: task.isSyncing ? AppColors.violet : AppColors.textMuted,
+                                        color: task.isSyncing
+                                            ? AppColors.violet
+                                            : AppColors.textMuted,
                                         fontSize: 11,
-                                        fontWeight: task.isSyncing ? FontWeight.w600 : FontWeight.normal,
+                                        fontWeight: task.isSyncing
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
                                       ),
                                     ),
                                   ),
                               ],
                             ),
                           // Subtitle for non-running tasks
-                          if (task.currentItem == null || task.status != FileTaskStatus.running)
+                          if (task.currentItem == null ||
+                              task.status != FileTaskStatus.running)
                             Text(
                               task.subtitle,
                               style: GoogleFonts.manrope(
@@ -229,7 +237,8 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                 ),
               ),
               // Progress + ETA row
-              if (task.status == FileTaskStatus.running || task.status == FileTaskStatus.pending) ...[
+              if (task.status == FileTaskStatus.running ||
+                  task.status == FileTaskStatus.pending) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Column(
@@ -240,8 +249,8 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                           height: 4,
                           child: TweenAnimationBuilder<double>(
                             tween: Tween<double>(
-                              end: task.status == FileTaskStatus.pending 
-                                  ? 0.0 
+                              end: task.status == FileTaskStatus.pending
+                                  ? 0.0
                                   : task.progress,
                             ),
                             duration: const Duration(milliseconds: 500),
@@ -251,9 +260,13 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                 value: animatedProgress,
                                 backgroundColor: Colors.white.withOpacity(0.06),
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  task.status == FileTaskStatus.pending 
+                                  task.status == FileTaskStatus.pending
                                       ? Colors.white.withOpacity(0.1)
-                                      : (task.isSyncing ? AppColors.violet : AppColors.violet.withOpacity(0.8)),
+                                      : (task.isSyncing
+                                            ? AppColors.violet
+                                            : AppColors.violet.withOpacity(
+                                                0.8,
+                                              )),
                                 ),
                               );
                             },
@@ -277,27 +290,29 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                             fontSize: 11,
                           ),
                         ),
-                        if (task.progress > 0 || task.totalSizeBytes > 0 || task.processedSizeBytes > 0)
+                        if (task.progress > 0 ||
+                            task.totalSizeBytes > 0 ||
+                            task.processedSizeBytes > 0)
                           Row(
                             children: [
+                              Text(
+                                '${StringUtils.formatBytes(task.processedSizeBytes)} / ${task.totalSizeBytes > 0 ? StringUtils.formatBytes(task.totalSizeBytes) : '?'}',
+                                style: GoogleFonts.manrope(
+                                  color: AppColors.textMuted.withOpacity(0.6),
+                                  fontSize: 11,
+                                ),
+                              ),
+                              if (task.speed != null && task.speed! > 0) ...[
+                                const SizedBox(width: 8),
                                 Text(
-                                  '${StringUtils.formatBytes(task.processedSizeBytes)} / ${task.totalSizeBytes > 0 ? StringUtils.formatBytes(task.totalSizeBytes) : '?'}',
+                                  '${StringUtils.formatBytes(task.speed!.toInt())}/s',
                                   style: GoogleFonts.manrope(
-                                    color: AppColors.textMuted.withOpacity(0.6),
+                                    color: AppColors.violet.withOpacity(0.7),
                                     fontSize: 11,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                if (task.speed != null && task.speed! > 0) ...[
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${StringUtils.formatBytes(task.speed!.toInt())}/s',
-                                    style: GoogleFonts.manrope(
-                                      color: AppColors.violet.withOpacity(0.7),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                              ],
                               if (task.totalSizeBytes > 0 && task.progress > 0)
                                 const SizedBox(width: 8),
                               if (task.progress > 0)
@@ -316,7 +331,8 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                   ),
               ],
               // Error message
-              if (task.status == FileTaskStatus.error && task.errorMessage != null)
+              if (task.status == FileTaskStatus.error &&
+                  task.errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: Text(
@@ -444,7 +460,12 @@ class _TaskTileState extends ConsumerState<TaskTile> {
     );
   }
 
-  Widget _confirmButton(String label, Color bgColor, Color textColor, VoidCallback onTap) {
+  Widget _confirmButton(
+    String label,
+    Color bgColor,
+    Color textColor,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),

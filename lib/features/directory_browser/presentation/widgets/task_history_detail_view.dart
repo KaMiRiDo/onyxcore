@@ -15,7 +15,8 @@ class TaskHistoryDetailView extends ConsumerStatefulWidget {
   const TaskHistoryDetailView({super.key});
 
   @override
-  ConsumerState<TaskHistoryDetailView> createState() => _TaskHistoryDetailViewState();
+  ConsumerState<TaskHistoryDetailView> createState() =>
+      _TaskHistoryDetailViewState();
 }
 
 class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
@@ -33,15 +34,21 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
     super.dispose();
   }
 
-  void _navigateTo(String path, {String? highlightFile, bool forceParent = false}) {
+  void _navigateTo(
+    String path, {
+    String? highlightFile,
+    bool forceParent = false,
+  }) {
     if (!Directory(path).existsSync() && !File(path).existsSync()) return;
 
-    final targetDir = (Directory(path).existsSync() && !forceParent) ? path : p.dirname(path);
+    final targetDir = (Directory(path).existsSync() && !forceParent)
+        ? path
+        : p.dirname(path);
     final itemToHighlight = highlightFile ?? (forceParent ? path : null);
-    
+
     // Navigate
     ref.read(currentPathProvider.notifier).state = targetDir;
-    
+
     // Highlight if requested
     if (itemToHighlight != null) {
       // Small delay to ensure the directory provider has started loading the new path
@@ -61,7 +68,7 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
     if (entry == null) return const SizedBox.shrink();
 
     final duration = entry.duration;
-    
+
     return Stack(
       children: [
         Column(
@@ -99,39 +106,40 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                       ),
                     ),
                   ),
-                    IconButton(
-                      onPressed: () => setState(() => _showDeleteConfirm = true),
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        size: 20,
-                        color: AppColors.error.withOpacity(0.7),
-                      ),
-                      tooltip: 'Delete History Entry',
+                  IconButton(
+                    onPressed: () => setState(() => _showDeleteConfirm = true),
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 20,
+                      color: AppColors.error.withOpacity(0.7),
                     ),
-                    // Close button
-                    Tooltip(
-                      message: 'Close Panel',
-                      waitDuration: const Duration(milliseconds: 500),
-                      child: InkWell(
-                        onTap: () {
-                          ref.read(backgroundPanelOpenProvider.notifier).state = false;
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Icon(
-                            Icons.close_rounded,
-                            size: 18,
-                            color: Colors.white.withOpacity(0.5),
-                          ),
+                    tooltip: 'Delete History Entry',
+                  ),
+                  // Close button
+                  Tooltip(
+                    message: 'Close Panel',
+                    waitDuration: const Duration(milliseconds: 500),
+                    child: InkWell(
+                      onTap: () {
+                        ref.read(backgroundPanelOpenProvider.notifier).state =
+                            false;
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: Colors.white.withOpacity(0.5),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
             const Divider(color: Colors.white10, height: 1),
-            
+
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -144,7 +152,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.03),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.05),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,7 +164,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: _getOperationColor(entry.title).withOpacity(0.1),
+                                  color: _getOperationColor(
+                                    entry.title,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
@@ -185,11 +197,17 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                               decoration: BoxDecoration(
                                 color: AppColors.error.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppColors.error.withOpacity(0.2)),
+                                border: Border.all(
+                                  color: AppColors.error.withOpacity(0.2),
+                                ),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.error_outline_rounded, size: 16, color: AppColors.error),
+                                  const Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 16,
+                                    color: AppColors.error,
+                                  ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -208,11 +226,12 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Path Visualization
-                    if (entry.sourcePaths != null || entry.targetPath != null) ...[
+                    if (entry.sourcePaths != null ||
+                        entry.targetPath != null) ...[
                       Text(
                         'FLOW',
                         style: GoogleFonts.manrope(
@@ -228,7 +247,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                     ],
 
                     // Processed Files (Copy/Move)
-                    if (entry.sourcePaths != null && entry.sourcePaths!.isNotEmpty && entry.targetPath != null) ...[
+                    if (entry.sourcePaths != null &&
+                        entry.sourcePaths!.isNotEmpty &&
+                        entry.targetPath != null) ...[
                       Text(
                         'PROCESSED ITEMS',
                         style: GoogleFonts.manrope(
@@ -244,7 +265,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.02),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.04)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.04),
+                          ),
                         ),
                         child: Scrollbar(
                           controller: _processedScrollController,
@@ -258,9 +281,18 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                             itemCount: entry.sourcePaths!.length,
                             itemBuilder: (context, index) {
                               final src = entry.sourcePaths![index];
-                              final destPath = p.join(entry.targetPath!, p.basename(src));
-                              final exists = File(destPath).existsSync() || Directory(destPath).existsSync();
-                              return _buildProcessedFileItem(src, destPath, exists);
+                              final destPath = p.join(
+                                entry.targetPath!,
+                                p.basename(src),
+                              );
+                              final exists =
+                                  File(destPath).existsSync() ||
+                                  Directory(destPath).existsSync();
+                              return _buildProcessedFileItem(
+                                src,
+                                destPath,
+                                exists,
+                              );
                             },
                           ),
                         ),
@@ -270,13 +302,16 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
 
                     // Affected Items (Rename/Delete/Create from Logs)
                     ...(() {
-                      final processedLogs = entry.logs.where((log) => 
-                        log.startsWith('Renamed: ') || 
-                        log.startsWith('Moved to Trash: ') || 
-                        log.startsWith('Deleted: ') || 
-                        log.startsWith('Created Folder: ') || 
-                        log.startsWith('Created File: ')
-                      ).toList();
+                      final processedLogs = entry.logs
+                          .where(
+                            (log) =>
+                                log.startsWith('Renamed: ') ||
+                                log.startsWith('Moved to Trash: ') ||
+                                log.startsWith('Deleted: ') ||
+                                log.startsWith('Created Folder: ') ||
+                                log.startsWith('Created File: '),
+                          )
+                          .toList();
 
                       if (processedLogs.isEmpty) return <Widget>[];
 
@@ -296,43 +331,58 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.02),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.04),
+                            ),
                           ),
-                        child: Scrollbar(
-                          controller: _affectedScrollController,
-                          thumbVisibility: true,
-                          trackVisibility: false,
-                          thickness: 4,
-                          radius: const Radius.circular(10),
-                          child: ListView.builder(
+                          child: Scrollbar(
                             controller: _affectedScrollController,
-                            padding: EdgeInsets.zero,
-                            itemCount: processedLogs.length,
-                            itemBuilder: (context, index) {
-                              final log = processedLogs[index];
-                              if (log.startsWith('Renamed: ')) {
-                                final parts = log.substring(9).split(' -> ');
-                                if (parts.length == 2) {
-                                  return _buildRenamedFileItem(parts[0].trim(), parts[1].trim());
+                            thumbVisibility: true,
+                            trackVisibility: false,
+                            thickness: 4,
+                            radius: const Radius.circular(10),
+                            child: ListView.builder(
+                              controller: _affectedScrollController,
+                              padding: EdgeInsets.zero,
+                              itemCount: processedLogs.length,
+                              itemBuilder: (context, index) {
+                                final log = processedLogs[index];
+                                if (log.startsWith('Renamed: ')) {
+                                  final parts = log.substring(9).split(' -> ');
+                                  if (parts.length == 2) {
+                                    return _buildRenamedFileItem(
+                                      parts[0].trim(),
+                                      parts[1].trim(),
+                                    );
+                                  }
+                                } else if (log.startsWith('Deleted: ') ||
+                                    log.startsWith('Moved to Trash: ')) {
+                                  final isTrash = log.startsWith(
+                                    'Moved to Trash: ',
+                                  );
+                                  final path = log
+                                      .substring(isTrash ? 16 : 9)
+                                      .trim();
+                                  return _buildDeletedFileItem(path, isTrash);
+                                } else if (log.startsWith('Created Folder: ') ||
+                                    log.startsWith('Created File: ')) {
+                                  final isFolder = log.startsWith(
+                                    'Created Folder: ',
+                                  );
+                                  final path = log
+                                      .substring(isFolder ? 16 : 14)
+                                      .trim();
+                                  return _buildCreatedFileItem(path, isFolder);
                                 }
-                              } else if (log.startsWith('Deleted: ') || log.startsWith('Moved to Trash: ')) {
-                                final isTrash = log.startsWith('Moved to Trash: ');
-                                final path = log.substring(isTrash ? 16 : 9).trim();
-                                return _buildDeletedFileItem(path, isTrash);
-                              } else if (log.startsWith('Created Folder: ') || log.startsWith('Created File: ')) {
-                                final isFolder = log.startsWith('Created Folder: ');
-                                final path = log.substring(isFolder ? 16 : 14).trim();
-                                return _buildCreatedFileItem(path, isFolder);
-                              }
-                              return const SizedBox.shrink();
-                            },
+                                return const SizedBox.shrink();
+                              },
+                            ),
                           ),
-                        ),
                         ),
                         const SizedBox(height: 24),
                       ];
                     }()),
-                    
+
                     // Stats Grid (Single Row)
                     Text(
                       'STATISTICS',
@@ -349,55 +399,62 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.03),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.05),
+                        ),
                       ),
                       child: Row(
                         children: [
                           Expanded(
                             child: _buildStatItem(
-                              Icons.timer_outlined, 
-                              'Duration', 
-                              duration != null ? _formatDuration(duration) : 'N/A'
+                              Icons.timer_outlined,
+                              'Duration',
+                              duration != null
+                                  ? _formatDuration(duration)
+                                  : 'N/A',
                             ),
                           ),
                           _buildStatDivider(),
                           Expanded(
                             child: _buildStatItem(
-                              Icons.inventory_2_outlined, 
-                              'Items', 
-                              '${entry.processedCount}/${entry.totalCount}'
+                              Icons.inventory_2_outlined,
+                              'Items',
+                              '${entry.processedCount}/${entry.totalCount}',
                             ),
                           ),
-                          if (!entry.title.toLowerCase().contains('rename') && !entry.title.toLowerCase().contains('renam')) ...[
+                          if (!entry.title.toLowerCase().contains('rename') &&
+                              !entry.title.toLowerCase().contains('renam')) ...[
                             _buildStatDivider(),
                             Expanded(
                               child: _buildStatItem(
-                                Icons.sd_storage_outlined, 
-                                'Size', 
+                                Icons.sd_storage_outlined,
+                                'Size',
                                 StringUtils.formatBytes(
-                                  (entry.statusName == 'cancelled') 
-                                  ? (entry.processedSizeBytes ?? 0)
-                                  : (entry.totalSizeBytes ?? 0)
-                                )
+                                  (entry.statusName == 'cancelled')
+                                      ? (entry.processedSizeBytes ?? 0)
+                                      : (entry.totalSizeBytes ?? 0),
+                                ),
                               ),
                             ),
                           ],
-                          if (duration != null && duration.inSeconds > 0 && (entry.totalSizeBytes ?? 0) > 0) ...[
+                          if (duration != null &&
+                              duration.inSeconds > 0 &&
+                              (entry.totalSizeBytes ?? 0) > 0) ...[
                             _buildStatDivider(),
                             Expanded(
                               child: _buildStatItem(
-                                Icons.speed_outlined, 
-                                'Speed', 
-                                '${StringUtils.formatBytes(((entry.totalSizeBytes ?? 0) / duration.inSeconds).round())}/s'
+                                Icons.speed_outlined,
+                                'Speed',
+                                '${StringUtils.formatBytes(((entry.totalSizeBytes ?? 0) / duration.inSeconds).round())}/s',
                               ),
                             ),
                           ],
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Timeline
                     Text(
                       'TIMELINE',
@@ -410,15 +467,18 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                     ),
                     const SizedBox(height: 12),
                     _buildTimelineItem('Created', entry.createdAt),
-                    if (entry.startedAt != null) _buildTimelineItem('Started', entry.startedAt!),
-                    if (entry.completedAt != null) _buildTimelineItem('Finished', entry.completedAt!),
-                    
+                    if (entry.startedAt != null)
+                      _buildTimelineItem('Started', entry.startedAt!),
+                    if (entry.completedAt != null)
+                      _buildTimelineItem('Finished', entry.completedAt!),
+
                     const SizedBox(height: 24),
-                    
+
                     // Logs (Dropdown Style)
                     if (entry.logs.isNotEmpty) ...[
                       InkWell(
-                        onTap: () => setState(() => _logsExpanded = !_logsExpanded),
+                        onTap: () =>
+                            setState(() => _logsExpanded = !_logsExpanded),
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           padding: const EdgeInsets.all(16),
@@ -426,12 +486,20 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                             color: Colors.white.withOpacity(0.03),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: _logsExpanded ? AppColors.violet.withOpacity(0.2) : Colors.white.withOpacity(0.04)
+                              color: _logsExpanded
+                                  ? AppColors.violet.withOpacity(0.2)
+                                  : Colors.white.withOpacity(0.04),
                             ),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.terminal_rounded, size: 18, color: _logsExpanded ? AppColors.violet : AppColors.textMuted),
+                              Icon(
+                                Icons.terminal_rounded,
+                                size: 18,
+                                color: _logsExpanded
+                                    ? AppColors.violet
+                                    : AppColors.textMuted,
+                              ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -448,7 +516,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                                     Text(
                                       '${entry.logs.length} entries recorded',
                                       style: GoogleFonts.manrope(
-                                        color: AppColors.textMuted.withOpacity(0.5),
+                                        color: AppColors.textMuted.withOpacity(
+                                          0.5,
+                                        ),
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -457,7 +527,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                                 ),
                               ),
                               Icon(
-                                _logsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                                _logsExpanded
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
                                 color: Colors.white.withOpacity(0.3),
                               ),
                             ],
@@ -472,7 +544,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.4),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.04),
+                            ),
                           ),
                           child: ListView.builder(
                             controller: _logScrollController,
@@ -544,7 +618,11 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white10),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black87, blurRadius: 30, spreadRadius: 5),
+                    BoxShadow(
+                      color: Colors.black87,
+                      blurRadius: 30,
+                      spreadRadius: 5,
+                    ),
                   ],
                 ),
                 child: Column(
@@ -556,19 +634,30 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                         color: AppColors.error.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 32),
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: AppColors.error,
+                        size: 32,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       message,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(color: AppColors.textMuted, fontSize: 13),
+                      style: GoogleFonts.manrope(
+                        color: AppColors.textMuted,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Row(
@@ -576,8 +665,17 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                         Expanded(
                           child: TextButton(
                             onPressed: onCancel,
-                            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
-                            child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.textMuted, fontWeight: FontWeight.w600, fontSize: 13)),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.manrope(
+                                color: AppColors.textMuted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -588,11 +686,19 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                               backgroundColor: AppColors.error,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                               elevation: 0,
                               minimumSize: const Size(0, 40),
                             ),
-                            child: Text(confirmLabel, style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13)),
+                            child: Text(
+                              confirmLabel,
+                              style: GoogleFonts.manrope(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -669,16 +775,19 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
 
   Widget _buildPathFlow(TaskHistoryEntry entry) {
     // For Source: show only the parent directory path
-    final sourcePath = entry.sourcePaths != null && entry.sourcePaths!.isNotEmpty 
-        ? entry.sourcePaths![0] 
+    final sourcePath =
+        entry.sourcePaths != null && entry.sourcePaths!.isNotEmpty
+        ? entry.sourcePaths![0]
         : null;
-    
+
     final sourceParent = sourcePath != null ? p.dirname(sourcePath) : null;
-    final sourceExists = sourceParent != null && Directory(sourceParent).existsSync();
-    
+    final sourceExists =
+        sourceParent != null && Directory(sourceParent).existsSync();
+
     // For Destination: entry.targetPath is already the parent directory
     final targetPath = entry.targetPath;
-    final targetExists = targetPath != null && Directory(targetPath).existsSync();
+    final targetExists =
+        targetPath != null && Directory(targetPath).existsSync();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -691,31 +800,41 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
         children: [
           if (sourceParent != null)
             _buildPathItem(
-              Icons.folder_open_rounded, 
-              'Source Folder', 
+              Icons.folder_open_rounded,
+              'Source Folder',
               sourceParent,
               sourceExists,
-              () => _navigateTo(sourceParent)
+              () => _navigateTo(sourceParent),
             ),
           if (sourceParent != null && targetPath != null)
             Padding(
               padding: const EdgeInsets.only(left: 10, top: 4, bottom: 4),
-              child: Icon(Icons.south_rounded, size: 14, color: Colors.white.withOpacity(0.1)),
+              child: Icon(
+                Icons.south_rounded,
+                size: 14,
+                color: Colors.white.withOpacity(0.1),
+              ),
             ),
           if (targetPath != null)
             _buildPathItem(
-              Icons.download_for_offline_rounded, 
-              'Destination', 
+              Icons.download_for_offline_rounded,
+              'Destination',
               targetPath,
               targetExists,
-              () => _navigateTo(targetPath)
+              () => _navigateTo(targetPath),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildPathItem(IconData icon, String label, String path, bool exists, VoidCallback onTap) {
+  Widget _buildPathItem(
+    IconData icon,
+    String label,
+    String path,
+    bool exists,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: exists ? onTap : null,
       borderRadius: BorderRadius.circular(8),
@@ -723,7 +842,13 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: exists ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.05)),
+            Icon(
+              icon,
+              size: 20,
+              color: exists
+                  ? Colors.white.withOpacity(0.2)
+                  : Colors.white.withOpacity(0.05),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -740,7 +865,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                   Text(
                     StringUtils.truncateMiddle(path, maxLength: 50),
                     style: GoogleFonts.manrope(
-                      color: exists ? Colors.white.withOpacity(0.7) : Colors.white.withOpacity(0.2),
+                      color: exists
+                          ? Colors.white.withOpacity(0.7)
+                          : Colors.white.withOpacity(0.2),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       decoration: exists ? null : TextDecoration.lineThrough,
@@ -750,7 +877,11 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
               ),
             ),
             if (exists)
-              Icon(Icons.chevron_right_rounded, size: 16, color: Colors.white.withOpacity(0.1)),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: Colors.white.withOpacity(0.1),
+              ),
           ],
         ),
       ),
@@ -763,21 +894,30 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5)),
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.white.withOpacity(0.04),
+              width: 0.5,
+            ),
+          ),
         ),
         child: Row(
           children: [
             Icon(
-              _getItemIcon(destPath), 
-              size: 16, 
-              color: exists ? AppColors.violet.withOpacity(0.6) : Colors.white.withOpacity(0.1)
+              _getItemIcon(destPath),
+              size: 16,
+              color: exists
+                  ? AppColors.violet.withOpacity(0.6)
+                  : Colors.white.withOpacity(0.1),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 p.basename(destPath),
                 style: GoogleFonts.manrope(
-                  color: exists ? Colors.white.withOpacity(0.8) : Colors.white.withOpacity(0.2),
+                  color: exists
+                      ? Colors.white.withOpacity(0.8)
+                      : Colors.white.withOpacity(0.2),
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -786,7 +926,11 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
               ),
             ),
             if (exists)
-              Icon(Icons.open_in_new_rounded, size: 14, color: Colors.white.withOpacity(0.15)),
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 14,
+                color: Colors.white.withOpacity(0.15),
+              ),
           ],
         ),
       ),
@@ -794,30 +938,44 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
   }
 
   Widget _buildRenamedFileItem(String oldPath, String newPath) {
-    final exists = File(newPath).existsSync() || Directory(newPath).existsSync();
+    final exists =
+        File(newPath).existsSync() || Directory(newPath).existsSync();
     return InkWell(
       onTap: exists ? () => _navigateTo(newPath, forceParent: true) : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5)),
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.white.withOpacity(0.04),
+              width: 0.5,
+            ),
+          ),
         ),
         child: Row(
           children: [
             Icon(
-              _getItemIcon(newPath), 
-              size: 16, 
-              color: exists ? AppColors.violet.withOpacity(0.6) : Colors.white.withOpacity(0.1)
+              _getItemIcon(newPath),
+              size: 16,
+              color: exists
+                  ? AppColors.violet.withOpacity(0.6)
+                  : Colors.white.withOpacity(0.1),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: RichText(
                 text: TextSpan(
-                  style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500),
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                   children: [
                     TextSpan(
                       text: p.basename(oldPath),
-                      style: TextStyle(color: Colors.white.withOpacity(0.3), decoration: TextDecoration.lineThrough),
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.3),
+                        decoration: TextDecoration.lineThrough,
+                      ),
                     ),
                     TextSpan(
                       text: '  →  ',
@@ -826,7 +984,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                     TextSpan(
                       text: p.basename(newPath),
                       style: TextStyle(
-                        color: exists ? AppColors.violet : Colors.white.withOpacity(0.2),
+                        color: exists
+                            ? AppColors.violet
+                            : Colors.white.withOpacity(0.2),
                         decoration: exists ? TextDecoration.underline : null,
                         decorationColor: AppColors.violet.withOpacity(0.4),
                       ),
@@ -838,7 +998,11 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
               ),
             ),
             if (exists)
-              Icon(Icons.open_in_new_rounded, size: 14, color: AppColors.violet.withOpacity(0.5)),
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 14,
+                color: AppColors.violet.withOpacity(0.5),
+              ),
           ],
         ),
       ),
@@ -846,27 +1010,38 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
   }
 
   Widget _buildCreatedFileItem(String path, bool isFolder) {
-    final exists = isFolder ? Directory(path).existsSync() : File(path).existsSync();
+    final exists = isFolder
+        ? Directory(path).existsSync()
+        : File(path).existsSync();
     return InkWell(
       onTap: exists ? () => _navigateTo(path, forceParent: true) : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5)),
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.white.withOpacity(0.04),
+              width: 0.5,
+            ),
+          ),
         ),
         child: Row(
           children: [
             Icon(
-              isFolder ? Icons.folder_rounded : _getFileIcon(path), 
-              size: 16, 
-              color: exists ? AppColors.violet.withOpacity(0.6) : Colors.white.withOpacity(0.1)
+              isFolder ? Icons.folder_rounded : _getFileIcon(path),
+              size: 16,
+              color: exists
+                  ? AppColors.violet.withOpacity(0.6)
+                  : Colors.white.withOpacity(0.1),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 p.basename(path),
                 style: GoogleFonts.manrope(
-                  color: exists ? AppColors.violet : Colors.white.withOpacity(0.2),
+                  color: exists
+                      ? AppColors.violet
+                      : Colors.white.withOpacity(0.2),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   decoration: exists ? TextDecoration.underline : null,
@@ -877,7 +1052,11 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
               ),
             ),
             if (exists)
-              Icon(Icons.open_in_new_rounded, size: 14, color: AppColors.violet.withOpacity(0.5)),
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 14,
+                color: AppColors.violet.withOpacity(0.5),
+              ),
           ],
         ),
       ),
@@ -890,14 +1069,16 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5)),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5),
+        ),
       ),
       child: Row(
         children: [
           Icon(
-            isTrash ? Icons.delete_sweep_rounded : Icons.delete_forever_rounded, 
-            size: 16, 
-            color: Colors.white.withOpacity(0.1)
+            isTrash ? Icons.delete_sweep_rounded : Icons.delete_forever_rounded,
+            size: 16,
+            color: Colors.white.withOpacity(0.1),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -973,10 +1154,14 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
   }
 
   String _toPastTense(String title) {
-    if (title.startsWith('Copying')) return title.replaceFirst('Copying', 'Copied');
-    if (title.startsWith('Moving')) return title.replaceFirst('Moving', 'Moved');
-    if (title.startsWith('Deleting')) return title.replaceFirst('Deleting', 'Deleted');
-    if (title.startsWith('Renaming')) return title.replaceFirst('Renaming', 'Renamed');
+    if (title.startsWith('Copying'))
+      return title.replaceFirst('Copying', 'Copied');
+    if (title.startsWith('Moving'))
+      return title.replaceFirst('Moving', 'Moved');
+    if (title.startsWith('Deleting'))
+      return title.replaceFirst('Deleting', 'Deleted');
+    if (title.startsWith('Renaming'))
+      return title.replaceFirst('Renaming', 'Renamed');
     return title;
   }
 
@@ -984,7 +1169,8 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
     final t = title.toLowerCase();
     if (t.contains('copy')) return Icons.copy_all_rounded;
     if (t.contains('mov')) return Icons.drive_file_move_rounded;
-    if (t.contains('delet') || t.contains('trash')) return Icons.delete_forever_rounded;
+    if (t.contains('delet') || t.contains('trash'))
+      return Icons.delete_forever_rounded;
     if (t.contains('renam')) return Icons.edit_rounded;
     if (t.contains('new folder')) return Icons.create_new_folder_rounded;
     if (t.contains('new file')) return Icons.note_add_rounded;
@@ -1014,17 +1200,21 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
 
   IconData _getFileIcon(String path) {
     final ext = p.extension(path).toLowerCase();
-    if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].contains(ext)) return Icons.image_outlined;
-    if (['.mp4', '.mkv', '.mov', '.avi'].contains(ext)) return Icons.videocam_outlined;
-    if (['.mp3', '.wav', '.flac', '.m4a'].contains(ext)) return Icons.audio_file_outlined;
-    if (['.pdf', '.doc', '.docx', '.txt'].contains(ext)) return Icons.description_outlined;
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].contains(ext))
+      return Icons.image_outlined;
+    if (['.mp4', '.mkv', '.mov', '.avi'].contains(ext))
+      return Icons.videocam_outlined;
+    if (['.mp3', '.wav', '.flac', '.m4a'].contains(ext))
+      return Icons.audio_file_outlined;
+    if (['.pdf', '.doc', '.docx', '.txt'].contains(ext))
+      return Icons.description_outlined;
     return Icons.insert_drive_file_outlined;
   }
 
   IconData _getItemIcon(String path, {bool? isDirectory}) {
     if (isDirectory == true) return Icons.folder_rounded;
     if (isDirectory == false) return _getFileIcon(path);
-    
+
     // Fallback: check filesystem if available
     try {
       if (Directory(path).existsSync()) return Icons.folder_rounded;

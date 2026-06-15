@@ -18,7 +18,9 @@ class PersistentViewerManager {
         final currentController = await WindowController.fromCurrentEngine();
         currentId = currentController.windowId;
       } catch (e) {
-        debugPrint('[PersistentViewerManager] Could not fetch current window ID: $e');
+        debugPrint(
+          '[PersistentViewerManager] Could not fetch current window ID: $e',
+        );
       }
 
       // Ensure params has the parent ID
@@ -48,12 +50,14 @@ class PersistentViewerManager {
         _viewerWindowId = window.windowId;
         await window.show();
       } else {
-        debugPrint('[PersistentViewerManager] Reusing existing viewer: $_viewerWindowId');
+        debugPrint(
+          '[PersistentViewerManager] Reusing existing viewer: $_viewerWindowId',
+        );
         final controller = WindowController.fromWindowId(_viewerWindowId!);
-        
+
         // Signal the existing window to load new media
         await controller.invokeMethod('load_media', effectiveParams.toJson());
-        
+
         // Ensure it comes to foreground
         await controller.show();
       }

@@ -64,7 +64,7 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
         _properties = await AudioMetadataUtils.getProperties(widget.path);
       }
     } catch (_) {}
-    
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -75,7 +75,8 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -96,67 +97,96 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
       child: Center(
         child: Material(
           type: MaterialType.transparency,
-        child: Container(
-          width: 500,
-          decoration: BoxDecoration(
-            color: const Color(0xFF161616).withOpacity(0.98),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.6),
-                blurRadius: 40,
-                offset: const Offset(0, 20),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(context),
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.violet),
-                  ),
-                )
-              else
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionHeader('METADATA'),
-                        _buildPropRow('Title', _tag?.title ?? 'Unknown'),
-                        _buildPropRow('Artist', _tag?.trackArtist ?? 'Unknown'),
-                        _buildPropRow('Album', _tag?.album ?? 'Unknown'),
-                        _buildPropRow('Genre', _tag?.genre ?? 'Unknown'),
-                        
-                        const SizedBox(height: 20),
-                        _buildSectionHeader('AUDIO FORMAT'),
-                        _buildPropRow('Duration', _properties?.duration ?? 'Unknown'),
-                        _buildPropRow('Bitrate', _properties?.bitrate ?? 'Unknown'),
-                        _buildPropRow('Sample Rate', _properties?.sampleRate ?? 'Unknown'),
-                        
-                        const SizedBox(height: 20),
-                        _buildSectionHeader('FILE SYSTEM'),
-                        _buildPropRow('File Name', p.basename(widget.path)),
-                        _buildPropRow('Location', widget.path, isSelectable: true),
-                        _buildPropRow('Size', _formatBytes(_stat.size)),
-                        _buildPropRow('Added Time', DateFormat('yyyy-MM-dd HH:mm').format(_stat.changed)),
-                        _buildPropRow('Updated Time', DateFormat('yyyy-MM-dd HH:mm').format(_stat.modified)),
-                      ],
+          child: Container(
+            width: 500,
+            decoration: BoxDecoration(
+              color: const Color(0xFF161616).withOpacity(0.98),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.6),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(context),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(
+                      child: CircularProgressIndicator(color: AppColors.violet),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 20,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader('METADATA'),
+                          _buildPropRow('Title', _tag?.title ?? 'Unknown'),
+                          _buildPropRow(
+                            'Artist',
+                            _tag?.trackArtist ?? 'Unknown',
+                          ),
+                          _buildPropRow('Album', _tag?.album ?? 'Unknown'),
+                          _buildPropRow('Genre', _tag?.genre ?? 'Unknown'),
+
+                          const SizedBox(height: 20),
+                          _buildSectionHeader('AUDIO FORMAT'),
+                          _buildPropRow(
+                            'Duration',
+                            _properties?.duration ?? 'Unknown',
+                          ),
+                          _buildPropRow(
+                            'Bitrate',
+                            _properties?.bitrate ?? 'Unknown',
+                          ),
+                          _buildPropRow(
+                            'Sample Rate',
+                            _properties?.sampleRate ?? 'Unknown',
+                          ),
+
+                          const SizedBox(height: 20),
+                          _buildSectionHeader('FILE SYSTEM'),
+                          _buildPropRow('File Name', p.basename(widget.path)),
+                          _buildPropRow(
+                            'Location',
+                            widget.path,
+                            isSelectable: true,
+                          ),
+                          _buildPropRow('Size', _formatBytes(_stat.size)),
+                          _buildPropRow(
+                            'Added Time',
+                            DateFormat(
+                              'yyyy-MM-dd HH:mm',
+                            ).format(_stat.changed),
+                          ),
+                          _buildPropRow(
+                            'Updated Time',
+                            DateFormat(
+                              'yyyy-MM-dd HH:mm',
+                            ).format(_stat.modified),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              _buildFooter(context),
-            ],
+                _buildFooter(context),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -165,7 +195,9 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -206,7 +238,11 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
     );
   }
 
-  Widget _buildPropRow(String label, String value, {bool isSelectable = false}) {
+  Widget _buildPropRow(
+    String label,
+    String value, {
+    bool isSelectable = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -267,7 +303,10 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
               ),
               child: Text(
                 'Close',

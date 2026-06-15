@@ -67,7 +67,8 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
   @override
   void didUpdateWidget(SearchReplaceOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialQuery != widget.initialQuery && _searchController.text != widget.initialQuery) {
+    if (oldWidget.initialQuery != widget.initialQuery &&
+        _searchController.text != widget.initialQuery) {
       _searchController.text = widget.initialQuery;
     }
   }
@@ -85,7 +86,8 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
     final bool hasMatches = widget.totalMatches > 0;
     final bool isSearchEmpty = _searchController.text.isEmpty;
     final bool canGoPrev = hasMatches && widget.currentMatchIndex > 0;
-    final bool canGoNext = hasMatches && widget.currentMatchIndex < widget.totalMatches - 1;
+    final bool canGoNext =
+        hasMatches && widget.currentMatchIndex < widget.totalMatches - 1;
 
     return Container(
       width: 480,
@@ -114,7 +116,11 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
                 onPanUpdate: widget.onDragUpdate,
                 child: const Padding(
                   padding: EdgeInsets.only(right: 8.0),
-                  child: Icon(Icons.drag_indicator, color: Colors.white54, size: 20),
+                  child: Icon(
+                    Icons.drag_indicator,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
@@ -142,7 +148,11 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
                             onPressed: canGoPrev ? widget.onPrev : null,
                             tooltip: 'Previous Match (Shift+Enter)',
                           ),
-                          Container(width: 1, height: 16, color: Colors.white24),
+                          Container(
+                            width: 1,
+                            height: 16,
+                            color: Colors.white24,
+                          ),
                           _buildIconButton(
                             icon: Icons.keyboard_arrow_down,
                             onPressed: canGoNext ? widget.onNext : null,
@@ -198,15 +208,22 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.info_outline, color: Colors.white54, size: 14),
+                      const Icon(
+                        Icons.info_outline,
+                        color: Colors.white54,
+                        size: 14,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'No results',
-                        style: GoogleFonts.inter(fontSize: 12, color: Colors.white54),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white54,
+                        ),
                       ),
                     ],
                   ),
-                ]
+                ],
               ],
             ),
           ),
@@ -231,9 +248,13 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
           Expanded(
             child: CallbackShortcuts(
               bindings: {
-                const SingleActivator(LogicalKeyboardKey.enter): canGoNext ? widget.onNext : () {},
-                const SingleActivator(LogicalKeyboardKey.enter, shift: true): canGoPrev ? widget.onPrev : () {},
-                const SingleActivator(LogicalKeyboardKey.escape): widget.onClose,
+                const SingleActivator(LogicalKeyboardKey.enter): canGoNext
+                    ? widget.onNext
+                    : () {},
+                const SingleActivator(LogicalKeyboardKey.enter, shift: true):
+                    canGoPrev ? widget.onPrev : () {},
+                const SingleActivator(LogicalKeyboardKey.escape):
+                    widget.onClose,
               },
               child: TextField(
                 controller: _searchController,
@@ -244,7 +265,10 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
                   hintText: 'Find',
-                  hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.white38),
+                  hintStyle: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white38,
+                  ),
                 ),
                 onChanged: widget.onSearchChanged,
               ),
@@ -254,14 +278,17 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: Text(
-                widget.totalMatches > 0 ? '${widget.currentMatchIndex + 1} of ${widget.totalMatches}' : '0 of 0',
+                widget.totalMatches > 0
+                    ? '${widget.currentMatchIndex + 1} of ${widget.totalMatches}'
+                    : '0 of 0',
                 style: GoogleFonts.inter(fontSize: 12, color: Colors.white54),
               ),
             ),
           _buildToggleIcon(
             label: 'Aa',
             isActive: widget.initialCaseSensitive,
-            onTap: () => widget.onCaseSensitiveChanged(!widget.initialCaseSensitive),
+            onTap: () =>
+                widget.onCaseSensitiveChanged(!widget.initialCaseSensitive),
             tooltip: 'Match Case',
           ),
           const SizedBox(width: 4),
@@ -294,9 +321,11 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
             child: CallbackShortcuts(
               bindings: {
                 const SingleActivator(LogicalKeyboardKey.enter): () {
-                  if (widget.totalMatches > 0) widget.onReplace(_replaceController.text);
+                  if (widget.totalMatches > 0)
+                    widget.onReplace(_replaceController.text);
                 },
-                const SingleActivator(LogicalKeyboardKey.escape): widget.onClose,
+                const SingleActivator(LogicalKeyboardKey.escape):
+                    widget.onClose,
               },
               child: TextField(
                 controller: _replaceController,
@@ -306,7 +335,10 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
                   hintText: 'Replace',
-                  hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.white38),
+                  hintStyle: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white38,
+                  ),
                 ),
               ),
             ),
@@ -342,8 +374,8 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
               color: onPressed == null
                   ? Colors.white24
                   : isActive
-                      ? const Color(0xFFA6E22E)
-                      : Colors.white70,
+                  ? const Color(0xFFA6E22E)
+                  : Colors.white70,
             ),
           ),
         ),
@@ -366,7 +398,9 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
-            color: isActive ? Colors.white.withOpacity(0.15) : Colors.transparent,
+            color: isActive
+                ? Colors.white.withOpacity(0.15)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
@@ -382,7 +416,11 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
     );
   }
 
-  Widget _buildTextButton(String text, VoidCallback onPressed, {bool enabled = true}) {
+  Widget _buildTextButton(
+    String text,
+    VoidCallback onPressed, {
+    bool enabled = true,
+  }) {
     return Material(
       color: Colors.white.withOpacity(enabled ? 0.05 : 0.02),
       borderRadius: BorderRadius.circular(4),

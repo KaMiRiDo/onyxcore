@@ -26,7 +26,6 @@ class BackgroundProcessesButton extends ConsumerStatefulWidget {
 class _BackgroundProcessesButtonState
     extends ConsumerState<BackgroundProcessesButton>
     with SingleTickerProviderStateMixin {
-  
   bool _showingCompletionTick = false;
   bool _hadErrorSinceLastOpen = false;
   bool _callbackRegistered = false;
@@ -37,7 +36,8 @@ class _BackgroundProcessesButtonState
     final isOpen = ref.watch(backgroundPanelOpenProvider);
     final notifier = ref.read(taskProvider.notifier);
 
-    final hasRunning = notifier.runningTasks.isNotEmpty || notifier.pendingTasks.isNotEmpty;
+    final hasRunning =
+        notifier.runningTasks.isNotEmpty || notifier.pendingTasks.isNotEmpty;
     final hasErrors = notifier.hasErrors;
     final totalProgress = notifier.totalProgress;
 
@@ -48,7 +48,6 @@ class _BackgroundProcessesButtonState
         notifier.maxConcurrent = settings.maxConcurrentTasks;
       }
     });
-
 
     // Track errors
     if (hasErrors) {
@@ -62,16 +61,24 @@ class _BackgroundProcessesButtonState
 
     // Detect transition to all-completed
     ref.listen(taskProvider, (prev, next) {
-      final prevHadRunning = (prev ?? []).any((t) =>
-          t.status == FileTaskStatus.running ||
-          t.status == FileTaskStatus.pending);
-      final nowHasRunning = next.any((t) =>
-          t.status == FileTaskStatus.running ||
-          t.status == FileTaskStatus.pending);
-      final nowHasCompleted = next.any((t) =>
-          t.status == FileTaskStatus.completed);
+      final prevHadRunning = (prev ?? []).any(
+        (t) =>
+            t.status == FileTaskStatus.running ||
+            t.status == FileTaskStatus.pending,
+      );
+      final nowHasRunning = next.any(
+        (t) =>
+            t.status == FileTaskStatus.running ||
+            t.status == FileTaskStatus.pending,
+      );
+      final nowHasCompleted = next.any(
+        (t) => t.status == FileTaskStatus.completed,
+      );
 
-      if (prevHadRunning && !nowHasRunning && nowHasCompleted && !ref.read(taskProvider.notifier).hasErrors) {
+      if (prevHadRunning &&
+          !nowHasRunning &&
+          nowHasCompleted &&
+          !ref.read(taskProvider.notifier).hasErrors) {
         setState(() => _showingCompletionTick = true);
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) {
@@ -127,10 +134,17 @@ class _BackgroundProcessesButtonState
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.error.withOpacity(0.15),
-          border: Border.all(color: AppColors.error.withOpacity(0.6), width: 1.5),
+          border: Border.all(
+            color: AppColors.error.withOpacity(0.6),
+            width: 1.5,
+          ),
         ),
         child: const Center(
-          child: Icon(Icons.error_outline_rounded, color: AppColors.error, size: 14),
+          child: Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.error,
+            size: 14,
+          ),
         ),
       );
     }
@@ -150,7 +164,10 @@ class _BackgroundProcessesButtonState
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.success.withOpacity(0.15),
-                border: Border.all(color: AppColors.success.withOpacity(0.6), width: 1.5),
+                border: Border.all(
+                  color: AppColors.success.withOpacity(0.6),
+                  width: 1.5,
+                ),
               ),
               child: Center(
                 child: Icon(
@@ -170,7 +187,10 @@ class _BackgroundProcessesButtonState
       return CustomPaint(
         size: const Size(size, size),
         painter: _PieProgressPainter(
-          progress: totalProgress.clamp(0.01, 1.0), // Show at least a sliver if running
+          progress: totalProgress.clamp(
+            0.01,
+            1.0,
+          ), // Show at least a sliver if running
           strokeColor: AppColors.violet,
           backgroundColor: Colors.white.withOpacity(0.05),
         ),
@@ -184,7 +204,9 @@ class _BackgroundProcessesButtonState
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: isOpen ? AppColors.violet.withOpacity(0.6) : Colors.white.withOpacity(0.25),
+          color: isOpen
+              ? AppColors.violet.withOpacity(0.6)
+              : Colors.white.withOpacity(0.25),
           width: 1.5,
         ),
       ),

@@ -10,7 +10,11 @@ class DownloadHistoryDatabase {
 
   static String get _dbPath {
     if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      return p.join(Directory.systemTemp.path, 'onyxcore_test', 'download_history.sqlite');
+      return p.join(
+        Directory.systemTemp.path,
+        'onyxcore_test',
+        'download_history.sqlite',
+      );
     }
     final home = Platform.environment['HOME'] ?? '/tmp';
     return p.join(home, '.config', 'onyxcore', 'download_history.sqlite');
@@ -18,7 +22,11 @@ class DownloadHistoryDatabase {
 
   static String get _legacyJsonPath {
     if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      return p.join(Directory.systemTemp.path, 'onyxcore_test', 'download_history.json');
+      return p.join(
+        Directory.systemTemp.path,
+        'onyxcore_test',
+        'download_history.json',
+      );
     }
     final home = Platform.environment['HOME'] ?? '/tmp';
     return p.join(home, '.config', 'onyxcore', 'download_history.json');

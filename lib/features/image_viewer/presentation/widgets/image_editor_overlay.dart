@@ -61,10 +61,16 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
 
     if (imageRatio > screenRatio) {
       // Wide image
-      _displaySize = Size(availableSize.width, availableSize.width / imageRatio);
+      _displaySize = Size(
+        availableSize.width,
+        availableSize.width / imageRatio,
+      );
     } else {
       // Tall image
-      _displaySize = Size(availableSize.height * imageRatio, availableSize.height);
+      _displaySize = Size(
+        availableSize.height * imageRatio,
+        availableSize.height,
+      );
     }
 
     _scale = _displaySize.width / _image.width;
@@ -92,7 +98,9 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
           ),
 
           if (!_initialized)
-            const Center(child: CircularProgressIndicator(color: Color(0xFF00E5FF)))
+            const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
+            )
           else
             LayoutBuilder(
               builder: (context, constraints) {
@@ -101,16 +109,25 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
                 const double bottomControlsHeight = 240;
                 final Size availableSize = Size(
                   constraints.maxWidth - 60,
-                  constraints.maxHeight - topBarHeight - bottomControlsHeight - 60,
+                  constraints.maxHeight -
+                      topBarHeight -
+                      bottomControlsHeight -
+                      60,
                 );
 
                 if (_cropRect == Rect.zero) {
-                   _initializeCropRect(availableSize);
+                  _initializeCropRect(availableSize);
                 }
 
                 // Global offset for image + crop area to center it horizontally and vertically
-                final double verticalCenterOffset = topBarHeight + 30 + (availableSize.height - _displaySize.height) / 2;
-                final Offset activeAreaOffset = Offset(_imageOffset.dx + 30, verticalCenterOffset);
+                final double verticalCenterOffset =
+                    topBarHeight +
+                    30 +
+                    (availableSize.height - _displaySize.height) / 2;
+                final Offset activeAreaOffset = Offset(
+                  _imageOffset.dx + 30,
+                  verticalCenterOffset,
+                );
 
                 return Stack(
                   children: [
@@ -131,10 +148,26 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
                             angle: _rotationAngle * pi / 180,
                             child: ColorFiltered(
                               colorFilter: ColorFilter.matrix([
-                                1, 0, 0, 0, _brightness * 255,
-                                0, 1, 0, 0, _brightness * 255,
-                                0, 0, 1, 0, _brightness * 255,
-                                0, 0, 0, 1, 0,
+                                1,
+                                0,
+                                0,
+                                0,
+                                _brightness * 255,
+                                0,
+                                1,
+                                0,
+                                0,
+                                _brightness * 255,
+                                0,
+                                0,
+                                1,
+                                0,
+                                _brightness * 255,
+                                0,
+                                0,
+                                0,
+                                1,
+                                0,
                               ]),
                               child: RawImage(
                                 image: _image,
@@ -166,7 +199,9 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const CircularProgressIndicator(color: Color(0xFF00E5FF)),
+                              const CircularProgressIndicator(
+                                color: Color(0xFF00E5FF),
+                              ),
                               const SizedBox(height: 32),
                               Text(
                                 "Applying changes...",
@@ -222,9 +257,20 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
             onPanUpdate: (details) {
               setState(() {
                 final delta = details.delta;
-                double newLeft = (_cropRect.left + delta.dx).clamp(0.0, _displaySize.width - _cropRect.width);
-                double newTop = (_cropRect.top + delta.dy).clamp(0.0, _displaySize.height - _cropRect.height);
-                _cropRect = Rect.fromLTWH(newLeft, newTop, _cropRect.width, _cropRect.height);
+                double newLeft = (_cropRect.left + delta.dx).clamp(
+                  0.0,
+                  _displaySize.width - _cropRect.width,
+                );
+                double newTop = (_cropRect.top + delta.dy).clamp(
+                  0.0,
+                  _displaySize.height - _cropRect.height,
+                );
+                _cropRect = Rect.fromLTWH(
+                  newLeft,
+                  newTop,
+                  _cropRect.width,
+                  _cropRect.height,
+                );
               });
             },
             child: Container(color: Colors.transparent),
@@ -287,11 +333,18 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
         onPanUpdate: (details) {
           setState(() {
             final delta = details.delta;
-            double l = _cropRect.left, t = _cropRect.top, r = _cropRect.right, b = _cropRect.bottom;
-            if (direction == Direction.top) t = (t + delta.dy).clamp(0.0, b - 40);
-            if (direction == Direction.bottom) b = (b + delta.dy).clamp(t + 40, _displaySize.height);
-            if (direction == Direction.left) l = (l + delta.dx).clamp(0.0, r - 40);
-            if (direction == Direction.right) r = (r + delta.dx).clamp(l + 40, _displaySize.width);
+            double l = _cropRect.left,
+                t = _cropRect.top,
+                r = _cropRect.right,
+                b = _cropRect.bottom;
+            if (direction == Direction.top)
+              t = (t + delta.dy).clamp(0.0, b - 40);
+            if (direction == Direction.bottom)
+              b = (b + delta.dy).clamp(t + 40, _displaySize.height);
+            if (direction == Direction.left)
+              l = (l + delta.dx).clamp(0.0, r - 40);
+            if (direction == Direction.right)
+              r = (r + delta.dx).clamp(l + 40, _displaySize.width);
             _cropRect = Rect.fromLTRB(l, t, r, b);
           });
         },
@@ -309,11 +362,20 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
   Widget _buildHandle(Alignment alignment) {
     double x = 0;
     double y = 0;
-    
-    if (alignment == Alignment.topLeft) { x = _cropRect.left; y = _cropRect.top; }
-    else if (alignment == Alignment.topRight) { x = _cropRect.right; y = _cropRect.top; }
-    else if (alignment == Alignment.bottomLeft) { x = _cropRect.left; y = _cropRect.bottom; }
-    else if (alignment == Alignment.bottomRight) { x = _cropRect.right; y = _cropRect.bottom; }
+
+    if (alignment == Alignment.topLeft) {
+      x = _cropRect.left;
+      y = _cropRect.top;
+    } else if (alignment == Alignment.topRight) {
+      x = _cropRect.right;
+      y = _cropRect.top;
+    } else if (alignment == Alignment.bottomLeft) {
+      x = _cropRect.left;
+      y = _cropRect.bottom;
+    } else if (alignment == Alignment.bottomRight) {
+      x = _cropRect.right;
+      y = _cropRect.bottom;
+    }
 
     return Positioned(
       left: x - 24,
@@ -323,18 +385,25 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
         onPanUpdate: (details) {
           setState(() {
             final delta = details.delta;
-            double left = _cropRect.left, top = _cropRect.top, right = _cropRect.right, bottom = _cropRect.bottom;
+            double left = _cropRect.left,
+                top = _cropRect.top,
+                right = _cropRect.right,
+                bottom = _cropRect.bottom;
 
-            if (alignment == Alignment.topLeft || alignment == Alignment.bottomLeft) {
+            if (alignment == Alignment.topLeft ||
+                alignment == Alignment.bottomLeft) {
               left = (left + delta.dx).clamp(0.0, right - 40);
             }
-            if (alignment == Alignment.topLeft || alignment == Alignment.topRight) {
+            if (alignment == Alignment.topLeft ||
+                alignment == Alignment.topRight) {
               top = (top + delta.dy).clamp(0.0, bottom - 40);
             }
-            if (alignment == Alignment.topRight || alignment == Alignment.bottomRight) {
+            if (alignment == Alignment.topRight ||
+                alignment == Alignment.bottomRight) {
               right = (right + delta.dx).clamp(left + 40, _displaySize.width);
             }
-            if (alignment == Alignment.bottomLeft || alignment == Alignment.bottomRight) {
+            if (alignment == Alignment.bottomLeft ||
+                alignment == Alignment.bottomRight) {
               bottom = (bottom + delta.dy).clamp(top + 40, _displaySize.height);
             }
 
@@ -349,7 +418,6 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
       ),
     );
   }
-
 
   Widget _buildBottomControls() {
     return Container(
@@ -368,7 +436,11 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
               children: [
                 IconButton(
                   onPressed: widget.onCancel,
-                  icon: const Icon(Icons.close, color: Colors.white70, size: 28),
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white70,
+                    size: 28,
+                  ),
                 ),
                 Text(
                   "${_rotationAngle.toInt()}°",
@@ -380,19 +452,24 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
                 ),
                 IconButton(
                   onPressed: _showSaveOptions,
-                  icon: const Icon(Icons.check, color: Color(0xFF00E5FF), size: 28),
+                  icon: const Icon(
+                    Icons.check,
+                    color: Color(0xFF00E5FF),
+                    size: 28,
+                  ),
                 ),
               ],
             ),
           ),
-          
+
           // Rotation Slider
           const SizedBox(height: 5),
           _buildControlLabel(Icons.rotate_right, "Rotation"),
           GestureDetector(
             onHorizontalDragUpdate: (details) {
               setState(() {
-                _rotationAngle = (_rotationAngle + details.delta.dx * 0.5).clamp(-180.0, 180.0);
+                _rotationAngle = (_rotationAngle + details.delta.dx * 0.5)
+                    .clamp(-180.0, 180.0);
               });
             },
             child: Container(
@@ -479,8 +556,14 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: const Text("Save Changes", style: TextStyle(color: Colors.white)),
-        content: const Text("Confirm your selection:", style: TextStyle(color: Colors.white70)),
+        title: const Text(
+          "Save Changes",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          "Confirm your selection:",
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -491,19 +574,26 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
               Navigator.pop(context);
               _saveImage(true);
             },
-            child: const Text("SAVE COPY", style: TextStyle(color: Color(0xFF00E5FF))),
+            child: const Text(
+              "SAVE COPY",
+              style: TextStyle(color: Color(0xFF00E5FF)),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _saveImage(false);
             },
-            child: const Text("REPLACE", style: TextStyle(color: Colors.redAccent)),
+            child: const Text(
+              "REPLACE",
+              style: TextStyle(color: Colors.redAccent),
+            ),
           ),
         ],
       ),
     );
   }
+
   Future<void> _saveImage(bool saveCopy) async {
     setState(() {
       _isSaving = true;
@@ -514,17 +604,18 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
       final File inputFile = File(inputPath);
       final Directory dir = inputFile.parent;
       String outputPath;
-      
+
       if (saveCopy) {
         final String fileName = inputPath.split('/').last;
         outputPath = "${dir.path}/copy_$fileName";
         int counter = 1;
         while (await File(outputPath).exists()) {
-           outputPath = "${dir.path}/copy_${counter}_$fileName";
-           counter++;
+          outputPath = "${dir.path}/copy_${counter}_$fileName";
+          counter++;
         }
       } else {
-        outputPath = "${dir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg";
+        outputPath =
+            "${dir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg";
       }
 
       final double realX = _cropRect.left / _scale;
@@ -541,9 +632,11 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
         filter += "eq=brightness=$_brightness";
       }
       if (filter.isNotEmpty) filter += ",";
-      filter += "crop=${realW.toInt()}:${realH.toInt()}:${realX.toInt()}:${realY.toInt()}";
+      filter +=
+          "crop=${realW.toInt()}:${realH.toInt()}:${realX.toInt()}:${realY.toInt()}";
 
-      final String cmd = 'ffmpeg -i "$inputPath" -vf "$filter" "$outputPath" -y';
+      final String cmd =
+          'ffmpeg -i "$inputPath" -vf "$filter" "$outputPath" -y';
       final result = await Process.run('bash', ['-c', cmd]);
 
       if (_isCancelled) {
@@ -563,12 +656,16 @@ class _ImageEditorOverlayState extends State<ImageEditorOverlay> {
         widget.onSave(outputPath, !saveCopy);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Processing failed")));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("Processing failed")));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -584,23 +681,41 @@ class GridPainter extends CustomPainter {
       ..strokeWidth = 3;
 
     // Border
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint..style = PaintingStyle.stroke);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      paint..style = PaintingStyle.stroke,
+    );
 
     // 3x3 Grid lines
     final Paint gridPaint = Paint()
       ..color = Colors.white.withOpacity(0.3)
       ..strokeWidth = 1;
 
-    canvas.drawLine(Offset(size.width / 3, 0), Offset(size.width / 3, size.height), gridPaint);
-    canvas.drawLine(Offset(size.width * 2 / 3, 0), Offset(size.width * 2 / 3, size.height), gridPaint);
-    canvas.drawLine(Offset(0, size.height / 3), Offset(size.width, size.height / 3), gridPaint);
-    canvas.drawLine(Offset(0, size.height * 2 / 3), Offset(size.width, size.height * 2 / 3), gridPaint);
+    canvas.drawLine(
+      Offset(size.width / 3, 0),
+      Offset(size.width / 3, size.height),
+      gridPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 2 / 3, 0),
+      Offset(size.width * 2 / 3, size.height),
+      gridPaint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height / 3),
+      Offset(size.width, size.height / 3),
+      gridPaint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height * 2 / 3),
+      Offset(size.width, size.height * 2 / 3),
+      gridPaint,
+    );
   }
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
-
 
 class RotationSliderPainter extends CustomPainter {
   final double angle;
@@ -617,18 +732,28 @@ class RotationSliderPainter extends CustomPainter {
     final double spacing = size.width / tickCount;
 
     for (int i = 0; i <= tickCount; i++) {
-       final double x = i * spacing;
-       canvas.drawLine(Offset(x, size.height * 0.3), Offset(x, size.height * 0.7), tickPaint);
+      final double x = i * spacing;
+      canvas.drawLine(
+        Offset(x, size.height * 0.3),
+        Offset(x, size.height * 0.7),
+        tickPaint,
+      );
     }
 
     final Paint pointerPaint = Paint()
       ..color = const Color(0xFF00E5FF)
       ..strokeWidth = 3;
 
-    final double pointerX = (size.width / 2) + (angle / 180.0) * (size.width / 2);
-    canvas.drawLine(Offset(pointerX, 0), Offset(pointerX, size.height), pointerPaint);
+    final double pointerX =
+        (size.width / 2) + (angle / 180.0) * (size.width / 2);
+    canvas.drawLine(
+      Offset(pointerX, 0),
+      Offset(pointerX, size.height),
+      pointerPaint,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant RotationSliderPainter oldDelegate) => oldDelegate.angle != angle;
+  bool shouldRepaint(covariant RotationSliderPainter oldDelegate) =>
+      oldDelegate.angle != angle;
 }

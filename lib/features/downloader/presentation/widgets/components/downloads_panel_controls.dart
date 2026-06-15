@@ -98,28 +98,28 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                Icon(
-                  selected['icon'] as IconData,
-                  size: 16,
-                  color: selected['color'] as Color,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    selected['label'] as String,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Icon(
+                    selected['icon'] as IconData,
+                    size: 16,
+                    color: selected['color'] as Color,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      selected['label'] as String,
+                      style: GoogleFonts.manrope(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(
+            const Icon(
               Icons.keyboard_arrow_down,
               color: Colors.white54,
               size: 16,

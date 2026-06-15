@@ -36,8 +36,8 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
     // During scrubbing, use the virtual position for UI so it doesn't snap back.
     final displayPosition = _virtualScrubPosition ?? position;
 
-    final progress = duration.inMilliseconds > 0 
-        ? displayPosition.inMilliseconds / duration.inMilliseconds 
+    final progress = duration.inMilliseconds > 0
+        ? displayPosition.inMilliseconds / duration.inMilliseconds
         : 0.0;
 
     return LayoutBuilder(
@@ -50,11 +50,18 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
         return Column(
           children: [
             GestureDetector(
-              onHorizontalDragStart: (details) => _onDragStart(position, duration, player),
-              onHorizontalDragUpdate: (details) => _onDragUpdate(details, width, duration, player),
+              onHorizontalDragStart: (details) =>
+                  _onDragStart(position, duration, player),
+              onHorizontalDragUpdate: (details) =>
+                  _onDragUpdate(details, width, duration, player),
               onHorizontalDragEnd: (_) => _onDragEnd(),
               onHorizontalDragCancel: () => _onDragEnd(),
-              onTapDown: (details) => _handleTapSeek(details.localPosition.dx, width, duration, player),
+              onTapDown: (details) => _handleTapSeek(
+                details.localPosition.dx,
+                width,
+                duration,
+                player,
+              ),
               child: SizedBox(
                 height: 60,
                 width: width,
@@ -91,7 +98,11 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
 
   /// Called when the user starts a horizontal drag (scrub).
   /// Captures the current playback position as the anchor.
-  void _onDragStart(Duration currentPosition, Duration duration, Player? player) {
+  void _onDragStart(
+    Duration currentPosition,
+    Duration duration,
+    Player? player,
+  ) {
     if (duration.inMilliseconds <= 0 || player == null) return;
     setState(() {
       _scrubAnchor = currentPosition;
@@ -102,8 +113,16 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
 
   /// Called on each drag update. Computes the new seek position relative
   /// to the anchor (where playback was when the drag started).
-  void _onDragUpdate(DragUpdateDetails details, double totalWidth, Duration totalDuration, Player? player) {
-    if (totalDuration.inMilliseconds <= 0 || player == null || _scrubAnchor == null) return;
+  void _onDragUpdate(
+    DragUpdateDetails details,
+    double totalWidth,
+    Duration totalDuration,
+    Player? player,
+  ) {
+    if (totalDuration.inMilliseconds <= 0 ||
+        player == null ||
+        _scrubAnchor == null)
+      return;
 
     _scrubDragAccumulator += details.delta.dx;
 
@@ -111,8 +130,10 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
     // Full waveform width = full duration, so each pixel = duration / width.
     final msPerPixel = totalDuration.inMilliseconds / totalWidth;
     final offsetMs = (_scrubDragAccumulator * msPerPixel).toInt();
-    final newMs = (_scrubAnchor!.inMilliseconds + offsetMs)
-        .clamp(0, totalDuration.inMilliseconds);
+    final newMs = (_scrubAnchor!.inMilliseconds + offsetMs).clamp(
+      0,
+      totalDuration.inMilliseconds,
+    );
     final seekTo = Duration(milliseconds: newMs);
 
     setState(() {
@@ -131,10 +152,17 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
   }
 
   /// Tap seeks to the absolute position on the waveform (existing behavior).
-  void _handleTapSeek(double x, double totalWidth, Duration totalDuration, Player? player) {
+  void _handleTapSeek(
+    double x,
+    double totalWidth,
+    Duration totalDuration,
+    Player? player,
+  ) {
     if (totalDuration.inMilliseconds <= 0 || player == null) return;
     final percentage = (x / totalWidth).clamp(0.0, 1.0);
-    final seekTo = Duration(milliseconds: (totalDuration.inMilliseconds * percentage).toInt());
+    final seekTo = Duration(
+      milliseconds: (totalDuration.inMilliseconds * percentage).toInt(),
+    );
     player.seek(seekTo);
   }
 
@@ -197,7 +225,8 @@ class WaveformPainter extends CustomPainter {
       canvas.drawRRect(rect, isPlayed ? playedPaint : unplayedPaint);
 
       // Playhead indicator
-      if ((x / size.width - progress).abs() < (barWidth + gap) / size.width / 2) {
+      if ((x / size.width - progress).abs() <
+          (barWidth + gap) / size.width / 2) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             Rect.fromLTWH(

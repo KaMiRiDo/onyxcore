@@ -51,7 +51,7 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
     super.initState();
     _loadDimensions();
     _loadApps();
-    
+
     // Maintain persistent focus on search
     _searchFocusNode.addListener(() {
       if (!_searchFocusNode.hasFocus && mounted) {
@@ -80,12 +80,15 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
     ];
 
     if (_searchQuery.isEmpty) return allAvailable;
-    
+
     final query = _searchQuery.toLowerCase();
-    return allAvailable.where((app) => 
-      app.name.toLowerCase().contains(query) ||
-      app.id.toLowerCase().contains(query)
-    ).toList();
+    return allAvailable
+        .where(
+          (app) =>
+              app.name.toLowerCase().contains(query) ||
+              app.id.toLowerCase().contains(query),
+        )
+        .toList();
   }
 
   Timer? _repeatTimer;
@@ -95,14 +98,17 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
     if (event is KeyDownEvent) {
       // Ignore if it's the same key (OS repeat) - we use our own timer
       if (_pressedKey == event.logicalKey) return;
-      
+
       final key = event.logicalKey;
-      if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.arrowUp) {
+      if (key == LogicalKeyboardKey.arrowDown ||
+          key == LogicalKeyboardKey.arrowUp) {
         _pressedKey = key;
         _moveSelection(key);
-        
+
         _repeatTimer?.cancel();
-        _repeatTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+        _repeatTimer = Timer.periodic(const Duration(milliseconds: 150), (
+          timer,
+        ) {
           _moveSelection(key);
         });
       } else if (key == LogicalKeyboardKey.enter) {
@@ -146,8 +152,10 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
         targetTop += 62.0; // Tile height
         if (_searchQuery.isEmpty) {
           if (i == 0 && _defaultApp != null) targetTop += 42.0; // Header height
-          if (i == (_defaultApp != null ? 1 : 0) && _recommendedApps.isNotEmpty) targetTop += 42.0;
-          if (i == (_defaultApp != null ? 1 : 0) + _recommendedApps.length) targetTop += 42.0;
+          if (i == (_defaultApp != null ? 1 : 0) && _recommendedApps.isNotEmpty)
+            targetTop += 42.0;
+          if (i == (_defaultApp != null ? 1 : 0) + _recommendedApps.length)
+            targetTop += 42.0;
         }
       }
 
@@ -170,14 +178,18 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
     } else {
       await AppLauncherUtils.init();
     }
-    
+
     final defaultApp = await AppLauncherUtils.getDefaultApp(widget.filePath);
-    final recommended = await AppLauncherUtils.getRecommendedApps(widget.filePath);
-    
+    final recommended = await AppLauncherUtils.getRecommendedApps(
+      widget.filePath,
+    );
+
     final recIds = recommended.map((e) => e.id).toSet();
     if (defaultApp != null) recIds.add(defaultApp.id);
-    
-    final other = AppLauncherUtils.cachedApps.where((app) => !recIds.contains(app.id)).toList();
+
+    final other = AppLauncherUtils.cachedApps
+        .where((app) => !recIds.contains(app.id))
+        .toList();
 
     if (mounted) {
       setState(() {
@@ -185,7 +197,11 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
         _recommendedApps = recommended;
         _otherApps = other;
         _isLoading = false;
-        _selectedApp = defaultApp ?? (recommended.isNotEmpty ? recommended[0] : (other.isNotEmpty ? other[0] : null));
+        _selectedApp =
+            defaultApp ??
+            (recommended.isNotEmpty
+                ? recommended[0]
+                : (other.isNotEmpty ? other[0] : null));
         _selectedIndex = 0;
       });
     }
@@ -236,7 +252,9 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF161616).withOpacity(0.95),
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: Colors.white.withOpacity(0.08)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.08),
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.6),
@@ -249,9 +267,9 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
                             children: [
                               _buildHeader(),
                               Expanded(
-                                child: _isLoading 
-                                  ? _buildLoadingState()
-                                  : _buildContent(),
+                                child: _isLoading
+                                    ? _buildLoadingState()
+                                    : _buildContent(),
                               ),
                               _buildFooter(),
                             ],
@@ -259,7 +277,7 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
                         ),
                       ),
                     ),
-                    
+
                     Positioned(
                       right: 0,
                       bottom: 0,
@@ -269,8 +287,14 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
                           onPanStart: (_) => setState(() => _isResizing = true),
                           onPanUpdate: (details) {
                             setState(() {
-                              _width = (_width + details.delta.dx).clamp(450, 900);
-                              _height = (_height + details.delta.dy).clamp(350, 800);
+                              _width = (_width + details.delta.dx).clamp(
+                                450,
+                                900,
+                              );
+                              _height = (_height + details.delta.dy).clamp(
+                                350,
+                                800,
+                              );
                             });
                           },
                           onPanEnd: (_) {
@@ -283,8 +307,10 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
                             padding: const EdgeInsets.all(4),
                             child: CustomPaint(
                               painter: _ResizeHandlePainter(
-                                color: _isResizing ? Colors.white70 : Colors.white24
-                              )
+                                color: _isResizing
+                                    ? Colors.white70
+                                    : Colors.white24,
+                              ),
                             ),
                           ),
                         ),
@@ -304,11 +330,17 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.open_in_new_rounded, color: AppColors.violet, size: 24),
+          const Icon(
+            Icons.open_in_new_rounded,
+            color: AppColors.violet,
+            size: 24,
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -397,15 +429,22 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
               style: GoogleFonts.manrope(color: Colors.white, fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Search applications...',
-                hintStyle: GoogleFonts.manrope(color: Colors.white24, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: Colors.white24, size: 18),
+                hintStyle: GoogleFonts.manrope(
+                  color: Colors.white24,
+                  fontSize: 13,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Colors.white24,
+                  size: 18,
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
           ),
         ),
-        
+
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
@@ -414,21 +453,23 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
             itemBuilder: (context, index) {
               final app = apps[index];
               final isSelected = _selectedApp?.id == app.id;
-              
+
               // Add section labels if not searching
               Widget? label;
               if (_searchQuery.isEmpty) {
                 if (index == 0 && _defaultApp != null) {
                   label = _buildSectionLabel('DEFAULT APPLICATION');
-                } else if (index == (_defaultApp != null ? 1 : 0) && _recommendedApps.isNotEmpty) {
+                } else if (index == (_defaultApp != null ? 1 : 0) &&
+                    _recommendedApps.isNotEmpty) {
                   label = _buildSectionLabel('RECOMMENDED APPLICATIONS');
-                } else if (index == (_defaultApp != null ? 1 : 0) + _recommendedApps.length) {
+                } else if (index ==
+                    (_defaultApp != null ? 1 : 0) + _recommendedApps.length) {
                   label = _buildSectionLabel('ALL APPLICATIONS');
                 }
               }
 
               final tile = _buildAppTile(app, isSelected, index);
-              
+
               if (label != null) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,10 +518,14 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+            color: isSelected
+                ? Colors.white.withOpacity(0.1)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+              color: isSelected
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.transparent,
             ),
           ),
           child: Row(
@@ -505,7 +550,9 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
                       style: GoogleFonts.manrope(
                         color: Colors.white.withOpacity(0.9),
                         fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                     ),
                     Text(
@@ -519,7 +566,11 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
                 ),
               ),
               if (isSelected)
-                const Icon(Icons.check_circle, color: AppColors.violet, size: 20),
+                const Icon(
+                  Icons.check_circle,
+                  color: AppColors.violet,
+                  size: 20,
+                ),
             ],
           ),
         ),
@@ -540,7 +591,10 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
             icon: const Icon(Icons.refresh, size: 18),
             label: Text(
               'REFRESH',
-              style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 12),
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
             ),
             style: TextButton.styleFrom(
               foregroundColor: Colors.white38,
@@ -561,18 +615,25 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
           const SizedBox(width: 12),
           ElevatedButton(
             onPressed: _selectedApp != null ? _launch : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.violet,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ).copyWith(
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.disabled)) return Colors.white10;
-                return AppColors.violet;
-              }),
-            ),
+            style:
+                ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.violet,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ).copyWith(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.disabled))
+                      return Colors.white10;
+                    return AppColors.violet;
+                  }),
+                ),
             child: Text(
               'OPEN',
               style: GoogleFonts.manrope(
@@ -595,7 +656,8 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
           File(path),
           width: 24,
           height: 24,
-          placeholderBuilder: (_) => const Icon(Icons.apps_rounded, color: Colors.white38, size: 20),
+          placeholderBuilder: (_) =>
+              const Icon(Icons.apps_rounded, color: Colors.white38, size: 20),
         );
       } else {
         return Image.file(
@@ -603,7 +665,8 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
           width: 24,
           height: 24,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(Icons.apps_rounded, color: Colors.white38, size: 20),
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.apps_rounded, color: Colors.white38, size: 20),
         );
       }
     }
@@ -629,9 +692,21 @@ class _ResizeHandlePainter extends CustomPainter {
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
 
-    canvas.drawLine(Offset(size.width * 0.7, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.7), paint);
-    canvas.drawLine(Offset(size.width * 0.4, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.4), paint);
-    canvas.drawLine(Offset(size.width * 0.1, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.1), paint);
+    canvas.drawLine(
+      Offset(size.width * 0.7, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.7),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.4, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.4),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.1, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.1),
+      paint,
+    );
   }
 
   @override

@@ -26,7 +26,7 @@ class MediaMetadataDatasource {
     try {
       final result = await Process.run('bash', [
         '-c',
-        'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$path"'
+        'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$path"',
       ]);
 
       if (result.exitCode == 0) {

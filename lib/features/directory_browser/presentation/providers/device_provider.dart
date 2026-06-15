@@ -10,7 +10,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
   final controller = StreamController<List<Device>>();
   final Set<String> attemptedMounts = {};
   bool _isUpdating = false;
-  
+
   Timer? timer;
 
   Future<void> autoMount(String deviceId) async {
@@ -27,16 +27,18 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
     _isUpdating = true;
     try {
       // Use --bytes for raw sizes, -p for full paths, --json for easy parsing
-      final result = await Process.run('lsblk', [
-        '--json', 
-        '--bytes',
-        '-p',
-        '-o', 'NAME,MOUNTPOINT,SIZE,FSUSED,FSSIZE,FSAVAIL,TYPE,LABEL,MODEL,RM,FSTYPE'
-      ]).timeout(
-        const Duration(milliseconds: 800),
-        onTimeout: () => ProcessResult(0, 1, '', ''),
-      );
-      
+      final result =
+          await Process.run('lsblk', [
+            '--json',
+            '--bytes',
+            '-p',
+            '-o',
+            'NAME,MOUNTPOINT,SIZE,FSUSED,FSSIZE,FSAVAIL,TYPE,LABEL,MODEL,RM,FSTYPE',
+          ]).timeout(
+            const Duration(milliseconds: 800),
+            onTimeout: () => ProcessResult(0, 1, '', ''),
+          );
+
       if (result.exitCode != 0) {
         if (!controller.isClosed) controller.add([]);
         return;
@@ -56,14 +58,16 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
           final fsusedStr = item['fsused']?.toString();
           final fsavailStr = item['fsavail']?.toString();
           final fstype = item['fstype']?.toString() ?? '';
-          final isRemovable = (item['rm'] == true || item['rm'] == 1 || item['rm'] == "1");
+          final isRemovable =
+              (item['rm'] == true || item['rm'] == 1 || item['rm'] == "1");
 
           final mp = mountpoint?.trim() ?? '';
           final rawSize = double.tryParse(item['size']?.toString() ?? '0') ?? 0;
 
           // Filter for meaningful user partitions/disks
           final isMounted = mp.isNotEmpty;
-          final hasChildren = item['children'] != null && (item['children'] as List).isNotEmpty;
+          final hasChildren =
+              item['children'] != null && (item['children'] as List).isNotEmpty;
 
           // Auto-mount removable drives if they are not mounted and have no children (actual partitions)
           if (isRemovable && !isMounted && !hasChildren && fstype != 'swap') {
@@ -73,54 +77,64 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
             }
           }
 
-          if (!mp.startsWith('/snap') && !mp.startsWith('/boot') && mp != '[SWAP]' && fstype != 'swap') {
+          if (!mp.startsWith('/snap') &&
+              !mp.startsWith('/boot') &&
+              mp != '[SWAP]' &&
+              fstype != 'swap') {
             // Only show mounted volumes in the UI
             if (isMounted) {
-            
-            double usage = 0.0;
-            if (fsavailStr != null && fsusedStr != null) {
-              final used = double.tryParse(fsusedStr) ?? 0.0;
-              final avail = double.tryParse(fsavailStr) ?? 0.0;
-              final totalUsable = used + avail;
-              if (totalUsable > 0) usage = (used / totalUsable).clamp(0.0, 1.0);
-            } else if (fssizeStr != null && fsusedStr != null) {
-              final used = double.tryParse(fsusedStr) ?? 0.0;
-              final total = double.tryParse(fssizeStr) ?? 0.0;
-              if (total > 0) usage = (used / total).clamp(0.0, 1.0);
-            }
-
-            final formattedSize = _formatSize(rawSize);
-
-            String displayName;
-            final label = item['label']?.toString();
-            final model = item['model']?.toString();
-
-            if (mp == '/') {
-              displayName = 'File System';
-            } else if (mp == '/home' || mp.startsWith('/home/') || mp.contains('/home/')) {
-              if (mp == '/home') {
-                displayName = 'Home';
-              } else {
-                displayName = 'Home Partition';
+              double usage = 0.0;
+              if (fsavailStr != null && fsusedStr != null) {
+                final used = double.tryParse(fsusedStr) ?? 0.0;
+                final avail = double.tryParse(fsavailStr) ?? 0.0;
+                final totalUsable = used + avail;
+                if (totalUsable > 0)
+                  usage = (used / totalUsable).clamp(0.0, 1.0);
+              } else if (fssizeStr != null && fsusedStr != null) {
+                final used = double.tryParse(fsusedStr) ?? 0.0;
+                final total = double.tryParse(fssizeStr) ?? 0.0;
+                if (total > 0) usage = (used / total).clamp(0.0, 1.0);
               }
-            } else if (label != null && label.trim().isNotEmpty) {
-              displayName = label.trim();
-            } else if (model != null && model.trim().isNotEmpty) {
-              displayName = model.trim();
-            } else {
-              displayName = '$formattedSize Volume';
-            }
 
-            if (!hasChildren) {
-              devices.add(Device(
-                id: deviceId,
-                name: displayName,
-                path: mp, 
-                size: formattedSize,
-                usage: usage,
-                isRemovable: isRemovable || mp.startsWith('/media') || mp.startsWith('/run/media'),
-              ));
-            }
+              final formattedSize = _formatSize(rawSize);
+
+              String displayName;
+              final label = item['label']?.toString();
+              final model = item['model']?.toString();
+
+              if (mp == '/') {
+                displayName = 'File System';
+              } else if (mp == '/home' ||
+                  mp.startsWith('/home/') ||
+                  mp.contains('/home/')) {
+                if (mp == '/home') {
+                  displayName = 'Home';
+                } else {
+                  displayName = 'Home Partition';
+                }
+              } else if (label != null && label.trim().isNotEmpty) {
+                displayName = label.trim();
+              } else if (model != null && model.trim().isNotEmpty) {
+                displayName = model.trim();
+              } else {
+                displayName = '$formattedSize Volume';
+              }
+
+              if (!hasChildren) {
+                devices.add(
+                  Device(
+                    id: deviceId,
+                    name: displayName,
+                    path: mp,
+                    size: formattedSize,
+                    usage: usage,
+                    isRemovable:
+                        isRemovable ||
+                        mp.startsWith('/media') ||
+                        mp.startsWith('/run/media'),
+                  ),
+                );
+              }
             }
           }
 
@@ -152,24 +166,29 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
               if (name.startsWith('mtp:host=')) {
                 isMobile = true;
                 try {
-                  displayName = Uri.decodeComponent(name.substring(9)).replaceAll('_', ' ');
+                  displayName = Uri.decodeComponent(
+                    name.substring(9),
+                  ).replaceAll('_', ' ');
                 } catch (_) {}
               } else if (name.startsWith('gphoto2:host=')) {
                 isMobile = true;
                 try {
-                  displayName = Uri.decodeComponent(name.substring(13)).replaceAll('_', ' ');
+                  displayName = Uri.decodeComponent(
+                    name.substring(13),
+                  ).replaceAll('_', ' ');
                 } catch (_) {}
               } else if (name.startsWith('smb-share:server=')) {
                 displayName = 'SMB Share';
               }
-              
+
               String sizeStr = 'Unknown';
               double usage = 0.0;
               try {
-                final dfRes = await Process.run('df', ['-k', entity.path]).timeout(
-                  const Duration(milliseconds: 500),
-                  onTimeout: () => ProcessResult(0, 1, '', ''),
-                );
+                final dfRes = await Process.run('df', ['-k', entity.path])
+                    .timeout(
+                      const Duration(milliseconds: 500),
+                      onTimeout: () => ProcessResult(0, 1, '', ''),
+                    );
                 if (dfRes.exitCode == 0) {
                   final lines = dfRes.stdout.toString().trim().split('\n');
                   if (lines.length >= 2) {
@@ -186,15 +205,17 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
                 }
               } catch (_) {}
 
-              devices.add(Device(
-                id: name,
-                name: displayName,
-                path: entity.path,
-                size: sizeStr,
-                usage: usage,
-                isRemovable: true,
-                isMobile: isMobile,
-              ));
+              devices.add(
+                Device(
+                  id: name,
+                  name: displayName,
+                  path: entity.path,
+                  size: sizeStr,
+                  usage: usage,
+                  isRemovable: true,
+                  isMobile: isMobile,
+                ),
+              );
             }
           }
         }

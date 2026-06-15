@@ -65,11 +65,11 @@ class FileTask {
   Duration? get estimatedRemaining {
     if (isSyncing) return null; // During sync, ETA is meaningless
     if (startedAt == null || progress <= 0.001 || progress >= 1.0) return null;
-    
+
     final elapsed = DateTime.now().difference(startedAt!);
     final totalEstimated = elapsed.inMilliseconds / progress;
     final remaining = totalEstimated - elapsed.inMilliseconds;
-    
+
     if (remaining <= 0) return null;
     return Duration(milliseconds: remaining.round());
   }
@@ -127,10 +127,9 @@ class TaskNotifier extends Notifier<List<FileTask>> {
 
   /// Map of active isolates for hard-kill cancellation.
   final Map<String, Isolate> _taskIsolates = {};
-  
+
   /// Map of task send ports for graceful cancellation.
   final Map<String, SendPort> _taskPorts = {};
-
 
   /// Map of timers for automatic removal of finished tasks.
   final Map<String, Timer> _removalTimers = {};
@@ -159,19 +158,22 @@ class TaskNotifier extends Notifier<List<FileTask>> {
     }
   }
 
-
   /// The list of currently running heavy tasks (excluding light tasks).
-  List<FileTask> get runningHeavyTasks =>
-      state.where((t) => t.status == FileTaskStatus.running && !t.isLight).toList();
+  List<FileTask> get runningHeavyTasks => state
+      .where((t) => t.status == FileTaskStatus.running && !t.isLight)
+      .toList();
 
   /// ALL currently running tasks (including light ones).
   List<FileTask> get runningTasks =>
       state.where((t) => t.status == FileTaskStatus.running).toList();
 
   /// Whether any heavy task is currently active (running or pending).
-  bool get hasActiveHeavyTasks =>
-      state.any((t) =>
-          !t.isLight && (t.status == FileTaskStatus.running || t.status == FileTaskStatus.pending));
+  bool get hasActiveHeavyTasks => state.any(
+    (t) =>
+        !t.isLight &&
+        (t.status == FileTaskStatus.running ||
+            t.status == FileTaskStatus.pending),
+  );
 
   /// Pending (queued) tasks.
   List<FileTask> get pendingTasks =>
@@ -182,19 +184,27 @@ class TaskNotifier extends Notifier<List<FileTask>> {
 
   /// Recently completed tasks for the history panel.
   List<FileTask> get historyTasks =>
-      state.where((t) => 
-          t.status == FileTaskStatus.completed || 
-          t.status == FileTaskStatus.error || 
-          t.status == FileTaskStatus.cancelled).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      state
+          .where(
+            (t) =>
+                t.status == FileTaskStatus.completed ||
+                t.status == FileTaskStatus.error ||
+                t.status == FileTaskStatus.cancelled,
+          )
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   /// Aggregate progress across all running and pending tasks (0.0 to 1.0).
   double get totalProgress {
-    final active = state.where((t) => 
-        t.status == FileTaskStatus.running || 
-        t.status == FileTaskStatus.pending).toList();
+    final active = state
+        .where(
+          (t) =>
+              t.status == FileTaskStatus.running ||
+              t.status == FileTaskStatus.pending,
+        )
+        .toList();
     if (active.isEmpty) return 0.0;
-    
+
     double sum = 0.0;
     for (final t in active) {
       sum += t.progress;
@@ -203,17 +213,18 @@ class TaskNotifier extends Notifier<List<FileTask>> {
   }
 
   /// Whether any task is currently active (running or pending).
-  bool get hasActiveTasks =>
-      state.any((t) =>
-          t.status == FileTaskStatus.running ||
-          t.status == FileTaskStatus.pending);
+  bool get hasActiveTasks => state.any(
+    (t) =>
+        t.status == FileTaskStatus.running ||
+        t.status == FileTaskStatus.pending,
+  );
 
   /// Add a new task. Returns the task ID.
   /// Heavy tasks start as `running` if under concurrency limit, else `pending`.
   /// Light tasks (Rename, Delete, New Folder) always start as `running`.
   String addTask({
-    required String title, 
-    required String subtitle, 
+    required String title,
+    required String subtitle,
     int totalCount = 0,
     int totalSizeBytes = 0,
     List<String>? sourcePaths,
@@ -222,7 +233,7 @@ class TaskNotifier extends Notifier<List<FileTask>> {
   }) {
     final id = const Uuid().v4();
     final now = DateTime.now();
-    
+
     // Light tasks always run. Heavy tasks check concurrency limit.
     final canRun = isLight || runningHeavyTasks.length < _maxConcurrent;
 
@@ -288,11 +299,12 @@ class TaskNotifier extends Notifier<List<FileTask>> {
     final now = DateTime.now();
     final lastTime = _lastUpdateTimes[id];
     final lastBytes = _lastByteCounts[id] ?? 0;
-    
+
     double? speed;
     if (lastTime != null) {
       final diff = now.difference(lastTime).inMilliseconds;
-      if (diff > 500) { // Update speed every 500ms
+      if (diff > 500) {
+        // Update speed every 500ms
         final byteDiff = processed - lastBytes;
         speed = (byteDiff * 1000) / diff; // bytes per second
         _lastUpdateTimes[id] = now;
@@ -306,7 +318,7 @@ class TaskNotifier extends Notifier<List<FileTask>> {
     state = state.map((task) {
       if (task.id == id) {
         return task.copyWith(
-          processedSizeBytes: processed, 
+          processedSizeBytes: processed,
           totalSizeBytes: total,
           speed: speed ?? task.speed,
         );
@@ -319,7 +331,7 @@ class TaskNotifier extends Notifier<List<FileTask>> {
   void setSyncing(String id, [bool syncing = true]) {
     state = [
       for (final task in state)
-        if (task.id == id) task.copyWith(isSyncing: syncing) else task
+        if (task.id == id) task.copyWith(isSyncing: syncing) else task,
     ];
   }
 
@@ -350,7 +362,7 @@ class TaskNotifier extends Notifier<List<FileTask>> {
     if (completedTask != null) {
       _startAutoRemovalTimer(id);
     }
-    
+
     _taskPorts.remove(id);
     _taskIsolates.remove(id);
     _lastUpdateTimes.remove(id);
@@ -370,9 +382,9 @@ class TaskNotifier extends Notifier<List<FileTask>> {
       }
       return task;
     }).toList();
-    
+
     _startAutoRemovalTimer(id);
-    
+
     _taskPorts.remove(id);
     _taskIsolates.remove(id);
     _lastUpdateTimes.remove(id);
@@ -436,10 +448,14 @@ class TaskNotifier extends Notifier<List<FileTask>> {
   /// Cancel all running and pending tasks.
   Future<void> cancelAllTasks() async {
     final activeIds = state
-        .where((t) => t.status == FileTaskStatus.running || t.status == FileTaskStatus.pending)
+        .where(
+          (t) =>
+              t.status == FileTaskStatus.running ||
+              t.status == FileTaskStatus.pending,
+        )
         .map((t) => t.id)
         .toList();
-    
+
     for (final id in activeIds) {
       await cancelTask(id);
     }
@@ -452,9 +468,13 @@ class TaskNotifier extends Notifier<List<FileTask>> {
 
   /// Clear all finished tasks.
   void clearHistory() {
-    state = state.where((t) => 
-      t.status == FileTaskStatus.running || 
-      t.status == FileTaskStatus.pending).toList();
+    state = state
+        .where(
+          (t) =>
+              t.status == FileTaskStatus.running ||
+              t.status == FileTaskStatus.pending,
+        )
+        .toList();
   }
 
   /// Manually trigger a refresh to recalculate ETAs and notify UI.
@@ -464,7 +484,8 @@ class TaskNotifier extends Notifier<List<FileTask>> {
 
   /// Start next pending tasks if under limit.
   void _processQueue() {
-    while (runningHeavyTasks.length < _maxConcurrent && pendingTasks.isNotEmpty) {
+    while (runningHeavyTasks.length < _maxConcurrent &&
+        pendingTasks.isNotEmpty) {
       final nextTask = pendingTasks.first;
       state = state.map((t) {
         if (t.id == nextTask.id) {
@@ -484,7 +505,9 @@ class TaskNotifier extends Notifier<List<FileTask>> {
 
     _removalTimers[id] = Timer(const Duration(seconds: 3), () {
       final task = state.where((t) => t.id == id).firstOrNull;
-      if (task != null && (task.status == FileTaskStatus.completed || task.status == FileTaskStatus.error)) {
+      if (task != null &&
+          (task.status == FileTaskStatus.completed ||
+              task.status == FileTaskStatus.error)) {
         // Move to history
         ref.read(taskHistoryProvider.notifier).addEntry(task);
         // Remove from active list
@@ -496,4 +519,6 @@ class TaskNotifier extends Notifier<List<FileTask>> {
 }
 
 /// Provider for the global TaskNotifier.
-final taskProvider = NotifierProvider<TaskNotifier, List<FileTask>>(TaskNotifier.new);
+final taskProvider = NotifierProvider<TaskNotifier, List<FileTask>>(
+  TaskNotifier.new,
+);

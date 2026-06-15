@@ -23,15 +23,21 @@ class AudioControlsBar extends ConsumerWidget {
               builder: (context, ref, child) {
                 final currentTrack = ref.watch(currentTrackProvider);
                 if (currentTrack == null) return const SizedBox(width: 48);
-                final isFavorite = ref.watch(audioFavoritesProvider).contains(currentTrack.path);
-                
+                final isFavorite = ref
+                    .watch(audioFavoritesProvider)
+                    .contains(currentTrack.path);
+
                 return IconButton(
                   icon: Icon(
-                    isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     color: isFavorite ? AppColors.magenta : Colors.white70,
                   ),
                   onPressed: () {
-                    ref.read(audioFavoritesProvider.notifier).toggleFavorite(currentTrack.path);
+                    ref
+                        .read(audioFavoritesProvider.notifier)
+                        .toggleFavorite(currentTrack.path);
                   },
                 );
               },
@@ -47,7 +53,9 @@ class AudioControlsBar extends ConsumerWidget {
                     player?.setVolume(currentVol > 0 ? 0 : 100);
                   },
                   child: Icon(
-                    volume == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                    volume == 0
+                        ? Icons.volume_off_rounded
+                        : Icons.volume_up_rounded,
                     color: Colors.white70,
                     size: 20,
                   ),
@@ -58,11 +66,19 @@ class AudioControlsBar extends ConsumerWidget {
                   child: SliderTheme(
                     data: SliderThemeData(
                       trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                      activeTrackColor: volume > 100 ? AppColors.magenta : Colors.white,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 12,
+                      ),
+                      activeTrackColor: volume > 100
+                          ? AppColors.magenta
+                          : Colors.white,
                       inactiveTrackColor: Colors.white24,
-                      thumbColor: volume > 100 ? AppColors.magenta : Colors.white,
+                      thumbColor: volume > 100
+                          ? AppColors.magenta
+                          : Colors.white,
                     ),
                     child: Slider(
                       value: volume.clamp(0.0, 200.0),
@@ -85,13 +101,17 @@ class AudioControlsBar extends ConsumerWidget {
             ),
           ],
         ),
-        
+
         // Center controls (Strictly Centered)
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 32),
+              icon: const Icon(
+                Icons.skip_previous_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
               onPressed: () => player?.previous(),
             ),
             const SizedBox(width: 24),
@@ -113,7 +133,11 @@ class AudioControlsBar extends ConsumerWidget {
             ),
             const SizedBox(width: 24),
             IconButton(
-              icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 32),
+              icon: const Icon(
+                Icons.skip_next_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
               onPressed: () => player?.next(),
             ),
           ],

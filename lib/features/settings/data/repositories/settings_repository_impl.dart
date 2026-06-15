@@ -71,13 +71,14 @@ class SettingsRepositoryImpl implements SettingsRepository {
       confirmDeleteDocument: _prefs.getBool('confirmDeleteDocument') ?? true,
       confirmDeleteAudio: _prefs.getBool('confirmDeleteAudio') ?? true,
       downloadBrowser: _prefs.getString('downloadBrowser'),
-      downloadToCurrentFolder: _prefs.getBool('downloadToCurrentFolder') ?? true,
+      downloadToCurrentFolder:
+          _prefs.getBool('downloadToCurrentFolder') ?? true,
       maxConcurrentDownloads: _prefs.getInt('maxConcurrentDownloads') ?? 3,
       maxLiveRecordingMinutes: _prefs.getInt('maxLiveRecordingMinutes') ?? 0,
-      documentSearchCaseSensitive: _prefs.getBool('documentSearchCaseSensitive') ?? false,
+      documentSearchCaseSensitive:
+          _prefs.getBool('documentSearchCaseSensitive') ?? false,
       documentSearchUseRegex: _prefs.getBool('documentSearchUseRegex') ?? false,
     );
-
   }
 
   @override
@@ -93,11 +94,17 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setInt('audioSeekSeconds', settings.audioSeekSeconds);
     await _prefs.setString('selectedHwDec', settings.selectedHwDec);
     if (settings.cachedResolvedHwDec != null) {
-      await _prefs.setString('cachedResolvedHwDec', settings.cachedResolvedHwDec!);
+      await _prefs.setString(
+        'cachedResolvedHwDec',
+        settings.cachedResolvedHwDec!,
+      );
     } else {
       await _prefs.remove('cachedResolvedHwDec');
     }
-    await _prefs.setString('trackpad_speed_control', settings.trackpadSpeedControl.name);
+    await _prefs.setString(
+      'trackpad_speed_control',
+      settings.trackpadSpeedControl.name,
+    );
     await _prefs.setDouble('filePickerWidth', settings.filePickerWidth);
     await _prefs.setDouble('filePickerHeight', settings.filePickerHeight);
     await _prefs.setDouble('settingsWidth', settings.settingsWidth);
@@ -106,20 +113,38 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _prefs.setDouble('downloaderHeight', settings.downloaderHeight);
     await _prefs.setBool('confirmDeleteImage', settings.confirmDeleteImage);
     await _prefs.setBool('confirmDeleteVideo', settings.confirmDeleteVideo);
-    await _prefs.setBool('confirmDeleteDocument', settings.confirmDeleteDocument);
+    await _prefs.setBool(
+      'confirmDeleteDocument',
+      settings.confirmDeleteDocument,
+    );
     await _prefs.setBool('confirmDeleteAudio', settings.confirmDeleteAudio);
-    
+
     if (settings.downloadBrowser != null) {
       await _prefs.setString('downloadBrowser', settings.downloadBrowser!);
     } else {
       await _prefs.remove('downloadBrowser');
     }
-    
-    await _prefs.setBool('downloadToCurrentFolder', settings.downloadToCurrentFolder);
-    await _prefs.setInt('maxConcurrentDownloads', settings.maxConcurrentDownloads);
-    await _prefs.setInt('maxLiveRecordingMinutes', settings.maxLiveRecordingMinutes);
-    await _prefs.setBool('documentSearchCaseSensitive', settings.documentSearchCaseSensitive);
-    await _prefs.setBool('documentSearchUseRegex', settings.documentSearchUseRegex);
+
+    await _prefs.setBool(
+      'downloadToCurrentFolder',
+      settings.downloadToCurrentFolder,
+    );
+    await _prefs.setInt(
+      'maxConcurrentDownloads',
+      settings.maxConcurrentDownloads,
+    );
+    await _prefs.setInt(
+      'maxLiveRecordingMinutes',
+      settings.maxLiveRecordingMinutes,
+    );
+    await _prefs.setBool(
+      'documentSearchCaseSensitive',
+      settings.documentSearchCaseSensitive,
+    );
+    await _prefs.setBool(
+      'documentSearchUseRegex',
+      settings.documentSearchUseRegex,
+    );
   }
 
   @override
@@ -136,7 +161,6 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> setShowHiddenAudioFiles({required bool value}) async {
     await _prefs.setBool('showHiddenAudioFiles', value);
   }
-
 
   @override
   Future<void> setSnapshotPrefix(String value) async {
@@ -173,7 +197,9 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
-  Future<void> setTrackpadSpeedControl({required SpeedControlOption value}) async {
+  Future<void> setTrackpadSpeedControl({
+    required SpeedControlOption value,
+  }) async {
     await _prefs.setString('trackpad_speed_control', value.name);
   }
 

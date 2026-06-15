@@ -32,8 +32,9 @@ class CustomFilePickerDialog extends ConsumerStatefulWidget {
     super.key,
   });
 
-  static Future<List<File>?> show(BuildContext context, {
-    String? title, 
+  static Future<List<File>?> show(
+    BuildContext context, {
+    String? title,
     bool allowMultiple = false,
     List<String>? allowedExtensions,
     bool saveMode = false,
@@ -55,10 +56,12 @@ class CustomFilePickerDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<CustomFilePickerDialog> createState() => _CustomFilePickerDialogState();
+  ConsumerState<CustomFilePickerDialog> createState() =>
+      _CustomFilePickerDialogState();
 }
 
-class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog> {
+class _CustomFilePickerDialogState
+    extends ConsumerState<CustomFilePickerDialog> {
   final ScrollController _scrollController = ScrollController();
   late double _width;
   late double _height;
@@ -74,10 +77,12 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
     _height = settings?.filePickerHeight ?? 650;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(filePickerProvider.notifier).initialize(
-        allowedExtensions: widget.allowedExtensions,
-        initialDirectory: widget.initialDirectory,
-      );
+      ref
+          .read(filePickerProvider.notifier)
+          .initialize(
+            allowedExtensions: widget.allowedExtensions,
+            initialDirectory: widget.initialDirectory,
+          );
     });
 
     _fileNameController.text = widget.initialFileName ?? '';
@@ -92,7 +97,9 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
           if (mounted) {
             _fileNameController.selection = TextSelection(
               baseOffset: 0,
-              extentOffset: p.basenameWithoutExtension(_fileNameController.text).length,
+              extentOffset: p
+                  .basenameWithoutExtension(_fileNameController.text)
+                  .length,
             );
           }
         });
@@ -114,15 +121,21 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
 
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () => ref.read(filePickerProvider.notifier).goBack(),
-        const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () => ref.read(filePickerProvider.notifier).goForward(),
-        const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.of(context).maybePop(),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () =>
+            ref.read(filePickerProvider.notifier).goBack(),
+        const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () =>
+            ref.read(filePickerProvider.notifier).goForward(),
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            Navigator.of(context).maybePop(),
       },
       child: Focus(
         autofocus: true,
         child: Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 20,
+          ),
           child: SizedBox(
             width: _width,
             height: _height,
@@ -136,7 +149,9 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                       decoration: BoxDecoration(
                         color: const Color(0xFF161616).withOpacity(0.98),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.08),
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.6),
@@ -149,20 +164,20 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                         children: [
                           // Header
                           _buildHeader(stateAsync.value?.currentDirectory),
-                          
+
                           // Content
                           Expanded(
                             child: Row(
                               children: [
                                 // Sidebar
                                 _buildSidebar(),
-                                
+
                                 // Divider
                                 Container(
                                   width: 1,
                                   color: Colors.white.withOpacity(0.05),
                                 ),
-                                
+
                                 // Main List
                                 Expanded(
                                   child: _buildMainContent(stateAsync),
@@ -175,13 +190,15 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                                     color: Colors.white.withOpacity(0.05),
                                   ),
                                   FilePickerPreviewPane(
-                                    selectedPaths: stateAsync.value?.selection.toList() ?? [],
+                                    selectedPaths:
+                                        stateAsync.value?.selection.toList() ??
+                                        [],
                                   ),
                                 ],
                               ],
                             ),
                           ),
-                          
+
                           // Footer
                           _buildFooter(stateAsync.value),
                         ],
@@ -189,7 +206,7 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                     ),
                   ),
                 ),
-                
+
                 // Resize Handle
                 Positioned(
                   right: 0,
@@ -201,12 +218,17 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                       onPanUpdate: (details) {
                         setState(() {
                           _width = (_width + details.delta.dx).clamp(600, 1600);
-                          _height = (_height + details.delta.dy).clamp(400, 1200);
+                          _height = (_height + details.delta.dy).clamp(
+                            400,
+                            1200,
+                          );
                         });
                       },
                       onPanEnd: (_) {
                         setState(() => _isResizing = false);
-                        ref.read(settingsProvider.notifier).setFilePickerDimensions(_width, _height);
+                        ref
+                            .read(settingsProvider.notifier)
+                            .setFilePickerDimensions(_width, _height);
                       },
                       child: Container(
                         width: 30,
@@ -229,7 +251,9 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
       ),
       child: Row(
         children: [
@@ -239,13 +263,13 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
           ),
           const Spacer(),
           if (currentPath != null) ...[
-             _buildBreadcrumbs(currentPath),
-             const SizedBox(width: 12),
-             _buildHeaderButton(
-               icon: Icons.arrow_upward_rounded,
-               onPressed: () => ref.read(filePickerProvider.notifier).goUp(),
-               tooltip: 'Go Up',
-             ),
+            _buildBreadcrumbs(currentPath),
+            const SizedBox(width: 12),
+            _buildHeaderButton(
+              icon: Icons.arrow_upward_rounded,
+              onPressed: () => ref.read(filePickerProvider.notifier).goUp(),
+              tooltip: 'Go Up',
+            ),
           ],
           const SizedBox(width: 16),
           Row(
@@ -264,8 +288,11 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                 width: 44,
                 height: 24,
                 child: OnyxSwitch(
-                  value: ref.watch(filePickerProvider).value?.showHiddenFiles ?? false,
-                  onChanged: (_) => ref.read(filePickerProvider.notifier).toggleHiddenFiles(),
+                  value:
+                      ref.watch(filePickerProvider).value?.showHiddenFiles ??
+                      false,
+                  onChanged: (_) =>
+                      ref.read(filePickerProvider.notifier).toggleHiddenFiles(),
                 ),
               ),
             ],
@@ -275,7 +302,11 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
     );
   }
 
-  Widget _buildHeaderButton({required IconData icon, required VoidCallback onPressed, String? tooltip}) {
+  Widget _buildHeaderButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    String? tooltip,
+  }) {
     return Tooltip(
       message: tooltip ?? '',
       child: InkWell(
@@ -298,8 +329,10 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
     if (path == '/') return const Text('/');
 
     // Show only last 3 parts to save space
-    final displayParts = parts.length > 3 ? parts.sublist(parts.length - 3) : parts;
-    
+    final displayParts = parts.length > 3
+        ? parts.sublist(parts.length - 3)
+        : parts;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -313,14 +346,24 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
             mainAxisSize: MainAxisSize.min,
             children: [
               InkWell(
-                onTap: isLast ? null : () {
-                  final originalIndex = entry.key + (parts.length > 3 ? parts.length - 3 : 0);
-                  final targetPath = '/${parts.sublist(0, originalIndex + 1).join('/')}';
-                  ref.read(filePickerProvider.notifier).goToDirectory(targetPath);
-                },
+                onTap: isLast
+                    ? null
+                    : () {
+                        final originalIndex =
+                            entry.key +
+                            (parts.length > 3 ? parts.length - 3 : 0);
+                        final targetPath =
+                            '/${parts.sublist(0, originalIndex + 1).join('/')}';
+                        ref
+                            .read(filePickerProvider.notifier)
+                            .goToDirectory(targetPath);
+                      },
                 borderRadius: BorderRadius.circular(4),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
                   child: Text(
                     entry.value,
                     style: GoogleFonts.manrope(
@@ -356,10 +399,26 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
           _buildSidebarItem('Home', Icons.home_rounded, home),
-          _buildSidebarItem('Documents', Icons.description_rounded, p.join(home, 'Documents')),
-          _buildSidebarItem('Downloads', Icons.file_download_rounded, p.join(home, 'Downloads')),
-          _buildSidebarItem('Videos', Icons.video_library_rounded, p.join(home, 'Videos')),
-          _buildSidebarItem('Pictures', Icons.image_rounded, p.join(home, 'Pictures')),
+          _buildSidebarItem(
+            'Documents',
+            Icons.description_rounded,
+            p.join(home, 'Documents'),
+          ),
+          _buildSidebarItem(
+            'Downloads',
+            Icons.file_download_rounded,
+            p.join(home, 'Downloads'),
+          ),
+          _buildSidebarItem(
+            'Videos',
+            Icons.video_library_rounded,
+            p.join(home, 'Videos'),
+          ),
+          _buildSidebarItem(
+            'Pictures',
+            Icons.image_rounded,
+            p.join(home, 'Pictures'),
+          ),
           _buildSidebarItem('Root', Icons.storage_rounded, '/'),
         ],
       ),
@@ -424,11 +483,18 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.folder_open_rounded, size: 48, color: Colors.white.withOpacity(0.05)),
+                Icon(
+                  Icons.folder_open_rounded,
+                  size: 48,
+                  color: Colors.white.withOpacity(0.05),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'No items found',
-                  style: GoogleFonts.manrope(color: Colors.white24, fontSize: 14),
+                  style: GoogleFonts.manrope(
+                    color: Colors.white24,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
@@ -444,7 +510,7 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
             itemBuilder: (context, index) {
               final entity = state.contents[index];
               final isSelected = state.selection.contains(entity.path);
-              
+
               return FileEntityTile(
                 entity: entity,
                 isSelected: isSelected,
@@ -453,21 +519,35 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                     _fileNameController.text = p.basename(entity.path);
                     return;
                   }
-                  
-                  final isShift = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
-                                  HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
-                  final isCtrl = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
-                                 HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlRight);
-                  
-                  ref.read(filePickerProvider.notifier).toggleSelection(
-                    entity.path, 
-                    isCtrl: widget.allowMultiple && isCtrl,
-                    isShift: widget.allowMultiple && isShift,
-                  );
+
+                  final isShift =
+                      HardwareKeyboard.instance.logicalKeysPressed.contains(
+                        LogicalKeyboardKey.shiftLeft,
+                      ) ||
+                      HardwareKeyboard.instance.logicalKeysPressed.contains(
+                        LogicalKeyboardKey.shiftRight,
+                      );
+                  final isCtrl =
+                      HardwareKeyboard.instance.logicalKeysPressed.contains(
+                        LogicalKeyboardKey.controlLeft,
+                      ) ||
+                      HardwareKeyboard.instance.logicalKeysPressed.contains(
+                        LogicalKeyboardKey.controlRight,
+                      );
+
+                  ref
+                      .read(filePickerProvider.notifier)
+                      .toggleSelection(
+                        entity.path,
+                        isCtrl: widget.allowMultiple && isCtrl,
+                        isShift: widget.allowMultiple && isShift,
+                      );
                 },
                 onDoubleTap: () {
                   if (entity is Directory) {
-                    ref.read(filePickerProvider.notifier).goToDirectory(entity.path);
+                    ref
+                        .read(filePickerProvider.notifier)
+                        .goToDirectory(entity.path);
                   } else if (entity is File) {
                     Navigator.pop(context, [entity]);
                   }
@@ -483,27 +563,32 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
   bool _isSelectionValid(FilePickerState? state) {
     if (widget.saveMode) {
       if (_fileNameController.text.trim().isEmpty) return false;
-      if (widget.allowedExtensions != null && widget.allowedExtensions!.isNotEmpty) {
-         final ext = p.extension(_fileNameController.text).toLowerCase().replaceFirst('.', '');
-         if (!widget.allowedExtensions!.contains(ext)) return false;
+      if (widget.allowedExtensions != null &&
+          widget.allowedExtensions!.isNotEmpty) {
+        final ext = p
+            .extension(_fileNameController.text)
+            .toLowerCase()
+            .replaceFirst('.', '');
+        if (!widget.allowedExtensions!.contains(ext)) return false;
       }
       return true;
     }
-    
+
     if (state == null || state.selection.isEmpty) return false;
-    if (widget.allowedExtensions == null || widget.allowedExtensions!.isEmpty) return true;
+    if (widget.allowedExtensions == null || widget.allowedExtensions!.isEmpty)
+      return true;
 
     for (final path in state.selection) {
       // Find the entity in contents to check if it's a directory
       final entityIndex = state.contents.indexWhere((e) => e.path == path);
-      
+
       if (entityIndex != -1) {
         if (state.contents[entityIndex] is Directory) return false;
       } else {
         // If not in current view, check via IO
         if (io.Directory(path).existsSync()) return false;
       }
-      
+
       final ext = p.extension(path).toLowerCase().replaceFirst('.', '');
       if (!widget.allowedExtensions!.contains(ext)) return false;
     }
@@ -511,7 +596,9 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
   }
 
   Widget _buildFooter(FilePickerState? state) {
-    final hasSelection = widget.saveMode ? _fileNameController.text.isNotEmpty : (state?.selection.isNotEmpty ?? false);
+    final hasSelection = widget.saveMode
+        ? _fileNameController.text.isNotEmpty
+        : (state?.selection.isNotEmpty ?? false);
     final selectionCount = state?.selection.length ?? 0;
     final isValid = _isSelectionValid(state);
 
@@ -538,14 +625,21 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
                     hintText: 'File name',
                     hintStyle: GoogleFonts.manrope(color: Colors.white24),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      borderSide: BorderSide(
+                        color: Colors.white.withOpacity(0.1),
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      borderSide: BorderSide(
+                        color: Colors.white.withOpacity(0.1),
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
@@ -605,7 +699,9 @@ class _CustomFilePickerDialogState extends ConsumerState<CustomFilePickerDialog>
     if (widget.saveMode) {
       if (state == null) return;
       final service = ref.read(fileSystemServiceProvider);
-      final file = service.getFile(p.join(state.currentDirectory, _fileNameController.text));
+      final file = service.getFile(
+        p.join(state.currentDirectory, _fileNameController.text),
+      );
       Navigator.pop(context, [file]);
     } else {
       final service = ref.read(fileSystemServiceProvider);
@@ -659,9 +755,21 @@ class _ResizeHandlePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Draw three diagonal lines for the handle
-    canvas.drawLine(Offset(size.width * 0.7, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.7), paint);
-    canvas.drawLine(Offset(size.width * 0.4, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.4), paint);
-    canvas.drawLine(Offset(size.width * 0.1, size.height * 0.9), Offset(size.width * 0.9, size.height * 0.1), paint);
+    canvas.drawLine(
+      Offset(size.width * 0.7, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.7),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.4, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.4),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.1, size.height * 0.9),
+      Offset(size.width * 0.9, size.height * 0.1),
+      paint,
+    );
   }
 
   @override

@@ -8,9 +8,9 @@ class NavigationNotifier extends Notifier<NavigationState> {
   @override
   NavigationState build() {
     final tabId = ref.watch(tabIdProvider);
-    final tab = ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId)
-    ));
+    final tab = ref.watch(
+      tabManagerProvider.select((s) => s.tabs.firstWhere((t) => t.id == tabId)),
+    );
     return NavigationState(
       history: tab.history,
       historyIndex: tab.historyIndex,
@@ -45,10 +45,10 @@ class NavigationNotifier extends Notifier<NavigationState> {
     // This needs logic in TabManager if we want to support it per-tab.
     // For now, let's just use current tab.
     final tabId = ref.read(tabIdProvider);
-    final tab = ref.read(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId)
-    ));
-    
+    final tab = ref.read(
+      tabManagerProvider.select((s) => s.tabs.firstWhere((t) => t.id == tabId)),
+    );
+
     final history = tab.history;
     int targetIndex = -1;
 
@@ -62,7 +62,9 @@ class NavigationNotifier extends Notifier<NavigationState> {
     if (targetIndex != -1) {
       // We'd need a special method in TabManager to jump to an index.
       // For simplicity, let's just navigate to the found path.
-      ref.read(tabManagerProvider.notifier).updateTabPath(tabId, history[targetIndex]);
+      ref
+          .read(tabManagerProvider.notifier)
+          .updateTabPath(tabId, history[targetIndex]);
       return history[targetIndex];
     }
     return null;
@@ -72,5 +74,5 @@ class NavigationNotifier extends Notifier<NavigationState> {
 /// Provider for the navigation notifier.
 final navigationProvider =
     NotifierProvider<NavigationNotifier, NavigationState>(
-  NavigationNotifier.new,
-);
+      NavigationNotifier.new,
+    );

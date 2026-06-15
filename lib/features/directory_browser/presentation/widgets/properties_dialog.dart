@@ -18,7 +18,11 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 class PropertiesDialog extends ConsumerStatefulWidget {
   final List<String> paths;
   final bool isInTrash;
-  const PropertiesDialog({super.key, required this.paths, this.isInTrash = false});
+  const PropertiesDialog({
+    super.key,
+    required this.paths,
+    this.isInTrash = false,
+  });
 
   @override
   ConsumerState<PropertiesDialog> createState() => _PropertiesDialogState();
@@ -27,7 +31,7 @@ class PropertiesDialog extends ConsumerStatefulWidget {
 class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
   ReceivePort? _receivePort;
   Isolate? _isolate;
-  
+
   int _currentSize = 0;
   int _currentFilesCount = 0;
   int _currentFoldersCount = 0;
@@ -36,12 +40,12 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
 
   FileItem? _singleItem;
   String? _restorePath;
-  
+
   @override
   void initState() {
     super.initState();
     _isCalculating = true;
-    
+
     if (widget.paths.length == 1) {
       _loadSingleItem();
     }
@@ -67,7 +71,11 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
         final name = p.basename(widget.paths.first);
         final trashInfoPath = p.join(
           Platform.environment['HOME'] ?? '',
-          '.local', 'share', 'Trash', 'info', '$name.trashinfo',
+          '.local',
+          'share',
+          'Trash',
+          'info',
+          '$name.trashinfo',
         );
         final infoFile = File(trashInfoPath);
         if (await infoFile.exists()) {
@@ -90,28 +98,31 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
 
   Future<void> _startIncrementalCalculation() async {
     _receivePort = ReceivePort();
-    
-    _receivePort!.listen((message) {
-      if (!mounted) return;
-      if (message is DirectorySizeUpdate) {
+
+    _receivePort!.listen(
+      (message) {
+        if (!mounted) return;
+        if (message is DirectorySizeUpdate) {
+          setState(() {
+            _currentSize = message.size;
+            _currentFilesCount = message.filesCount;
+            _currentFoldersCount = message.foldersCount;
+            if (message.isFinished) {
+              _isCalculating = false;
+              _cleanupIsolate();
+            }
+          });
+        }
+      },
+      onError: (e) {
+        if (!mounted) return;
         setState(() {
-          _currentSize = message.size;
-          _currentFilesCount = message.filesCount;
-          _currentFoldersCount = message.foldersCount;
-          if (message.isFinished) {
-            _isCalculating = false;
-            _cleanupIsolate();
-          }
+          _isCalculating = false;
+          _hasError = true;
         });
-      }
-    }, onError: (e) {
-      if (!mounted) return;
-      setState(() {
-        _isCalculating = false;
-        _hasError = true;
-      });
-      _cleanupIsolate();
-    });
+        _cleanupIsolate();
+      },
+    );
 
     try {
       _isolate = await Isolate.spawn(
@@ -156,7 +167,9 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
   @override
   Widget build(BuildContext context) {
     final bool isMulti = widget.paths.length > 1;
-    final String title = widget.paths.map((path) => p.basename(path)).join(", ");
+    final String title = widget.paths
+        .map((path) => p.basename(path))
+        .join(", ");
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -190,14 +203,18 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: IconButton(
-                          icon: const Icon(Icons.close, size: 20, color: Colors.white54),
+                          icon: const Icon(
+                            Icons.close,
+                            size: 20,
+                            color: Colors.white54,
+                          ),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ),
                     ),
                   ],
                 ),
-                
+
                 // Icon and Name
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -231,7 +248,8 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _buildSection([
-                          _buildRow('Parent Folder', 
+                          _buildRow(
+                            'Parent Folder',
                             Row(
                               children: [
                                 Expanded(
@@ -248,18 +266,30 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
                                 ),
                                 if (!widget.isInTrash)
                                   IconButton(
-                                    icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                    icon: const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 14,
+                                    ),
                                     color: Colors.white54,
                                     onPressed: () {
                                       final parentPath = _getParentFolder();
                                       Navigator.of(context).pop();
-                                      ref.read(navigationProvider.notifier).navigateTo(parentPath);
-                                      ref.read(currentPathProvider.notifier).state = parentPath;
+                                      ref
+                                          .read(navigationProvider.notifier)
+                                          .navigateTo(parentPath);
+                                      ref
+                                              .read(
+                                                currentPathProvider.notifier,
+                                              )
+                                              .state =
+                                          parentPath;
                                     },
                                   ),
                               ],
                             ),
-                            isBottom: !isMulti && (!widget.isInTrash || _restorePath == null),
+                            isBottom:
+                                !isMulti &&
+                                (!widget.isInTrash || _restorePath == null),
                           ),
                           if (widget.isInTrash && _restorePath != null)
                             _buildRow(
@@ -286,16 +316,24 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
                         if (!isMulti && _singleItem != null) ...[
                           const SizedBox(height: 16),
                           _buildSection([
-                            _buildRow('Modified', 
+                            _buildRow(
+                              'Modified',
                               Text(
                                 _formatDate(_singleItem!.modified),
-                                style: GoogleFonts.manrope(color: Colors.white, fontSize: 13),
+                                style: GoogleFonts.manrope(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
-                            _buildRow('Created', 
+                            _buildRow(
+                              'Created',
                               Text(
                                 _formatDate(_singleItem!.modified), // Fallback
-                                style: GoogleFonts.manrope(color: Colors.white, fontSize: 13),
+                                style: GoogleFonts.manrope(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
                               ),
                               isBottom: true,
                             ),
@@ -316,22 +354,30 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
   Widget _buildHeaderIcon(bool isMulti) {
     if (isMulti) {
       return Container(
-        width: 80, height: 80,
+        width: 80,
+        height: 80,
         decoration: BoxDecoration(
           color: Colors.indigo.withOpacity(0.2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Center(
-          child: Icon(Icons.copy_all_rounded, size: 48, color: Colors.indigoAccent),
+          child: Icon(
+            Icons.copy_all_rounded,
+            size: 48,
+            color: Colors.indigoAccent,
+          ),
         ),
       );
     }
-    
+
     final isFolder = FileSystemEntity.isDirectorySync(widget.paths.first);
     return Container(
-      width: 80, height: 80,
+      width: 80,
+      height: 80,
       decoration: BoxDecoration(
-        color: isFolder ? Colors.blueAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+        color: isFolder
+            ? Colors.blueAccent.withOpacity(0.2)
+            : Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(
@@ -352,7 +398,10 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
     );
   }
 
@@ -360,7 +409,9 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: isBottom ? null : Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: isBottom
+            ? null
+            : Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
       child: Row(
         children: [
@@ -368,7 +419,11 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
             width: 100,
             child: Text(
               label,
-              style: GoogleFonts.manrope(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500),
+              style: GoogleFonts.manrope(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(child: content),
@@ -379,20 +434,32 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
 
   Widget _buildSizeInfo() {
     if (_hasError) {
-      return Text('Size: Unknown (Permission Denied)', style: GoogleFonts.manrope(color: Colors.white54, fontSize: 14));
+      return Text(
+        'Size: Unknown (Permission Denied)',
+        style: GoogleFonts.manrope(color: Colors.white54, fontSize: 14),
+      );
     }
 
     final totalItems = _currentFilesCount + _currentFoldersCount;
-    String detailText = '${NumberFormat.decimalPattern().format(totalItems)} items';
+    String detailText =
+        '${NumberFormat.decimalPattern().format(totalItems)} items';
     if (_currentFoldersCount > 0) {
-      detailText = '${NumberFormat.decimalPattern().format(_currentFoldersCount)} folders, ${NumberFormat.decimalPattern().format(_currentFilesCount)} files';
+      detailText =
+          '${NumberFormat.decimalPattern().format(_currentFoldersCount)} folders, ${NumberFormat.decimalPattern().format(_currentFilesCount)} files';
     }
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (_isCalculating) ...[
-          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54)),
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white54,
+            ),
+          ),
           const SizedBox(width: 8),
         ],
         Text(

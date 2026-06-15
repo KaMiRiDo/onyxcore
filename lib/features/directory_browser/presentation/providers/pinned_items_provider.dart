@@ -41,5 +41,5 @@ class PinnedItemsNotifier extends AsyncNotifier<Map<String, int>> {
 
 final pinnedItemsProvider =
     AsyncNotifierProvider<PinnedItemsNotifier, Map<String, int>>(
-  PinnedItemsNotifier.new,
-);
+      PinnedItemsNotifier.new,
+    );

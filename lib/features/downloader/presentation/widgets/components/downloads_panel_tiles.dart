@@ -131,7 +131,10 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                             ),
                             const SizedBox(width: 8),
                             CopyUrlButton(
-                              url: item.webpageUrl ?? item.directUrl ?? item.originalUrl,
+                              url:
+                                  item.webpageUrl ??
+                                  item.directUrl ??
+                                  item.originalUrl,
                             ),
                           ],
                         ),
@@ -883,11 +886,11 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
       final bAudio =
           b.resolution == 'audio only' || b.resolution.toLowerCase() == 'audio';
       if (aAudio != bAudio) return aAudio ? 1 : -1;
-      
+
       final hA = _getHeight(a.resolution);
       final hB = _getHeight(b.resolution);
       if (hA != hB) return hB.compareTo(hA);
-      
+
       final sizeA = a.filesize ?? 0;
       final sizeB = b.filesize ?? 0;
       return sizeB.compareTo(sizeA);
@@ -929,8 +932,8 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
     final displayFormat = isItemLevel
         ? matchTargetFormat(item, currentFormat)
         : (formats.contains(currentFormat)
-            ? currentFormat
-            : (formats.isNotEmpty ? formats.first : null));
+              ? currentFormat
+              : (formats.isNotEmpty ? formats.first : null));
 
     return PopupMenuButton<MediaFormat>(
       initialValue: displayFormat,

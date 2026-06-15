@@ -95,11 +95,13 @@ class ActionBar extends ConsumerWidget {
     );
     if (name != null && name.isNotEmpty) {
       final repo = ref.read(directoryRepositoryProvider);
-      final taskId = ref.read(taskProvider.notifier).addTask(
-        title: 'New Folder',
-        subtitle: name,
-        isLight: true,
-      );
+      final taskId = ref
+          .read(taskProvider.notifier)
+          .addTask(
+            title: 'New Folder',
+            subtitle: name,
+            isLight: true,
+          );
       try {
         await repo.createFolder(currentPath, name, taskId: taskId);
         ref.read(taskProvider.notifier).completeTask(taskId);
@@ -107,7 +109,9 @@ class ActionBar extends ConsumerWidget {
       } catch (e) {
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error creating folder: $e')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error creating folder: $e')));
         }
       }
     }

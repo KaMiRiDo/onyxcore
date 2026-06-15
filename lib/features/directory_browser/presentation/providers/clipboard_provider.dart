@@ -49,6 +49,8 @@ class ClipboardNotifier extends Notifier<ClipboardState> {
   }
 }
 
-final clipboardProvider = NotifierProvider<ClipboardNotifier, ClipboardState>(() {
-  return ClipboardNotifier();
-});
+final clipboardProvider = NotifierProvider<ClipboardNotifier, ClipboardState>(
+  () {
+    return ClipboardNotifier();
+  },
+);

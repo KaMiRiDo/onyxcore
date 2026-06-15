@@ -40,7 +40,11 @@ class ContextMenuItem {
 class ContextMenu {
   static OverlayEntry? _overlayEntry;
 
-  static void show(BuildContext context, Offset position, List<ContextMenuItem> items) {
+  static void show(
+    BuildContext context,
+    Offset position,
+    List<ContextMenuItem> items,
+  ) {
     hide();
 
     _overlayEntry = OverlayEntry(
@@ -120,7 +124,7 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
               child: Container(color: Colors.transparent),
             ),
           ),
-        
+
         Positioned(
           left: left,
           top: top,
@@ -174,24 +178,30 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF181818).withOpacity(0.95),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.06)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.06),
+                            ),
                           ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
-                            children: widget.items.map((item) => _ContextMenuItemWidget(
-                              item: item,
-                              onTap: () {
-                                widget.onClose();
-                                item.onTap();
-                              },
-                              onCloseAll: widget.onClose,
-                            )).toList(),
+                            children: widget.items
+                                .map(
+                                  (item) => _ContextMenuItemWidget(
+                                    item: item,
+                                    onTap: () {
+                                      widget.onClose();
+                                      item.onTap();
+                                    },
+                                    onCloseAll: widget.onClose,
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  
+
                   // Bridge to parent for submenus (to prevent accidental closing)
                   if (widget.isSubmenu)
                     Positioned(
@@ -239,14 +249,17 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
 
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final position = renderBox.localToGlobal(Offset.zero);
-    
+
     // Parent item center relative to submenu top (which is shifted by -8)
     // We increase the offset significantly to move the notch down as it appears too high
     final notchY = (renderBox.size.height / 2) + 30;
 
     _submenuOverlay = OverlayEntry(
       builder: (context) => _ContextMenuWidget(
-        position: Offset(position.dx + renderBox.size.width + 8, position.dy - 8),
+        position: Offset(
+          position.dx + renderBox.size.width + 8,
+          position.dy - 8,
+        ),
         items: widget.item.subItems!,
         onClose: widget.onCloseAll,
         isSubmenu: true,
@@ -292,12 +305,12 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
 
     final isEnabled = widget.item.isEnabled;
     final isSelected = widget.item.isSelected;
-    
-    final color = widget.item.isDestructive 
-        ? Colors.redAccent.withOpacity(isEnabled ? 1.0 : 0.4) 
-        : isSelected 
-            ? AppColors.violet 
-            : Colors.white.withOpacity(isEnabled ? 1.0 : 0.4);
+
+    final color = widget.item.isDestructive
+        ? Colors.redAccent.withOpacity(isEnabled ? 1.0 : 0.4)
+        : isSelected
+        ? AppColors.violet
+        : Colors.white.withOpacity(isEnabled ? 1.0 : 0.4);
 
     return MouseRegion(
       onEnter: (_) {
@@ -317,19 +330,27 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: (isSelected) 
+            color: (isSelected)
                 ? AppColors.violet.withOpacity(0.15)
-                : (_isHovered && isEnabled) 
-                    ? Colors.white.withOpacity(0.08) 
-                    : Colors.transparent,
+                : (_isHovered && isEnabled)
+                ? Colors.white.withOpacity(0.08)
+                : Colors.transparent,
           ),
           child: Row(
             children: [
               if (widget.item.icon != null || isSelected) ...[
                 if (isSelected && widget.item.icon == null)
-                  const Icon(Icons.check_rounded, size: 18, color: AppColors.violet)
+                  const Icon(
+                    Icons.check_rounded,
+                    size: 18,
+                    color: AppColors.violet,
+                  )
                 else if (widget.item.icon != null)
-                  Icon(widget.item.icon, size: 18, color: color.withOpacity(isEnabled ? 0.8 : 0.3)),
+                  Icon(
+                    widget.item.icon,
+                    size: 18,
+                    color: color.withOpacity(isEnabled ? 0.8 : 0.3),
+                  ),
                 const SizedBox(width: 12),
               ],
               Expanded(

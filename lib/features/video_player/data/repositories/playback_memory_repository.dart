@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 class PlaybackMemoryRepository {
   static const String boxName = 'video_playback_memory';
-  
+
   static Future<void> savePosition(String path, int positionMs) async {
     final box = await Hive.openBox(boxName);
     await box.put(path, positionMs);

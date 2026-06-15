@@ -23,7 +23,11 @@ class LocalFileDatasource {
   }
 
   /// Create a new folder in a parent directory.
-  Future<void> createFolder(String parentPath, String name, {String? taskId}) async {
+  Future<void> createFolder(
+    String parentPath,
+    String name, {
+    String? taskId,
+  }) async {
     final dir = Directory(p.join(parentPath, name));
     if (!await dir.exists()) {
       await dir.create(recursive: true);
@@ -31,7 +35,11 @@ class LocalFileDatasource {
   }
 
   /// Create a new empty file in a parent directory.
-  Future<void> createFile(String parentPath, String name, {String? taskId}) async {
+  Future<void> createFile(
+    String parentPath,
+    String name, {
+    String? taskId,
+  }) async {
     final file = File(p.join(parentPath, name));
     if (!await file.exists()) {
       await file.create(recursive: true);
@@ -39,7 +47,12 @@ class LocalFileDatasource {
   }
 
   /// Delete items (files or folders).
-  Future<void> deleteItems(List<String> paths, {void Function(int processed, int total)? onProgress, String? taskId, void Function(String message)? onLog}) async {
+  Future<void> deleteItems(
+    List<String> paths, {
+    void Function(int processed, int total)? onProgress,
+    String? taskId,
+    void Function(String message)? onLog,
+  }) async {
     for (int i = 0; i < paths.length; i++) {
       final path = paths[i];
       final type = FileSystemEntity.typeSync(path);
@@ -54,12 +67,27 @@ class LocalFileDatasource {
   }
 
   /// Delete items permanently.
-  Future<void> deleteItemsPermanent(List<String> paths, {void Function(int processed, int total)? onProgress, String? taskId, void Function(String message)? onLog}) async {
-    await deleteItems(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
+  Future<void> deleteItemsPermanent(
+    List<String> paths, {
+    void Function(int processed, int total)? onProgress,
+    String? taskId,
+    void Function(String message)? onLog,
+  }) async {
+    await deleteItems(
+      paths,
+      onProgress: onProgress,
+      taskId: taskId,
+      onLog: onLog,
+    );
   }
 
   /// Move items to system trash using 'gio trash'.
-  Future<void> moveToTrash(List<String> paths, {void Function(int processed, int total)? onProgress, String? taskId, void Function(String message)? onLog}) async {
+  Future<void> moveToTrash(
+    List<String> paths, {
+    void Function(int processed, int total)? onProgress,
+    String? taskId,
+    void Function(String message)? onLog,
+  }) async {
     for (int i = 0; i < paths.length; i++) {
       final path = paths[i];
       try {
@@ -74,13 +102,28 @@ class LocalFileDatasource {
   }
 
   /// Alias for moveToTrash.
-  Future<void> trashItems(List<String> paths, {void Function(int processed, int total)? onProgress, String? taskId, void Function(String message)? onLog}) async {
-    await moveToTrash(paths, onProgress: onProgress, taskId: taskId, onLog: onLog);
+  Future<void> trashItems(
+    List<String> paths, {
+    void Function(int processed, int total)? onProgress,
+    String? taskId,
+    void Function(String message)? onLog,
+  }) async {
+    await moveToTrash(
+      paths,
+      onProgress: onProgress,
+      taskId: taskId,
+      onLog: onLog,
+    );
   }
 
   /// Restore items from system trash using 'gio trash --restore'.
   /// gio expects a trash:// URI of the form: trash:///filename
-  Future<void> restoreFromTrash(List<String> paths, {void Function(int processed, int total)? onProgress, String? taskId, void Function(String message)? onLog}) async {
+  Future<void> restoreFromTrash(
+    List<String> paths, {
+    void Function(int processed, int total)? onProgress,
+    String? taskId,
+    void Function(String message)? onLog,
+  }) async {
     for (int i = 0; i < paths.length; i++) {
       final path = paths[i];
       try {
@@ -88,7 +131,11 @@ class LocalFileDatasource {
         // The trash URI is: trash:///filename (just the basename inside Trash/files/)
         final fileName = p.basename(path);
         final trashUri = 'trash:///$fileName';
-        final result = await Process.run('gio', ['trash', '--restore', trashUri]);
+        final result = await Process.run('gio', [
+          'trash',
+          '--restore',
+          trashUri,
+        ]);
         if (result.exitCode != 0) {
           throw Exception(result.stderr.toString().trim());
         }
@@ -101,7 +148,6 @@ class LocalFileDatasource {
     }
   }
 
-
   /// Copy items (files or folders).
   Future<void> copyItems(List<String> sources, String destination) async {
     for (final source in sources) {
@@ -112,15 +158,24 @@ class LocalFileDatasource {
   }
 
   /// Copy single item from [source] to [absDest].
-  Future<void> copyItemTo(String source, String absDest, {void Function(int bytesCopied)? onProgress, void Function()? onSyncing, String? taskId, void Function(SendPort port, Isolate? isolate)? onPort}) async {
+  Future<void> copyItemTo(
+    String source,
+    String absDest, {
+    void Function(int bytesCopied)? onProgress,
+    void Function()? onSyncing,
+    String? taskId,
+    void Function(SendPort port, Isolate? isolate)? onPort,
+  }) async {
     final absSource = p.canonicalize(source);
     final absDestination = p.canonicalize(absDest);
     if (absSource == absDestination) return;
 
     final sourceType = FileSystemEntity.typeSync(absSource);
     final isDir = sourceType == FileSystemEntityType.directory;
-    final isSourceInsideDest = absSource.startsWith(absDestination + p.separator);
-    
+    final isSourceInsideDest = absSource.startsWith(
+      absDestination + p.separator,
+    );
+
     String actualSource = absSource;
     Directory? tempDir;
 
@@ -135,9 +190,23 @@ class LocalFileDatasource {
     }
 
     if (isDir) {
-      await _copyDirectory(Directory(actualSource), Directory(absDestination), onProgress: onProgress, onSyncing: onSyncing, taskId: taskId, onPort: onPort);
+      await _copyDirectory(
+        Directory(actualSource),
+        Directory(absDestination),
+        onProgress: onProgress,
+        onSyncing: onSyncing,
+        taskId: taskId,
+        onPort: onPort,
+      );
     } else {
-      await _copyFileWithProgress(File(actualSource), File(absDestination), onProgress, onSyncing, taskId: taskId, onPort: onPort);
+      await _copyFileWithProgress(
+        File(actualSource),
+        File(absDestination),
+        onProgress,
+        onSyncing,
+        taskId: taskId,
+        onPort: onPort,
+      );
     }
 
     if (tempDir != null) await tempDir.delete(recursive: true);
@@ -146,11 +215,18 @@ class LocalFileDatasource {
   /// Fixed flush threshold: 8 MB.
   static const int _flushThreshold = 16 * 1024 * 1024;
 
-  Future<void> _copyFileWithProgress(File source, File destination, void Function(int bytesCopied)? onProgress, void Function()? onSyncing, {String? taskId, void Function(SendPort port, Isolate? isolate)? onPort}) async {
+  Future<void> _copyFileWithProgress(
+    File source,
+    File destination,
+    void Function(int bytesCopied)? onProgress,
+    void Function()? onSyncing, {
+    String? taskId,
+    void Function(SendPort port, Isolate? isolate)? onPort,
+  }) async {
     final receivePort = ReceivePort();
     final completer = Completer<void>();
     Isolate? isolate;
-    
+
     receivePort.listen((message) {
       if (message is SendPort) {
         onPort?.call(message, isolate);
@@ -199,7 +275,14 @@ class LocalFileDatasource {
     }
   }
 
-  Future<void> _copyDirectory(Directory source, Directory destination, {void Function(int bytesCopied)? onProgress, void Function()? onSyncing, String? taskId, void Function(SendPort port, Isolate? isolate)? onPort}) async {
+  Future<void> _copyDirectory(
+    Directory source,
+    Directory destination, {
+    void Function(int bytesCopied)? onProgress,
+    void Function()? onSyncing,
+    String? taskId,
+    void Function(SendPort port, Isolate? isolate)? onPort,
+  }) async {
     if (!destination.existsSync()) {
       destination.createSync(recursive: true);
     }
@@ -209,9 +292,23 @@ class LocalFileDatasource {
       final destPath = p.join(destination.path, name);
 
       if (entity is Directory) {
-        await _copyDirectory(entity, Directory(destPath), onProgress: onProgress, onSyncing: onSyncing, taskId: taskId, onPort: onPort);
+        await _copyDirectory(
+          entity,
+          Directory(destPath),
+          onProgress: onProgress,
+          onSyncing: onSyncing,
+          taskId: taskId,
+          onPort: onPort,
+        );
       } else if (entity is File) {
-        await _copyFileWithProgress(entity, File(destPath), onProgress, onSyncing, taskId: taskId, onPort: onPort);
+        await _copyFileWithProgress(
+          entity,
+          File(destPath),
+          onProgress,
+          onSyncing,
+          taskId: taskId,
+          onPort: onPort,
+        );
       }
     }
   }
@@ -226,7 +323,14 @@ class LocalFileDatasource {
   }
 
   /// Move a single item to a specific destination path.
-  Future<void> moveItemTo(String source, String destinationPath, {void Function(int bytesCopied)? onProgress, void Function()? onSyncing, String? taskId, void Function(SendPort port, Isolate? isolate)? onPort}) async {
+  Future<void> moveItemTo(
+    String source,
+    String destinationPath, {
+    void Function(int bytesCopied)? onProgress,
+    void Function()? onSyncing,
+    String? taskId,
+    void Function(SendPort port, Isolate? isolate)? onPort,
+  }) async {
     final absSource = p.canonicalize(source);
     final absDest = p.canonicalize(destinationPath);
     if (absSource == absDest) return;
@@ -234,7 +338,7 @@ class LocalFileDatasource {
     final sourceType = FileSystemEntity.typeSync(absSource);
     final isDir = sourceType == FileSystemEntityType.directory;
     final isSourceInsideDest = absSource.startsWith(absDest + p.separator);
-    
+
     String actualSource = absSource;
     Directory? tempDir;
 
@@ -265,10 +369,24 @@ class LocalFileDatasource {
       }
     } catch (e) {
       if (isDir) {
-        await _copyDirectory(Directory(actualSource), Directory(absDest), onProgress: onProgress, onSyncing: onSyncing, taskId: taskId, onPort: onPort);
+        await _copyDirectory(
+          Directory(actualSource),
+          Directory(absDest),
+          onProgress: onProgress,
+          onSyncing: onSyncing,
+          taskId: taskId,
+          onPort: onPort,
+        );
         await Directory(actualSource).delete(recursive: true);
       } else {
-        await _copyFileWithProgress(File(actualSource), File(absDest), onProgress, onSyncing, taskId: taskId, onPort: onPort);
+        await _copyFileWithProgress(
+          File(actualSource),
+          File(absDest),
+          onProgress,
+          onSyncing,
+          taskId: taskId,
+          onPort: onPort,
+        );
         await File(actualSource).delete();
       }
     }
@@ -277,7 +395,12 @@ class LocalFileDatasource {
   }
 
   /// Rename single item. Returns the new path.
-  Future<String> renameItem(String path, String newName, {String? taskId, void Function(String message)? onLog}) async {
+  Future<String> renameItem(
+    String path,
+    String newName, {
+    String? taskId,
+    void Function(String message)? onLog,
+  }) async {
     final parent = p.dirname(path);
     final newPath = p.join(parent, newName);
     final type = FileSystemEntity.typeSync(path);
@@ -291,14 +414,21 @@ class LocalFileDatasource {
   }
 
   /// Bulk rename logic. Returns the new paths.
-  Future<List<String>> bulkRename(List<String> paths, {String? prefix, String? baseName, String? taskId, void Function(int processed, int total)? onProgress, void Function(String message)? onLog}) async {
+  Future<List<String>> bulkRename(
+    List<String> paths, {
+    String? prefix,
+    String? baseName,
+    String? taskId,
+    void Function(int processed, int total)? onProgress,
+    void Function(String message)? onLog,
+  }) async {
     final newPaths = <String>[];
     for (int i = 0; i < paths.length; i++) {
       final path = paths[i];
       final dirname = p.dirname(path);
       final originalName = p.basename(path);
       final ext = p.extension(path);
-      
+
       String newName;
       if (prefix != null) {
         newName = '$prefix$originalName';
@@ -307,7 +437,7 @@ class LocalFileDatasource {
       } else {
         continue;
       }
-      
+
       final newPath = p.join(dirname, newName);
       final type = FileSystemEntity.typeSync(path);
       if (type == FileSystemEntityType.directory) {
@@ -338,29 +468,34 @@ class LocalFileDatasource {
         final stat = entity.statSync();
 
         final modeStr = stat.modeString();
-        final hasWrite = modeStr.length >= 9 && (modeStr[1] == 'w' || modeStr[7] == 'w');
+        final hasWrite =
+            modeStr.length >= 9 && (modeStr[1] == 'w' || modeStr[7] == 'w');
 
         if (entity is Directory) {
-          folders.add(FileItem(
-            path: entity.path,
-            name: name,
-            type: FileItemType.folder,
-            modified: stat.modified,
-            hasWritePermission: hasWrite,
-          ));
+          folders.add(
+            FileItem(
+              path: entity.path,
+              name: name,
+              type: FileItemType.folder,
+              modified: stat.modified,
+              hasWritePermission: hasWrite,
+            ),
+          );
         } else if (entity is File) {
           final type = classifyFileType(name);
           final isExec = modeStr.contains('x');
 
-          files.add(FileItem(
-            path: entity.path,
-            name: name,
-            type: type,
-            modified: stat.modified,
-            sizeBytes: stat.size,
-            isExecutable: isExec,
-            hasWritePermission: hasWrite,
-          ));
+          files.add(
+            FileItem(
+              path: entity.path,
+              name: name,
+              type: type,
+              modified: stat.modified,
+              sizeBytes: stat.size,
+              isExecutable: isExec,
+              hasWritePermission: hasWrite,
+            ),
+          );
         }
       }
     } catch (_) {
@@ -411,12 +546,12 @@ void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
         await destRaf!.close();
         sourceRaf = null;
         destRaf = null;
-        
+
         final partialFile = File(destPath);
         if (await partialFile.exists()) {
           await partialFile.delete();
         }
-        
+
         mainSendPort.send({'status': 'cancelled', 'taskId': taskId});
         return;
       }
@@ -447,7 +582,7 @@ void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
     });
 
     mainSendPort.send({'status': 'syncing', 'taskId': taskId});
-    
+
     await destRaf!.flush();
     await destRaf!.close();
     await sourceRaf!.close();

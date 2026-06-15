@@ -78,7 +78,10 @@ class GalleryDlEngine extends DownloadEngine {
   @override
   Future<String?> getLatestVersion() async {
     try {
-      final res = await Process.run('curl', ['-s', 'https://codeberg.org/api/v1/repos/mikf/gallery-dl/releases/latest']);
+      final res = await Process.run('curl', [
+        '-s',
+        'https://codeberg.org/api/v1/repos/mikf/gallery-dl/releases/latest',
+      ]);
       if (res.exitCode == 0) {
         final json = jsonDecode(res.stdout as String);
         return json['tag_name']?.toString().replaceFirst('v', '');
@@ -91,7 +94,9 @@ class GalleryDlEngine extends DownloadEngine {
   @visibleForTesting
   bool isSocialProfile(String url) {
     if (url.contains('instagram.com')) {
-      return !url.contains('/p/') && !url.contains('/reel/') && !url.contains('/tv/');
+      return !url.contains('/p/') &&
+          !url.contains('/reel/') &&
+          !url.contains('/tv/');
     }
     if (url.contains('twitter.com') || url.contains('x.com')) {
       return !url.contains('/status/');
@@ -100,7 +105,9 @@ class GalleryDlEngine extends DownloadEngine {
       return !url.contains('/comments/') && !url.contains('/gallery/');
     }
     if (url.contains('facebook.com')) {
-      return !url.contains('/posts/') && !url.contains('/videos/') && !url.contains('/watch/');
+      return !url.contains('/posts/') &&
+          !url.contains('/videos/') &&
+          !url.contains('/watch/');
     }
     if (url.contains('threads.net')) {
       return !url.contains('/post/');
@@ -132,9 +139,12 @@ class GalleryDlEngine extends DownloadEngine {
     void Function(MediaInfo info)? onProgress,
     void Function(int pid)? onProcessStarted,
   }) async {
-    if ((url.contains('twitter.com') || url.contains('x.com')) && isSocialProfile(url)) {
+    if ((url.contains('twitter.com') || url.contains('x.com')) &&
+        isSocialProfile(url)) {
       final uri = Uri.tryParse(url);
-      if (uri != null && uri.pathSegments.isNotEmpty && uri.pathSegments.length == 1) {
+      if (uri != null &&
+          uri.pathSegments.isNotEmpty &&
+          uri.pathSegments.length == 1) {
         url = url.endsWith('/') ? '${url}media' : '$url/media';
       }
     }
@@ -150,7 +160,11 @@ class GalleryDlEngine extends DownloadEngine {
     // Try Instagram API shortcut for profiles (only if not deep fetching)
     if (url.contains('instagram.com') && isSocialProfileVar && !fetchDeep) {
       try {
-        final profileInfos = await fetchInstagramProfile(url, actualBrowser, fetchDeep: fetchDeep);
+        final profileInfos = await fetchInstagramProfile(
+          url,
+          actualBrowser,
+          fetchDeep: fetchDeep,
+        );
         if (profileInfos != null) return profileInfos;
       } catch (e) {
         debugPrint('Instagram API fallback failed: $e, trying gallery-dl...');
@@ -168,7 +182,7 @@ class GalleryDlEngine extends DownloadEngine {
     }
 
     args.add('-q'); // Suppress logs in stdout to prevent JSON parser corruption
-    
+
     if (isSocialProfileVar) {
       if (fetchDeep) {
         args.addAll(['-J', url]);
@@ -191,7 +205,7 @@ class GalleryDlEngine extends DownloadEngine {
     Future<List<MediaInfo>> processOutput() async {
       final parsedInfos = <MediaInfo>[];
       final extractionErrors = <String>[];
-      
+
       final stderrBuffer = StringBuffer();
       final hydrationLogsBuffer = StringBuffer();
       process.stderr.transform(utf8.decoder).listen((data) {
@@ -200,13 +214,15 @@ class GalleryDlEngine extends DownloadEngine {
       });
 
       if (onProgress != null) {
-        onProgress(MediaInfo(
-          id: 'hydration_loading',
-          title: 'Fetching...',
-          originalUrl: url,
-          fetchLogs: 'Waiting for output...',
-          isVideo: false,
-        ));
+        onProgress(
+          MediaInfo(
+            id: 'hydration_loading',
+            title: 'Fetching...',
+            originalUrl: url,
+            fetchLogs: 'Waiting for output...',
+            isVideo: false,
+          ),
+        );
       }
 
       // Streaming JSON state machine for gallery-dl output
@@ -228,7 +244,8 @@ class GalleryDlEngine extends DownloadEngine {
           if (!initialized) {
             // 32 = space, 9 = tab, 10 = LF, 13 = CR
             if (c == 32 || c == 9 || c == 10 || c == 13) continue;
-            if (c == 91) { // '['
+            if (c == 91) {
+              // '['
               isOuterArray = true;
               bracketCount = 1;
               initialized = true;
@@ -243,18 +260,21 @@ class GalleryDlEngine extends DownloadEngine {
             if (tracking) currentBlock.writeCharCode(c);
             continue;
           }
-          if (c == 92) { // '\'
+          if (c == 92) {
+            // '\'
             escape = true;
             if (tracking) currentBlock.writeCharCode(c);
             continue;
           }
-          if (c == 34) { // '"'
+          if (c == 34) {
+            // '"'
             inString = !inString;
             if (tracking) currentBlock.writeCharCode(c);
             continue;
           }
           if (!inString) {
-            if (c == 123 || c == 91) { // '{' or '['
+            if (c == 123 || c == 91) {
+              // '{' or '['
               if (!tracking) {
                 if ((isOuterArray && bracketCount == 1 && braceCount == 0) ||
                     (!isOuterArray && bracketCount == 0 && braceCount == 0)) {
@@ -264,7 +284,8 @@ class GalleryDlEngine extends DownloadEngine {
               }
               if (c == 123) braceCount++;
               if (c == 91) bracketCount++;
-            } else if (c == 125 || c == 93) { // '}' or ']'
+            } else if (c == 125 || c == 93) {
+              // '}' or ']'
               if (c == 125) braceCount--;
               if (c == 93) bracketCount--;
             }
@@ -311,20 +332,24 @@ class GalleryDlEngine extends DownloadEngine {
               }
 
               for (var info in infos) {
-                final fileUrlFormat = info.formats.where((f) => f.formatId == 'original').firstOrNull;
+                final fileUrlFormat = info.formats
+                    .where((f) => f.formatId == 'original')
+                    .firstOrNull;
                 final currentFileUrl = fileUrlFormat?.formatString;
-                
+
                 bool isDuplicate = false;
                 if (currentFileUrl != null) {
                   for (final existing in parsedInfos) {
-                    final existingUrlFormat = existing.formats.where((f) => f.formatId == 'original').firstOrNull;
+                    final existingUrlFormat = existing.formats
+                        .where((f) => f.formatId == 'original')
+                        .firstOrNull;
                     if (existingUrlFormat?.formatString == currentFileUrl) {
                       isDuplicate = true;
                       break;
                     }
                   }
                 }
-                
+
                 if (isDuplicate) continue;
 
                 if (!info.isProfile) {
@@ -337,15 +362,24 @@ class GalleryDlEngine extends DownloadEngine {
                     id: '${info.id}_${parsedInfos.length + 1}',
                   );
                 }
-                
-                hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
+
+                hydrationLogsBuffer.writeln(
+                  'Successfully fetched metadata for: "${info.title}"\n',
+                );
                 String currentLogs = hydrationLogsBuffer.toString();
                 if (stderrBuffer.isNotEmpty) {
-                  final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
-                  currentLogs += '\n\n--- gallery-dl Raw Logs ---\n$formattedErrors';
+                  final formattedErrors = stderrBuffer
+                      .toString()
+                      .trim()
+                      .split('\n')
+                      .map((e) => e.trim())
+                      .where((e) => e.isNotEmpty)
+                      .join('\n\n');
+                  currentLogs +=
+                      '\n\n--- gallery-dl Raw Logs ---\n$formattedErrors';
                 }
                 info = info.copyWith(fetchLogs: currentLogs.trim());
-                
+
                 parsedInfos.add(info);
                 onProgress?.call(info);
               }
@@ -372,17 +406,27 @@ class GalleryDlEngine extends DownloadEngine {
       if (!fetchDeep && isSocialProfileVar) {
         parsedInfos.removeWhere((info) => !info.isProfile);
       }
-      
+
       String combinedLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
-        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        final formattedErrors = stderrBuffer
+            .toString()
+            .trim()
+            .split('\n')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .join('\n\n');
         combinedLogs += '\n\n--- gallery-dl Raw Logs ---\n$formattedErrors';
       }
-      return parsedInfos.map((i) => i.copyWith(fetchLogs: combinedLogs.trim())).toList();
+      return parsedInfos
+          .map((i) => i.copyWith(fetchLogs: combinedLogs.trim()))
+          .toList();
     }
 
     try {
-      final timeoutDuration = fetchDeep ? const Duration(minutes: 30) : const Duration(minutes: 3);
+      final timeoutDuration = fetchDeep
+          ? const Duration(minutes: 30)
+          : const Duration(minutes: 3);
       return await processOutput().timeout(timeoutDuration);
     } on TimeoutException {
       ProcessUtils.killProcessTreeSync(process.pid);
@@ -411,9 +455,12 @@ class GalleryDlEngine extends DownloadEngine {
     String? singleItemId,
     String? directUrl,
   }) async {
-    if ((url.contains('twitter.com') || url.contains('x.com')) && isSocialProfile(url)) {
+    if ((url.contains('twitter.com') || url.contains('x.com')) &&
+        isSocialProfile(url)) {
       final uri = Uri.tryParse(url);
-      if (uri != null && uri.pathSegments.isNotEmpty && uri.pathSegments.length == 1) {
+      if (uri != null &&
+          uri.pathSegments.isNotEmpty &&
+          uri.pathSegments.length == 1) {
         url = url.endsWith('/') ? '${url}media' : '$url/media';
       }
     }
@@ -474,7 +521,11 @@ class GalleryDlEngine extends DownloadEngine {
   // ——— Private helpers ———
 
   @visibleForTesting
-  Future<List<MediaInfo>?> fetchInstagramProfile(String url, String? browser, {bool fetchDeep = false}) async {
+  Future<List<MediaInfo>?> fetchInstagramProfile(
+    String url,
+    String? browser, {
+    bool fetchDeep = false,
+  }) async {
     final uri = Uri.parse(url);
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) {
@@ -537,33 +588,48 @@ class GalleryDlEngine extends DownloadEngine {
         final List<MediaInfo> results = [profileInfo];
 
         if (fetchDeep) {
-          final edges = user['edge_owner_to_timeline_media']?['edges'] as List<dynamic>? ?? [];
+          final edges =
+              user['edge_owner_to_timeline_media']?['edges']
+                  as List<dynamic>? ??
+              [];
           for (final edge in edges) {
             final node = edge['node'] as Map<String, dynamic>?;
             if (node == null) continue;
 
             final isVideo = node['is_video'] == true;
             final shortcode = node['shortcode']?.toString() ?? '';
-            final itemUrl = shortcode.isNotEmpty ? 'https://www.instagram.com/p/$shortcode/' : url;
-            
+            final itemUrl = shortcode.isNotEmpty
+                ? 'https://www.instagram.com/p/$shortcode/'
+                : url;
+
             String itemTitle = title; // default to profile title
-            final captionEdges = node['edge_media_to_caption']?['edges'] as List<dynamic>? ?? [];
+            final captionEdges =
+                node['edge_media_to_caption']?['edges'] as List<dynamic>? ?? [];
             if (captionEdges.isNotEmpty) {
-              itemTitle = captionEdges.first['node']?['text']?.toString() ?? itemTitle;
+              itemTitle =
+                  captionEdges.first['node']?['text']?.toString() ?? itemTitle;
             }
 
-            results.add(MediaInfo(
-              id: node['id']?.toString() ?? shortcode,
-              title: itemTitle,
-              thumbnail: node['display_url']?.toString() ?? node['thumbnail_src']?.toString(),
-              extractor: 'instagram',
-              isVideo: isVideo,
-              originalUrl: itemUrl,
-              directUrl: node['video_url']?.toString() ?? node['display_url']?.toString(),
-              width: node['dimensions']?['width'] as int?,
-              height: node['dimensions']?['height'] as int?,
-              duration: node['video_duration'] != null ? (node['video_duration'] as num).toInt() : null,
-            ));
+            results.add(
+              MediaInfo(
+                id: node['id']?.toString() ?? shortcode,
+                title: itemTitle,
+                thumbnail:
+                    node['display_url']?.toString() ??
+                    node['thumbnail_src']?.toString(),
+                extractor: 'instagram',
+                isVideo: isVideo,
+                originalUrl: itemUrl,
+                directUrl:
+                    node['video_url']?.toString() ??
+                    node['display_url']?.toString(),
+                width: node['dimensions']?['width'] as int?,
+                height: node['dimensions']?['height'] as int?,
+                duration: node['video_duration'] != null
+                    ? (node['video_duration'] as num).toInt()
+                    : null,
+              ),
+            );
           }
         }
 
@@ -635,59 +701,91 @@ class GalleryDlEngine extends DownloadEngine {
                 }
               }
 
-                // Try to extract Reddit fallback_url for videos to avoid m3u8/dash playlists
-                if (sharedMeta['media'] is Map && sharedMeta['media']['reddit_video'] is Map && sharedMeta['media']['reddit_video']['fallback_url'] != null) {
-                  fileUrl = sharedMeta['media']['reddit_video']['fallback_url'].toString();
-                } else if (sharedMeta['secure_media'] is Map && sharedMeta['secure_media']['reddit_video'] is Map && sharedMeta['secure_media']['reddit_video']['fallback_url'] != null) {
-                  fileUrl = sharedMeta['secure_media']['reddit_video']['fallback_url'].toString();
-                } else if (sharedMeta['preview'] is Map && sharedMeta['preview']['reddit_video_preview'] is Map && sharedMeta['preview']['reddit_video_preview']['fallback_url'] != null) {
-                  fileUrl = sharedMeta['preview']['reddit_video_preview']['fallback_url'].toString();
-                }
+              // Try to extract Reddit fallback_url for videos to avoid m3u8/dash playlists
+              if (sharedMeta['media'] is Map &&
+                  sharedMeta['media']['reddit_video'] is Map &&
+                  sharedMeta['media']['reddit_video']['fallback_url'] != null) {
+                fileUrl = sharedMeta['media']['reddit_video']['fallback_url']
+                    .toString();
+              } else if (sharedMeta['secure_media'] is Map &&
+                  sharedMeta['secure_media']['reddit_video'] is Map &&
+                  sharedMeta['secure_media']['reddit_video']['fallback_url'] !=
+                      null) {
+                fileUrl =
+                    sharedMeta['secure_media']['reddit_video']['fallback_url']
+                        .toString();
+              } else if (sharedMeta['preview'] is Map &&
+                  sharedMeta['preview']['reddit_video_preview'] is Map &&
+                  sharedMeta['preview']['reddit_video_preview']['fallback_url'] !=
+                      null) {
+                fileUrl =
+                    sharedMeta['preview']['reddit_video_preview']['fallback_url']
+                        .toString();
+              }
 
-                if (fileUrl == null &&
-                    sharedMeta['video_url'] != null &&
-                    (sharedMeta['video_url'].toString().startsWith('http') || sharedMeta['video_url'].toString().startsWith('ytdl:'))) {
-                  fileUrl = sharedMeta['video_url'] as String;
-                } else if (fileUrl == null) {
-                  final urlIndex = event.indexWhere(
-                    (e) => e is String && (e.startsWith('http') || e.startsWith('ytdl:')),
-                  );
-                  if (urlIndex != -1) {
-                    fileUrl = event[urlIndex] as String;
-                  }
+              if (fileUrl == null &&
+                  sharedMeta['video_url'] != null &&
+                  (sharedMeta['video_url'].toString().startsWith('http') ||
+                      sharedMeta['video_url'].toString().startsWith('ytdl:'))) {
+                fileUrl = sharedMeta['video_url'] as String;
+              } else if (fileUrl == null) {
+                final urlIndex = event.indexWhere(
+                  (e) =>
+                      e is String &&
+                      (e.startsWith('http') || e.startsWith('ytdl:')),
+                );
+                if (urlIndex != -1) {
+                  fileUrl = event[urlIndex] as String;
                 }
-                
-                if (fileUrl != null && fileUrl.startsWith('ytdl:')) {
-                  fileUrl = fileUrl.replaceFirst('ytdl:', '');
-                }
-                
-                if (fileUrl == null && sharedMeta['url'] != null && sharedMeta['url'].toString().startsWith('http')) {
-                  fileUrl = sharedMeta['url'] as String;
-                }
+              }
+
+              if (fileUrl != null && fileUrl.startsWith('ytdl:')) {
+                fileUrl = fileUrl.replaceFirst('ytdl:', '');
+              }
+
+              if (fileUrl == null &&
+                  sharedMeta['url'] != null &&
+                  sharedMeta['url'].toString().startsWith('http')) {
+                fileUrl = sharedMeta['url'] as String;
+              }
 
               String? title;
               if (sharedMeta['subreddit'] != null) {
                 final sub = sharedMeta['subreddit'].toString();
                 final author = sharedMeta['author']?.toString() ?? 'unknown';
-                final postTitle = sharedMeta['title']?.toString() ?? sharedMeta['description']?.toString() ?? 'Post';
+                final postTitle =
+                    sharedMeta['title']?.toString() ??
+                    sharedMeta['description']?.toString() ??
+                    'Post';
                 title = 'r/$sub - $postTitle (@$author)';
               } else {
-                title = sharedMeta['title']?.toString() ?? sharedMeta['description']?.toString();
+                title =
+                    sharedMeta['title']?.toString() ??
+                    sharedMeta['description']?.toString();
               }
               if (title == null || title.isEmpty) title = 'Item';
 
               String? itemUrl;
               if (sharedMeta['shortcode'] != null) {
-                itemUrl = 'https://www.instagram.com/p/${sharedMeta['shortcode']}/';
+                itemUrl =
+                    'https://www.instagram.com/p/${sharedMeta['shortcode']}/';
                 if (!isSocialProfile && fileCount > 0) {
                   itemUrl += '?img_index=$fileCount';
                 }
               } else if (sharedMeta['tweet_id'] != null) {
-                final author = (sharedMeta['user'] is Map ? sharedMeta['user']['screen_name'] : null) ?? 
-                               (sharedMeta['author'] is Map ? sharedMeta['author']['name'] : null) ?? 
-                               sharedMeta['author']?.toString() ?? 'i';
-                itemUrl = 'https://x.com/$author/status/${sharedMeta['tweet_id']}';
-              } else if (sharedMeta['permalink'] != null && sharedMeta['permalink'].toString().startsWith('/r/')) {
+                final author =
+                    (sharedMeta['user'] is Map
+                        ? sharedMeta['user']['screen_name']
+                        : null) ??
+                    (sharedMeta['author'] is Map
+                        ? sharedMeta['author']['name']
+                        : null) ??
+                    sharedMeta['author']?.toString() ??
+                    'i';
+                itemUrl =
+                    'https://x.com/$author/status/${sharedMeta['tweet_id']}';
+              } else if (sharedMeta['permalink'] != null &&
+                  sharedMeta['permalink'].toString().startsWith('/r/')) {
                 itemUrl = 'https://www.reddit.com${sharedMeta['permalink']}';
               } else if (sharedMeta['post_url'] != null) {
                 itemUrl = sharedMeta['post_url'].toString();
@@ -695,34 +793,63 @@ class GalleryDlEngine extends DownloadEngine {
 
               String? thumb = sharedMeta['thumbnail']?.toString();
               if (thumb != null && !thumb.startsWith('http')) {
-                thumb = null; // Ignore invalid thumbnails like "self", "default", "nsfw"
+                thumb =
+                    null; // Ignore invalid thumbnails like "self", "default", "nsfw"
               }
               if (thumb == null && sharedMeta['preview'] is Map) {
                 try {
                   final images = sharedMeta['preview']['images'] as List;
                   if (images.isNotEmpty) {
-                    thumb = images.first['source']['url'].toString().replaceAll('&amp;', '&');
+                    thumb = images.first['source']['url'].toString().replaceAll(
+                      '&amp;',
+                      '&',
+                    );
                   }
                 } catch (_) {}
               }
               thumb ??= sharedMeta['display_url']?.toString();
-              if (thumb == null && fileUrl != null && !fileUrl.contains('.mp4') && !fileUrl.contains('.webm') && !fileUrl.contains('.mkv')) {
+              if (thumb == null &&
+                  fileUrl != null &&
+                  !fileUrl.contains('.mp4') &&
+                  !fileUrl.contains('.webm') &&
+                  !fileUrl.contains('.mkv')) {
                 thumb = fileUrl;
               }
 
               bool isVid = false;
-              if (sharedMeta['is_video'] == true || sharedMeta['is_video'] == 'true' || 
-                  sharedMeta['video'] == true || sharedMeta['video'] == 'true' || 
-                  sharedMeta['type'] == 'video' || sharedMeta['vcodec'] != null ||
+              if (sharedMeta['is_video'] == true ||
+                  sharedMeta['is_video'] == 'true' ||
+                  sharedMeta['video'] == true ||
+                  sharedMeta['video'] == 'true' ||
+                  sharedMeta['type'] == 'video' ||
+                  sharedMeta['vcodec'] != null ||
                   sharedMeta['video_url'] != null ||
-                  (sharedMeta['media'] is Map && sharedMeta['media']['reddit_video'] != null) ||
-                  (sharedMeta['preview'] is Map && sharedMeta['preview']['reddit_video_preview'] != null) ||
-                  (sharedMeta['secure_media'] is Map && sharedMeta['secure_media']['reddit_video'] != null)) {
+                  (sharedMeta['media'] is Map &&
+                      sharedMeta['media']['reddit_video'] != null) ||
+                  (sharedMeta['preview'] is Map &&
+                      sharedMeta['preview']['reddit_video_preview'] != null) ||
+                  (sharedMeta['secure_media'] is Map &&
+                      sharedMeta['secure_media']['reddit_video'] != null)) {
                 isVid = true;
               }
               if (fileUrl != null) {
-                final ext = fileUrl.split('?').first.split('.').last.toLowerCase();
-                if (['mp4', 'webm', 'mkv', 'mov', 'avi', 'm3u8', 'mpd', 'gifv', 'ts'].contains(ext)) {
+                final ext = fileUrl
+                    .split('?')
+                    .first
+                    .split('.')
+                    .last
+                    .toLowerCase();
+                if ([
+                  'mp4',
+                  'webm',
+                  'mkv',
+                  'mov',
+                  'avi',
+                  'm3u8',
+                  'mpd',
+                  'gifv',
+                  'ts',
+                ].contains(ext)) {
                   isVid = true;
                 }
                 if (fileUrl.contains('v.redd.it')) {
@@ -730,7 +857,10 @@ class GalleryDlEngine extends DownloadEngine {
                 }
               }
 
-              final parsedJsonInfo = MediaInfo.fromJson(sharedMeta, originalUrl: url);
+              final parsedJsonInfo = MediaInfo.fromJson(
+                sharedMeta,
+                originalUrl: url,
+              );
 
               // Determine the canonical originalUrl for grouping:
               // - Instagram carousels: always use the base input `url` (stripped
@@ -779,14 +909,27 @@ class GalleryDlEngine extends DownloadEngine {
           }
         }
 
-        bool hasProfileData = sharedMeta.containsKey('user') || sharedMeta.containsKey('username') || (sharedMeta['subcategory'] == 'user' && sharedMeta['category'] == 'instagram');
-        if (isSocialProfile && sharedMeta.isNotEmpty && existingCount == 0 && (fileCount > 0 || hasProfileData)) {
+        bool hasProfileData =
+            sharedMeta.containsKey('user') ||
+            sharedMeta.containsKey('username') ||
+            (sharedMeta['subcategory'] == 'user' &&
+                sharedMeta['category'] == 'instagram');
+        if (isSocialProfile &&
+            sharedMeta.isNotEmpty &&
+            existingCount == 0 &&
+            (fileCount > 0 || hasProfileData)) {
           String title = '';
           String? profilePic;
           final userMeta = sharedMeta['user'] as Map<String, dynamic>?;
           if (userMeta != null) {
-            final fn = userMeta['full_name']?.toString() ?? userMeta['nick']?.toString() ?? '';
-            final un = userMeta['username']?.toString() ?? userMeta['name']?.toString() ?? '';
+            final fn =
+                userMeta['full_name']?.toString() ??
+                userMeta['nick']?.toString() ??
+                '';
+            final un =
+                userMeta['username']?.toString() ??
+                userMeta['name']?.toString() ??
+                '';
             if (un.isNotEmpty) {
               title = fn.isNotEmpty ? '$fn (@$un)' : '@$un';
             }
@@ -798,12 +941,16 @@ class GalleryDlEngine extends DownloadEngine {
           if (title.isEmpty) {
             if (url.contains('reddit.com/user/')) {
               final uri = Uri.tryParse(url);
-              if (uri != null && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'user') {
+              if (uri != null &&
+                  uri.pathSegments.length >= 2 &&
+                  uri.pathSegments[0] == 'user') {
                 title = '@${uri.pathSegments[1]}';
               }
             } else if (url.contains('reddit.com/r/')) {
               final uri = Uri.tryParse(url);
-              if (uri != null && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'r') {
+              if (uri != null &&
+                  uri.pathSegments.length >= 2 &&
+                  uri.pathSegments[0] == 'r') {
                 title = 'r/${uri.pathSegments[1]}';
               }
             } else if (url.contains('instagram.com/')) {
@@ -815,14 +962,21 @@ class GalleryDlEngine extends DownloadEngine {
             if (title.isEmpty && sharedMeta['author'] != null) {
               final author = sharedMeta['author'];
               if (author is Map) {
-                final fn = author['full_name']?.toString() ?? author['nick']?.toString() ?? '';
-                final un = author['username']?.toString() ?? author['name']?.toString() ?? '';
+                final fn =
+                    author['full_name']?.toString() ??
+                    author['nick']?.toString() ??
+                    '';
+                final un =
+                    author['username']?.toString() ??
+                    author['name']?.toString() ??
+                    '';
                 if (un.isNotEmpty) {
                   title = fn.isNotEmpty ? '$fn (@$un)' : '@$un';
                 }
-                profilePic ??= author['profile_pic_url_hd']?.toString() ??
-                               author['profile_pic_url']?.toString() ??
-                               author['profile_image']?.toString();
+                profilePic ??=
+                    author['profile_pic_url_hd']?.toString() ??
+                    author['profile_pic_url']?.toString() ??
+                    author['profile_image']?.toString();
               } else {
                 title = '@$author';
               }

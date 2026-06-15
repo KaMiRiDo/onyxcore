@@ -22,17 +22,23 @@ class AudioTagEditorDialog extends ConsumerStatefulWidget {
 
   const AudioTagEditorDialog({super.key, required this.paths, this.onRename});
 
-  static Future<void> show(BuildContext context, List<String> paths, {Function(String, String)? onRename}) {
+  static Future<void> show(
+    BuildContext context,
+    List<String> paths, {
+    Function(String, String)? onRename,
+  }) {
     return showDialog(
       context: context,
       barrierColor: Colors.black.withAlpha(179),
       barrierDismissible: false,
-      builder: (context) => AudioTagEditorDialog(paths: paths, onRename: onRename),
+      builder: (context) =>
+          AudioTagEditorDialog(paths: paths, onRename: onRename),
     );
   }
 
   @override
-  ConsumerState<AudioTagEditorDialog> createState() => _AudioTagEditorDialogState();
+  ConsumerState<AudioTagEditorDialog> createState() =>
+      _AudioTagEditorDialogState();
 }
 
 enum BulkRenameMode { baseName, prefix }
@@ -87,7 +93,9 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
       final tag = await AudioMetadataUtils.readTags(widget.paths.first);
       if (tag != null) {
         _initialTag = tag;
-        _titleController.text = tag.title?.isNotEmpty == true ? tag.title! : p.basenameWithoutExtension(widget.paths.first);
+        _titleController.text = tag.title?.isNotEmpty == true
+            ? tag.title!
+            : p.basenameWithoutExtension(widget.paths.first);
         _artistController.text = tag.trackArtist ?? tag.albumArtist ?? '';
         _albumController.text = tag.album ?? '';
         _genreController.text = tag.genre ?? '';
@@ -103,7 +111,9 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           commonPrefix = basename;
         } else {
           int i = 0;
-          while (i < commonPrefix.length && i < basename.length && commonPrefix[i] == basename[i]) {
+          while (i < commonPrefix.length &&
+              i < basename.length &&
+              commonPrefix[i] == basename[i]) {
             i++;
           }
           commonPrefix = commonPrefix.substring(0, i);
@@ -113,7 +123,9 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
         _commonPrefix = commonPrefix;
         _bulkRenameController.text = commonPrefix;
       }
-      _bulkRenameController.selection = const TextSelection.collapsed(offset: 0);
+      _bulkRenameController.selection = const TextSelection.collapsed(
+        offset: 0,
+      );
     }
     if (mounted) {
       setState(() {
@@ -159,19 +171,22 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
     }
   }
 
-
   void _save() {
     final title = _titleController.text.trim();
     final artist = _artistController.text.trim();
     final album = _albumController.text.trim();
     final genre = _genreController.text.trim();
 
-    final taskId = ref.read(taskProvider.notifier).addTask(
-      title: 'Updating Audio Tags',
-      subtitle: widget.paths.length == 1 ? p.basename(widget.paths.first) : '${widget.paths.length} items',
-      totalCount: widget.paths.length,
-      isLight: false, // Make it heavy so it respects concurrency limit
-    );
+    final taskId = ref
+        .read(taskProvider.notifier)
+        .addTask(
+          title: 'Updating Audio Tags',
+          subtitle: widget.paths.length == 1
+              ? p.basename(widget.paths.first)
+              : '${widget.paths.length} items',
+          totalCount: widget.paths.length,
+          isLight: false, // Make it heavy so it respects concurrency limit
+        );
 
     // Capture the ProviderContainer before the widget unmounts
     final container = ProviderScope.containerOf(context);
@@ -195,7 +210,8 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
       if (notifier.isTaskCancelled(taskId)) return;
 
       try {
-        final oldTag = await AudioMetadataUtils.readTags(path) ?? const Tag(pictures: []);
+        final oldTag =
+            await AudioMetadataUtils.readTags(path) ?? const Tag(pictures: []);
 
         List<Picture> newPictures = oldTag.pictures;
         if (_newCoverArt != null) {
@@ -204,14 +220,16 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
               bytes: _newCoverArt!,
               mimeType: MimeType.jpeg,
               pictureType: PictureType.coverFront,
-            )
+            ),
           ];
         } else if (_clearCoverArt) {
           newPictures = [];
         }
 
         final newTag = Tag(
-          title: widget.paths.length == 1 && title.isNotEmpty ? title : oldTag.title,
+          title: widget.paths.length == 1 && title.isNotEmpty
+              ? title
+              : oldTag.title,
           trackArtist: artist.isNotEmpty ? artist : oldTag.trackArtist,
           album: album.isNotEmpty ? album : oldTag.album,
           genre: genre.isNotEmpty ? genre : oldTag.genre,
@@ -228,7 +246,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
         );
 
         await AudioMetadataUtils.writeTags(path, newTag);
-        
+
         if (_newCoverArt != null || _clearCoverArt) {
           try {
             final repo = container.read(settingsRepositoryProvider);
@@ -258,14 +276,17 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
             }
 
             final currentQueue = container.read(audioQueueProvider);
-            container.read(audioQueueProvider.notifier).state = currentQueue.map<FileItem>(clearThumb).toList();
+            container.read(audioQueueProvider.notifier).state = currentQueue
+                .map<FileItem>(clearThumb)
+                .toList();
 
             final playingQueue = container.read(audioPlayingQueueProvider);
-            container.read(audioPlayingQueueProvider.notifier).state = playingQueue.map<FileItem>(clearThumb).toList();
+            container.read(audioPlayingQueueProvider.notifier).state =
+                playingQueue.map<FileItem>(clearThumb).toList();
           } catch (_) {}
         }
 
-        // Note: We deliberately do NOT call imageCache.clear() here because it would abort 
+        // Note: We deliberately do NOT call imageCache.clear() here because it would abort
         // the asynchronous image decodes of files that were updated in previous iterations!
 
         // Determine the ultimate path
@@ -275,7 +296,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           final dir = p.dirname(path);
           final ext = p.extension(path);
           final newPath = p.join(dir, '$title$ext');
-          
+
           if (path != newPath) {
             try {
               await File(path).rename(newPath);
@@ -284,14 +305,17 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
                 widget.onRename!(path, newPath);
               }
             } catch (e) {
-              notifier.addLog(taskId, 'Error renaming ${p.basename(path)} to $title$ext: $e');
+              notifier.addLog(
+                taskId,
+                'Error renaming ${p.basename(path)} to $title$ext: $e',
+              );
             }
           }
         } else if (widget.paths.length > 1) {
           final dir = p.dirname(path);
           final ext = p.extension(path);
           final renameValue = _bulkRenameController.text.trim();
-          
+
           String newFileName = p.basenameWithoutExtension(path);
           if (_renameMode == BulkRenameMode.baseName) {
             if (renameValue.isNotEmpty) {
@@ -300,13 +324,15 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
             }
           } else {
             final basename = p.basenameWithoutExtension(path);
-            if (_commonPrefix.isNotEmpty && basename.startsWith(_commonPrefix)) {
-              newFileName = '$renameValue${basename.substring(_commonPrefix.length)}';
+            if (_commonPrefix.isNotEmpty &&
+                basename.startsWith(_commonPrefix)) {
+              newFileName =
+                  '$renameValue${basename.substring(_commonPrefix.length)}';
             } else {
               newFileName = '$renameValue$basename';
             }
           }
-          
+
           final newPath = p.join(dir, '$newFileName$ext');
           if (path != newPath) {
             try {
@@ -316,19 +342,24 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
                 widget.onRename!(path, newPath);
               }
             } catch (e) {
-              notifier.addLog(taskId, 'Error renaming ${p.basename(path)} to $newFileName$ext: $e');
+              notifier.addLog(
+                taskId,
+                'Error renaming ${p.basename(path)} to $newFileName$ext: $e',
+              );
             }
           }
         }
 
         // Force the UI to instantly reflect the new tag data by bypassing the native disk read cache
         // Uses ultimatePath because if the file was renamed, we need to populate the cache for the NEW path
-        container.read(audioTagsOverridesProvider(ultimatePath).notifier).state = newTag;
+        container
+                .read(audioTagsOverridesProvider(ultimatePath).notifier)
+                .state =
+            newTag;
 
         // Yield to the event loop so the UI can redraw this specific tile instantly
         // and Flutter can process its image decode queue sequentially without starvation.
         await Future.delayed(const Duration(milliseconds: 20));
-
       } catch (e) {
         notifier.addLog(taskId, 'Error on ${p.basename(path)}: $e');
       }
@@ -380,74 +411,81 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
       child: Center(
         child: Material(
           type: MaterialType.transparency,
-        child: Container(
-          width: 500,
-          decoration: BoxDecoration(
-            color: const Color(0xFF161616).withOpacity(0.98),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.6),
-                blurRadius: 40,
-                offset: const Offset(0, 20),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(context),
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.violet),
-                  ),
-                )
-              else
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildCoverArtSection(),
-                        const SizedBox(height: 24),
-                        if (widget.paths.length == 1) ...[
-                          _buildTextField('Title', _titleController, focusNode: _primaryFocusNode),
+          child: Container(
+            width: 500,
+            decoration: BoxDecoration(
+              color: const Color(0xFF161616).withOpacity(0.98),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.6),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(context),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(
+                      child: CircularProgressIndicator(color: AppColors.violet),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 20,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildCoverArtSection(),
+                          const SizedBox(height: 24),
+                          if (widget.paths.length == 1) ...[
+                            _buildTextField(
+                              'Title',
+                              _titleController,
+                              focusNode: _primaryFocusNode,
+                            ),
+                            const SizedBox(height: 16),
+                          ] else ...[
+                            _buildBulkRenameSection(),
+                            const SizedBox(height: 16),
+                          ],
+                          _buildTextField('Artist', _artistController),
                           const SizedBox(height: 16),
-                        ] else ...[
-                          _buildBulkRenameSection(),
+                          _buildTextField('Album', _albumController),
                           const SizedBox(height: 16),
-                        ],
-                        _buildTextField('Artist', _artistController),
-                        const SizedBox(height: 16),
-                        _buildTextField('Album', _albumController),
-                        const SizedBox(height: 16),
-                        _buildTextField('Genre', _genreController),
-                        if (widget.paths.length > 1)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 16),
-                            child: Text(
-                              'Fields left blank will not modify the existing tags of the selected files.',
-                              style: GoogleFonts.manrope(
-                                fontSize: 12,
-                                color: AppColors.textMuted,
-                                fontStyle: FontStyle.italic,
+                          _buildTextField('Genre', _genreController),
+                          if (widget.paths.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Text(
+                                'Fields left blank will not modify the existing tags of the selected files.',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              _buildFooter(context),
-            ],
+                _buildFooter(context),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -456,13 +494,17 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            widget.paths.length == 1 ? 'EDIT TAGS' : 'BULK EDIT TAGS (${widget.paths.length})',
+            widget.paths.length == 1
+                ? 'EDIT TAGS'
+                : 'BULK EDIT TAGS (${widget.paths.length})',
             style: AppTheme.labelStyle.copyWith(
               letterSpacing: 2.0,
               fontSize: 14,
@@ -486,8 +528,12 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
     ImageProvider? imageProvider;
     if (_newCoverArt != null) {
       imageProvider = MemoryImage(_newCoverArt!);
-    } else if (!_clearCoverArt && _initialTag?.pictures != null && _initialTag!.pictures.isNotEmpty) {
-      imageProvider = MemoryImage(Uint8List.fromList(_initialTag!.pictures.first.bytes));
+    } else if (!_clearCoverArt &&
+        _initialTag?.pictures != null &&
+        _initialTag!.pictures.isNotEmpty) {
+      imageProvider = MemoryImage(
+        Uint8List.fromList(_initialTag!.pictures.first.bytes),
+      );
     }
 
     return Center(
@@ -509,13 +555,22 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
               child: _isProcessingImage
                   ? const BubbleLoader(size: 60)
                   : _clearCoverArt
-                      ? const Icon(Icons.layers_clear_rounded, size: 60, color: Colors.redAccent)
-                      : imageProvider == null
-                          ? const Icon(Icons.music_note, size: 60, color: Colors.white24)
-                          : null,
+                  ? const Icon(
+                      Icons.layers_clear_rounded,
+                      size: 60,
+                      color: Colors.redAccent,
+                    )
+                  : imageProvider == null
+                  ? const Icon(
+                      Icons.music_note,
+                      size: 60,
+                      color: Colors.white24,
+                    )
+                  : null,
             ),
           ),
-          if ((imageProvider != null || widget.paths.length > 1) && !_isProcessingImage)
+          if ((imageProvider != null || widget.paths.length > 1) &&
+              !_isProcessingImage)
             Positioned(
               top: 4,
               right: 4,
@@ -524,13 +579,20 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
                 shape: const CircleBorder(),
                 child: IconButton(
                   icon: Icon(
-                    _clearCoverArt ? Icons.undo_rounded : Icons.delete_outline, 
-                    size: 16, 
+                    _clearCoverArt ? Icons.undo_rounded : Icons.delete_outline,
+                    size: 16,
                     color: _clearCoverArt ? Colors.white : Colors.redAccent,
                   ),
-                  tooltip: _clearCoverArt ? 'Undo Clear Covers' : (widget.paths.length > 1 ? 'Clear Covers for All' : 'Remove Cover'),
+                  tooltip: _clearCoverArt
+                      ? 'Undo Clear Covers'
+                      : (widget.paths.length > 1
+                            ? 'Clear Covers for All'
+                            : 'Remove Cover'),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
                   onPressed: () {
                     setState(() {
                       if (_clearCoverArt) {
@@ -552,9 +614,16 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
                 color: AppColors.violet,
                 shape: const CircleBorder(),
                 child: IconButton(
-                  icon: const Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white),
+                  icon: const Icon(
+                    Icons.camera_alt_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                   onPressed: _pickImage,
                 ),
               ),
@@ -564,7 +633,12 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool autofocus = false, FocusNode? focusNode}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    bool autofocus = false,
+    FocusNode? focusNode,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -589,7 +663,10 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.black.withOpacity(0.3),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
@@ -678,7 +755,12 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
       children: [
         Text(
           "PREVIEW",
-          style: GoogleFonts.manrope(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.2),
+          style: GoogleFonts.manrope(
+            color: Colors.white24,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -700,18 +782,29 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
                   Expanded(
                     child: Text(
                       item['original']!,
-                      style: GoogleFonts.manrope(color: Colors.white38, fontSize: 12),
+                      style: GoogleFonts.manrope(
+                        color: Colors.white38,
+                        fontSize: 12,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white12),
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: Colors.white12,
+                    ),
                   ),
                   Expanded(
                     child: Text(
                       item['new']!,
-                      style: GoogleFonts.manrope(color: AppColors.violet, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.manrope(
+                        color: AppColors.violet,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

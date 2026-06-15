@@ -38,12 +38,29 @@ import 'package:onyxcore/core/widgets/search_replace_overlay.dart';
 import 'package:onyxcore/features/document_viewer/utils/html_search_highlighter.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/line_numbers_painter.dart';
 
-class SaveIntent extends Intent { const SaveIntent(); }
-class DualPaneIntent extends Intent { const DualPaneIntent(); }
-class EditorModeIntent extends Intent { const EditorModeIntent(); }
-class CloseIntent extends Intent { const CloseIntent(); }
-class PreviewModeIntent extends Intent { const PreviewModeIntent(); }
-class SearchIntent extends Intent { const SearchIntent(); }
+class SaveIntent extends Intent {
+  const SaveIntent();
+}
+
+class DualPaneIntent extends Intent {
+  const DualPaneIntent();
+}
+
+class EditorModeIntent extends Intent {
+  const EditorModeIntent();
+}
+
+class CloseIntent extends Intent {
+  const CloseIntent();
+}
+
+class PreviewModeIntent extends Intent {
+  const PreviewModeIntent();
+}
+
+class SearchIntent extends Intent {
+  const SearchIntent();
+}
 
 class MarkdownPreviewWidget extends ConsumerStatefulWidget {
   const MarkdownPreviewWidget({
@@ -60,10 +77,12 @@ class MarkdownPreviewWidget extends ConsumerStatefulWidget {
   final bool isStandalone;
 
   @override
-  ConsumerState<MarkdownPreviewWidget> createState() => _MarkdownPreviewWidgetState();
+  ConsumerState<MarkdownPreviewWidget> createState() =>
+      _MarkdownPreviewWidgetState();
 }
 
-class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> with WindowListener {
+class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
+    with WindowListener {
   String _content = '';
   bool _isLoading = true;
   bool _isEditing = false;
@@ -71,7 +90,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   bool _isGlobalHudVisible = true;
   bool _hasChanges = false;
   bool _isDualPane = false;
-  final ValueNotifier<double> _editorWidthRatioNotifier = ValueNotifier<double>(0.5);
+  final ValueNotifier<double> _editorWidthRatioNotifier = ValueNotifier<double>(
+    0.5,
+  );
   bool _isSyncingScroll = false;
   bool _isSearchVisible = false;
   final FocusNode _focusNode = FocusNode();
@@ -97,8 +118,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   int _totalSearchMatches = 0;
   bool _searchCaseSensitive = false;
   bool _searchUseRegex = false;
-  
-  final ValueNotifier<_SearchPosition> _searchPosition = ValueNotifier(const _SearchPosition(top: 100.0, right: 16.0));
+
+  final ValueNotifier<_SearchPosition> _searchPosition = ValueNotifier(
+    const _SearchPosition(top: 100.0, right: 16.0),
+  );
 
   @override
   void initState() {
@@ -112,7 +135,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     _editorScrollController.addListener(_onEditorScroll);
     _scrollController.addListener(_onPreviewScroll);
     _loadFile();
-    
+
     final settings = ref.read(settingsProvider).value;
     if (settings != null) {
       _searchCaseSensitive = settings.documentSearchCaseSensitive;
@@ -124,20 +147,20 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     _editController.addListener(() {
       if (_editController.text == _lastText) return; // Ignore cursor movement
       _lastText = _editController.text;
-      
+
       if (_editController.text != _content && !_hasChanges) {
         setState(() => _hasChanges = true);
       } else if (_editController.text == _content && _hasChanges) {
         setState(() => _hasChanges = false);
       }
       _updateSearchMatches();
-      
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _lineNumbersRepaintNotifier.value++;
         }
       });
-      
+
       if (_isDualPane && mounted) {
         if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
         _debounceTimer = Timer(const Duration(milliseconds: 300), () {
@@ -152,7 +175,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
 
     KeyEventResult handleKeyEvent(FocusNode node, KeyEvent event) {
       if (event is KeyDownEvent) {
-        final isCtrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+        final isCtrl =
+            HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed;
         final isShift = HardwareKeyboard.instance.isShiftPressed;
 
         if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyZ) {
@@ -205,12 +230,15 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   void _onEditorScroll() {
     if (!_isDualPane) return;
     if (_isSyncingScroll) return;
-    if (!_editorScrollController.hasClients || !_scrollController.hasClients) return;
+    if (!_editorScrollController.hasClients || !_scrollController.hasClients)
+      return;
     if (_editorScrollController.position.maxScrollExtent == 0) return;
 
-    final ratio = _editorScrollController.offset / _editorScrollController.position.maxScrollExtent;
+    final ratio =
+        _editorScrollController.offset /
+        _editorScrollController.position.maxScrollExtent;
     final target = _scrollController.position.maxScrollExtent * ratio;
-    
+
     if ((_scrollController.offset - target).abs() > 1.0) {
       _isSyncingScroll = true;
       _scrollController.jumpTo(target);
@@ -221,12 +249,14 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   void _onPreviewScroll() {
     if (!_isDualPane) return;
     if (_isSyncingScroll) return;
-    if (!_editorScrollController.hasClients || !_scrollController.hasClients) return;
+    if (!_editorScrollController.hasClients || !_scrollController.hasClients)
+      return;
     if (_scrollController.position.maxScrollExtent == 0) return;
 
-    final ratio = _scrollController.offset / _scrollController.position.maxScrollExtent;
+    final ratio =
+        _scrollController.offset / _scrollController.position.maxScrollExtent;
     final target = _editorScrollController.position.maxScrollExtent * ratio;
-    
+
     if ((_editorScrollController.offset - target).abs() > 1.0) {
       _isSyncingScroll = true;
       _editorScrollController.jumpTo(target);
@@ -242,7 +272,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       if (!await file.exists()) {
         throw Exception('File does not exist at ${widget.item.path}');
       }
-      
+
       final content = await file.readAsString();
       if (mounted) {
         setState(() {
@@ -286,7 +316,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving file: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error saving file: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -316,7 +349,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF16161E),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Unsaved Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Unsaved Changes',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         content: const Text(
           'You have unsaved changes. Do you want to save them before closing?',
           style: TextStyle(color: Colors.white70),
@@ -324,15 +360,24 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'cancel'),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'discard'),
-            child: const Text('Discard', style: TextStyle(color: Colors.redAccent)),
+            child: const Text(
+              'Discard',
+              style: TextStyle(color: Colors.redAccent),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'save'),
-            child: const Text('Save', style: TextStyle(color: Color(0xFFA6E22E))),
+            child: const Text(
+              'Save',
+              style: TextStyle(color: Color(0xFFA6E22E)),
+            ),
           ),
         ],
       ),
@@ -422,8 +467,6 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     }
   }
 
-
-
   void _switchToPreview() {
     double percentage = 0.0;
     if (_isEditing && _editController.text.isNotEmpty) {
@@ -432,14 +475,14 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
         percentage = offset / _editController.text.length;
       }
     }
-    
+
     setState(() {
       _isEditing = false;
       _isDualPane = false;
     });
-    
+
     _previewFocusNode.requestFocus();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         final maxScroll = _scrollController.position.maxScrollExtent;
@@ -460,30 +503,38 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       final viewportHeight = _scrollController.position.viewportDimension;
       if (maxScroll > 0) {
         final centerOffset = _scrollController.offset + (viewportHeight / 2);
-        percentage = (centerOffset / (maxScroll + viewportHeight)).clamp(0.0, 1.0);
+        percentage = (centerOffset / (maxScroll + viewportHeight)).clamp(
+          0.0,
+          1.0,
+        );
       }
     }
-    
+
     setState(() {
       _isEditing = true;
       _isDualPane = false;
     });
-    
+
     _focusNode.requestFocus();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_editorScrollController.hasClients) {
         final maxScroll = _editorScrollController.position.maxScrollExtent;
-        final viewportHeight = _editorScrollController.position.viewportDimension;
+        final viewportHeight =
+            _editorScrollController.position.viewportDimension;
         if (maxScroll > 0) {
           final targetY = percentage * (maxScroll + viewportHeight);
           final centeredOffset = targetY - (viewportHeight / 2);
           _editorScrollController.jumpTo(centeredOffset.clamp(0.0, maxScroll));
         }
-        
+
         if (_editController.text.isNotEmpty) {
-          final targetOffset = (percentage * _editController.text.length).clamp(0, _editController.text.length).toInt();
-          _editController.selection = TextSelection.collapsed(offset: targetOffset);
+          final targetOffset = (percentage * _editController.text.length)
+              .clamp(0, _editController.text.length)
+              .toInt();
+          _editController.selection = TextSelection.collapsed(
+            offset: targetOffset,
+          );
         }
       }
     });
@@ -491,31 +542,41 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
 
   void _fixCursorAfterUndoRedo(String oldText, String newText) {
     if (oldText == newText) return;
-    
+
     int prefixLen = 0;
     int minLen = math.min(oldText.length, newText.length);
     while (prefixLen < minLen && oldText[prefixLen] == newText[prefixLen]) {
       prefixLen++;
     }
-    
+
     int suffixLen = 0;
-    while (suffixLen < (minLen - prefixLen) && oldText[oldText.length - 1 - suffixLen] == newText[newText.length - 1 - suffixLen]) {
+    while (suffixLen < (minLen - prefixLen) &&
+        oldText[oldText.length - 1 - suffixLen] ==
+            newText[newText.length - 1 - suffixLen]) {
       suffixLen++;
     }
-    
+
     int cursorOffset = newText.length - suffixLen;
-    
+
     _editController.selection = TextSelection.collapsed(offset: cursorOffset);
-    
+
     // Ensure the editor scrolls to the reverted line
     if (_editorScrollController.hasClients) {
       final double lineHeight = 15 * 1.5; // FontSize * height
-      final textBeforeCursor = _editController.text.substring(0, cursorOffset.clamp(0, _editController.text.length));
+      final textBeforeCursor = _editController.text.substring(
+        0,
+        cursorOffset.clamp(0, _editController.text.length),
+      );
       final lineIndex = '\n'.allMatches(textBeforeCursor).length;
       final targetOffset = lineIndex * lineHeight;
       final viewportHeight = _editorScrollController.position.viewportDimension;
       final centeredOffset = targetOffset - (viewportHeight / 2);
-      _editorScrollController.jumpTo(centeredOffset.clamp(0.0, _editorScrollController.position.maxScrollExtent));
+      _editorScrollController.jumpTo(
+        centeredOffset.clamp(
+          0.0,
+          _editorScrollController.position.maxScrollExtent,
+        ),
+      );
     }
   }
 
@@ -561,224 +622,304 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       });
     }
 
-    // In standalone mode, we ignore the global HUD visibility provider as the window 
+    // In standalone mode, we ignore the global HUD visibility provider as the window
     // itself is the dedicated viewer. We only care about the internal control timer.
-    final isVisible = _isControlsVisible && (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
+    final isVisible =
+        _isControlsVisible &&
+        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
 
     return Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
-        const SingleActivator(LogicalKeyboardKey.keyS, control: true): const SaveIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): const SaveIntent(),
-        const SingleActivator(LogicalKeyboardKey.backslash, control: true): const DualPaneIntent(),
-        const SingleActivator(LogicalKeyboardKey.backslash, meta: true): const DualPaneIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyE, control: true): const EditorModeIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyE, meta: true): const EditorModeIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyV, control: true, shift: true): const PreviewModeIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyV, meta: true, shift: true): const PreviewModeIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyF, control: true): const SearchIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyF, meta: true): const SearchIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyW, control: true): const CloseIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyW, meta: true): const CloseIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true):
+            const SaveIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true):
+            const SaveIntent(),
+        const SingleActivator(LogicalKeyboardKey.backslash, control: true):
+            const DualPaneIntent(),
+        const SingleActivator(LogicalKeyboardKey.backslash, meta: true):
+            const DualPaneIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyE, control: true):
+            const EditorModeIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyE, meta: true):
+            const EditorModeIntent(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyV,
+          control: true,
+          shift: true,
+        ): const PreviewModeIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyV, meta: true, shift: true):
+            const PreviewModeIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            const SearchIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+            const SearchIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyW, control: true):
+            const CloseIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyW, meta: true):
+            const CloseIntent(),
         const SingleActivator(LogicalKeyboardKey.escape): const CloseIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
-          SaveIntent: CallbackAction<SaveIntent>(onInvoke: (intent) {
-            if ((_isEditing || _isDualPane) && _hasChanges) _saveFile();
-            return null;
-          }),
-          EditorModeIntent: CallbackAction<EditorModeIntent>(onInvoke: (intent) {
-            _switchToEditor();
-            return null;
-          }),
-          DualPaneIntent: CallbackAction<DualPaneIntent>(onInvoke: (intent) {
-            _toggleDualPane();
-            if (_isEditing) {
-              _focusNode.requestFocus();
-            } else {
-              _previewFocusNode.requestFocus();
-            }
-            return null;
-          }),
-          PreviewModeIntent: CallbackAction<PreviewModeIntent>(onInvoke: (intent) {
-            _switchToPreview();
-            return null;
-          }),
-          SearchIntent: CallbackAction<SearchIntent>(onInvoke: (intent) {
-            setState(() => _isSearchVisible = true);
-            return null;
-          }),
-          CloseIntent: CallbackAction<CloseIntent>(onInvoke: (intent) {
-            if (_isSearchVisible) {
-              setState(() => _isSearchVisible = false);
-            } else {
-              _requestClose();
-            }
-            return null;
-          }),
-
+          SaveIntent: CallbackAction<SaveIntent>(
+            onInvoke: (intent) {
+              if ((_isEditing || _isDualPane) && _hasChanges) _saveFile();
+              return null;
+            },
+          ),
+          EditorModeIntent: CallbackAction<EditorModeIntent>(
+            onInvoke: (intent) {
+              _switchToEditor();
+              return null;
+            },
+          ),
+          DualPaneIntent: CallbackAction<DualPaneIntent>(
+            onInvoke: (intent) {
+              _toggleDualPane();
+              if (_isEditing) {
+                _focusNode.requestFocus();
+              } else {
+                _previewFocusNode.requestFocus();
+              }
+              return null;
+            },
+          ),
+          PreviewModeIntent: CallbackAction<PreviewModeIntent>(
+            onInvoke: (intent) {
+              _switchToPreview();
+              return null;
+            },
+          ),
+          SearchIntent: CallbackAction<SearchIntent>(
+            onInvoke: (intent) {
+              setState(() => _isSearchVisible = true);
+              return null;
+            },
+          ),
+          CloseIntent: CallbackAction<CloseIntent>(
+            onInvoke: (intent) {
+              if (_isSearchVisible) {
+                setState(() => _isSearchVisible = false);
+              } else {
+                _requestClose();
+              }
+              return null;
+            },
+          ),
         },
         child: Focus(
           focusNode: _previewFocusNode,
           autofocus: true,
           child: Scaffold(
-              backgroundColor: Colors.transparent, // Fix disjointed aesthetic
-              body: Stack(
+            backgroundColor: Colors.transparent, // Fix disjointed aesthetic
+            body: Stack(
               children: [
-              // Content
-              Positioned.fill(
-                child: _isLoading
-                    ? Center(child: BubbleLoader(size: 80))
-                    : MouseRegion(
-                        onHover: (_) => _onInteraction(),
-                        cursor: _isResizingDualPane ? SystemMouseCursors.resizeLeftRight : MouseCursor.defer,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
-                          child: _isDualPane
-                            ? () {
-                                final editor = _buildEditor();
-                                final markdown = _buildMarkdown();
-                                return ValueListenableBuilder<double>(
-                                  valueListenable: _editorWidthRatioNotifier,
-                                  builder: (context, ratio, child) {
-                                    return LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        return Row(
-                                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                                          children: [
-                                            SizedBox(
-                                              width: (constraints.maxWidth - 16) * ratio,
-                                              child: editor,
-                                            ),
-                                            GestureDetector(
-                                              key: const Key('dual_pane_divider'),
-                                              behavior: HitTestBehavior.opaque,
-                                              onPanStart: (_) => setState(() => _isResizingDualPane = true),
-                                              onPanUpdate: (details) {
-                                                final newRatio = _editorWidthRatioNotifier.value + (details.delta.dx / (constraints.maxWidth - 16));
-                                                _editorWidthRatioNotifier.value = newRatio.clamp(0.1, 0.9);
-                                              },
-                                              onPanEnd: (_) => setState(() => _isResizingDualPane = false),
-                                              onPanCancel: () => setState(() => _isResizingDualPane = false),
-                                              child: MouseRegion(
-                                                cursor: SystemMouseCursors.resizeLeftRight,
-                                                child: Container(
-                                                  width: 16,
-                                                  color: Colors.transparent,
-                                                  alignment: Alignment.center,
-                                                  child: Container(
-                                                    width: 2,
-                                                    color: Colors.white.withOpacity(0.1),
+                // Content
+                Positioned.fill(
+                  child: _isLoading
+                      ? Center(child: BubbleLoader(size: 80))
+                      : MouseRegion(
+                          onHover: (_) => _onInteraction(),
+                          cursor: _isResizingDualPane
+                              ? SystemMouseCursors.resizeLeftRight
+                              : MouseCursor.defer,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
+                            child: _isDualPane
+                                ? () {
+                                    final editor = _buildEditor();
+                                    final markdown = _buildMarkdown();
+                                    return ValueListenableBuilder<double>(
+                                      valueListenable:
+                                          _editorWidthRatioNotifier,
+                                      builder: (context, ratio, child) {
+                                        return LayoutBuilder(
+                                          builder: (context, constraints) {
+                                            return Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                SizedBox(
+                                                  width:
+                                                      (constraints.maxWidth -
+                                                          16) *
+                                                      ratio,
+                                                  child: editor,
+                                                ),
+                                                GestureDetector(
+                                                  key: const Key(
+                                                    'dual_pane_divider',
+                                                  ),
+                                                  behavior:
+                                                      HitTestBehavior.opaque,
+                                                  onPanStart: (_) => setState(
+                                                    () => _isResizingDualPane =
+                                                        true,
+                                                  ),
+                                                  onPanUpdate: (details) {
+                                                    final newRatio =
+                                                        _editorWidthRatioNotifier
+                                                            .value +
+                                                        (details.delta.dx /
+                                                            (constraints
+                                                                    .maxWidth -
+                                                                16));
+                                                    _editorWidthRatioNotifier
+                                                        .value = newRatio.clamp(
+                                                      0.1,
+                                                      0.9,
+                                                    );
+                                                  },
+                                                  onPanEnd: (_) => setState(
+                                                    () => _isResizingDualPane =
+                                                        false,
+                                                  ),
+                                                  onPanCancel: () => setState(
+                                                    () => _isResizingDualPane =
+                                                        false,
+                                                  ),
+                                                  child: MouseRegion(
+                                                    cursor: SystemMouseCursors
+                                                        .resizeLeftRight,
+                                                    child: Container(
+                                                      width: 16,
+                                                      color: Colors.transparent,
+                                                      alignment:
+                                                          Alignment.center,
+                                                      child: Container(
+                                                        width: 2,
+                                                        color: Colors.white
+                                                            .withOpacity(0.1),
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                            ),
-                                            Expanded(child: markdown),
-                                          ],
+                                                Expanded(child: markdown),
+                                              ],
+                                            );
+                                          },
                                         );
                                       },
                                     );
-                                  },
-                                );
-                              }()
-                            : (_isEditing ? _buildEditor() : _buildMarkdown()),
+                                  }()
+                                : (_isEditing
+                                      ? _buildEditor()
+                                      : _buildMarkdown()),
+                          ),
                         ),
-                      ),
-              ),
-              if (_isResizingDualPane)
-                Positioned.fill(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.resizeLeftRight,
-                    child: Container(color: Colors.transparent),
-                  ),
                 ),
+                if (_isResizingDualPane)
+                  Positioned.fill(
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.resizeLeftRight,
+                      child: Container(color: Colors.transparent),
+                    ),
+                  ),
 
-              // Top Bar
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 300),
-                  opacity: isVisible ? 1.0 : 0.0,
-                  child: ViewerTopBar(
-                    title: widget.item.name,
-                    metadata: _isDualPane ? 'Dual Pane' : (_isEditing ? 'Editing Mode' : 'Markdown Documentation'),
-                    isStandalone: widget.isStandalone || widget.windowId != null,
-                    onPopOut: _openInNewWindow,
-                    onClose: _requestClose,
-                    extraActions: [
-                      if (_isEditing) ...[
+                // Top Bar
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: isVisible ? 1.0 : 0.0,
+                    child: ViewerTopBar(
+                      title: widget.item.name,
+                      metadata: _isDualPane
+                          ? 'Dual Pane'
+                          : (_isEditing
+                                ? 'Editing Mode'
+                                : 'Markdown Documentation'),
+                      isStandalone:
+                          widget.isStandalone || widget.windowId != null,
+                      onPopOut: _openInNewWindow,
+                      onClose: _requestClose,
+                      extraActions: [
+                        if (_isEditing) ...[
+                          _buildTopButton(
+                            icon: Icons.save_rounded,
+                            onPressed: _hasChanges ? _saveFile : () {},
+                            color: _hasChanges
+                                ? const Color(0xFFA6E22E)
+                                : Colors.white24,
+                            tooltip: 'Save Changes',
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         _buildTopButton(
-                          icon: Icons.save_rounded,
-                          onPressed: _hasChanges ? _saveFile : () {},
-                          color: _hasChanges ? const Color(0xFFA6E22E) : Colors.white24,
-                          tooltip: 'Save Changes',
+                          icon: Icons.splitscreen_rounded,
+                          onPressed: () {
+                            _toggleDualPane();
+                            if (_isEditing) {
+                              _focusNode.requestFocus();
+                            } else {
+                              _previewFocusNode.requestFocus();
+                            }
+                          },
+                          color: _isDualPane
+                              ? const Color(0xFFA6E22E)
+                              : Colors.white,
+                          tooltip: 'Toggle Dual Pane (Ctrl + \\)',
+                        ),
+                        const SizedBox(width: 8),
+                        if (!_isDualPane)
+                          _buildTopButton(
+                            icon: _isEditing
+                                ? Icons.visibility_rounded
+                                : Icons.edit_rounded,
+                            onPressed: () {
+                              if (_isEditing) {
+                                _switchToPreview();
+                              } else {
+                                _switchToEditor();
+                              }
+                            },
+                            tooltip: _isEditing ? 'View Preview' : 'Edit File',
+                          ),
+                        if (!_isDualPane) const SizedBox(width: 8),
+                        _buildTopButton(
+                          icon: Icons.search_rounded,
+                          onPressed: () => setState(
+                            () => _isSearchVisible = !_isSearchVisible,
+                          ),
+                          color: _isSearchVisible
+                              ? const Color(0xFFA6E22E)
+                              : Colors.white,
+                          tooltip: 'Search (Ctrl + F)',
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTopButton(
+                          icon: Icons.settings_rounded,
+                          onPressed: () => SettingsDialog.show(
+                            context,
+                            initialTab: 1,
+                            section: 'Documents',
+                          ),
+                          tooltip: 'Document Settings',
                         ),
                         const SizedBox(width: 8),
                       ],
-                      _buildTopButton(
-                        icon: Icons.splitscreen_rounded,
-                        onPressed: () {
-                          _toggleDualPane();
-                          if (_isEditing) {
-                            _focusNode.requestFocus();
-                          } else {
-                            _previewFocusNode.requestFocus();
-                          }
-                        },
-                        color: _isDualPane ? const Color(0xFFA6E22E) : Colors.white,
-                        tooltip: 'Toggle Dual Pane (Ctrl + \\)',
-                      ),
-                      const SizedBox(width: 8),
-                      if (!_isDualPane)
-                        _buildTopButton(
-                          icon: _isEditing ? Icons.visibility_rounded : Icons.edit_rounded,
-                          onPressed: () {
-                            if (_isEditing) {
-                              _switchToPreview();
-                            } else {
-                              _switchToEditor();
-                            }
-                          },
-                          tooltip: _isEditing ? 'View Preview' : 'Edit File',
-                        ),
-                      if (!_isDualPane)
-                        const SizedBox(width: 8),
-                      _buildTopButton(
-                        icon: Icons.search_rounded,
-                        onPressed: () => setState(() => _isSearchVisible = !_isSearchVisible),
-                        color: _isSearchVisible ? const Color(0xFFA6E22E) : Colors.white,
-                        tooltip: 'Search (Ctrl + F)',
-                      ),
-                      const SizedBox(width: 8),
-                      _buildTopButton(
-                        icon: Icons.settings_rounded,
-                        onPressed: () => SettingsDialog.show(context, initialTab: 1, section: 'Documents'),
-                        tooltip: 'Document Settings',
-                      ),
-                      const SizedBox(width: 8),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              if (_isSearchVisible)
-                ValueListenableBuilder<_SearchPosition>(
-                  valueListenable: _searchPosition,
-                  builder: (context, pos, child) {
-                    return Positioned(
-                      top: pos.top,
-                      right: pos.right,
-                      left: pos.left,
-                      bottom: pos.bottom,
-                      child: child!,
-                    );
-                  },
-                  child: _buildSearchOverlay(),
-                ),
-            ],
+                if (_isSearchVisible)
+                  ValueListenableBuilder<_SearchPosition>(
+                    valueListenable: _searchPosition,
+                    builder: (context, pos, child) {
+                      return Positioned(
+                        top: pos.top,
+                        right: pos.right,
+                        left: pos.left,
+                        bottom: pos.bottom,
+                        child: child!,
+                      );
+                    },
+                    child: _buildSearchOverlay(),
+                  ),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -822,7 +963,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       if (_searchUseRegex) {
         searchExp = RegExp(_searchQuery, caseSensitive: _searchCaseSensitive);
       } else {
-        searchExp = RegExp(RegExp.escape(_searchQuery), caseSensitive: _searchCaseSensitive);
+        searchExp = RegExp(
+          RegExp.escape(_searchQuery),
+          caseSensitive: _searchCaseSensitive,
+        );
       }
     } catch (e) {
       setState(() {
@@ -836,13 +980,14 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     setState(() {
       _totalSearchMatches = matches.length;
       if (_totalSearchMatches > 0) {
-        if (_currentSearchMatchIndex >= _totalSearchMatches || _currentSearchMatchIndex < 0) {
+        if (_currentSearchMatchIndex >= _totalSearchMatches ||
+            _currentSearchMatchIndex < 0) {
           _currentSearchMatchIndex = 0;
         }
       } else {
         _currentSearchMatchIndex = -1;
       }
-      
+
       _editController.searchQuery = _searchQuery;
       _editController.caseSensitive = _searchCaseSensitive;
       _editController.useRegex = _searchUseRegex;
@@ -858,30 +1003,44 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       if (_searchUseRegex) {
         searchExp = RegExp(_searchQuery, caseSensitive: _searchCaseSensitive);
       } else {
-        searchExp = RegExp(RegExp.escape(_searchQuery), caseSensitive: _searchCaseSensitive);
+        searchExp = RegExp(
+          RegExp.escape(_searchQuery),
+          caseSensitive: _searchCaseSensitive,
+        );
       }
-    } catch (e) { return; }
+    } catch (e) {
+      return;
+    }
 
     final matches = searchExp.allMatches(_editController.text).toList();
     if (_currentSearchMatchIndex < matches.length) {
       final match = matches[_currentSearchMatchIndex];
-      
+
       // Calculate line number for editor scroll
       final textBeforeMatch = _editController.text.substring(0, match.start);
       final lineIndex = '\n'.allMatches(textBeforeMatch).length;
-      
+
       // Editor Scroll
       if (_isEditing && _editorScrollController.hasClients) {
         final double lineHeight = 15 * 1.5; // FontSize * height
         final double targetOffset = lineIndex * lineHeight;
-        final viewportHeight = _editorScrollController.position.viewportDimension;
+        final viewportHeight =
+            _editorScrollController.position.viewportDimension;
         final centeredOffset = targetOffset - (viewportHeight / 2);
-        _editorScrollController.jumpTo(centeredOffset.clamp(0.0, _editorScrollController.position.maxScrollExtent));
-        
+        _editorScrollController.jumpTo(
+          centeredOffset.clamp(
+            0.0,
+            _editorScrollController.position.maxScrollExtent,
+          ),
+        );
+
         // Select text in editor
-        _editController.selection = TextSelection(baseOffset: match.start, extentOffset: match.end);
+        _editController.selection = TextSelection(
+          baseOffset: match.start,
+          extentOffset: match.end,
+        );
       }
-      
+
       // Preview Scroll
       if (!_isEditing && _scrollController.hasClients) {
         final totalLines = '\n'.allMatches(_editController.text).length + 1;
@@ -898,7 +1057,8 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   }
 
   void _onSearchNext() {
-    if (_totalSearchMatches > 0 && _currentSearchMatchIndex < _totalSearchMatches - 1) {
+    if (_totalSearchMatches > 0 &&
+        _currentSearchMatchIndex < _totalSearchMatches - 1) {
       setState(() {
         _currentSearchMatchIndex = _currentSearchMatchIndex + 1;
         _editController.currentMatchIndex = _currentSearchMatchIndex;
@@ -925,22 +1085,31 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       if (_searchUseRegex) {
         searchExp = RegExp(_searchQuery, caseSensitive: _searchCaseSensitive);
       } else {
-        searchExp = RegExp(RegExp.escape(_searchQuery), caseSensitive: _searchCaseSensitive);
+        searchExp = RegExp(
+          RegExp.escape(_searchQuery),
+          caseSensitive: _searchCaseSensitive,
+        );
       }
-    } catch (e) { return; }
+    } catch (e) {
+      return;
+    }
 
     final matches = searchExp.allMatches(_editController.text).toList();
     if (_currentSearchMatchIndex < matches.length) {
       final match = matches[_currentSearchMatchIndex];
-      final newText = _editController.text.replaceRange(match.start, match.end, replacement);
-      
+      final newText = _editController.text.replaceRange(
+        match.start,
+        match.end,
+        replacement,
+      );
+
       // Update text and keep cursor position
       final cursorOffset = match.start + replacement.length;
       _editController.value = TextEditingValue(
         text: newText,
         selection: TextSelection.collapsed(offset: cursorOffset),
       );
-      
+
       // Matches will be updated automatically via the listener
       setState(() => _hasChanges = true);
     }
@@ -954,16 +1123,21 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       if (_searchUseRegex) {
         searchExp = RegExp(_searchQuery, caseSensitive: _searchCaseSensitive);
       } else {
-        searchExp = RegExp(RegExp.escape(_searchQuery), caseSensitive: _searchCaseSensitive);
+        searchExp = RegExp(
+          RegExp.escape(_searchQuery),
+          caseSensitive: _searchCaseSensitive,
+        );
       }
-    } catch (e) { return; }
+    } catch (e) {
+      return;
+    }
 
     final newText = _editController.text.replaceAll(searchExp, replacement);
     _editController.value = TextEditingValue(
       text: newText,
       selection: const TextSelection.collapsed(offset: 0),
     );
-    
+
     setState(() => _hasChanges = true);
   }
 
@@ -1002,16 +1176,16 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       onDragUpdate: (details) {
         final currentPos = _searchPosition.value;
         double newTop = (currentPos.top ?? 100.0) + details.delta.dy;
-        
+
         double? newRight;
         double? newLeft = currentPos.left;
-        
+
         if (currentPos.left == null) {
           newRight = (currentPos.right ?? 16.0) - details.delta.dx;
         } else {
           newLeft = currentPos.left! + details.delta.dx;
         }
-        
+
         _searchPosition.value = _SearchPosition(
           top: newTop,
           right: newRight,
@@ -1029,13 +1203,16 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
         child: Stack(
           children: [
             ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+              behavior: ScrollConfiguration.of(
+                context,
+              ).copyWith(scrollbars: false),
               child: TextField(
                 key: _editorKey,
                 focusNode: _focusNode,
                 controller: _editController,
                 undoController: _undoController,
-                scrollPhysics: const NeverScrollableScrollPhysics(), // Managed by SingleChildScrollView
+                scrollPhysics:
+                    const NeverScrollableScrollPhysics(), // Managed by SingleChildScrollView
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
                 maxLines: null,
@@ -1064,7 +1241,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
               child: Container(
                 decoration: BoxDecoration(
                   border: Border(
-                    right: BorderSide(color: Colors.white.withOpacity(0.08), width: 1.5),
+                    right: BorderSide(
+                      color: Colors.white.withOpacity(0.08),
+                      width: 1.5,
+                    ),
                   ),
                 ),
                 child: CustomPaint(
@@ -1090,28 +1270,31 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
 
   Widget _buildMarkdown() {
     String textToRender = _isEditing ? _previewContent : _content;
-    
+
     // Frontmatter Parsing
     Map<String, String> frontmatter = {};
     List<String> tags = [];
-    
+
     if (textToRender.startsWith('---\n')) {
       final endIdx = textToRender.indexOf('\n---\n', 4);
       if (endIdx != -1) {
         final fmString = textToRender.substring(4, endIdx);
         textToRender = textToRender.substring(endIdx + 5);
-        
+
         for (final line in fmString.split('\n')) {
           final colonIdx = line.indexOf(':');
           if (colonIdx != -1) {
             final key = line.substring(0, colonIdx).trim();
             final value = line.substring(colonIdx + 1).trim();
-            
+
             if (key == 'tags' && value.startsWith('[') && value.endsWith(']')) {
-               final tagsStr = value.substring(1, value.length - 1);
-               tags = tagsStr.split(',').map((e) => e.replaceAll('"', '').replaceAll("'", '').trim()).toList();
+              final tagsStr = value.substring(1, value.length - 1);
+              tags = tagsStr
+                  .split(',')
+                  .map((e) => e.replaceAll('"', '').replaceAll("'", '').trim())
+                  .toList();
             } else {
-               frontmatter[key] = value;
+              frontmatter[key] = value;
             }
           }
         }
@@ -1120,8 +1303,16 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
 
     // Pre-process Math and Mermaid
     String htmlContent = _processAdvancedMarkdown(textToRender);
-    htmlContent = htmlContent.replaceAll(RegExp(r'<input[^>]*type="checkbox"[^>]*checked="(true|checked)"[^>]*>(?:</input>)?'), '<task-checked></task-checked>');
-    htmlContent = htmlContent.replaceAll(RegExp(r'<input[^>]*type="checkbox"[^>]*>(?:</input>)?'), '<task-unchecked></task-unchecked>');
+    htmlContent = htmlContent.replaceAll(
+      RegExp(
+        r'<input[^>]*type="checkbox"[^>]*checked="(true|checked)"[^>]*>(?:</input>)?',
+      ),
+      '<task-checked></task-checked>',
+    );
+    htmlContent = htmlContent.replaceAll(
+      RegExp(r'<input[^>]*type="checkbox"[^>]*>(?:</input>)?'),
+      '<task-unchecked></task-unchecked>',
+    );
 
     final htmlWidget = Container(
       color: AppColors.background,
@@ -1140,114 +1331,155 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                  if (frontmatter.isNotEmpty || tags.isNotEmpty)
-                    _buildFrontmatterTable(frontmatter, tags),
-                  if (frontmatter.isNotEmpty || tags.isNotEmpty)
-                    const SizedBox(height: 32),
-                  SelectionArea(
-                    child: Container(
-                      key: _htmlKey,
-                      child: Html(
-                        data: htmlContent,
-                      style: _buildHtmlStyles(),
-                      extensions: [
-                        TagExtension(
-                          tagsToExtend: {"math-display"},
-                          builder: (context) {
-                            final mathCode = context.element?.text ?? '';
-                            return _buildMathJax(mathCode, display: true);
-                          },
+                        if (frontmatter.isNotEmpty || tags.isNotEmpty)
+                          _buildFrontmatterTable(frontmatter, tags),
+                        if (frontmatter.isNotEmpty || tags.isNotEmpty)
+                          const SizedBox(height: 32),
+                        SelectionArea(
+                          child: Container(
+                            key: _htmlKey,
+                            child: Html(
+                              data: htmlContent,
+                              style: _buildHtmlStyles(),
+                              extensions: [
+                                TagExtension(
+                                  tagsToExtend: {"math-display"},
+                                  builder: (context) {
+                                    final mathCode =
+                                        context.element?.text ?? '';
+                                    return _buildMathJax(
+                                      mathCode,
+                                      display: true,
+                                    );
+                                  },
+                                ),
+                                TagExtension(
+                                  tagsToExtend: {"math-inline"},
+                                  builder: (context) {
+                                    final mathCode =
+                                        context.element?.text ?? '';
+                                    return _buildMathJax(
+                                      mathCode,
+                                      display: false,
+                                    );
+                                  },
+                                ),
+                                TagExtension(
+                                  tagsToExtend: {"mermaid"},
+                                  builder: (context) {
+                                    final mermaidCode =
+                                        context.element?.text ?? '';
+                                    return _buildMermaidDiagram(mermaidCode);
+                                  },
+                                ),
+                                TagExtension(
+                                  tagsToExtend: {"pre"},
+                                  builder: (context) {
+                                    final codeElement = context
+                                        .element
+                                        ?.children
+                                        .where((e) => e.localName == 'code')
+                                        .firstOrNull;
+                                    if (codeElement != null) {
+                                      final code = codeElement.text;
+                                      final classes = codeElement.classes;
+                                      String language = '';
+                                      for (final c in classes) {
+                                        if (c.startsWith('language-')) {
+                                          language = c.replaceFirst(
+                                            'language-',
+                                            '',
+                                          );
+                                        }
+                                      }
+                                      return _buildCodeBlock(code, language);
+                                    }
+                                    return _buildCodeBlock(
+                                      context.element?.text ?? '',
+                                      '',
+                                    );
+                                  },
+                                ),
+                                TagExtension(
+                                  tagsToExtend: {
+                                    "task-checked",
+                                    "task-unchecked",
+                                  },
+                                  builder: (context) {
+                                    final checked =
+                                        context.element?.localName ==
+                                        'task-checked';
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        right: 8.0,
+                                        top: 2.0,
+                                      ),
+                                      child: Icon(
+                                        checked
+                                            ? Icons.check_box_rounded
+                                            : Icons
+                                                  .check_box_outline_blank_rounded,
+                                        color: checked
+                                            ? const Color(0xFF64B5F6)
+                                            : Colors.white54,
+                                        size: 18,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const TableHtmlExtension(),
+                              ],
+                            ),
+                          ),
                         ),
-                        TagExtension(
-                          tagsToExtend: {"math-inline"},
-                          builder: (context) {
-                            final mathCode = context.element?.text ?? '';
-                            return _buildMathJax(mathCode, display: false);
-                          },
-                        ),
-                        TagExtension(
-                          tagsToExtend: {"mermaid"},
-                          builder: (context) {
-                            final mermaidCode = context.element?.text ?? '';
-                            return _buildMermaidDiagram(mermaidCode);
-                          },
-                        ),
-                        TagExtension(
-                          tagsToExtend: {"pre"},
-                          builder: (context) {
-                            final codeElement = context.element?.children.where((e) => e.localName == 'code').firstOrNull;
-                            if (codeElement != null) {
-                               final code = codeElement.text;
-                               final classes = codeElement.classes;
-                               String language = '';
-                               for (final c in classes) {
-                                 if (c.startsWith('language-')) {
-                                   language = c.replaceFirst('language-', '');
-                                 }
-                               }
-                               return _buildCodeBlock(code, language);
-                            }
-                            return _buildCodeBlock(context.element?.text ?? '', '');
-                          },
-                        ),
-                        TagExtension(
-                          tagsToExtend: {"task-checked", "task-unchecked"},
-                          builder: (context) {
-                            final checked = context.element?.localName == 'task-checked';
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8.0, top: 2.0),
-                              child: Icon(
-                                checked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                                color: checked ? const Color(0xFF64B5F6) : Colors.white54,
-                                size: 18,
-                              ),
-                            );
-                          },
-                        ),
-                        const TableHtmlExtension(),
                       ],
                     ),
                   ),
                 ),
-              ],
               ),
             ),
           ),
-        ),
+        ],
       ),
-    ),
-  ],
-),
-);
+    );
 
     return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: !_isDualPane),
+      behavior: ScrollConfiguration.of(
+        context,
+      ).copyWith(scrollbars: !_isDualPane),
       child: Listener(
         onPointerDown: (details) => _pointerDownPosition = details.position,
         onPointerUp: (details) {
-          if (_pointerDownPosition != null && (details.position - _pointerDownPosition!).distance < 5.0) {
+          if (_pointerDownPosition != null &&
+              (details.position - _pointerDownPosition!).distance < 5.0) {
             final now = DateTime.now();
-            if (_lastClickTime == null || now.difference(_lastClickTime!).inMilliseconds > 300) {
+            if (_lastClickTime == null ||
+                now.difference(_lastClickTime!).inMilliseconds > 300) {
               _lastClickTime = now;
               return; // Wait for double click
             }
             _lastClickTime = null; // Reset
-            
+
             if (!_isDualPane) {
               // 1. Walk the Render Tree to find the RenderParagraph closest to the click Y-coordinate
               // MUST DO THIS BEFORE setState DESTROYS THE PREVIEW WIDGET!
               String? clickedText;
               double? finalMinDistance;
               if (_htmlKey.currentContext?.findRenderObject() != null) {
-                final rootRenderObject = _htmlKey.currentContext!.findRenderObject()!;
+                final rootRenderObject = _htmlKey.currentContext!
+                    .findRenderObject()!;
                 final List<dynamic> paragraphs = [];
-                
+
                 void walk(RenderObject object) {
                   try {
                     final dynamic dynObj = object;
                     String textStr = '';
-                    try { textStr = dynObj.text.toPlainText(); } catch (_) {
-                      try { textStr = dynObj.text.toString(); } catch (_) {}
+                    try {
+                      textStr = dynObj.text.toPlainText();
+                    } catch (_) {
+                      try {
+                        textStr = dynObj.text.toString();
+                      } catch (_) {}
                     }
                     if (textStr.trim().isNotEmpty && textStr.trim() != 'null') {
                       paragraphs.add(object);
@@ -1255,13 +1487,14 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
                   } catch (e) {}
                   object.visitChildren(walk);
                 }
-                
+
                 walk(rootRenderObject);
-                
-                final htmlBox = _htmlKey.currentContext!.findRenderObject() as RenderBox?;
+
+                final htmlBox =
+                    _htmlKey.currentContext!.findRenderObject() as RenderBox?;
                 if (htmlBox == null) return;
                 final localPos = htmlBox.globalToLocal(details.position);
-                
+
                 dynamic closestParagraph;
                 double minDistance = double.infinity;
 
@@ -1271,13 +1504,19 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
                     final offset = box.localToGlobal(Offset.zero);
                     final yCenter = offset.dy + (box.size.height / 2);
                     final distance = (yCenter - details.position.dy).abs();
-                    
+
                     String textStr = '';
-                    try { textStr = (p as dynamic).text.toPlainText(); } catch (_) {
-                      try { textStr = (p as dynamic).text.toString(); } catch (_) {}
+                    try {
+                      textStr = (p as dynamic).text.toPlainText();
+                    } catch (_) {
+                      try {
+                        textStr = (p as dynamic).text.toString();
+                      } catch (_) {}
                     }
                     final text = textStr.trim();
-                    if (text.isNotEmpty && text != 'null' && distance < minDistance) {
+                    if (text.isNotEmpty &&
+                        text != 'null' &&
+                        distance < minDistance) {
                       minDistance = distance;
                       closestParagraph = p;
                     }
@@ -1286,8 +1525,14 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
 
                 if (closestParagraph != null) {
                   try {
-                    try { clickedText = (closestParagraph as dynamic).text.toPlainText(); } catch (_) {
-                      try { clickedText = (closestParagraph as dynamic).text.toString(); } catch (_) {}
+                    try {
+                      clickedText = (closestParagraph as dynamic).text
+                          .toPlainText();
+                    } catch (_) {
+                      try {
+                        clickedText = (closestParagraph as dynamic).text
+                            .toString();
+                      } catch (_) {}
                     }
                   } catch (e) {}
                 }
@@ -1297,17 +1542,22 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
               clickedText = clickedText.trim();
               if (clickedText.isEmpty) return;
 
-              final maxScrollExt = _scrollController.hasClients ? _scrollController.position.maxScrollExtent : 0;
-              final viewHeight = _scrollController.hasClients ? _scrollController.position.viewportDimension : 1;
-              
+              final maxScrollExt = _scrollController.hasClients
+                  ? _scrollController.position.maxScrollExtent
+                  : 0;
+              final viewHeight = _scrollController.hasClients
+                  ? _scrollController.position.viewportDimension
+                  : 1;
+
               double scrollPercentage = 0;
               if (maxScrollExt > 0) {
-                final absoluteY = _scrollController.offset + details.localPosition.dy;
+                final absoluteY =
+                    _scrollController.offset + details.localPosition.dy;
                 scrollPercentage = absoluteY / (maxScrollExt + viewHeight);
               } else {
                 scrollPercentage = details.localPosition.dy / viewHeight;
               }
-              
+
               setState(() {
                 _isEditing = true;
               });
@@ -1316,74 +1566,99 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (_editorScrollController.hasClients) {
                   final lines = _editController.text.split('\n');
-                
-                int targetLineIndex = -1;
-                
-                if (clickedText!.isNotEmpty) {
-                  final sanitizedTarget = clickedText!.replaceAll(RegExp(r'[\s\*_#>`~\-\+]'), '');
-                  final searchSnippet = sanitizedTarget.length > 50 ? sanitizedTarget.substring(0, 50) : sanitizedTarget;
-                  
-                  int bestMatchIndex = -1;
-                  int closestDistance = 999999;
-                  
-                  int expectedIndex = (scrollPercentage * lines.length).toInt();
-                  
-                  for (int i = 0; i < lines.length; i++) {
-                    final sanitizedLine = lines[i].replaceAll(RegExp(r'[\s\*_#>`~\-\+]'), '');
-                    if (sanitizedLine.contains(searchSnippet) || searchSnippet.contains(sanitizedLine)) {
-                      if (sanitizedLine.isEmpty && searchSnippet.isNotEmpty) continue;
-                      int distance = (i - expectedIndex).abs();
-                      if (distance < closestDistance) {
-                        closestDistance = distance;
-                        bestMatchIndex = i;
+
+                  int targetLineIndex = -1;
+
+                  if (clickedText!.isNotEmpty) {
+                    final sanitizedTarget = clickedText!.replaceAll(
+                      RegExp(r'[\s\*_#>`~\-\+]'),
+                      '',
+                    );
+                    final searchSnippet = sanitizedTarget.length > 50
+                        ? sanitizedTarget.substring(0, 50)
+                        : sanitizedTarget;
+
+                    int bestMatchIndex = -1;
+                    int closestDistance = 999999;
+
+                    int expectedIndex = (scrollPercentage * lines.length)
+                        .toInt();
+
+                    for (int i = 0; i < lines.length; i++) {
+                      final sanitizedLine = lines[i].replaceAll(
+                        RegExp(r'[\s\*_#>`~\-\+]'),
+                        '',
+                      );
+                      if (sanitizedLine.contains(searchSnippet) ||
+                          searchSnippet.contains(sanitizedLine)) {
+                        if (sanitizedLine.isEmpty && searchSnippet.isNotEmpty)
+                          continue;
+                        int distance = (i - expectedIndex).abs();
+                        if (distance < closestDistance) {
+                          closestDistance = distance;
+                          bestMatchIndex = i;
+                        }
                       }
                     }
-                  }
-                  
-                  if (bestMatchIndex != -1) {
-                    targetLineIndex = bestMatchIndex;
-                  } else {
-                    targetLineIndex = expectedIndex;
-                  }
-                } else {
-                  targetLineIndex = (scrollPercentage * lines.length).toInt();
-                }
-                
-                targetLineIndex = targetLineIndex.clamp(0, lines.length - 1);
-                
-                int charOffset = 0;
-                for (int i = 0; i < targetLineIndex; i++) {
-                  charOffset += lines[i].length + 1;
-                }
-                
-                int lineLength = 0;
-                if (targetLineIndex < lines.length) {
-                  lineLength = lines[targetLineIndex].length;
-                }
-                _editController.selection = TextSelection(
-                   baseOffset: charOffset,
-                   extentOffset: charOffset + lineLength
-                );
 
-                // 4. Scroll the editor exactly to that line
-                final textStyle = const TextStyle(fontFamily: 'monospace', fontSize: 15, height: 1.5);
-                final textPainter = TextPainter(
-                  text: TextSpan(text: '1', style: textStyle),
-                  textDirection: TextDirection.ltr,
-                  strutStyle: const StrutStyle(fontSize: 15, height: 1.5, forceStrutHeight: true),
-                  textScaler: MediaQuery.textScalerOf(context),
-                )..layout();
-                final exactLineHeight = textPainter.preferredLineHeight;
-                
-                final targetEditorAbsoluteY = targetLineIndex * exactLineHeight;
-                final edMaxExt = _editorScrollController.position.maxScrollExtent;
-                // Subtract localPosition.dy to keep the physical screen position identical
-                final targetOffset = (targetEditorAbsoluteY - details.localPosition.dy).clamp(0.0, edMaxExt);
-                
-                _editorScrollController.jumpTo(targetOffset);
-              }
-            });
-          }
+                    if (bestMatchIndex != -1) {
+                      targetLineIndex = bestMatchIndex;
+                    } else {
+                      targetLineIndex = expectedIndex;
+                    }
+                  } else {
+                    targetLineIndex = (scrollPercentage * lines.length).toInt();
+                  }
+
+                  targetLineIndex = targetLineIndex.clamp(0, lines.length - 1);
+
+                  int charOffset = 0;
+                  for (int i = 0; i < targetLineIndex; i++) {
+                    charOffset += lines[i].length + 1;
+                  }
+
+                  int lineLength = 0;
+                  if (targetLineIndex < lines.length) {
+                    lineLength = lines[targetLineIndex].length;
+                  }
+                  _editController.selection = TextSelection(
+                    baseOffset: charOffset,
+                    extentOffset: charOffset + lineLength,
+                  );
+
+                  // 4. Scroll the editor exactly to that line
+                  final textStyle = const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 15,
+                    height: 1.5,
+                  );
+                  final textPainter = TextPainter(
+                    text: TextSpan(text: '1', style: textStyle),
+                    textDirection: TextDirection.ltr,
+                    strutStyle: const StrutStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                      forceStrutHeight: true,
+                    ),
+                    textScaler: MediaQuery.textScalerOf(context),
+                  )..layout();
+                  final exactLineHeight = textPainter.preferredLineHeight;
+
+                  final targetEditorAbsoluteY =
+                      targetLineIndex * exactLineHeight;
+                  final edMaxExt =
+                      _editorScrollController.position.maxScrollExtent;
+                  // Subtract localPosition.dy to keep the physical screen position identical
+                  final targetOffset =
+                      (targetEditorAbsoluteY - details.localPosition.dy).clamp(
+                        0.0,
+                        edMaxExt,
+                      );
+
+                  _editorScrollController.jumpTo(targetOffset);
+                }
+              });
+            }
           } // <--- Added closing brace for if (_pointerDownPosition != null ...)
         },
         child: htmlWidget,
@@ -1394,15 +1669,24 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   String _processAdvancedMarkdown(String mdText) {
     // 1. Extract Mermaid Blocks
     final mermaidBlocks = <String>[];
-    mdText = mdText.replaceAllMapped(RegExp(r'(?:```|~~~)[Mm]ermaid[ \t]*\r?\n(.*?)\r?\n[ \t]*(?:```|~~~)', dotAll: true, caseSensitive: false), (match) {
-      final code = match.group(1) ?? '';
-      final id = mermaidBlocks.length;
-      mermaidBlocks.add(code);
-      return '%%%MERMAID_$id%%%';
-    });
+    mdText = mdText.replaceAllMapped(
+      RegExp(
+        r'(?:```|~~~)[Mm]ermaid[ \t]*\r?\n(.*?)\r?\n[ \t]*(?:```|~~~)',
+        dotAll: true,
+        caseSensitive: false,
+      ),
+      (match) {
+        final code = match.group(1) ?? '';
+        final id = mermaidBlocks.length;
+        mermaidBlocks.add(code);
+        return '%%%MERMAID_$id%%%';
+      },
+    );
 
     // 2. Display Math
-    mdText = mdText.replaceAllMapped(RegExp(r'\$\$(.*?)\$\$', dotAll: true), (match) {
+    mdText = mdText.replaceAllMapped(RegExp(r'\$\$(.*?)\$\$', dotAll: true), (
+      match,
+    ) {
       return '<math-display>${match.group(1)}</math-display>';
     });
 
@@ -1422,8 +1706,14 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       // Escape the code so HTML parsing doesn't break on < or > inside mermaid
       final escapedCode = const HtmlEscape().convert(mermaidBlocks[i]);
       // markdownToHtml might wrap our placeholder in a paragraph
-      html = html.replaceAll('<p>%%%MERMAID_$i%%%</p>', '<mermaid>$escapedCode</mermaid>');
-      html = html.replaceAll('%%%MERMAID_$i%%%', '<mermaid>$escapedCode</mermaid>');
+      html = html.replaceAll(
+        '<p>%%%MERMAID_$i%%%</p>',
+        '<mermaid>$escapedCode</mermaid>',
+      );
+      html = html.replaceAll(
+        '%%%MERMAID_$i%%%',
+        '<mermaid>$escapedCode</mermaid>',
+      );
     }
 
     if (_searchQuery.isNotEmpty && !_isEditing) {
@@ -1439,7 +1729,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
     return html;
   }
 
-  Widget _buildFrontmatterTable(Map<String, String> frontmatter, List<String> tags) {
+  Widget _buildFrontmatterTable(
+    Map<String, String> frontmatter,
+    List<String> tags,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.2),
@@ -1455,32 +1748,34 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
           inside: BorderSide(color: Colors.white.withOpacity(0.15)),
         ),
         children: [
-          ...frontmatter.entries.map((e) => TableRow(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Text(
-                  e.key,
-                  style: GoogleFonts.inter(
-                    color: Colors.white.withOpacity(0.8),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                  textAlign: TextAlign.right,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Text(
-                  e.value,
-                  style: GoogleFonts.inter(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
+          ...frontmatter.entries.map(
+            (e) => TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Text(
+                    e.key,
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.8),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.right,
                   ),
                 ),
-              ),
-            ],
-          )),
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Text(
+                    e.value,
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           if (tags.isNotEmpty)
             TableRow(
               children: [
@@ -1501,22 +1796,31 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: tags.map((tag) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      child: Text(
-                        tag,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF64B5F6),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    )).toList(),
+                    children: tags
+                        .map(
+                          (tag) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.1),
+                              ),
+                            ),
+                            child: Text(
+                              tag,
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF64B5F6),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
               ],
@@ -1529,7 +1833,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
   Widget _buildMathJax(String mathText, {required bool display}) {
     try {
       return Container(
-        margin: display ? const EdgeInsets.symmetric(vertical: 16) : const EdgeInsets.symmetric(horizontal: 4),
+        margin: display
+            ? const EdgeInsets.symmetric(vertical: 16)
+            : const EdgeInsets.symmetric(horizontal: 4),
         alignment: display ? Alignment.center : null,
         child: Math.tex(
           mathText.trim(),
@@ -1538,40 +1844,74 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
         ),
       );
     } catch (e) {
-      return Text(mathText, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic));
+      return Text(
+        mathText,
+        style: const TextStyle(
+          color: Colors.white70,
+          fontStyle: FontStyle.italic,
+        ),
+      );
     }
   }
 
   TextSpan _highlightMermaidSyntax(String code) {
     final List<TextSpan> spans = [];
-    final regex = RegExp(r'(\b(?:sequenceDiagram|autonumber|actor|participant)\b)|(->>|-->|-->>|-)|(\(.*?\))');
-    
+    final regex = RegExp(
+      r'(\b(?:sequenceDiagram|autonumber|actor|participant)\b)|(->>|-->|-->>|-)|(\(.*?\))',
+    );
+
     code.trim().splitMapJoin(
       regex,
       onMatch: (Match match) {
         if (match.group(1) != null) {
-          spans.add(TextSpan(text: match.group(0), style: GoogleFonts.jetBrainsMono(color: const Color(0xFF64B5F6))));
+          spans.add(
+            TextSpan(
+              text: match.group(0),
+              style: GoogleFonts.jetBrainsMono(color: const Color(0xFF64B5F6)),
+            ),
+          );
         } else if (match.group(2) != null) {
-          spans.add(TextSpan(text: match.group(0), style: GoogleFonts.jetBrainsMono(color: Colors.white70)));
+          spans.add(
+            TextSpan(
+              text: match.group(0),
+              style: GoogleFonts.jetBrainsMono(color: Colors.white70),
+            ),
+          );
         } else if (match.group(3) != null) {
-          spans.add(TextSpan(text: match.group(0), style: GoogleFonts.jetBrainsMono(color: const Color(0xFFAED581))));
+          spans.add(
+            TextSpan(
+              text: match.group(0),
+              style: GoogleFonts.jetBrainsMono(color: const Color(0xFFAED581)),
+            ),
+          );
         }
         return '';
       },
       onNonMatch: (String text) {
-        spans.add(TextSpan(text: text, style: GoogleFonts.jetBrainsMono(color: Colors.white)));
+        spans.add(
+          TextSpan(
+            text: text,
+            style: GoogleFonts.jetBrainsMono(color: Colors.white),
+          ),
+        );
         return '';
       },
     );
-    
-    return TextSpan(children: spans, style: GoogleFonts.jetBrainsMono(fontSize: 14, height: 1.5));
+
+    return TextSpan(
+      children: spans,
+      style: GoogleFonts.jetBrainsMono(fontSize: 14, height: 1.5),
+    );
   }
 
   Widget _buildMermaidDiagram(String code) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     if (!_mermaidFutures.containsKey(code)) {
-      _mermaidFutures[code] = MermaidOfflineRenderer.renderToPng(code, isDarkMode: isDarkMode);
+      _mermaidFutures[code] = MermaidOfflineRenderer.renderToPng(
+        code,
+        isDarkMode: isDarkMode,
+      );
     }
 
     return FutureBuilder<Uint8List?>(
@@ -1608,7 +1948,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
             decoration: BoxDecoration(
               color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).colorScheme.error.withOpacity(0.5)),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.error.withOpacity(0.5),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1617,9 +1959,19 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error, size: 16),
+                      Icon(
+                        Icons.error_outline,
+                        color: Theme.of(context).colorScheme.error,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
-                      Text('Failed to render diagram. Showing source code.', style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12)),
+                      Text(
+                        'Failed to render diagram. Showing source code.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1748,7 +2100,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
       "blockquote": Style(
         margin: Margins.only(left: 0, right: 0, bottom: 16.0),
         padding: HtmlPaddings.only(left: 16.0, top: 4.0, bottom: 4.0),
-        border: Border(left: BorderSide(color: const Color(0xFF64B5F6), width: 4.0)),
+        border: Border(
+          left: BorderSide(color: const Color(0xFF64B5F6), width: 4.0),
+        ),
         color: Colors.white.withOpacity(0.6),
         fontStyle: FontStyle.italic,
       ),
@@ -1797,7 +2151,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.03),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
             ),
             child: Row(
               children: [
@@ -1828,7 +2184,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget> w
                 'root': TextStyle(
                   color: atomOneDarkTheme['root']?.color,
                   backgroundColor: Colors.transparent,
-                )
+                ),
               },
               padding: const EdgeInsets.all(0),
               textStyle: GoogleFonts.jetBrainsMono(

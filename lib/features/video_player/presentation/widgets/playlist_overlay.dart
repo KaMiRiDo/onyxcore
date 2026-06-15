@@ -29,14 +29,18 @@ class PlaylistOverlay extends ConsumerWidget {
     }
 
     final itemsAsync = ref.watch(sortedDirectoryItemsProvider);
-    
+
     return itemsAsync.when(
       data: (items) {
-        final filteredVideos = items.where((i) => i.type == FileItemType.video).toList();
+        final filteredVideos = items
+            .where((i) => i.type == FileItemType.video)
+            .toList();
         return _buildContent(filteredVideos);
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+      error: (e, s) => Center(
+        child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+      ),
     );
   }
 
@@ -116,72 +120,79 @@ class PlaylistOverlay extends ConsumerWidget {
       child: InkWell(
         onTap: () => onVideoSelected(video),
         child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        decoration: BoxDecoration(
-          color: isPlaying ? AppColors.violet.withOpacity(0.1) : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isPlaying ? AppColors.violet : Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                isPlaying ? Icons.play_arrow_rounded : Icons.movie_outlined,
-                color: isPlaying ? Colors.white : Colors.white30,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    video.name,
-                    style: GoogleFonts.manrope(
-                      color: isPlaying ? Colors.white : Colors.white60,
-                      fontSize: 13,
-                      fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (video.sizeBytes != null)
-                    Text(
-                      _formatSize(video.sizeBytes!),
-                      style: GoogleFonts.manrope(
-                        color: Colors.white24,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (isPlaying)
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          decoration: BoxDecoration(
+            color: isPlaying
+                ? AppColors.violet.withOpacity(0.1)
+                : Colors.transparent,
+          ),
+          child: Row(
+            children: [
               Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(
-                  color: AppColors.violet,
-                  shape: BoxShape.circle,
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isPlaying
+                      ? AppColors.violet
+                      : Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isPlaying ? Icons.play_arrow_rounded : Icons.movie_outlined,
+                  color: isPlaying ? Colors.white : Colors.white30,
+                  size: 18,
                 ),
               ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      video.name,
+                      style: GoogleFonts.manrope(
+                        color: isPlaying ? Colors.white : Colors.white60,
+                        fontSize: 13,
+                        fontWeight: isPlaying
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (video.sizeBytes != null)
+                      Text(
+                        _formatSize(video.sizeBytes!),
+                        style: GoogleFonts.manrope(
+                          color: Colors.white24,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (isPlaying)
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: AppColors.violet,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }

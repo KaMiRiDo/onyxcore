@@ -90,5 +90,6 @@ class Aria2Accelerator {
   /// `--external-downloader` or `--downloader` flags.
   ///
   /// Returns the args string: `aria2c:-x 16 -s 16 -k 1M`
-  static String get downloaderArgs => 'aria2c:-x 16 -s 16 -k 1M --summary-interval=1';
+  static String get downloaderArgs =>
+      'aria2c:-x 16 -s 16 -k 1M --summary-interval=1';
 }

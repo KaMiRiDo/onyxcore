@@ -58,7 +58,10 @@ class EmptyStateView extends StatelessWidget {
               onPressed: onAction,
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white38,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(color: Colors.white.withOpacity(0.05)),

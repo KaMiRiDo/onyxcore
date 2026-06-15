@@ -12,7 +12,9 @@ enum DownloadsPanelView {
 }
 
 final downloadsPanelOpenProvider = StateProvider<bool>((ref) => false);
-final downloadsPanelViewProvider = StateProvider<DownloadsPanelView>((ref) => DownloadsPanelView.tasks);
+final downloadsPanelViewProvider = StateProvider<DownloadsPanelView>(
+  (ref) => DownloadsPanelView.tasks,
+);
 final selectedDownloadHistoryIdProvider = StateProvider<String?>((ref) => null);
 final isDownloadInputFocusedProvider = StateProvider<bool>((ref) => false);
 final isDownloadsPanelFocusedProvider = StateProvider<bool>((ref) => false);
@@ -34,10 +36,12 @@ class DownloadsPanelWidthNotifier extends Notifier<double> {
   }
 }
 
-final downloadsPanelWidthProvider = NotifierProvider<DownloadsPanelWidthNotifier, double>(DownloadsPanelWidthNotifier.new);
+final downloadsPanelWidthProvider =
+    NotifierProvider<DownloadsPanelWidthNotifier, double>(
+      DownloadsPanelWidthNotifier.new,
+    );
 
 final isDownloadsPanelDraggingProvider = StateProvider<bool>((ref) => false);
-
 
 class DownloadsListCache {
   List<MediaGroup>? parsedItems;
@@ -55,4 +59,6 @@ class DownloadsListCache {
   }
 }
 
-final downloadsListCacheProvider = Provider<DownloadsListCache>((ref) => DownloadsListCache());
+final downloadsListCacheProvider = Provider<DownloadsListCache>(
+  (ref) => DownloadsListCache(),
+);

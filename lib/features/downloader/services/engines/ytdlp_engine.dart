@@ -61,16 +61,28 @@ class YtDlpEngine extends DownloadEngine {
 
   @override
   Future<Process>? install() {
-    final venvPath = p.join(Platform.environment['HOME'] ?? '', '.local', 'share', 'onyxcore', 'yt-dlp-venv');
+    final venvPath = p.join(
+      Platform.environment['HOME'] ?? '',
+      '.local',
+      'share',
+      'onyxcore',
+      'yt-dlp-venv',
+    );
     return Process.start('bash', [
       '-c',
-      'python3 -m venv "$venvPath" && "$venvPath/bin/pip" install --upgrade "yt-dlp[default,curl-cffi]"'
+      'python3 -m venv "$venvPath" && "$venvPath/bin/pip" install --upgrade "yt-dlp[default,curl-cffi]"',
     ]);
   }
 
   @override
   Future<Process>? uninstall() {
-    final venvPath = p.join(Platform.environment['HOME'] ?? '', '.local', 'share', 'onyxcore', 'yt-dlp-venv');
+    final venvPath = p.join(
+      Platform.environment['HOME'] ?? '',
+      '.local',
+      'share',
+      'onyxcore',
+      'yt-dlp-venv',
+    );
     return Process.start('bash', ['-c', 'rm -rf "$venvPath"']);
   }
 
@@ -87,7 +99,10 @@ class YtDlpEngine extends DownloadEngine {
   @override
   Future<String?> getLatestVersion() async {
     try {
-      final res = await Process.run('curl', ['-s', 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest']);
+      final res = await Process.run('curl', [
+        '-s',
+        'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest',
+      ]);
       if (res.exitCode == 0) {
         final json = jsonDecode(res.stdout as String);
         return json['tag_name']?.toString();
@@ -147,7 +162,8 @@ class YtDlpEngine extends DownloadEngine {
 
     final customEnv = {
       'PYTHONUNBUFFERED': '1',
-      'PATH': '${Platform.environment['PATH'] ?? ''}:${Platform.environment['HOME']}/.deno/bin:/usr/local/bin:/opt/homebrew/bin',
+      'PATH':
+          '${Platform.environment['PATH'] ?? ''}:${Platform.environment['HOME']}/.deno/bin:/usr/local/bin:/opt/homebrew/bin',
     };
 
     final process = await Process.start(
@@ -168,13 +184,15 @@ class YtDlpEngine extends DownloadEngine {
     });
 
     if (onProgress != null) {
-      onProgress(MediaInfo(
-        id: 'hydration_loading',
-        title: 'Fetching...',
-        originalUrl: url,
-        fetchLogs: 'Waiting for output...',
-        isVideo: false,
-      ));
+      onProgress(
+        MediaInfo(
+          id: 'hydration_loading',
+          title: 'Fetching...',
+          originalUrl: url,
+          fetchLogs: 'Waiting for output...',
+          isVideo: false,
+        ),
+      );
     }
 
     Future<void> processOutput() async {
@@ -195,11 +213,18 @@ class YtDlpEngine extends DownloadEngine {
         if (jsonStartIndex == -1) {
           final stderrStr = stderrBuffer.toString();
           if (stderrStr.contains('Sign in to confirm')) {
-            throw Exception('YouTube bot protection triggered. Please select your active browser in Settings > Download Browser to pass cookies, or install Node.js/Deno on your system.');
-          } else if (stderrStr.contains('Requested format is not available') || stderrStr.contains('n challenge solving failed')) {
-            throw Exception('YouTube stream decryption failed (n-challenge). A JavaScript runtime is required. Please install Node.js or Deno on your system to download YouTube videos.');
+            throw Exception(
+              'YouTube bot protection triggered. Please select your active browser in Settings > Download Browser to pass cookies, or install Node.js/Deno on your system.',
+            );
+          } else if (stderrStr.contains('Requested format is not available') ||
+              stderrStr.contains('n challenge solving failed')) {
+            throw Exception(
+              'YouTube stream decryption failed (n-challenge). A JavaScript runtime is required. Please install Node.js or Deno on your system to download YouTube videos.',
+            );
           } else {
-            throw Exception('Could not find JSON in output.\nError: $stderrStr\nOutput: $rawOutput');
+            throw Exception(
+              'Could not find JSON in output.\nError: $stderrStr\nOutput: $rawOutput',
+            );
           }
         }
         final jsonString = rawOutput.substring(jsonStartIndex);
@@ -210,15 +235,23 @@ class YtDlpEngine extends DownloadEngine {
         );
         info = await _probeSize(json as Map<String, dynamic>, info);
         parsedInfos.add(info);
-        hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
-        
+        hydrationLogsBuffer.writeln(
+          'Successfully fetched metadata for: "${info.title}"\n',
+        );
+
         String currentLogs = hydrationLogsBuffer.toString();
         if (stderrBuffer.isNotEmpty) {
-          final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+          final formattedErrors = stderrBuffer
+              .toString()
+              .trim()
+              .split('\n')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .join('\n\n');
           currentLogs += '\n\n--- yt-dlp Raw Logs ---\n$formattedErrors';
         }
         info = info.copyWith(fetchLogs: currentLogs.trim());
-        
+
         onProgress?.call(info);
       } else {
         hydrationLogsBuffer.writeln('Hydration started for playlist...');
@@ -235,19 +268,29 @@ class YtDlpEngine extends DownloadEngine {
               );
               info = await _probeSize(json as Map<String, dynamic>, info);
               parsedInfos.add(info);
-              hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
-              
+              hydrationLogsBuffer.writeln(
+                'Successfully fetched metadata for: "${info.title}"\n',
+              );
+
               String currentLogs = hydrationLogsBuffer.toString();
               if (stderrBuffer.isNotEmpty) {
-                final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+                final formattedErrors = stderrBuffer
+                    .toString()
+                    .trim()
+                    .split('\n')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .join('\n\n');
                 currentLogs += '\n\n--- yt-dlp Raw Logs ---\n$formattedErrors';
               }
               info = info.copyWith(fetchLogs: currentLogs.trim());
-              
+
               onProgress?.call(info);
             } catch (e) {
               debugPrint('Failed to parse yt-dlp deep json line: $e');
-              hydrationLogsBuffer.writeln('Error parsing metadata for a video: $e\n');
+              hydrationLogsBuffer.writeln(
+                'Error parsing metadata for a video: $e\n',
+              );
             }
           }
         }
@@ -255,9 +298,14 @@ class YtDlpEngine extends DownloadEngine {
         if (exitCode != 0 && parsedInfos.isEmpty) {
           final stderrStr = stderrBuffer.toString();
           if (stderrStr.contains('Sign in to confirm')) {
-            throw Exception('YouTube bot protection triggered. Please select your active browser in Settings > Download Browser to pass cookies, or install Node.js/Deno on your system.');
-          } else if (stderrStr.contains('Requested format is not available') || stderrStr.contains('n challenge solving failed')) {
-            throw Exception('YouTube stream decryption failed (n-challenge). A JavaScript runtime is required. Please install Node.js or Deno on your system to download YouTube videos.');
+            throw Exception(
+              'YouTube bot protection triggered. Please select your active browser in Settings > Download Browser to pass cookies, or install Node.js/Deno on your system.',
+            );
+          } else if (stderrStr.contains('Requested format is not available') ||
+              stderrStr.contains('n challenge solving failed')) {
+            throw Exception(
+              'YouTube stream decryption failed (n-challenge). A JavaScript runtime is required. Please install Node.js or Deno on your system to download YouTube videos.',
+            );
           } else {
             throw Exception('Failed to fetch deep metadata: $stderrStr');
           }
@@ -266,23 +314,41 @@ class YtDlpEngine extends DownloadEngine {
     }
 
     try {
-      final timeoutDuration = fetchDeep ? const Duration(minutes: 10) : const Duration(minutes: 3);
+      final timeoutDuration = fetchDeep
+          ? const Duration(minutes: 10)
+          : const Duration(minutes: 3);
       await processOutput().timeout(timeoutDuration);
-      
+
       String combinedLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
-        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        final formattedErrors = stderrBuffer
+            .toString()
+            .trim()
+            .split('\n')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .join('\n\n');
         combinedLogs += '\n\n--- yt-dlp Raw Logs ---\n$formattedErrors';
       }
-      
-      return parsedInfos.map((i) => i.copyWith(fetchLogs: combinedLogs.trim())).toList();
+
+      return parsedInfos
+          .map((i) => i.copyWith(fetchLogs: combinedLogs.trim()))
+          .toList();
     } on TimeoutException {
       ProcessUtils.killProcessTreeSync(process.pid);
-      hydrationLogsBuffer.writeln('!!! Hydration timed out after 10 minutes !!!');
-      
+      hydrationLogsBuffer.writeln(
+        '!!! Hydration timed out after 10 minutes !!!',
+      );
+
       String combinedLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
-        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        final formattedErrors = stderrBuffer
+            .toString()
+            .trim()
+            .split('\n')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .join('\n\n');
         combinedLogs += '\n\n--- yt-dlp Raw Logs ---\n$formattedErrors';
       }
 
@@ -290,15 +356,21 @@ class YtDlpEngine extends DownloadEngine {
         throw Exception('Metadata fetch timed out. Logs:\n$combinedLogs');
       }
       throw PartialMetadataException(
-        partialInfos: parsedInfos.map((i) => i.copyWith(fetchLogs: combinedLogs.trim())).toList(),
-        message: 'Hydration timed out after 10 minutes. Showing partial results.',
+        partialInfos: parsedInfos
+            .map((i) => i.copyWith(fetchLogs: combinedLogs.trim()))
+            .toList(),
+        message:
+            'Hydration timed out after 10 minutes. Showing partial results.',
       );
     }
   }
 
-  Future<MediaInfo> _probeSize(Map<String, dynamic> json, MediaInfo info) async {
+  Future<MediaInfo> _probeSize(
+    Map<String, dynamic> json,
+    MediaInfo info,
+  ) async {
     if (info.filesize != null) return info;
-    
+
     final directUrl = json['url']?.toString();
     if (directUrl == null || directUrl.isEmpty) return info;
 
@@ -306,19 +378,19 @@ class YtDlpEngine extends DownloadEngine {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 3);
       final req = await client.headUrl(Uri.parse(directUrl));
-      
+
       final headers = json['http_headers'] as Map<String, dynamic>?;
       if (headers != null) {
         headers.forEach((k, v) {
           req.headers.set(k, v.toString());
         });
       }
-      
+
       final cookies = json['cookies']?.toString();
       if (cookies != null && cookies.isNotEmpty) {
         req.headers.set('Cookie', cookies);
       }
-      
+
       final res = await req.close();
       if (res.contentLength > 0) {
         client.close(force: true);
@@ -326,7 +398,7 @@ class YtDlpEngine extends DownloadEngine {
       }
       client.close(force: true);
     } catch (_) {}
-    
+
     return info;
   }
 
@@ -372,9 +444,14 @@ class YtDlpEngine extends DownloadEngine {
     }
 
     String downloadTarget = url;
-    final fallbackDirectUrl = (format?.url?.isNotEmpty == true) ? format!.url! : directUrl;
-    
-    if (singleItemId != null && fallbackDirectUrl != null && fallbackDirectUrl.isNotEmpty && fallbackDirectUrl != url) {
+    final fallbackDirectUrl = (format?.url?.isNotEmpty == true)
+        ? format!.url!
+        : directUrl;
+
+    if (singleItemId != null &&
+        fallbackDirectUrl != null &&
+        fallbackDirectUrl.isNotEmpty &&
+        fallbackDirectUrl != url) {
       // Use direct media URL for single item downloads to bypass dynamic webpage scraping
       downloadTarget = fallbackDirectUrl;
       args.addAll(['--add-header', 'Referer:$url']);
@@ -406,7 +483,10 @@ class YtDlpEngine extends DownloadEngine {
       final safeTitle = title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       args.addAll(['-o', p.join(destination, '$safeTitle.%(ext)s')]);
     } else {
-      args.addAll(['-o', p.join(destination, '%(playlist_index)03d_%(title).80s.%(ext)s')]);
+      args.addAll([
+        '-o',
+        p.join(destination, '%(playlist_index)03d_%(title).80s.%(ext)s'),
+      ]);
     }
 
     if (Aria2Accelerator.isAvailable) {
@@ -422,7 +502,8 @@ class YtDlpEngine extends DownloadEngine {
 
     final customEnv = {
       'PYTHONUNBUFFERED': '1',
-      'PATH': '${Platform.environment['PATH'] ?? ''}:${Platform.environment['HOME']}/.deno/bin:/usr/local/bin:/opt/homebrew/bin',
+      'PATH':
+          '${Platform.environment['PATH'] ?? ''}:${Platform.environment['HOME']}/.deno/bin:/usr/local/bin:/opt/homebrew/bin',
     };
 
     return Process.start(

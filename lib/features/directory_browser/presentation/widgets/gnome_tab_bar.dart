@@ -33,11 +33,11 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
   @override
   Widget build(BuildContext context) {
     final tabState = ref.watch(tabManagerProvider);
-    
+
     if (tabState.tabs.length <= 1) {
       return const SizedBox.shrink();
     }
-    
+
     // Auto-scroll to end when tabs are added
     ref.listen(tabManagerProvider, (previous, next) {
       if (next.tabs.length > (previous?.tabs.length ?? 0)) {
@@ -60,38 +60,42 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
       decoration: const BoxDecoration(
         color: Colors.transparent,
       ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final availableWidth = constraints.maxWidth;
-              double calculatedWidth = availableWidth / tabState.tabs.length;
-              if (calculatedWidth < _minTabWidth) calculatedWidth = _minTabWidth;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final availableWidth = constraints.maxWidth;
+          double calculatedWidth = availableWidth / tabState.tabs.length;
+          if (calculatedWidth < _minTabWidth) calculatedWidth = _minTabWidth;
 
-              return SingleChildScrollView(
-                controller: _scrollController,
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: availableWidth),
-                  child: Row(
-                    children: tabState.tabs.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final tab = entry.value;
-                      final isActive = index == tabState.activeTabIndex;
-                      
-                      return SizedBox(
-                        width: calculatedWidth,
-                        child: _TabWidget(
-                          tab: tab,
-                          isActive: isActive,
-                          onTap: () => ref.read(tabManagerProvider.notifier).switchTab(index),
-                          onClose: () => ref.read(tabManagerProvider.notifier).closeTab(tab.id),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              );
-            },
-          ),
+          return SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: availableWidth),
+              child: Row(
+                children: tabState.tabs.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final tab = entry.value;
+                  final isActive = index == tabState.activeTabIndex;
+
+                  return SizedBox(
+                    width: calculatedWidth,
+                    child: _TabWidget(
+                      tab: tab,
+                      isActive: isActive,
+                      onTap: () => ref
+                          .read(tabManagerProvider.notifier)
+                          .switchTab(index),
+                      onClose: () => ref
+                          .read(tabManagerProvider.notifier)
+                          .closeTab(tab.id),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -122,16 +126,21 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
     _hoverTimer?.cancel();
     super.dispose();
   }
-  
+
   IconData _getTabIcon(String title) {
     final lowerTitle = title.toLowerCase();
     if (lowerTitle.contains('download')) return Icons.file_download_outlined;
-    if (lowerTitle.contains('document') || lowerTitle.contains('work')) return Icons.work_outline_rounded;
-    if (lowerTitle.contains('picture') || lowerTitle.contains('asset') || lowerTitle.contains('image')) return Icons.image_outlined;
+    if (lowerTitle.contains('document') || lowerTitle.contains('work'))
+      return Icons.work_outline_rounded;
+    if (lowerTitle.contains('picture') ||
+        lowerTitle.contains('asset') ||
+        lowerTitle.contains('image'))
+      return Icons.image_outlined;
     if (lowerTitle.contains('music')) return Icons.music_note_rounded;
     if (lowerTitle.contains('video')) return Icons.movie_outlined;
     if (lowerTitle.contains('desktop')) return Icons.desktop_windows_outlined;
-    if (lowerTitle == 'vimal-babu' || lowerTitle == 'root') return Icons.account_box_outlined;
+    if (lowerTitle == 'vimal-babu' || lowerTitle == 'root')
+      return Icons.account_box_outlined;
     return Icons.folder_outlined;
   }
 
@@ -140,7 +149,7 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
     const activeBg = Color(0xFF38383C);
     const inactiveBg = Colors.transparent;
     const borderColor = Color(0xFF2A2A2A);
-    
+
     final currentRef = ref;
 
     return DragTarget<List<String>>(
@@ -158,13 +167,15 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
         if (details.data.every((path) => p.dirname(path) == targetPath)) return;
 
         final repo = currentRef.read(directoryRepositoryProvider);
-        final taskId = currentRef.read(taskProvider.notifier).addTask(
-          title: 'Moving Files',
-          subtitle: '${details.data.length} items to ${widget.tab.title}',
-          totalCount: details.data.length,
-          sourcePaths: details.data,
-          targetPath: targetPath,
-        );
+        final taskId = currentRef
+            .read(taskProvider.notifier)
+            .addTask(
+              title: 'Moving Files',
+              subtitle: '${details.data.length} items to ${widget.tab.title}',
+              totalCount: details.data.length,
+              sourcePaths: details.data,
+              targetPath: targetPath,
+            );
 
         try {
           await repo.moveItems(details.data, targetPath);
@@ -186,17 +197,21 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
             child: AnimatedContainer(
               height: double.infinity,
               duration: const Duration(milliseconds: 150),
-              margin: widget.isActive 
-                  ? const EdgeInsets.symmetric(horizontal: 4) 
+              margin: widget.isActive
+                  ? const EdgeInsets.symmetric(horizontal: 4)
                   : EdgeInsets.zero,
               decoration: BoxDecoration(
-                color: isOver 
-                    ? AppColors.violet.withOpacity(0.1) 
+                color: isOver
+                    ? AppColors.violet.withOpacity(0.1)
                     : (widget.isActive ? activeBg : inactiveBg),
-                borderRadius: widget.isActive ? BorderRadius.circular(6) : BorderRadius.zero,
-                border: widget.isActive ? null : const Border(
-                  right: BorderSide(color: borderColor, width: 1),
-                ),
+                borderRadius: widget.isActive
+                    ? BorderRadius.circular(6)
+                    : BorderRadius.zero,
+                border: widget.isActive
+                    ? null
+                    : const Border(
+                        right: BorderSide(color: borderColor, width: 1),
+                      ),
               ),
               child: Stack(
                 alignment: Alignment.center,
@@ -209,16 +224,22 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
                         Icon(
                           _getTabIcon(widget.tab.title),
                           size: 14,
-                          color: widget.isActive ? Colors.white : Colors.white54,
+                          color: widget.isActive
+                              ? Colors.white
+                              : Colors.white54,
                         ),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
                             widget.tab.title,
                             style: GoogleFonts.manrope(
-                              color: widget.isActive ? Colors.white : Colors.white70,
+                              color: widget.isActive
+                                  ? Colors.white
+                                  : Colors.white70,
                               fontSize: 13,
-                              fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w500,
+                              fontWeight: widget.isActive
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
                               letterSpacing: 0.2,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -230,7 +251,10 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
                   if (widget.isActive || _isHovered)
                     Positioned(
                       right: 6,
-                      child: _CloseButton(onTap: widget.onClose, isActive: widget.isActive),
+                      child: _CloseButton(
+                        onTap: widget.onClose,
+                        isActive: widget.isActive,
+                      ),
                     ),
                 ],
               ),

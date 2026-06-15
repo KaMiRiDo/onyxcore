@@ -4,7 +4,8 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 class FilterSettings extends Equatable {
   final Set<DateTime>? selectedDates; // null = any
-  final bool? foldersOnly; // null = both, true = folders only, false = files only
+  final bool?
+  foldersOnly; // null = both, true = folders only, false = files only
   final FileItemType? category;
   final Set<String> extensions;
 
@@ -47,7 +48,11 @@ class FilterSettings extends Equatable {
     return items.where((item) {
       // 1. Date Filter
       if (selectedDates != null && selectedDates!.isNotEmpty) {
-        final itemDate = DateTime(item.modified.year, item.modified.month, item.modified.day);
+        final itemDate = DateTime(
+          item.modified.year,
+          item.modified.month,
+          item.modified.day,
+        );
         if (!selectedDates!.any((d) => _isSameDay(d, itemDate))) return false;
       }
 
@@ -76,5 +81,6 @@ class FilterSettings extends Equatable {
     }).toList();
   }
 
-  bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 }

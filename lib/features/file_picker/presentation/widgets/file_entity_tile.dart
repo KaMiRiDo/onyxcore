@@ -36,7 +36,9 @@ class FileEntityTile extends StatelessWidget {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: isSelected ? AppColors.violet.withOpacity(0.3) : Colors.transparent,
+              color: isSelected
+                  ? AppColors.violet.withOpacity(0.3)
+                  : Colors.transparent,
             ),
           ),
           child: Row(
@@ -65,7 +67,9 @@ class FileEntityTile extends StatelessWidget {
                 child: Text(
                   name,
                   style: GoogleFonts.manrope(
-                    color: isSelected ? Colors.white : Colors.white.withOpacity(0.85),
+                    color: isSelected
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.85),
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
@@ -81,10 +85,14 @@ class FileEntityTile extends StatelessWidget {
 
   IconData _getFileIcon(String name) {
     final ext = p.extension(name).toLowerCase();
-    if (['.mp4', '.mkv', '.mov', '.avi'].contains(ext)) return Icons.video_collection_rounded;
-    if (['.jpg', '.jpeg', '.png', '.svg', '.gif'].contains(ext)) return Icons.image_rounded;
-    if (['.mp3', '.wav', '.flac', '.m4a'].contains(ext)) return Icons.audiotrack_rounded;
-    if (['.pdf', '.doc', '.docx', '.txt', '.md'].contains(ext)) return Icons.description_rounded;
+    if (['.mp4', '.mkv', '.mov', '.avi'].contains(ext))
+      return Icons.video_collection_rounded;
+    if (['.jpg', '.jpeg', '.png', '.svg', '.gif'].contains(ext))
+      return Icons.image_rounded;
+    if (['.mp3', '.wav', '.flac', '.m4a'].contains(ext))
+      return Icons.audiotrack_rounded;
+    if (['.pdf', '.doc', '.docx', '.txt', '.md'].contains(ext))
+      return Icons.description_rounded;
     return Icons.insert_drive_file_rounded;
   }
 }

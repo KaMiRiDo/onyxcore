@@ -22,7 +22,8 @@ class ErrorDialog extends StatelessWidget {
     return KeyboardListener(
       focusNode: FocusNode()..requestFocus(),
       onKeyEvent: (event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.enter) {
           Navigator.pop(context);
         }
       },
@@ -85,7 +86,9 @@ class ErrorDialog extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () => Navigator.pop(context),
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(24),
+                      ),
                       child: Container(
                         decoration: BoxDecoration(
                           color: AppColors.violet.withOpacity(0.05),

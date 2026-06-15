@@ -52,19 +52,21 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
   Future<void> checkForUpdates({bool clearError = true}) async {
     if (state.isCheckingForUpdates) return;
-    
+
     state = state.copyWith(isCheckingForUpdates: true, clearError: clearError);
-    
+
     final installed = Map<String, String>.from(state.installedVersions);
     final latest = Map<String, String>.from(state.latestVersions);
 
-    await Future.wait(EngineRegistry.allEngines.map((engine) async {
-      final vInst = await engine.getInstalledVersion();
-      if (vInst != null) installed[engine.id] = vInst;
-      
-      final vLatest = await engine.getLatestVersion();
-      if (vLatest != null) latest[engine.id] = vLatest;
-    }));
+    await Future.wait(
+      EngineRegistry.allEngines.map((engine) async {
+        final vInst = await engine.getInstalledVersion();
+        if (vInst != null) installed[engine.id] = vInst;
+
+        final vLatest = await engine.getLatestVersion();
+        if (vLatest != null) latest[engine.id] = vLatest;
+      }),
+    );
 
     state = state.copyWith(
       isCheckingForUpdates: false,
@@ -75,7 +77,12 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
   Future<void> updateAll({bool defaultOnly = false}) async {
     if (state.isUpdating) return;
-    state = state.copyWith(isUpdating: true, progress: 0.0, engineProgress: {}, clearError: true);
+    state = state.copyWith(
+      isUpdating: true,
+      progress: 0.0,
+      engineProgress: {},
+      clearError: true,
+    );
 
     final enginesToUpdate = EngineRegistry.allEngines.where((e) {
       final vInst = state.installedVersions[e.id];
@@ -93,7 +100,13 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
     try {
       final binDir = Directory(
-        p.join(Platform.environment['HOME'] ?? '', '.local', 'share', 'onyxcore', 'bin'),
+        p.join(
+          Platform.environment['HOME'] ?? '',
+          '.local',
+          'share',
+          'onyxcore',
+          'bin',
+        ),
       );
       if (!await binDir.exists()) await binDir.create(recursive: true);
 
@@ -129,7 +142,12 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
   Future<void> updateBinaries() async {
     if (state.isUpdating) return;
 
-    state = state.copyWith(isUpdating: true, progress: 0.0, engineProgress: {}, clearError: true);
+    state = state.copyWith(
+      isUpdating: true,
+      progress: 0.0,
+      engineProgress: {},
+      clearError: true,
+    );
 
     try {
       final binDir = Directory(
@@ -147,7 +165,9 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       }
 
       // Iterate over all registered engines with update info
-      final engines = EngineRegistry.allEngines.where((e) => e.updateInfo != null).toList();
+      final engines = EngineRegistry.allEngines
+          .where((e) => e.updateInfo != null)
+          .toList();
       if (engines.isEmpty) {
         state = const DownloaderUpdateState(isUpdating: false, progress: 1.0);
         return;
@@ -179,10 +199,12 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
   /// Update a single engine that has updateInfo or is a python script engine.
   Future<void> updateEngine(DownloadEngine engine) async {
-    if (engine.updateInfo == null && engine.engineType != EngineType.python) return;
-    
+    if (engine.updateInfo == null && engine.engineType != EngineType.python)
+      return;
+
     final newEngineProgress = Map<String, double>.from(state.engineProgress);
-    newEngineProgress[engine.id] = -1.0; // Indeterminate progress for python engines initially
+    newEngineProgress[engine.id] =
+        -1.0; // Indeterminate progress for python engines initially
     if (engine.updateInfo != null) newEngineProgress[engine.id] = 0.0;
     state = state.copyWith(engineProgress: newEngineProgress, clearError: true);
 
@@ -213,13 +235,19 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     } catch (e) {
       final updatedProgress = Map<String, double>.from(state.engineProgress);
       updatedProgress.remove(engine.id);
-      state = state.copyWith(error: '${engine.id}:$e', engineProgress: updatedProgress);
+      state = state.copyWith(
+        error: '${engine.id}:$e',
+        engineProgress: updatedProgress,
+      );
     }
   }
 
   /// Track installation process for engines that use pip or other scripts.
   /// Sets progress to -1 (indeterminate) while running.
-  Future<void> installProcessEngine(DownloadEngine engine, Future<Process>? processFuture) async {
+  Future<void> installProcessEngine(
+    DownloadEngine engine,
+    Future<Process>? processFuture,
+  ) async {
     if (processFuture == null) return;
 
     final newEngineProgress = Map<String, double>.from(state.engineProgress);
@@ -231,12 +259,15 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode;
       final stderr = await stderrFuture;
-      
+
       final updatedProgress = Map<String, double>.from(state.engineProgress);
       updatedProgress.remove(engine.id);
-      
+
       if (exitCode != 0) {
-        state = state.copyWith(error: '${engine.id}:$stderr', engineProgress: updatedProgress);
+        state = state.copyWith(
+          error: '${engine.id}:$stderr',
+          engineProgress: updatedProgress,
+        );
       } else {
         state = state.copyWith(engineProgress: updatedProgress);
         await checkForUpdates(clearError: false);
@@ -244,7 +275,10 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     } catch (e) {
       final updatedProgress = Map<String, double>.from(state.engineProgress);
       updatedProgress.remove(engine.id);
-      state = state.copyWith(error: '${engine.displayName} installation failed: $e', engineProgress: updatedProgress);
+      state = state.copyWith(
+        error: '${engine.displayName} installation failed: $e',
+        engineProgress: updatedProgress,
+      );
     }
   }
 
@@ -311,12 +345,16 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         downloaded += chunk.length;
 
         final subProgress = (downloaded / contentLength).clamp(0.0, 1.0);
-        
-        final currentGlobal = engineId != null ? state.engineProgress[engineId] : null;
+
+        final currentGlobal = engineId != null
+            ? state.engineProgress[engineId]
+            : null;
         if (engineId != null && currentGlobal != null) {
           final newProgress = progressOffset + (subProgress * progressWeight);
-          
-          final newEngineProgress = Map<String, double>.from(state.engineProgress);
+
+          final newEngineProgress = Map<String, double>.from(
+            state.engineProgress,
+          );
           newEngineProgress[engineId!] = newProgress;
           state = state.copyWith(
             progress: progressOffset + (subProgress * progressWeight),
@@ -334,7 +372,12 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
       if (isTarGz) {
         final extractDir = p.dirname(targetPath);
-        final res = await Process.run('tar', ['-xzf', targetPath, '-C', extractDir]);
+        final res = await Process.run('tar', [
+          '-xzf',
+          targetPath,
+          '-C',
+          extractDir,
+        ]);
         if (res.exitCode != 0) {
           throw Exception('Failed to extract tar.gz: ${res.stderr}');
         }
@@ -359,7 +402,9 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
             for (final line in sumsBody.split('\n')) {
               if (line.contains(assetName)) {
                 final expectedHash = line.split(' ').first.trim();
-                final processResult = await Process.run('sha256sum', [savePath]);
+                final processResult = await Process.run('sha256sum', [
+                  savePath,
+                ]);
                 if (processResult.exitCode == 0) {
                   final actualHash = (processResult.stdout as String)
                       .split(' ')

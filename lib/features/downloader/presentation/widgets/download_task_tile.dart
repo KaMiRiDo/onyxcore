@@ -38,9 +38,12 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
       final expectedStr = task.expectedBytes > 0
           ? StringUtils.formatBytes(task.expectedBytes)
           : '?';
-      spans.add(TextSpan(
-        text: '${StringUtils.formatBytes(task.downloadedBytes)} / $expectedStr',
-      ));
+      spans.add(
+        TextSpan(
+          text:
+              '${StringUtils.formatBytes(task.downloadedBytes)} / $expectedStr',
+        ),
+      );
     } else if (task.totalSize.isNotEmpty) {
       // For single downloads, show the per-item size from yt-dlp/aria2c
       if (spans.isNotEmpty) spans.add(separator);
@@ -49,14 +52,16 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
 
     if (task.speed.isNotEmpty) {
       if (spans.isNotEmpty) spans.add(separator);
-      spans.add(TextSpan(
-        text: task.speed,
-        style: GoogleFonts.manrope(
-          color: AppColors.violet,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
+      spans.add(
+        TextSpan(
+          text: task.speed,
+          style: GoogleFonts.manrope(
+            color: AppColors.violet,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      ));
+      );
     }
 
     // Always show ETA — compute total remaining for playlists, use per-item for singles
@@ -81,7 +86,8 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
       if (elapsedSecs > 0) {
         // Use progress-based estimate: remaining = elapsed * (1 - progress) / progress
         if (task.progress > 0.0 && task.progress < 1.0) {
-          final remainingSecs = (elapsedSecs * (1.0 - task.progress) / task.progress).round();
+          final remainingSecs =
+              (elapsedSecs * (1.0 - task.progress) / task.progress).round();
           return _formatDuration(remainingSecs);
         }
       }

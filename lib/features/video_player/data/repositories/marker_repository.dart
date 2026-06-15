@@ -7,7 +7,7 @@ import '../../domain/entities/video_marker.dart';
 
 class MarkerRepository {
   static const String _sidecarDir = '.onyxcore';
-  
+
   static String _getSidecarPath(String videoPath) {
     final dir = p.dirname(videoPath);
     final fileName = p.basename(videoPath);
@@ -20,13 +20,15 @@ class MarkerRepository {
     if (!await markersDir.exists()) {
       await markersDir.create(recursive: true);
     }
-    
+
     // Create a safe unique filename based on the path
     // Using simple hash-like replacement for stability
-    final safeName = videoPath.length > 200 
-        ? videoPath.substring(videoPath.length - 200).replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+    final safeName = videoPath.length > 200
+        ? videoPath
+              .substring(videoPath.length - 200)
+              .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
         : videoPath.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    
+
     return p.join(markersDir.path, '$safeName.markers.json');
   }
 
@@ -57,14 +59,19 @@ class MarkerRepository {
   static List<VideoMarker> _parseMarkers(String jsonString) {
     try {
       final List<dynamic> jsonList = jsonDecode(jsonString);
-      return jsonList.map((e) => VideoMarker.fromJson(e as Map<String, dynamic>)).toList();
+      return jsonList
+          .map((e) => VideoMarker.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       debugPrint('[MarkerRepository] JSON parse error: $e');
       return [];
     }
   }
 
-  static Future<void> saveMarkers(String videoPath, List<VideoMarker> markers) async {
+  static Future<void> saveMarkers(
+    String videoPath,
+    List<VideoMarker> markers,
+  ) async {
     final jsonString = jsonEncode(markers.map((e) => e.toJson()).toList());
 
     try {
@@ -75,18 +82,22 @@ class MarkerRepository {
       if (!await sidecarDir.exists()) {
         await sidecarDir.create(recursive: true);
       }
-      
+
       await File(sidecarPath).writeAsString(jsonString);
       debugPrint('[MarkerRepository] Saved to sidecar: $sidecarPath');
     } catch (e) {
       // 2. Fallback if sidecar fails (e.g. read-only filesystem)
       try {
-        debugPrint('[MarkerRepository] Sidecar save failed, using fallback. Error: $e');
+        debugPrint(
+          '[MarkerRepository] Sidecar save failed, using fallback. Error: $e',
+        );
         final fallbackPath = await _getFallbackPath(videoPath);
         await File(fallbackPath).writeAsString(jsonString);
         debugPrint('[MarkerRepository] Saved to fallback: $fallbackPath');
       } catch (fallbackError) {
-        debugPrint('[MarkerRepository] Critical: Fallback save failed: $fallbackError');
+        debugPrint(
+          '[MarkerRepository] Critical: Fallback save failed: $fallbackError',
+        );
       }
     }
   }

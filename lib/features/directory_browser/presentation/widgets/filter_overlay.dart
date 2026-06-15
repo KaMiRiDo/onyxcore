@@ -60,7 +60,7 @@ class _FilterOverlayWidget extends StatefulWidget {
 
 class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
   late FilterSettings _settings;
-  String? _expandedSection; 
+  String? _expandedSection;
   final Map<String, LayerLink> _layerLinks = {
     'itemType': LayerLink(),
     'fileType': LayerLink(),
@@ -139,15 +139,22 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                         _hideDropdown();
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                         child: Row(
                           children: [
                             Text(
                               item.label,
                               style: GoogleFonts.manrope(
-                                color: isSelected ? Colors.white : Colors.white60,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.white60,
                                 fontSize: 13,
-                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                               ),
                             ),
                             const Spacer(),
@@ -180,7 +187,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
         ),
         gradient: isSelected ? AppTheme.primaryGradient : null,
       ),
-      child: isSelected 
+      child: isSelected
           ? const Center(
               child: Icon(Icons.check_rounded, color: Colors.white, size: 12),
             )
@@ -200,7 +207,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
         ),
         gradient: isSelected ? AppTheme.primaryGradient : null,
       ),
-      child: isSelected 
+      child: isSelected
           ? Center(
               child: Container(
                 width: 8,
@@ -225,15 +232,17 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     const width = 400.0;
-    final maxHeight = screenSize.height * 0.8; // Allow up to 80% of screen height
+    final maxHeight =
+        screenSize.height * 0.8; // Allow up to 80% of screen height
 
     double left = widget.position.dx - width + 40;
     double top = widget.position.dy + 48;
 
     if (left < 16) left = 16;
-    if (left + width > screenSize.width - 16) left = screenSize.width - width - 16;
-    
-    // If the box might go off-screen at the bottom, we cap its height 
+    if (left + width > screenSize.width - 16)
+      left = screenSize.width - width - 16;
+
+    // If the box might go off-screen at the bottom, we cap its height
     // and potentially shift it up.
     final availableHeight = screenSize.height - top - 16;
     if (availableHeight < 400 && widget.position.dy > screenSize.height / 2) {
@@ -308,15 +317,15 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                         _buildSectionTitle('DATE RANGE'),
                         _buildCalendarSection(),
                         const SizedBox(height: 24),
-                        
+
                         _buildSectionTitle('ITEM TYPE'),
                         _buildItemTypeDropdown(),
-                        
+
                         if (_settings.foldersOnly == false) ...[
                           const SizedBox(height: 24),
                           _buildSectionTitle('FILE TYPE'),
                           _buildFileTypeDropdown(),
-                          
+
                           if (_settings.category != null) ...[
                             const SizedBox(height: 24),
                             _buildSectionTitle(
@@ -350,7 +359,11 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
               color: AppColors.violet.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.tune_rounded, color: AppColors.violet, size: 18),
+            child: const Icon(
+              Icons.tune_rounded,
+              color: AppColors.violet,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
@@ -364,7 +377,11 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
           const Spacer(),
           IconButton(
             onPressed: widget.onClose,
-            icon: Icon(Icons.close_rounded, color: Colors.white.withOpacity(0.3), size: 20),
+            icon: Icon(
+              Icons.close_rounded,
+              color: Colors.white.withOpacity(0.3),
+              size: 20,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -408,7 +425,10 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
         selectedDates: _settings.selectedDates ?? {},
         onDatesChanged: (dates) {
           setState(() {
-            _settings = _settings.copyWith(selectedDates: dates, clearDates: dates.isEmpty);
+            _settings = _settings.copyWith(
+              selectedDates: dates,
+              clearDates: dates.isEmpty,
+            );
           });
         },
       ),
@@ -418,7 +438,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
   Widget _buildItemTypeDropdown() {
     final val = _settings.foldersOnly;
     final label = val == null ? 'Any' : (val ? 'Folders' : 'Files');
-    
+
     return _buildCustomSelector<bool?>(
       sectionId: 'itemType',
       label: label,
@@ -431,11 +451,11 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
       onChanged: (newVal) {
         setState(() {
           _settings = _settings.copyWith(
-            foldersOnly: newVal, 
+            foldersOnly: newVal,
             clearFoldersOnly: newVal == null,
-            category: null, 
+            category: null,
             clearCategory: true,
-            extensions: {}
+            extensions: {},
           );
           _expandedSection = null;
         });
@@ -445,8 +465,12 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
 
   Widget _buildFileTypeDropdown() {
     final cat = _settings.category;
-    final label = cat == null ? 'Any' : (cat.name[0].toUpperCase() + cat.name.substring(1));
-    final categories = FileItemType.values.where((e) => e != FileItemType.folder).toList();
+    final label = cat == null
+        ? 'Any'
+        : (cat.name[0].toUpperCase() + cat.name.substring(1));
+    final categories = FileItemType.values
+        .where((e) => e != FileItemType.folder)
+        .toList();
 
     return _buildCustomSelector<FileItemType?>(
       sectionId: 'fileType',
@@ -454,17 +478,22 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
       value: cat,
       items: [
         DropdownMenuItemData(label: 'Any', value: null),
-        ...categories.map((c) => DropdownMenuItemData(label: c.name[0].toUpperCase() + c.name.substring(1), value: c)),
+        ...categories.map(
+          (c) => DropdownMenuItemData(
+            label: c.name[0].toUpperCase() + c.name.substring(1),
+            value: c,
+          ),
+        ),
       ],
       onChanged: (newVal) {
         setState(() {
           _settings = _settings.copyWith(
-            category: newVal, 
+            category: newVal,
             clearCategory: newVal == null,
             extensions: {}, // Don't check by default
           );
           _expandedSection = null;
-          _errorMessage = null; 
+          _errorMessage = null;
           _errorTimer?.cancel();
         });
       },
@@ -501,7 +530,9 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
             color: Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isExpanded ? AppColors.violet.withOpacity(0.3) : Colors.white.withOpacity(0.05)
+              color: isExpanded
+                  ? AppColors.violet.withOpacity(0.3)
+                  : Colors.white.withOpacity(0.05),
             ),
           ),
           child: Row(
@@ -509,16 +540,20 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
               Text(
                 label,
                 style: GoogleFonts.manrope(
-                  color: Colors.white70, 
-                  fontSize: 13, 
-                  fontWeight: FontWeight.w600
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const Spacer(),
               AnimatedRotation(
                 turns: isExpanded ? 0.5 : 0,
                 duration: const Duration(milliseconds: 200),
-                child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white30, size: 20),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white30,
+                  size: 20,
+                ),
               ),
             ],
           ),
@@ -530,7 +565,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
   Widget _buildSelectAllCheckbox() {
     final cat = _settings.category;
     if (cat == null) return const SizedBox.shrink();
-    
+
     final exts = FileTypeClassifier.getExtensionsForType(cat);
     final allSelected = exts.every((e) => _settings.extensions.contains(e));
 
@@ -569,7 +604,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
   Widget _buildExtensionDropdown() {
     final cat = _settings.category!;
     final exts = FileTypeClassifier.getExtensionsForType(cat);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -612,13 +647,18 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
       borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(horizontal: small ? 10 : 14, vertical: small ? 6 : 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: small ? 10 : 14,
+          vertical: small ? 6 : 8,
+        ),
         decoration: BoxDecoration(
           gradient: isSelected ? AppTheme.primaryGradient : null,
           color: isSelected ? null : Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+            color: isSelected
+                ? Colors.white.withOpacity(0.2)
+                : Colors.white.withOpacity(0.05),
           ),
         ),
         child: Text(
@@ -648,7 +688,11 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 14),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: Colors.redAccent,
+                  size: 14,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -667,7 +711,9 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.black.withOpacity(0.1),
-            border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+            border: Border(
+              top: BorderSide(color: Colors.white.withOpacity(0.05)),
+            ),
           ),
           child: Row(
             children: [
@@ -680,7 +726,11 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                 },
                 child: Text(
                   'Reset',
-                  style: GoogleFonts.manrope(color: Colors.white30, fontWeight: FontWeight.bold, fontSize: 13),
+                  style: GoogleFonts.manrope(
+                    color: Colors.white30,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -688,17 +738,22 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                 onPressed: widget.onClose,
                 child: Text(
                   'Cancel',
-                  style: GoogleFonts.manrope(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13),
+                  style: GoogleFonts.manrope(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {
-                  if (_settings.category != null && _settings.extensions.isEmpty) {
+                  if (_settings.category != null &&
+                      _settings.extensions.isEmpty) {
                     setState(() {
                       _errorMessage = 'At least one extension must be selected';
                     });
-                    
+
                     _errorTimer?.cancel();
                     _errorTimer = Timer(const Duration(seconds: 2), () {
                       if (mounted) {
@@ -709,15 +764,21 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                   }
                   widget.onApply(_settings);
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ).copyWith(
-                  elevation: WidgetStateProperty.all(0),
-                ),
+                style:
+                    ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ).copyWith(
+                      elevation: WidgetStateProperty.all(0),
+                    ),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     gradient: AppTheme.primaryGradient,
                     borderRadius: BorderRadius.circular(10),
@@ -758,9 +819,9 @@ class FilterCalendar extends StatefulWidget {
   final ValueChanged<Set<DateTime>> onDatesChanged;
 
   const FilterCalendar({
-    super.key, 
-    required this.selectedDates, 
-    required this.onDatesChanged
+    super.key,
+    required this.selectedDates,
+    required this.onDatesChanged,
   });
 
   @override
@@ -774,8 +835,8 @@ class _FilterCalendarState extends State<FilterCalendar> {
   @override
   void initState() {
     super.initState();
-    _viewDate = widget.selectedDates.isNotEmpty 
-        ? widget.selectedDates.first 
+    _viewDate = widget.selectedDates.isNotEmpty
+        ? widget.selectedDates.first
         : DateTime.now();
   }
 
@@ -783,7 +844,8 @@ class _FilterCalendarState extends State<FilterCalendar> {
   Widget build(BuildContext context) {
     final monthDays = _getDaysInMonth(_viewDate);
     final prevMonthDays = _getPrevMonthDays(_viewDate);
-    final firstDayOfWeek = DateTime(_viewDate.year, _viewDate.month, 1).weekday % 7;
+    final firstDayOfWeek =
+        DateTime(_viewDate.year, _viewDate.month, 1).weekday % 7;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final hasSelection = widget.selectedDates.isNotEmpty;
@@ -793,8 +855,14 @@ class _FilterCalendarState extends State<FilterCalendar> {
         Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.chevron_left_rounded, size: 20, color: Colors.white30),
-              onPressed: () => setState(() => _viewDate = DateTime(_viewDate.year, _viewDate.month - 1)),
+              icon: const Icon(
+                Icons.chevron_left_rounded,
+                size: 20,
+                color: Colors.white30,
+              ),
+              onPressed: () => setState(
+                () => _viewDate = DateTime(_viewDate.year, _viewDate.month - 1),
+              ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
@@ -803,18 +871,30 @@ class _FilterCalendarState extends State<FilterCalendar> {
                 child: Text(
                   _formatMonthYear(_viewDate),
                   style: GoogleFonts.manrope(
-                    color: Colors.white70, 
-                    fontSize: 11, 
-                    fontWeight: FontWeight.w800, 
-                    letterSpacing: 0.5
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.white30),
-              onPressed: _viewDate.year < now.year || (_viewDate.year == now.year && _viewDate.month < now.month)
-                  ? () => setState(() => _viewDate = DateTime(_viewDate.year, _viewDate.month + 1))
+              icon: const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: Colors.white30,
+              ),
+              onPressed:
+                  _viewDate.year < now.year ||
+                      (_viewDate.year == now.year &&
+                          _viewDate.month < now.month)
+                  ? () => setState(
+                      () => _viewDate = DateTime(
+                        _viewDate.year,
+                        _viewDate.month + 1,
+                      ),
+                    )
                   : null,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -825,11 +905,13 @@ class _FilterCalendarState extends State<FilterCalendar> {
               opacity: hasSelection ? 1.0 : 0.3,
               child: IconButton(
                 icon: Icon(
-                  Icons.refresh_rounded, 
-                  size: 16, 
-                  color: hasSelection ? AppColors.violet : Colors.white30
+                  Icons.refresh_rounded,
+                  size: 16,
+                  color: hasSelection ? AppColors.violet : Colors.white30,
                 ),
-                onPressed: hasSelection ? () => widget.onDatesChanged({}) : null,
+                onPressed: hasSelection
+                    ? () => widget.onDatesChanged({})
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 tooltip: 'Reset Dates',
@@ -851,17 +933,31 @@ class _FilterCalendarState extends State<FilterCalendar> {
             DateTime date;
             bool currentMonth = true;
             if (index < firstDayOfWeek) {
-              date = DateTime(_viewDate.year, _viewDate.month - 1, prevMonthDays - firstDayOfWeek + index + 1);
+              date = DateTime(
+                _viewDate.year,
+                _viewDate.month - 1,
+                prevMonthDays - firstDayOfWeek + index + 1,
+              );
               currentMonth = false;
             } else if (index < firstDayOfWeek + monthDays) {
-              date = DateTime(_viewDate.year, _viewDate.month, index - firstDayOfWeek + 1);
+              date = DateTime(
+                _viewDate.year,
+                _viewDate.month,
+                index - firstDayOfWeek + 1,
+              );
             } else {
-              date = DateTime(_viewDate.year, _viewDate.month + 1, index - firstDayOfWeek - monthDays + 1);
+              date = DateTime(
+                _viewDate.year,
+                _viewDate.month + 1,
+                index - firstDayOfWeek - monthDays + 1,
+              );
               currentMonth = false;
             }
 
             final normalizedDate = DateTime(date.year, date.month, date.day);
-            final isSelected = widget.selectedDates.any((d) => _isSameDay(d, normalizedDate));
+            final isSelected = widget.selectedDates.any(
+              (d) => _isSameDay(d, normalizedDate),
+            );
             final isToday = _isSameDay(today, normalizedDate);
             final isFuture = normalizedDate.isAfter(today);
 
@@ -873,18 +969,31 @@ class _FilterCalendarState extends State<FilterCalendar> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   gradient: isSelected ? AppTheme.primaryGradient : null,
-                  color: !isSelected && isToday ? AppColors.violet.withOpacity(0.1) : (isSelected ? null : Colors.transparent),
+                  color: !isSelected && isToday
+                      ? AppColors.violet.withOpacity(0.1)
+                      : (isSelected ? null : Colors.transparent),
                   borderRadius: BorderRadius.circular(8),
-                  border: isToday && !isSelected ? Border.all(color: AppColors.violet.withOpacity(0.2), width: 0.5) : null,
+                  border: isToday && !isSelected
+                      ? Border.all(
+                          color: AppColors.violet.withOpacity(0.2),
+                          width: 0.5,
+                        )
+                      : null,
                 ),
                 child: Text(
                   date.day.toString(),
                   style: GoogleFonts.manrope(
-                    color: isFuture 
+                    color: isFuture
                         ? Colors.white.withOpacity(0.05)
-                        : (isSelected ? Colors.white : (currentMonth ? Colors.white70 : Colors.white12)),
+                        : (isSelected
+                              ? Colors.white
+                              : (currentMonth
+                                    ? Colors.white70
+                                    : Colors.white12)),
                     fontSize: 11,
-                    fontWeight: isSelected || isToday ? FontWeight.w800 : FontWeight.normal,
+                    fontWeight: isSelected || isToday
+                        ? FontWeight.w800
+                        : FontWeight.normal,
                   ),
                 ),
               ),
@@ -896,15 +1005,24 @@ class _FilterCalendarState extends State<FilterCalendar> {
   }
 
   void _handleDateTap(DateTime date) {
-    final isShift = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
-                    HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
-    
+    final isShift =
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.shiftLeft,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.shiftRight,
+        );
+
     Set<DateTime> newDates = Set.from(widget.selectedDates);
 
     if (isShift && _anchorDate != null) {
       final start = _anchorDate!.isBefore(date) ? _anchorDate! : date;
       final end = _anchorDate!.isBefore(date) ? date : _anchorDate!;
-      for (var d = start; d.isBefore(end.add(const Duration(days: 1))); d = d.add(const Duration(days: 1))) {
+      for (
+        var d = start;
+        d.isBefore(end.add(const Duration(days: 1)));
+        d = d.add(const Duration(days: 1))
+      ) {
         newDates.add(DateTime(d.year, d.month, d.day));
       }
     } else {
@@ -920,11 +1038,27 @@ class _FilterCalendarState extends State<FilterCalendar> {
     widget.onDatesChanged(newDates);
   }
 
-  int _getDaysInMonth(DateTime date) => DateTime(date.year, date.month + 1, 0).day;
-  int _getPrevMonthDays(DateTime date) => DateTime(date.year, date.month, 0).day;
-  bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  int _getDaysInMonth(DateTime date) =>
+      DateTime(date.year, date.month + 1, 0).day;
+  int _getPrevMonthDays(DateTime date) =>
+      DateTime(date.year, date.month, 0).day;
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
   String _formatMonthYear(DateTime date) {
-    final months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+    final months = [
+      "JANUARY",
+      "FEBRUARY",
+      "MARCH",
+      "APRIL",
+      "MAY",
+      "JUNE",
+      "JULY",
+      "AUGUST",
+      "SEPTEMBER",
+      "OCTOBER",
+      "NOVEMBER",
+      "DECEMBER",
+    ];
     return "${months[date.month - 1]} ${date.year}";
   }
 }

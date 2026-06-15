@@ -89,12 +89,18 @@ class YouGetEngine extends DownloadEngine {
 
   @override
   Future<Process>? install() {
-    return Process.start('bash', ['-c', 'pip3 install you-get --break-system-packages']);
+    return Process.start('bash', [
+      '-c',
+      'pip3 install you-get --break-system-packages',
+    ]);
   }
 
   @override
   Future<Process>? uninstall() {
-    return Process.start('bash', ['-c', 'pip3 uninstall you-get -y --break-system-packages']);
+    return Process.start('bash', [
+      '-c',
+      'pip3 uninstall you-get -y --break-system-packages',
+    ]);
   }
 
   @override
@@ -120,7 +126,10 @@ class YouGetEngine extends DownloadEngine {
   @override
   Future<String?> getLatestVersion() async {
     try {
-      final res = await Process.run('curl', ['-s', 'https://pypi.org/pypi/you-get/json']);
+      final res = await Process.run('curl', [
+        '-s',
+        'https://pypi.org/pypi/you-get/json',
+      ]);
       if (res.exitCode == 0) {
         final json = jsonDecode(res.stdout as String);
         return json['info']?['version']?.toString();
@@ -156,13 +165,15 @@ class YouGetEngine extends DownloadEngine {
       });
 
       if (onProgress != null) {
-        onProgress(MediaInfo(
-          id: 'hydration_loading',
-          title: 'Fetching...',
-          originalUrl: url,
-          fetchLogs: 'Waiting for output...',
-          isVideo: false,
-        ));
+        onProgress(
+          MediaInfo(
+            id: 'hydration_loading',
+            title: 'Fetching...',
+            originalUrl: url,
+            fetchLogs: 'Waiting for output...',
+            isVideo: false,
+          ),
+        );
       }
 
       final rawOutput = await process.stdout.transform(utf8.decoder).join();
@@ -198,20 +209,21 @@ class YouGetEngine extends DownloadEngine {
         final container = stream['container']?.toString() ?? 'mp4';
         final size = stream['size'] as int?;
 
-        formats.add(MediaFormat(
-          formatId: entry.key,
-          extension: container,
-          resolution: quality,
-          filesize: size,
-          formatString: '$quality ($container)',
-        ));
+        formats.add(
+          MediaFormat(
+            formatId: entry.key,
+            extension: container,
+            resolution: quality,
+            filesize: size,
+            formatString: '$quality ($container)',
+          ),
+        );
       }
 
       // Determine total filesize from the best stream
       int? totalSize;
       if (streams.isNotEmpty) {
-        final bestStream =
-            streams.values.first as Map<String, dynamic>;
+        final bestStream = streams.values.first as Map<String, dynamic>;
         totalSize = bestStream['size'] as int?;
       }
 
@@ -225,10 +237,18 @@ class YouGetEngine extends DownloadEngine {
         originalUrl: url,
       );
 
-      hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
+      hydrationLogsBuffer.writeln(
+        'Successfully fetched metadata for: "${info.title}"\n',
+      );
       String currentLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
-        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        final formattedErrors = stderrBuffer
+            .toString()
+            .trim()
+            .split('\n')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .join('\n\n');
         currentLogs += '\n\n--- You-Get Raw Logs ---\n$formattedErrors';
       }
       var finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
@@ -247,7 +267,8 @@ class YouGetEngine extends DownloadEngine {
       }
       throw PartialMetadataException(
         partialInfos: parsedInfos,
-        message: 'Hydration timed out after 10 minutes. Showing partial results.',
+        message:
+            'Hydration timed out after 10 minutes. Showing partial results.',
       );
     }
   }
@@ -287,7 +308,7 @@ class YouGetEngine extends DownloadEngine {
     }
 
     if (format != null) {
-      args.addAll(['--format=${ format.formatId}']);
+      args.addAll(['--format=${format.formatId}']);
     }
 
     args.add(url);

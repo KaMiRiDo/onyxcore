@@ -10,7 +10,8 @@ class BubbleLoader extends StatefulWidget {
   State<BubbleLoader> createState() => _BubbleLoaderState();
 }
 
-class _BubbleLoaderState extends State<BubbleLoader> with SingleTickerProviderStateMixin {
+class _BubbleLoaderState extends State<BubbleLoader>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -65,14 +66,15 @@ class BubblePainter extends CustomPainter {
       final angle = (i * math.pi / 4) + (progress * math.pi * 2);
       final bubbleProgress = (progress + (i * 0.125)) % 1.0;
       final offsetDist = radius * 0.6 * math.sin(bubbleProgress * math.pi);
-      
+
       final bubbleCenter = Offset(
         center.dx + math.cos(angle) * offsetDist,
         center.dy + math.sin(angle) * offsetDist,
       );
 
-      final bubbleRadius = (size.width * 0.05) * math.sin(bubbleProgress * math.pi);
-      
+      final bubbleRadius =
+          (size.width * 0.05) * math.sin(bubbleProgress * math.pi);
+
       final paint = Paint()
         ..sharedGradient(
           Rect.fromCircle(center: bubbleCenter, radius: bubbleRadius),

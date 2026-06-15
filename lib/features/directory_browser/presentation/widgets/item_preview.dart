@@ -80,32 +80,51 @@ class ItemPreview extends StatelessWidget {
     final name = item.name.toLowerCase();
 
     // SVG icon mappings — exact same as original _buildFileFallback()
-    if (name.contains('readme') || name.endsWith('.md')) return _buildSvgIcon('assets/icons/readme.svg');
+    if (name.contains('readme') || name.endsWith('.md'))
+      return _buildSvgIcon('assets/icons/readme.svg');
     if (name.endsWith('.pdf')) return _buildSvgIcon('assets/icons/pdf.svg');
-    if (name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z') ||
-        name.endsWith('.tar') || name.endsWith('.gz')) {
+    if (name.endsWith('.zip') ||
+        name.endsWith('.rar') ||
+        name.endsWith('.7z') ||
+        name.endsWith('.tar') ||
+        name.endsWith('.gz')) {
       return _buildSvgIcon('assets/icons/zip.svg');
     }
-    if (name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.odt')) {
+    if (name.endsWith('.doc') ||
+        name.endsWith('.docx') ||
+        name.endsWith('.odt')) {
       return _buildSvgIcon('assets/icons/doc.svg');
     }
-    if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv') ||
+    if (name.endsWith('.xlsx') ||
+        name.endsWith('.xls') ||
+        name.endsWith('.csv') ||
         name.endsWith('.ods')) {
       return _buildSvgIcon('assets/icons/spreadsheet.svg');
     }
-    if (name.endsWith('.ppt') || name.endsWith('.pptx') || name.endsWith('.odp')) {
+    if (name.endsWith('.ppt') ||
+        name.endsWith('.pptx') ||
+        name.endsWith('.odp')) {
       return _buildSvgIcon('assets/icons/presentation.svg');
     }
-    if (name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.flac') ||
-        name.endsWith('.m4a') || name.endsWith('.aac') || name.endsWith('.ogg') ||
-        name.endsWith('.wma') || name.endsWith('.opus')) {
+    if (name.endsWith('.mp3') ||
+        name.endsWith('.wav') ||
+        name.endsWith('.flac') ||
+        name.endsWith('.m4a') ||
+        name.endsWith('.aac') ||
+        name.endsWith('.ogg') ||
+        name.endsWith('.wma') ||
+        name.endsWith('.opus')) {
       return _buildSvgIcon('assets/icons/audio.svg');
     }
     if (name.endsWith('.txt') || name.endsWith('.log')) {
       return _buildSvgIcon('assets/icons/txt.svg');
     }
-    if (name.endsWith('.exe') || name.endsWith('.sh') || name.endsWith('.bin') ||
-        name.endsWith('.appimage') || name.endsWith('.deb') || name.endsWith('.rpm')) {
+    if (name.endsWith('.exe') ||
+        name.endsWith('.sh') ||
+        name.endsWith('.bin') ||
+        name.endsWith('.appimage') ||
+        name.endsWith('.deb') ||
+        name.endsWith('.rpm')) {
       return _buildSvgIcon('assets/icons/exe.svg');
     }
 

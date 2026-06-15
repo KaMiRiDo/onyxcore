@@ -63,11 +63,12 @@ class _SortOverlayWidget extends StatelessWidget {
     // Align left edge of popup with the button so it opens towards the right
     double left = buttonPosition.dx + 8;
     // Show directly below the button
-    double top = buttonPosition.dy + buttonSize.height + 8; 
+    double top = buttonPosition.dy + buttonSize.height + 8;
 
     if (left < 16) left = 16;
-    if (left + width > screenSize.width - 16) left = screenSize.width - width - 16;
-    
+    if (left + width > screenSize.width - 16)
+      left = screenSize.width - width - 16;
+
     if (top + height > screenSize.height - 16) {
       top = buttonPosition.dy - height - 8;
     }
@@ -109,18 +110,18 @@ class _SortOverlayWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.white.withOpacity(0.06)),
                     ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: SortOption.values.map((option) {
-                      final isSelected = option == currentOption;
-                      return _buildOption(option, isSelected);
-                    }).toList(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: SortOption.values.map((option) {
+                        final isSelected = option == currentOption;
+                        return _buildOption(option, isSelected);
+                      }).toList(),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
         ),
       ],
     );
@@ -169,7 +170,7 @@ class _SortOverlayWidget extends StatelessWidget {
         ),
         gradient: isSelected ? AppTheme.primaryGradient : null,
       ),
-      child: isSelected 
+      child: isSelected
           ? Center(
               child: Container(
                 width: 8,
@@ -186,13 +187,20 @@ class _SortOverlayWidget extends StatelessWidget {
 
   IconData _getIcon(SortOption option) {
     switch (option) {
-      case SortOption.aToZ: return Icons.sort_by_alpha_rounded;
-      case SortOption.zToA: return Icons.sort_by_alpha_rounded; 
-      case SortOption.firstModified: return Icons.history_rounded;
-      case SortOption.lastModified: return Icons.update_rounded;
-      case SortOption.sizeSmallToLarge: return Icons.unfold_more_rounded;
-      case SortOption.sizeLargeToSmall: return Icons.unfold_less_rounded;
-      case SortOption.filesFirst: return Icons.insert_drive_file_outlined;
+      case SortOption.aToZ:
+        return Icons.sort_by_alpha_rounded;
+      case SortOption.zToA:
+        return Icons.sort_by_alpha_rounded;
+      case SortOption.firstModified:
+        return Icons.history_rounded;
+      case SortOption.lastModified:
+        return Icons.update_rounded;
+      case SortOption.sizeSmallToLarge:
+        return Icons.unfold_more_rounded;
+      case SortOption.sizeLargeToSmall:
+        return Icons.unfold_less_rounded;
+      case SortOption.filesFirst:
+        return Icons.insert_drive_file_outlined;
     }
   }
 }

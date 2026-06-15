@@ -115,7 +115,10 @@ class PlaywrightEngine extends DownloadEngine {
   @override
   Future<String?> getLatestVersion() async {
     try {
-      final res = await Process.run('curl', ['-s', 'https://pypi.org/pypi/playwright/json']);
+      final res = await Process.run('curl', [
+        '-s',
+        'https://pypi.org/pypi/playwright/json',
+      ]);
       if (res.exitCode == 0) {
         final json = jsonDecode(res.stdout as String);
         return json['info']?['version']?.toString();
@@ -170,13 +173,15 @@ class PlaywrightEngine extends DownloadEngine {
       });
 
       if (onProgress != null) {
-        onProgress(MediaInfo(
-          id: 'hydration_loading',
-          title: 'Fetching...',
-          originalUrl: url,
-          fetchLogs: 'Waiting for output...',
-          isVideo: false,
-        ));
+        onProgress(
+          MediaInfo(
+            id: 'hydration_loading',
+            title: 'Fetching...',
+            originalUrl: url,
+            fetchLogs: 'Waiting for output...',
+            isVideo: false,
+          ),
+        );
       }
 
       final rawOutput = await process.stdout.transform(utf8.decoder).join();
@@ -193,13 +198,15 @@ class PlaywrightEngine extends DownloadEngine {
 
       int startIndex = rawOutput.indexOf('{');
       if (startIndex == -1) startIndex = rawOutput.indexOf('[');
-      
+
       int endIndex = rawOutput.lastIndexOf('}');
       int bracketEnd = rawOutput.lastIndexOf(']');
       if (bracketEnd > endIndex) endIndex = bracketEnd;
 
       if (startIndex == -1 || endIndex == -1 || endIndex < startIndex) {
-        throw Exception('Could not parse Playwright output: valid JSON block not found');
+        throw Exception(
+          'Could not parse Playwright output: valid JSON block not found',
+        );
       }
 
       final jsonString = rawOutput.substring(startIndex, endIndex + 1);
@@ -229,7 +236,8 @@ class PlaywrightEngine extends DownloadEngine {
         if (mediaUrl.isEmpty) continue;
 
         // Determine media type and extension
-        final isHls = mediaUrl.contains('.m3u8') || contentType.contains('mpegurl');
+        final isHls =
+            mediaUrl.contains('.m3u8') || contentType.contains('mpegurl');
         final isTs = mediaUrl.contains('.ts');
         final isMp4 = mediaUrl.contains('.mp4') || contentType.contains('mp4');
 
@@ -238,18 +246,22 @@ class PlaywrightEngine extends DownloadEngine {
         if (isTs) ext = 'ts';
 
         final sizeBytes = int.tryParse(sizeStr) ?? 0;
-        final sizeText = sizeBytes > 0 ? '${(sizeBytes / 1024 / 1024).toStringAsFixed(1)} MB' : '';
+        final sizeText = sizeBytes > 0
+            ? '${(sizeBytes / 1024 / 1024).toStringAsFixed(1)} MB'
+            : '';
         String resName = isHls ? 'HLS Stream' : 'Resolution ${i + 1}';
         if (sizeText.isNotEmpty) {
           resName += ' ($sizeText)';
         }
 
-        formats.add(MediaFormat(
-          formatId: 'stream_$i',
-          extension: ext,
-          resolution: resName,
-          formatString: mediaUrl,
-        ));
+        formats.add(
+          MediaFormat(
+            formatId: 'stream_$i',
+            extension: ext,
+            resolution: resName,
+            formatString: mediaUrl,
+          ),
+        );
       }
 
       if (formats.isEmpty) {
@@ -262,14 +274,24 @@ class PlaywrightEngine extends DownloadEngine {
         originalUrl: url,
         extractor: 'playwright',
         isVideo: true,
-        thumbnail: (thumbnailB64 != null && thumbnailB64.isNotEmpty) ? thumbnailB64 : null,
+        thumbnail: (thumbnailB64 != null && thumbnailB64.isNotEmpty)
+            ? thumbnailB64
+            : null,
         formats: formats,
       );
 
-      hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
+      hydrationLogsBuffer.writeln(
+        'Successfully fetched metadata for: "${info.title}"\n',
+      );
       String currentLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
-        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        final formattedErrors = stderrBuffer
+            .toString()
+            .trim()
+            .split('\n')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .join('\n\n');
         currentLogs += '\n\n--- Playwright Raw Logs ---\n$formattedErrors';
       }
       var finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
@@ -288,7 +310,8 @@ class PlaywrightEngine extends DownloadEngine {
       }
       throw PartialMetadataException(
         partialInfos: parsedInfos,
-        message: 'Hydration timed out after 10 minutes. Showing partial results.',
+        message:
+            'Hydration timed out after 10 minutes. Showing partial results.',
       );
     }
   }
@@ -311,7 +334,8 @@ class PlaywrightEngine extends DownloadEngine {
     String? singleItemId,
     String? directUrl,
   }) async {
-    final safeTitle = title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ??
+    final safeTitle =
+        title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ??
         'intercepted_${DateTime.now().millisecondsSinceEpoch}';
 
     // Determine the actual media URL (from format string)

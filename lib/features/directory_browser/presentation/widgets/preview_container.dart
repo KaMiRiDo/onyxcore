@@ -53,20 +53,23 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {
             // Block all shortcuts if the marker editor is active
-            if (ref.read(isMarkerEditorActiveProvider)) return KeyEventResult.ignored;
+            if (ref.read(isMarkerEditorActiveProvider))
+              return KeyEventResult.ignored;
 
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
             final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
 
             final isDocument = widget.item.type == FileItemType.document;
-            if (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyW && !isDocument) {
-              
+            if (isCtrlPressed &&
+                event.logicalKey == LogicalKeyboardKey.keyW &&
+                !isDocument) {
               // Close preview immediately
               ref.read(previewFileProvider.notifier).state = null;
               ref.read(previewHudVisibleProvider.notifier).state = true;
-              
+
               return KeyEventResult.handled;
-            } else if (event.logicalKey == LogicalKeyboardKey.keyF && !isDocument) {
+            } else if (event.logicalKey == LogicalKeyboardKey.keyF &&
+                !isDocument) {
               final now = DateTime.now();
               if (now.difference(_lastToggle).inMilliseconds < 300) {
                 return KeyEventResult.handled;
@@ -79,45 +82,72 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
               // Toggle HUD panel visibility
               final current = ref.read(previewHudVisibleProvider);
               ref.read(previewHudVisibleProvider.notifier).state = !current;
-              
+
               return KeyEventResult.handled;
             }
           }
           return KeyEventResult.ignored;
         },
         child: GestureDetector(
-          onDoubleTap: (widget.item.type == FileItemType.audio || widget.item.type == FileItemType.document) ? null : () async {
-            List<String> preloadPaths = [];
-            if (widget.item.type == FileItemType.image) {
-              final items = ref.read(directoryItemsProvider).value ?? [];
-              final mediaItems = items.where((i) => i.type == FileItemType.image).toList();
-              if (mediaItems.isNotEmpty) {
-                final currentIndex = mediaItems.indexWhere((i) => i.path == widget.item.path);
-                if (currentIndex != -1) {
-                  for (int i = 1; i <= 2; i++) {
-                    preloadPaths.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
-                    preloadPaths.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
+          onDoubleTap:
+              (widget.item.type == FileItemType.audio ||
+                  widget.item.type == FileItemType.document)
+              ? null
+              : () async {
+                  List<String> preloadPaths = [];
+                  if (widget.item.type == FileItemType.image) {
+                    final items = ref.read(directoryItemsProvider).value ?? [];
+                    final mediaItems = items
+                        .where((i) => i.type == FileItemType.image)
+                        .toList();
+                    if (mediaItems.isNotEmpty) {
+                      final currentIndex = mediaItems.indexWhere(
+                        (i) => i.path == widget.item.path,
+                      );
+                      if (currentIndex != -1) {
+                        for (int i = 1; i <= 2; i++) {
+                          preloadPaths.add(
+                            mediaItems[(currentIndex + i) % mediaItems.length]
+                                .path,
+                          );
+                          preloadPaths.add(
+                            mediaItems[(currentIndex - i + mediaItems.length) %
+                                    mediaItems.length]
+                                .path,
+                          );
+                        }
+                      }
+                    }
                   }
-                }
-              }
-            }
 
-            final windowParams = WindowParams(
-              viewerType: widget.item.type == FileItemType.video 
-                  ? ViewerType.video 
-                  : (widget.item.type == FileItemType.audio ? ViewerType.audio : (widget.item.type == FileItemType.document ? ViewerType.markdown : ViewerType.image)),
-              file: widget.item,
-              initParams: {
-                'preloadPaths': preloadPaths,
-                if (widget.item.type == FileItemType.image) ...{
-                  'currentIndex': (ref.read(directoryItemsProvider).value ?? []).where((i) => i.type == FileItemType.image).toList().indexWhere((i) => i.path == widget.item.path) + 1,
-                  'totalCount': (ref.read(directoryItemsProvider).value ?? []).where((i) => i.type == FileItemType.image).length,
-                }
-              },
-            );
-            await PersistentViewerManager.openMedia(windowParams);
-            ref.read(previewFileProvider.notifier).state = null;
-          },
+                  final windowParams = WindowParams(
+                    viewerType: widget.item.type == FileItemType.video
+                        ? ViewerType.video
+                        : (widget.item.type == FileItemType.audio
+                              ? ViewerType.audio
+                              : (widget.item.type == FileItemType.document
+                                    ? ViewerType.markdown
+                                    : ViewerType.image)),
+                    file: widget.item,
+                    initParams: {
+                      'preloadPaths': preloadPaths,
+                      if (widget.item.type == FileItemType.image) ...{
+                        'currentIndex':
+                            (ref.read(directoryItemsProvider).value ?? [])
+                                .where((i) => i.type == FileItemType.image)
+                                .toList()
+                                .indexWhere((i) => i.path == widget.item.path) +
+                            1,
+                        'totalCount':
+                            (ref.read(directoryItemsProvider).value ?? [])
+                                .where((i) => i.type == FileItemType.image)
+                                .length,
+                      },
+                    },
+                  );
+                  await PersistentViewerManager.openMedia(windowParams);
+                  ref.read(previewFileProvider.notifier).state = null;
+                },
           child: Stack(
             children: [
               // The Preview Content
@@ -144,7 +174,11 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.picture_as_pdf_rounded, color: Colors.white24, size: 64),
+              Icon(
+                Icons.picture_as_pdf_rounded,
+                color: Colors.white24,
+                size: 64,
+              ),
               SizedBox(height: 16),
               Text(
                 'PDF Preview not yet implemented',
@@ -159,7 +193,10 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
           ),
         );
       }
-      return MarkdownPreviewWidget(key: ValueKey(widget.item.path), item: widget.item);
+      return MarkdownPreviewWidget(
+        key: ValueKey(widget.item.path),
+        item: widget.item,
+      );
     }
     return const Center(
       child: Text(

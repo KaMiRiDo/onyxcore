@@ -38,7 +38,9 @@ final localFileDatasourceProvider = Provider<LocalFileDatasource>((ref) {
   return LocalFileDatasource();
 });
 
-final mediaMetadataDatasourceProvider = Provider<MediaMetadataDatasource>((ref) {
+final mediaMetadataDatasourceProvider = Provider<MediaMetadataDatasource>((
+  ref,
+) {
   final cache = ref.watch(metadataCacheProvider);
   return MediaMetadataDatasource(cache);
 });
@@ -58,9 +60,11 @@ class CurrentPathNotifier extends Notifier<String> {
   @override
   String build() {
     final tabId = ref.watch(tabIdProvider);
-    return ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).currentPath
-    ));
+    return ref.watch(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).currentPath,
+      ),
+    );
   }
 
   set state(String value) {
@@ -69,7 +73,9 @@ class CurrentPathNotifier extends Notifier<String> {
   }
 }
 
-final currentPathProvider = NotifierProvider<CurrentPathNotifier, String>(CurrentPathNotifier.new);
+final currentPathProvider = NotifierProvider<CurrentPathNotifier, String>(
+  CurrentPathNotifier.new,
+);
 
 /// Per-folder zoom levels. Default 0.8x.
 final zoomProvider = StateProvider<Map<String, double>>((ref) => {});
@@ -101,9 +107,11 @@ class SearchQueryNotifier extends Notifier<String> {
   @override
   String build() {
     final tabId = ref.watch(tabIdProvider);
-    return ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).searchQuery
-    ));
+    return ref.watch(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).searchQuery,
+      ),
+    );
   }
 
   set state(String value) {
@@ -111,16 +119,21 @@ class SearchQueryNotifier extends Notifier<String> {
     ref.read(tabManagerProvider.notifier).updateSearchQuery(tabId, value);
   }
 }
-final searchQueryProvider = NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
+
+final searchQueryProvider = NotifierProvider<SearchQueryNotifier, String>(
+  SearchQueryNotifier.new,
+);
 
 /// Whether search mode is active, scoped to the current tab.
 class IsSearchActiveNotifier extends Notifier<bool> {
   @override
   bool build() {
     final tabId = ref.watch(tabIdProvider);
-    return ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive
-    ));
+    return ref.watch(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive,
+      ),
+    );
   }
 
   void set(bool value) {
@@ -130,22 +143,29 @@ class IsSearchActiveNotifier extends Notifier<bool> {
 
   void toggle() {
     final tabId = ref.read(tabIdProvider);
-    final current = ref.read(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive
-    ));
+    final current = ref.read(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive,
+      ),
+    );
     ref.read(tabManagerProvider.notifier).setSearchActive(tabId, !current);
   }
 }
-final isSearchActiveProvider = NotifierProvider<IsSearchActiveNotifier, bool>(IsSearchActiveNotifier.new);
+
+final isSearchActiveProvider = NotifierProvider<IsSearchActiveNotifier, bool>(
+  IsSearchActiveNotifier.new,
+);
 
 /// Whether analysis mode is active, scoped to the current tab.
 class IsAnalysisActiveNotifier extends Notifier<bool> {
   @override
   bool build() {
     final tabId = ref.watch(tabIdProvider);
-    return ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive
-    ));
+    return ref.watch(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive,
+      ),
+    );
   }
 
   void set(bool value) {
@@ -155,22 +175,30 @@ class IsAnalysisActiveNotifier extends Notifier<bool> {
 
   void toggle() {
     final tabId = ref.read(tabIdProvider);
-    final current = ref.read(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive
-    ));
+    final current = ref.read(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive,
+      ),
+    );
     ref.read(tabManagerProvider.notifier).setAnalysisActive(tabId, !current);
   }
 }
-final isAnalysisActiveProvider = NotifierProvider<IsAnalysisActiveNotifier, bool>(IsAnalysisActiveNotifier.new);
+
+final isAnalysisActiveProvider =
+    NotifierProvider<IsAnalysisActiveNotifier, bool>(
+      IsAnalysisActiveNotifier.new,
+    );
 
 /// Whether location editing mode is active, scoped to the current tab.
 class IsLocationEditingNotifier extends Notifier<bool> {
   @override
   bool build() {
     final tabId = ref.watch(tabIdProvider);
-    return ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing
-    ));
+    return ref.watch(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing,
+      ),
+    );
   }
 
   void set(bool value) {
@@ -180,13 +208,19 @@ class IsLocationEditingNotifier extends Notifier<bool> {
 
   void toggle() {
     final tabId = ref.read(tabIdProvider);
-    final current = ref.read(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing
-    ));
+    final current = ref.read(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing,
+      ),
+    );
     ref.read(tabManagerProvider.notifier).setLocationEditing(tabId, !current);
   }
 }
-final isLocationEditingProvider = NotifierProvider<IsLocationEditingNotifier, bool>(IsLocationEditingNotifier.new);
+
+final isLocationEditingProvider =
+    NotifierProvider<IsLocationEditingNotifier, bool>(
+      IsLocationEditingNotifier.new,
+    );
 
 /// Current error message for path editing.
 final pathErrorProvider = StateProvider<String?>((ref) => null);
@@ -201,16 +235,20 @@ final isVirtualPathProvider = Provider<bool>((ref) {
 
 final sortSettingsProvider = Provider<SortSettings>((ref) {
   final tabId = ref.watch(tabIdProvider);
-  return ref.watch(tabManagerProvider.select(
-    (s) => s.tabs.firstWhere((t) => t.id == tabId).sortSettings
-  ));
+  return ref.watch(
+    tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).sortSettings,
+    ),
+  );
 });
 
 final filterSettingsProvider = Provider<FilterSettings>((ref) {
   final tabId = ref.watch(tabIdProvider);
-  return ref.watch(tabManagerProvider.select(
-    (s) => s.tabs.firstWhere((t) => t.id == tabId).filterSettings
-  ));
+  return ref.watch(
+    tabManagerProvider.select(
+      (s) => s.tabs.firstWhere((t) => t.id == tabId).filterSettings,
+    ),
+  );
 });
 
 // ——— Directory Items Provider ———
@@ -222,7 +260,9 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
   @override
   Future<List<FileItem>> build() async {
     final String path = ref.watch(currentPathProvider);
-    final showHidden = ref.watch(settingsProvider.select((s) => s.value?.showHiddenFiles ?? false));
+    final showHidden = ref.watch(
+      settingsProvider.select((s) => s.value?.showHiddenFiles ?? false),
+    );
 
     // Handle virtual paths (allow filtering if data exists)
     if (path.startsWith('virtual:')) {
@@ -263,7 +303,7 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
   Future<void> _generateMetadataAsync(List<FileItem> items) async {
     // Defer execution to avoid synchronous state mutation during the build phase
     await Future.delayed(Duration.zero);
-    
+
     final mediaDatasource = ref.read(mediaMetadataDatasourceProvider);
     var changed = false;
 
@@ -295,51 +335,62 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
 final directoryItemsProvider =
     AsyncNotifierProvider<DirectoryItemsNotifier, List<FileItem>>(
-  DirectoryItemsNotifier.new,
-);
+      DirectoryItemsNotifier.new,
+    );
 
 /// Stage 2: Filters directory items based on settings.
-final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((ref) {
+final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((
+  ref,
+) {
   final itemsAsync = ref.watch(directoryItemsProvider);
   final filter = ref.watch(filterSettingsProvider);
   final query = ref.watch(searchQueryProvider).toLowerCase();
-  final showHidden = ref.watch(settingsProvider.select((s) => s.value?.showHiddenFiles ?? false));
-  
+  final showHidden = ref.watch(
+    settingsProvider.select((s) => s.value?.showHiddenFiles ?? false),
+  );
+
   return itemsAsync.whenData((items) {
     var filtered = items;
-    
+
     // 1. Filter hidden files
     if (!showHidden) {
       filtered = filtered.where((item) => !item.name.startsWith(".")).toList();
     }
-    
+
     // 2. Filter by search query
     if (query.isNotEmpty) {
-      filtered = filtered.where((item) => item.name.toLowerCase().contains(query)).toList();
+      filtered = filtered
+          .where((item) => item.name.toLowerCase().contains(query))
+          .toList();
     }
 
     // 3. Apply advanced filters
     if (!filter.isEmpty) {
       filtered = filter.apply(filtered);
     }
-    
+
     return filtered;
   });
 });
 
 /// Stage 3: Sorts the filtered items.
-final sortedDirectoryItemsProvider = FutureProvider<List<FileItem>>((ref) async {
+final sortedDirectoryItemsProvider = FutureProvider<List<FileItem>>((
+  ref,
+) async {
   final filteredAsync = ref.watch(filteredDirectoryItemsProvider);
   final sort = ref.watch(sortSettingsProvider);
   final pinnedAsync = ref.watch(pinnedItemsProvider);
   final pinnedMap = pinnedAsync.value ?? const {};
-  
+
   final items = filteredAsync.value ?? [];
   if (items.isEmpty) return [];
 
   // Use compute for large directories to avoid UI lag
   if (items.length > 500) {
-    return await compute(_sortItemsCompute, _SortParams(items, sort.option, pinnedMap));
+    return await compute(
+      _sortItemsCompute,
+      _SortParams(items, sort.option, pinnedMap),
+    );
   } else {
     return _sortItems(items, sort.option, pinnedMap);
   }
@@ -358,10 +409,14 @@ List<FileItem> _sortItemsCompute(_SortParams params) {
   return _sortItems(params.items, params.option, params.pinnedMap);
 }
 
-List<FileItem> _sortItems(List<FileItem> items, SortOption option, Map<String, int> pinnedMap) {
+List<FileItem> _sortItems(
+  List<FileItem> items,
+  SortOption option,
+  Map<String, int> pinnedMap,
+) {
   final pinnedList = <FileItem>[];
   final unpinnedList = <FileItem>[];
-  
+
   for (final item in items) {
     if (pinnedMap.containsKey(item.path)) {
       pinnedList.add(item);
@@ -381,12 +436,16 @@ List<FileItem> _sortItems(List<FileItem> items, SortOption option, Map<String, i
   unpinnedList.sort((a, b) {
     // Folders first logic (unless filesFirst option is selected)
     if (option != SortOption.filesFirst) {
-      if (a.type == FileItemType.folder && b.type != FileItemType.folder) return -1;
-      if (a.type != FileItemType.folder && b.type == FileItemType.folder) return 1;
+      if (a.type == FileItemType.folder && b.type != FileItemType.folder)
+        return -1;
+      if (a.type != FileItemType.folder && b.type == FileItemType.folder)
+        return 1;
     } else {
       // Files first logic
-      if (a.type != FileItemType.folder && b.type == FileItemType.folder) return -1;
-      if (a.type == FileItemType.folder && b.type != FileItemType.folder) return 1;
+      if (a.type != FileItemType.folder && b.type == FileItemType.folder)
+        return -1;
+      if (a.type == FileItemType.folder && b.type != FileItemType.folder)
+        return 1;
     }
 
     // Secondary sort based on option
@@ -416,9 +475,11 @@ class IsRefreshingNotifier extends Notifier<bool> {
   @override
   bool build() {
     final tabId = ref.watch(tabIdProvider);
-    return ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).isRefreshing
-    ));
+    return ref.watch(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isRefreshing,
+      ),
+    );
   }
 
   set state(bool value) {
@@ -426,44 +487,56 @@ class IsRefreshingNotifier extends Notifier<bool> {
     ref.read(tabManagerProvider.notifier).setRefreshing(tabId, value);
   }
 }
-final isRefreshingProvider = NotifierProvider<IsRefreshingNotifier, bool>(IsRefreshingNotifier.new);
+
+final isRefreshingProvider = NotifierProvider<IsRefreshingNotifier, bool>(
+  IsRefreshingNotifier.new,
+);
 
 /// Current refresh count, scoped to the current tab.
 class RefreshCountNotifier extends Notifier<int> {
   @override
   int build() {
     final tabId = ref.watch(tabIdProvider);
-    return ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount
-    ));
+    return ref.watch(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount,
+      ),
+    );
   }
 
   set state(int value) {
     // This is usually called as state++, so we need a way to increment.
     // But setting it directly works too.
     final tabId = ref.read(tabIdProvider);
-    // If it's just incrementing, we could have a method, 
+    // If it's just incrementing, we could have a method,
     // but for compatibility with state = value:
-    final current = ref.read(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount
-    ));
+    final current = ref.read(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount,
+      ),
+    );
     if (value > current) {
       ref.read(tabManagerProvider.notifier).incrementRefreshCount(tabId);
     }
   }
-  
+
   void update(int Function(int) updater) {
     final tabId = ref.read(tabIdProvider);
-    final current = ref.read(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount
-    ));
+    final current = ref.read(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount,
+      ),
+    );
     final next = updater(current);
     if (next > current) {
-       ref.read(tabManagerProvider.notifier).incrementRefreshCount(tabId);
+      ref.read(tabManagerProvider.notifier).incrementRefreshCount(tabId);
     }
   }
 }
-final refreshCountProvider = NotifierProvider<RefreshCountNotifier, int>(RefreshCountNotifier.new);
+
+final refreshCountProvider = NotifierProvider<RefreshCountNotifier, int>(
+  RefreshCountNotifier.new,
+);
 final mainFocusNodeProvider = Provider<FocusNode>((ref) => FocusNode());
 
 /// Global registry of ItemCard GlobalKeys to find their positions for popovers (like Rename).
@@ -479,4 +552,8 @@ class ItemKeysNotifier extends Notifier<Map<String, GlobalKey>> {
     state = {...state, path: key};
   }
 }
-final itemKeysProvider = NotifierProvider<ItemKeysNotifier, Map<String, GlobalKey>>(ItemKeysNotifier.new);
+
+final itemKeysProvider =
+    NotifierProvider<ItemKeysNotifier, Map<String, GlobalKey>>(
+      ItemKeysNotifier.new,
+    );

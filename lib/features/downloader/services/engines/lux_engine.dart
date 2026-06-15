@@ -91,7 +91,10 @@ class LuxEngine extends DownloadEngine {
   @override
   Future<String?> getLatestVersion() async {
     try {
-      final res = await Process.run('curl', ['-s', 'https://api.github.com/repos/iawia002/lux/releases/latest']);
+      final res = await Process.run('curl', [
+        '-s',
+        'https://api.github.com/repos/iawia002/lux/releases/latest',
+      ]);
       if (res.exitCode == 0) {
         final json = jsonDecode(res.stdout as String);
         return json['tag_name']?.toString().replaceFirst('v', '');
@@ -127,13 +130,15 @@ class LuxEngine extends DownloadEngine {
       });
 
       if (onProgress != null) {
-        onProgress(MediaInfo(
-          id: 'hydration_loading',
-          title: 'Fetching...',
-          originalUrl: url,
-          fetchLogs: 'Waiting for output...',
-          isVideo: false,
-        ));
+        onProgress(
+          MediaInfo(
+            id: 'hydration_loading',
+            title: 'Fetching...',
+            originalUrl: url,
+            fetchLogs: 'Waiting for output...',
+            isVideo: false,
+          ),
+        );
       }
 
       final rawOutput = await process.stdout.transform(utf8.decoder).join();
@@ -151,15 +156,16 @@ class LuxEngine extends DownloadEngine {
       final jsonStartIndex = rawOutput.indexOf(RegExp(r'[\{\[]'));
       if (jsonStartIndex == -1) {
         final errorMsg = rawOutput.trim();
-        throw Exception(errorMsg.isNotEmpty ? errorMsg : 'Could not find JSON in Lux output');
+        throw Exception(
+          errorMsg.isNotEmpty ? errorMsg : 'Could not find JSON in Lux output',
+        );
       }
 
       final jsonString = rawOutput.substring(jsonStartIndex);
       final parsed = jsonDecode(jsonString);
 
       // Lux can return a list or a single object
-      final List<dynamic> items =
-          parsed is List ? parsed : [parsed];
+      final List<dynamic> items = parsed is List ? parsed : [parsed];
 
       for (final json in items) {
         if (json is! Map<String, dynamic>) continue;
@@ -176,16 +182,19 @@ class LuxEngine extends DownloadEngine {
           // Lux stream parts
           final parts = stream['parts'] as List<dynamic>?;
           final ext = parts != null && parts.isNotEmpty
-              ? (parts.first as Map<String, dynamic>)['ext']?.toString() ?? 'mp4'
+              ? (parts.first as Map<String, dynamic>)['ext']?.toString() ??
+                    'mp4'
               : 'mp4';
 
-          formats.add(MediaFormat(
-            formatId: entry.key,
-            extension: ext,
-            resolution: quality,
-            filesize: size,
-            formatString: '$quality ($ext)',
-          ));
+          formats.add(
+            MediaFormat(
+              formatId: entry.key,
+              extension: ext,
+              resolution: quality,
+              filesize: size,
+              formatString: '$quality ($ext)',
+            ),
+          );
         }
 
         // Get size from the best stream
@@ -196,7 +205,8 @@ class LuxEngine extends DownloadEngine {
         }
 
         final info = MediaInfo(
-          id: json['url']?.toString().hashCode.toString() ??
+          id:
+              json['url']?.toString().hashCode.toString() ??
               url.hashCode.toString(),
           title: title,
           extractor: site ?? 'lux',
@@ -206,10 +216,18 @@ class LuxEngine extends DownloadEngine {
           originalUrl: json['url']?.toString() ?? url,
         );
 
-        hydrationLogsBuffer.writeln('Successfully fetched metadata for: "${info.title}"\n');
+        hydrationLogsBuffer.writeln(
+          'Successfully fetched metadata for: "${info.title}"\n',
+        );
         String currentLogs = hydrationLogsBuffer.toString();
         if (stderrBuffer.isNotEmpty) {
-          final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+          final formattedErrors = stderrBuffer
+              .toString()
+              .trim()
+              .split('\n')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .join('\n\n');
           currentLogs += '\n\n--- lux Raw Logs ---\n$formattedErrors';
         }
         final infoWithLogs = info.copyWith(fetchLogs: currentLogs.trim());
@@ -221,11 +239,17 @@ class LuxEngine extends DownloadEngine {
       if (results.isEmpty) {
         throw Exception('Lux returned no parseable results');
       }
-      
+
       // Update all results with final combined logs
       String combinedLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
-        final formattedErrors = stderrBuffer.toString().trim().split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).join('\n\n');
+        final formattedErrors = stderrBuffer
+            .toString()
+            .trim()
+            .split('\n')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .join('\n\n');
         combinedLogs += '\n\n--- lux Raw Logs ---\n$formattedErrors';
       }
       for (int i = 0; i < results.length; i++) {
@@ -243,7 +267,8 @@ class LuxEngine extends DownloadEngine {
       }
       throw PartialMetadataException(
         partialInfos: results,
-        message: 'Hydration timed out after 10 minutes. Showing partial results.',
+        message:
+            'Hydration timed out after 10 minutes. Showing partial results.',
       );
     }
   }

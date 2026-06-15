@@ -73,8 +73,8 @@ class TaskHistoryEntry {
       processedSizeBytes: (json['processedSizeBytes'] as num?)?.toInt() ?? 0,
       totalSizeBytes: (json['totalSizeBytes'] as num?)?.toInt() ?? 0,
       logs: (json['logs'] as List<dynamic>?)?.cast<String>() ?? [],
-      createdAt: json['createdAt'] != null 
-          ? DateTime.parse(json['createdAt'] as String) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
       startedAt: json['startedAt'] != null
           ? DateTime.parse(json['startedAt'] as String)
@@ -190,7 +190,9 @@ class TaskHistoryNotifier extends Notifier<List<TaskHistoryEntry>> {
   /// Delete specific entries by ID.
   void deleteEntries(Set<String> ids) {
     _allEntries.removeWhere((e) => ids.contains(e.id));
-    _loadedCount = (_allEntries.length < _loadedCount) ? _allEntries.length : _loadedCount;
+    _loadedCount = (_allEntries.length < _loadedCount)
+        ? _allEntries.length
+        : _loadedCount;
     state = _allEntries.take(_loadedCount).toList();
     _saveToDisk();
   }
@@ -223,7 +225,9 @@ class TaskHistoryNotifier extends Notifier<List<TaskHistoryEntry>> {
   /// Delete entries matching filter
   void deleteFiltered(TaskHistoryFilter filter) {
     _allEntries.removeWhere((entry) => _matchesFilter(entry, filter));
-    _loadedCount = (_allEntries.length < _loadedCount) ? _allEntries.length : _loadedCount;
+    _loadedCount = (_allEntries.length < _loadedCount)
+        ? _allEntries.length
+        : _loadedCount;
     state = _allEntries.take(_loadedCount).toList();
     _saveToDisk();
   }
@@ -233,10 +237,11 @@ class TaskHistoryNotifier extends Notifier<List<TaskHistoryEntry>> {
 
     bool dateMatch = true;
     if (filter.selectedDates != null && filter.selectedDates!.isNotEmpty) {
-      dateMatch = filter.selectedDates!.any((d) => 
-        entry.createdAt.year == d.year && 
-        entry.createdAt.month == d.month && 
-        entry.createdAt.day == d.day
+      dateMatch = filter.selectedDates!.any(
+        (d) =>
+            entry.createdAt.year == d.year &&
+            entry.createdAt.month == d.month &&
+            entry.createdAt.day == d.day,
       );
     }
 
@@ -267,7 +272,9 @@ class TaskHistoryFilter {
 
   const TaskHistoryFilter({this.selectedDates, this.operationType});
 
-  bool get isEmpty => (selectedDates == null || selectedDates!.isEmpty) && (operationType == null || operationType == 'All');
+  bool get isEmpty =>
+      (selectedDates == null || selectedDates!.isEmpty) &&
+      (operationType == null || operationType == 'All');
 
   TaskHistoryFilter copyWith({
     Set<DateTime>? selectedDates,
@@ -280,11 +287,17 @@ class TaskHistoryFilter {
   }
 }
 
-final taskHistoryFilterProvider = StateProvider<TaskHistoryFilter>((ref) => const TaskHistoryFilter());
+final taskHistoryFilterProvider = StateProvider<TaskHistoryFilter>(
+  (ref) => const TaskHistoryFilter(),
+);
 
 final availableDatesProvider = Provider<Set<DateTime>>((ref) {
   final history = ref.watch(taskHistoryProvider);
-  return history.map((e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day)).toSet();
+  return history
+      .map(
+        (e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day),
+      )
+      .toSet();
 });
 
 final filteredTaskHistoryProvider = Provider<List<TaskHistoryEntry>>((ref) {
@@ -293,7 +306,9 @@ final filteredTaskHistoryProvider = Provider<List<TaskHistoryEntry>>((ref) {
 
   if (filter.isEmpty) return history;
 
-  return history.where((entry) => TaskHistoryNotifier._matchesFilter(entry, filter)).toList();
+  return history
+      .where((entry) => TaskHistoryNotifier._matchesFilter(entry, filter))
+      .toList();
 });
 
 /// Manages selection state for history items.
@@ -340,7 +355,7 @@ class HistorySelectionNotifier extends Notifier<Set<String>> {
     for (var i = min; i <= max; i++) {
       next.add(entries[i].id);
     }
-    
+
     state = next;
     _lastSelectedId = targetId;
   }
@@ -353,9 +368,11 @@ class HistorySelectionNotifier extends Notifier<Set<String>> {
 
 final taskHistoryProvider =
     NotifierProvider<TaskHistoryNotifier, List<TaskHistoryEntry>>(
-        TaskHistoryNotifier.new);
+      TaskHistoryNotifier.new,
+    );
 
 /// Set of selected history item IDs for multi-delete.
 final historySelectionProvider =
     NotifierProvider<HistorySelectionNotifier, Set<String>>(
-        HistorySelectionNotifier.new);
+      HistorySelectionNotifier.new,
+    );

@@ -95,7 +95,11 @@ class TrackSelectorMenu extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Row(
           children: [
-            const Icon(Icons.add_circle_outline_rounded, color: AppColors.violet, size: 18),
+            const Icon(
+              Icons.add_circle_outline_rounded,
+              color: AppColors.violet,
+              size: 18,
+            ),
             const SizedBox(width: 12),
             Text(
               'Load External Subtitle',
@@ -135,7 +139,9 @@ class TrackSelectorMenu extends StatelessWidget {
                     style: GoogleFonts.manrope(
                       color: isSelected ? Colors.white : Colors.white60,
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -163,7 +169,7 @@ class TrackSelectorMenu extends StatelessWidget {
         ),
         gradient: isSelected ? AppTheme.primaryGradient : null,
       ),
-      child: isSelected 
+      child: isSelected
           ? Center(
               child: Container(
                 width: 8,

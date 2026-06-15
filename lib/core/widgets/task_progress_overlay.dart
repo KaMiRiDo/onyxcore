@@ -10,7 +10,7 @@ class TaskProgressButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(taskProvider);
-    
+
     // Always reserve exact IconButton space to prevent UI shifts
     if (tasks.isEmpty) {
       return const IconButton(
@@ -19,12 +19,16 @@ class TaskProgressButton extends ConsumerWidget {
       );
     }
 
-    final runningTasks = tasks.where((t) => t.status == FileTaskStatus.running).toList();
-    final errorTasks = tasks.where((t) => t.status == FileTaskStatus.error).toList();
+    final runningTasks = tasks
+        .where((t) => t.status == FileTaskStatus.running)
+        .toList();
+    final errorTasks = tasks
+        .where((t) => t.status == FileTaskStatus.error)
+        .toList();
 
     Color bgColor = Colors.transparent;
     Widget content;
-    
+
     if (runningTasks.isNotEmpty) {
       double totalProgress = 0.0;
       for (final t in runningTasks) {
@@ -44,7 +48,11 @@ class TaskProgressButton extends ConsumerWidget {
       );
     } else if (errorTasks.isNotEmpty) {
       bgColor = AppColors.error;
-      content = const Icon(Icons.error_outline_rounded, color: Colors.white, size: 14);
+      content = const Icon(
+        Icons.error_outline_rounded,
+        color: Colors.white,
+        size: 14,
+      );
     } else {
       bgColor = const Color(0xFF1B5E20); // Even darker green
       content = const Icon(Icons.check_rounded, color: Colors.white, size: 14);
@@ -60,13 +68,15 @@ class TaskProgressButton extends ConsumerWidget {
         decoration: BoxDecoration(
           color: bgColor,
           shape: BoxShape.circle,
-          boxShadow: bgColor != Colors.transparent ? [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ] : null,
+          boxShadow: bgColor != Colors.transparent
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Center(
           child: content,

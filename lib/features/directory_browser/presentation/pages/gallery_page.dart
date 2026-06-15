@@ -815,7 +815,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   ) {
     return {
       // General Navigation
-      if (!isLocationEditing && !isDownloadInputFocused && !isPreviewActive) ...{
+      if (!isLocationEditing &&
+          !isDownloadInputFocused &&
+          !isPreviewActive) ...{
         const SingleActivator(LogicalKeyboardKey.backspace): _goBack,
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _goBack,
         const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true):
@@ -946,7 +948,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           _switchToPreviousTab,
 
       // Item Opening
-      if (!isLocationEditing && !isDownloadInputFocused && !isPreviewActive) ...{
+      if (!isLocationEditing &&
+          !isDownloadInputFocused &&
+          !isPreviewActive) ...{
         const SingleActivator(LogicalKeyboardKey.enter): _handleEnter,
         const SingleActivator(LogicalKeyboardKey.numpadEnter): _handleEnter,
       },
@@ -1415,7 +1419,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     final trashPath = '$home/.local/share/Trash/files';
 
     // If we are in trash, every delete is permanent
-    final isDeletingFromTrash = currentPath.contains('.local/share/Trash/files') ||
+    final isDeletingFromTrash =
+        currentPath.contains('.local/share/Trash/files') ||
         currentPath.endsWith('Trash/files') ||
         currentPath == 'trash:///';
     final effectivelyPermanent = permanent || isDeletingFromTrash;

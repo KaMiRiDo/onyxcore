@@ -93,16 +93,16 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
               Text(
                 percentLabel,
                 style: const TextStyle(
-                  fontSize: 11, 
-                  color: Colors.white70, 
-                  fontWeight: FontWeight.bold
+                  fontSize: 11,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
                 '$usedLabel of $totalLabel',
                 style: TextStyle(
-                  fontSize: 10, 
-                  color: Colors.white.withOpacity(0.4)
+                  fontSize: 10,
+                  color: Colors.white.withOpacity(0.4),
                 ),
               ),
             ],

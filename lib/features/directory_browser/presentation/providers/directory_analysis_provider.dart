@@ -58,7 +58,9 @@ class _AnalysisParams {
   _AnalysisParams(this.path, this.topCount);
 }
 
-Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(_AnalysisParams params) async {
+Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
+  _AnalysisParams params,
+) async {
   final dir = Directory(params.path);
   if (!dir.existsSync()) {
     return DirectoryAnalysisResult(
@@ -118,13 +120,16 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(_AnalysisParams param
             totalBytes: currentStat.totalBytes + size,
           );
 
-          if (size > 1024 * 1024) { // Only track files > 1MB as candidates
-            addLargeFile(FileStatWithInfo(
-              path: entity.path,
-              name: name,
-              stat: stat,
-              type: type,
-            ));
+          if (size > 1024 * 1024) {
+            // Only track files > 1MB as candidates
+            addLargeFile(
+              FileStatWithInfo(
+                path: entity.path,
+                name: name,
+                stat: stat,
+                type: type,
+              ),
+            );
           }
         } catch (_) {}
       }
@@ -132,7 +137,7 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(_AnalysisParams param
   } catch (_) {}
 
   largeFiles.sort((a, b) => b.stat.size.compareTo(a.stat.size));
-  
+
   return DirectoryAnalysisResult(
     path: params.path,
     totalItems: totalItems,
@@ -154,28 +159,32 @@ void _isolateEntry(_IsolateMessage msg) async {
   msg.sendPort.send(result);
 }
 
-final directoryAnalysisProvider = FutureProvider.autoDispose.family<DirectoryAnalysisResult, String>((ref, path) async {
-  // 1. Get disk usage in main thread
-  final diskUsage = await getDiskUsage(path);
-  
-  // 2. Spawn isolate for recursive traversal
-  final receivePort = ReceivePort();
-  final isolate = await Isolate.spawn(_isolateEntry, _IsolateMessage(_AnalysisParams(path, 50), receivePort.sendPort));
-  
-  ref.onDispose(() {
-    isolate.kill(priority: Isolate.immediate);
-    receivePort.close();
-  });
-  
-  final result = await receivePort.first as DirectoryAnalysisResult;
-  isolate.kill();
-  
-  return DirectoryAnalysisResult(
-    path: result.path,
-    totalItems: result.totalItems,
-    totalBytes: result.totalBytes,
-    diskUsage: diskUsage,
-    categoryStats: result.categoryStats,
-    topLargeFiles: result.topLargeFiles,
-  );
-});
+final directoryAnalysisProvider = FutureProvider.autoDispose
+    .family<DirectoryAnalysisResult, String>((ref, path) async {
+      // 1. Get disk usage in main thread
+      final diskUsage = await getDiskUsage(path);
+
+      // 2. Spawn isolate for recursive traversal
+      final receivePort = ReceivePort();
+      final isolate = await Isolate.spawn(
+        _isolateEntry,
+        _IsolateMessage(_AnalysisParams(path, 50), receivePort.sendPort),
+      );
+
+      ref.onDispose(() {
+        isolate.kill(priority: Isolate.immediate);
+        receivePort.close();
+      });
+
+      final result = await receivePort.first as DirectoryAnalysisResult;
+      isolate.kill();
+
+      return DirectoryAnalysisResult(
+        path: result.path,
+        totalItems: result.totalItems,
+        totalBytes: result.totalBytes,
+        diskUsage: diskUsage,
+        categoryStats: result.categoryStats,
+        topLargeFiles: result.topLargeFiles,
+      );
+    });

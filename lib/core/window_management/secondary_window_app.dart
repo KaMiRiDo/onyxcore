@@ -14,8 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 /// Generic entry point for secondary viewer windows.
-/// 
-/// This app routes to the correct viewer based on [WindowParams] 
+///
+/// This app routes to the correct viewer based on [WindowParams]
 /// and handles high-level window lifecycle events.
 class SecondaryWindowApp extends StatefulWidget {
   final String windowId;
@@ -31,7 +31,8 @@ class SecondaryWindowApp extends StatefulWidget {
   State<SecondaryWindowApp> createState() => _SecondaryWindowAppState();
 }
 
-class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowListener {
+class _SecondaryWindowAppState extends State<SecondaryWindowApp>
+    with WindowListener {
   WindowParams? params;
   bool _initialized = false;
   SharedPreferences? _prefs;
@@ -42,7 +43,7 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
     windowManager.addListener(this);
     // Prevent immediate close to allow persistent hiding behavior
     windowManager.setPreventClose(true);
-    
+
     _initParams();
     _initSharedPrefs();
     _setupIpc();
@@ -78,10 +79,13 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
     final controller = await WindowController.fromCurrentEngine();
     controller.setWindowMethodHandler((call) async {
       if (call.method == 'load_media') {
-        debugPrint('[SecondaryWindowApp] IPC Load requested: ${call.arguments}');
+        debugPrint(
+          '[SecondaryWindowApp] IPC Load requested: ${call.arguments}',
+        );
         try {
           // Robustly normalize IPC arguments to Map<String, dynamic>
-          final normalizedArgs = jsonDecode(jsonEncode(call.arguments)) as Map<String, dynamic>;
+          final normalizedArgs =
+              jsonDecode(jsonEncode(call.arguments)) as Map<String, dynamic>;
           final newParams = WindowParams.fromJson(normalizedArgs);
           setState(() {
             params = newParams;
@@ -153,11 +157,13 @@ class _SecondaryWindowAppState extends State<SecondaryWindowApp> with WindowList
         final rate = params!.initParams['playbackRate'] as double?;
         final audioId = params!.initParams['audioTrackId'] as String?;
         final subtitleId = params!.initParams['subtitleTrackId'] as String?;
-        
+
         return VideoPreviewWidget(
           key: ValueKey(params!.file.path),
           item: params!.file,
-          initialPosition: startMs != null ? Duration(milliseconds: startMs) : null,
+          initialPosition: startMs != null
+              ? Duration(milliseconds: startMs)
+              : null,
           initialRate: rate,
           initialAudioTrackId: audioId,
           initialSubtitleTrackId: subtitleId,

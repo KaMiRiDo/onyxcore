@@ -17,10 +17,14 @@ class ArchiveProviderNotifier extends Notifier<void> {
   void build() {}
 
   /// Extracts an archive, prompting for a password if necessary.
-  Future<void> extractArchive(BuildContext context, String archivePath, String currentDir) async {
+  Future<void> extractArchive(
+    BuildContext context,
+    String archivePath,
+    String currentDir,
+  ) async {
     final isEncrypted = await ArchiveService.isEncrypted(archivePath);
     String? password;
-    
+
     if (isEncrypted) {
       if (!context.mounted) return;
       password = await PasswordDialog.show(context);
@@ -33,18 +37,24 @@ class ArchiveProviderNotifier extends Notifier<void> {
     // Default: Extract into a new folder named after the archive within current directory
     final archiveName = p.basenameWithoutExtension(archivePath);
     final outputDir = p.join(currentDir, archiveName);
-    
+
     if (!Directory(outputDir).existsSync()) {
       Directory(outputDir).createSync(recursive: true);
     }
 
-    final taskId = ref.read(taskProvider.notifier).addTask(
-      title: 'Extracting Archive',
-      subtitle: p.basename(archivePath),
-      sourcePaths: [archivePath],
-    );
+    final taskId = ref
+        .read(taskProvider.notifier)
+        .addTask(
+          title: 'Extracting Archive',
+          subtitle: p.basename(archivePath),
+          sourcePaths: [archivePath],
+        );
 
-    ToastHelper.show(context, 'Extracting archive in background...', icon: Icons.unarchive_rounded);
+    ToastHelper.show(
+      context,
+      'Extracting archive in background...',
+      icon: Icons.unarchive_rounded,
+    );
 
     try {
       await ArchiveService.extract(
@@ -56,19 +66,23 @@ class ArchiveProviderNotifier extends Notifier<void> {
         },
         onLog: (log) {
           ref.read(taskProvider.notifier).addLog(taskId, log);
-        }
+        },
       );
       ref.read(taskProvider.notifier).completeTask(taskId);
-      
+
       final currentNow = ref.read(currentPathProvider);
       if (currentNow == currentDir) {
         ref.read(selectionProvider.notifier).deselectAll();
         ref.read(selectionProvider.notifier).select(outputDir);
       }
-      
+
       final activeContext = appNavigatorKey.currentContext;
       if (activeContext != null && activeContext.mounted) {
-        ToastHelper.show(activeContext, 'Extraction completed successfully!', icon: Icons.check_circle_rounded);
+        ToastHelper.show(
+          activeContext,
+          'Extraction completed successfully!',
+          icon: Icons.check_circle_rounded,
+        );
       }
       ref.read(directoryItemsProvider.notifier).refresh();
     } catch (e) {
@@ -81,23 +95,36 @@ class ArchiveProviderNotifier extends Notifier<void> {
   }
 
   /// Compresses a list of items into a new archive, prompting for format/password.
-  Future<void> compressItems(BuildContext context, List<String> paths, String currentDir) async {
+  Future<void> compressItems(
+    BuildContext context,
+    List<String> paths,
+    String currentDir,
+  ) async {
     if (paths.isEmpty) return;
 
     final result = await CompressDialog.show(context, paths);
     if (result == null) return; // User cancelled
 
-    final targetArchive = p.join(currentDir, '${result.archiveName}.${result.format}');
-
-    final taskId = ref.read(taskProvider.notifier).addTask(
-      title: 'Compressing ${paths.length} items',
-      subtitle: p.basename(targetArchive),
-      sourcePaths: paths,
-      targetPath: targetArchive,
+    final targetArchive = p.join(
+      currentDir,
+      '${result.archiveName}.${result.format}',
     );
 
+    final taskId = ref
+        .read(taskProvider.notifier)
+        .addTask(
+          title: 'Compressing ${paths.length} items',
+          subtitle: p.basename(targetArchive),
+          sourcePaths: paths,
+          targetPath: targetArchive,
+        );
+
     ref.read(selectionProvider.notifier).deselectAll();
-    ToastHelper.show(context, 'Compressing items in background...', icon: Icons.archive_rounded);
+    ToastHelper.show(
+      context,
+      'Compressing items in background...',
+      icon: Icons.archive_rounded,
+    );
 
     try {
       await ArchiveService.compress(
@@ -109,29 +136,39 @@ class ArchiveProviderNotifier extends Notifier<void> {
         },
         onLog: (log) {
           ref.read(taskProvider.notifier).addLog(taskId, log);
-        }
+        },
       );
       ref.read(taskProvider.notifier).completeTask(taskId);
-      
+
       final currentNow = ref.read(currentPathProvider);
       if (currentNow == currentDir) {
         ref.read(selectionProvider.notifier).deselectAll();
         ref.read(selectionProvider.notifier).select(targetArchive);
       }
-      
+
       final activeContext = appNavigatorKey.currentContext;
       if (activeContext != null && activeContext.mounted) {
-        ToastHelper.show(activeContext, 'Archive created successfully!', icon: Icons.check_circle_rounded);
+        ToastHelper.show(
+          activeContext,
+          'Archive created successfully!',
+          icon: Icons.check_circle_rounded,
+        );
       }
       ref.read(directoryItemsProvider.notifier).refresh();
     } catch (e) {
       ref.read(taskProvider.notifier).failTask(taskId, e.toString());
       final activeContext = appNavigatorKey.currentContext;
       if (activeContext != null && activeContext.mounted) {
-        ToastHelper.show(activeContext, 'Compression failed: $e', isError: true);
+        ToastHelper.show(
+          activeContext,
+          'Compression failed: $e',
+          isError: true,
+        );
       }
     }
   }
 }
 
-final archiveProvider = NotifierProvider<ArchiveProviderNotifier, void>(ArchiveProviderNotifier.new);
+final archiveProvider = NotifierProvider<ArchiveProviderNotifier, void>(
+  ArchiveProviderNotifier.new,
+);

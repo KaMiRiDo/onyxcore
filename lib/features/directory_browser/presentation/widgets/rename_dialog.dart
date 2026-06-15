@@ -29,11 +29,15 @@ class _RenameDialogState extends State<RenameDialog> {
   @override
   void initState() {
     super.initState();
-    final initialValue = _isBulk ? "" : p.basenameWithoutExtension(widget.paths.first);
+    final initialValue = _isBulk
+        ? ""
+        : p.basenameWithoutExtension(widget.paths.first);
     _controller = TextEditingController(text: initialValue);
-    _controller.addListener(() => setState(() {
-      _errorMessage = null;
-    }));
+    _controller.addListener(
+      () => setState(() {
+        _errorMessage = null;
+      }),
+    );
   }
 
   @override
@@ -46,13 +50,13 @@ class _RenameDialogState extends State<RenameDialog> {
     if (_controller.text.isEmpty || _isSubmitting) return;
 
     final value = _controller.text;
-    
+
     // Check for existing files for simple rename
     if (!_isBulk) {
       final oldPath = widget.paths.first;
       final parent = p.dirname(oldPath);
       final newPath = p.join(parent, value + p.extension(oldPath));
-      
+
       // If name hasn't changed, just close
       if (newPath == oldPath) {
         Navigator.pop(context);
@@ -83,7 +87,7 @@ class _RenameDialogState extends State<RenameDialog> {
       final path = entry.value;
       final original = p.basename(path);
       String newName;
-      
+
       if (!_isBulk) {
         newName = value + p.extension(path);
       } else if (_mode == RenameMode.prefix) {
@@ -91,7 +95,7 @@ class _RenameDialogState extends State<RenameDialog> {
       } else {
         newName = "${value}_${index + 1}${p.extension(path)}";
       }
-      
+
       return {'original': original, 'new': newName};
     }).toList();
   }
@@ -108,11 +112,17 @@ class _RenameDialogState extends State<RenameDialog> {
           child: Container(
             width: 480,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E).withOpacity(0.85), // Matches other dialogs
+              color: const Color(
+                0xFF1E1E1E,
+              ).withOpacity(0.85), // Matches other dialogs
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: Colors.white.withOpacity(0.1)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 40, offset: const Offset(0, 20)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
               ],
             ),
             child: Column(
@@ -158,12 +168,20 @@ class _RenameDialogState extends State<RenameDialog> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.violet.withOpacity(0.3)),
             ),
-            child: const Icon(Icons.edit_note_rounded, color: AppColors.violet, size: 24),
+            child: const Icon(
+              Icons.edit_note_rounded,
+              color: AppColors.violet,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 18),
           Text(
             _isBulk ? 'Bulk Rename' : 'Rename Item',
-            style: GoogleFonts.outfit(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -176,37 +194,71 @@ class _RenameDialogState extends State<RenameDialog> {
       children: [
         Text(
           "RENAMING MODE",
-          style: GoogleFonts.manrope(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+          style: GoogleFonts.manrope(
+            color: Colors.white24,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+          ),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            _buildRadioButton(label: "Add Prefix", active: _mode == RenameMode.prefix, onTap: () => setState(() => _mode = RenameMode.prefix)),
+            _buildRadioButton(
+              label: "Add Prefix",
+              active: _mode == RenameMode.prefix,
+              onTap: () => setState(() => _mode = RenameMode.prefix),
+            ),
             const SizedBox(width: 16),
-            _buildRadioButton(label: "Constant Name", active: _mode == RenameMode.constant, onTap: () => setState(() => _mode = RenameMode.constant)),
+            _buildRadioButton(
+              label: "Constant Name",
+              active: _mode == RenameMode.constant,
+              onTap: () => setState(() => _mode = RenameMode.constant),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildRadioButton({required String label, required bool active, required VoidCallback onTap}) {
+  Widget _buildRadioButton({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: active ? AppColors.violet.withOpacity(0.2) : Colors.white.withOpacity(0.03),
+          color: active
+              ? AppColors.violet.withOpacity(0.2)
+              : Colors.white.withOpacity(0.03),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: active ? AppColors.violet : Colors.white.withOpacity(0.05)),
+          border: Border.all(
+            color: active ? AppColors.violet : Colors.white.withOpacity(0.05),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(active ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, size: 16, color: active ? AppColors.violet : Colors.white24),
+            Icon(
+              active
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              size: 16,
+              color: active ? AppColors.violet : Colors.white24,
+            ),
             const SizedBox(width: 10),
-            Text(label, style: GoogleFonts.manrope(color: active ? Colors.white : Colors.white38, fontSize: 13, fontWeight: active ? FontWeight.bold : FontWeight.w500)),
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                color: active ? Colors.white : Colors.white38,
+                fontSize: 13,
+                fontWeight: active ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),
@@ -214,8 +266,18 @@ class _RenameDialogState extends State<RenameDialog> {
   }
 
   Widget _buildInputLabel() {
-    String label = _isBulk ? (_mode == RenameMode.prefix ? "PREFIX STRING" : "CONSTANT BASE NAME") : "NEW ITEM NAME";
-    return Text(label, style: GoogleFonts.manrope(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5));
+    String label = _isBulk
+        ? (_mode == RenameMode.prefix ? "PREFIX STRING" : "CONSTANT BASE NAME")
+        : "NEW ITEM NAME";
+    return Text(
+      label,
+      style: GoogleFonts.manrope(
+        color: Colors.white24,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.5,
+      ),
+    );
   }
 
   Widget _buildTextField() {
@@ -227,9 +289,9 @@ class _RenameDialogState extends State<RenameDialog> {
             color: Colors.black26,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _errorMessage != null 
-                  ? AppColors.error.withOpacity(0.5) 
-                  : AppColors.violet.withOpacity(0.2)
+              color: _errorMessage != null
+                  ? AppColors.error.withOpacity(0.5)
+                  : AppColors.violet.withOpacity(0.2),
             ),
           ),
           child: TextField(
@@ -238,7 +300,10 @@ class _RenameDialogState extends State<RenameDialog> {
             style: GoogleFonts.manrope(color: Colors.white, fontSize: 15),
             onSubmitted: (_) => _handleSubmit(),
             decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
+              ),
               border: InputBorder.none,
               hintText: _isBulk ? "Enter value..." : "Enter file name",
               hintStyle: const TextStyle(color: Colors.white12),
@@ -270,11 +335,18 @@ class _RenameDialogState extends State<RenameDialog> {
       children: [
         Text(
           "PREVIEW",
-          style: GoogleFonts.manrope(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.2),
+          style: GoogleFonts.manrope(
+            color: Colors.white24,
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
         ),
         const SizedBox(height: 12),
         Container(
-          constraints: const BoxConstraints(maxHeight: 140), // Height for ~3 items
+          constraints: const BoxConstraints(
+            maxHeight: 140,
+          ), // Height for ~3 items
           decoration: BoxDecoration(
             color: Colors.black12,
             borderRadius: BorderRadius.circular(16),
@@ -292,18 +364,29 @@ class _RenameDialogState extends State<RenameDialog> {
                   Expanded(
                     child: Text(
                       item['original']!,
-                      style: GoogleFonts.manrope(color: Colors.white38, fontSize: 12),
+                      style: GoogleFonts.manrope(
+                        color: Colors.white38,
+                        fontSize: 12,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white12),
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: Colors.white12,
+                    ),
                   ),
                   Expanded(
                     child: Text(
                       item['new']!,
-                      style: GoogleFonts.manrope(color: AppColors.violet, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.manrope(
+                        color: AppColors.violet,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -322,15 +405,33 @@ class _RenameDialogState extends State<RenameDialog> {
       children: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('CANCEL', style: GoogleFonts.manrope(color: Colors.white38, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          child: Text(
+            'CANCEL',
+            style: GoogleFonts.manrope(
+              color: Colors.white38,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
         ),
         const SizedBox(width: 16),
         Container(
           decoration: BoxDecoration(
-            gradient: _controller.text.isEmpty ? null : AppTheme.primaryGradient,
+            gradient: _controller.text.isEmpty
+                ? null
+                : AppTheme.primaryGradient,
             color: _controller.text.isEmpty ? Colors.white10 : null,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: _controller.text.isEmpty ? [] : [BoxShadow(color: AppColors.violet.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+            boxShadow: _controller.text.isEmpty
+                ? []
+                : [
+                    BoxShadow(
+                      color: AppColors.violet.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
           child: ElevatedButton(
             onPressed: _controller.text.isEmpty ? null : _handleSubmit,
@@ -339,9 +440,17 @@ class _RenameDialogState extends State<RenameDialog> {
               shadowColor: Colors.transparent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
-            child: Text('RENAME', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+            child: Text(
+              'RENAME',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
           ),
         ),
       ],

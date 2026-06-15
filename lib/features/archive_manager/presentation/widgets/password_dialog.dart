@@ -11,10 +11,16 @@ class PasswordDialog extends StatefulWidget {
   const PasswordDialog({
     super.key,
     this.title = 'Enter Password',
-    this.message = 'This archive is encrypted and requires a password to extract.',
+    this.message =
+        'This archive is encrypted and requires a password to extract.',
   });
 
-  static Future<String?> show(BuildContext context, {String title = 'Enter Password', String message = 'This archive is encrypted and requires a password to extract.'}) {
+  static Future<String?> show(
+    BuildContext context, {
+    String title = 'Enter Password',
+    String message =
+        'This archive is encrypted and requires a password to extract.',
+  }) {
     return showDialog<String>(
       context: context,
       barrierColor: Colors.black54,
@@ -63,7 +69,11 @@ class _PasswordDialogState extends State<PasswordDialog> {
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: Colors.white.withOpacity(0.1)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 40, offset: const Offset(0, 20)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
               ],
             ),
             child: Column(
@@ -79,10 +89,21 @@ class _PasswordDialogState extends State<PasswordDialog> {
                     children: [
                       Text(
                         widget.message,
-                        style: GoogleFonts.manrope(color: Colors.white70, fontSize: 13),
+                        style: GoogleFonts.manrope(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
                       ),
                       const SizedBox(height: 24),
-                      Text("PASSWORD", style: GoogleFonts.manrope(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                      Text(
+                        "PASSWORD",
+                        style: GoogleFonts.manrope(
+                          color: Colors.white24,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       _buildTextField(),
                       const SizedBox(height: 32),
@@ -110,13 +131,21 @@ class _PasswordDialogState extends State<PasswordDialog> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.violet.withOpacity(0.3)),
             ),
-            child: const Icon(Icons.lock_rounded, color: AppColors.violet, size: 24),
+            child: const Icon(
+              Icons.lock_rounded,
+              color: AppColors.violet,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 18),
           Expanded(
             child: Text(
               widget.title,
-              style: GoogleFonts.outfit(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -139,13 +168,18 @@ class _PasswordDialogState extends State<PasswordDialog> {
         style: GoogleFonts.manrope(color: Colors.white, fontSize: 15),
         onSubmitted: (_) => _handleSubmit(),
         decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
           border: InputBorder.none,
           hintText: "Enter password",
           hintStyle: const TextStyle(color: Colors.white12),
           suffixIcon: IconButton(
             icon: Icon(
-              _obscureText ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+              _obscureText
+                  ? Icons.visibility_rounded
+                  : Icons.visibility_off_rounded,
               color: Colors.white54,
             ),
             onPressed: () {
@@ -165,14 +199,28 @@ class _PasswordDialogState extends State<PasswordDialog> {
       children: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('CANCEL', style: GoogleFonts.manrope(color: Colors.white38, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          child: Text(
+            'CANCEL',
+            style: GoogleFonts.manrope(
+              color: Colors.white38,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
         ),
         const SizedBox(width: 16),
         Container(
           decoration: BoxDecoration(
             gradient: AppTheme.primaryGradient,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: [BoxShadow(color: AppColors.violet.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.violet.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: ElevatedButton(
             onPressed: _handleSubmit,
@@ -181,9 +229,17 @@ class _PasswordDialogState extends State<PasswordDialog> {
               shadowColor: Colors.transparent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
-            child: Text('UNLOCK', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+            child: Text(
+              'UNLOCK',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
           ),
         ),
       ],

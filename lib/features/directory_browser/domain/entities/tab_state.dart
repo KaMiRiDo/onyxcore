@@ -37,7 +37,9 @@ class TabState {
   String get title {
     if (currentPath == '/') return 'Root';
     if (currentPath == Platform.environment['HOME']) return 'Home';
-    if (currentPath.endsWith('.local/share/Trash/files') || currentPath == 'trash:///') return 'Trash';
+    if (currentPath.endsWith('.local/share/Trash/files') ||
+        currentPath == 'trash:///')
+      return 'Trash';
     return p.basename(currentPath);
   }
 

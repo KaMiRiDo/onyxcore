@@ -103,41 +103,45 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
               if (widget.progress != null) ...[
                 const SizedBox(height: 4),
                 if (widget.storageText != null) ...[
-                    Text(
-                      widget.storageText!,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.textMuted.withOpacity(0.6),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  Text(
+                    widget.storageText!,
+                    style: GoogleFonts.manrope(
+                      color: AppColors.textMuted.withOpacity(0.6),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 2),
-                  ],
-                  Container(
-                    height: 3,
-                    width: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(1.5),
-                    ),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: widget.progress!.clamp(0.0, 1.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          borderRadius: BorderRadius.circular(1.5),
-                        ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
+                Container(
+                  height: 3,
+                  width: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: widget.progress!.clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(1.5),
                       ),
                     ),
                   ),
+                ),
               ],
             ],
           ),
         ),
         if (widget.onEject != null)
           IconButton(
-            icon: const Icon(Icons.eject_outlined, size: 16, color: AppColors.textMuted),
+            icon: const Icon(
+              Icons.eject_outlined,
+              size: 16,
+              color: AppColors.textMuted,
+            ),
             padding: const EdgeInsets.all(12),
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             onPressed: widget.onEject,
@@ -170,19 +174,22 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
         onAcceptWithDetails: (details) async {
           _hoverTimer?.cancel();
           if (isVirtual || widget.path.isEmpty) return;
-          
+
           // Prevent dropping into same directory
-          if (details.data.every((path) => p.dirname(path) == widget.path)) return;
+          if (details.data.every((path) => p.dirname(path) == widget.path))
+            return;
 
           final repo = ref.read(directoryRepositoryProvider);
-          final taskId = ref.read(taskProvider.notifier).addTask(
-            title: 'Moving Files',
-            subtitle: '${details.data.length} items to ${widget.label}',
-            totalCount: details.data.length,
-            sourcePaths: details.data,
-            targetPath: widget.path,
-          );
-          
+          final taskId = ref
+              .read(taskProvider.notifier)
+              .addTask(
+                title: 'Moving Files',
+                subtitle: '${details.data.length} items to ${widget.label}',
+                totalCount: details.data.length,
+                sourcePaths: details.data,
+                targetPath: widget.path,
+              );
+
           try {
             await repo.moveItems(details.data, widget.path);
             ref.read(taskProvider.notifier).completeTask(taskId);
@@ -201,7 +208,9 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: isOver ? AppColors.violet.withOpacity(0.1) : Colors.transparent,
+                color: isOver
+                    ? AppColors.violet.withOpacity(0.1)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: content,

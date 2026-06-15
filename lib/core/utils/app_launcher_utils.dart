@@ -59,7 +59,10 @@ class AppLauncherUtils {
       '/usr/local/share/applications',
       p.join(Platform.environment['HOME'] ?? '', '.local/share/applications'),
       '/var/lib/flatpak/exports/share/applications',
-      p.join(Platform.environment['HOME'] ?? '', '.local/share/flatpak/exports/share/applications'),
+      p.join(
+        Platform.environment['HOME'] ?? '',
+        '.local/share/flatpak/exports/share/applications',
+      ),
       '/var/lib/snapd/desktop/applications',
       '/var/lib/snapd/desktop/applications', // Double check
     ];
@@ -78,7 +81,7 @@ class AppLauncherUtils {
                 // We allow duplicates if the path is different and name is different
                 // but usually id is enough
                 if (processedIds.contains(id)) continue;
-                
+
                 final app = await _parseDesktopFile(entity);
                 if (app != null) {
                   apps.add(app);
@@ -97,7 +100,7 @@ class AppLauncherUtils {
 
     // Sort alphabetically
     apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    
+
     _cachedApps = apps;
     _isScanning = false;
     return apps;
@@ -122,28 +125,39 @@ class AppLauncherUtils {
           if (entity is File) {
             final path = entity.path;
             // We only care about icons in 'apps', 'mimetypes', or pixmaps
-            if (!path.contains('/apps/') && !path.contains('/mimetypes/') && !path.contains('pixmaps')) continue;
+            if (!path.contains('/apps/') &&
+                !path.contains('/mimetypes/') &&
+                !path.contains('pixmaps'))
+              continue;
 
             final ext = p.extension(path).toLowerCase();
             if (['.png', '.svg', '.xpm', '.jpg', '.jpeg'].contains(ext)) {
               // Strip only the image extension, preserving dotted names like org.gnome.TextEditor
               final basename = p.basename(path);
               final name = basename.substring(0, basename.length - ext.length);
-              
+
               // Priority: Scalable > High Res > Medium Res
               bool shouldUpdate = !_iconCache.containsKey(name);
               if (!shouldUpdate) {
                 final currentPath = _iconCache[name]!;
                 final isNewScalable = path.contains('scalable');
                 final isCurrentScalable = currentPath.contains('scalable');
-                
+
                 if (isNewScalable && !isCurrentScalable) {
                   shouldUpdate = true;
                 } else if (!isCurrentScalable) {
-                  if (path.contains('256x256') || path.contains('512x512')) shouldUpdate = true;
-                  else if (path.contains('128x128') && !currentPath.contains('256x256')) shouldUpdate = true;
-                  else if (path.contains('64x64') && !currentPath.contains('128x128') && !currentPath.contains('256x256')) shouldUpdate = true;
-                  else if (path.contains('48x48') && !currentPath.contains('64x64')) shouldUpdate = true;
+                  if (path.contains('256x256') || path.contains('512x512'))
+                    shouldUpdate = true;
+                  else if (path.contains('128x128') &&
+                      !currentPath.contains('256x256'))
+                    shouldUpdate = true;
+                  else if (path.contains('64x64') &&
+                      !currentPath.contains('128x128') &&
+                      !currentPath.contains('256x256'))
+                    shouldUpdate = true;
+                  else if (path.contains('48x48') &&
+                      !currentPath.contains('64x64'))
+                    shouldUpdate = true;
                 }
               }
 
@@ -185,7 +199,7 @@ class AppLauncherUtils {
 
         final parts = trimmed.split('=');
         if (parts.length < 2) continue;
-        
+
         final key = parts[0].trim();
         final value = parts.sublist(1).join('=').trim();
 
@@ -220,7 +234,7 @@ class AppLauncherUtils {
         final content = String.fromCharCodes(bytes);
         // Basic parsing for fallback
         if (content.contains('Name=') && content.contains('Exec=')) {
-           // We could implement a more complex fallback but most are UTF-8
+          // We could implement a more complex fallback but most are UTF-8
         }
       } catch (_) {}
     }
@@ -260,7 +274,13 @@ class AppLauncherUtils {
 
     if (_mimeRecommendedCache.containsKey(mimeType)) {
       final recommendedIds = _mimeRecommendedCache[mimeType]!;
-      return _cachedApps.where((app) => recommendedIds.contains(app.id) || recommendedIds.contains('${app.id}.desktop')).toList();
+      return _cachedApps
+          .where(
+            (app) =>
+                recommendedIds.contains(app.id) ||
+                recommendedIds.contains('${app.id}.desktop'),
+          )
+          .toList();
     }
 
     try {
@@ -269,14 +289,22 @@ class AppLauncherUtils {
         final output = result.stdout as String;
         final recommendedIds = _parseGioMimeOutput(output);
         _mimeRecommendedCache[mimeType] = recommendedIds;
-        return _cachedApps.where((app) => recommendedIds.contains(app.id) || recommendedIds.contains('${app.id}.desktop')).toList();
+        return _cachedApps
+            .where(
+              (app) =>
+                  recommendedIds.contains(app.id) ||
+                  recommendedIds.contains('${app.id}.desktop'),
+            )
+            .toList();
       }
     } catch (e) {
       print('Error getting recommended apps: $e');
     }
-    
+
     // Fallback: search by mime type in cached apps
-    return _cachedApps.where((app) => app.mimeTypes.contains(mimeType)).toList();
+    return _cachedApps
+        .where((app) => app.mimeTypes.contains(mimeType))
+        .toList();
   }
 
   static Future<AppInfo?> getDefaultApp(String filePath) async {
@@ -293,7 +321,13 @@ class AppLauncherUtils {
             final parts = line.split(':');
             if (parts.length > 1) {
               final id = parts[1].trim().replaceAll('.desktop', '');
-              return _cachedApps.firstWhere((app) => app.id == id, orElse: () => _cachedApps.firstWhere((app) => app.id == '$id.desktop', orElse: () => _cachedApps[0]));
+              return _cachedApps.firstWhere(
+                (app) => app.id == id,
+                orElse: () => _cachedApps.firstWhere(
+                  (app) => app.id == '$id.desktop',
+                  orElse: () => _cachedApps[0],
+                ),
+              );
             }
           }
         }
@@ -309,10 +343,17 @@ class AppLauncherUtils {
     if (_extensionMimeCache.containsKey(ext)) return _extensionMimeCache[ext];
 
     try {
-      final result = await Process.run('gio', ['info', '-a', 'standard::content-type', filePath]);
+      final result = await Process.run('gio', [
+        'info',
+        '-a',
+        'standard::content-type',
+        filePath,
+      ]);
       if (result.exitCode == 0) {
         final output = result.stdout as String;
-        final match = RegExp(r'standard::content-type:\s+(.+)').firstMatch(output);
+        final match = RegExp(
+          r'standard::content-type:\s+(.+)',
+        ).firstMatch(output);
         final mimeType = match?.group(1)?.trim();
         if (mimeType != null) {
           _extensionMimeCache[ext] = mimeType;
@@ -346,9 +387,16 @@ class AppLauncherUtils {
     // Replace %u, %U, %f, %F with file path
     String exec = app.exec;
     final path = '"$filePath"';
-    
-    if (exec.contains('%u') || exec.contains('%U') || exec.contains('%f') || exec.contains('%F')) {
-      exec = exec.replaceAll('%u', path).replaceAll('%U', path).replaceAll('%f', path).replaceAll('%F', path);
+
+    if (exec.contains('%u') ||
+        exec.contains('%U') ||
+        exec.contains('%f') ||
+        exec.contains('%F')) {
+      exec = exec
+          .replaceAll('%u', path)
+          .replaceAll('%U', path)
+          .replaceAll('%f', path)
+          .replaceAll('%F', path);
     } else {
       exec = '$exec $path';
     }

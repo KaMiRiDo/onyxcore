@@ -12,9 +12,14 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'package:audiotags/audiotags.dart';
 import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
 
-final audioTagsOverridesProvider = StateProvider.family<Tag?, String>((ref, path) => null);
+final audioTagsOverridesProvider = StateProvider.family<Tag?, String>(
+  (ref, path) => null,
+);
 
-final audioTagsProvider = FutureProvider.family<Tag?, String>((ref, path) async {
+final audioTagsProvider = FutureProvider.family<Tag?, String>((
+  ref,
+  path,
+) async {
   final overrideTag = ref.watch(audioTagsOverridesProvider(path));
   if (overrideTag != null) {
     return overrideTag;
@@ -50,11 +55,19 @@ class AudioFavoritesNotifier extends StateNotifier<Set<String>> {
   }
 }
 
-final audioFavoritesProvider = StateNotifierProvider<AudioFavoritesNotifier, Set<String>>((ref) {
-  return AudioFavoritesNotifier();
-});
+final audioFavoritesProvider =
+    StateNotifierProvider<AudioFavoritesNotifier, Set<String>>((ref) {
+      return AudioFavoritesNotifier();
+    });
 
-final audioViewModeProvider = StateProvider<AudioViewMode>((ref) => AudioViewMode.home);
+final audioViewModeProvider = StateProvider<AudioViewMode>(
+  (ref) => AudioViewMode.home,
+);
+final audioPlaylistSidebarVisibleProvider = StateProvider<bool>((ref) => true);
+final audioPlaylistSidebarWidthProvider = StateProvider<double?>((ref) => null);
+final isAudioPlaylistSidebarDraggingProvider = StateProvider<bool>(
+  (ref) => false,
+);
 
 /// The active Player instance, set by AudioPlayerView when it mounts.
 /// This is NOT auto-created by Riverpod — it is set externally.
@@ -69,7 +82,9 @@ final Player globalAudioPlayer = Player();
 final audioCurrentPathProvider = StateProvider<String>((ref) => '');
 final audioRootPathProvider = StateProvider<String>((ref) => '');
 final audioPathHistoryProvider = StateProvider<List<String>>((ref) => []);
-final audioPathForwardHistoryProvider = StateProvider<List<String>>((ref) => []);
+final audioPathForwardHistoryProvider = StateProvider<List<String>>(
+  (ref) => [],
+);
 
 final audioShowHiddenProvider = StateProvider<bool>((ref) {
   return ref.watch(settingsProvider).value?.showHiddenAudioFiles ?? false;
@@ -117,7 +132,6 @@ final audioVolumeProvider = StreamProvider<double>((ref) {
   return player.stream.volume;
 });
 
-
 // Sorting and Searching
 final audioSortOptionProvider = StateProvider<SortOption?>((ref) => null);
 final audioSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -136,7 +150,9 @@ final filteredAndSortedAudioQueueProvider = Provider<List<FileItem>>((ref) {
   }
 
   if (query.isNotEmpty) {
-    result = result.where((item) => item.name.toLowerCase().contains(query)).toList();
+    result = result
+        .where((item) => item.name.toLowerCase().contains(query))
+        .toList();
   }
 
   // Sort
@@ -144,8 +160,10 @@ final filteredAndSortedAudioQueueProvider = Provider<List<FileItem>>((ref) {
     result = List.from(result);
     result.sort((a, b) {
       if (sortOption != SortOption.filesFirst) {
-        if (a.type == FileItemType.folder && b.type != FileItemType.folder) return -1;
-        if (a.type != FileItemType.folder && b.type == FileItemType.folder) return 1;
+        if (a.type == FileItemType.folder && b.type != FileItemType.folder)
+          return -1;
+        if (a.type != FileItemType.folder && b.type == FileItemType.folder)
+          return 1;
       }
 
       switch (sortOption) {
@@ -162,8 +180,10 @@ final filteredAndSortedAudioQueueProvider = Provider<List<FileItem>>((ref) {
         case SortOption.sizeLargeToSmall:
           return (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
         case SortOption.filesFirst:
-          if (a.type == FileItemType.folder && b.type != FileItemType.folder) return 1;
-          if (a.type != FileItemType.folder && b.type == FileItemType.folder) return -1;
+          if (a.type == FileItemType.folder && b.type != FileItemType.folder)
+            return 1;
+          if (a.type != FileItemType.folder && b.type == FileItemType.folder)
+            return -1;
           return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       }
     });

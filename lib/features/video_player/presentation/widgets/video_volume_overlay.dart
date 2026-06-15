@@ -66,7 +66,8 @@ class VideoVolumeOverlay extends StatelessWidget {
   }
 }
 
-class _GradientRectSliderTrackShape extends SliderTrackShape with BaseSliderTrackShape {
+class _GradientRectSliderTrackShape extends SliderTrackShape
+    with BaseSliderTrackShape {
   @override
   void paint(
     PaintingContext context,
@@ -91,8 +92,10 @@ class _GradientRectSliderTrackShape extends SliderTrackShape with BaseSliderTrac
 
     final activeGradient = AppTheme.primaryGradient;
 
-    final Paint activePaint = Paint()..shader = activeGradient.createShader(trackRect);
-    final Paint inactivePaint = Paint()..color = sliderTheme.inactiveTrackColor!;
+    final Paint activePaint = Paint()
+      ..shader = activeGradient.createShader(trackRect);
+    final Paint inactivePaint = Paint()
+      ..color = sliderTheme.inactiveTrackColor!;
 
     final double trackRadius = trackRect.height / 2;
 

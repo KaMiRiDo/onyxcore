@@ -16,9 +16,10 @@ class ToastHelper {
     IconData? icon,
     bool isError = false,
   }) {
-    final overlayState = Overlay.maybeOf(context) ?? appNavigatorKey.currentState?.overlay;
+    final overlayState =
+        Overlay.maybeOf(context) ?? appNavigatorKey.currentState?.overlay;
     if (overlayState == null) return;
-    
+
     _currentEntry?.remove();
     _currentEntry = null;
     _timer?.cancel();
@@ -56,7 +57,8 @@ class _ToastWidget extends StatefulWidget {
   State<_ToastWidget> createState() => _ToastWidgetState();
 }
 
-class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderStateMixin {
+class _ToastWidgetState extends State<_ToastWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _opacity;
   late Animation<Offset> _offset;
@@ -64,9 +66,18 @@ class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderSta
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _opacity = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _offset = Tween<Offset>(begin: const Offset(0, -0.2), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _opacity = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _offset = Tween<Offset>(
+      begin: const Offset(0, -0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _controller.forward();
   }
 
@@ -87,14 +98,16 @@ class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderSta
           children: [
             // The notch pointing to the top bar icon
             Container(
-              margin: const EdgeInsets.only(right: 136), // Align with the background tasks icon
+              margin: const EdgeInsets.only(
+                right: 136,
+              ), // Align with the background tasks icon
               width: 12,
               height: 6,
               child: CustomPaint(
                 painter: _TrianglePainter(
-                  color: widget.isError 
-                    ? AppColors.error.withOpacity(0.3) 
-                    : Colors.white.withOpacity(0.1)
+                  color: widget.isError
+                      ? AppColors.error.withOpacity(0.3)
+                      : Colors.white.withOpacity(0.1),
                 ),
               ),
             ),
@@ -103,14 +116,17 @@ class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderSta
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1E1E1E).withOpacity(0.85),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: widget.isError 
-                        ? AppColors.error.withOpacity(0.3) 
-                        : Colors.white.withOpacity(0.1),
+                      color: widget.isError
+                          ? AppColors.error.withOpacity(0.3)
+                          : Colors.white.withOpacity(0.1),
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -126,16 +142,27 @@ class _ToastWidgetState extends State<_ToastWidget> with SingleTickerProviderSta
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          gradient: widget.isError ? null : AppTheme.primaryGradient.withOpacity(0.2),
-                          color: widget.isError ? AppColors.error.withOpacity(0.2) : null,
+                          gradient: widget.isError
+                              ? null
+                              : AppTheme.primaryGradient.withOpacity(0.2),
+                          color: widget.isError
+                              ? AppColors.error.withOpacity(0.2)
+                              : null,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: widget.isError ? AppColors.error.withOpacity(0.4) : AppColors.violet.withOpacity(0.3),
+                            color: widget.isError
+                                ? AppColors.error.withOpacity(0.4)
+                                : AppColors.violet.withOpacity(0.3),
                           ),
                         ),
                         child: Icon(
-                          widget.icon ?? (widget.isError ? Icons.error_outline_rounded : Icons.info_outline_rounded),
-                          color: widget.isError ? AppColors.error : AppColors.violet,
+                          widget.icon ??
+                              (widget.isError
+                                  ? Icons.error_outline_rounded
+                                  : Icons.info_outline_rounded),
+                          color: widget.isError
+                              ? AppColors.error
+                              : AppColors.violet,
                           size: 16,
                         ),
                       ),
@@ -170,7 +197,7 @@ class _TrianglePainter extends CustomPainter {
     final paint = Paint()
       ..color = const Color(0xFF1E1E1E).withOpacity(0.85)
       ..style = PaintingStyle.fill;
-      
+
     final borderPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -183,13 +210,13 @@ class _TrianglePainter extends CustomPainter {
       ..close();
 
     canvas.drawPath(path, paint);
-    
+
     // Draw the border only on the two top lines
     final linePath = Path()
       ..moveTo(0, size.height)
       ..lineTo(size.width / 2, 0)
       ..lineTo(size.width, size.height);
-      
+
     canvas.drawPath(linePath, borderPaint);
   }
 

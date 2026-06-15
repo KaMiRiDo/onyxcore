@@ -55,8 +55,10 @@ class GradientRectSliderTrackShape extends RectangularSliderTrackShape {
       fullWidthRect.bottom,
     );
 
-    final Paint activePaint = Paint()..shader = gradient.createShader(activeTrackRect);
-    final Paint inactivePaint = Paint()..color = sliderTheme.inactiveTrackColor!;
+    final Paint activePaint = Paint()
+      ..shader = gradient.createShader(activeTrackRect);
+    final Paint inactivePaint = Paint()
+      ..color = sliderTheme.inactiveTrackColor!;
 
     final Radius radius = Radius.circular(fullWidthRect.height / 2);
 

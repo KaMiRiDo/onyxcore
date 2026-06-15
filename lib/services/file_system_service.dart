@@ -7,7 +7,7 @@ class FileSystemService {
   final FileSystem _fileSystem;
 
   FileSystemService([FileSystem? fileSystem])
-      : _fileSystem = fileSystem ?? const LocalFileSystem();
+    : _fileSystem = fileSystem ?? const LocalFileSystem();
 
   FileSystem get fileSystem => _fileSystem;
 
@@ -25,7 +25,11 @@ class FileSystemService {
   Future<bool> isFile(String path) async => await _fileSystem.isFile(path);
 
   /// Lists the contents of a directory.
-  Future<List<FileSystemEntity>> listDirectory(String path, {bool recursive = false, bool followLinks = true}) async {
+  Future<List<FileSystemEntity>> listDirectory(
+    String path, {
+    bool recursive = false,
+    bool followLinks = true,
+  }) async {
     final dir = _fileSystem.directory(path);
     if (!await dir.exists()) {
       throw FileSystemException('Directory does not exist', path);

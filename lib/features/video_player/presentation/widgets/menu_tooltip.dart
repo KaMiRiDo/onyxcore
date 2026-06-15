@@ -43,7 +43,10 @@ class _MenuTooltipState extends State<MenuTooltip> {
                     maxWidth: MediaQuery.of(context).size.width * 0.7,
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(4),

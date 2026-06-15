@@ -67,10 +67,14 @@ class _FilePickerPreviewPaneState extends State<FilePickerPreviewPane> {
                 ? _buildEmptyState()
                 : ListView.separated(
                     controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 0,
+                    ),
                     itemCount: widget.selectedPaths.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 20),
-                    itemBuilder: (context, index) => _PreviewItem(path: widget.selectedPaths[index]),
+                    itemBuilder: (context, index) =>
+                        _PreviewItem(path: widget.selectedPaths[index]),
                   ),
           ),
           const SizedBox(height: 20),
@@ -84,7 +88,11 @@ class _FilePickerPreviewPaneState extends State<FilePickerPreviewPane> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.remove_red_eye_rounded, size: 40, color: Colors.white.withOpacity(0.05)),
+          Icon(
+            Icons.remove_red_eye_rounded,
+            size: 40,
+            color: Colors.white.withOpacity(0.05),
+          ),
           const SizedBox(height: 12),
           Text(
             'Select files to preview',
@@ -112,8 +120,10 @@ class _PreviewItem extends StatelessWidget {
       if (file.existsSync()) {
         final bytes = file.lengthSync();
         if (bytes < 1024) return '$bytes B';
-        if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-        if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+        if (bytes < 1024 * 1024)
+          return '${(bytes / 1024).toStringAsFixed(1)} KB';
+        if (bytes < 1024 * 1024 * 1024)
+          return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
         return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
       }
     } catch (_) {}

@@ -22,7 +22,10 @@ class CompressDialog extends StatefulWidget {
 
   const CompressDialog({super.key, required this.sourcePaths});
 
-  static Future<CompressDialogResult?> show(BuildContext context, List<String> sourcePaths) {
+  static Future<CompressDialogResult?> show(
+    BuildContext context,
+    List<String> sourcePaths,
+  ) {
     return showDialog<CompressDialogResult>(
       context: context,
       barrierColor: Colors.black54,
@@ -70,8 +73,10 @@ class _CompressDialogState extends State<CompressDialog> {
 
   void _handleSubmit() {
     if (_nameController.text.isEmpty) return;
-    
-    final password = _passwordController.text.isNotEmpty ? _passwordController.text : null;
+
+    final password = _passwordController.text.isNotEmpty
+        ? _passwordController.text
+        : null;
     Navigator.pop(
       context,
       CompressDialogResult(
@@ -98,7 +103,11 @@ class _CompressDialogState extends State<CompressDialog> {
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: Colors.white.withOpacity(0.1)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 40, offset: const Offset(0, 20)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
               ],
             ),
             child: Column(
@@ -112,15 +121,39 @@ class _CompressDialogState extends State<CompressDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("ARCHIVE NAME", style: GoogleFonts.manrope(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                      Text(
+                        "ARCHIVE NAME",
+                        style: GoogleFonts.manrope(
+                          color: Colors.white24,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       _buildTextField(_nameController, "Enter archive name"),
                       const SizedBox(height: 24),
-                      Text("FORMAT", style: GoogleFonts.manrope(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                      Text(
+                        "FORMAT",
+                        style: GoogleFonts.manrope(
+                          color: Colors.white24,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       _buildFormatSelector(),
                       const SizedBox(height: 24),
-                      Text("PASSWORD (OPTIONAL)", style: GoogleFonts.manrope(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                      Text(
+                        "PASSWORD (OPTIONAL)",
+                        style: GoogleFonts.manrope(
+                          color: Colors.white24,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       _buildPasswordField(),
                       const SizedBox(height: 32),
@@ -148,12 +181,20 @@ class _CompressDialogState extends State<CompressDialog> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.violet.withOpacity(0.3)),
             ),
-            child: const Icon(Icons.folder_zip_rounded, color: AppColors.violet, size: 24),
+            child: const Icon(
+              Icons.folder_zip_rounded,
+              color: AppColors.violet,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 18),
           Text(
             'Compress Items',
-            style: GoogleFonts.outfit(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -173,7 +214,10 @@ class _CompressDialogState extends State<CompressDialog> {
         style: GoogleFonts.manrope(color: Colors.white, fontSize: 15),
         onSubmitted: (_) => _handleSubmit(),
         decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
           border: InputBorder.none,
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.white12),
@@ -195,13 +239,18 @@ class _CompressDialogState extends State<CompressDialog> {
         style: GoogleFonts.manrope(color: Colors.white, fontSize: 15),
         onSubmitted: (_) => _handleSubmit(),
         decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
           border: InputBorder.none,
           hintText: "Enter password to encrypt",
           hintStyle: const TextStyle(color: Colors.white12),
           suffixIcon: IconButton(
             icon: Icon(
-              _obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+              _obscurePassword
+                  ? Icons.visibility_rounded
+                  : Icons.visibility_off_rounded,
               color: Colors.white54,
             ),
             onPressed: () {
@@ -227,9 +276,15 @@ class _CompressDialogState extends State<CompressDialog> {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isActive ? AppColors.violet.withOpacity(0.2) : Colors.white.withOpacity(0.03),
+                color: isActive
+                    ? AppColors.violet.withOpacity(0.2)
+                    : Colors.white.withOpacity(0.03),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isActive ? AppColors.violet : Colors.white.withOpacity(0.05)),
+                border: Border.all(
+                  color: isActive
+                      ? AppColors.violet
+                      : Colors.white.withOpacity(0.05),
+                ),
               ),
               child: Text(
                 format.toUpperCase(),
@@ -252,14 +307,28 @@ class _CompressDialogState extends State<CompressDialog> {
       children: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('CANCEL', style: GoogleFonts.manrope(color: Colors.white38, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          child: Text(
+            'CANCEL',
+            style: GoogleFonts.manrope(
+              color: Colors.white38,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
         ),
         const SizedBox(width: 16),
         Container(
           decoration: BoxDecoration(
             gradient: AppTheme.primaryGradient,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: [BoxShadow(color: AppColors.violet.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.violet.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: ElevatedButton(
             onPressed: _handleSubmit,
@@ -268,9 +337,17 @@ class _CompressDialogState extends State<CompressDialog> {
               shadowColor: Colors.transparent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
-            child: Text('COMPRESS', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+            child: Text(
+              'COMPRESS',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
           ),
         ),
       ],

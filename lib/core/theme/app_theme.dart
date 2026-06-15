@@ -54,9 +54,9 @@ class AppTheme {
       iconTheme: const IconThemeData(color: Colors.white70),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: const Color(0xFF181818).withOpacity(0.95),
+          color: const Color(0xFF262626),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.white.withOpacity(0.15)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.4),

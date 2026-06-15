@@ -13,9 +13,11 @@ class SelectionNotifier extends Notifier<SelectionState> {
   @override
   SelectionState build() {
     final tabId = ref.watch(tabIdProvider);
-    final selectedPaths = ref.watch(tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).selectedPaths
-    ));
+    final selectedPaths = ref.watch(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).selectedPaths,
+      ),
+    );
     return SelectionState(
       selectedPaths: selectedPaths,
       isSelectionMode: selectedPaths.isNotEmpty,
@@ -99,5 +101,6 @@ class SelectionNotifier extends Notifier<SelectionState> {
 }
 
 /// Provider for the selection notifier.
-final selectionProvider =
-    NotifierProvider<SelectionNotifier, SelectionState>(SelectionNotifier.new);
+final selectionProvider = NotifierProvider<SelectionNotifier, SelectionState>(
+  SelectionNotifier.new,
+);

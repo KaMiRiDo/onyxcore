@@ -7,17 +7,25 @@ enum SortOption {
   lastModified,
   sizeSmallToLarge,
   sizeLargeToSmall,
-  filesFirst;
+  filesFirst
+  ;
 
   String get label {
     switch (this) {
-      case SortOption.aToZ: return 'A-Z';
-      case SortOption.zToA: return 'Z-A';
-      case SortOption.firstModified: return 'First Modified';
-      case SortOption.lastModified: return 'Last Modified';
-      case SortOption.sizeSmallToLarge: return 'Size (Small to Large)';
-      case SortOption.sizeLargeToSmall: return 'Size (Large to Small)';
-      case SortOption.filesFirst: return 'Files First';
+      case SortOption.aToZ:
+        return 'A-Z';
+      case SortOption.zToA:
+        return 'Z-A';
+      case SortOption.firstModified:
+        return 'First Modified';
+      case SortOption.lastModified:
+        return 'Last Modified';
+      case SortOption.sizeSmallToLarge:
+        return 'Size (Small to Large)';
+      case SortOption.sizeLargeToSmall:
+        return 'Size (Large to Small)';
+      case SortOption.filesFirst:
+        return 'Files First';
     }
   }
 }

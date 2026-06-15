@@ -26,7 +26,10 @@ class BackgroundPanel extends ConsumerWidget {
   }
 
   Widget _buildCurrentView(
-      BackgroundPanelView view, WidgetRef ref, BuildContext context) {
+    BackgroundPanelView view,
+    WidgetRef ref,
+    BuildContext context,
+  ) {
     switch (view) {
       case BackgroundPanelView.tasks:
         return const _TasksView();
@@ -46,7 +49,8 @@ class _TasksView extends ConsumerStatefulWidget {
   ConsumerState<_TasksView> createState() => _TasksViewState();
 }
 
-class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProviderStateMixin {
+class _TasksViewState extends ConsumerState<_TasksView>
+    with SingleTickerProviderStateMixin {
   bool _showCancelAllConfirm = false;
   AnimationController? _refreshControllerInternal;
   AnimationController get _refreshController {
@@ -56,6 +60,7 @@ class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProvide
     );
     return _refreshControllerInternal!;
   }
+
   bool _isRefreshing = false;
 
   @override
@@ -68,12 +73,12 @@ class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProvide
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
     _refreshController.repeat();
-    
+
     ref.read(taskProvider.notifier).refreshTasks();
-    
+
     // Hold the effect for a bit to make it visible
     await Future.delayed(const Duration(milliseconds: 800));
-    
+
     if (mounted) {
       _refreshController.stop();
       _refreshController.reset();
@@ -137,7 +142,9 @@ class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProvide
                           child: Icon(
                             Icons.refresh_rounded,
                             size: 18,
-                            color: _isRefreshing ? AppColors.violet : Colors.white.withOpacity(0.5),
+                            color: _isRefreshing
+                                ? AppColors.violet
+                                : Colors.white.withOpacity(0.5),
                           ),
                         ),
                       ),
@@ -151,11 +158,16 @@ class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProvide
                           BackgroundPanelView.history;
                     },
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       backgroundColor: Colors.white.withOpacity(0.05),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                     ),
                     child: Text(
                       'History',
@@ -248,7 +260,9 @@ class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProvide
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: AppColors.error.withOpacity(0.3)),
+                        side: BorderSide(
+                          color: AppColors.error.withOpacity(0.3),
+                        ),
                       ),
                     ),
                     icon: const Icon(Icons.cancel_outlined, size: 16),
@@ -275,7 +289,9 @@ class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProvide
                 child: Center(
                   child: InkWell(
                     onTap: () {}, // Prevent tap from bubbling up
-                    overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+                    overlayColor: const WidgetStatePropertyAll(
+                      Colors.transparent,
+                    ),
                     child: Container(
                       width: 260,
                       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -331,10 +347,14 @@ class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProvide
                               Expanded(
                                 child: TextButton(
                                   onPressed: () {
-                                    setState(() => _showCancelAllConfirm = false);
+                                    setState(
+                                      () => _showCancelAllConfirm = false,
+                                    );
                                   },
                                   style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                   ),
                                   child: Text(
                                     'No, Keep',
@@ -349,13 +369,19 @@ class _TasksViewState extends ConsumerState<_TasksView> with SingleTickerProvide
                               Expanded(
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    ref.read(taskProvider.notifier).cancelAllTasks();
-                                    setState(() => _showCancelAllConfirm = false);
+                                    ref
+                                        .read(taskProvider.notifier)
+                                        .cancelAllTasks();
+                                    setState(
+                                      () => _showCancelAllConfirm = false,
+                                    );
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.error,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),

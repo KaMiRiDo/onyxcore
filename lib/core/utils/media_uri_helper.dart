@@ -19,10 +19,18 @@ class MediaUriHelper {
             if (rangeHeader != null && rangeHeader.startsWith('bytes=')) {
               final parts = rangeHeader.substring(6).split('-');
               final start = int.parse(parts[0]);
-              final end = parts.length > 1 && parts[1].isNotEmpty ? int.parse(parts[1]) : length - 1;
+              final end = parts.length > 1 && parts[1].isNotEmpty
+                  ? int.parse(parts[1])
+                  : length - 1;
               request.response.statusCode = HttpStatus.partialContent;
-              request.response.headers.add('Content-Range', 'bytes $start-$end/$length');
-              request.response.headers.add('Content-Length', '${end - start + 1}');
+              request.response.headers.add(
+                'Content-Range',
+                'bytes $start-$end/$length',
+              );
+              request.response.headers.add(
+                'Content-Length',
+                '${end - start + 1}',
+              );
               request.response.headers.add('Accept-Ranges', 'bytes');
               await request.response.addStream(file.openRead(start, end + 1));
             } else {
@@ -47,7 +55,7 @@ class MediaUriHelper {
     if (!path.contains('\\')) {
       return Uri.file(path).toString();
     }
-    
+
     final id = '/${path.hashCode.abs()}';
     _proxyMap[id] = path;
     if (_localProxy == null) {

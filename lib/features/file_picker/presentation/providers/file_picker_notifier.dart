@@ -61,16 +61,22 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
     return FilePickerState(currentDirectory: _getHomeDirectory());
   }
 
-  Future<void> initialize({List<String>? allowedExtensions, String? initialDirectory}) async {
+  Future<void> initialize({
+    List<String>? allowedExtensions,
+    String? initialDirectory,
+  }) async {
     final home = initialDirectory ?? _getHomeDirectory();
-    
+
     _history.clear();
     _history.add(home);
     _historyIndex = 0;
 
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final initialState = FilePickerState(currentDirectory: home, allowedExtensions: allowedExtensions);
+      final initialState = FilePickerState(
+        currentDirectory: home,
+        allowedExtensions: allowedExtensions,
+      );
       return await _loadDirectoryContents(initialState);
     });
   }
@@ -83,16 +89,21 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
     return Platform.environment['HOME'] ?? '/';
   }
 
-  Future<FilePickerState> _loadDirectoryContents(FilePickerState currentState) async {
+  Future<FilePickerState> _loadDirectoryContents(
+    FilePickerState currentState,
+  ) async {
     final service = ref.read(fileSystemServiceProvider);
     try {
-      final entities = await service.listDirectory(currentState.currentDirectory);
-      
-      var filtered = currentState.showHiddenFiles 
-          ? entities 
+      final entities = await service.listDirectory(
+        currentState.currentDirectory,
+      );
+
+      var filtered = currentState.showHiddenFiles
+          ? entities
           : entities.where((e) => !p.basename(e.path).startsWith('.')).toList();
 
-      if (currentState.allowedExtensions != null && currentState.allowedExtensions!.isNotEmpty) {
+      if (currentState.allowedExtensions != null &&
+          currentState.allowedExtensions!.isNotEmpty) {
         filtered = filtered.where((e) {
           if (e is Directory) return true;
           final ext = p.extension(e.path).toLowerCase().replaceFirst('.', '');
@@ -106,10 +117,17 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
         final bIsDir = b is Directory;
         if (aIsDir && !bIsDir) return -1;
         if (!aIsDir && bIsDir) return 1;
-        return p.basename(a.path).toLowerCase().compareTo(p.basename(b.path).toLowerCase());
+        return p
+            .basename(a.path)
+            .toLowerCase()
+            .compareTo(p.basename(b.path).toLowerCase());
       });
 
-      return currentState.copyWith(contents: filtered, selection: {}, error: null);
+      return currentState.copyWith(
+        contents: filtered,
+        selection: {},
+        error: null,
+      );
     } catch (e) {
       // If access denied or other error, return state with error but keep current path if possible
       // In a real app, you'd probably want to show a snackbar.
@@ -139,10 +157,10 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
   Future<void> goUp() async {
     final currentState = state.value;
     if (currentState == null) return;
-    
+
     final parent = p.dirname(currentState.currentDirectory);
     if (parent == currentState.currentDirectory) return; // Already at root
-    
+
     await goToDirectory(parent);
   }
 
@@ -150,15 +168,17 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
     if (_historyIndex <= 0) return;
     _historyIndex--;
     final path = _history[_historyIndex];
-    
+
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final currentState = state.value;
-      return await _loadDirectoryContents(FilePickerState(
-        currentDirectory: path,
-        showHiddenFiles: currentState?.showHiddenFiles ?? false,
-        allowedExtensions: currentState?.allowedExtensions,
-      ));
+      return await _loadDirectoryContents(
+        FilePickerState(
+          currentDirectory: path,
+          showHiddenFiles: currentState?.showHiddenFiles ?? false,
+          allowedExtensions: currentState?.allowedExtensions,
+        ),
+      );
     });
   }
 
@@ -170,11 +190,13 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final currentState = state.value;
-      return await _loadDirectoryContents(FilePickerState(
-        currentDirectory: path,
-        showHiddenFiles: currentState?.showHiddenFiles ?? false,
-        allowedExtensions: currentState?.allowedExtensions,
-      ));
+      return await _loadDirectoryContents(
+        FilePickerState(
+          currentDirectory: path,
+          showHiddenFiles: currentState?.showHiddenFiles ?? false,
+          allowedExtensions: currentState?.allowedExtensions,
+        ),
+      );
     });
   }
 
@@ -184,26 +206,40 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
 
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final newState = currentState.copyWith(showHiddenFiles: !currentState.showHiddenFiles);
+      final newState = currentState.copyWith(
+        showHiddenFiles: !currentState.showHiddenFiles,
+      );
       return await _loadDirectoryContents(newState);
     });
   }
 
-  void toggleSelection(String path, {bool isCtrl = false, bool isShift = false}) {
+  void toggleSelection(
+    String path, {
+    bool isCtrl = false,
+    bool isShift = false,
+  }) {
     final currentState = state.value;
     if (currentState == null) return;
 
-    final currentIndex = currentState.contents.indexWhere((e) => e.path == path);
+    final currentIndex = currentState.contents.indexWhere(
+      (e) => e.path == path,
+    );
     if (currentIndex == -1) return;
 
-    final newSelection = Set<String>.from((isCtrl || (isShift && _anchorIndex == null)) ? currentState.selection : {});
-    
+    final newSelection = Set<String>.from(
+      (isCtrl || (isShift && _anchorIndex == null))
+          ? currentState.selection
+          : {},
+    );
+
     if (isShift && _anchorIndex != null) {
-      if (!isCtrl) newSelection.clear(); // Shift+Click replaces selection unless Ctrl is held
-      
+      if (!isCtrl)
+        newSelection
+            .clear(); // Shift+Click replaces selection unless Ctrl is held
+
       final start = _anchorIndex! < currentIndex ? _anchorIndex! : currentIndex;
       final end = _anchorIndex! > currentIndex ? _anchorIndex! : currentIndex;
-      
+
       for (var i = start; i <= end; i++) {
         newSelection.add(currentState.contents[i].path);
       }
@@ -225,7 +261,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
 
     state = AsyncValue.data(currentState.copyWith(selection: newSelection));
   }
-  
+
   void clearError() {
     final currentState = state.value;
     if (currentState == null) return;
@@ -233,6 +269,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
   }
 }
 
-final filePickerProvider = AsyncNotifierProvider<FilePickerNotifier, FilePickerState>(() {
-  return FilePickerNotifier();
-});
+final filePickerProvider =
+    AsyncNotifierProvider<FilePickerNotifier, FilePickerState>(() {
+      return FilePickerNotifier();
+    });

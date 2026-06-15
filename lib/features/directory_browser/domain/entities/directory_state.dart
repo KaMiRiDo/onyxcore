@@ -35,5 +35,11 @@ class DirectoryState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [currentPath, items, totalSizeBytes, isLoading, error];
+  List<Object?> get props => [
+    currentPath,
+    items,
+    totalSizeBytes,
+    isLoading,
+    error,
+  ];
 }

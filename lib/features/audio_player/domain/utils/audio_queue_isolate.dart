@@ -6,7 +6,9 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 List<FileItem> processAudioQueueIsolate(Map<String, dynamic> args) {
   final itemsJson = args['items'] as List;
   final showHidden = args['showHidden'] as bool;
-  final items = itemsJson.map((e) => FileItem.fromJson(Map<String, dynamic>.from(e))).toList();
+  final items = itemsJson
+      .map((e) => FileItem.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
 
   final List<FileItem> result = [];
   for (final item in items) {
@@ -21,17 +23,18 @@ List<FileItem> processAudioQueueIsolate(Map<String, dynamic> args) {
           int audioCount = 0;
           for (final sub in dir.listSync(recursive: false)) {
             final subName = p.basename(sub.path);
-            
+
             // Skip hidden sub-files if we are not showing hidden items
             if (!showHidden && subName.startsWith('.')) continue;
-            
-            if (sub is File && classifyFileType(sub.path) == FileItemType.audio) {
+
+            if (sub is File &&
+                classifyFileType(sub.path) == FileItemType.audio) {
               audioCount++;
               // If we only care about presence (not an exact count), we could break.
               // But the UI needs the exact count for the folder tile subtitle.
             }
           }
-          
+
           if (audioCount > 0) {
             result.add(item.copyWith(itemCount: audioCount));
           }

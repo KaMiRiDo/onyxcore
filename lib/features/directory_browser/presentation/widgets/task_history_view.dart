@@ -57,8 +57,8 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent && 
-            event.logicalKey == LogicalKeyboardKey.delete && 
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.delete &&
             hasSelection) {
           setState(() => _showDeleteSelectedConfirm = true);
           return KeyEventResult.handled;
@@ -73,14 +73,12 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
               children: [
                 // Header
                 _buildHeader(hasSelection, selection),
-                
+
                 // Toolbar
                 _buildToolbar(),
-                
+
                 Expanded(
-                  child: _isFiltering 
-                    ? _buildLoader()
-                    : _buildList(selection),
+                  child: _isFiltering ? _buildLoader() : _buildList(selection),
                 ),
               ],
             ),
@@ -96,8 +94,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
               _buildFilterOverlay(),
             ],
 
-            if (_showClearConfirm)
-              _buildClearAllConfirmOverlay(),
+            if (_showClearConfirm) _buildClearAllConfirmOverlay(),
 
             if (_showDeleteSelectedConfirm)
               _buildDeleteSelectedConfirmOverlay(),
@@ -177,35 +174,60 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.02),
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5)),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5),
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.analytics_outlined, size: 12, color: Colors.white.withOpacity(0.2)),
+          Icon(
+            Icons.analytics_outlined,
+            size: 12,
+            color: Colors.white.withOpacity(0.2),
+          ),
           const SizedBox(width: 8),
           Text(
             '$totalCount Entries',
-            style: GoogleFonts.manrope(color: Colors.white.withOpacity(0.4), fontSize: 11, fontWeight: FontWeight.w600),
+            style: GoogleFonts.manrope(
+              color: Colors.white.withOpacity(0.4),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text('•', style: TextStyle(color: Colors.white.withOpacity(0.1), fontSize: 10)),
+            child: Text(
+              '•',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.1),
+                fontSize: 10,
+              ),
+            ),
           ),
           Text(
             totalSize,
-            style: GoogleFonts.manrope(color: Colors.white.withOpacity(0.3), fontSize: 11, fontWeight: FontWeight.w500),
+            style: GoogleFonts.manrope(
+              color: Colors.white.withOpacity(0.3),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const Spacer(),
           if (isFiltered)
             IconButton(
               onPressed: () {
-                ref.read(taskHistoryFilterProvider.notifier).state = const TaskHistoryFilter();
+                ref.read(taskHistoryFilterProvider.notifier).state =
+                    const TaskHistoryFilter();
                 setState(() {
                   _tempFilter = const TaskHistoryFilter();
                   _showFilterBox = false;
                 });
               },
-              icon: Icon(Icons.close_rounded, size: 14, color: AppColors.error.withOpacity(0.6)),
+              icon: Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: AppColors.error.withOpacity(0.6),
+              ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               tooltip: 'Clear Filter',
@@ -221,18 +243,32 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     );
   }
 
-  Widget _buildToolButton({required IconData icon, required bool active, required VoidCallback onTap}) {
+  Widget _buildToolButton({
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: active ? AppColors.violet.withOpacity(0.2) : Colors.transparent,
+          color: active
+              ? AppColors.violet.withOpacity(0.2)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: active ? AppColors.violet.withOpacity(0.3) : Colors.transparent),
+          border: Border.all(
+            color: active
+                ? AppColors.violet.withOpacity(0.3)
+                : Colors.transparent,
+          ),
         ),
-        child: Icon(icon, size: 14, color: active ? AppColors.violet : Colors.white.withOpacity(0.4)),
+        child: Icon(
+          icon,
+          size: 14,
+          color: active ? AppColors.violet : Colors.white.withOpacity(0.4),
+        ),
       ),
     );
   }
@@ -250,10 +286,18 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
             width: 280, // Slightly bigger
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03), // More transparent for glass effect
+              color: Colors.white.withOpacity(
+                0.03,
+              ), // More transparent for glass effect
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white.withOpacity(0.08)),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 40, spreadRadius: -10)],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 40,
+                  spreadRadius: -10,
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -262,12 +306,19 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                 HistoryCalendar(
                   selectedDates: _tempFilter.selectedDates ?? {},
                   availableDates: availableDates,
-                  onDatesChanged: (dates) => setState(() => _tempFilter = _tempFilter.copyWith(selectedDates: dates)),
+                  onDatesChanged: (dates) => setState(
+                    () => _tempFilter = _tempFilter.copyWith(
+                      selectedDates: dates,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _buildOperationDropdown(
-                  _tempFilter.operationType ?? 'All', 
-                  (val) => setState(() => _tempFilter = _tempFilter.copyWith(operationType: val))
+                  _tempFilter.operationType ?? 'All',
+                  (val) => setState(
+                    () =>
+                        _tempFilter = _tempFilter.copyWith(operationType: val),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -275,8 +326,17 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                     Expanded(
                       child: TextButton(
                         onPressed: () => setState(() => _showFilterBox = false),
-                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
-                        child: Text('CANCEL', style: GoogleFonts.manrope(color: Colors.white30, fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'CANCEL',
+                          style: GoogleFonts.manrope(
+                            color: Colors.white30,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -284,7 +344,8 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                       child: Container(
                         height: 36, // Reduced height
                         decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient, // Match Overview style
+                          gradient:
+                              AppTheme.primaryGradient, // Match Overview style
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
@@ -302,8 +363,13 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                                 _isFiltering = true;
                                 _showFilterBox = false;
                               });
-                              await Future.delayed(const Duration(milliseconds: 300));
-                              ref.read(taskHistoryFilterProvider.notifier).state = _tempFilter;
+                              await Future.delayed(
+                                const Duration(milliseconds: 300),
+                              );
+                              ref
+                                      .read(taskHistoryFilterProvider.notifier)
+                                      .state =
+                                  _tempFilter;
                               if (mounted) setState(() => _isFiltering = false);
                             },
                             borderRadius: BorderRadius.circular(10),
@@ -311,7 +377,11 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.filter_list_rounded, color: Colors.white, size: 14),
+                                  const Icon(
+                                    Icons.filter_list_rounded,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     'FILTER',
@@ -353,11 +423,20 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         child: DropdownButton<String>(
           value: value,
           dropdownColor: const Color(0xFF1E1E26),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white24),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 16,
+            color: Colors.white24,
+          ),
           isExpanded: true,
-          style: GoogleFonts.manrope(color: Colors.white, fontSize: 11), // Slightly smaller font
+          style: GoogleFonts.manrope(
+            color: Colors.white,
+            fontSize: 11,
+          ), // Slightly smaller font
           onChanged: onChanged,
-          items: ops.map((op) => DropdownMenuItem(value: op, child: Text(op))).toList(),
+          items: ops
+              .map((op) => DropdownMenuItem(value: op, child: Text(op)))
+              .toList(),
         ),
       ),
     );
@@ -373,14 +452,19 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
             height: 40,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.violet.withOpacity(0.5)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.violet.withOpacity(0.5),
+              ),
               backgroundColor: Colors.white.withOpacity(0.05),
             ),
           ),
           const SizedBox(height: 16),
           Text(
             'Filtering history...',
-            style: GoogleFonts.manrope(color: Colors.white.withOpacity(0.3), fontSize: 13),
+            style: GoogleFonts.manrope(
+              color: Colors.white.withOpacity(0.3),
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -394,48 +478,51 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     return Column(
       children: [
         Expanded(
-          child: history.isEmpty 
-            ? _buildEmptyState() 
-            : ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.only(bottom: 100),
-                itemCount: history.length,
-                itemBuilder: (context, index) {
-                  final entry = history[index];
-                  final prevEntry = index > 0 ? history[index - 1] : null;
-                  final isNewDay = prevEntry == null || 
-                      entry.createdAt.day != prevEntry.createdAt.day ||
-                      entry.createdAt.month != prevEntry.createdAt.month ||
-                      entry.createdAt.year != prevEntry.createdAt.year;
+          child: history.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.only(bottom: 100),
+                  itemCount: history.length,
+                  itemBuilder: (context, index) {
+                    final entry = history[index];
+                    final prevEntry = index > 0 ? history[index - 1] : null;
+                    final isNewDay =
+                        prevEntry == null ||
+                        entry.createdAt.day != prevEntry.createdAt.day ||
+                        entry.createdAt.month != prevEntry.createdAt.month ||
+                        entry.createdAt.year != prevEntry.createdAt.year;
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (isNewDay)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                          child: Text(
-                            _formatDate(entry.createdAt),
-                            style: GoogleFonts.manrope(
-                              color: Colors.white.withOpacity(0.2),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isNewDay)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                            child: Text(
+                              _formatDate(entry.createdAt),
+                              style: GoogleFonts.manrope(
+                                color: Colors.white.withOpacity(0.2),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                              ),
                             ),
                           ),
-                        ),
-                      _buildHistoryItem(context, entry, selection),
-                    ],
-                  );
-                },
-              ),
+                        _buildHistoryItem(context, entry, selection),
+                      ],
+                    );
+                  },
+                ),
         ),
         // Bottom Actions
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.black26,
-            border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+            border: Border(
+              top: BorderSide(color: Colors.white.withOpacity(0.05)),
+            ),
           ),
           child: Row(
             children: [
@@ -446,7 +533,8 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                     label: 'Delete Selected',
                     icon: Icons.delete_outline_rounded,
                     color: AppColors.error,
-                    onPressed: () => setState(() => _showDeleteSelectedConfirm = true),
+                    onPressed: () =>
+                        setState(() => _showDeleteSelectedConfirm = true),
                   ),
                 )
               else
@@ -475,13 +563,17 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isFilterActive ? Icons.filter_list_off_rounded : Icons.history_rounded,
+            isFilterActive
+                ? Icons.filter_list_off_rounded
+                : Icons.history_rounded,
             size: 48,
             color: Colors.white.withOpacity(0.05),
           ),
           const SizedBox(height: 16),
           Text(
-            isFilterActive ? 'No history matching the filter' : 'No history yet',
+            isFilterActive
+                ? 'No history matching the filter'
+                : 'No history yet',
             style: GoogleFonts.manrope(
               color: AppColors.textMuted.withOpacity(0.5),
               fontSize: 14,
@@ -492,14 +584,25 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
             const SizedBox(height: 20),
             TextButton.icon(
               onPressed: () {
-                ref.read(taskHistoryFilterProvider.notifier).state = const TaskHistoryFilter();
+                ref.read(taskHistoryFilterProvider.notifier).state =
+                    const TaskHistoryFilter();
                 setState(() => _tempFilter = const TaskHistoryFilter());
               },
               icon: const Icon(Icons.close_rounded, size: 16),
-              label: Text('CLEAR FILTER', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              label: Text(
+                'CLEAR FILTER',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.violet,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
               ),
             ),
           ],
@@ -553,11 +656,20 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     );
   }
 
-  Widget _buildActionButton(BuildContext context, {required String label, required IconData icon, required Color color, required VoidCallback onPressed}) {
+  Widget _buildActionButton(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18),
-      label: Text(label, style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13)),
+      label: Text(
+        label,
+        style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: color.withOpacity(0.1),
         foregroundColor: color,
@@ -572,38 +684,47 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
   }
 
   Widget _buildHistoryItem(
-    BuildContext context, 
+    BuildContext context,
     TaskHistoryEntry entry,
     Set<String> selection,
   ) {
-    final isSelected = selection.contains(entry.id) || ref.watch(selectedHistoryIdProvider) == entry.id;
+    final isSelected =
+        selection.contains(entry.id) ||
+        ref.watch(selectedHistoryIdProvider) == entry.id;
     final statusColor = _getStatusColor(entry.statusName);
 
     String subtitle = '';
     if (entry.totalCount > 0) {
       subtitle = '${entry.processedCount}/${entry.totalCount} items';
     }
-    
+
     final isRename = entry.title.toLowerCase().contains('renam');
-    final isDelete = entry.title.toLowerCase().contains('delet') || entry.title.toLowerCase().contains('trash');
-    
-    if (!isRename && entry.totalSizeBytes != null && entry.totalSizeBytes! > 0) {
+    final isDelete =
+        entry.title.toLowerCase().contains('delet') ||
+        entry.title.toLowerCase().contains('trash');
+
+    if (!isRename &&
+        entry.totalSizeBytes != null &&
+        entry.totalSizeBytes! > 0) {
       final size = _formatBytes(entry.totalSizeBytes!);
       subtitle = subtitle.isEmpty ? size : '$subtitle • $size';
     }
 
     // Location summary
     String? locationInfo;
-    if (entry.targetPath != null && entry.sourcePaths != null && entry.sourcePaths!.isNotEmpty) {
+    if (entry.targetPath != null &&
+        entry.sourcePaths != null &&
+        entry.sourcePaths!.isNotEmpty) {
       final sourceDir = p.basename(p.dirname(entry.sourcePaths![0]));
       final targetDir = p.basename(entry.targetPath!);
       locationInfo = '$sourceDir → $targetDir';
     } else if (entry.targetPath != null) {
       locationInfo = 'to ${p.basename(entry.targetPath!)}';
-    } else if ((isRename || isDelete) && entry.sourcePaths != null && entry.sourcePaths!.isNotEmpty) {
+    } else if ((isRename || isDelete) &&
+        entry.sourcePaths != null &&
+        entry.sourcePaths!.isNotEmpty) {
       locationInfo = 'in ${p.basename(p.dirname(entry.sourcePaths![0]))}';
     }
-
 
     final operationIcon = _getOperationIcon(entry.title);
     final opColor = _getOperationColor(entry.title);
@@ -611,26 +732,42 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     return InkWell(
       onTap: () {
         _focusNode.requestFocus();
-        final isShiftPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
-                              HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
-        final isControlPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
-                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlRight) ||
-                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.metaLeft) ||
-                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.metaRight);
+        final isShiftPressed =
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.shiftLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.shiftRight,
+            );
+        final isControlPressed =
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.controlLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.controlRight,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.metaLeft,
+            ) ||
+            HardwareKeyboard.instance.logicalKeysPressed.contains(
+              LogicalKeyboardKey.metaRight,
+            );
 
         final selection = ref.read(historySelectionProvider);
         final hasSelection = selection.isNotEmpty;
 
         if (isShiftPressed) {
           final history = ref.read(filteredTaskHistoryProvider);
-          ref.read(historySelectionProvider.notifier).selectRange(history, entry.id);
+          ref
+              .read(historySelectionProvider.notifier)
+              .selectRange(history, entry.id);
         } else if (isControlPressed || hasSelection) {
           // If we are already in selection mode, single click toggles selection
           ref.read(historySelectionProvider.notifier).toggle(entry.id);
           ref.read(historySelectionProvider.notifier).setAnchor(entry.id);
           // If toggling results in empty selection, we can optionally clear the detail view highlight
           if (ref.read(historySelectionProvider).isEmpty) {
-             ref.read(selectedHistoryIdProvider.notifier).state = null;
+            ref.read(selectedHistoryIdProvider.notifier).state = null;
           }
         } else {
           // Normal click (no selection active): Clear bulk selection and open detail
@@ -652,14 +789,14 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? AppColors.violet.withOpacity(0.15) 
+          color: isSelected
+              ? AppColors.violet.withOpacity(0.15)
               : statusColor.withOpacity(0.02),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? AppColors.violet.withOpacity(0.4) 
-                : statusColor.withOpacity(0.05)
+            color: isSelected
+                ? AppColors.violet.withOpacity(0.4)
+                : statusColor.withOpacity(0.05),
           ),
         ),
         child: Row(
@@ -671,9 +808,9 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                operationIcon, 
-                size: 16, 
-                color: isSelected ? Colors.white : opColor.withOpacity(0.8)
+                operationIcon,
+                size: 16,
+                color: isSelected ? Colors.white : opColor.withOpacity(0.8),
               ),
             ),
             const SizedBox(width: 12),
@@ -698,11 +835,17 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                       const SizedBox(width: 8),
                       // Status Label
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: statusColor.withOpacity(0.1), width: 0.5),
+                          border: Border.all(
+                            color: statusColor.withOpacity(0.1),
+                            width: 0.5,
+                          ),
                         ),
                         child: Text(
                           entry.statusName.toUpperCase(),
@@ -730,7 +873,13 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Text('•', style: TextStyle(color: Colors.white.withOpacity(0.1), fontSize: 10)),
+                          child: Text(
+                            '•',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.1),
+                              fontSize: 10,
+                            ),
+                          ),
                         ),
                       ],
                       if (locationInfo != null)
@@ -793,10 +942,14 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
   }
 
   String _toPastTense(String title) {
-    if (title.startsWith('Copying')) return title.replaceFirst('Copying', 'Copied');
-    if (title.startsWith('Moving')) return title.replaceFirst('Moving', 'Moved');
-    if (title.startsWith('Deleting')) return title.replaceFirst('Deleting', 'Deleted');
-    if (title.startsWith('Renaming')) return title.replaceFirst('Renaming', 'Renamed');
+    if (title.startsWith('Copying'))
+      return title.replaceFirst('Copying', 'Copied');
+    if (title.startsWith('Moving'))
+      return title.replaceFirst('Moving', 'Moved');
+    if (title.startsWith('Deleting'))
+      return title.replaceFirst('Deleting', 'Deleted');
+    if (title.startsWith('Renaming'))
+      return title.replaceFirst('Renaming', 'Renamed');
     return title;
   }
 
@@ -816,7 +969,8 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     final t = title.toLowerCase();
     if (t.contains('copy')) return Icons.copy_all_rounded;
     if (t.contains('mov')) return Icons.drive_file_move_rounded;
-    if (t.contains('delet') || t.contains('trash')) return Icons.delete_forever_rounded;
+    if (t.contains('delet') || t.contains('trash'))
+      return Icons.delete_forever_rounded;
     if (t.contains('renam')) return Icons.edit_rounded;
     if (t.contains('new folder')) return Icons.create_new_folder_rounded;
     if (t.contains('new file')) return Icons.note_add_rounded;
@@ -852,7 +1006,8 @@ class _ClearHistoryDialog extends ConsumerStatefulWidget {
   const _ClearHistoryDialog({required this.onCancel, required this.onConfirm});
 
   @override
-  ConsumerState<_ClearHistoryDialog> createState() => _ClearHistoryDialogState();
+  ConsumerState<_ClearHistoryDialog> createState() =>
+      _ClearHistoryDialogState();
 }
 
 class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
@@ -874,38 +1029,73 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
               color: Colors.white.withOpacity(0.03),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: Colors.white.withOpacity(0.08)),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 40, spreadRadius: -10)],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 40,
+                  spreadRadius: -10,
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), shape: BoxShape.circle),
-                  child: const Icon(Icons.delete_sweep_rounded, color: AppColors.error, size: 32),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.delete_sweep_rounded,
+                    color: AppColors.error,
+                    size: 32,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Text('Clear History', style: GoogleFonts.outfit(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+                Text(
+                  'Clear History',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(
-                  _customOps ? 'Select what you want to remove' : 'Are you sure you want to permanently clear all task history?',
+                  _customOps
+                      ? 'Select what you want to remove'
+                      : 'Are you sure you want to permanently clear all task history?',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(color: AppColors.textMuted, fontSize: 13),
+                  style: GoogleFonts.manrope(
+                    color: AppColors.textMuted,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Custom Operations Toggle
                 InkWell(
                   onTap: () => setState(() => _customOps = !_customOps),
                   child: Row(
                     children: [
                       Checkbox(
-                        value: _customOps, 
-                        onChanged: (val) => setState(() => _customOps = val ?? false),
+                        value: _customOps,
+                        onChanged: (val) =>
+                            setState(() => _customOps = val ?? false),
                         activeColor: AppColors.violet,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
-                      Text('Custom operations', style: GoogleFonts.manrope(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Custom operations',
+                        style: GoogleFonts.manrope(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -915,7 +1105,9 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                   HistoryCalendar(
                     selectedDates: _filter.selectedDates ?? {},
                     availableDates: availableDates,
-                    onDatesChanged: (dates) => setState(() => _filter = _filter.copyWith(selectedDates: dates)),
+                    onDatesChanged: (dates) => setState(
+                      () => _filter = _filter.copyWith(selectedDates: dates),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _buildDropdown(),
@@ -927,17 +1119,26 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                     Expanded(
                       child: TextButton(
                         onPressed: widget.onCancel,
-                        child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.manrope(
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => widget.onConfirm(_customOps ? _filter : null),
+                        onPressed: () =>
+                            widget.onConfirm(_customOps ? _filter : null),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.error,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                         child: Text(_customOps ? 'Delete' : 'Clear All'),
                       ),
@@ -966,11 +1167,21 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
         child: DropdownButton<String>(
           value: _filter.operationType ?? 'All',
           dropdownColor: const Color(0xFF1E1E26),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white24),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 16,
+            color: Colors.white24,
+          ),
           isExpanded: true,
-          style: GoogleFonts.manrope(color: Colors.white, fontSize: 11), // Slightly smaller font
-          onChanged: (val) => setState(() => _filter = _filter.copyWith(operationType: val)),
-          items: ops.map((op) => DropdownMenuItem(value: op, child: Text(op))).toList(),
+          style: GoogleFonts.manrope(
+            color: Colors.white,
+            fontSize: 11,
+          ), // Slightly smaller font
+          onChanged: (val) =>
+              setState(() => _filter = _filter.copyWith(operationType: val)),
+          items: ops
+              .map((op) => DropdownMenuItem(value: op, child: Text(op)))
+              .toList(),
         ),
       ),
     );
@@ -1006,25 +1217,56 @@ class _DeleteConfirmDialog extends StatelessWidget {
               color: Colors.white.withOpacity(0.03),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.white.withOpacity(0.08)),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 40, spreadRadius: -10)],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 40,
+                  spreadRadius: -10,
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text(message, textAlign: TextAlign.center, style: GoogleFonts.manrope(color: AppColors.textMuted, fontSize: 13)),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.manrope(
+                    color: AppColors.textMuted,
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
-                      child: TextButton(onPressed: onCancel, child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.textMuted))),
+                      child: TextButton(
+                        onPressed: onCancel,
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.manrope(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: onConfirm,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
+                        ),
                         child: Text(confirmLabel),
                       ),
                     ),
@@ -1045,10 +1287,10 @@ class HistoryCalendar extends StatefulWidget {
   final ValueChanged<Set<DateTime>> onDatesChanged;
 
   const HistoryCalendar({
-    super.key, 
-    required this.selectedDates, 
+    super.key,
+    required this.selectedDates,
     required this.availableDates,
-    required this.onDatesChanged
+    required this.onDatesChanged,
   });
 
   @override
@@ -1072,21 +1314,28 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
 
   bool get _hasPrev {
     if (widget.availableDates.isEmpty) return false;
-    final minDate = widget.availableDates.reduce((a, b) => a.isBefore(b) ? a : b);
-    return _viewDate.year > minDate.year || (_viewDate.year == minDate.year && _viewDate.month > minDate.month);
+    final minDate = widget.availableDates.reduce(
+      (a, b) => a.isBefore(b) ? a : b,
+    );
+    return _viewDate.year > minDate.year ||
+        (_viewDate.year == minDate.year && _viewDate.month > minDate.month);
   }
 
   bool get _hasNext {
     if (widget.availableDates.isEmpty) return false;
-    final maxDate = widget.availableDates.reduce((a, b) => a.isAfter(b) ? a : b);
-    return _viewDate.year < maxDate.year || (_viewDate.year == maxDate.year && _viewDate.month < maxDate.month);
+    final maxDate = widget.availableDates.reduce(
+      (a, b) => a.isAfter(b) ? a : b,
+    );
+    return _viewDate.year < maxDate.year ||
+        (_viewDate.year == maxDate.year && _viewDate.month < maxDate.month);
   }
 
   @override
   Widget build(BuildContext context) {
     final monthDays = _getDaysInMonth(_viewDate);
     final prevMonthDays = _getPrevMonthDays(_viewDate);
-    final firstDayOfWeek = DateTime(_viewDate.year, _viewDate.month, 1).weekday % 7;
+    final firstDayOfWeek =
+        DateTime(_viewDate.year, _viewDate.month, 1).weekday % 7;
 
     return Column(
       children: [
@@ -1094,18 +1343,45 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              icon: Icon(Icons.chevron_left_rounded, size: 16, color: _hasPrev ? Colors.white30 : Colors.white10),
-              onPressed: _hasPrev ? () => setState(() => _viewDate = DateTime(_viewDate.year, _viewDate.month - 1)) : null,
+              icon: Icon(
+                Icons.chevron_left_rounded,
+                size: 16,
+                color: _hasPrev ? Colors.white30 : Colors.white10,
+              ),
+              onPressed: _hasPrev
+                  ? () => setState(
+                      () => _viewDate = DateTime(
+                        _viewDate.year,
+                        _viewDate.month - 1,
+                      ),
+                    )
+                  : null,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
             Text(
               _formatMonthYear(_viewDate),
-              style: GoogleFonts.manrope(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+              style: GoogleFonts.manrope(
+                color: Colors.white70,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
             ),
             IconButton(
-              icon: Icon(Icons.chevron_right_rounded, size: 16, color: _hasNext ? Colors.white30 : Colors.white10),
-              onPressed: _hasNext ? () => setState(() => _viewDate = DateTime(_viewDate.year, _viewDate.month + 1)) : null,
+              icon: Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: _hasNext ? Colors.white30 : Colors.white10,
+              ),
+              onPressed: _hasNext
+                  ? () => setState(
+                      () => _viewDate = DateTime(
+                        _viewDate.year,
+                        _viewDate.month + 1,
+                      ),
+                    )
+                  : null,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
@@ -1115,24 +1391,42 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+          ),
           itemCount: 42,
           itemBuilder: (context, index) {
             DateTime date;
             bool currentMonth = true;
             if (index < firstDayOfWeek) {
-              date = DateTime(_viewDate.year, _viewDate.month - 1, prevMonthDays - firstDayOfWeek + index + 1);
+              date = DateTime(
+                _viewDate.year,
+                _viewDate.month - 1,
+                prevMonthDays - firstDayOfWeek + index + 1,
+              );
               currentMonth = false;
             } else if (index < firstDayOfWeek + monthDays) {
-              date = DateTime(_viewDate.year, _viewDate.month, index - firstDayOfWeek + 1);
+              date = DateTime(
+                _viewDate.year,
+                _viewDate.month,
+                index - firstDayOfWeek + 1,
+              );
             } else {
-              date = DateTime(_viewDate.year, _viewDate.month + 1, index - firstDayOfWeek - monthDays + 1);
+              date = DateTime(
+                _viewDate.year,
+                _viewDate.month + 1,
+                index - firstDayOfWeek - monthDays + 1,
+              );
               currentMonth = false;
             }
 
             final normalizedDate = DateTime(date.year, date.month, date.day);
-            final isAvailable = widget.availableDates.any((d) => _isSameDay(d, normalizedDate));
-            final isSelected = widget.selectedDates.any((d) => _isSameDay(d, normalizedDate));
+            final isAvailable = widget.availableDates.any(
+              (d) => _isSameDay(d, normalizedDate),
+            );
+            final isSelected = widget.selectedDates.any(
+              (d) => _isSameDay(d, normalizedDate),
+            );
             final isToday = _isSameDay(DateTime.now(), normalizedDate);
 
             return InkWell(
@@ -1143,16 +1437,29 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   gradient: isSelected ? AppTheme.primaryGradient : null,
-                  color: !isSelected && isToday ? AppColors.violet.withOpacity(0.1) : (isSelected ? null : Colors.transparent),
+                  color: !isSelected && isToday
+                      ? AppColors.violet.withOpacity(0.1)
+                      : (isSelected ? null : Colors.transparent),
                   borderRadius: BorderRadius.circular(6),
-                  border: isToday && !isSelected ? Border.all(color: AppColors.violet.withOpacity(0.2), width: 0.5) : null,
+                  border: isToday && !isSelected
+                      ? Border.all(
+                          color: AppColors.violet.withOpacity(0.2),
+                          width: 0.5,
+                        )
+                      : null,
                 ),
                 child: Text(
                   date.day.toString(),
                   style: GoogleFonts.manrope(
-                    color: isSelected ? Colors.white : (isAvailable ? (currentMonth ? Colors.white70 : Colors.white24) : Colors.white.withOpacity(0.05)),
+                    color: isSelected
+                        ? Colors.white
+                        : (isAvailable
+                              ? (currentMonth ? Colors.white70 : Colors.white24)
+                              : Colors.white.withOpacity(0.05)),
                     fontSize: 9,
-                    fontWeight: isSelected || isToday ? FontWeight.w800 : FontWeight.normal,
+                    fontWeight: isSelected || isToday
+                        ? FontWeight.w800
+                        : FontWeight.normal,
                   ),
                 ),
               ),
@@ -1164,12 +1471,26 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
   }
 
   void _handleDateTap(DateTime date) {
-    final isShift = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
-                    HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
-    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlLeft) ||
-                   HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.controlRight) ||
-                   HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.metaLeft) ||
-                   HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.metaRight);
+    final isShift =
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.shiftLeft,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.shiftRight,
+        );
+    final isCtrl =
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.controlLeft,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.controlRight,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.metaLeft,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.metaRight,
+        );
 
     Set<DateTime> newDates = Set.from(widget.selectedDates);
 
@@ -1177,7 +1498,11 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
       // Range select
       final start = _anchorDate!.isBefore(date) ? _anchorDate! : date;
       final end = _anchorDate!.isBefore(date) ? date : _anchorDate!;
-      for (var d = start; d.isBefore(end.add(const Duration(days: 1))); d = d.add(const Duration(days: 1))) {
+      for (
+        var d = start;
+        d.isBefore(end.add(const Duration(days: 1)));
+        d = d.add(const Duration(days: 1))
+      ) {
         newDates.add(DateTime(d.year, d.month, d.day));
       }
     } else if (isCtrl) {
@@ -1198,11 +1523,27 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
     widget.onDatesChanged(newDates);
   }
 
-  int _getDaysInMonth(DateTime date) => DateTime(date.year, date.month + 1, 0).day;
-  int _getPrevMonthDays(DateTime date) => DateTime(date.year, date.month, 0).day;
-  bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  int _getDaysInMonth(DateTime date) =>
+      DateTime(date.year, date.month + 1, 0).day;
+  int _getPrevMonthDays(DateTime date) =>
+      DateTime(date.year, date.month, 0).day;
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
   String _formatMonthYear(DateTime date) {
-    final months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+    final months = [
+      "JANUARY",
+      "FEBRUARY",
+      "MARCH",
+      "APRIL",
+      "MAY",
+      "JUNE",
+      "JULY",
+      "AUGUST",
+      "SEPTEMBER",
+      "OCTOBER",
+      "NOVEMBER",
+      "DECEMBER",
+    ];
     return "${months[date.month - 1]} ${date.year}";
   }
 }

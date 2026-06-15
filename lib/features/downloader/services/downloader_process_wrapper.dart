@@ -37,7 +37,7 @@ class MediaDownloaderBackend {
     void Function(int pid)? onProcessStarted,
   }) async {
     final results = <MediaInfo>[];
-    
+
     for (final url in urls) {
       if (url.trim().isEmpty) continue;
       final sequence = EngineRegistry.resolveEngineSequence(url.trim(), engine);
@@ -53,15 +53,19 @@ class MediaDownloaderBackend {
             browser: browser,
             fetchDeep: fetchDeep,
             isPlaylist: isPlaylist,
-            onProgress: onProgress != null ? (info) {
-              var modifiedInfo = info.copyWith(engineId: resolved.id);
-              if (modifiedInfo.fetchLogs != null && modifiedInfo.fetchLogs!.isNotEmpty) {
-                modifiedInfo = modifiedInfo.copyWith(
-                  fetchLogs: '[${resolved.id}]:\n${modifiedInfo.fetchLogs}',
-                );
-              }
-              onProgress(modifiedInfo);
-            } : null,
+            onProgress: onProgress != null
+                ? (info) {
+                    var modifiedInfo = info.copyWith(engineId: resolved.id);
+                    if (modifiedInfo.fetchLogs != null &&
+                        modifiedInfo.fetchLogs!.isNotEmpty) {
+                      modifiedInfo = modifiedInfo.copyWith(
+                        fetchLogs:
+                            '[${resolved.id}]:\n${modifiedInfo.fetchLogs}',
+                      );
+                    }
+                    onProgress(modifiedInfo);
+                  }
+                : null,
             onProcessStarted: onProcessStarted,
           );
           if (infoList.isNotEmpty) {
@@ -97,11 +101,14 @@ class MediaDownloaderBackend {
         }
 
         for (var i = 0; i < successfulInfos.length; i++) {
-          final engineId = successfulInfos[i].engineId ?? successfulEngineId ?? 'yt-dlp';
-          final currentLogs = successfulInfos[i].fetchLogs ?? 'Fetch completed successfully.';
+          final engineId =
+              successfulInfos[i].engineId ?? successfulEngineId ?? 'yt-dlp';
+          final currentLogs =
+              successfulInfos[i].fetchLogs ?? 'Fetch completed successfully.';
 
-          final formattedSuccessLogs = pipelineLogs.toString() + '[$engineId]:\n$currentLogs';
-          
+          final formattedSuccessLogs =
+              pipelineLogs.toString() + '[$engineId]:\n$currentLogs';
+
           if (successfulInfos[i].engineId == null) {
             successfulInfos[i] = MediaInfo(
               id: successfulInfos[i].id,
@@ -124,20 +131,26 @@ class MediaDownloaderBackend {
               webpageUrl: successfulInfos[i].webpageUrl,
               isError: successfulInfos[i].isError,
               isLive: successfulInfos[i].isLive,
-              errorMessage: successfulInfos[i].errorMessage ?? (engineErrors.isNotEmpty ? engineErrors.values.first : null),
+              errorMessage:
+                  successfulInfos[i].errorMessage ??
+                  (engineErrors.isNotEmpty ? engineErrors.values.first : null),
               fetchLogs: formattedSuccessLogs,
             );
           } else {
             successfulInfos[i] = successfulInfos[i].copyWith(
-              errorMessage: successfulInfos[i].errorMessage ?? (engineErrors.isNotEmpty ? engineErrors.values.first : null),
+              errorMessage:
+                  successfulInfos[i].errorMessage ??
+                  (engineErrors.isNotEmpty ? engineErrors.values.first : null),
               fetchLogs: formattedSuccessLogs,
             );
           }
         }
         results.addAll(successfulInfos);
       } else {
-        final errorMsg = engineErrors.entries.map((e) => '${e.key}: ${e.value}').join('\n');
-        
+        final errorMsg = engineErrors.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .join('\n');
+
         final pipelineLogs = StringBuffer();
         var idx = 0;
         for (final entry in engineErrors.entries) {
@@ -147,15 +160,19 @@ class MediaDownloaderBackend {
           }
           idx++;
         }
-        
-        results.add(MediaInfo(
-          id: '',
-          title: url,
-          originalUrl: url,
-          isError: true,
-          errorMessage: errorMsg.isNotEmpty ? errorMsg : 'All available engines failed to analyze this URL.',
-          fetchLogs: pipelineLogs.toString(),
-        ));
+
+        results.add(
+          MediaInfo(
+            id: '',
+            title: url,
+            originalUrl: url,
+            isError: true,
+            errorMessage: errorMsg.isNotEmpty
+                ? errorMsg
+                : 'All available engines failed to analyze this URL.',
+            fetchLogs: pipelineLogs.toString(),
+          ),
+        );
       }
     }
 

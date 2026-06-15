@@ -47,7 +47,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
     super.initState();
     _isFolder = widget.initialIsFolder;
     _controller.addListener(_validate);
-    
+
     // Maintain focus
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus && mounted) {
@@ -78,7 +78,8 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
       if (invalidChars.hasMatch(text)) {
         error = 'Name contains invalid characters';
       } else if (widget.existingNames.contains(text)) {
-        error = 'A ${(_isFolder ? "folder" : "file")} with this name already exists';
+        error =
+            'A ${(_isFolder ? "folder" : "file")} with this name already exists';
       }
     }
 
@@ -96,13 +97,16 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
 
   void _submit() {
     if (_errorMessage == null && _controller.text.trim().isNotEmpty) {
-      Navigator.pop(context, '${_isFolder ? "folder" : "file"}:${_controller.text.trim()}');
+      Navigator.pop(
+        context,
+        '${_isFolder ? "folder" : "file"}:${_controller.text.trim()}',
+      );
     }
   }
 
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowDown || 
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
           event.logicalKey == LogicalKeyboardKey.arrowUp ||
           event.logicalKey == LogicalKeyboardKey.arrowLeft ||
           event.logicalKey == LogicalKeyboardKey.arrowRight) {
@@ -172,7 +176,9 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
       ),
       child: Center(
         child: Icon(
-          _isFolder ? Icons.create_new_folder_outlined : Icons.note_add_outlined,
+          _isFolder
+              ? Icons.create_new_folder_outlined
+              : Icons.note_add_outlined,
           color: Colors.white.withOpacity(0.9),
           size: 32,
         ),
@@ -213,8 +219,8 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
             color: Colors.white.withOpacity(0.03),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: _errorMessage != null 
-                  ? AppColors.error.withOpacity(0.3) 
+              color: _errorMessage != null
+                  ? AppColors.error.withOpacity(0.3)
                   : Colors.white.withOpacity(0.1),
             ),
           ),
@@ -225,7 +231,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
             cursorColor: AppColors.violet,
             textAlign: TextAlign.left,
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.9), 
+              color: Colors.white.withOpacity(0.9),
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -235,7 +241,10 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                 color: Colors.white.withOpacity(0.2),
                 fontWeight: FontWeight.w500,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 14,
+              ),
               border: InputBorder.none,
             ),
             onSubmitted: (_) => _submit(),
@@ -290,10 +299,14 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withOpacity(0.03) : Colors.white.withOpacity(0.01),
+            color: isSelected
+                ? Colors.white.withOpacity(0.03)
+                : Colors.white.withOpacity(0.01),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.03),
+              color: isSelected
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.white.withOpacity(0.03),
             ),
           ),
           child: Row(
@@ -301,45 +314,59 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.05) : Colors.transparent,
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: isSelected 
+                child: isSelected
+                    ? ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [
+                            AppColors.magenta,
+                            AppColors.violet,
+                            AppColors.indigo,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ).createShader(bounds),
+                        child: Icon(icon, size: 18, color: Colors.white),
+                      )
+                    : Icon(
+                        icon,
+                        size: 18,
+                        color: Colors.white.withOpacity(0.2),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              isSelected
                   ? ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
-                        colors: [AppColors.magenta, AppColors.violet, AppColors.indigo],
+                        colors: [
+                          AppColors.magenta,
+                          AppColors.violet,
+                          AppColors.indigo,
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ).createShader(bounds),
-                      child: Icon(icon, size: 18, color: Colors.white),
+                      child: Text(
+                        title,
+                        style: GoogleFonts.manrope(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     )
-                  : Icon(icon, size: 18, color: Colors.white.withOpacity(0.2)),
-              ),
-              const SizedBox(width: 12),
-              isSelected 
-                ? ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [AppColors.magenta, AppColors.violet, AppColors.indigo],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ).createShader(bounds),
-                    child: Text(
+                  : Text(
                       title,
                       style: GoogleFonts.manrope(
-                        color: Colors.white,
+                        color: Colors.white.withOpacity(0.3),
                         fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  )
-                : Text(
-                    title,
-                    style: GoogleFonts.manrope(
-                      color: Colors.white.withOpacity(0.3),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
               const Spacer(),
               Container(
                 width: 20,
@@ -347,26 +374,32 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? Colors.transparent : Colors.white.withOpacity(0.1),
+                    color: isSelected
+                        ? Colors.transparent
+                        : Colors.white.withOpacity(0.1),
                     width: 2,
                   ),
-                  gradient: isSelected 
+                  gradient: isSelected
                       ? const LinearGradient(
-                          colors: [AppColors.magenta, AppColors.violet, AppColors.indigo],
+                          colors: [
+                            AppColors.magenta,
+                            AppColors.violet,
+                            AppColors.indigo,
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         )
                       : null,
                 ),
-                child: isSelected 
-                  ? const Center(
-                      child: Icon(
-                        Icons.check,
-                        size: 12,
-                        color: Colors.white,
-                      ),
-                    )
-                  : null,
+                child: isSelected
+                    ? const Center(
+                        child: Icon(
+                          Icons.check,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                      )
+                    : null,
               ),
             ],
           ),
@@ -376,7 +409,8 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
   }
 
   Widget _buildBottomActions() {
-    final bool canCreate = _errorMessage == null && _controller.text.trim().isNotEmpty;
+    final bool canCreate =
+        _errorMessage == null && _controller.text.trim().isNotEmpty;
 
     return Row(
       children: [
@@ -393,7 +427,10 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
             ),
             child: Text(
               "Cancel",
-              style: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 15),
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
             ),
           ),
         ),
@@ -402,9 +439,13 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: canCreate 
+              gradient: canCreate
                   ? const LinearGradient(
-                      colors: [AppColors.magenta, AppColors.violet, AppColors.indigo],
+                      colors: [
+                        AppColors.magenta,
+                        AppColors.violet,
+                        AppColors.indigo,
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
@@ -426,7 +467,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
               child: Text(
                 "Create",
                 style: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w800, 
+                  fontWeight: FontWeight.w800,
                   fontSize: 15,
                   color: canCreate ? Colors.white : Colors.white10,
                 ),

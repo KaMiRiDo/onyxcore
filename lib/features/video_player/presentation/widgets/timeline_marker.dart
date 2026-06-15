@@ -98,7 +98,8 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
     widget.onMenuVisibilityChanged(true);
 
     // Get marker icon's exact global position
-    final iconBox = _markerIconKey.currentContext?.findRenderObject() as RenderBox?;
+    final iconBox =
+        _markerIconKey.currentContext?.findRenderObject() as RenderBox?;
     if (iconBox == null) return;
     final iconPos = iconBox.localToGlobal(Offset.zero);
     final iconSize = iconBox.size;
@@ -127,18 +128,22 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
       return true;
     });
 
-    final playerGlobalX = playerBox?.localToGlobal(Offset.zero).dx ?? parentPos.dx;
+    final playerGlobalX =
+        playerBox?.localToGlobal(Offset.zero).dx ?? parentPos.dx;
     final playerWidth = widget.sliderWidth;
 
     // Center dialog horizontally on the marker icon, with edge clamping to video bounds (16px margin)
     final iconCenterX = iconPos.dx + iconSize.width / 2;
     final dialogLeft = (iconCenterX - dialogWidth / 2).clamp(
-      playerGlobalX + 16, 
+      playerGlobalX + 16,
       playerGlobalX + playerWidth - dialogWidth - 16,
     );
     // Place dialog bottom just above the marker icon top, with a small gap
     // Also clamp so dialog top doesn't go above the screen (at least 30px margin)
-    final dialogBottom = (screenSize.height - iconPos.dy + 8).clamp(0.0, screenSize.height - dialogHeight - 30);
+    final dialogBottom = (screenSize.height - iconPos.dy + 8).clamp(
+      0.0,
+      screenSize.height - dialogHeight - 30,
+    );
 
     showGeneralDialog<bool>(
       context: context,
@@ -165,7 +170,10 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                   opacity: animation,
                   child: ScaleTransition(
                     scale: Tween<double>(begin: 0.9, end: 1.0).animate(
-                      CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutBack,
+                      ),
                     ),
                     alignment: Alignment.bottomCenter,
                     child: ClipRRect(
@@ -176,13 +184,21 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                           color: Colors.transparent,
                           child: Container(
                             width: dialogWidth,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.9),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withOpacity(0.2)),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                              ),
                               boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 12),
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  blurRadius: 12,
+                                ),
                               ],
                             ),
                             child: Column(
@@ -201,27 +217,54 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                                   children: [
                                     Expanded(
                                       child: TextButton(
-                                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                                        onPressed: () => Navigator.of(
+                                          dialogContext,
+                                        ).pop(false),
                                         style: TextButton.styleFrom(
-                                          backgroundColor: Colors.white.withOpacity(0.08),
+                                          backgroundColor: Colors.white
+                                              .withOpacity(0.08),
                                           foregroundColor: Colors.white70,
-                                          padding: const EdgeInsets.symmetric(vertical: 6),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 6,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
                                         ),
-                                        child: const Text('Cancel', style: TextStyle(fontSize: 12)),
+                                        child: const Text(
+                                          'Cancel',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: TextButton(
-                                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                                        onPressed: () => Navigator.of(
+                                          dialogContext,
+                                        ).pop(true),
                                         style: TextButton.styleFrom(
-                                          backgroundColor: Colors.redAccent.withOpacity(0.2),
+                                          backgroundColor: Colors.redAccent
+                                              .withOpacity(0.2),
                                           foregroundColor: Colors.redAccent,
-                                          padding: const EdgeInsets.symmetric(vertical: 6),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 6,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
                                         ),
-                                        child: const Text('Delete', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                        child: const Text(
+                                          'Delete',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -244,7 +287,9 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
       // Dismiss HUD hold
       if (mounted) widget.onMenuVisibilityChanged(false);
       if (confirmed == true && mounted) {
-        await ref.read(markerActionsProvider).deleteAllMarkers(widget.videoPath);
+        await ref
+            .read(markerActionsProvider)
+            .deleteAllMarkers(widget.videoPath);
       }
     });
   }
@@ -253,7 +298,8 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
     // Keep HUD visible
     widget.onMenuVisibilityChanged(true);
 
-    final iconBox = _markerIconKey.currentContext?.findRenderObject() as RenderBox?;
+    final iconBox =
+        _markerIconKey.currentContext?.findRenderObject() as RenderBox?;
     if (iconBox == null) return;
     final iconPos = iconBox.localToGlobal(Offset.zero);
     final iconSize = iconBox.size;
@@ -265,7 +311,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
       barrierLabel: 'Radial Menu',
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
         final screenSize = MediaQuery.of(dialogContext).size;
-        
+
         // --- Smart No-Overlap Positioning Logic ---
         final buttonSize = 40.0;
         const offset = 44.0;
@@ -280,7 +326,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
         // 2. Clamp individually to screen edges (with 8px margin)
         final leftBound = 8.0;
         final rightBound = screenSize.width - buttonSize - 8.0;
-        
+
         deleteX = deleteX.clamp(leftBound, rightBound);
         editX = editX.clamp(leftBound, rightBound);
         deleteAllX = deleteAllX.clamp(leftBound, rightBound);
@@ -296,7 +342,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
           deleteAllX = editX + buttonSize + minGap;
         }
 
-        // 4. Final safety check: if the rightmost button was pushed off-screen, 
+        // 4. Final safety check: if the rightmost button was pushed off-screen,
         // push everything back to the left
         if (deleteAllX > rightBound) {
           deleteAllX = rightBound;
@@ -323,7 +369,10 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
               _buildOverlayMenuButton(
                 dialogContext: dialogContext,
                 x: editX,
-                y: (idealCenterY - offset - buttonSize / 2).clamp(8.0, screenSize.height - buttonSize - 8),
+                y: (idealCenterY - offset - buttonSize / 2).clamp(
+                  8.0,
+                  screenSize.height - buttonSize - 8,
+                ),
                 icon: Icons.edit_rounded,
                 color: Colors.white,
                 result: 'edit',
@@ -334,7 +383,10 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
               _buildOverlayMenuButton(
                 dialogContext: dialogContext,
                 x: deleteX,
-                y: (idealCenterY - buttonSize / 2).clamp(8.0, screenSize.height - buttonSize - 8),
+                y: (idealCenterY - buttonSize / 2).clamp(
+                  8.0,
+                  screenSize.height - buttonSize - 8,
+                ),
                 icon: Icons.delete_outline_rounded,
                 color: Colors.redAccent,
                 result: 'delete',
@@ -345,7 +397,10 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
               _buildOverlayMenuButton(
                 dialogContext: dialogContext,
                 x: deleteAllX,
-                y: (idealCenterY - buttonSize / 2).clamp(8.0, screenSize.height - buttonSize - 8),
+                y: (idealCenterY - buttonSize / 2).clamp(
+                  8.0,
+                  screenSize.height - buttonSize - 8,
+                ),
                 icon: Icons.delete_sweep_rounded,
                 color: Colors.redAccent,
                 result: 'deleteAll',
@@ -366,7 +421,9 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
         case 'edit':
           widget.onEdit();
         case 'delete':
-          ref.read(markerActionsProvider).deleteMarker(widget.videoPath, widget.marker.id);
+          ref
+              .read(markerActionsProvider)
+              .deleteMarker(widget.videoPath, widget.marker.id);
         case 'deleteAll':
           // Slight delay so dialog closes first
           Future.microtask(() {
@@ -416,7 +473,10 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                     color: Colors.black.withOpacity(0.9),
                     border: Border.all(color: color.withOpacity(0.6)),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8),
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                      ),
                     ],
                   ),
                   child: Icon(icon, color: color, size: 18),
@@ -429,14 +489,16 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     if (widget.totalDuration <= Duration.zero || widget.sliderWidth <= 0) {
       return const SizedBox.shrink();
     }
 
-    final fraction = (widget.marker.timestamp.inMilliseconds / widget.totalDuration.inMilliseconds).clamp(0.0, 1.0);
+    final fraction =
+        (widget.marker.timestamp.inMilliseconds /
+                widget.totalDuration.inMilliseconds)
+            .clamp(0.0, 1.0);
     final left = fraction * widget.sliderWidth;
     final displayEmoji = widget.marker.icon;
 
@@ -450,44 +512,47 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
       width: 300,
       height: 300,
       child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-
-            // Text Tooltip on Hover
-            if (_isHovered && !_isMenuOpen && widget.marker.content.isNotEmpty)
-              Positioned(
-                bottom: 185, // Above the marker icon
-                child: IgnorePointer(
-                  child: TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOutBack,
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    builder: (context, scale, child) {
-                      return Transform.scale(
-                        scale: scale,
-                        alignment: Alignment.bottomCenter,
-                        child: child,
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // Text Tooltip on Hover
+          if (_isHovered && !_isMenuOpen && widget.marker.content.isNotEmpty)
+            Positioned(
+              bottom: 185, // Above the marker icon
+              child: IgnorePointer(
+                child: TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutBack,
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  builder: (context, scale, child) {
+                    return Transform.scale(
+                      scale: scale,
+                      alignment: Alignment.bottomCenter,
+                      child: child,
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.1),
                           ),
-                          child: Text(
-                            widget.marker.content,
-                            style: GoogleFonts.manrope(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        ),
+                        child: Text(
+                          widget.marker.content,
+                          style: GoogleFonts.manrope(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -495,83 +560,89 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                   ),
                 ),
               ),
+            ),
 
-            MouseRegion(
-                onEnter: (_) {
-                  setState(() => _isHovered = true);
-                  widget.onHoverChanged(true);
-                  widget.hoverXNotifier.value = null;
-                },
-                onExit: (_) {
-                  setState(() => _isHovered = false);
-                  widget.onHoverChanged(false);
-                },
-                onHover: (_) {
-                  widget.hoverXNotifier.value = null;
-                },
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: () {
-                    if (_isMenuOpen) {
-                      setState(() => _isMenuOpen = false);
-                      widget.onMenuVisibilityChanged(false);
-                    } else {
-                      widget.onTap();
-                    }
-                  },
-                  onSecondaryTap: () {
-                    _showRadialMenu(context);
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 200),
-                    scale: _isHovered ? 1.1 : 1.0,
-                    child: CustomPaint(
-                      key: _markerIconKey,
-                      painter: MarkerShadowPainter(),
-                      child: ClipPath(
-                        clipper: MarkerShapeClipper(),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                          child: Container(
-                            width: 36,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(_isHovered ? 0.15 : 0.08),
-                              border: Border.all(color: Colors.white.withOpacity(0.12), width: 1),
-                            ),
-                            alignment: const Alignment(0, -0.3),
-                            child: _isBase64 && _cachedImageBytes != null
-                                ? Padding(
-                                    padding: const EdgeInsets.only(bottom: 4.0),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: Image.memory(
-                                        _cachedImageBytes!, 
-                                        width: 24, 
-                                        height: 24, 
-                                        fit: BoxFit.cover,
-                                        gaplessPlayback: true, // Prevents flickering on minor rebuilds
-                                      ),
-                                    ),
-                                  )
-                                : Text(
-                                    displayEmoji,
-                                    style: const TextStyle(fontSize: 22),
-                                  ),
+          MouseRegion(
+            onEnter: (_) {
+              setState(() => _isHovered = true);
+              widget.onHoverChanged(true);
+              widget.hoverXNotifier.value = null;
+            },
+            onExit: (_) {
+              setState(() => _isHovered = false);
+              widget.onHoverChanged(false);
+            },
+            onHover: (_) {
+              widget.hoverXNotifier.value = null;
+            },
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                if (_isMenuOpen) {
+                  setState(() => _isMenuOpen = false);
+                  widget.onMenuVisibilityChanged(false);
+                } else {
+                  widget.onTap();
+                }
+              },
+              onSecondaryTap: () {
+                _showRadialMenu(context);
+              },
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 200),
+                scale: _isHovered ? 1.1 : 1.0,
+                child: CustomPaint(
+                  key: _markerIconKey,
+                  painter: MarkerShadowPainter(),
+                  child: ClipPath(
+                    clipper: MarkerShapeClipper(),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
+                        width: 36,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(
+                            _isHovered ? 0.15 : 0.08,
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.12),
+                            width: 1,
                           ),
                         ),
+                        alignment: const Alignment(0, -0.3),
+                        child: _isBase64 && _cachedImageBytes != null
+                            ? Padding(
+                                padding: const EdgeInsets.only(bottom: 4.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.memory(
+                                    _cachedImageBytes!,
+                                    width: 24,
+                                    height: 24,
+                                    fit: BoxFit.cover,
+                                    gaplessPlayback:
+                                        true, // Prevents flickering on minor rebuilds
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                displayEmoji,
+                                style: const TextStyle(fontSize: 22),
+                              ),
                       ),
                     ),
                   ),
                 ),
+              ),
             ),
-          ],
+          ),
+        ],
       ),
     );
   }
 }
-
 
 class MarkerShapeClipper extends CustomClipper<Path> {
   @override
@@ -588,12 +659,12 @@ class MarkerShapeClipper extends CustomClipper<Path> {
     path.quadraticBezierTo(w, 0, w, r);
     path.lineTo(w, h - r);
     path.quadraticBezierTo(w, h, w - r, h);
-    
+
     // Bottom edge with notch
     path.lineTo(w / 2 + nw / 2, h);
     path.lineTo(w / 2, size.height);
     path.lineTo(w / 2 - nw / 2, h);
-    
+
     path.lineTo(r, h);
     path.quadraticBezierTo(0, h, 0, h - r);
     path.lineTo(0, r);

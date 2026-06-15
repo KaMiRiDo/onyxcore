@@ -565,8 +565,12 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       }
 
       // Only update speed/eta when we have actual values to avoid clearing them
-      final effectiveSpeed = (speed != null && speed.trim().isNotEmpty) ? speed.trim() : null;
-      final effectiveEta = (eta != null && eta.trim().isNotEmpty) ? eta.trim() : null;
+      final effectiveSpeed = (speed != null && speed.trim().isNotEmpty)
+          ? speed.trim()
+          : null;
+      final effectiveEta = (eta != null && eta.trim().isNotEmpty)
+          ? eta.trim()
+          : null;
 
       _updateTask(
         id,
@@ -860,14 +864,15 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   @visibleForTesting
-  void parseProgressForTesting(String id, String data) => _parseProgress(id, data);
-  
+  void parseProgressForTesting(String id, String data) =>
+      _parseProgress(id, data);
+
   @visibleForTesting
   void appendLogForTesting(String id, String data) => _appendLog(id, data);
-  
+
   @visibleForTesting
   void processQueueForTesting() => _processQueue();
-  
+
   @visibleForTesting
   void startProcessForTaskForTesting(String id) => _startProcessForTask(id);
 }

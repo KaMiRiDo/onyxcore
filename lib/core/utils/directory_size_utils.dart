@@ -50,7 +50,9 @@ Future<void> _processDirectoryAsync(DirectorySizeArgs args) async {
         } catch (_) {}
       } else if (FileSystemEntity.isDirectorySync(path)) {
         foldersCount++;
-        await for (final entity in Directory(path).list(recursive: true, followLinks: false)) {
+        await for (final entity in Directory(
+          path,
+        ).list(recursive: true, followLinks: false)) {
           if (entity is File) {
             filesCount++;
             try {
@@ -61,12 +63,14 @@ Future<void> _processDirectoryAsync(DirectorySizeArgs args) async {
           }
 
           if ((filesCount + foldersCount) % args.updateFrequency == 0) {
-            args.sendPort.send(DirectorySizeUpdate(
-              size: totalSize,
-              filesCount: filesCount,
-              foldersCount: foldersCount,
-              isFinished: false,
-            ));
+            args.sendPort.send(
+              DirectorySizeUpdate(
+                size: totalSize,
+                filesCount: filesCount,
+                foldersCount: foldersCount,
+                isFinished: false,
+              ),
+            );
           }
         }
       }
@@ -76,12 +80,14 @@ Future<void> _processDirectoryAsync(DirectorySizeArgs args) async {
   }
 
   // Send final update
-  args.sendPort.send(DirectorySizeUpdate(
-    size: totalSize,
-    filesCount: filesCount,
-    foldersCount: foldersCount,
-    isFinished: true,
-  ));
+  args.sendPort.send(
+    DirectorySizeUpdate(
+      size: totalSize,
+      filesCount: filesCount,
+      foldersCount: foldersCount,
+      isFinished: true,
+    ),
+  );
 }
 
 /// Helper method to format bytes into readable strings (KB, MB, GB)

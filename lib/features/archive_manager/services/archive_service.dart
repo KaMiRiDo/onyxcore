@@ -46,7 +46,9 @@ class ArchiveService {
     if (password != null && password.isNotEmpty) {
       args.add('-p$password');
       if (targetArchive.toLowerCase().endsWith('.7z')) {
-        args.add('-mhe=on'); // Encrypt headers as well (only supported by 7z format)
+        args.add(
+          '-mhe=on',
+        ); // Encrypt headers as well (only supported by 7z format)
       }
     }
 
@@ -94,7 +96,9 @@ class ArchiveService {
 
       final exitCode = await process.exitCode;
       if (exitCode != 0) {
-        throw Exception('Archive operation failed with code $exitCode (Check password or 7z availability).');
+        throw Exception(
+          'Archive operation failed with code $exitCode (Check password or 7z availability).',
+        );
       }
     } finally {
       if (process != null) {

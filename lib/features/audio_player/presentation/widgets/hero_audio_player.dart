@@ -18,7 +18,9 @@ class HeroAudioPlayer extends ConsumerWidget {
     final currentTrack = ref.watch(currentTrackProvider);
     if (currentTrack == null) return const SizedBox.shrink();
 
-    final overrideTag = ref.watch(audioTagsOverridesProvider(currentTrack.path));
+    final overrideTag = ref.watch(
+      audioTagsOverridesProvider(currentTrack.path),
+    );
     final tagAsync = ref.watch(audioTagsProvider(currentTrack.path));
 
     String? artistText;
@@ -95,55 +97,69 @@ class HeroAudioPlayer extends ConsumerWidget {
               Flexible(
                 flex: 10,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380, maxHeight: 380),
+                  constraints: const BoxConstraints(
+                    maxWidth: 380,
+                    maxHeight: 380,
+                  ),
                   child: AspectRatio(
                     aspectRatio: 1.0,
                     child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color.alphaBlend(AppColors.magenta.withOpacity(0.08), const Color(0xFF181818)),
-                      Color.alphaBlend(AppColors.violet.withOpacity(0.03), const Color(0xFF181818)),
-                    ],
-                  ),
-                  border: Border.all(color: Colors.white.withOpacity(0.04), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
-                      blurRadius: 40,
-                      spreadRadius: 10,
-                      offset: const Offset(0, 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color.alphaBlend(
+                              AppColors.magenta.withOpacity(0.08),
+                              const Color(0xFF181818),
+                            ),
+                            Color.alphaBlend(
+                              AppColors.violet.withOpacity(0.03),
+                              const Color(0xFF181818),
+                            ),
+                          ],
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.04),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 40,
+                            spreadRadius: 10,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child:
+                            coverImage ??
+                            ShaderMask(
+                              shaderCallback: (bounds) => const LinearGradient(
+                                begin: Alignment.topRight,
+                                end: Alignment.bottomLeft,
+                                colors: [
+                                  AppColors.magenta,
+                                  AppColors.violet,
+                                ],
+                              ).createShader(bounds),
+                              child: const Icon(
+                                Icons.music_note_rounded,
+                                size: 140,
+                                color: Colors.white,
+                              ),
+                            ),
+                      ),
                     ),
-                  ],
-                ),
-                child: Center(
-                  child: coverImage ?? ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: [
-                        AppColors.magenta,
-                        AppColors.violet,
-                      ],
-                    ).createShader(bounds),
-                    child: const Icon(
-                      Icons.music_note_rounded,
-                      size: 140,
-                      color: Colors.white,
-                    ),
                   ),
                 ),
-            ),
-          ),
-        ),
-      ),
+              ),
 
-        const Spacer(flex: 2),
+              const Spacer(flex: 2),
 
-        // Track Info
+              // Track Info
               AutoScrollingText(
                 text: p.basenameWithoutExtension(currentTrack.name),
                 style: const TextStyle(
@@ -165,7 +181,6 @@ class HeroAudioPlayer extends ConsumerWidget {
               ),
 
               const Spacer(flex: 2), // Space between track info and waveform
-
               // Waveform
               WaveformScrubber(fileName: currentTrack.name),
 
@@ -173,8 +188,10 @@ class HeroAudioPlayer extends ConsumerWidget {
 
               // Controls
               const AudioControlsBar(),
-              
-              const Spacer(flex: 2), // Space below the HUD to push it up slightly
+
+              const Spacer(
+                flex: 2,
+              ), // Space below the HUD to push it up slightly
             ],
           ),
         ),
@@ -193,7 +210,8 @@ class AutoScrollingText extends StatefulWidget {
   State<AutoScrollingText> createState() => _AutoScrollingTextState();
 }
 
-class _AutoScrollingTextState extends State<AutoScrollingText> with SingleTickerProviderStateMixin {
+class _AutoScrollingTextState extends State<AutoScrollingText>
+    with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   Ticker? _ticker;
   double _offset = 0.0;
@@ -202,7 +220,7 @@ class _AutoScrollingTextState extends State<AutoScrollingText> with SingleTicker
     _ticker ??= createTicker((elapsed) {
       if (!_scrollController.hasClients) return;
       // Scroll speed: 1.0 logical pixel per frame (~60px per sec at 60fps)
-      _offset += 1.0; 
+      _offset += 1.0;
       _scrollController.jumpTo(_offset);
     });
   }

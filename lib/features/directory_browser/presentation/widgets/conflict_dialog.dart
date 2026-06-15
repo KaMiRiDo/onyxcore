@@ -22,18 +22,19 @@ class ConflictDialog extends ConsumerStatefulWidget {
   final bool showApplyToAll;
 
   const ConflictDialog({
-    required this.fileName, 
+    required this.fileName,
     required this.destinationPath,
-    this.isFolder = false, 
+    this.isFolder = false,
     this.showApplyToAll = true,
-    super.key
+    super.key,
   });
 
   @override
   ConsumerState<ConflictDialog> createState() => _ConflictDialogState();
 }
 
-class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTickerProviderStateMixin {
+class _ConflictDialogState extends ConsumerState<ConflictDialog>
+    with SingleTickerProviderStateMixin {
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   int _selectedIndex = 0;
@@ -53,9 +54,10 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
       vsync: this,
     );
 
-    _shakeAnimation = Tween<double>(begin: 0.0, end: 1.0)
-      .chain(CurveTween(curve: CurveSelection()))
-      .animate(_shakeController);
+    _shakeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).chain(CurveTween(curve: CurveSelection())).animate(_shakeController);
   }
 
   @override
@@ -70,12 +72,18 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
 
   void _handleNavigate(int direction) {
     setState(() {
-      _selectedIndex = (_selectedIndex + direction).clamp(0, _resolutions.length - 1);
+      _selectedIndex = (_selectedIndex + direction).clamp(
+        0,
+        _resolutions.length - 1,
+      );
     });
   }
 
   void _handleConfirm() {
-    Navigator.pop(context, ConflictResult(_resolutions[_selectedIndex], _applyToAll));
+    Navigator.pop(
+      context,
+      ConflictResult(_resolutions[_selectedIndex], _applyToAll),
+    );
   }
 
   @override
@@ -125,7 +133,9 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
                       decoration: BoxDecoration(
                         color: AppColors.surfaceBase.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.08),
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.4),
@@ -162,13 +172,24 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
                                     ),
                                     children: [
                                       TextSpan(
-                                        text: '"${_truncateMiddle(widget.fileName, 24)}"',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                        text:
+                                            '"${_truncateMiddle(widget.fileName, 24)}"',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                      const TextSpan(text: ' already exists - '),
+                                      const TextSpan(
+                                        text: ' already exists - ',
+                                      ),
                                       TextSpan(
-                                        text: _formatDestinationPath(widget.destinationPath),
-                                        style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic),
+                                        text: _formatDestinationPath(
+                                          widget.destinationPath,
+                                        ),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontStyle: FontStyle.italic,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -211,9 +232,13 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
                           if (widget.showApplyToAll) ...[
                             const Divider(color: Colors.white10, height: 1),
                             InkWell(
-                              onTap: () => setState(() => _applyToAll = !_applyToAll),
+                              onTap: () =>
+                                  setState(() => _applyToAll = !_applyToAll),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
                                 child: Row(
                                   children: [
                                     SizedBox(
@@ -221,10 +246,18 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
                                       width: 24,
                                       child: Checkbox(
                                         value: _applyToAll,
-                                        onChanged: (val) => setState(() => _applyToAll = val ?? false),
+                                        onChanged: (val) => setState(
+                                          () => _applyToAll = val ?? false,
+                                        ),
                                         activeColor: AppColors.violet,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                        side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.2),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -273,12 +306,14 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
           if (hovering) setState(() => _selectedIndex = index);
         },
         child: Container(
-          decoration: isSelected ? BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            border: const Border(
-              left: BorderSide(color: AppColors.violet, width: 3),
-            ),
-          ) : null,
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  border: const Border(
+                    left: BorderSide(color: AppColors.violet, width: 3),
+                  ),
+                )
+              : null,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Row(
             children: [
@@ -316,9 +351,9 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog> with SingleTick
                 ),
               ),
               Icon(
-                Icons.chevron_right_rounded, 
-                color: isSelected ? Colors.white70 : Colors.white24, 
-                size: 20
+                Icons.chevron_right_rounded,
+                color: isSelected ? Colors.white70 : Colors.white24,
+                size: 20,
               ),
             ],
           ),

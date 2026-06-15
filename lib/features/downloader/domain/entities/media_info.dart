@@ -36,13 +36,16 @@ class MediaFormat {
     return MediaFormat(
       formatId: json['format_id']?.toString() ?? '',
       extension: json['ext']?.toString() ?? '',
-      resolution: json['resolution']?.toString() ??
+      resolution:
+          json['resolution']?.toString() ??
           (json['height'] != null
               ? '${json['width']}x${json['height']}'
               : 'audio only'),
       videoCodec: json['vcodec']?.toString(),
       audioCodec: json['acodec']?.toString(),
-      filesize: (json['filesize'] as num?)?.toInt() ?? (json['filesize_approx'] as num?)?.toInt(),
+      filesize:
+          (json['filesize'] as num?)?.toInt() ??
+          (json['filesize_approx'] as num?)?.toInt(),
       formatNote: json['format_note']?.toString(),
       formatString: json['format']?.toString() ?? '',
       url: json['url']?.toString(),
@@ -113,7 +116,10 @@ class MediaInfo {
     this.isLive = false,
   });
 
-  factory MediaInfo.fromJson(Map<String, dynamic> json, {String originalUrl = ''}) {
+  factory MediaInfo.fromJson(
+    Map<String, dynamic> json, {
+    String originalUrl = '',
+  }) {
     var formatsJson = json['formats'] as List<dynamic>?;
     List<MediaFormat> parsedFormats = [];
     if (formatsJson != null) {
@@ -125,12 +131,12 @@ class MediaInfo {
     final type = json['_type']?.toString();
     final isPlaylist = type == 'playlist';
     final isProfile = false; // Will set in backend based on url/extractor
-    
+
     int? itemCount;
     if (isPlaylist && json['playlist_count'] != null) {
-       itemCount = json['playlist_count'] as int;
+      itemCount = json['playlist_count'] as int;
     } else if (isPlaylist && json['entries'] is List) {
-       itemCount = (json['entries'] as List).length;
+      itemCount = (json['entries'] as List).length;
     }
 
     String parsedTitle = json['title']?.toString() ?? '';
@@ -140,7 +146,9 @@ class MediaInfo {
         final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
         if (segments.isNotEmpty) {
           parsedTitle = segments.first;
-          if (originalUrl.contains('instagram.com') || originalUrl.contains('x.com') || originalUrl.contains('twitter.com')) {
+          if (originalUrl.contains('instagram.com') ||
+              originalUrl.contains('x.com') ||
+              originalUrl.contains('twitter.com')) {
             parsedTitle = '@$parsedTitle';
           }
         }
@@ -154,17 +162,32 @@ class MediaInfo {
     if (json['vcodec'] != null) {
       isVid = json['vcodec'] != 'none';
     } else if (formatsJson != null && formatsJson.isNotEmpty) {
-      isVid = true; // yt-dlp default assumption if vcodec missing but formats exist
+      isVid =
+          true; // yt-dlp default assumption if vcodec missing but formats exist
     } else if (json['extension'] != null) {
-      isVid = ['mp4', 'webm', 'mkv', 'mov', 'avi'].contains(json['extension'].toString().toLowerCase());
+      isVid = [
+        'mp4',
+        'webm',
+        'mkv',
+        'mov',
+        'avi',
+      ].contains(json['extension'].toString().toLowerCase());
     }
 
     return MediaInfo(
       id: json['id']?.toString() ?? '',
       title: parsedTitle,
-      thumbnail: json['thumbnail']?.toString() ?? (json['thumbnails'] is List && (json['thumbnails'] as List).isNotEmpty ? (json['thumbnails'] as List).last['url']?.toString() : null),
+      thumbnail:
+          json['thumbnail']?.toString() ??
+          (json['thumbnails'] is List && (json['thumbnails'] as List).isNotEmpty
+              ? (json['thumbnails'] as List).last['url']?.toString()
+              : null),
       duration: (json['duration'] as num?)?.toInt(),
-      filesize: (json['filesize'] as num?)?.toInt() ?? (json['filesize_approx'] as num?)?.toInt() ?? (json['file_size'] as num?)?.toInt() ?? (json['size'] as num?)?.toInt(),
+      filesize:
+          (json['filesize'] as num?)?.toInt() ??
+          (json['filesize_approx'] as num?)?.toInt() ??
+          (json['file_size'] as num?)?.toInt() ??
+          (json['size'] as num?)?.toInt(),
       extractor: json['extractor']?.toString() ?? json['category']?.toString(),
       engineId: json['engineId']?.toString(),
       formats: parsedFormats,
@@ -175,7 +198,9 @@ class MediaInfo {
       galleryIndex: json['galleryIndex'] as int?,
       width: json['width'] as int?,
       height: json['height'] as int?,
-      originalUrl: originalUrl.isNotEmpty ? originalUrl : (json['webpage_url']?.toString() ?? ''),
+      originalUrl: originalUrl.isNotEmpty
+          ? originalUrl
+          : (json['webpage_url']?.toString() ?? ''),
       directUrl: json['url']?.toString(),
       webpageUrl: json['webpage_url']?.toString(),
       isError: false,
@@ -185,7 +210,22 @@ class MediaInfo {
     );
   }
 
-  MediaInfo copyWith({String? id, bool? isProfile, String? thumbnail, String? title, int? galleryIndex, int? filesize, bool? isLive, String? originalUrl, String? directUrl, String? webpageUrl, String? engineId, String? errorMessage, String? fetchLogs, bool? isVideo}) {
+  MediaInfo copyWith({
+    String? id,
+    bool? isProfile,
+    String? thumbnail,
+    String? title,
+    int? galleryIndex,
+    int? filesize,
+    bool? isLive,
+    String? originalUrl,
+    String? directUrl,
+    String? webpageUrl,
+    String? engineId,
+    String? errorMessage,
+    String? fetchLogs,
+    bool? isVideo,
+  }) {
     return MediaInfo(
       id: id ?? this.id,
       title: title ?? this.title,
@@ -218,7 +258,8 @@ class MediaInfo {
       thumbnail: map['thumbnail']?.toString(),
       duration: map['duration'] as int?,
       extractor: map['extractor']?.toString(),
-      formats: (map['formats'] as List<dynamic>?)
+      formats:
+          (map['formats'] as List<dynamic>?)
               ?.map((e) => MediaFormat.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -272,7 +313,7 @@ class MediaInfo {
 class MediaGroup {
   final String originalUrl;
   final List<MediaInfo> items;
-  
+
   const MediaGroup({
     required this.originalUrl,
     required this.items,
@@ -281,7 +322,8 @@ class MediaGroup {
   factory MediaGroup.fromMap(Map<String, dynamic> map) {
     return MediaGroup(
       originalUrl: map['originalUrl']?.toString() ?? '',
-      items: (map['items'] as List<dynamic>?)
+      items:
+          (map['items'] as List<dynamic>?)
               ?.map((e) => MediaInfo.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [],

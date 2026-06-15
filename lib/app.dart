@@ -20,7 +20,6 @@ class OnyxCoreApp extends ConsumerStatefulWidget {
 }
 
 class _OnyxCoreAppState extends ConsumerState<OnyxCoreApp> with WindowListener {
-
   @override
   void initState() {
     super.initState();

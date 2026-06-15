@@ -97,7 +97,7 @@ class _TopBarState extends ConsumerState<TopBar> {
         if (ref.read(isLocationEditingProvider)) {
           ref.read(isLocationEditingProvider.notifier).set(false);
         }
-        
+
         // Auto-scroll to end
         if (_breadcrumbController.hasClients) {
           Future.delayed(const Duration(milliseconds: 100), () {
@@ -152,18 +152,22 @@ class _TopBarState extends ConsumerState<TopBar> {
                     duration: const Duration(milliseconds: 200),
                     height: 40,
                     decoration: BoxDecoration(
-                      color: isSearchActive ? null : Colors.white.withOpacity(0.05),
-                      gradient: isSearchActive 
+                      color: isSearchActive
+                          ? null
+                          : Colors.white.withOpacity(0.05),
+                      gradient: isSearchActive
                           ? LinearGradient(
-                              colors: AppTheme.primaryGradient.colors.map((c) => c.withOpacity(0.15)).toList(),
+                              colors: AppTheme.primaryGradient.colors
+                                  .map((c) => c.withOpacity(0.15))
+                                  .toList(),
                               begin: AppTheme.primaryGradient.begin,
                               end: AppTheme.primaryGradient.end,
-                            ) 
+                            )
                           : null,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSearchActive 
-                            ? AppColors.violet.withOpacity(0.5) 
+                        color: isSearchActive
+                            ? AppColors.violet.withOpacity(0.5)
                             : Colors.white.withOpacity(0.05),
                       ),
                     ),
@@ -175,7 +179,9 @@ class _TopBarState extends ConsumerState<TopBar> {
                           // Breadcrumb Layer
                           AnimatedOpacity(
                             duration: const Duration(milliseconds: 200),
-                            opacity: (isSearchActive || isLocationEditing) ? 0.0 : 1.0,
+                            opacity: (isSearchActive || isLocationEditing)
+                                ? 0.0
+                                : 1.0,
                             child: IgnorePointer(
                               ignoring: isSearchActive || isLocationEditing,
                               child: Row(
@@ -183,24 +189,45 @@ class _TopBarState extends ConsumerState<TopBar> {
                                   Expanded(
                                     child: GestureDetector(
                                       onTap: () {
-                                        ref.read(isLocationEditingProvider.notifier).set(true);
+                                        ref
+                                            .read(
+                                              isLocationEditingProvider
+                                                  .notifier,
+                                            )
+                                            .set(true);
                                       },
                                       behavior: HitTestBehavior.opaque,
                                       child: SingleChildScrollView(
                                         controller: _breadcrumbController,
                                         scrollDirection: Axis.horizontal,
-                                        padding: const EdgeInsets.only(right: 12),
+                                        padding: const EdgeInsets.only(
+                                          right: 12,
+                                        ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
                                           children: [
                                             Padding(
-                                              padding: const EdgeInsets.only(left: 14, right: 0),
+                                              padding: const EdgeInsets.only(
+                                                left: 14,
+                                                right: 0,
+                                              ),
                                               child: _buildGradientIcon(
-                                                _getRootIconData(currentPath, homePath, devices),
+                                                _getRootIconData(
+                                                  currentPath,
+                                                  homePath,
+                                                  devices,
+                                                ),
                                               ),
                                             ),
-                                            _buildBreadcrumbs(ref, currentPath, homePath, previewFile?.name, devices),
+                                            _buildBreadcrumbs(
+                                              ref,
+                                              currentPath,
+                                              homePath,
+                                              previewFile?.name,
+                                              devices,
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -219,7 +246,11 @@ class _TopBarState extends ConsumerState<TopBar> {
                               child: TapRegion(
                                 onTapOutside: (_) {
                                   if (ref.read(isLocationEditingProvider)) {
-                                    ref.read(isLocationEditingProvider.notifier).set(false);
+                                    ref
+                                        .read(
+                                          isLocationEditingProvider.notifier,
+                                        )
+                                        .set(false);
                                   }
                                 },
                                 child: TextField(
@@ -233,45 +264,98 @@ class _TopBarState extends ConsumerState<TopBar> {
                                   ),
                                   onSubmitted: (value) {
                                     if (value.isEmpty) {
-                                      ref.read(isLocationEditingProvider.notifier).set(false);
-                                      ref.read(mainFocusNodeProvider).requestFocus();
+                                      ref
+                                          .read(
+                                            isLocationEditingProvider.notifier,
+                                          )
+                                          .set(false);
+                                      ref
+                                          .read(mainFocusNodeProvider)
+                                          .requestFocus();
                                       return;
                                     }
                                     final dir = Directory(value);
                                     final file = File(value);
-                                    
+
                                     if (dir.existsSync()) {
-                                      ref.read(selectionProvider.notifier).deselectAll();
-                                      ref.read(navigationProvider.notifier).navigateTo(value);
-                                      ref.read(currentPathProvider.notifier).state = value;
-                                      ref.read(isLocationEditingProvider.notifier).set(false);
+                                      ref
+                                          .read(selectionProvider.notifier)
+                                          .deselectAll();
+                                      ref
+                                          .read(navigationProvider.notifier)
+                                          .navigateTo(value);
+                                      ref
+                                              .read(
+                                                currentPathProvider.notifier,
+                                              )
+                                              .state =
+                                          value;
+                                      ref
+                                          .read(
+                                            isLocationEditingProvider.notifier,
+                                          )
+                                          .set(false);
                                     } else if (file.existsSync()) {
                                       final parentDir = p.dirname(value);
-                                      ref.read(selectionProvider.notifier).deselectAll();
-                                      ref.read(navigationProvider.notifier).navigateTo(parentDir);
-                                      ref.read(currentPathProvider.notifier).state = parentDir;
-                                      
+                                      ref
+                                          .read(selectionProvider.notifier)
+                                          .deselectAll();
+                                      ref
+                                          .read(navigationProvider.notifier)
+                                          .navigateTo(parentDir);
+                                      ref
+                                              .read(
+                                                currentPathProvider.notifier,
+                                              )
+                                              .state =
+                                          parentDir;
+
                                       // Wait slightly for directory to load, then select
-                                      Future.delayed(const Duration(milliseconds: 150), () {
-                                        ref.read(selectionProvider.notifier).select(value);
-                                      });
-                                      ref.read(isLocationEditingProvider.notifier).set(false);
+                                      Future.delayed(
+                                        const Duration(milliseconds: 150),
+                                        () {
+                                          ref
+                                              .read(selectionProvider.notifier)
+                                              .select(value);
+                                        },
+                                      );
+                                      ref
+                                          .read(
+                                            isLocationEditingProvider.notifier,
+                                          )
+                                          .set(false);
                                     } else {
-                                      ref.read(pathErrorProvider.notifier).state = 'Invalid path';
-                                      Future.delayed(const Duration(seconds: 2), () {
-                                        ref.read(pathErrorProvider.notifier).state = null;
-                                      });
+                                      ref
+                                              .read(pathErrorProvider.notifier)
+                                              .state =
+                                          'Invalid path';
+                                      Future.delayed(
+                                        const Duration(seconds: 2),
+                                        () {
+                                          ref
+                                                  .read(
+                                                    pathErrorProvider.notifier,
+                                                  )
+                                                  .state =
+                                              null;
+                                        },
+                                      );
                                       // Keep editing mode open to let user correct it
                                       return;
                                     }
-                                    
+
                                     // Request focus back to main node
-                                    ref.read(mainFocusNodeProvider).requestFocus();
+                                    ref
+                                        .read(mainFocusNodeProvider)
+                                        .requestFocus();
                                   },
                                   decoration: InputDecoration(
                                     isDense: true,
                                     border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 10,
+                                    ),
                                     suffixIcon: IconButton(
                                       icon: const Icon(Icons.close, size: 20),
                                       color: Colors.white38,
@@ -279,7 +363,12 @@ class _TopBarState extends ConsumerState<TopBar> {
                                       constraints: const BoxConstraints(),
                                       splashRadius: 20,
                                       onPressed: () {
-                                        ref.read(isLocationEditingProvider.notifier).set(false);
+                                        ref
+                                            .read(
+                                              isLocationEditingProvider
+                                                  .notifier,
+                                            )
+                                            .set(false);
                                       },
                                     ),
                                   ),
@@ -301,12 +390,15 @@ class _TopBarState extends ConsumerState<TopBar> {
                                   fontSize: 14,
                                 ),
                                 onChanged: (value) {
-                                  ref.read(searchQueryProvider.notifier).state = value;
+                                  ref.read(searchQueryProvider.notifier).state =
+                                      value;
                                 },
                                 textInputAction: TextInputAction.search,
-                                onSubmitted: (_) => _searchFocusNode.requestFocus(),
+                                onSubmitted: (_) =>
+                                    _searchFocusNode.requestFocus(),
                                 decoration: InputDecoration(
-                                  hintText: 'Search in ${p.basename(currentPath)}...',
+                                  hintText:
+                                      'Search in ${p.basename(currentPath)}...',
                                   hintStyle: GoogleFonts.manrope(
                                     color: Colors.white38,
                                     fontSize: 14,
@@ -332,23 +424,27 @@ class _TopBarState extends ConsumerState<TopBar> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(width: 3),
                 Container(
                   height: 40,
                   width: 40,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.05),
-                    gradient: isSearchActive 
+                    gradient: isSearchActive
                         ? LinearGradient(
-                            colors: AppTheme.primaryGradient.colors.map((c) => c.withOpacity(0.15)).toList(),
+                            colors: AppTheme.primaryGradient.colors
+                                .map((c) => c.withOpacity(0.15))
+                                .toList(),
                             begin: AppTheme.primaryGradient.begin,
                             end: AppTheme.primaryGradient.end,
-                          ) 
+                          )
                         : null,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: isSearchActive ? AppColors.violet.withOpacity(0.5) : Colors.white.withOpacity(0.05),
+                      color: isSearchActive
+                          ? AppColors.violet.withOpacity(0.5)
+                          : Colors.white.withOpacity(0.05),
                     ),
                   ),
                   child: Center(
@@ -369,7 +465,8 @@ class _TopBarState extends ConsumerState<TopBar> {
                     return _buildActionIcon(
                       icon: Icons.sort_rounded,
                       onPressed: () {
-                        final RenderBox box = context.findRenderObject() as RenderBox;
+                        final RenderBox box =
+                            context.findRenderObject() as RenderBox;
                         final position = box.localToGlobal(Offset.zero);
                         SortOverlay.show(
                           context: context,
@@ -378,15 +475,17 @@ class _TopBarState extends ConsumerState<TopBar> {
                           currentOption: sort.option,
                           onSelected: (option) {
                             final tabId = ref.read(tabIdProvider);
-                            ref.read(tabManagerProvider.notifier).updateSortSettings(
-                              tabId, 
-                              sort.copyWith(option: option)
-                            );
+                            ref
+                                .read(tabManagerProvider.notifier)
+                                .updateSortSettings(
+                                  tabId,
+                                  sort.copyWith(option: option),
+                                );
                           },
                         );
                       },
                     );
-                  }
+                  },
                 ),
 
                 const SizedBox(width: 8),
@@ -396,13 +495,14 @@ class _TopBarState extends ConsumerState<TopBar> {
                   builder: (context) {
                     final filter = ref.watch(filterSettingsProvider);
                     final isFilterActive = !filter.isEmpty;
-                    
+
                     if (!isFilterActive) {
                       return _buildActionIcon(
                         icon: Icons.tune_rounded,
                         isActive: false,
                         onPressed: () {
-                          final RenderBox box = context.findRenderObject() as RenderBox;
+                          final RenderBox box =
+                              context.findRenderObject() as RenderBox;
                           final position = box.localToGlobal(Offset.zero);
                           FilterOverlay.show(
                             context: context,
@@ -410,10 +510,9 @@ class _TopBarState extends ConsumerState<TopBar> {
                             initialSettings: filter,
                             onApply: (newSettings) {
                               final tabId = ref.read(tabIdProvider);
-                              ref.read(tabManagerProvider.notifier).updateFilterSettings(
-                                tabId, 
-                                newSettings
-                              );
+                              ref
+                                  .read(tabManagerProvider.notifier)
+                                  .updateFilterSettings(tabId, newSettings);
                             },
                           );
                         },
@@ -424,7 +523,9 @@ class _TopBarState extends ConsumerState<TopBar> {
                       decoration: BoxDecoration(
                         color: AppColors.violet.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.violet.withOpacity(0.25)),
+                        border: Border.all(
+                          color: AppColors.violet.withOpacity(0.25),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -433,7 +534,8 @@ class _TopBarState extends ConsumerState<TopBar> {
                             icon: Icons.tune_rounded,
                             isActive: true,
                             onPressed: () {
-                              final RenderBox box = context.findRenderObject() as RenderBox;
+                              final RenderBox box =
+                                  context.findRenderObject() as RenderBox;
                               final position = box.localToGlobal(Offset.zero);
                               FilterOverlay.show(
                                 context: context,
@@ -441,10 +543,9 @@ class _TopBarState extends ConsumerState<TopBar> {
                                 initialSettings: filter,
                                 onApply: (newSettings) {
                                   final tabId = ref.read(tabIdProvider);
-                                  ref.read(tabManagerProvider.notifier).updateFilterSettings(
-                                    tabId, 
-                                    newSettings
-                                  );
+                                  ref
+                                      .read(tabManagerProvider.notifier)
+                                      .updateFilterSettings(tabId, newSettings);
                                 },
                               );
                             },
@@ -460,10 +561,12 @@ class _TopBarState extends ConsumerState<TopBar> {
                             isActive: false,
                             onPressed: () {
                               final tabId = ref.read(tabIdProvider);
-                              ref.read(tabManagerProvider.notifier).updateFilterSettings(
-                                tabId, 
-                                const FilterSettings()
-                              );
+                              ref
+                                  .read(tabManagerProvider.notifier)
+                                  .updateFilterSettings(
+                                    tabId,
+                                    const FilterSettings(),
+                                  );
                             },
                             backgroundColor: Colors.transparent,
                             iconColor: Colors.white.withOpacity(0.7),
@@ -471,37 +574,52 @@ class _TopBarState extends ConsumerState<TopBar> {
                         ],
                       ),
                     );
-                  }
+                  },
                 ),
-    
+
                 const Spacer(flex: 4),
-                
+
                 const SizedBox(width: 16),
                 Builder(
                   builder: (context) {
-                    final showHidden = ref.watch(settingsProvider.select((s) => s.value?.showHiddenFiles ?? false));
+                    final showHidden = ref.watch(
+                      settingsProvider.select(
+                        (s) => s.value?.showHiddenFiles ?? false,
+                      ),
+                    );
                     return Tooltip(
-                      message: showHidden ? 'Hide Hidden Files (Ctrl+.)' : 'Show Hidden Files (Ctrl+.)',
+                      message: showHidden
+                          ? 'Hide Hidden Files (Ctrl+.)'
+                          : 'Show Hidden Files (Ctrl+.)',
                       waitDuration: const Duration(milliseconds: 500),
                       child: _buildActionIcon(
-                        icon: showHidden ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                        customIcon: showHidden ? _buildGradientIcon(Icons.visibility_rounded, size: 20) : null,
+                        icon: showHidden
+                            ? Icons.visibility_rounded
+                            : Icons.visibility_off_rounded,
+                        customIcon: showHidden
+                            ? _buildGradientIcon(
+                                Icons.visibility_rounded,
+                                size: 20,
+                              )
+                            : null,
                         isActive: showHidden,
                         backgroundColor: Colors.transparent,
                         onPressed: () {
                           final current = ref.read(settingsProvider).value;
                           if (current != null) {
-                            ref.read(settingsProvider.notifier).setShowHiddenFiles(
-                              value: !current.showHiddenFiles,
-                            );
+                            ref
+                                .read(settingsProvider.notifier)
+                                .setShowHiddenFiles(
+                                  value: !current.showHiddenFiles,
+                                );
                           }
                         },
                       ),
                     );
-                  }
+                  },
                 ),
                 const SizedBox(width: 8),
-                
+
                 Tooltip(
                   message: 'Settings',
                   waitDuration: const Duration(milliseconds: 500),
@@ -513,22 +631,28 @@ class _TopBarState extends ConsumerState<TopBar> {
                 const SizedBox(width: 8),
                 Builder(
                   builder: (context) {
-                     final isDownloadsOpen = ref.watch(downloadsPanelOpenProvider);
-                     return Tooltip(
-                       message: 'Downloads Panel (Ctrl+D)',
-                       waitDuration: const Duration(milliseconds: 500),
-                       child: _buildActionIcon(
-                         icon: Icons.download_rounded,
-                         isActive: isDownloadsOpen,
-                         onPressed: () {
-                            ref.read(downloadsPanelOpenProvider.notifier).state = !isDownloadsOpen;
-                            if (!isDownloadsOpen) {
-                              ref.read(backgroundPanelOpenProvider.notifier).state = false;
-                            }
-                         },
-                       ),
-                     );
-                  }
+                    final isDownloadsOpen = ref.watch(
+                      downloadsPanelOpenProvider,
+                    );
+                    return Tooltip(
+                      message: 'Downloads Panel (Ctrl+D)',
+                      waitDuration: const Duration(milliseconds: 500),
+                      child: _buildActionIcon(
+                        icon: Icons.download_rounded,
+                        isActive: isDownloadsOpen,
+                        onPressed: () {
+                          ref.read(downloadsPanelOpenProvider.notifier).state =
+                              !isDownloadsOpen;
+                          if (!isDownloadsOpen) {
+                            ref
+                                    .read(backgroundPanelOpenProvider.notifier)
+                                    .state =
+                                false;
+                          }
+                        },
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(width: 8),
                 const BackgroundProcessesButton(),
@@ -573,7 +697,11 @@ class _TopBarState extends ConsumerState<TopBar> {
     );
   }
 
-  IconData _getRootIconData(String currentPath, String homePath, List<Device> devices) {
+  IconData _getRootIconData(
+    String currentPath,
+    String homePath,
+    List<Device> devices,
+  ) {
     if (currentPath.startsWith('virtual:')) {
       final label = currentPath.replaceFirst('virtual:', '').toLowerCase();
       if (label.contains('trash')) return Icons.delete_outline;
@@ -581,20 +709,19 @@ class _TopBarState extends ConsumerState<TopBar> {
       if (label.contains('starred')) return Icons.star_outline_rounded;
       return Icons.folder_special_rounded;
     }
-    
+
     if (currentPath.startsWith(homePath)) {
       return Icons.home;
     }
-    
+
     for (final device in devices) {
       if (currentPath.startsWith(device.path)) {
         return Icons.storage_outlined;
       }
     }
-    
+
     return Icons.storage_outlined; // File System
   }
-
 
   Widget _buildActionIcon({
     required IconData icon,
@@ -611,51 +738,78 @@ class _TopBarState extends ConsumerState<TopBar> {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: backgroundColor ?? (isActive ? AppColors.violet.withOpacity(0.2) : Colors.transparent),
+          color:
+              backgroundColor ??
+              (isActive
+                  ? AppColors.violet.withOpacity(0.2)
+                  : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Center(
-          child: customIcon ?? Icon(
-            icon,
-            color: iconColor ?? (isActive ? AppColors.violet : Colors.white70),
-            size: 20,
-          ),
+          child:
+              customIcon ??
+              Icon(
+                icon,
+                color:
+                    iconColor ?? (isActive ? AppColors.violet : Colors.white70),
+                size: 20,
+              ),
         ),
       ),
     );
   }
 
-  Widget _buildBreadcrumbs(WidgetRef ref, String currentPath, String homePath, String? previewFileName, List<Device> devices) {
+  Widget _buildBreadcrumbs(
+    WidgetRef ref,
+    String currentPath,
+    String homePath,
+    String? previewFileName,
+    List<Device> devices,
+  ) {
     List<MapEntry<String, String>> parts = [];
 
     if (currentPath.startsWith('virtual:')) {
       final label = currentPath.replaceFirst('virtual:', '');
-      final name = label.isNotEmpty ? '${label[0].toUpperCase()}${label.substring(1)}' : label;
+      final name = label.isNotEmpty
+          ? '${label[0].toUpperCase()}${label.substring(1)}'
+          : label;
       parts.add(MapEntry(name, currentPath));
     } else if (currentPath.startsWith(homePath)) {
       final relPath = currentPath.replaceFirst(homePath, 'Home');
       final subParts = relPath.split('/').where((s) => s.isNotEmpty).toList();
-      
+
       String accumulated = homePath;
       parts.add(MapEntry('Home', homePath));
-      
+
       for (final sub in subParts) {
         if (sub == 'Home') continue;
         final subIndex = currentPath.indexOf('/$sub', accumulated.length - 1);
         if (subIndex != -1) {
           accumulated = currentPath.substring(0, subIndex + sub.length + 1);
-          if (accumulated.endsWith('/')) accumulated = accumulated.substring(0, accumulated.length - 1);
-          parts.add(MapEntry(StringUtils.truncateMiddle(sub, maxLength: 16), accumulated));
+          if (accumulated.endsWith('/'))
+            accumulated = accumulated.substring(0, accumulated.length - 1);
+          parts.add(
+            MapEntry(
+              StringUtils.truncateMiddle(sub, maxLength: 16),
+              accumulated,
+            ),
+          );
         } else {
           accumulated = p.join(accumulated, sub);
-          parts.add(MapEntry(StringUtils.truncateMiddle(sub, maxLength: 16), accumulated));
+          parts.add(
+            MapEntry(
+              StringUtils.truncateMiddle(sub, maxLength: 16),
+              accumulated,
+            ),
+          );
         }
       }
     } else {
       Device? matchingDevice;
       for (final device in devices) {
         if (currentPath.startsWith(device.path)) {
-          if (matchingDevice == null || device.path.length > matchingDevice.path.length) {
+          if (matchingDevice == null ||
+              device.path.length > matchingDevice.path.length) {
             matchingDevice = device;
           }
         }
@@ -665,19 +819,32 @@ class _TopBarState extends ConsumerState<TopBar> {
         parts.add(MapEntry(matchingDevice.name, matchingDevice.path));
         final subPath = currentPath.substring(matchingDevice.path.length);
         final subParts = subPath.split('/').where((s) => s.isNotEmpty).toList();
-        
+
         String accumulatedPath = matchingDevice.path;
         for (final pPart in subParts) {
           accumulatedPath = p.join(accumulatedPath, pPart);
-          parts.add(MapEntry(StringUtils.truncateMiddle(pPart, maxLength: 16), accumulatedPath));
+          parts.add(
+            MapEntry(
+              StringUtils.truncateMiddle(pPart, maxLength: 16),
+              accumulatedPath,
+            ),
+          );
         }
       } else {
-        final splitParts = currentPath.split('/').where((s) => s.isNotEmpty).toList();
+        final splitParts = currentPath
+            .split('/')
+            .where((s) => s.isNotEmpty)
+            .toList();
         String accumulatedPath = '/';
         parts.add(const MapEntry('File System', '/'));
         for (final pPart in splitParts) {
           accumulatedPath = p.join(accumulatedPath, pPart);
-          parts.add(MapEntry(StringUtils.truncateMiddle(pPart, maxLength: 16), accumulatedPath));
+          parts.add(
+            MapEntry(
+              StringUtils.truncateMiddle(pPart, maxLength: 16),
+              accumulatedPath,
+            ),
+          );
         }
       }
     }
@@ -688,7 +855,12 @@ class _TopBarState extends ConsumerState<TopBar> {
     }
 
     if (previewFileName != null) {
-      parts.add(MapEntry(StringUtils.truncateMiddle(previewFileName, maxLength: 32), ''));
+      parts.add(
+        MapEntry(
+          StringUtils.truncateMiddle(previewFileName, maxLength: 32),
+          '',
+        ),
+      );
     }
 
     return Row(
@@ -706,7 +878,13 @@ class _TopBarState extends ConsumerState<TopBar> {
             if (index > 0)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _buildGradientText('/', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                child: _buildGradientText(
+                  '/',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             BreadcrumbSegment(
               name: name,
@@ -810,7 +988,7 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
   void _navigate() {
     if (!widget.isFileName) {
       ref.read(previewFileProvider.notifier).state = null;
-      
+
       if (widget.targetPath.isNotEmpty) {
         ref.read(selectionProvider.notifier).deselectAll();
         ref.read(navigationProvider.notifier).navigateTo(widget.targetPath);
@@ -853,16 +1031,19 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
       },
       onAcceptWithDetails: (details) async {
         _hoverTimer?.cancel();
-        if (details.data.every((path) => p.dirname(path) == widget.targetPath)) return;
-        
+        if (details.data.every((path) => p.dirname(path) == widget.targetPath))
+          return;
+
         final repo = ref.read(directoryRepositoryProvider);
-        final taskId = ref.read(taskProvider.notifier).addTask(
-          title: 'Moving Files',
-          subtitle: '${details.data.length} items to ${widget.name}',
-          totalCount: details.data.length,
-          sourcePaths: details.data,
-          targetPath: widget.targetPath,
-        );
+        final taskId = ref
+            .read(taskProvider.notifier)
+            .addTask(
+              title: 'Moving Files',
+              subtitle: '${details.data.length} items to ${widget.name}',
+              totalCount: details.data.length,
+              sourcePaths: details.data,
+              targetPath: widget.targetPath,
+            );
         try {
           await repo.moveItems(details.data, widget.targetPath);
           ref.read(taskProvider.notifier).completeTask(taskId);
@@ -876,7 +1057,9 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
         final isOver = candidateData.isNotEmpty;
         return Container(
           decoration: BoxDecoration(
-            color: isOver ? AppColors.violet.withOpacity(0.2) : Colors.transparent,
+            color: isOver
+                ? AppColors.violet.withOpacity(0.2)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: textWidget,
@@ -884,10 +1067,10 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
       },
     );
   }
+
   Widget _buildGradientText(String text, {required TextStyle style}) {
     return ShaderMask(
-      shaderCallback: (bounds) =>
-          AppTheme.primaryGradient.createShader(bounds),
+      shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
       child: Text(text, style: style.copyWith(color: Colors.white)),
     );
   }

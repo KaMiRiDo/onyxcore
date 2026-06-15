@@ -10,7 +10,10 @@ class ProcessUtils {
         // Kill children first (bottom-up traversal)
         final result = Process.runSync('pgrep', ['-P', pid.toString()]);
         if (result.exitCode == 0) {
-          final children = result.stdout.toString().split('\n').where((s) => s.trim().isNotEmpty);
+          final children = result.stdout
+              .toString()
+              .split('\n')
+              .where((s) => s.trim().isNotEmpty);
           for (final child in children) {
             await killProcessTree(int.parse(child));
           }
@@ -44,7 +47,10 @@ class ProcessUtils {
       try {
         final result = Process.runSync('pgrep', ['-P', pid.toString()]);
         if (result.exitCode == 0) {
-          final children = result.stdout.toString().split('\n').where((s) => s.trim().isNotEmpty);
+          final children = result.stdout
+              .toString()
+              .split('\n')
+              .where((s) => s.trim().isNotEmpty);
           for (final child in children) {
             killProcessTreeSync(int.parse(child));
           }

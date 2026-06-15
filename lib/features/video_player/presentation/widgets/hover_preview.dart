@@ -87,7 +87,8 @@ class _HoverPreviewState extends State<HoverPreview> {
 
   Future<void> _extractFrame(double hoverX) async {
     if (_isDisposed || !mounted) return;
-    if (widget.totalDuration <= Duration.zero || widget.sliderWidth <= 0) return;
+    if (widget.totalDuration <= Duration.zero || widget.sliderWidth <= 0)
+      return;
 
     _isExtracting = true;
     _pendingHoverX = null;
@@ -100,17 +101,27 @@ class _HoverPreviewState extends State<HoverPreview> {
       _killActiveProcess();
 
       final process = await Process.start('ffmpeg', [
-        '-threads', '2',
-        '-ss', seconds.toStringAsFixed(3),
-        '-i', widget.mediaPath,
-        '-vframes', '1',
+        '-threads',
+        '2',
+        '-ss',
+        seconds.toStringAsFixed(3),
+        '-i',
+        widget.mediaPath,
+        '-vframes',
+        '1',
         '-an',
-        '-vf', 'scale=160:-1',
-        '-q:v', '8',
-        '-f', 'image2pipe',
-        '-vcodec', 'mjpeg',
-        '-loglevel', 'error',
-        '-y', 'pipe:1',
+        '-vf',
+        'scale=160:-1',
+        '-q:v',
+        '8',
+        '-f',
+        'image2pipe',
+        '-vcodec',
+        'mjpeg',
+        '-loglevel',
+        'error',
+        '-y',
+        'pipe:1',
       ]);
 
       _activeProcess = process;
@@ -155,7 +166,9 @@ class _HoverPreviewState extends State<HoverPreview> {
   void _killActiveProcess() {
     final p = _activeProcess;
     _activeProcess = null;
-    try { p?.kill(); } catch (_) {}
+    try {
+      p?.kill();
+    } catch (_) {}
   }
 
   @override
@@ -178,7 +191,9 @@ class _HoverPreviewState extends State<HoverPreview> {
   @override
   Widget build(BuildContext context) {
     final hoverX = widget.hoverXNotifier.value;
-    if (!widget.isVisible || hoverX == null || widget.totalDuration <= Duration.zero) {
+    if (!widget.isVisible ||
+        hoverX == null ||
+        widget.totalDuration <= Duration.zero) {
       return const SizedBox.shrink();
     }
 
@@ -186,7 +201,10 @@ class _HoverPreviewState extends State<HoverPreview> {
     final hoverTimestamp = Duration(
       milliseconds: (fraction * widget.totalDuration.inMilliseconds).toInt(),
     );
-    final maxLeft = (widget.sliderWidth - _thumbWidth).clamp(0.0, double.infinity);
+    final maxLeft = (widget.sliderWidth - _thumbWidth).clamp(
+      0.0,
+      double.infinity,
+    );
     final left = (hoverX - _thumbWidth / 2).clamp(0.0, maxLeft);
 
     return Transform.translate(
@@ -202,25 +220,57 @@ class _HoverPreviewState extends State<HoverPreview> {
               decoration: BoxDecoration(
                 color: const Color(0xE0181818),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.12), width: 0.5),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.12),
+                  width: 0.5,
+                ),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 12, offset: const Offset(0, 4)),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.6),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: _thumbnailBytes != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(11.5),
-                      child: Image.memory(_thumbnailBytes!, width: _thumbWidth, height: _thumbHeight, fit: BoxFit.cover, gaplessPlayback: true),
+                      child: Image.memory(
+                        _thumbnailBytes!,
+                        width: _thumbWidth,
+                        height: _thumbHeight,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                      ),
                     )
                   : const Center(
-                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white24))),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white24,
+                          ),
+                        ),
+                      ),
                     ),
             ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: const Color(0xD0101010), borderRadius: BorderRadius.circular(6)),
-              child: Text(_formatTimestamp(hoverTimestamp), style: GoogleFonts.manrope(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+              decoration: BoxDecoration(
+                color: const Color(0xD0101010),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _formatTimestamp(hoverTimestamp),
+                style: GoogleFonts.manrope(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),

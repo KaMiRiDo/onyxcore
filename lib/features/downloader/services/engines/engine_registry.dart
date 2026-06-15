@@ -88,7 +88,10 @@ class EngineRegistry {
   /// 1. Pattern matchers (highest priority first)
   /// 2. Non-matchers (highest priority first)
   /// If [preference] is specific, returns only that engine.
-  static List<DownloadEngine> resolveEngineSequence(String url, String preference) {
+  static List<DownloadEngine> resolveEngineSequence(
+    String url,
+    String preference,
+  ) {
     if (preference != 'auto') {
       final specific = findById(preference);
       if (specific != null) return [specific];
@@ -96,8 +99,10 @@ class EngineRegistry {
     }
 
     final installed = _engines.where((e) => e.isInstalled).toList();
-    
-    final matching = installed.where((e) => e.urlPatterns.any((p) => p.hasMatch(url))).toList();
+
+    final matching = installed
+        .where((e) => e.urlPatterns.any((p) => p.hasMatch(url)))
+        .toList();
     matching.sort((a, b) => b.priority.compareTo(a.priority));
 
     final others = installed.where((e) => !matching.contains(e)).toList();
