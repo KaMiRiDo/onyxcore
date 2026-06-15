@@ -74,7 +74,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     _player = globalAudioPlayer;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
 
       // Reset states for fresh open
       ref.read(audioSearchQueryProvider.notifier).state = '';
@@ -753,6 +753,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       },
       child: GestureDetector(
         onTap: () {
+          if (!mounted || !context.mounted) return;
           _focusNode.requestFocus();
           final selection = ref.read(audioSelectionProvider);
           if (selection.isNotEmpty) {
@@ -790,6 +791,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                             child: GestureDetector(
                               behavior: HitTestBehavior.translucent,
                               onPanStart: (_) {
+                                if (!mounted || !context.mounted) return;
                                 ref
                                         .read(
                                           isAudioPlaylistSidebarDraggingProvider
@@ -799,6 +801,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                                     true;
                               },
                               onPanUpdate: (details) {
+                                if (!mounted || !context.mounted) return;
                                 double newWidth = details.globalPosition.dx;
                                 newWidth = newWidth.clamp(minWidth, maxWidth);
                                 ref
@@ -810,22 +813,26 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                                     newWidth;
                               },
                               onPanEnd: (_) {
-                                ref
-                                        .read(
-                                          isAudioPlaylistSidebarDraggingProvider
-                                              .notifier,
-                                        )
-                                        .state =
-                                    false;
+                                try {
+                                  ref
+                                          .read(
+                                            isAudioPlaylistSidebarDraggingProvider
+                                                .notifier,
+                                          )
+                                          .state =
+                                      false;
+                                } catch (_) {}
                               },
                               onPanCancel: () {
-                                ref
-                                        .read(
-                                          isAudioPlaylistSidebarDraggingProvider
-                                              .notifier,
-                                        )
-                                        .state =
-                                    false;
+                                try {
+                                  ref
+                                          .read(
+                                            isAudioPlaylistSidebarDraggingProvider
+                                                .notifier,
+                                          )
+                                          .state =
+                                      false;
+                                } catch (_) {}
                               },
                             ),
                           ),

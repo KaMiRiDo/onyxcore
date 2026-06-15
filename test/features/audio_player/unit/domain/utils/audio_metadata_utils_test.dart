@@ -1,3 +1,6 @@
+
+import 'package:hive/hive.dart' as import_hive;
+import 'dart:io' as import_io;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -61,6 +64,12 @@ Uint8List _createMinimalWav({int durationMs = 1000, int sampleRate = 44100}) {
 }
 
 void main() {
+  setUpAll(() {
+    try {
+      import_hive.Hive.init(import_io.Directory.systemTemp.path);
+    } catch (_) {}
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   // prepareCoverArt
   // ═══════════════════════════════════════════════════════════════════════════

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:audiotags/audiotags.dart';
@@ -215,6 +216,7 @@ class _AutoScrollingTextState extends State<AutoScrollingText>
   final ScrollController _scrollController = ScrollController();
   Ticker? _ticker;
   double _offset = 0.0;
+  Timer? _delayTimer;
 
   void _initTicker() {
     _ticker ??= createTicker((elapsed) {
@@ -230,7 +232,7 @@ class _AutoScrollingTextState extends State<AutoScrollingText>
     super.initState();
     _initTicker();
     // Add a slight delay before starting to scroll
-    Future.delayed(const Duration(seconds: 2), () {
+    _delayTimer = Timer(const Duration(seconds: 2), () {
       if (mounted && _ticker != null && !_ticker!.isActive) {
         _ticker!.start();
       }
@@ -247,7 +249,8 @@ class _AutoScrollingTextState extends State<AutoScrollingText>
         _scrollController.jumpTo(0.0);
       }
       _ticker?.stop();
-      Future.delayed(const Duration(seconds: 2), () {
+      _delayTimer?.cancel();
+      _delayTimer = Timer(const Duration(seconds: 2), () {
         if (mounted && _ticker != null && !_ticker!.isActive) {
           _ticker!.start();
         }
@@ -257,6 +260,7 @@ class _AutoScrollingTextState extends State<AutoScrollingText>
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _ticker?.dispose();
     _scrollController.dispose();
     super.dispose();

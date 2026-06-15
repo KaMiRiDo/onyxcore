@@ -1,3 +1,6 @@
+
+import 'package:hive/hive.dart' as import_hive;
+import 'dart:io' as import_io;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -89,6 +92,12 @@ String createTestFile({String name = 'test_song.mp3', int sizeBytes = 5000}) {
 }
 
 void main() {
+  setUpAll(() {
+    try {
+      import_hive.Hive.init(import_io.Directory.systemTemp.path);
+    } catch (_) {}
+  });
+
   // Prevent GoogleFonts from trying to fetch fonts over the network.
   GoogleFonts.config.allowRuntimeFetching = false;
 

@@ -1,0 +1,110 @@
+
+import 'package:hive/hive.dart' as import_hive;
+import 'dart:io' as import_io;
+import 'dart:typed_data';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
+import 'package:image/image.dart' as img;
+import 'package:audiotags/audiotags.dart';
+
+void main() {
+  setUpAll(() {
+    try {
+      import_hive.Hive.init(import_io.Directory.systemTemp.path);
+    } catch (_) {}
+  });
+
+  group('AudioMetadataUtils', () {
+    group('readTags & writeTags', () {
+      test('readTags returns null when file does not exist (U-AUD-META-03)', () async {
+        final tag = await AudioMetadataUtils.readTags('/non/existent/path.mp3');
+        expect(tag, isNull);
+      });
+
+      test('writeTags returns false when file does not exist (U-AUD-META-06)', () async {
+        final result = await AudioMetadataUtils.writeTags(
+          '/non/existent/path.mp3',
+          Tag(title: 'Test', pictures: []),
+        );
+        expect(result, isFalse);
+      });
+    });
+
+    group('prepareCoverArt', () {
+      test('crop landscape image to square before resizing (U-AUD-META-09)', () {
+        // Create 1200x600 image
+        final image = img.Image(width: 1200, height: 600);
+        img.fill(image, color: img.ColorRgb8(255, 0, 0));
+        final bytes = Uint8List.fromList(img.encodePng(image));
+
+        final result = AudioMetadataUtils.prepareCoverArt(bytes);
+        
+        expect(result, isNotNull);
+        final resultImage = img.decodeImage(result!);
+        expect(resultImage, isNotNull);
+        expect(resultImage!.width, equals(600));
+        expect(resultImage.height, equals(600));
+      });
+
+      test('crop portrait image to square before resizing (U-AUD-META-10)', () {
+        // Create 600x1200 image
+        final image = img.Image(width: 600, height: 1200);
+        img.fill(image, color: img.ColorRgb8(0, 255, 0));
+        final bytes = Uint8List.fromList(img.encodePng(image));
+
+        final result = AudioMetadataUtils.prepareCoverArt(bytes);
+        
+        expect(result, isNotNull);
+        final resultImage = img.decodeImage(result!);
+        expect(resultImage, isNotNull);
+        expect(resultImage!.width, equals(600));
+        expect(resultImage.height, equals(600));
+      });
+
+      test('respect custom targetSize parameter (U-AUD-META-11)', () {
+        final image = img.Image(width: 1200, height: 1200);
+        final bytes = Uint8List.fromList(img.encodePng(image));
+
+        final result = AudioMetadataUtils.prepareCoverArt(bytes, targetSize: 300);
+        
+        expect(result, isNotNull);
+        final resultImage = img.decodeImage(result!);
+        expect(resultImage!.width, equals(300));
+        expect(resultImage.height, equals(300));
+      });
+
+      test('return null for invalid/corrupt image bytes (U-AUD-META-12)', () {
+        final bytes = Uint8List.fromList([1, 2, 3, 4, 5]);
+        final result = AudioMetadataUtils.prepareCoverArt(bytes);
+        expect(result, isNull);
+      });
+
+      test('return null for empty byte array (U-AUD-META-13)', () {
+        final bytes = Uint8List.fromList([]);
+        final result = AudioMetadataUtils.prepareCoverArt(bytes);
+        expect(result, isNull);
+      });
+    });
+
+    group('getProperties & AudioProperties', () {
+      test('return "Unknown" fields when ffprobe fails on missing file (U-AUD-META-18)', () async {
+        final props = await AudioMetadataUtils.getProperties('/invalid/path.mp3');
+        expect(props.duration, 'Unknown');
+        expect(props.bitrate, 'Unknown');
+        expect(props.sampleRate, 'Unknown');
+      });
+
+      test('AudioProperties store fields correctly (U-AUD-META-29)', () {
+        final props = AudioProperties(
+          duration: '03:45',
+          bitrate: '320 kbps',
+          sampleRate: '44100 Hz',
+        );
+
+        expect(props.duration, '03:45');
+        expect(props.bitrate, '320 kbps');
+        expect(props.sampleRate, '44100 Hz');
+      });
+    });
+  });
+}

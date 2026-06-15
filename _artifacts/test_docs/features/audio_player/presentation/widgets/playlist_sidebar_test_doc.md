@@ -60,3 +60,4 @@ N/A - UI and Integration Logic
 | W-AUD-SIDE-52 | playlist_sidebar.dart | PlaylistSidebar | dispose directory watcher subscription on unmount | Mount and unmount sidebar | Unmount widget | verify directory watcher stream subscription cancelled |
 | W-AUD-SIDE-53 | playlist_sidebar.dart | PlaylistSidebar | auto-select right-clicked file if not already in selection | File at index 2 not in selection | Right-click file 2 | verify file 2 added to selection, then context menu shown |
 | W-AUD-SIDE-54 | playlist_sidebar.dart | PlaylistSidebar | preserve existing multi-selection on right-click of selected item | Files 1, 2, 3 selected | Right-click file 2 | verify all 3 remain selected, context menu shown |
+| W-AUD-SIDE-55 | playlist_sidebar.dart | _TrackTile | use TooltipIfTruncated for item titles | Render tile with very long name | Hover over title | verify TooltipIfTruncated is used and handles long text |

@@ -9,6 +9,7 @@ class MediaUriHelper {
     if (_localProxy != null) return;
     try {
       _localProxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      _localProxy!.idleTimeout = null;
       _localProxy!.listen((HttpRequest request) async {
         final targetPath = _proxyMap[request.uri.path];
         if (targetPath != null) {

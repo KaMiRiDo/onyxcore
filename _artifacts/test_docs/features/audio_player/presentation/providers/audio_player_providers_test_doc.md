@@ -60,6 +60,9 @@
 | U-AUD-PROV-55 | audio_player_providers.dart | audioSortOptionProvider | default to null | Create fresh provider | Read audioSortOptionProvider | Returns null |
 | U-AUD-PROV-56 | audio_player_providers.dart | audioSearchQueryProvider | default to empty string | Create fresh provider | Read audioSearchQueryProvider | Returns '' |
 | U-AUD-PROV-57 | audio_player_providers.dart | globalAudioPlayer | be a non-null Player instance | Access globalAudioPlayer | Read globalAudioPlayer | Is not null, is a Player instance |
+| U-AUD-PROV-58 | audio_player_providers.dart | audioPlaylistSidebarVisibleProvider | default to true | Create fresh provider | Read audioPlaylistSidebarVisibleProvider | Returns true |
+| U-AUD-PROV-59 | audio_player_providers.dart | audioPlaylistSidebarWidthProvider | default to 0.25 | Create fresh provider | Read audioPlaylistSidebarWidthProvider | Returns 0.25 |
+| U-AUD-PROV-60 | audio_player_providers.dart | isAudioPlaylistSidebarDraggingProvider | default to false | Create fresh provider | Read isAudioPlaylistSidebarDraggingProvider | Returns false |
 
 ### 2. Widget Test Plan Format
 N/A - Pure Logic

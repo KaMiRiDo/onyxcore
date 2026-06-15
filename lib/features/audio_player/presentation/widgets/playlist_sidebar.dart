@@ -450,6 +450,8 @@ class _PlaylistSidebarState extends ConsumerState<PlaylistSidebar> {
             ref.read(audioSelectionAnchorProvider.notifier).state = null;
           }
         },
+        onDoubleTap: () {}, // Prevent stealing taps from inner GestureDetector
+
         behavior: HitTestBehavior.translucent,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
