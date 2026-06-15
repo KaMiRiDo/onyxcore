@@ -311,54 +311,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   void initState() {
     super.initState();
     _urlController = TextEditingController();
-    KeyEventResult handlePanelShortcuts(FocusNode node, KeyEvent event) {
-      if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
-        if (event.logicalKey == LogicalKeyboardKey.keyD) {
-          final dOpen = ref.read(downloadsPanelOpenProvider);
-          if (!dOpen) {
-            ref.read(downloadsPanelOpenProvider.notifier).state = true;
-            ref.read(backgroundPanelOpenProvider.notifier).state = false;
-            ref.read(downloadsPanelViewProvider.notifier).state =
-                DownloadsPanelView.tasks;
-            ref.read(downloadUrlFocusRequestProvider.notifier).state++;
-          } else {
-            final isFocused = ref.read(isDownloadInputFocusedProvider);
-            if (!isFocused) {
-              ref.read(downloadsPanelViewProvider.notifier).state =
-                  DownloadsPanelView.tasks;
-              ref.read(downloadUrlFocusRequestProvider.notifier).state++;
-            } else {
-              ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            }
-          }
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.keyB) {
-          final bOpen = ref.read(backgroundPanelOpenProvider);
-          ref.read(backgroundPanelOpenProvider.notifier).state = !bOpen;
-          if (!bOpen) {
-            ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            ref.read(backgroundPanelViewProvider.notifier).state =
-                BackgroundPanelView.tasks;
-          }
-          return KeyEventResult.handled;
-        }
-      }
-      return KeyEventResult.ignored;
-    }
-
-    _urlFocusNode = FocusNode(onKeyEvent: handlePanelShortcuts)
+    _urlFocusNode = FocusNode()
       ..addListener(() {
         ref.read(isDownloadInputFocusedProvider.notifier).state =
             _urlFocusNode.hasFocus;
         setState(() {});
       });
 
-    _listFocusNode = FocusNode(onKeyEvent: handlePanelShortcuts)
-      ..addListener(() {
-        ref.read(isDownloadsPanelFocusedProvider.notifier).state =
-            _listFocusNode.hasFocus;
-      });
+    _listFocusNode = FocusNode();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _checkBinaries();
     _gradientController = AnimationController(
@@ -393,10 +353,15 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     });
   }
 
-  void _checkBinaries() {
-    setState(() {
-      _binariesExist = EngineRegistry.requiredInstalled;
-    });
+  Future<void> _checkBinaries() async {
+    final exist = await Future.microtask(
+      () => EngineRegistry.requiredInstalled,
+    );
+    if (mounted) {
+      setState(() {
+        _binariesExist = exist;
+      });
+    }
   }
 
   bool _handleKeyEvent(KeyEvent event) {
@@ -727,7 +692,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               for (final vid in group.items) {
                 if (vid.isVideo) {
                   final sortedFormats = vid.formats.toList()
-                    ..sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+                    ..sort(
+                      (a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0),
+                    );
                   for (final f in sortedFormats) {
                     if (!formatSet.containsKey(f.resolution)) {
                       formatSet[f.resolution] = f;
@@ -986,7 +953,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         int expectedBytes = isHydrating
             ? 0
             : _getGroupBytes(
-                MediaGroup(originalUrl: group.originalUrl, items: itemsToDownload),
+                MediaGroup(
+                  originalUrl: group.originalUrl,
+                  items: itemsToDownload,
+                ),
                 config,
               );
 
@@ -1816,7 +1786,11 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     ref.listen<int>(downloadUrlFocusRequestProvider, (_, __) {
       if (mounted && _urlFocusNode.canRequestFocus) {
         if (ref.read(downloadsPanelViewProvider) == DownloadsPanelView.tasks) {
-          _urlFocusNode.requestFocus();
+          Future.microtask(() {
+            if (mounted && _urlFocusNode.canRequestFocus) {
+              _urlFocusNode.requestFocus();
+            }
+          });
         }
       }
     });
@@ -1824,34 +1798,17 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     ref.listen<DownloadsPanelView>(downloadsPanelViewProvider, (_, next) {
       if (next == DownloadsPanelView.tasks) {
         if (mounted && _urlFocusNode.canRequestFocus) {
-          _urlFocusNode.requestFocus();
+          Future.microtask(() {
+            if (mounted && _urlFocusNode.canRequestFocus) {
+              _urlFocusNode.requestFocus();
+            }
+          });
         }
       }
     });
 
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyD, control: true): () {
-          final dOpen = ref.read(downloadsPanelOpenProvider);
-          if (!dOpen) {
-            ref.read(downloadsPanelOpenProvider.notifier).state = true;
-            ref.read(backgroundPanelOpenProvider.notifier).state = false;
-            ref.read(downloadsPanelViewProvider.notifier).state =
-                DownloadsPanelView.tasks;
-            ref.read(downloadUrlFocusRequestProvider.notifier).state++;
-          } else {
-            ref.read(downloadsPanelOpenProvider.notifier).state = false;
-          }
-        },
-        const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
-          final bOpen = ref.read(backgroundPanelOpenProvider);
-          ref.read(backgroundPanelOpenProvider.notifier).state = !bOpen;
-          if (!bOpen) {
-            ref.read(downloadsPanelOpenProvider.notifier).state = false;
-            ref.read(backgroundPanelViewProvider.notifier).state =
-                BackgroundPanelView.tasks;
-          }
-        },
         const SingleActivator(
           LogicalKeyboardKey.keyS,
           control: true,
@@ -1984,140 +1941,126 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       },
       child: Container(
         color: Colors.transparent,
-        child: TapRegion(
-          onTapOutside: (_) {
-            _listFocusNode.unfocus();
-          },
-          child: Focus(
-            autofocus: false,
-            descendantsAreFocusable: true,
-            child: Listener(
-              onPointerDown: (_) {
-                if (_listFocusNode.canRequestFocus)
-                  _listFocusNode.requestFocus();
-              },
-              onPointerSignal: (_) {
-                if (_listFocusNode.canRequestFocus)
-                  _listFocusNode.requestFocus();
-              },
-              child: MouseRegion(
-                onEnter: (_) {
-                  if (_listFocusNode.canRequestFocus)
-                    _listFocusNode.requestFocus();
+        child: Focus(
+          focusNode: _listFocusNode,
+          autofocus: false,
+          descendantsAreFocusable: true,
+          child: Listener(
+            onPointerDown: (_) {
+              if (_listFocusNode.canRequestFocus) _listFocusNode.requestFocus();
+            },
+            child: MouseRegion(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () {
+                  setState(() {
+                    _selectedIndices.clear();
+                    _anchorIndex = -1;
+                    _previewItem = null;
+                  });
                 },
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onTap: () {
-                    setState(() {
-                      _selectedIndices.clear();
-                      _anchorIndex = -1;
-                      _previewItem = null;
-                    });
-                  },
-                  child: Stack(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const DownloadsHeader(),
-                          const Divider(color: Colors.white10, height: 1),
-                          Expanded(
-                            child: !_binariesExist
-                                ? DownloadsMissingBinariesView(
-                                    onCheckBinaries: _checkBinaries,
-                                  )
-                                : Column(
-                                    children: [
-                                      _buildInputView(),
-                                      const Divider(
-                                        color: Colors.white10,
-                                        height: 1,
-                                      ),
-                                      Expanded(
-                                        child: Container(
-                                          color: Colors.black.withOpacity(
-                                            0.2,
-                                          ), // Differentiate the results section
-                                          child: _buildResultsView(),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        ],
-                      ),
-                      if (_previewItem != null)
-                        (_previewItem!.isSingle &&
-                                !_previewItem!.first.isProfile)
-                            ? _buildSinglePreviewOverlay()
-                            : _buildGroupPreviewOverlay(),
-
-                      if (_showUnsavedConfirmation)
-                        _buildUnsavedConfirmationOverlay(),
-
-                      if (_errorLogsMessage != null) _buildErrorLogsOverlay(),
-
-                      // Local Toast Overlay
-                      Positioned(
-                        top: 60,
-                        left: 20,
-                        right: 20,
-                        child: AnimatedSlide(
-                          offset: _showToast
-                              ? Offset.zero
-                              : const Offset(0, -1.5),
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOutBack,
-                          child: AnimatedOpacity(
-                            opacity: _showToast ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 200),
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceBase.withOpacity(
-                                    0.95,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.5),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                child: Stack(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const DownloadsHeader(),
+                        const Divider(color: Colors.white10, height: 1),
+                        Expanded(
+                          child: !_binariesExist
+                              ? DownloadsMissingBinariesView(
+                                  onCheckBinaries: _checkBinaries,
+                                )
+                              : Column(
                                   children: [
-                                    const Icon(
-                                      Icons.info_outline,
-                                      color: AppColors.violet,
-                                      size: 18,
+                                    _buildInputView(),
+                                    const Divider(
+                                      color: Colors.white10,
+                                      height: 1,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      _toastMessage ?? '',
-                                      style: GoogleFonts.manrope(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
+                                    Expanded(
+                                      child: Container(
+                                        color: Colors.black.withOpacity(
+                                          0.2,
+                                        ), // Differentiate the results section
+                                        child: _buildResultsView(),
                                       ),
                                     ),
                                   ],
                                 ),
+                        ),
+                      ],
+                    ),
+                    if (_previewItem != null)
+                      (_previewItem!.isSingle && !_previewItem!.first.isProfile)
+                          ? _buildSinglePreviewOverlay()
+                          : _buildGroupPreviewOverlay(),
+
+                    if (_showUnsavedConfirmation)
+                      _buildUnsavedConfirmationOverlay(),
+
+                    if (_errorLogsMessage != null) _buildErrorLogsOverlay(),
+
+                    // Local Toast Overlay
+                    Positioned(
+                      top: 60,
+                      left: 20,
+                      right: 20,
+                      child: AnimatedSlide(
+                        offset: _showToast
+                            ? Offset.zero
+                            : const Offset(0, -1.5),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                        child: AnimatedOpacity(
+                          opacity: _showToast ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceBase.withOpacity(
+                                  0.95,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.5),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.info_outline,
+                                    color: AppColors.violet,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _toastMessage ?? '',
+                                    style: GoogleFonts.manrope(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),

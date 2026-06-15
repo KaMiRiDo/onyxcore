@@ -679,6 +679,9 @@ class GalleryDlEngine extends DownloadEngine {
               String? itemUrl;
               if (sharedMeta['shortcode'] != null) {
                 itemUrl = 'https://www.instagram.com/p/${sharedMeta['shortcode']}/';
+                if (!isSocialProfile && fileCount > 0) {
+                  itemUrl += '?img_index=$fileCount';
+                }
               } else if (sharedMeta['tweet_id'] != null) {
                 final author = (sharedMeta['user'] is Map ? sharedMeta['user']['screen_name'] : null) ?? 
                                (sharedMeta['author'] is Map ? sharedMeta['author']['name'] : null) ?? 

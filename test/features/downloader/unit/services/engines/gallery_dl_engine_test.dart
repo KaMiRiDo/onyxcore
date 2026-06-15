@@ -226,6 +226,25 @@ void main() {
         expect(infos.first.formats.first.formatString, 'http://vid.com/1.mp4');
         expect(infos.first.isVideo, isTrue);
       });
+
+      test('U-DL-GAL-17: Instagram grouped post individual URL with img_index', () async {
+        final block = jsonEncode([
+          [
+            3,
+            {"shortcode": "test1234", "url": "http://img.com/1.jpg"},
+            "http://img.com/1.jpg"
+          ],
+          [
+            3,
+            {"shortcode": "test1234", "url": "http://img.com/2.jpg"},
+            "http://img.com/2.jpg"
+          ]
+        ]);
+        final infos = await engine.parseGalleryDlJsonBlock(block, 'https://www.instagram.com/p/test1234', false, null, 0, false);
+        expect(infos.length, 2);
+        expect(infos[0].webpageUrl, 'https://www.instagram.com/p/test1234/?img_index=1');
+        expect(infos[1].webpageUrl, 'https://www.instagram.com/p/test1234/?img_index=2');
+      });
     });
   });
 }

@@ -160,3 +160,80 @@ class MockYtDlpEngine extends DownloadEngine {
     throw UnimplementedError();
   }
 }
+
+class MockGroupedEngine extends DownloadEngine {
+  @override
+  String get id => 'mock-grouped';
+  @override
+  String get name => 'mock-grouped';
+  @override
+  String get binaryName => 'mock-grouped';
+  @override
+  bool get isInstalled => true;
+  @override
+  int get priority => 10;
+  @override
+  List<RegExp> get urlPatterns => [];
+  @override
+  String? get binaryPath => null;
+  @override
+  Color get color => const Color(0xFF000000);
+  @override
+  String get displayName => 'Mock Grouped';
+  @override
+  EngineType get engineType => EngineType.cli;
+  @override
+  IconData get icon => Icons.video_library;
+  @override
+  EngineUpdateInfo? get updateInfo => null;
+
+  @override
+  Future<List<MediaInfo>> fetchMetadata({
+    required String url,
+    String? browser,
+    bool fetchDeep = false,
+    bool isPlaylist = false,
+    void Function(MediaInfo info)? onProgress,
+    void Function(int pid)? onProcessStarted,
+  }) async {
+    return [
+      MediaInfo(
+        id: 'img1',
+        title: 'Grouped Post',
+        originalUrl: url,
+        webpageUrl: 'https://instagram.com/p/individual_1/',
+        isVideo: false,
+        filesize: 512000,
+      ),
+      MediaInfo(
+        id: 'img2',
+        title: 'Grouped Post',
+        originalUrl: url,
+        webpageUrl: 'https://instagram.com/p/individual_2/',
+        isVideo: false,
+        filesize: 512000,
+      ),
+    ];
+  }
+
+  @override
+  Future<Process> startDownload({
+    required String url,
+    required String destination,
+    String? title,
+    MediaFormat? format,
+    bool audioOnly = false,
+    bool mute = false,
+    int? galleryIndex,
+    bool isPlaylist = false,
+    bool isProfile = false,
+    String? browser,
+    bool isZip = false,
+    String? filterType,
+    int? totalItems,
+    String? singleItemId,
+    String? directUrl,
+  }) async {
+    throw UnimplementedError();
+  }
+}

@@ -8,6 +8,7 @@ import 'package:onyxcore/features/downloader/presentation/providers/download_tas
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_components.dart';
 
 import 'mock_providers.dart';
 
@@ -109,6 +110,40 @@ void main() {
         of: find.byType(BackdropFilter),
         matching: find.byIcon(Icons.close)
       ), findsNothing);
+    });
+
+    testWidgets('W-DL-PRE-02: Copy URL on group item gives individual post URL', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(MockGroupedEngine());
+      
+      await tester.pumpWidget(createTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      final urlField = find.byType(TextField);
+      await tester.tap(urlField);
+      await tester.enterText(urlField, 'https://instagram.com/p/group123/');
+      await tester.pump();
+
+      final fetchButton = find.widgetWithText(ElevatedButton, 'Fetch');
+      await tester.tap(fetchButton);
+      await tester.pump();
+
+      for (int i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      // Open group preview
+      final fallbackThumb = find.byIcon(Icons.broken_image);
+      await tester.tap(fallbackThumb.first);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Verify CopyUrlButton gives individual post url
+      final copyUrlButtons = tester.widgetList<CopyUrlButton>(find.byType(CopyUrlButton));
+      final overlayCopyBtn = copyUrlButtons.last;
+      expect(overlayCopyBtn.url, 'https://instagram.com/p/individual_1/');
     });
   });
 }

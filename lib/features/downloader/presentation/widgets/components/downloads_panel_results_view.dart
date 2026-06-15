@@ -511,28 +511,24 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                   Container(color: Colors.transparent),
                   displayItems.isEmpty
                       ? const DownloadsEmptyState()
-                      : Focus(
-                          focusNode: _listFocusNode,
-                          autofocus: false,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
-                            ),
-                            itemCount: displayItems.length,
-                            itemBuilder: (context, listIndex) {
-                              final entry = displayItems[listIndex];
-                              final index = entry.key;
-                              final item = entry.value;
-                              final key = _itemKeys.putIfAbsent(
-                                index,
-                                () => GlobalKey(),
-                              );
-
-                              Widget tile = _buildMediaTile(index, item);
-                              return Container(key: key, child: tile);
-                            },
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
                           ),
+                          itemCount: displayItems.length,
+                          itemBuilder: (context, listIndex) {
+                            final entry = displayItems[listIndex];
+                            final index = entry.key;
+                            final item = entry.value;
+                            final key = _itemKeys.putIfAbsent(
+                              index,
+                              () => GlobalKey(),
+                            );
+
+                            Widget tile = _buildMediaTile(index, item);
+                            return Container(key: key, child: tile);
+                          },
                         ),
                   if (_isDraggingFile)
                     IgnorePointer(

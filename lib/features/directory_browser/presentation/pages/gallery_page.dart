@@ -369,11 +369,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
                                             child: Listener(
                                               onPointerDown: (_) =>
                                                   _focusNode.requestFocus(),
-                                              onPointerSignal: (_) =>
-                                                  _focusNode.requestFocus(),
                                               child: MouseRegion(
-                                                onEnter: (_) =>
-                                                    _focusNode.requestFocus(),
                                                 child: GestureDetector(
                                                   behavior:
                                                       HitTestBehavior.opaque,

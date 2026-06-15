@@ -50,6 +50,7 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `streamlink` (CLI) | system | Live stream capture engine |
 | | `lux` (CLI) | system | High-speed video downloader (Bilibili, etc.) |
 | | `aria2` (CLI) | bundled | Multi-connection download accelerator |
+| | `7z` (CLI) | system | Archive extraction and compression (p7zip-full) |
 
 ---
 
@@ -181,6 +182,10 @@ onyxcore/
 │   │       ├── window_controller_extension.dart# Engine-aware controller
 │   │       └── window_params.dart              # IPC payload model
 │   └── features/
+│       ├── archive_manager/
+│       │   ├── presentation/                  # Archive dialogs and UI
+│       │   └── services/
+│       │       └── archive_service.dart       # 7z compression/extraction engine
 │       ├── directory_browser/
 │       │   ├── data/
 │       │   │   ├── datasources/
@@ -382,6 +387,7 @@ onyxcore/
 - **Breadcrumb bar** with clickable path segments and gradient separators
 - Breadcrumb auto-scrolls to end on directory change (300ms `easeOut` animation)
 - **Click-to-edit location bar** — tap breadcrumb to type a raw path, with validation & error toast (auto-dismisses after 2s)
+- **Breadcrumb Auto-Fallback** — automatically falls back to the parent directory if an invalid file path is entered
 - **Location bar full-text selection** — on activation, the entire path text is pre-selected for quick overwrite
 - Context-aware root icon (Home, Storage, Trash, Recent, Starred)
 - **Back/Forward history** via `NavigationNotifier` per-tab
@@ -391,7 +397,9 @@ onyxcore/
 - **Breadcrumb device-aware rendering**: Breadcrumbs dynamically resolve external device mount paths, matching the longest device path first, and display the device name as the root segment.
 - **Breadcrumb preview file segment**: When a file is previewed inline, the filename is appended as a non-clickable gradient breadcrumb segment (max 32 chars, middle-truncated).
 - **Sidebar** with quick-access: Home, Desktop, Documents, Music, Pictures, Videos, Downloads, Recent, Trash
-- Sidebar **Devices section**: auto-detects block devices via `lsblk --json`, auto-mount via `udisksctl`
+- Sidebar **Devices section**: auto-detects block devices via `lsblk --json` and native MTP mobile devices (smartphones) via GVFS, enabling full file transfer capabilities
+- **Safe Ejection & Polling**: Uses `gio mount -u` for safe, OS-native ejection of mobile devices without hardware power-off errors. Storage polling optimized to a near-instant 1-second refresh rate
+- **Custom-themed tooltips** to reveal the full names of truncated files and folders in the sidebar
 - Sidebar **Cloud Storage** placeholder section
 - Sidebar **Storage indicator** showing disk usage
 - Sidebar **Overview button**
@@ -455,7 +463,7 @@ onyxcore/
 - **Rename (Bulk)**: Prefix/index modes via modal dialog.
 - **Rename task tracking**: Both single and bulk renames create lightweight background tasks (`isLight: true`) with per-item logging
 - **Key Lifecycle Management**: Uses a lazy-registry pattern for widget keys. Keys are tagged with path-specific `debugLabel`s (e.g., `item_card_/path/to/file`) to prevent collisions. Stale keys in the registry are handled safely via `currentContext` null-checks in `GalleryPage`, avoiding risky provider updates during the widget deactivation phase.
-- **Create New Folder / Document** via `CreateItemDialog` — premium glassmorphic dialog with type toggle (folder/document), name validation (invalid characters, duplicate names), gradient radio buttons with animated transitions, and arrow-key type switching
+- **Create New Folder / Document** via `CreateItemDialog` — premium glassmorphic dialog with type toggle (aligned into a single horizontal row for Folder and Document selection), name validation (invalid characters, duplicate names), gradient radio buttons with animated transitions, and arrow-key type switching
 - **Isolate-based file copy** with manual buffer flushing, progress reporting via SendPort
 - **Conflict resolution** — queue-based with Completer, user dialog for skip/overwrite/rename; auto-rename appends `(1)`, `(2)` etc. with collision loop
 - **Global conflict resolution**: `ConflictProvider` supports a "remember my choice" global resolution that applies to all remaining items in a batch
@@ -961,15 +969,18 @@ onyxcore/
 
 ### 5. Document Viewer (Markdown)
 
-#### 5.1 Preview Mode
+#### 5.1 Preview & Markdown Engine
 - Full markdown rendering via `flutter_markdown`
 - Custom `MarkdownStyleSheet` with Onyx dark theme
+- **Offline Mermaid Rendering** (`mermaid_offline_renderer.dart`)
 - Styled: headings, paragraphs, code (inline + block), blockquotes, lists, horizontal rules
 - `←`/`→` to navigate between documents
 
-#### 5.2 Standalone Mode
-- **Edit/Preview toggle** — switch between rendered markdown and raw text editor
+#### 5.2 Editing & Standalone Mode
+- **Edit/Preview Toggle & Dual Pane** — switch between rendered markdown and raw text editor, or view both side-by-side in a responsive dual-pane layout (`_isDualPane`) with a draggable divider (`Ctrl + \`)
+- **Syntax Highlighting & Line Numbers** — Editor features live markdown syntax highlighting (`MarkdownSyntaxHighlighter`) and custom line numbers rendering (`LineNumbersPainter`)
 - Editor uses **JetBrains Mono** font with dark theme
+- **Search & Replace Overlay** (`SearchIntent`) with support for regex and case-sensitive queries
 - **Save** functionality with change detection (cyan highlight when unsaved)
 - **Custom code block builder** (`CodeElementBuilder`):
   - Language label header
@@ -1138,6 +1149,7 @@ onyxcore/
   - **Fetch args**: `--dump-json --no-download` with optional `--cookies-from-browser`
   - **Download args**: Output directory (`-d`), `--cookies-from-browser` for authenticated downloads
   - **Progress parsing**: Monitors stdout for file paths (lines starting with `/` or `C:\`) to track downloaded items
+  - **Social Media Grouping**: Implements URL normalization for Instagram carousels (stripping query parameters) to ensure multi-image posts correctly group into a single `MediaGroup` tile instead of duplicating.
 - **`PlaywrightEngine`**: Python script wrapper using Playwright (`pip install playwright`)
   - **Architecture**: Two-phase pipeline (URL Interceptor). Phase A: Headless Chromium navigates to URL, intercepts network requests, filters for `.m3u8`/`.mp4`/`.ts` URLs. Phase B: Passes intercepted URL to FFmpeg (for HLS muxing) or aria2c (direct downloads).
   - **Installation**: User-managed via Settings. Installs Python package and a ~300 MB bundled Chromium binary via `playwright install chromium`.
