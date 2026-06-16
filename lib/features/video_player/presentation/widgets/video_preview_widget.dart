@@ -15,7 +15,8 @@ import 'package:onyxcore/features/video_player/presentation/widgets/video_volume
 import 'package:onyxcore/features/video_player/presentation/widgets/video_speed_overlay.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/track_selector_menu.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/playback_speed_control.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/playlist_overlay.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_playlist_sidebar.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/hover_preview.dart';
 import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
 import 'dart:io';
@@ -86,8 +87,13 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isVolumeOverlayVisible = false;
   bool _isSeekingToInitial = false;
   bool _isClosing = false;
-  bool _isPlaylistVisible = false;
   bool _isAudioMenuVisible = false;
+  // ── Video Playlist Sidebar ──
+  static const double _sidebarMinWidth = 200;
+  static const double _sidebarMaxWidth = 480;
+  static const double _sidebarDefaultWidth = 280;
+  bool _isSidebarDragging = false;
+  double _sidebarWidth = _sidebarDefaultWidth;
   bool _isSubtitleMenuVisible = false;
   bool _isSpeedMenuVisible = false;
   double _playbackSpeed = 1.0;
@@ -166,7 +172,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       _isAudioMenuVisible ||
       _isSubtitleMenuVisible ||
       _isSpeedMenuVisible ||
-      _isPlaylistVisible ||
       _isMarkerMenuVisible;
 
   bool _isGlobalHudVisible = true;
@@ -196,13 +201,52 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   final ValueNotifier<bool> _isPlayingNotifier = ValueNotifier<bool>(false);
   StreamSubscription? _playingSubscription;
 
+  bool _isSidebarDragOutOfBounds = false;
+  double _sidebarDragStartWidth = 0.0;
+  double _sidebarDragStartX = 0.0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+      if (mounted) {
+        _focusNode.requestFocus();
+        
+        final parentPath = p.dirname(widget.item.path);
+        final currentRoot = ref.read(videoRootPathProvider);
+        
+        // Only update root if it's empty or we navigated outside of it.
+        // This prevents the breadcrumb root from resetting when playing a video from a subfolder.
+        if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
+          ref.read(videoRootPathProvider.notifier).state = parentPath;
+          ref.read(videoPathHistoryProvider.notifier).state = [];
+          ref.read(videoPathForwardHistoryProvider.notifier).state = [];
+        }
+        ref.read(videoCurrentPathProvider.notifier).state = parentPath;
+        ref.read(videoSearchQueryProvider.notifier).state = '';
+        ref.read(videoViewModeProvider.notifier).state = VideoViewMode.home;
+        ref.read(videoSelectionProvider.notifier).state = {};
+        ref.read(videoSelectionAnchorProvider.notifier).state = null;
+        
+
+        if (!widget.isStandalone && widget.windowId == null) {
+          try {
+            final parentSort = ref.read(sortSettingsProvider).option;
+            ref.read(videoSortOptionProvider.notifier).state = parentSort;
+          } catch (e) {
+            debugPrint("Could not read sort settings: $e");
+          }
+        }
+      }
     });
     _currentItem = widget.item;
+    
+    // Ensure the provider knows the current item for the sidebar highlighting
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.isStandalone) {
+        ref.read(previewFileProvider.notifier).state = widget.item;
+      }
+    });
     _playbackSpeed = widget.initialRate ?? 1.0;
     _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
 
@@ -217,16 +261,40 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       if (widget.initParams?.containsKey('playlistJson') == true) {
         try {
           final List<dynamic> list = jsonDecode(
-            widget.initParams!['playlistJson'],
-          );
-          _standalonePlaylist = list.map((e) => FileItem.fromJson(e)).toList();
+            widget.initParams!['playlistJson'] as String,
+          ) as List<dynamic>;
+          final currentPath = widget.initParams?['playlistPath'] as String?;
+          _standalonePlaylist = list.map((e) => FileItem.fromJson(e as Map<String, dynamic>)).toList();
+          
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(videoQueueProvider.notifier).state = _standalonePlaylist;
+          });
+
+          if (currentPath != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(videoCurrentPathProvider.notifier).state = currentPath;
+              ref.read(videoRootPathProvider.notifier).state = currentPath;
+            });
+          }
         } catch (e) {
           debugPrint('[VideoPlayer] Error parsing standalone playlist: $e');
         }
       } else {
         _initStandalonePlaylist();
       }
+      
     }
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final initialPath = p.dirname(widget.item.path);
+      if (ref.read(videoCurrentPathProvider).isEmpty) {
+        ref.read(videoCurrentPathProvider.notifier).state = initialPath;
+      }
+      if (ref.read(videoRootPathProvider).isEmpty) {
+        ref.read(videoRootPathProvider.notifier).state = initialPath;
+      }
+    });
+    
     WidgetsBinding.instance.addObserver(this);
 
     _currentItem = widget.item;
@@ -299,7 +367,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             final dynamic platform = player.platform;
             final String? currentHwDec = await platform.getProperty(
               'hwdec-current',
-            );
+            ) as String?;
+
             if (currentHwDec != null &&
                 currentHwDec != 'no' &&
                 currentHwDec.isNotEmpty) {
@@ -498,6 +567,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       _currentItem = item;
       _fps = null;
     });
+    ref.read(previewFileProvider.notifier).state = item;
 
     // 3. Open new media
     setState(() => _isOpening = true);
@@ -843,7 +913,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         _isAudioMenuVisible = false;
         _isSubtitleMenuVisible = false;
         _isSpeedMenuVisible = false;
-        _isPlaylistVisible = false;
+
       });
     }
     _startHideTimer();
@@ -864,7 +934,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       _isAudioMenuVisible = type == 'audio';
       _isSubtitleMenuVisible = type == 'subtitle';
       _isSpeedMenuVisible = type == 'speed';
-      _isPlaylistVisible = type == 'playlist';
+
     });
 
     final RenderBox? renderBox =
@@ -1187,9 +1257,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
 
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.space ||
-          event.logicalKey == LogicalKeyboardKey.shiftLeft ||
-          event.logicalKey == LogicalKeyboardKey.shiftRight) {
+      if (event.logicalKey == LogicalKeyboardKey.space) {
         if (event is KeyDownEvent) player.playOrPause();
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
@@ -1240,6 +1308,14 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             // In preview mode, ensure we keep focus after the HUD state change
             _focusNode.requestFocus();
           }
+        }
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.keyP &&
+          HardwareKeyboard.instance.isControlPressed &&
+          HardwareKeyboard.instance.isShiftPressed) {
+        if (event is KeyDownEvent) {
+          final isOpen = ref.read(videoPlaylistSidebarVisibleProvider);
+          ref.read(videoPlaylistSidebarVisibleProvider.notifier).state = !isOpen;
         }
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyT) {
@@ -1864,81 +1940,157 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         if (didPop) return;
         // Specifically block back navigation in preview mode
       },
-      child: Focus(
-        focusNode: _focusNode,
-        autofocus: true,
-        onFocusChange: (hasFocus) {
-          if (!hasFocus) {
-            _stopFastSeek();
-            _stopVolumeAdjustment();
-          }
-        },
-        onKeyEvent: (node, event) => _handleKeyEvent(event),
-        child: Listener(
-          onPointerSignal: (event) {
-            if (_isMarkerEditorActive) {
-              // Only shake if the event is NOT on the marker editor
-              final RenderBox? box =
-                  _markerEditorKey.currentContext?.findRenderObject()
-                      as RenderBox?;
-              if (box != null) {
-                final Offset local = box.globalToLocal(event.position);
-                if (box.paintBounds.contains(local))
-                  return; // Inside editor, don't shake
-              }
-              _markerEditorKey.currentState?.shake();
-              return;
-            }
-            _handlePointerScroll(event);
-          },
-          onPointerPanZoomUpdate: (event) {
-            if (_isMarkerEditorActive) {
-              // Only shake if the event is NOT on the marker editor
-              final RenderBox? box =
-                  _markerEditorKey.currentContext?.findRenderObject()
-                      as RenderBox?;
-              if (box != null) {
-                final Offset local = box.globalToLocal(event.position);
-                if (box.paintBounds.contains(local))
-                  return; // Inside editor, don't shake
-              }
-              _markerEditorKey.currentState?.shake();
-              return;
-            }
-            _handlePointerPanZoomUpdate(event);
-          },
-          onPointerPanZoomEnd: (event) {
-            if (_isMarkerEditorActive) return;
-            _handlePointerPanZoomEnd(event);
-          },
-          behavior: HitTestBehavior.translucent,
-          child: GestureDetector(
-            onTap: () {
-              _focusNode.requestFocus();
-              _onInteraction();
-            },
-            onDoubleTapDown: (details) {
-              _doubleTapPosition = details.localPosition;
-            },
-            onDoubleTap: () {
-              if (widget.windowId == null && !widget.isStandalone) {
-                _openInNewWindow();
-                return;
-              }
+      child: Consumer(
+        builder: (context, sidebarRef, _) {
+          final isSidebarOpen = sidebarRef.watch(
+            videoPlaylistSidebarVisibleProvider,
+          );
+          
+          final screenWidth = MediaQuery.of(context).size.width;
+          final minWidth = 240.0;
+          final maxWidth = screenWidth * 0.40;
+          double? savedWidth = sidebarRef.watch(videoPlaylistSidebarWidthProvider);
+          double panelWidth = savedWidth ?? (screenWidth * 0.25);
+          panelWidth = panelWidth.clamp(minWidth, maxWidth);
 
-              if (_doubleTapPosition == null) return;
-              final width =
-                  context.size?.width ?? MediaQuery.of(context).size.width;
-              final isForward = _doubleTapPosition!.dx > width / 2;
+          final sidebarWidth =
+              isSidebarOpen ? panelWidth : 0.0;
 
-              _performStepSeek(isForward: isForward);
-            },
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                _playerWidth = constraints.maxWidth;
-                _playerHeight = constraints.maxHeight;
+          return MouseRegion(
+            cursor: (_isSidebarDragging && !_isSidebarDragOutOfBounds) 
+                ? SystemMouseCursors.resizeLeftRight 
+                : MouseCursor.defer,
+            child: Row(
+              children: [
+              // ── Sidebar Panel ───────────────────────────────────────
+              SizedBox(
+                width: sidebarWidth,
+                child: isSidebarOpen
+                    ? VideoPlaylistSidebar(
+                        onVideoSelected: (video) {
+                          if (widget.isStandalone) {
+                            _loadMedia(video);
+                          } else {
+                            ref.read(previewFileProvider.notifier).state =
+                                video;
+                          }
+                        },
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              // ── Resize Handle ───────────────────────────────────────
+              isSidebarOpen ?
+                MouseRegion(
+                  cursor: SystemMouseCursors.resizeLeftRight,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanStart: (details) {
+                      setState(() {
+                        _isSidebarDragging = true;
+                        _isSidebarDragOutOfBounds = false;
+                        _sidebarDragStartWidth = panelWidth;
+                        _sidebarDragStartX = details.globalPosition.dx;
+                      });
+                    },
+                    onPanUpdate: (details) {
+                      final dx = details.globalPosition.dx - _sidebarDragStartX;
+                      double intendedWidth = _sidebarDragStartWidth + dx;
+                      setState(() {
+                        _isSidebarDragOutOfBounds = intendedWidth < minWidth || intendedWidth > maxWidth;
+                      });
+                      double newWidth = intendedWidth.clamp(minWidth, maxWidth);
+                      ref.read(videoPlaylistSidebarWidthProvider.notifier).state = newWidth;
+                    },
+                    onPanEnd: (_) {
+                      setState(() {
+                        _isSidebarDragging = false;
+                        _isSidebarDragOutOfBounds = false;
+                      });
+                    },
+                    child: Container(
+                      width: 6,
+                      color: _isSidebarDragging
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.transparent,
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+              // ── Video Player ─────────────────────────────────────
+              Expanded(
+                child: Focus(
+                  focusNode: _focusNode,
+                  autofocus: true,
+                  onFocusChange: (hasFocus) {
+                    if (!hasFocus) {
+                      _stopFastSeek();
+                      _stopVolumeAdjustment();
+                    }
+                  },
+                  onKeyEvent: (node, event) => _handleKeyEvent(event),
+                  child: Listener(
+                    onPointerSignal: (event) {
+                      if (_isMarkerEditorActive) {
+                        final RenderBox? box =
+                            _markerEditorKey.currentContext?.findRenderObject()
+                                as RenderBox?;
+                        if (box != null) {
+                          final Offset local = box.globalToLocal(event.position);
+                          if (box.paintBounds.contains(local))
+                            return;
+                        }
+                        _markerEditorKey.currentState?.shake();
+                        return;
+                      }
+                      _handlePointerScroll(event);
+                    },
+                    onPointerPanZoomUpdate: (event) {
+                      if (_isMarkerEditorActive) {
+                        final RenderBox? box =
+                            _markerEditorKey.currentContext?.findRenderObject()
+                                as RenderBox?;
+                        if (box != null) {
+                          final Offset local = box.globalToLocal(event.position);
+                          if (box.paintBounds.contains(local))
+                            return;
+                        }
+                        _markerEditorKey.currentState?.shake();
+                        return;
+                      }
+                      _handlePointerPanZoomUpdate(event);
+                    },
+                    onPointerPanZoomEnd: (event) {
+                      if (_isMarkerEditorActive) return;
+                      _handlePointerPanZoomEnd(event);
+                    },
+                    behavior: HitTestBehavior.translucent,
+                    child: GestureDetector(
+                      onTap: () {
+                        _focusNode.requestFocus();
+                        _onInteraction();
+                      },
+                      onDoubleTapDown: (details) {
+                        _doubleTapPosition = details.localPosition;
+                      },
+                      onDoubleTap: () {
+                        if (widget.windowId == null && !widget.isStandalone) {
+                          _openInNewWindow();
+                          return;
+                        }
 
-                return Container(
+                        if (_doubleTapPosition == null) return;
+                        final width =
+                            context.size?.width ?? MediaQuery.of(context).size.width;
+                        final isForward = _doubleTapPosition!.dx > width / 2;
+
+                        _performStepSeek(isForward: isForward);
+                      },
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          _playerWidth = constraints.maxWidth;
+                          _playerHeight = constraints.maxHeight;
+
+                          return Container(
                   key: _playerKey,
                   color: Colors.black,
                   child: Stack(
@@ -2245,13 +2397,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                           : 0.0;
 
                                       return Row(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
                                         children: [
-                                          Text(
-                                            _formatDuration(position),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
+                                          Padding(
+                                            padding: const EdgeInsets.only(bottom: 17),
+                                            child: Text(
+                                              _formatDuration(position),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(width: 16),
@@ -2609,19 +2765,22 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                             ),
                                           ),
                                           const SizedBox(width: 16),
-                                          GestureDetector(
-                                            onTap: () => setState(
-                                              () => _showRemainingTime =
-                                                  !_showRemainingTime,
-                                            ),
-                                            child: Text(
-                                              _showRemainingTime
-                                                  ? '-${_formatDuration(remaining)}'
-                                                  : _formatDuration(duration),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
+                                          Padding(
+                                            padding: const EdgeInsets.only(bottom: 17),
+                                            child: GestureDetector(
+                                              onTap: () => setState(
+                                                () => _showRemainingTime =
+                                                    !_showRemainingTime,
+                                              ),
+                                              child: Text(
+                                                _showRemainingTime
+                                                    ? '-${_formatDuration(remaining)}'
+                                                    : _formatDuration(duration),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -2634,45 +2793,67 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                   Row(
                                     children: [
                                       // Left: Playlist & Subtitles
-                                      IconButton(
-                                        key: _playlistKey,
-                                        onPressed: () {
-                                          _onInteraction();
-                                          _showMenu(
-                                            key: _playlistKey,
-                                            type: 'playlist',
-                                            child: PlaylistOverlay(
-                                              currentPath: _currentItem.path,
-                                              videos: widget.isStandalone
-                                                  ? _standalonePlaylist
-                                                  : null,
-                                              onVideoSelected: (video) {
-                                                _hideMenu();
-                                                if (widget.isStandalone) {
-                                                  _loadMedia(video);
-                                                } else {
-                                                  ref
-                                                          .read(
-                                                            previewFileProvider
-                                                                .notifier,
-                                                          )
-                                                          .state =
-                                                      video;
-                                                }
-                                              },
-                                            ),
+                                      Consumer(
+                                        builder: (context, sidebarRef, _) {
+                                          final isOpen = sidebarRef.watch(
+                                            videoPlaylistSidebarVisibleProvider,
                                           );
-                                        },
-                                        icon: Icon(
-                                          Icons.playlist_play,
-                                          color: _isPlaylistVisible
-                                              ? AppColors.violet
-                                              : Colors.white70,
-                                          size: 24,
-                                        ),
-                                        tooltip: 'Playlist',
-                                      ),
-                                      const SizedBox(width: 4),
+                                          return IconButton(
+                                            icon: const Icon(
+                                              Icons.playlist_play,
+                                              size: 24,
+                                            ),
+                                            color: isOpen
+                                                ? AppColors.magenta
+                                                : Colors.white,
+                                            onPressed: () {
+                                              sidebarRef
+                                                      .read(
+                                                        videoPlaylistSidebarVisibleProvider
+                                                            .notifier,
+                                                      )
+                                                      .state =
+                                                  !isOpen;
+                                            },
+                                            tooltip: 'Playlist',
+                                          );
+                                      },
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Consumer(
+                                      builder: (context, ref, _) {
+                                        final isFavorite = ref.watch(videoFavoritesProvider).contains(_currentItem.path);
+                                        return IconButton(
+                                          icon: Icon(
+                                            isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                            size: 22,
+                                          ),
+                                          color: isFavorite ? AppColors.magenta : Colors.white70,
+                                          onPressed: () {
+                                            ref.read(videoFavoritesProvider.notifier).toggleFavorite(_currentItem.path);
+                                          },
+                                          tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Consumer(
+                                      builder: (context, ref, _) {
+                                        final isAutoPlay = ref.watch(videoAutoPlaySessionProvider);
+                                        return IconButton(
+                                          icon: Icon(
+                                            isAutoPlay ? Icons.autorenew_rounded : Icons.sync_disabled_rounded,
+                                            size: 22,
+                                          ),
+                                          color: isAutoPlay ? AppColors.magenta : Colors.white70,
+                                          onPressed: () {
+                                            ref.read(videoAutoPlaySessionProvider.notifier).state = !isAutoPlay;
+                                          },
+                                          tooltip: isAutoPlay ? 'Autoplay Next: ON' : 'Autoplay Next: OFF',
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 4),
                                       IconButton(
                                         key: _subtitleKey,
                                         onPressed: () {
@@ -3022,6 +3203,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           ),
         ),
       ),
+    ),
+  ],
+  ),
+);
+        },
+      ),
     );
   }
 
@@ -3069,6 +3256,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         setState(() {
           _standalonePlaylist = videos;
         });
+        ref.read(videoQueueProvider.notifier).state = _standalonePlaylist;
       }
     } catch (e) {
       debugPrint('[VideoPlayer] Error in _initStandalonePlaylist: $e');

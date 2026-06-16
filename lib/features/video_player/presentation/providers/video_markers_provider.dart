@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// ignore: implementation_imports
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/video_marker.dart';
 import '../../data/repositories/marker_repository.dart';
 import 'package:hive/hive.dart';
+
 
 // Use FutureProvider for loading markers.
 // We will use ref.invalidate() to trigger reloads after mutations.
