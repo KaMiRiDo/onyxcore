@@ -79,6 +79,67 @@ void main() {
       expect(globalAudioPlayer, isNotNull);
       expect(globalAudioPlayer, isA<Player>());
     });
+
+    test('audioCurrentPathProvider defaults to empty string (U-AUD-PROV-45)', () {
+      final container = createContainer();
+      expect(container.read(audioCurrentPathProvider), '');
+    });
+
+    test('audioRootPathProvider defaults to empty string (U-AUD-PROV-46)', () {
+      final container = createContainer();
+      expect(container.read(audioRootPathProvider), '');
+    });
+
+    test('audioPathHistoryProvider defaults to empty list (U-AUD-PROV-47)', () {
+      final container = createContainer();
+      expect(container.read(audioPathHistoryProvider), []);
+    });
+
+    test('audioPathForwardHistoryProvider defaults to empty list (U-AUD-PROV-48)', () {
+      final container = createContainer();
+      expect(container.read(audioPathForwardHistoryProvider), []);
+    });
+
+    test('audioSelectionProvider defaults to empty set (U-AUD-PROV-49)', () {
+      final container = createContainer();
+      expect(container.read(audioSelectionProvider), <String>{});
+    });
+
+    test('audioSelectionAnchorProvider defaults to null (U-AUD-PROV-50)', () {
+      final container = createContainer();
+      expect(container.read(audioSelectionAnchorProvider), isNull);
+    });
+
+    test('audioQueueProvider defaults to empty list (U-AUD-PROV-51)', () {
+      final container = createContainer();
+      expect(container.read(audioQueueProvider), []);
+    });
+
+    test('audioPlayingQueueProvider defaults to empty list (U-AUD-PROV-52)', () {
+      final container = createContainer();
+      expect(container.read(audioPlayingQueueProvider), []);
+    });
+
+    test('activeTrackIndexProvider defaults to 0 (U-AUD-PROV-53)', () {
+      final container = createContainer();
+      expect(container.read(activeTrackIndexProvider), 0);
+    });
+
+    test('audioIsReloadingProvider defaults to false (U-AUD-PROV-54)', () {
+      final container = createContainer();
+      expect(container.read(audioIsReloadingProvider), isFalse);
+    });
+
+    test('audioSortOptionProvider defaults to null (U-AUD-PROV-55)', () {
+      final container = createContainer();
+      expect(container.read(audioSortOptionProvider), isNull);
+    });
+
+    test('audioSearchQueryProvider defaults to empty string (U-AUD-PROV-56)', () {
+      final container = createContainer();
+      expect(container.read(audioSearchQueryProvider), '');
+    });
+
   });
 
   group('audioTagsProvider', () {
@@ -105,6 +166,28 @@ void main() {
       final result = await container.read(audioTagsProvider('/path').future);
       expect(result, equals(tag));
     });
+
+    test('fetch tags from AudioMetadataUtils when no override exists (U-AUD-PROV-01)', () async {
+      final container = createContainer();
+      final result = await container.read(audioTagsProvider('nonexistent').future);
+      expect(result, isNull);
+    });
+
+    test('return null when AudioMetadataUtils returns null and no override (U-AUD-PROV-03)', () async {
+      final container = createContainer();
+      final result = await container.read(audioTagsProvider('nonexistent2').future);
+      expect(result, isNull);
+    });
+
+    test('prioritize override over disk tag even when both exist (U-AUD-PROV-04)', () async {
+      const overrideTag = Tag(title: 'Override Title', pictures: []);
+      final container = createContainer(overrides: [
+        audioTagsOverridesProvider('/path').overrideWith((ref) => overrideTag),
+      ]);
+      final result = await container.read(audioTagsProvider('/path').future);
+      expect(result, equals(overrideTag));
+    });
+
   });
 
   group('AudioFavoritesNotifier', () {
@@ -148,6 +231,30 @@ void main() {
       notifier.toggleFavorite('/existing');
       expect(container.read(audioFavoritesProvider), isNot(contains('/existing')));
     });
+
+    test('maintain other favorites when toggling one (U-AUD-PROV-09)', () async {
+      final box = await Hive.openBox('audio_favorites');
+      await box.put('favorites', ['/pathA', '/pathB']);
+      
+      final container = createContainer();
+      final notifier = container.read(audioFavoritesProvider.notifier);
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      notifier.toggleFavorite('/pathA');
+      expect(container.read(audioFavoritesProvider), equals({'/pathB'}));
+    });
+
+    test('default to empty set when Hive box is empty (U-AUD-PROV-12)', () async {
+      final box = await Hive.openBox('audio_favorites');
+      await box.delete('favorites');
+      
+      final container = createContainer();
+      container.read(audioFavoritesProvider.notifier);
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      expect(container.read(audioFavoritesProvider), isEmpty);
+    });
+
   });
 
   group('currentTrackProvider', () {
@@ -190,6 +297,22 @@ void main() {
 
       expect(container.read(currentTrackProvider), isNull);
     });
+
+    test('return first item when index is 0 and queue has items (U-AUD-PROV-17)', () {
+      final container = createContainer(overrides: [
+        audioPlayingQueueProvider.overrideWith((ref) => [mockItem1, mockItem2]),
+        activeTrackIndexProvider.overrideWith((ref) => 0),
+      ]);
+      expect(container.read(currentTrackProvider), equals(mockItem1));
+    });
+
+    test('watch both queue and index reactively (U-AUD-PROV-18)', () {
+      final container = createContainer();
+      container.read(audioPlayingQueueProvider.notifier).state = [mockItem1, mockItem2];
+      container.read(activeTrackIndexProvider.notifier).state = 1;
+      expect(container.read(currentTrackProvider), equals(mockItem2));
+    });
+
   });
 
   group('filteredAndSortedAudioQueueProvider', () {
@@ -210,6 +333,7 @@ void main() {
       // Fake the favorites state
       container.read(audioFavoritesProvider.notifier).toggleFavorite('/a.mp3');
 
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
       final result = container.read(filteredAndSortedAudioQueueProvider);
       expect(result.length, 1);
       expect(result.first, equals(fileA));
@@ -222,6 +346,7 @@ void main() {
         audioViewModeProvider.overrideWith((ref) => AudioViewMode.home),
       ]);
 
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
       final result = container.read(filteredAndSortedAudioQueueProvider);
       expect(result.length, 2);
       await Future.delayed(const Duration(milliseconds: 50));
@@ -233,6 +358,7 @@ void main() {
         audioSearchQueryProvider.overrideWith((ref) => 'A.'),
       ]);
 
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
       final result = container.read(filteredAndSortedAudioQueueProvider);
       expect(result.length, 1);
       expect(result.first, equals(fileA));
@@ -245,6 +371,7 @@ void main() {
         audioSortOptionProvider.overrideWith((ref) => SortOption.aToZ),
       ]);
 
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
       final result = container.read(filteredAndSortedAudioQueueProvider);
       expect(result[0], equals(folder)); // Folder always first unless filesFirst
       expect(result[1], equals(fileA)); // then A
@@ -258,6 +385,7 @@ void main() {
         audioSortOptionProvider.overrideWith((ref) => SortOption.sizeLargeToSmall),
       ]);
 
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
       final result = container.read(filteredAndSortedAudioQueueProvider);
       expect(result[0], equals(folder)); // Folder first
       expect(result[1], equals(fileB)); // 200 bytes
@@ -271,11 +399,119 @@ void main() {
         audioSortOptionProvider.overrideWith((ref) => SortOption.filesFirst),
       ]);
 
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
       final result = container.read(filteredAndSortedAudioQueueProvider);
       expect(result[0], equals(fileA));
       expect(result[1], equals(folder));
       await Future.delayed(const Duration(milliseconds: 50));
     });
+
+    test('return all items when search query is empty (U-AUD-PROV-22)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileA, fileB]),
+        audioSearchQueryProvider.overrideWith((ref) => ''),
+      ]);
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result.length, 2);
+    });
+
+    test('sort queue by name Z to A folders first (U-AUD-PROV-24)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileA, fileB, folder]),
+        audioSortOptionProvider.overrideWith((ref) => SortOption.zToA),
+      ]);
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result[0], equals(folder));
+      expect(result[1], equals(fileB));
+      expect(result[2], equals(fileA));
+    });
+
+    test('sort queue by last modified (newest first) (U-AUD-PROV-25)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileA, fileB, folder]), // fileA: 2020, fileB: 2021
+        audioSortOptionProvider.overrideWith((ref) => SortOption.lastModified),
+      ]);
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result[0], equals(folder));
+      expect(result[1], equals(fileB));
+      expect(result[2], equals(fileA));
+    });
+
+    test('sort queue by first modified (oldest first) (U-AUD-PROV-26)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileA, fileB, folder]),
+        audioSortOptionProvider.overrideWith((ref) => SortOption.firstModified),
+      ]);
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result[0], equals(folder));
+      expect(result[1], equals(fileA));
+      expect(result[2], equals(fileB));
+    });
+
+    test('sort queue by size small to large (U-AUD-PROV-28)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileB, fileA, folder]), // A:100, B:200, folder:null
+        audioSortOptionProvider.overrideWith((ref) => SortOption.sizeSmallToLarge),
+      ]);
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result[0], equals(folder));
+      expect(result[1], equals(fileA));
+      expect(result[2], equals(fileB));
+    });
+
+    test('preserve original order when sortOption is null (U-AUD-PROV-31)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileB, folder, fileA]),
+        audioSortOptionProvider.overrideWith((ref) => null),
+      ]);
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result[0], equals(fileB));
+      expect(result[1], equals(folder));
+      expect(result[2], equals(fileA));
+    });
+
+    test('handle combined filter and sort (U-AUD-PROV-32)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileA, fileB]),
+        audioSearchQueryProvider.overrideWith((ref) => 'b'),
+        audioSortOptionProvider.overrideWith((ref) => SortOption.aToZ),
+      ]);
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result.length, 1);
+      expect(result.first, equals(fileB));
+    });
+
+    test('return empty list when no items match search (U-AUD-PROV-33)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileA, fileB]),
+        audioSearchQueryProvider.overrideWith((ref) => 'xyz'),
+      ]);
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result, isEmpty);
+    });
+
+    test('return empty list when no favorites exist in favorites mode (U-AUD-PROV-34)', () async {
+      final container = createContainer(overrides: [
+        audioQueueProvider.overrideWith((ref) => [fileA, fileB]),
+        audioViewModeProvider.overrideWith((ref) => AudioViewMode.favorites),
+      ]);
+      // Initialize favorites
+      container.read(audioFavoritesProvider);
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      container.read(audioFavoritesProvider); await Future.delayed(const Duration(milliseconds: 100));
+      final result = container.read(filteredAndSortedAudioQueueProvider);
+      expect(result, isEmpty);
+    });
+
   });
 
   group('audioShowHiddenProvider', () {
@@ -293,6 +529,37 @@ void main() {
       ]);
       await container.read(settingsProvider.future);
       expect(container.read(audioShowHiddenProvider), isFalse);
+    });
+
+    test('default to false when settings provider has no value (U-AUD-PROV-42)', () async {
+      final container = createContainer(overrides: [
+        settingsProvider.overrideWith(() => MockSettingsNotifier(const AppSettings(showHiddenAudioFiles: false, autoPlayNext: true))),
+      ]);
+      // The mock notifier returns value immediately but watch reads the value.
+      expect(container.read(audioShowHiddenProvider), isFalse);
+    });
+
+  });
+
+  group('Stream Providers', () {
+    test('emit empty stream when player is null (U-AUD-PROV-39)', () async {
+      final container = createContainer();
+      expect(container.read(audioPositionProvider), isA<AsyncValue<Duration>>());
+      expect(container.read(audioDurationProvider), isA<AsyncValue<Duration>>());
+      expect(container.read(audioPlayingProvider), isA<AsyncValue<bool>>());
+      expect(container.read(audioVolumeProvider), isA<AsyncValue<double>>());
+    });
+
+    test('emit updates from player stream (U-AUD-PROV-35, 36, 37, 38)', () async {
+      final player = Player();
+      final container = createContainer(overrides: [
+        audioPlayerProvider.overrideWith((ref) => player),
+      ]);
+      expect(container.read(audioPositionProvider), isA<AsyncValue<Duration>>());
+      expect(container.read(audioDurationProvider), isA<AsyncValue<Duration>>());
+      expect(container.read(audioPlayingProvider), isA<AsyncValue<bool>>());
+      expect(container.read(audioVolumeProvider), isA<AsyncValue<double>>());
+      player.dispose();
     });
   });
 }

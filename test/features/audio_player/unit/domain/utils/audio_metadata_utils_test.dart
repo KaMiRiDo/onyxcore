@@ -358,7 +358,7 @@ void main() {
 
       final props = await AudioMetadataUtils.getProperties(wavFile.path);
 
-      // Should be formatted as MM:SS (e.g. "00:05")
+      // Should be formatted as MM:SS (e.g. "00:05')
       expect(props.duration, matches(RegExp(r'^\d{2}:\d{2}$')));
     });
 

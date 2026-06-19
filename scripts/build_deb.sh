@@ -66,7 +66,7 @@ Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: amd64
-Depends: libgtk-3-0, liblzma5, libmpv1 | libmpv2, mpv, p7zip-full, aria2, python3, python3-venv, deno, chromium
+Depends: libgtk-3-0, liblzma5, libmpv1 | libmpv2, mpv, p7zip-full, aria2, python3, python3-venv, python3-pip, chromium, ffmpeg, procps, psmisc, udisks2, curl, gnome-terminal, libsqlite3-0, libglib2.0-bin, xdg-utils, flatpak
 Maintainer: Vimal Babu
 Description: OnyxCore — Linux-native multimedia file manager.
  A high-performance, multi-window explorer designed for advanced archival and media management.
