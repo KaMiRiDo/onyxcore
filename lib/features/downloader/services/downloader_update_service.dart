@@ -164,9 +164,11 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         await binDir.create(recursive: true);
       }
 
-      // Iterate over all registered engines with update info
+      // Iterate over all registered engines with update info or python script
+      // Only install required engines or optional engines that are already installed.
       final engines = EngineRegistry.allEngines
-          .where((e) => e.updateInfo != null)
+          .where((e) => !e.isOptional || e.isInstalled)
+          .where((e) => e.updateInfo != null || e.engineType == EngineType.python)
           .toList();
       if (engines.isEmpty) {
         state = const DownloaderUpdateState(isUpdating: false, progress: 1.0);
@@ -176,14 +178,23 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
       for (int i = 0; i < engines.length; i++) {
         final engine = engines[i];
-        await _downloadLatestRelease(
-          apiUrl: engine.updateInfo!.apiUrl,
-          assetName: engine.updateInfo!.assetName,
-          checksumAssetName: engine.updateInfo!.checksumAssetName,
-          savePath: engine.binaryPath!,
-          progressWeight: progressPerEngine,
-          progressOffset: i * progressPerEngine,
-        );
+        
+        if (engine.engineType == EngineType.python) {
+          final processFuture = engine.install();
+          if (processFuture != null) {
+            final process = await processFuture;
+            await process.exitCode;
+          }
+        } else if (engine.updateInfo != null && engine.binaryPath != null) {
+          await _downloadLatestRelease(
+            apiUrl: engine.updateInfo!.apiUrl,
+            assetName: engine.updateInfo!.assetName,
+            checksumAssetName: engine.updateInfo!.checksumAssetName,
+            savePath: engine.binaryPath!,
+            progressWeight: progressPerEngine,
+            progressOffset: i * progressPerEngine,
+          );
+        }
       }
 
       state = state.copyWith(isUpdating: false, progress: 1.0);

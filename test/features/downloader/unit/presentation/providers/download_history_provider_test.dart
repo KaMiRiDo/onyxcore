@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:onyxcore/features/downloader/services/download_history_database.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 
@@ -23,6 +24,10 @@ void main() {
     if (dbFile.existsSync()) {
       dbFile.deleteSync();
     }
+    final db = DownloadHistoryDatabase();
+    db.init();
+    db.clearAll();
+    db.dispose();
     container = ProviderContainer();
   });
 

@@ -231,34 +231,34 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                           child: Row(
                             children: [
-                              if (item.isSingle &&
-                                  item.first.formats.isNotEmpty)
-                                Expanded(
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: SizedBox(
-                                      width: 210,
-                                      child: _buildFormatDropdown(
-                                        item.first,
-                                        config,
-                                        index,
+                                  if (item.isSingle &&
+                                      item.first.formats.isNotEmpty)
+                                    Expanded(
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: ConstrainedBox(
+                                          constraints: const BoxConstraints(maxWidth: 140),
+                                          child: _buildFormatDropdown(
+                                            item.first,
+                                            config,
+                                            index,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                )
-                              else if (!item.isSingle)
-                                Expanded(
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: SizedBox(
-                                      width: 210,
-                                      child: _buildGroupFilterDropdown(
-                                        config,
-                                        item,
+                                    )
+                                  else if (!item.isSingle)
+                                    Expanded(
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: ConstrainedBox(
+                                          constraints: const BoxConstraints(maxWidth: 140),
+                                          child: _buildGroupFilterDropdown(
+                                            config,
+                                            item,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                )
+                                    )
                               else
                                 const Spacer(),
                               const SizedBox(width: 8),
@@ -535,20 +535,26 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        SizedBox(
-                                          width: 210,
-                                          child: group.first.isPlaylist
-                                              ? _buildFormatDropdown(
-                                                  group.first,
-                                                  config,
-                                                  groupIndex,
-                                                  group: group,
-                                                )
-                                              : _buildGroupFilterDropdown(
-                                                  config,
-                                                  group,
-                                                ),
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: ConstrainedBox(
+                                              constraints: const BoxConstraints(maxWidth: 140),
+                                              child: group.first.isPlaylist
+                                                  ? _buildFormatDropdown(
+                                                      group.first,
+                                                      config,
+                                                      groupIndex,
+                                                      group: group,
+                                                    )
+                                                  : _buildGroupFilterDropdown(
+                                                      config,
+                                                      group,
+                                                    ),
+                                            ),
+                                          ),
                                         ),
+                                        const SizedBox(width: 8),
                                         ElevatedButton(
                                           onPressed: () {
                                             _startDownload(groupIndex);
@@ -561,7 +567,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                 .withOpacity(0.2),
                                             foregroundColor: AppColors.violet,
                                             padding: const EdgeInsets.symmetric(
-                                              horizontal: 24,
+                                              horizontal: 16,
                                             ),
                                             fixedSize: const Size.fromHeight(
                                               32,
@@ -854,18 +860,22 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                     Row(
                                       children: [
                                         if (currentItem.formats.isNotEmpty)
-                                          SizedBox(
-                                            width: 210,
-                                            child: _buildFormatDropdown(
-                                              currentItem,
-                                              config,
-                                              groupIndex,
-                                              isItemLevel: true,
+                                          Expanded(
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: ConstrainedBox(
+                                                constraints: const BoxConstraints(maxWidth: 140),
+                                                child: _buildFormatDropdown(
+                                                  currentItem,
+                                                  config,
+                                                  groupIndex,
+                                                  isItemLevel: true,
+                                                ),
+                                              ),
                                             ),
                                           )
                                         else
                                           const Spacer(),
-                                        const Spacer(),
                                         OutlinedButton(
                                           onPressed: () {
                                             _removeSingleItem(
@@ -883,7 +893,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                             backgroundColor: Colors.white
                                                 .withOpacity(0.05),
                                             padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
+                                              horizontal: 12,
                                             ),
                                             fixedSize: const Size.fromHeight(
                                               32,
@@ -917,7 +927,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                 .withOpacity(0.2),
                                             foregroundColor: AppColors.violet,
                                             padding: const EdgeInsets.symmetric(
-                                              horizontal: 24,
+                                              horizontal: 16,
                                             ),
                                             fixedSize: const Size.fromHeight(
                                               32,

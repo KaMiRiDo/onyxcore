@@ -67,30 +67,6 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
   void updateProgress(String id, double progress, String speed, String eta) {}
 }
 
-class MockBinaryHelper {
-  static void setupMockBinaries() {
-    final homeDir = Platform.environment['HOME'] ?? '';
-    final ytdlpPath = p.join(homeDir, '.local', 'share', 'onyxcore', 'yt-dlp-venv', 'bin', 'yt-dlp');
-    final galleryDlPath = p.join(homeDir, '.local', 'share', 'onyxcore', 'bin', 'gallery-dl');
-    
-    for (final path in [ytdlpPath, galleryDlPath]) {
-      final file = File(path);
-      if (!file.existsSync()) {
-        file.createSync(recursive: true);
-      }
-    }
-  }
-
-  static void cleanupMockBinaries() {
-    final homeDir = Platform.environment['HOME'] ?? '';
-    final onyxcoreDir = Directory(p.join(homeDir, '.local', 'share', 'onyxcore'));
-    if (onyxcoreDir.existsSync()) {
-      try {
-        onyxcoreDir.deleteSync(recursive: true);
-      } catch (_) {}
-    }
-  }
-}
 
 class MockYtDlpEngine extends DownloadEngine {
   @override
@@ -202,7 +178,7 @@ class MockGroupedEngine extends DownloadEngine {
         title: 'Grouped Post',
         originalUrl: url,
         webpageUrl: 'https://instagram.com/p/individual_1/',
-        isVideo: false,
+        isVideo: true,
         filesize: 512000,
       ),
       MediaInfo(

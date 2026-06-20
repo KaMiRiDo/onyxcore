@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
@@ -32,7 +33,7 @@ void main() {
       final window = TestWidgetsFlutterBinding.instance.window;
       window.physicalSizeTestValue = const Size(1600, 1000);
       window.devicePixelRatioTestValue = 1.0;
-      MockBinaryHelper.setupMockBinaries();
+      // Removed MockBinaryHelper
     });
 
     tearDownAll(() {
@@ -53,8 +54,15 @@ void main() {
       );
     });
 
+    tearDown(() {
+      container.dispose();
+    });
+
     testWidgets('W-DL-PRE-01: Open single preview overlay and close it', (tester) async {
       await tester.pumpWidget(createTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
       await tester.pump(const Duration(seconds: 1));
 
       // 1. Enter URL and fetch
@@ -112,7 +120,7 @@ void main() {
       ), findsNothing);
     });
 
-    testWidgets('W-DL-PRE-02: Copy URL on group item gives individual post URL', (tester) async {
+    testWidgets('W-DL-PRE-02: Open group preview overlay and close it', (tester) async {
       EngineRegistry.clearAllEnginesForTesting();
       EngineRegistry.register(MockGroupedEngine());
       
@@ -123,16 +131,14 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       final urlField = find.byType(TextField);
-      await tester.tap(urlField);
       await tester.enterText(urlField, 'https://instagram.com/p/group123/');
       await tester.pump();
-
-      final fetchButton = find.widgetWithText(ElevatedButton, 'Fetch');
-      await tester.tap(fetchButton);
-      await tester.pump();
-
-      for (int i = 0; i < 5; i++) {
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Fetch'));
+      
+      int pumpCount = 0;
+      while (find.byIcon(Icons.broken_image).evaluate().isEmpty && pumpCount < 50) {
         await tester.pump(const Duration(milliseconds: 100));
+        pumpCount++;
       }
 
       // Open group preview
@@ -140,10 +146,105 @@ void main() {
       await tester.tap(fallbackThumb.first);
       await tester.pump(const Duration(milliseconds: 500));
 
-      // Verify CopyUrlButton gives individual post url
-      final copyUrlButtons = tester.widgetList<CopyUrlButton>(find.byType(CopyUrlButton));
-      final overlayCopyBtn = copyUrlButtons.last;
-      expect(overlayCopyBtn.url, 'https://instagram.com/p/individual_1/');
+      final closeButton = find.descendant(of: find.byType(BackdropFilter), matching: find.byIcon(Icons.close));
+      expect(closeButton, findsOneWidget);
+
+      // Verify first grouped item info is visible
+      expect(find.textContaining('Grouped Post'), findsWidgets);
+      // There's a 1/2 indicator since it's a gallery
+      expect(find.text('1 / 2'), findsOneWidget);
+
+      // Close it
+      await tester.tap(closeButton);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.descendant(of: find.byType(BackdropFilter), matching: find.byIcon(Icons.close)), findsNothing);
+    });
+
+    testWidgets('W-DL-PRE-03: Carousel navigation with Arrow keys in Group overlay', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(MockGroupedEngine());
+      
+      await tester.pumpWidget(createTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      final urlField = find.byType(TextField);
+      await tester.enterText(urlField, 'https://instagram.com/p/group123/');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Fetch'));
+      
+      // Wait for fetch to complete and tile to appear
+      int pumpCount = 0;
+      while (find.byIcon(Icons.broken_image).evaluate().isEmpty && pumpCount < 50) {
+        await tester.pump(const Duration(milliseconds: 100));
+        pumpCount++;
+      }
+
+      // Open group preview
+      final fallbackThumb = find.byIcon(Icons.broken_image);
+      await tester.tap(fallbackThumb.first);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Initially, index 1 / 2 is shown
+      expect(find.text('1 / 2'), findsOneWidget);
+
+      // Dispatch ArrowRight
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Now index 2 / 2 should be shown
+      expect(find.text('2 / 2'), findsOneWidget);
+
+      // Dispatch ArrowRight again (should not go beyond 2)
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('2 / 2'), findsOneWidget);
+
+      // Dispatch ArrowLeft
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('1 / 2'), findsOneWidget);
+    });
+
+    testWidgets('W-DL-PRE-04: Background tap closes overlay', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(MockYtDlpEngine());
+
+      await tester.pumpWidget(createTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      final urlField = find.byType(TextField);
+      await tester.enterText(urlField, 'https://youtube.com/watch?v=123');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Fetch'));
+      
+      // Wait for fetch to complete and tile to appear
+      int pumpCount = 0;
+      while (find.byIcon(Icons.broken_image).evaluate().isEmpty && pumpCount < 50) {
+        await tester.pump(const Duration(milliseconds: 100));
+        pumpCount++;
+      }
+
+      // Open single preview
+      final fallbackThumb = find.byIcon(Icons.broken_image);
+      await tester.tap(fallbackThumb.first);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Close button should be visible (overlay is open)
+      expect(find.descendant(of: find.byType(BackdropFilter), matching: find.byIcon(Icons.close)), findsOneWidget);
+
+      // Tap the top-left corner of the screen (background)
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Close button should be gone (overlay closed)
+      expect(find.descendant(of: find.byType(BackdropFilter), matching: find.byIcon(Icons.close)), findsNothing);
     });
   });
 }

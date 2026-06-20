@@ -11,8 +11,8 @@ void main() {
   late String legacyJsonPath;
 
   setUpAll(() {
-    dbPath = p.join(Directory.systemTemp.path, 'onyxcore_test', 'download_history.sqlite');
-    legacyJsonPath = p.join(Directory.systemTemp.path, 'onyxcore_test', 'download_history.json');
+    dbPath = DownloadHistoryDatabase.testDbPath;
+    legacyJsonPath = DownloadHistoryDatabase.testLegacyJsonPath;
   });
 
   setUp(() {

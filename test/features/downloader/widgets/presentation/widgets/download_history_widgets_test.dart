@@ -52,10 +52,7 @@ void main() {
   }
 
   group('Download History Widgets Unit Tests', () {
-    setUp(() {
-      final container = ProviderContainer();
-      container.read(downloadHistoryProvider.notifier).clearAll();
-    });
+    // setUp removed as it was creating an undisposed container unnecessarily
 
     // ── 1. History List View ──
 
@@ -73,6 +70,7 @@ void main() {
 
     testWidgets('W-DL-HIS-03: Toggle multi-select context menu', (tester) async {
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(downloadHistorySelectionProvider.notifier).toggle('1');
       container.read(downloadHistorySelectionProvider.notifier).toggle('2');
 
@@ -110,6 +108,7 @@ void main() {
 
     testWidgets('W-DL-HIS-06: Delete Confirmation dialog', (tester) async {
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(downloadHistorySelectionProvider.notifier).toggle('1');
 
       await tester.pumpWidget(
@@ -192,6 +191,7 @@ void main() {
       );
 
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
       await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));
@@ -215,6 +215,7 @@ void main() {
       );
 
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
       await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));
@@ -236,6 +237,7 @@ void main() {
       );
 
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
       await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));
@@ -257,6 +259,7 @@ void main() {
       );
 
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
       await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));
@@ -279,6 +282,7 @@ void main() {
       );
 
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
       await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));
@@ -301,6 +305,7 @@ void main() {
       );
 
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
       await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));
@@ -325,6 +330,7 @@ void main() {
       );
 
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
       await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));

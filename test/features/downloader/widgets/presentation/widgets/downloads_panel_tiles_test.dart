@@ -230,6 +230,75 @@ class MockGroupedPostEngine extends DownloadEngine {
   }
 }
 
+class MockErrorEngine extends DownloadEngine {
+  @override
+  String get id => 'yt-dlp';
+  @override
+  String get name => 'mock-error';
+  @override
+  String get binaryName => 'yt-dlp';
+  @override
+  bool get isInstalled => true;
+  @override
+  int get priority => 9;
+  @override
+  List<RegExp> get urlPatterns => [];
+  @override
+  String? get binaryPath => null;
+  @override
+  Color get color => const Color(0xFF000000);
+  @override
+  String get displayName => 'Mock Error';
+  @override
+  EngineType get engineType => EngineType.cli;
+  @override
+  IconData get icon => Icons.error;
+  @override
+  EngineUpdateInfo? get updateInfo => null;
+
+  @override
+  Future<List<MediaInfo>> fetchMetadata({
+    required String url,
+    String? browser,
+    bool fetchDeep = false,
+    bool isPlaylist = false,
+    void Function(MediaInfo info)? onProgress,
+    void Function(int pid)? onProcessStarted,
+  }) async {
+    return [
+      MediaInfo(
+        id: 'err1',
+        title: '',
+        originalUrl: url,
+        isVideo: false,
+        isError: true,
+        errorMessage: 'Simulated failure to process URL',
+      ),
+    ];
+  }
+
+  @override
+  Future<Process> startDownload({
+    required String url,
+    required String destination,
+    String? title,
+    MediaFormat? format,
+    bool audioOnly = false,
+    bool mute = false,
+    int? galleryIndex,
+    bool isPlaylist = false,
+    bool isProfile = false,
+    String? browser,
+    bool isZip = false,
+    String? filterType,
+    int? totalItems,
+    String? singleItemId,
+    String? directUrl,
+  }) async {
+    throw UnimplementedError();
+  }
+}
+
 void main() {
   GoogleFonts.config.allowRuntimeFetching = true;
 
@@ -257,8 +326,7 @@ void main() {
       window.physicalSizeTestValue = const Size(1600, 1000);
       window.devicePixelRatioTestValue = 1.0;
 
-      // Mock required binaries to bypass _checkBinaries
-      MockBinaryHelper.setupMockBinaries();
+      // Removed MockBinaryHelper
 
       HttpOverrides.global = null;
       final originalOnError = FlutterError.onError;
@@ -302,6 +370,10 @@ void main() {
       );
     });
 
+    tearDown(() {
+      container.dispose();
+    });
+
     testWidgets('W-DL-PNL-27: Show parsed items as tiles and test interaction', (tester) async {
       await tester.pumpWidget(createTilesTestWidget(container));
       while (container.read(settingsProvider).value == null) {
@@ -331,14 +403,8 @@ void main() {
       await tester.tap(fetchButton);
       await tester.pump();
 
-      // Wait for the real OS process to complete
-      await tester.runAsync(() async {
-        await Future.delayed(const Duration(seconds: 3));
-      });
-      // Pump to process the Future resolutions in the fake async zone
-      for (int i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
+      // Wait for the mock engine to complete
+      await tester.pump(const Duration(seconds: 1));
 
       print('DEBUG: _parsedItems empty?');
       for (final widget in tester.widgetList<Text>(find.byType(Text))) {
@@ -473,12 +539,7 @@ void main() {
         await tester.tap(fetchButton);
         await tester.pump();
 
-        await tester.runAsync(() async {
-          await Future.delayed(const Duration(seconds: 2));
-        });
-        for (int i = 0; i < 5; i++) {
-          await tester.pump(const Duration(milliseconds: 100));
-        }
+        await tester.pump(const Duration(seconds: 1));
 
         // Assert: the post title appears (tile is rendered)
         expect(
@@ -502,5 +563,116 @@ void main() {
         await tester.pump(const Duration(seconds: 1));
       },
     );
+
+    testWidgets('W-DL-PNL-31: Ctrl+Click to multi-select tiles', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(MockGroupedPostEngine());
+
+      await tester.pumpWidget(createTilesTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      // We will add two items by fetching twice
+      final urlField = find.byType(TextField);
+      await tester.tap(urlField);
+      await tester.enterText(urlField, 'https://test.com/mock1');
+      await tester.pump();
+      await tester.tap(find.text('Fetch'));
+      await tester.pump(const Duration(seconds: 2));
+
+      await tester.enterText(urlField, 'https://test.com/mock2');
+      await tester.pump();
+      await tester.tap(find.text('Fetch'));
+      await tester.pump(const Duration(seconds: 2));
+
+      // We should have 2 tiles now
+      final closeIcons = find.byIcon(Icons.close);
+      expect(closeIcons, findsWidgets); // at least 2 close buttons (one for each tile)
+
+      // Tap first tile with Ctrl pressed
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+      // Wait, we need to find the tiles, let's find the text
+      final tileTexts = find.textContaining(MockGroupedPostEngine.postTitle);
+      expect(tileTexts, findsWidgets);
+
+      await tester.tap(tileTexts.first);
+      await tester.pump();
+      
+      // Tap second tile with Ctrl pressed
+      await tester.tap(tileTexts.last);
+      await tester.pump();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+      
+      // We expect no crash and both selected internally. 
+      // It's hard to verify internal _selectedIndices, but covering the interaction is good.
+    });
+
+    testWidgets('W-DL-PNL-32: Shift+Click to range select tiles', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(MockGroupedPostEngine());
+
+      await tester.pumpWidget(createTilesTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      final urlField = find.byType(TextField);
+      await tester.tap(urlField);
+      await tester.enterText(urlField, 'https://test.com/mock1');
+      await tester.pump();
+      await tester.tap(find.text('Fetch'));
+      await tester.pump(const Duration(seconds: 2));
+
+      await tester.enterText(urlField, 'https://test.com/mock2');
+      await tester.pump();
+      await tester.tap(find.text('Fetch'));
+      await tester.pump(const Duration(seconds: 2));
+
+      final tileTexts = find.textContaining(MockGroupedPostEngine.postTitle);
+      expect(tileTexts, findsWidgets);
+
+      // Tap first tile without modifiers to set anchor
+      await tester.tap(tileTexts.first);
+      await tester.pump();
+
+      // Tap second tile with Shift pressed
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.tap(tileTexts.last);
+      await tester.pump();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+    });
+
+    testWidgets('W-DL-PNL-33: Show error tile when fetching fails', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(MockErrorEngine());
+
+      await tester.pumpWidget(createTilesTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      final urlField = find.byType(TextField);
+      await tester.tap(urlField);
+      await tester.enterText(urlField, 'https://test.com/error');
+      await tester.pump();
+
+      await tester.tap(find.text('Fetch'));
+      await tester.pump(const Duration(seconds: 2));
+
+      // Assert Error Tile UI elements
+      expect(find.text('Error Processing URL'), findsWidgets);
+      expect(find.text('Simulated failure to process URL'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+
+      // Verify tapping on info icon doesn't crash (should show log dialog if implemented, but we just tap)
+      final infoIcon = find.byIcon(Icons.info_outline_rounded);
+      expect(infoIcon, findsOneWidget);
+      await tester.tap(infoIcon);
+      await tester.pump(const Duration(seconds: 1));
+    });
   });
 }

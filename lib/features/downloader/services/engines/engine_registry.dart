@@ -70,7 +70,7 @@ class EngineRegistry {
     if (preference != 'auto') {
       return _engines.firstWhere(
         (e) => e.id == preference,
-        orElse: () => _requiredEngines.last,
+        orElse: () => requiredEngines.last,
       );
     }
     // Auto: find highest-priority INSTALLED engine whose urlPatterns match
@@ -80,7 +80,7 @@ class EngineRegistry {
     if (matching.isNotEmpty) {
       return matching.reduce((a, b) => a.priority > b.priority ? a : b);
     }
-    return _requiredEngines.last; // fallback to yt-dlp
+    return requiredEngines.last; // fallback to yt-dlp
   }
 
   /// Resolve an ordered sequence of engines to try.
@@ -95,7 +95,7 @@ class EngineRegistry {
     if (preference != 'auto') {
       final specific = findById(preference);
       if (specific != null) return [specific];
-      return [_requiredEngines.last];
+      return [requiredEngines.last];
     }
 
     final installed = _engines.where((e) => e.isInstalled).toList();
@@ -110,7 +110,7 @@ class EngineRegistry {
 
     final sequence = [...matching, ...others];
     if (sequence.isEmpty) {
-      return [_requiredEngines.last];
+      return [requiredEngines.last];
     }
     return sequence;
   }
@@ -120,22 +120,28 @@ class EngineRegistry {
 
   /// Whether all REQUIRED engines have their binaries installed.
   static bool get requiredInstalled =>
-      _requiredEngines.every((e) => e.isInstalled);
+      requiredEngines.every((e) => e.isInstalled);
 
   /// Whether ALL registered engines (required + optional) are installed.
   static bool get allInstalled => _engines.every((e) => e.isInstalled);
 
   /// Required engines only.
-  static List<DownloadEngine> get requiredEngines =>
-      List.unmodifiable(_requiredEngines);
+  static List<DownloadEngine> get requiredEngines {
+    final required = _engines.where((e) => !e.isOptional).toList();
+    required.sort((a, b) => b.priority.compareTo(a.priority));
+    return List.unmodifiable(required);
+  }
 
   /// Optional engines only.
-  static List<DownloadEngine> get optionalEngines =>
-      List.unmodifiable(_optionalEngines);
+  static List<DownloadEngine> get optionalEngines {
+    final optional = _engines.where((e) => e.isOptional).toList();
+    optional.sort((a, b) => b.priority.compareTo(a.priority));
+    return List.unmodifiable(optional);
+  }
 
   /// Missing required engines.
   static List<DownloadEngine> get missingRequired =>
-      _requiredEngines.where((e) => !e.isInstalled).toList();
+      requiredEngines.where((e) => !e.isInstalled).toList();
 
   /// Find an engine by ID.
   static DownloadEngine? findById(String id) {

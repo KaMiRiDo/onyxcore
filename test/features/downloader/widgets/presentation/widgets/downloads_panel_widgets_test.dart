@@ -24,7 +24,7 @@ void main() {
     window.physicalSizeTestValue = const Size(1600, 1000);
     window.devicePixelRatioTestValue = 1.0;
 
-    MockBinaryHelper.setupMockBinaries();
+    // Removed MockBinaryHelper
 
     FlutterError.onError = (FlutterErrorDetails details) {
       if (details.exceptionAsString().contains('RenderFlex overflowed')) {
@@ -67,6 +67,7 @@ void main() {
           downloadTaskProvider.overrideWith(() => MockDownloadTaskNotifier()),
         ],
       );
+      addTearDown(container.dispose);
       container.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
 
       await tester.pumpWidget(createPanelTestWidget(container));
@@ -85,6 +86,7 @@ void main() {
           downloadTaskProvider.overrideWith(() => MockDownloadTaskNotifier()),
         ],
       );
+      addTearDown(container.dispose);
       container.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.history;
 
       await tester.pumpWidget(createPanelTestWidget(container));
@@ -102,6 +104,7 @@ void main() {
           downloadTaskProvider.overrideWith(() => MockDownloadTaskNotifier()),
         ],
       );
+      addTearDown(container.dispose);
       await tester.pumpWidget(createPanelTestWidget(container));
       await tester.pump(const Duration(milliseconds: 500));
 

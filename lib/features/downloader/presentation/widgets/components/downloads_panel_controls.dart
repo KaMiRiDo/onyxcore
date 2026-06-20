@@ -22,7 +22,10 @@ extension DownloadsPanelControls on _MediaDownloaderPanelState {
       ),
     ];
 
-    final selected = options.firstWhere((o) => o['key'] == _selectedEngine);
+    final selected = options.firstWhere(
+      (o) => o['key'] == _selectedEngine,
+      orElse: () => options.first,
+    );
 
     return PopupMenuButton<String>(
       offset: const Offset(0, 40),

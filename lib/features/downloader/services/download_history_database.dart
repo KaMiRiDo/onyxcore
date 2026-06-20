@@ -8,28 +8,26 @@ import 'package:flutter/foundation.dart';
 class DownloadHistoryDatabase {
   late final Database _db;
 
-  static String get _dbPath {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      return p.join(
-        Directory.systemTemp.path,
-        'onyxcore_test',
-        'download_history.sqlite',
-      );
-    }
-    final home = Platform.environment['HOME'] ?? '/tmp';
-    return p.join(home, '.config', 'onyxcore', 'download_history.sqlite');
-  }
+  late final String _dbPath;
+  late final String _legacyJsonPath;
+  
+  static final String _testSuffix = DateTime.now().microsecondsSinceEpoch.toString();
 
-  static String get _legacyJsonPath {
+  @visibleForTesting
+  static String get testDbPath => p.join(Directory.systemTemp.path, 'onyxcore_test', 'download_history_$_testSuffix.sqlite');
+
+  @visibleForTesting
+  static String get testLegacyJsonPath => p.join(Directory.systemTemp.path, 'onyxcore_test', 'download_history_$_testSuffix.json');
+
+  DownloadHistoryDatabase() {
     if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      return p.join(
-        Directory.systemTemp.path,
-        'onyxcore_test',
-        'download_history.json',
-      );
+      _dbPath = testDbPath;
+      _legacyJsonPath = testLegacyJsonPath;
+    } else {
+      final home = Platform.environment['HOME'] ?? '/tmp';
+      _dbPath = p.join(home, '.config', 'onyxcore', 'download_history.sqlite');
+      _legacyJsonPath = p.join(home, '.config', 'onyxcore', 'download_history.json');
     }
-    final home = Platform.environment['HOME'] ?? '/tmp';
-    return p.join(home, '.config', 'onyxcore', 'download_history.json');
   }
 
   void init() {
