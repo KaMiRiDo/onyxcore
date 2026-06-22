@@ -12,7 +12,14 @@ import 'waveform_scrubber.dart';
 import 'audio_controls_bar.dart';
 
 class HeroAudioPlayer extends ConsumerWidget {
-  const HeroAudioPlayer({super.key});
+  final VoidCallback? onNextPressed;
+  final VoidCallback? onPreviousPressed;
+
+  const HeroAudioPlayer({
+    super.key,
+    this.onNextPressed,
+    this.onPreviousPressed,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -188,7 +195,10 @@ class HeroAudioPlayer extends ConsumerWidget {
               const Spacer(flex: 1),
 
               // Controls
-              const AudioControlsBar(),
+              AudioControlsBar(
+                onNextPressed: onNextPressed,
+                onPreviousPressed: onPreviousPressed,
+              ),
 
               const Spacer(
                 flex: 2,

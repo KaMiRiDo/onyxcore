@@ -4,7 +4,14 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import '../providers/audio_player_providers.dart';
 
 class AudioControlsBar extends ConsumerWidget {
-  const AudioControlsBar({super.key});
+  final VoidCallback? onNextPressed;
+  final VoidCallback? onPreviousPressed;
+
+  const AudioControlsBar({
+    super.key,
+    this.onNextPressed,
+    this.onPreviousPressed,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,28 +26,48 @@ class AudioControlsBar extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Left actions
-            Consumer(
-              builder: (context, ref, child) {
-                final currentTrack = ref.watch(currentTrackProvider);
-                if (currentTrack == null) return const SizedBox(width: 48);
-                final isFavorite = ref
-                    .watch(audioFavoritesProvider)
-                    .contains(currentTrack.path);
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Consumer(
+                  builder: (context, ref, child) {
+                    final currentTrack = ref.watch(currentTrackProvider);
+                    if (currentTrack == null) return const SizedBox(width: 48);
+                    final isFavorite = ref
+                        .watch(audioFavoritesProvider)
+                        .contains(currentTrack.path);
 
-                return IconButton(
-                  icon: Icon(
-                    isFavorite
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    color: isFavorite ? AppColors.magenta : Colors.white70,
-                  ),
-                  onPressed: () {
-                    ref
-                        .read(audioFavoritesProvider.notifier)
-                        .toggleFavorite(currentTrack.path);
+                    return IconButton(
+                      icon: Icon(
+                        isFavorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: isFavorite ? AppColors.magenta : Colors.white70,
+                      ),
+                      onPressed: () {
+                        ref
+                            .read(audioFavoritesProvider.notifier)
+                            .toggleFavorite(currentTrack.path);
+                      },
+                    );
                   },
-                );
-              },
+                ),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final isAutoPlay = ref.watch(audioAutoPlaySessionProvider);
+                    return IconButton(
+                      icon: Icon(
+                        isAutoPlay ? Icons.autorenew_rounded : Icons.sync_disabled_rounded,
+                        color: isAutoPlay ? AppColors.magenta : Colors.white70,
+                      ),
+                      onPressed: () {
+                        ref.read(audioAutoPlaySessionProvider.notifier).state = !isAutoPlay;
+                      },
+                      tooltip: isAutoPlay ? 'Autoplay Next: ON' : 'Autoplay Next: OFF',
+                    );
+                  },
+                ),
+              ],
             ),
 
             // Right volume
@@ -112,7 +139,7 @@ class AudioControlsBar extends ConsumerWidget {
                 color: Colors.white,
                 size: 32,
               ),
-              onPressed: () => player?.previous(),
+              onPressed: onPreviousPressed ?? () => player?.previous(),
             ),
             const SizedBox(width: 24),
             GestureDetector(
@@ -138,7 +165,7 @@ class AudioControlsBar extends ConsumerWidget {
                 color: Colors.white,
                 size: 32,
               ),
-              onPressed: () => player?.next(),
+              onPressed: onNextPressed ?? () => player?.next(),
             ),
           ],
         ),

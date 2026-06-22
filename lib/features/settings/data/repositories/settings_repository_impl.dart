@@ -44,6 +44,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
     return AppSettings(
       autoPlayNext: _prefs.getBool('autoPlayNext') ?? true,
+      audioAutoPlayNext: _prefs.getBool('audioAutoPlayNext') ?? true,
       showHiddenFiles: _prefs.getBool('showHiddenFiles') ?? false,
       showHiddenAudioFiles: _prefs.getBool('showHiddenAudioFiles') ?? false,
       snapshotPrefix: _prefs.getString('snapshotPrefix') ?? 'snapshot',
@@ -78,12 +79,15 @@ class SettingsRepositoryImpl implements SettingsRepository {
       documentSearchCaseSensitive:
           _prefs.getBool('documentSearchCaseSensitive') ?? false,
       documentSearchUseRegex: _prefs.getBool('documentSearchUseRegex') ?? false,
+      audioPlayerVolume: _prefs.getDouble('audioPlayerVolume') ?? 100.0,
+      videoPlayerVolume: _prefs.getDouble('videoPlayerVolume') ?? 100.0,
     );
   }
 
   @override
   Future<void> saveSettings(AppSettings settings) async {
     await _prefs.setBool('autoPlayNext', settings.autoPlayNext);
+    await _prefs.setBool('audioAutoPlayNext', settings.audioAutoPlayNext);
     await _prefs.setBool('showHiddenFiles', settings.showHiddenFiles);
     await _prefs.setBool('showHiddenAudioFiles', settings.showHiddenAudioFiles);
     await _prefs.setString('snapshotPrefix', settings.snapshotPrefix);
@@ -145,6 +149,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       'documentSearchUseRegex',
       settings.documentSearchUseRegex,
     );
+    await _prefs.setDouble('audioPlayerVolume', settings.audioPlayerVolume);
+    await _prefs.setDouble('videoPlayerVolume', settings.videoPlayerVolume);
   }
 
   @override

@@ -15,6 +15,7 @@ class FilePickerState {
   final List<FileSystemEntity> contents;
   final Set<String> selection;
   final String? error;
+  final bool pickDirectory;
 
   FilePickerState({
     required this.currentDirectory,
@@ -23,6 +24,7 @@ class FilePickerState {
     this.contents = const [],
     this.selection = const {},
     this.error,
+    this.pickDirectory = false,
   });
 
   FilePickerState copyWith({
@@ -32,6 +34,7 @@ class FilePickerState {
     List<FileSystemEntity>? contents,
     Set<String>? selection,
     String? error,
+    bool? pickDirectory,
   }) {
     return FilePickerState(
       currentDirectory: currentDirectory ?? this.currentDirectory,
@@ -40,6 +43,7 @@ class FilePickerState {
       contents: contents ?? this.contents,
       selection: selection ?? this.selection,
       error: error,
+      pickDirectory: pickDirectory ?? this.pickDirectory,
     );
   }
 }
@@ -64,6 +68,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
   Future<void> initialize({
     List<String>? allowedExtensions,
     String? initialDirectory,
+    bool pickDirectory = false,
   }) async {
     final home = initialDirectory ?? _getHomeDirectory();
 
@@ -76,6 +81,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
       final initialState = FilePickerState(
         currentDirectory: home,
         allowedExtensions: allowedExtensions,
+        pickDirectory: pickDirectory,
       );
       return await _loadDirectoryContents(initialState);
     });
@@ -102,7 +108,9 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
           ? entities
           : entities.where((e) => !p.basename(e.path).startsWith('.')).toList();
 
-      if (currentState.allowedExtensions != null &&
+      if (currentState.pickDirectory) {
+        filtered = filtered.where((e) => e is Directory).toList();
+      } else if (currentState.allowedExtensions != null &&
           currentState.allowedExtensions!.isNotEmpty) {
         filtered = filtered.where((e) {
           if (e is Directory) return true;
@@ -148,7 +156,6 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
 
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final currentState = await future;
       final newState = currentState.copyWith(currentDirectory: path);
       return await _loadDirectoryContents(newState);
     });
@@ -177,6 +184,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
           currentDirectory: path,
           showHiddenFiles: currentState?.showHiddenFiles ?? false,
           allowedExtensions: currentState?.allowedExtensions,
+          pickDirectory: currentState?.pickDirectory ?? false,
         ),
       );
     });

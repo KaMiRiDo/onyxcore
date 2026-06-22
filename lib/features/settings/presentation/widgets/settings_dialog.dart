@@ -833,6 +833,21 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   ),
                 ),
                 _buildSettingTile(
+                  title: 'Auto play next',
+                  subtitle:
+                      'Automatically play the next audio file in the folder when the current one finishes',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.audioAutoPlayNext ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          audioAutoPlayNext: value,
+                        );
+                      });
+                    },
+                  ),
+                ),
+                _buildSettingTile(
                   title: 'Seek duration',
                   subtitle:
                       'Seconds to seek when using arrow keys in the audio player',

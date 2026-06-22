@@ -68,10 +68,17 @@ class YtDlpEngine extends DownloadEngine {
       'onyxcore',
       'yt-dlp-venv',
     );
-    return Process.start('bash', [
-      '-c',
-      'python3 -m venv "$venvPath" && "$venvPath/bin/pip" install --upgrade "yt-dlp[default,curl-cffi]"',
-    ]);
+    return Process.start(
+      'bash',
+      [
+        '-c',
+        'python3 -m venv "$venvPath" && "$venvPath/bin/pip" install --upgrade "yt-dlp[default,curl-cffi]"',
+      ],
+      environment: {
+        'PATH':
+            '${Platform.environment['PATH'] ?? ''}:${Platform.environment['HOME']}/.deno/bin:/usr/local/bin:/opt/homebrew/bin',
+      },
+    );
   }
 
   @override

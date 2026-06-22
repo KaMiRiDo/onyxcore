@@ -149,7 +149,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           _isProcessingImage = true;
         });
 
-        final bytes = await files.first.readAsBytes();
+        final bytes = await File(files.first).readAsBytes();
         final processed = await compute(_prepareCoverArtWorker, bytes);
 
         if (!mounted) return;

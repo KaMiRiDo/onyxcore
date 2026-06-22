@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/features/audio_player/domain/utils/audio_queue_isolate.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
@@ -17,6 +19,7 @@ import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_controller_extension.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
@@ -55,17 +58,23 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
   final FocusNode _focusNode = FocusNode();
   late final Player _player;
   StreamSubscription? _playlistSub;
+  StreamSubscription? _completedSub;
   StreamSubscription? _errorSub;
   StreamSubscription? _bufferingSub;
   StreamSubscription? _bitrateSub;
   bool _isOpening = false;
   bool _isBuffering = false;
   double? _bitrate;
-  bool _sessionDontAskTrash = false;
+  bool _sessionSkipConfirm = false;
+  bool _isEmpty = false;
+  bool _isDisposed = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(audioIsEmptyProvider.notifier).state = false;
+    });
 
     _globalPlayerViewIdCounter++;
     _myPlayerViewId = _globalPlayerViewIdCounter;
@@ -169,6 +178,11 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       debugPrint('[AudioPlayer] Could not set volume-max: $e');
     }
 
+    final settings = ref.read(settingsProvider).value;
+    if (settings != null) {
+      _player.setVolume(settings.audioPlayerVolume);
+    }
+
     // Push state to providers AFTER the first frame (safe now)
     ref.read(audioQueueProvider.notifier).state = audioFiles;
     ref.read(audioPlayingQueueProvider.notifier).state = audioFiles;
@@ -201,6 +215,15 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       }
     });
 
+    _completedSub = _player.stream.completed.listen((completed) {
+      if (completed && mounted) {
+        final autoPlay = ref.read(audioAutoPlaySessionProvider);
+        if (!autoPlay) {
+          _player.pause();
+        }
+      }
+    });
+
     // Open and play
     final playlist = Playlist(
       audioFiles
@@ -224,57 +247,23 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     // player.open defaults to play: true, so playback starts immediately
   }
 
-  void _navigateHistoryBack(WidgetRef ref) {
-    final history = ref.read(audioPathHistoryProvider);
-    if (history.isEmpty) return;
 
-    final newHistory = List<String>.from(history);
-    final currentPath = ref.read(audioCurrentPathProvider);
-    final prevPath = newHistory.removeLast();
-
-    ref
-        .read(audioPathForwardHistoryProvider.notifier)
-        .update((state) => [currentPath, ...state]);
-    ref.read(audioPathHistoryProvider.notifier).state = newHistory;
-
-    // Load the folder
-    _fetchAudioQueue(prevPath).then((audioFiles) {
-      ref.read(audioCurrentPathProvider.notifier).state = prevPath;
-      ref.read(audioQueueProvider.notifier).state = audioFiles;
-      ref.read(audioSelectionProvider.notifier).state = {};
-      ref.read(audioSelectionAnchorProvider.notifier).state = null;
-    });
-  }
-
-  void _navigateHistoryForward(WidgetRef ref) {
-    final forwardHistory = ref.read(audioPathForwardHistoryProvider);
-    if (forwardHistory.isEmpty) return;
-
-    final newForward = List<String>.from(forwardHistory);
-    final currentPath = ref.read(audioCurrentPathProvider);
-    final nextPath = newForward.removeAt(0);
-
-    ref
-        .read(audioPathHistoryProvider.notifier)
-        .update((state) => [...state, currentPath]);
-    ref.read(audioPathForwardHistoryProvider.notifier).state = newForward;
-
-    _fetchAudioQueue(nextPath).then((audioFiles) {
-      ref.read(audioCurrentPathProvider.notifier).state = nextPath;
-      ref.read(audioQueueProvider.notifier).state = audioFiles;
-      ref.read(audioSelectionProvider.notifier).state = {};
-      ref.read(audioSelectionAnchorProvider.notifier).state = null;
-    });
-  }
 
   @override
   void dispose() {
     // 1. Cancel all stream subscriptions first
     _playlistSub?.cancel();
+    _completedSub?.cancel();
     _errorSub?.cancel();
     _bufferingSub?.cancel();
     _bitrateSub?.cancel();
     _focusNode.dispose();
+    try {
+      final emptyNotifier = ref.read(audioIsEmptyProvider.notifier);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        emptyNotifier.state = false;
+      });
+    } catch (_) {}
 
     // 2. Clear the provider reference.
     try {
@@ -322,7 +311,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     }
 
     bool shouldConfirm = needConfirm;
-    if (!permanent && _sessionDontAskTrash) {
+    if (_sessionSkipConfirm) {
       shouldConfirm = false;
     }
 
@@ -341,6 +330,9 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                   filesCount: targetPaths.length,
                   foldersCount: 0,
                   totalSize: StringUtils.formatBytes(size),
+                  onDontAskAgainChanged: (val) {
+                    _sessionSkipConfirm = val;
+                  },
                 );
               } else {
                 return ViewerDeleteDialog(
@@ -349,7 +341,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                       : '${targetPaths.length} items',
                   permanent: permanent,
                   onDontAskAgainChanged: (val) {
-                    _sessionDontAskTrash = val;
+                    _sessionSkipConfirm = val;
                   },
                 );
               }
@@ -358,6 +350,9 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         : true;
 
     if (confirm != true) return;
+
+    // Allow the delete dialog's closing animation to finish smoothly
+    await Future.delayed(const Duration(milliseconds: 300));
 
     final currentTrack = ref.read(currentTrackProvider);
     final isPlayingTrackDeleted =
@@ -428,15 +423,14 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           final list = updatedPlayingQueue
               .map((item) => Media(MediaUriHelper.getSafeMediaUri(item.path)))
               .toList();
-          await _player.open(Playlist(list, index: safeIndex));
+          
+          final autoPlay = ref.read(audioAutoPlaySessionProvider);
+          await _player.open(Playlist(list, index: safeIndex), play: autoPlay);
         } else {
-          if (widget.isStandalone) {
-            final c = await WindowController.fromCurrentEngine();
-            await c.close();
-          } else {
-            ref.read(previewFileProvider.notifier).state = null;
-            ref.read(mainFocusNodeProvider).requestFocus();
-          }
+          setState(() => _isEmpty = true);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(audioIsEmptyProvider.notifier).state = true;
+          });
         }
       }
       ref.read(taskProvider.notifier).completeTask(taskId);
@@ -448,8 +442,82 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     }
   }
 
+  void _handleItemsMoved(List<String> paths) async {
+    // 1. Update global queues unconditionally so UI reflects the move
+    final currentQueue = ref.read(audioQueueProvider);
+    final updatedQueue = currentQueue
+        .where((item) => !paths.contains(item.path))
+        .toList();
+    ref.read(audioQueueProvider.notifier).state = updatedQueue;
+
+    final currentPlayingQueue = ref.read(audioPlayingQueueProvider);
+    final currentIndex = ref.read(activeTrackIndexProvider);
+    final isPlayingTrackMoved = currentIndex >= 0 &&
+        currentIndex < currentPlayingQueue.length &&
+        paths.contains(currentPlayingQueue[currentIndex].path);
+
+    final updatedPlayingQueue = currentPlayingQueue
+        .where((item) => !paths.contains(item.path))
+        .toList();
+    ref.read(audioPlayingQueueProvider.notifier).state = updatedPlayingQueue;
+
+    if (!widget.isStandalone) {
+      ref.read(directoryItemsProvider.notifier).refresh();
+    }
+
+    // 2. Handle player state if the currently playing track was moved
+    if (isPlayingTrackMoved) {
+      await _player.pause();
+      
+      if (updatedPlayingQueue.isNotEmpty) {
+        int safeIndex = currentIndex >= updatedPlayingQueue.length
+            ? updatedPlayingQueue.length - 1
+            : currentIndex;
+        if (safeIndex < 0) safeIndex = 0;
+
+        ref.read(activeTrackIndexProvider.notifier).state = safeIndex;
+
+        await MediaUriHelper.ensureLocalProxy();
+        final list = updatedPlayingQueue
+            .map((item) => Media(MediaUriHelper.getSafeMediaUri(item.path)))
+            .toList();
+        
+        final autoPlay = ref.read(audioAutoPlaySessionProvider);
+        await _player.open(Playlist(list, index: safeIndex), play: autoPlay);
+        if (autoPlay) {
+          await _player.play();
+        }
+      } else {
+        _player.pause();
+        setState(() => _isEmpty = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(audioIsEmptyProvider.notifier).state = true;
+        });
+        return;
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen(audioRestartSignalProvider, (previous, next) {
+      if (_isEmpty) {
+        setState(() => _isEmpty = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(audioIsEmptyProvider.notifier).state = false;
+        });
+        final currentPlayingQueue = ref.read(audioPlayingQueueProvider);
+        final currentIndex = ref.read(activeTrackIndexProvider);
+        if (currentPlayingQueue.isNotEmpty && currentIndex < currentPlayingQueue.length) {
+          final playlist = Playlist(
+            currentPlayingQueue.map((f) => Media(MediaUriHelper.getSafeMediaUri(f.path))).toList(),
+            index: currentIndex,
+          );
+          _player.open(playlist);
+        }
+      }
+    });
+
     final currentTrack = ref.watch(currentTrackProvider);
     final settings = ref.watch(settingsProvider).value;
     final seekSeconds = settings?.audioSeekSeconds ?? 5;
@@ -464,7 +532,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
     String topBarMetadata = "Audio Player";
     if (currentTrack != null) {
-      final queue = ref.watch(filteredAndSortedAudioQueueProvider);
+      final queue = ref.watch(filteredAndSortedAudioQueueProvider).where((i) => i.type == FileItemType.audio).toList();
       final total = queue.length;
       final index = queue.indexWhere((i) => i.path == currentTrack.path);
       final positionStr = index != -1 ? '${index + 1} / $total' : '';
@@ -580,7 +648,10 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         }
         if (key == LogicalKeyboardKey.arrowLeft) {
           if (isAlt) {
-            _navigateHistoryBack(ref);
+            final isSidebarOpen = ref.read(audioPlaylistSidebarVisibleProvider);
+            if (isSidebarOpen) {
+              _navigateHistoryBack(ref);
+            }
           } else {
             _player.seek(
               _player.state.position - Duration(seconds: seekSeconds),
@@ -590,7 +661,10 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         }
         if (key == LogicalKeyboardKey.arrowRight) {
           if (isAlt) {
-            _navigateHistoryForward(ref);
+            final isSidebarOpen = ref.read(audioPlaylistSidebarVisibleProvider);
+            if (isSidebarOpen) {
+              _navigateHistoryForward(ref);
+            }
           } else {
             _player.seek(
               _player.state.position + Duration(seconds: seekSeconds),
@@ -600,11 +674,19 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         }
 
         if (key == LogicalKeyboardKey.arrowUp) {
-          _player.setVolume((_player.state.volume + 5).clamp(0, 200));
+          final newVol = (_player.state.volume + 5).clamp(0, 200).toDouble();
+          _player.setVolume(newVol);
+          ref.read(settingsProvider.notifier).saveSettings(
+            ref.read(settingsProvider).value!.copyWith(audioPlayerVolume: newVol),
+          );
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.arrowDown) {
-          _player.setVolume((_player.state.volume - 5).clamp(0, 200));
+          final newVol = (_player.state.volume - 5).clamp(0, 200).toDouble();
+          _player.setVolume(newVol);
+          ref.read(settingsProvider.notifier).saveSettings(
+            ref.read(settingsProvider).value!.copyWith(audioPlayerVolume: newVol),
+          );
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.keyM) {
@@ -614,7 +696,11 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
             return KeyEventResult.ignored;
           }
           final currentVolume = _player.state.volume;
-          _player.setVolume(currentVolume > 0 ? 0 : 100);
+          final newVol = currentVolume > 0 ? 0.0 : 100.0;
+          _player.setVolume(newVol);
+          ref.read(settingsProvider.notifier).saveSettings(
+            ref.read(settingsProvider).value!.copyWith(audioPlayerVolume: newVol),
+          );
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.f2) {
@@ -779,6 +865,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                         PlaylistSidebar(
                           onDelete: (paths) =>
                               _handleDelete(permanent: false, paths: paths),
+                          onMove: _handleItemsMoved,
                           onReload: _handleReload,
                         ),
                         Positioned(
@@ -843,23 +930,54 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
                 // Right Pane (Takes remaining space)
                 Expanded(
-                  child: GestureDetector(
-                    onDoubleTap: widget.isStandalone
-                        ? null
-                        : () {
-                            final params = WindowParams(
-                              viewerType: ViewerType.audio,
-                              file: currentTrack ?? widget.item,
-                            );
-                            PersistentViewerManager.openMedia(params).then((_) {
-                              ref.read(previewFileProvider.notifier).state =
-                                  null;
-                            });
+                  child: _isEmpty
+                      ? _buildEmptyState()
+                      : GestureDetector(
+                          onDoubleTap: widget.isStandalone
+                              ? null
+                              : () {
+                                  final params = WindowParams(
+                                    viewerType: ViewerType.audio,
+                                    file: currentTrack ?? widget.item,
+                                  );
+                                  PersistentViewerManager.openMedia(params).then((_) {
+                                    ref.read(previewFileProvider.notifier).state =
+                                        null;
+                                  });
+                                },
+                          behavior: HitTestBehavior.translucent,
+                          child: Stack(
+                            children: [
+                        HeroAudioPlayer(
+                          onNextPressed: () {
+                            final currentPlayingQueue =
+                                ref.read(audioPlayingQueueProvider);
+                            final currentIndex =
+                                ref.read(activeTrackIndexProvider);
+                            if (currentIndex >=
+                                currentPlayingQueue.length - 1) {
+                              _player.pause();
+                              setState(() => _isEmpty = true);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                ref.read(audioIsEmptyProvider.notifier).state = true;
+                              });
+                            } else {
+                              _player.next();
+                            }
                           },
-                    behavior: HitTestBehavior.translucent,
-                    child: Stack(
-                      children: [
-                        const HeroAudioPlayer(),
+                          onPreviousPressed: () {
+                            final currentIndex = ref.read(activeTrackIndexProvider);
+                            if (currentIndex == 0) {
+                              _player.pause();
+                              setState(() => _isEmpty = true);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                ref.read(audioIsEmptyProvider.notifier).state = true;
+                              });
+                            } else {
+                              _player.previous();
+                            }
+                          },
+                        ),
 
                         // Top HUD (Hero Pane only)
                         Positioned(
@@ -1001,5 +1119,83 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         ),
       ),
     );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      color: const Color(0xFF121212),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.music_off_rounded,
+              size: 64,
+              color: Colors.white.withOpacity(0.2),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No audio files to play next.',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateHistoryBack(WidgetRef ref) {
+    final history = ref.read(audioPathHistoryProvider);
+    if (history.isNotEmpty) {
+      final newPath = history.last;
+      final currentPath = ref.read(audioCurrentPathProvider);
+
+      ref.read(audioPathHistoryProvider.notifier).state =
+          history.sublist(0, history.length - 1);
+      ref.read(audioPathForwardHistoryProvider.notifier).update(
+            (state) => [...state, currentPath],
+          );
+
+      _openPlaylistFolder(ref, newPath);
+    }
+  }
+
+  void _navigateHistoryForward(WidgetRef ref) {
+    final forwardHistory = ref.read(audioPathForwardHistoryProvider);
+    if (forwardHistory.isNotEmpty) {
+      final newPath = forwardHistory.last;
+      final currentPath = ref.read(audioCurrentPathProvider);
+
+      ref.read(audioPathForwardHistoryProvider.notifier).state =
+          forwardHistory.sublist(0, forwardHistory.length - 1);
+      ref.read(audioPathHistoryProvider.notifier).update(
+            (state) => [...state, currentPath],
+          );
+
+      _openPlaylistFolder(ref, newPath);
+    }
+  }
+
+  void _openPlaylistFolder(WidgetRef ref, String path) async {
+    final repo = ref.read(directoryRepositoryProvider);
+    final showHidden = ref.read(audioShowHiddenProvider);
+    try {
+      final items = await repo.listDirectory(path);
+      final mediaFiles = await compute(processMediaQueueIsolate, {
+        'items': items.map((e) => e.toJson()).toList(),
+        'showHidden': showHidden,
+        'targetType': FileItemType.audio.index,
+      });
+      ref.read(audioCurrentPathProvider.notifier).state = path;
+      ref.read(audioQueueProvider.notifier).state = mediaFiles;
+      ref.read(audioSelectionProvider.notifier).state = {};
+      ref.read(audioSelectionAnchorProvider.notifier).state = null;
+    } catch (e) {
+      debugPrint("Error opening folder: $e");
+    }
   }
 }

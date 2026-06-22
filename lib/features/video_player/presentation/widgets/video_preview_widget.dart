@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
+import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,6 +38,7 @@ import 'package:onyxcore/core/utils/media_uri_helper.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
@@ -176,6 +179,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   bool _isGlobalHudVisible = true;
   Offset? _doubleTapPosition;
+  bool _sessionSkipConfirm = false;
 
   // EPX-006: Trackpad Gesture Engine state
   Duration? _virtualScrubPosition;
@@ -204,10 +208,14 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isSidebarDragOutOfBounds = false;
   double _sidebarDragStartWidth = 0.0;
   double _sidebarDragStartX = 0.0;
+  bool _isEmpty = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(videoIsEmptyProvider.notifier).state = false;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _focusNode.requestFocus();
@@ -348,6 +356,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       } else {
         platform.setProperty('hwdec', 'auto-safe');
       }
+      
+      // Volume persistence
+      if (settings != null) {
+        player.setVolume(settings.videoPlayerVolume);
+      }
     }
 
     controller = VideoController(player);
@@ -388,6 +401,16 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     _playingSubscription = player.stream.playing.listen((playing) {
       _isPlayingNotifier.value = playing;
+    });
+
+    player.stream.volume.listen((vol) {
+      if (!mounted) return;
+      final settings = ref.read(settingsProvider).value;
+      if (settings != null && settings.videoPlayerVolume != vol) {
+        ref.read(settingsProvider.notifier).saveSettings(
+          settings.copyWith(videoPlayerVolume: vol),
+        );
+      }
     });
 
     _isOpening = true;
@@ -532,16 +555,21 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     // No longer need to wait for audio player disposal because AudioPlayerView
     // now uses a global, reused Player instance that is never disposed.
-    // Standard UI delay to ensure loader animation is running
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Minimal delay just to let the frame render
+    await Future.delayed(const Duration(milliseconds: 16));
     if (!mounted || _isClosing) return;
 
     debugPrint('[VideoPlayer] Calling player.open() for: ${_currentItem.path}');
     try {
       await MediaUriHelper.ensureLocalProxy();
+      bool shouldPlay = true;
+      if (ref.read(videoForcePauseNextProvider)) {
+        shouldPlay = false;
+        ref.read(videoForcePauseNextProvider.notifier).state = false;
+      }
       await player.open(
         Media(MediaUriHelper.getSafeMediaUri(_currentItem.path)),
-        play: true,
+        play: shouldPlay,
       );
       debugPrint('[VideoPlayer] player.open() completed successfully');
       if (mounted) setState(() => _isOpening = false);
@@ -575,12 +603,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     // Give the UI time to render the loader before engine init
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Future.delayed(const Duration(milliseconds: 100), () async {
+      Future.delayed(const Duration(milliseconds: 16), () async {
         if (mounted) {
           await MediaUriHelper.ensureLocalProxy();
+          bool shouldPlay = true;
+          if (ref.read(videoForcePauseNextProvider)) {
+            shouldPlay = false;
+            ref.read(videoForcePauseNextProvider.notifier).state = false;
+          }
           await player.open(
             Media(MediaUriHelper.getSafeMediaUri(item.path)),
-            play: true,
+            play: shouldPlay,
           );
           if (mounted) setState(() => _isOpening = false);
         }
@@ -782,6 +815,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _isPlayingNotifier.dispose();
     _hoverXNotifier.dispose();
     _focusNode.dispose();
+    try {
+      final emptyNotifier = ref.read(videoIsEmptyProvider.notifier);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        emptyNotifier.state = false;
+      });
+    } catch (_) {}
     _activeMenuEntry?.remove();
     _activeMenuEntry = null;
 
@@ -1251,6 +1290,14 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
               (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
                   event.logicalKey == LogicalKeyboardKey.arrowRight))) {
         if (widget.windowId == null && !widget.isStandalone) {
+          final isSidebarOpen = ref.read(videoPlaylistSidebarVisibleProvider);
+          if (isSidebarOpen && isAltPressed) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              _navigatePlaylistHistoryBack(ref);
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              _navigatePlaylistHistoryForward(ref);
+            }
+          }
           return KeyEventResult.handled; // Consume to prevent navigation
         }
       }
@@ -1759,166 +1806,175 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       ).invokeMethod('request_navigation', payload);
     } else {
       // 2. Inline Mode: Local Riverpod state update
-      final items = ref.read(directoryItemsProvider).value ?? [];
-      if (items.isEmpty) return;
-
-      final mediaItems = items
-          .where((i) => i.type == FileItemType.video)
-          .toList();
+      List<FileItem> mediaItems = ref.read(filteredAndSortedVideoQueueProvider).where((i) => i.type == FileItemType.video).toList();
+      if (mediaItems.isEmpty) {
+        final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+        mediaItems = items.where((i) => i.type == FileItemType.video).toList();
+      }
+      
       if (mediaItems.isEmpty) return;
 
       final currentIndex = mediaItems.indexWhere(
         (i) => i.path == _currentItem.path,
       );
-      if (currentIndex == -1) return;
+      if (currentIndex == -1 || mediaItems.length == 1) {
+        player.pause();
+        setState(() => _isEmpty = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(videoIsEmptyProvider.notifier).state = true;
+        });
+        return;
+      }
 
       int nextIndex;
       if (forward) {
-        nextIndex = (currentIndex + 1) % mediaItems.length;
+        if (currentIndex == mediaItems.length - 1) {
+          player.pause();
+          setState(() => _isEmpty = true);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(videoIsEmptyProvider.notifier).state = true;
+          });
+          return;
+        }
+        nextIndex = currentIndex + 1;
       } else {
-        nextIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+        if (currentIndex == 0) {
+          player.pause();
+          setState(() => _isEmpty = true);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(videoIsEmptyProvider.notifier).state = true;
+          });
+          return;
+        }
+        nextIndex = currentIndex - 1;
       }
 
       ref.read(previewFileProvider.notifier).state = mediaItems[nextIndex];
     }
   }
 
-  Future<void> _handleDelete({required bool permanent}) async {
+  void _handleItemsMoved(List<String> paths) async {
+    if (paths.contains(_currentItem.path)) {
+      await player.pause();
+      _navigateMedia(true);
+    }
+  }
+
+  Future<void> _handleDelete({
+    required bool permanent,
+    List<String>? paths,
+    bool isMove = false,
+  }) async {
     player.pause();
 
     final settings = ref.read(settingsProvider).value;
-    final confirm = permanent || (settings?.confirmDeleteVideo ?? true);
+    bool shouldConfirm = permanent || (settings?.confirmDeleteVideo ?? true);
 
-    if (confirm) {
+    if (_sessionSkipConfirm) {
+      shouldConfirm = false;
+    }
+
+    if (shouldConfirm) {
       final shouldDelete = await showDialog<bool>(
         context: context,
-        builder: (context) => ViewerDeleteDialog(
-          fileName: widget.item.name,
-          permanent: permanent,
-        ),
-      );
-      if (shouldDelete != true) return;
-    }
-
-    FileItem? nextItem;
-    bool hasMultiple = false;
-
-    if (widget.windowId != null) {
-      try {
-        final payload = jsonEncode({
-          'currentPath': widget.item.path,
-          'type': 'video',
-        });
-        final response = await WindowController.fromWindowId(
-          widget.parentWindowId ?? '0',
-        ).invokeMethod('get_next_prev_media', payload);
-        if (response != null && response is String) {
-          final data = jsonDecode(response);
-          final String? nextPath = data['nextPath'];
-          if (nextPath != null && nextPath != widget.item.path) {
-            hasMultiple = true;
-            nextItem = FileItem(
-              name: data['nextName'] ?? '',
-              path: nextPath,
-              type: FileItemType.video,
-              sizeBytes: 0,
-              modified: DateTime.now(),
-              hasWritePermission: true,
+        builder: (context) {
+          if (permanent) {
+            int size = 0;
+            final targetList = paths ?? [widget.item.path];
+            for (final p in targetList) {
+              try {
+                size += File(p).lengthSync();
+              } catch (_) {}
+            }
+            return PermanentDeleteDialog(
+              filesCount: targetList.length,
+              foldersCount: 0,
+              totalSize: StringUtils.formatBytes(size),
+              onDontAskAgainChanged: (val) {
+                _sessionSkipConfirm = val;
+              },
+            );
+          } else {
+            return ViewerDeleteDialog(
+              fileName: paths?.length == 1 ? p.basename(paths!.first) : widget.item.name,
+              permanent: permanent,
+              onDontAskAgainChanged: (val) {
+                _sessionSkipConfirm = val;
+              },
             );
           }
-        }
-      } catch (e) {
-        debugPrint('Error getting next media in standalone video deletion: $e');
-      }
-    } else {
-      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-      final mediaItems = items
-          .where((i) => i.type == FileItemType.video)
-          .toList();
-      if (mediaItems.length > 1) {
-        hasMultiple = true;
-        final currentIndex = mediaItems.indexWhere(
-          (i) => i.path == widget.item.path,
-        );
-        if (currentIndex != -1) {
-          final nextIndex = (currentIndex + 1) % mediaItems.length;
-          nextItem = mediaItems[nextIndex];
-        }
-      }
+        },
+      );
+      if (shouldDelete != true) return;
+      
+      // Allow the delete dialog's closing animation to finish smoothly
+      await Future.delayed(const Duration(milliseconds: 300));
     }
 
-    final shouldAdvance =
-        (settings?.autoPlayNext ?? true) && hasMultiple && nextItem != null;
+    final targetPaths = paths ?? [widget.item.path];
 
-    if (widget.windowId != null) {
-      final payload = jsonEncode({
-        'path': widget.item.path,
-        'permanent': permanent,
-      });
-
-      if (shouldAdvance) {
-        final navPayload = jsonEncode({
-          'direction': 'next',
-          'currentPath': widget.item.path,
-          'type': 'video',
-          'targetWindowId': widget.windowId!,
-        });
-        await WindowController.fromWindowId(
-          widget.parentWindowId ?? '0',
-        ).invokeMethod('request_navigation', navPayload);
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-
-      await WindowController.fromWindowId(
-        widget.parentWindowId ?? '0',
-      ).invokeMethod('delete_item', payload);
-
-      if (!shouldAdvance) {
-        await windowManager.hide();
-      }
-    } else {
+    if (!isMove) {
       final repo = ref.read(directoryRepositoryProvider);
-      final currentPath = ref.read(currentPathProvider);
-      final taskId = ref
-          .read(taskProvider.notifier)
-          .addTask(
-            title: permanent
-                ? 'Deleting video permanently'
-                : 'Moving video to Trash',
-            subtitle: permanent ? 'Delete' : 'Trash',
-            sourcePaths: [widget.item.path],
+      final taskId = ref.read(taskProvider.notifier).addTask(
+            title: permanent ? 'Deleting video permanently' : 'Moving video to Trash',
+            subtitle: targetPaths.length == 1
+                ? p.basename(targetPaths.first)
+                : '${targetPaths.length} items',
+            sourcePaths: targetPaths,
             isLight: true,
           );
 
       try {
         await repo.deleteItems(
-          [widget.item.path],
+          targetPaths,
           permanent: permanent,
           taskId: taskId,
           onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
         );
         ref.read(taskProvider.notifier).completeTask(taskId);
       } catch (e) {
-        ref.read(taskProvider.notifier).addLog(taskId, 'Error: $e');
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
-      } finally {
-        repo.invalidateCache(currentPath);
-        ref.read(refreshCountProvider.notifier).state =
-            ref.read(refreshCountProvider) + 1;
-        ref.read(directoryItemsProvider.notifier).refresh();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Deletion failed: $e')),
+          );
+        }
       }
+    }
 
-      if (shouldAdvance) {
-        ref.read(previewFileProvider.notifier).state = nextItem;
-      } else {
-        ref.read(previewFileProvider.notifier).state = null;
-        ref.read(mainFocusNodeProvider).requestFocus();
+    if (!widget.isStandalone) {
+      ref.read(directoryItemsProvider.notifier).refresh();
+      if (targetPaths.contains(_currentItem.path)) {
+        final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
+        if (!isAutoPlay) {
+          ref.read(videoForcePauseNextProvider.notifier).state = true;
+        }
+        _navigateMedia(true);
+      }
+    } else {
+      // Standalone logic for closing if current item is deleted
+      if (targetPaths.contains(_currentItem.path)) {
+        final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
+        if (!isAutoPlay) {
+          ref.read(videoForcePauseNextProvider.notifier).state = true;
+        }
+        _navigateMedia(true);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(videoRestartSignalProvider, (previous, next) {
+      if (_isEmpty) {
+        setState(() => _isEmpty = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(videoIsEmptyProvider.notifier).state = false;
+        });
+        _loadMedia(_currentItem);
+      }
+    });
+
     ref.listen(previewHudVisibleProvider, (previous, next) {
       if (mounted) {
         setState(() => _isGlobalHudVisible = next);
@@ -1933,6 +1989,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         (_isControlsVisible || _isMarkerEditorActive || _isMarkerMenuVisible) &&
         _scrollLockAxis == null &&
         (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
+
+
 
     return PopScope(
       canPop: widget.windowId != null || widget.isStandalone,
@@ -1975,6 +2033,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                 video;
                           }
                         },
+                        onDelete: (paths) =>
+                            _handleDelete(permanent: false, paths: paths),
+                        onMove: _handleItemsMoved,
+                        onReload: () => ref
+                            .read(directoryItemsProvider.notifier)
+                            .refresh(),
                       )
                     : const SizedBox.shrink(),
               ),
@@ -2028,7 +2092,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                     }
                   },
                   onKeyEvent: (node, event) => _handleKeyEvent(event),
-                  child: Listener(
+                  child: _isEmpty ? _buildEmptyState() : Listener(
                     onPointerSignal: (event) {
                       if (_isMarkerEditorActive) {
                         final RenderBox? box =
@@ -2318,9 +2382,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                   ? ' • ${_fps!.toInt()} FPS'
                                   : '';
 
+                              var q = ref.watch(filteredAndSortedVideoQueueProvider).where((i) => i.type == FileItemType.video).toList();
+                              if (q.isEmpty) {
+                                final items = ref.watch(sortedDirectoryItemsProvider).value ?? [];
+                                q = items.where((i) => i.type == FileItemType.video).toList();
+                              }
+                              final index = q.indexWhere((i) => i.path == _currentItem.path);
+                              final indexString = index != -1 ? ' • ${index + 1} / ${q.length}' : '';
+
                               return ViewerTopBar(
                                 title: _currentItem.name,
-                                metadata: '$res$fpsString',
+                                metadata: '$res$fpsString$indexString',
                                 isStandalone: widget.isStandalone,
                                 onPopOut: _openInNewWindow,
                                 onClose: () =>
@@ -2895,7 +2967,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                         result.isNotEmpty) {
                                                       player.setSubtitleTrack(
                                                         SubtitleTrack.uri(
-                                                          result.first.path,
+                                                          result.first,
                                                         ),
                                                       );
                                                     }
@@ -3388,5 +3460,83 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         ),
       ),
     );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      color: const Color(0xFF121212),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.videocam_off_rounded,
+              size: 64,
+              color: Colors.white.withOpacity(0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No video files to play next.',
+              style: GoogleFonts.manrope(
+                color: Colors.white.withOpacity(0.5),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigatePlaylistHistoryBack(WidgetRef ref) {
+    final history = ref.read(videoPathHistoryProvider);
+    if (history.isNotEmpty) {
+      final newPath = history.last;
+      final currentPath = ref.read(videoCurrentPathProvider);
+
+      ref.read(videoPathHistoryProvider.notifier).state =
+          history.sublist(0, history.length - 1);
+      ref.read(videoPathForwardHistoryProvider.notifier).update(
+            (state) => [...state, currentPath],
+          );
+
+      _openPlaylistFolder(ref, newPath);
+    }
+  }
+
+  void _navigatePlaylistHistoryForward(WidgetRef ref) {
+    final forwardHistory = ref.read(videoPathForwardHistoryProvider);
+    if (forwardHistory.isNotEmpty) {
+      final newPath = forwardHistory.last;
+      final currentPath = ref.read(videoCurrentPathProvider);
+
+      ref.read(videoPathForwardHistoryProvider.notifier).state =
+          forwardHistory.sublist(0, forwardHistory.length - 1);
+      ref.read(videoPathHistoryProvider.notifier).update(
+            (state) => [...state, currentPath],
+          );
+
+      _openPlaylistFolder(ref, newPath);
+    }
+  }
+
+  void _openPlaylistFolder(WidgetRef ref, String path) async {
+    final repo = ref.read(directoryRepositoryProvider);
+    final showHidden = ref.read(videoShowHiddenProvider);
+    try {
+      final items = await repo.listDirectory(path);
+      final mediaFiles = await compute(processMediaQueueIsolate, {
+        'items': items.map((e) => e.toJson()).toList(),
+        'showHidden': showHidden,
+        'targetType': FileItemType.video.index,
+      });
+      ref.read(videoCurrentPathProvider.notifier).state = path;
+      ref.read(videoQueueProvider.notifier).state = mediaFiles;
+      ref.read(videoSelectionProvider.notifier).state = {};
+      ref.read(videoSelectionAnchorProvider.notifier).state = null;
+    } catch (e) {
+      debugPrint("Error opening folder: $e");
+    }
   }
 }

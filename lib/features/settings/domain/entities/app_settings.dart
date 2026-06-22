@@ -20,6 +20,7 @@ enum SpeedControlOption {
 class AppSettings extends Equatable {
   const AppSettings({
     this.autoPlayNext = true,
+    this.audioAutoPlayNext = true,
     this.showHiddenFiles = false,
     this.snapshotPrefix = 'snapshot',
     this.doubleTapSeekSeconds = 10,
@@ -50,10 +51,15 @@ class AppSettings extends Equatable {
     this.maxLiveRecordingMinutes = 0,
     this.documentSearchCaseSensitive = false,
     this.documentSearchUseRegex = false,
+    this.audioPlayerVolume = 100.0,
+    this.videoPlayerVolume = 100.0,
   });
 
   /// Whether to automatically play the next video in the playlist.
   final bool autoPlayNext;
+
+  /// Whether to automatically play the next audio in the playlist.
+  final bool audioAutoPlayNext;
 
   /// Whether to show hidden files (starting with .) in the file manager.
   final bool showHiddenFiles;
@@ -145,8 +151,15 @@ class AppSettings extends Equatable {
   /// Whether document search should use regular expressions by default.
   final bool documentSearchUseRegex;
 
+  /// The persisted volume for the audio player (0.0 to 200.0).
+  final double audioPlayerVolume;
+
+  /// The persisted volume for the video player (0.0 to 200.0).
+  final double videoPlayerVolume;
+
   AppSettings copyWith({
     bool? autoPlayNext,
+    bool? audioAutoPlayNext,
     bool? showHiddenFiles,
     String? snapshotPrefix,
     int? doubleTapSeekSeconds,
@@ -177,9 +190,12 @@ class AppSettings extends Equatable {
     int? maxLiveRecordingMinutes,
     bool? documentSearchCaseSensitive,
     bool? documentSearchUseRegex,
+    double? audioPlayerVolume,
+    double? videoPlayerVolume,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
+      audioAutoPlayNext: audioAutoPlayNext ?? this.audioAutoPlayNext,
       showHiddenFiles: showHiddenFiles ?? this.showHiddenFiles,
       snapshotPrefix: snapshotPrefix ?? this.snapshotPrefix,
       doubleTapSeekSeconds: doubleTapSeekSeconds ?? this.doubleTapSeekSeconds,
@@ -217,12 +233,15 @@ class AppSettings extends Equatable {
           documentSearchCaseSensitive ?? this.documentSearchCaseSensitive,
       documentSearchUseRegex:
           documentSearchUseRegex ?? this.documentSearchUseRegex,
+      audioPlayerVolume: audioPlayerVolume ?? this.audioPlayerVolume,
+      videoPlayerVolume: videoPlayerVolume ?? this.videoPlayerVolume,
     );
   }
 
   @override
   List<Object?> get props => [
     autoPlayNext,
+    audioAutoPlayNext,
     showHiddenFiles,
     snapshotPrefix,
     doubleTapSeekSeconds,
@@ -253,5 +272,7 @@ class AppSettings extends Equatable {
     maxLiveRecordingMinutes,
     documentSearchCaseSensitive,
     documentSearchUseRegex,
+    audioPlayerVolume,
+    videoPlayerVolume,
   ];
 }

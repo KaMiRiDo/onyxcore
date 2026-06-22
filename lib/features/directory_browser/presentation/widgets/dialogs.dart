@@ -236,22 +236,26 @@ class PermanentDeleteDialog extends StatelessWidget {
   final int filesCount;
   final int foldersCount;
   final String totalSize;
+  final ValueChanged<bool>? onDontAskAgainChanged;
 
   const PermanentDeleteDialog({
     super.key,
     required this.filesCount,
     required this.foldersCount,
     required this.totalSize,
+    this.onDontAskAgainChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    bool dontAskAgain = false;
     final totalItems = filesCount + foldersCount;
 
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      child: Container(
+      child: StatefulBuilder(
+        builder: (context, setState) => Container(
         width: 420,
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
@@ -354,6 +358,53 @@ class PermanentDeleteDialog extends StatelessWidget {
                 ],
               ),
             ),
+            if (onDontAskAgainChanged != null) ...[
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    dontAskAgain = !dontAskAgain;
+                  });
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: dontAskAgain
+                            ? AppColors.error
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: dontAskAgain
+                              ? AppColors.error
+                              : Colors.white38,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: dontAskAgain
+                          ? const Icon(
+                              Icons.check,
+                              size: 14,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Don't ask for confirmation in this session",
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 32),
             Row(
               children: [
@@ -381,7 +432,12 @@ class PermanentDeleteDialog extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     autofocus: true,
-                    onPressed: () => Navigator.pop(context, true),
+                    onPressed: () {
+                      if (onDontAskAgainChanged != null) {
+                        onDontAskAgainChanged!(dontAskAgain);
+                      }
+                      Navigator.pop(context, true);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error,
                       foregroundColor: Colors.white,
@@ -404,6 +460,7 @@ class PermanentDeleteDialog extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

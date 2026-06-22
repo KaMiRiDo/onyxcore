@@ -205,53 +205,56 @@ onyxcore/
 │       │   │   │   └── tab_state.dart            # Tab state model
 │       │   │   └── repositories/
 │       │   │       └── directory_repository.dart # Repository interface
-│       │   └── presentation/
-│       │       ├── pages/
-│       │       │   └── gallery_page.dart         # Main UI orchestrator
-│       │       ├── providers/
-│       │       │   ├── background_panel_provider.dart  # Background panel state
-│       │       │   ├── clipboard_provider.dart         # Copy/Cut clipboard state
-│       │       │   ├── conflict_provider.dart          # File conflict resolution
-│       │       │   ├── device_provider.dart            # Block device detection
-│       │       │   ├── directory_providers.dart        # Core directory state providers
-│       │       │   ├── navigation_notifier.dart        # Back/forward navigation
-│       │       │   ├── pinned_items_provider.dart       # Hive-backed pinned items
-│       │       │   ├── selection_notifier.dart         # Multi-select state
-│       │       │   ├── tab_manager.dart                # Tabbed interface state
-│       │       │   ├── task_history_provider.dart      # Persistent task history
-│       │       │   └── task_provider.dart              # Background task queue
-│       │       └── widgets/
-│       │           ├── action_bar.dart              # File operation action bar
-│       │           ├── background_panel.dart        # Slide-out tasks panel
-│       │           ├── background_processes_button.dart # Tasks panel toggle
-│       │           ├── conflict_dialog.dart          # Skip/Overwrite/Rename dialog
-│       │           ├── context_menu.dart             # Glassmorphism right-click menu
-│       │           ├── create_item_dialog.dart       # New Folder/Document creation dialog
-│       │           ├── dialogs.dart                  # Common dialog utilities
-│       │           ├── empty_state_view.dart         # Empty folder/search/filter views
-│       │           ├── error_dialog.dart             # Error display dialog
-│       │           ├── file_grid.dart                # Responsive file grid layout
-│       │           ├── filter_overlay.dart           # Advanced file type filter
-│       │           ├── gnome_tab_bar.dart            # GNOME-style tab bar
-│       │           ├── item_card.dart                # File/folder card widget
-│       │           ├── item_preview.dart             # Inline file preview
-│       │           ├── preview_container.dart        # Preview type router
-│       │           ├── properties_dialog.dart        # File properties dialog
-│       │           ├── rename_dialog.dart            # Bulk rename modal
-│       │           ├── rename_popover.dart           # Inline rename popover
-│       │           ├── rubber_band_overlay.dart      # Lasso selection overlay
-│       │           ├── sort_overlay.dart             # Sort options overlay
-│       │           ├── task_history_detail_view.dart # Task history detail
-│       │           ├── task_history_view.dart        # Task history list
-│       │           ├── task_tile.dart                # Active task tile
-│       │           ├── top_bar.dart                  # Main window top bar
-│       │           └── sidebar/
-│       │               ├── sidebar.dart              # Main sidebar widget
-│       │               ├── sidebar_item.dart         # Sidebar navigation item
-│       │               ├── cloud_item.dart           # Cloud storage placeholder
-│       │               ├── devices_section.dart      # Block device list
-│       │               ├── overview_button.dart      # Sidebar overview button
-│       │               └── storage_indicator.dart    # Disk usage indicator
+│       │   ├── presentation/
+│       │   │   ├── pages/
+│       │   │   │   ├── directory_analysis_page.dart  # Directory size and category analysis view
+│       │   │   │   └── gallery_page.dart         # Main UI orchestrator
+│       │   │   ├── providers/
+│       │   │   │   ├── background_panel_provider.dart  # Background panel state
+│       │   │   │   ├── clipboard_provider.dart         # Copy/Cut clipboard state
+│       │   │   │   ├── conflict_provider.dart          # File conflict resolution
+│       │   │   │   ├── device_provider.dart            # Block device detection
+│       │   │   │   ├── directory_analysis_provider.dart # Background isolate for directory stats
+│       │   │   │   ├── directory_providers.dart        # Core directory state providers
+│       │   │   │   ├── navigation_notifier.dart        # Back/forward navigation
+│       │   │   │   ├── pinned_items_provider.dart       # Hive-backed pinned items
+│       │   │   │   ├── selection_notifier.dart         # Multi-select state
+│       │   │   │   ├── tab_manager.dart                # Tabbed interface state
+│       │   │   │   ├── task_history_provider.dart      # Persistent task history
+│       │   │   │   └── task_provider.dart              # Background task queue
+│       │   │   └── widgets/
+│       │   │       ├── action_bar.dart              # File operation action bar
+│       │   │       ├── background_panel.dart        # Slide-out tasks panel
+│       │   │       ├── background_processes_button.dart # Tasks panel toggle
+│       │   │       ├── conflict_dialog.dart          # Skip/Overwrite/Rename dialog
+│       │   │       ├── context_menu.dart             # Glassmorphism right-click menu
+│       │   │       ├── create_item_dialog.dart       # New Folder/Document creation dialog
+│       │   │       ├── dialogs.dart                  # Common dialog utilities
+│       │   │       ├── empty_state_view.dart         # Empty folder/search/filter views
+│       │   │       ├── error_dialog.dart             # Error display dialog
+│       │   │       ├── file_grid.dart                # Responsive file grid layout
+│       │   │       ├── filter_overlay.dart           # Advanced file type filter
+│       │   │       ├── gnome_tab_bar.dart            # GNOME-style tab bar
+│       │   │       ├── item_card.dart                # File/folder card widget
+│       │   │       ├── item_preview.dart             # Inline file preview
+│       │   │       ├── preview_container.dart        # Preview type router
+│       │   │       ├── properties_dialog.dart        # File properties dialog
+│       │   │       ├── rename_dialog.dart            # Bulk rename modal
+│       │   │       ├── rename_popover.dart           # Inline rename popover
+│       │   │       ├── rubber_band_overlay.dart      # Lasso selection overlay
+│       │   │       ├── sort_overlay.dart             # Sort options overlay
+│       │   │       ├── task_history_detail_view.dart # Task history detail
+│       │   │       ├── task_history_view.dart        # Task history list
+│       │   │       ├── task_tile.dart                # Active task tile
+│       │   │       ├── top_bar.dart                  # Main window top bar
+│       │   │       ├── unified_side_panel.dart       # Resizable container for side panels
+│       │   │       └── sidebar/
+│       │   │           ├── sidebar.dart              # Main sidebar widget
+│       │   │           ├── sidebar_item.dart         # Sidebar navigation item
+│       │   │           ├── cloud_item.dart           # Cloud storage placeholder
+│       │   │           ├── devices_section.dart      # Block device list
+│       │   │           ├── overview_button.dart      # Sidebar overview button
+│       │   │           └── storage_indicator.dart    # Disk usage indicator
 │       ├── image_viewer/
 │       │   └── presentation/widgets/
 │       │       ├── image_preview_widget.dart    # Zoomable image viewer
@@ -260,11 +263,15 @@ onyxcore/
 │       │   ├── data/repositories/
 │       │   │   ├── playback_memory_repository.dart  # Resume position (Hive)
 │       │   │   └── marker_repository.dart           # Marker sidecar persistence
-│       │   ├── domain/entities/
-│       │   │   └── video_marker.dart                # Marker entity model
+│       │   ├── domain/
+│       │   │   ├── entities/
+│       │   │   │   └── video_marker.dart                # Marker entity model
+│       │   │   └── utils/
+│       │   │       └── video_queue_isolate.dart         # Background isolate for video queue
 │       │   └── presentation/
 │       │       ├── providers/
-│       │       │   └── video_markers_provider.dart  # Marker state management
+│       │       │   ├── video_markers_provider.dart  # Marker state management
+│       │       │   └── video_playlist_providers.dart # Playlist and queue state
 │       │       └── widgets/
 │       │           ├── video_preview_widget.dart     # Main video player widget
 │       │           ├── hover_preview.dart            # ffmpeg hover thumbnail
@@ -277,7 +284,8 @@ onyxcore/
 │       │           ├── marker_editor_overlay.dart    # Marker tag editor
 │       │           ├── timeline_marker.dart          # Timeline marker icons
 │       │           ├── emoji_data.dart               # Emoji category data
-│       │           └── menu_tooltip.dart             # OverlayPortal tooltip
+│       │           ├── menu_tooltip.dart             # OverlayPortal tooltip
+│       │           └── video_playlist_sidebar.dart   # File browser for videos
 │       ├── audio_player/
 │       │   ├── domain/
 │       │   │   ├── entities/
@@ -300,8 +308,14 @@ onyxcore/
 │       │               ├── audio_properties_dialog.dart # Audio metadata dialog
 │       │               └── audio_tag_editor_dialog.dart # ID3 tag editor
 │       ├── document_viewer/
-│       │   └── presentation/widgets/
-│       │       └── markdown_preview_widget.dart     # MD viewer + editor
+│       │   ├── presentation/widgets/
+│       │   │   ├── line_numbers_painter.dart        # Custom line numbers rendering
+│       │   │   ├── markdown_preview_widget.dart     # MD viewer + editor
+│       │   │   └── markdown_syntax_highlighter.dart # Editor syntax highlighting
+│       │   ├── services/
+│       │   │   └── mermaid_offline_renderer.dart    # Offline Mermaid diagrams
+│       │   └── utils/
+│       │       └── html_search_highlighter.dart     # Search & Replace overlay integration
 │       ├── settings/
 │       │   ├── data/repositories/
 │       │   │   └── settings_repository_impl.dart    # SharedPreferences impl
@@ -362,6 +376,17 @@ onyxcore/
 ├── services/
 │   └── file_system_service.dart           # (mirrored above under lib/)
 ├── test/
+│   ├── features/
+│   │   ├── downloader/
+│   │   │   ├── unit/
+│   │   │   │   └── presentation/providers/download_history_provider_test.dart # Unit tests
+│   │   │   └── widgets/presentation/widgets/
+│   │   │       ├── download_history_widgets_test.dart # History UI testing
+│   │   │       ├── downloads_panel_tiles_test.dart   # Download tiles UI testing
+│   │   │       ├── downloads_panel_shortcuts_test.dart # Download shortcuts UI testing
+│   │   │       └── components/downloads_panel_results_view_test.dart # Download results view UI testing
+│   │   └── audio_player/
+│   │       └── domain/entities/audio_track_test.dart # Audio track model tests
 │   ├── helpers/
 │   │   └── file_system_helper.dart        # MemoryFileSystem factory + dummy tree
 │   ├── mocks/
@@ -524,6 +549,7 @@ onyxcore/
 - Uses `OverflowBox` to maintain consistent panel width during animation
 - **Three-view navigation**: Tasks → History → History Detail, managed via `BackgroundPanelView` enum
 - **Task tiles** showing: progress bar, speed (bytes/s), item counts, processed/total size
+- **Task progress overlay**: `TaskProgressButton` located in the `ViewerTopBar` displays a real-time pie-chart progress effect for active background tasks, switching to a checkmark when complete or an error icon upon failure.
 - **Task history** with persistent file-based storage, lazy pagination, filter by status
 - **Task history detail view** with duration, throughput, processed items list with scrollbar
 - Tasks auto-transition to history after 3s completion
@@ -547,7 +573,19 @@ onyxcore/
 - **MetadataCache**: SharedPreferences-backed image aspect ratio cache
 - **ImageCache**: High-capacity 500MB global limit to support instant pre-caching of massive uncompressed DSLR/Pexels images without downscaling or cache thrashing
 
-#### 1.13 Empty State
+#### 1.13 Directory Analysis
+- **Background Computation**: Analyzes folder size, item counts, and categorizes files using a `compute` isolate (`directoryAnalysisProvider`).
+- **Category Deep Dive**: Visual breakdown of directory contents into specific types (Images, Videos, Music, Documents) displaying count and aggregated byte size.
+- **Large Files Archive**: Rapid identification and ranking of the largest files within a directory hierarchy, sortable and interactively previewable.
+- **Graceful Cancellation**: Ability to cancel long-running directory traversal for extremely large filesystems.
+
+#### 1.14 Unified Side Panel
+- **Resizability**: Features an interactive resize handler (`MouseRegion` + `OverflowBox`) to dynamically resize side panels.
+- **Orchestration**: Manages visibility state for both the Background Task Panel and Downloads Panel using `Offstage` widgets to preserve widget state without costly remounting.
+- **Focus Scope**: Ensures keyboard and input events correctly route to the active side panel while hiding the others seamlessly.
+
+
+#### 1.15 Empty State
 - Custom `EmptyStateView` for empty directories
 - **Aesthetic Refinement (Matte Finish)**: Redesigned for a premium, professional appearance with a focus on subtle typography and minimalism.
 - **Large Matte Iconography**: Centered icon increased to **160px** with a very subtle **0.08 opacity**, creating a clean "natural archive" feel without visual clutter.
@@ -558,7 +596,7 @@ onyxcore/
   - Virtual Recent: "No recent files found"; Virtual Starred: "No starred items yet"
   - Trash: delete icon; default: folder-open icon
 
-#### 1.14 Preview Container (Inline Preview Orchestrator)
+#### 1.16 Preview Container (Inline Preview Orchestrator)
 - **Type-routing**: Dispatches to `ImagePreviewWidget`, `VideoPreviewWidget`, `AudioPlayerView`, or `MarkdownPreviewWidget` based on `FileItemType`
 - **PDF placeholder**: Shows a centered icon with "PDF Preview not yet implemented" message and hint to double-tap for external viewer
 - **Double-tap pop-out**: Opens the previewed file in a standalone persistent window via `PersistentViewerManager.openMedia()`, then clears the inline preview
@@ -566,7 +604,7 @@ onyxcore/
 - **F-key HUD toggle**: Toggles `previewHudVisibleProvider` with a 300ms debounce to prevent rapid toggling
 - **Close shortcuts**: `Backspace` / `Alt+←` / `Ctrl+W` all close the preview and reset HUD visibility to true
 
-#### 1.15 Status Bar
+#### 1.17 Status Bar
 - Glassmorphism status notifications across viewers
 - **Open With Dialog**:
   - **Categorized Discovery**: Displays "Default", "Recommended", and "All Apps" using Linux system MIME associations.
@@ -583,7 +621,7 @@ onyxcore/
   - **Launch Sanitization**: Handles complex `.desktop` `Exec` strings with field code expansion (e.g., `%f`, `%u`).
 - Custom `BubbleLoader` animated loading indicator (8 orbiting gradient bubbles)
 
-#### 1.16 Directory Items Pipeline
+#### 1.18 Directory Items Pipeline
 - **Three-stage reactive pipeline**:
   1. `directoryItemsProvider` — raw listing from isolate (with cache check) + inotify watcher setup
   2. `filteredDirectoryItemsProvider` — applies hidden file filter, search query, and advanced filter settings
@@ -827,6 +865,12 @@ onyxcore/
   - **Keyword Indexing**: Marker tags and custom emojis are fully indexed by the global search provider.
   - **Timestamp Resolution**: Search results surface specific video timestamps, allowing users to jump directly to the tagged moment from the Gallery view.
 
+#### 3.7 Video Playlist Sidebar
+- **Unified Browsing**: Acts as an embedded directory browser within the video player for exploring and queueing video media without returning to the main gallery.
+- **Isolate-driven Queueing**: Uses `processVideoQueueIsolate` to rapidly build sequential play queues from massive directories without stalling the UI thread.
+- **Context-Aware Highlighting**: Accurately highlights the active playing folder or sub-directory utilizing strict path prefix matching, keeping user orientation intact when navigating deeply.
+- **Native Context Menus**: Provides integrated right-click operations such as moving files to the trash (`gio trash`) and file selection.
+
 ---
 
 ### 4. Audio Player
@@ -977,10 +1021,12 @@ onyxcore/
 - `←`/`→` to navigate between documents
 
 #### 5.2 Editing & Standalone Mode
-- **Edit/Preview Toggle & Dual Pane** — switch between rendered markdown and raw text editor, or view both side-by-side in a responsive dual-pane layout (`_isDualPane`) with a draggable divider (`Ctrl + \`)
+- **Edit/Preview Toggle & Dual Pane** — switch between rendered markdown and raw text editor, or view both side-by-side in a responsive dual-pane layout (`_isDualPane`) with a draggable divider (`Ctrl + \`). Includes dual-pane scroll synchronization.
 - **Syntax Highlighting & Line Numbers** — Editor features live markdown syntax highlighting (`MarkdownSyntaxHighlighter`) and custom line numbers rendering (`LineNumbersPainter`)
+- **Undo/Redo Tracking**: Integrated `UndoHistoryController` managing extensive history states with `Ctrl+Z` (Undo) and `Ctrl+Shift+Z` (Redo) support.
 - Editor uses **JetBrains Mono** font with dark theme
 - **Search & Replace Overlay** (`SearchIntent`) with support for regex and case-sensitive queries
+- **Extended Markdown Support**: Natively renders HTML tables (`flutter_html_table`) and mathematical equations (`flutter_math_fork`).
 - **Save** functionality with change detection (cyan highlight when unsaved)
 - **Custom code block builder** (`CodeElementBuilder`):
   - Language label header
@@ -1029,7 +1075,9 @@ onyxcore/
     - **Rounded Highlights**: 8px rounded selection backgrounds for menu items.
     - **Dynamic Constraints**: Intelligent min-widths (60px–100px) based on content to eliminate horizontal dead space.
     - **Compact Trigger**: 32px height trigger box with 8px radius and integrated arrow icon.
-- **3-tab layout**: General, Viewers, Security — via `TabController`.
+- **4-tab layout**: General, Viewers, Security, Shortcuts — via `TabController`.
+- **Security Tab**: Dedicated section featuring placeholders for `Vault` (secure local storage) and `Encryption` (end-to-end file operations) for future module expansions.
+- **Shortcuts Tab**: Comprehensive reference manual displaying categorized hotkeys (General, Download Manager, Image Viewer, Video Player, Audio Player, Document Viewer). Styled with monospace `FiraCode` badges and distinct grouping headers.
 - **Custom gradient tab indicator**: `GradientUnderlineTabIndicator` — draws a 2px gradient underline using a custom `BoxPainter` with `AppTheme.primaryGradient`.
 - **Refined Vertical Rhythm**: Consolidated spacing logic (top: 28px on headers) to eliminate redundant gaps and create a tighter, more professional flow between configuration categories.
 - **Sub-sidebar navigation**: 180px left sidebar with `Colors.black.withOpacity(0.1)` background; clicking a section smooth-scrolls to it (500ms `easeOutQuart`).
@@ -1234,6 +1282,17 @@ onyxcore/
   3. **History detail view** — Single entry deep-dive with stats, timeline, logs
 - **State fields**: `_parsedItems` (list of `MediaGroup`), `_configs` (map of index → `DownloadConfig`), `_selectedIndices` (set), `_previewItem`/`_previewIndex` (preview overlay state), `_isFetching`, `_fetchError`, `_sortFilter`, `_selectedEngine`, `_importedListName`/`_importedListPath` (JSON import), `_isListChanged`, `_backgroundLoadingProfiles` (set of URLs currently being hydrated)
 - **Animated gradient border**: `_gradientController` drives a rotating sweep gradient for the drag-and-drop import overlay border via `_GradientBorderPainter`
+
+---
+
+### 11. Quality Assurance & Testing
+
+- **Comprehensive Test Suite**: The project includes extensive unit and widget tests covering core infrastructure, feature domains, and UI components.
+  - **Downloader Module**: Deeply tested UI widgets including `download_history_widgets_test.dart`, `downloads_panel_tiles_test.dart`, `downloads_panel_shortcuts_test.dart`, and `downloads_panel_results_view_test.dart`.
+  - **Audio Player**: Domain entity validation (e.g., `audio_track_test.dart`).
+- **Mocking**: Leverages `mocktail` for generating robust mocks across the entire repository.
+- **Dependency Injection**: Uses Riverpod for dependency injection, allowing easy swapping of components like `FileSystemService` with a `MemoryFileSystem` factory during testing.
+- **Coverage**: Maintains HTML test coverage reports (`coverage/html/`) for tracking tested code paths and ensuring feature reliability.
 
 #### 10.7 URL Input & Fetch
 - **Input bar**: Full-width text field with gradient focus border, engine selector dropdown on the left, "Fetch" button on the right

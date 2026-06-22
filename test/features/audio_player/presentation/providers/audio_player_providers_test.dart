@@ -541,6 +541,34 @@ void main() {
 
   });
 
+  group('audioAutoPlaySessionProvider', () {
+    test('initializes from settings provider autoPlayNext (U-AUD-PROV-61)', () async {
+      final container = createContainer(overrides: [
+        settingsProvider.overrideWith(() => MockSettingsNotifier(const AppSettings(showHiddenAudioFiles: false, audioAutoPlayNext: true))),
+      ]);
+      await container.read(settingsProvider.future);
+      expect(container.read(audioAutoPlaySessionProvider), isTrue);
+    });
+
+    test('initializes false when settings autoPlayNext is false (U-AUD-PROV-62)', () async {
+      final container = createContainer(overrides: [
+        settingsProvider.overrideWith(() => MockSettingsNotifier(const AppSettings(showHiddenAudioFiles: false, audioAutoPlayNext: false))),
+      ]);
+      await container.read(settingsProvider.future);
+      expect(container.read(audioAutoPlaySessionProvider), isFalse);
+    });
+
+    test('updates state independently of settings (U-AUD-PROV-63)', () async {
+      final container = createContainer(overrides: [
+        settingsProvider.overrideWith(() => MockSettingsNotifier(const AppSettings(showHiddenAudioFiles: false, audioAutoPlayNext: true))),
+      ]);
+      await container.read(settingsProvider.future);
+      
+      container.read(audioAutoPlaySessionProvider.notifier).state = false;
+      expect(container.read(audioAutoPlaySessionProvider), isFalse);
+    });
+  });
+
   group('Stream Providers', () {
     test('emit empty stream when player is null (U-AUD-PROV-39)', () async {
       final container = createContainer();

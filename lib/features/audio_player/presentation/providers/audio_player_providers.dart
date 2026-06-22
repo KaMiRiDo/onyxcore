@@ -1,4 +1,3 @@
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
@@ -7,10 +6,10 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:audiotags/audiotags.dart';
 import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
+import 'package:onyxcore/core/playlist/playlist_providers.dart';
 
 final audioTagsOverridesProvider = StateProvider.family<Tag?, String>(
   (ref, path) => null,
@@ -29,30 +28,9 @@ final audioTagsProvider = FutureProvider.family<Tag?, String>((
 
 enum AudioViewMode { home, favorites }
 
-class AudioFavoritesNotifier extends StateNotifier<Set<String>> {
-  static const String _boxName = 'audio_favorites';
-  Box? _box;
-
-  AudioFavoritesNotifier() : super({}) {
-    _init();
-  }
-
-  Future<void> _init() async {
-    _box = await Hive.openBox(_boxName);
-    final favs = _box!.get('favorites', defaultValue: <String>[]);
-    if (mounted) {
-      state = (favs as List).cast<String>().toSet();
-    }
-  }
-
-  void toggleFavorite(String path) {
-    if (state.contains(path)) {
-      state = {...state}..remove(path);
-    } else {
-      state = {...state, path};
-    }
-    _box?.put('favorites', state.toList());
-  }
+/// Audio favorites — delegates to the shared [MediaFavoritesNotifier].
+class AudioFavoritesNotifier extends MediaFavoritesNotifier {
+  AudioFavoritesNotifier() : super('audio_favorites');
 }
 
 final audioFavoritesProvider =
@@ -99,6 +77,10 @@ final audioPlayingQueueProvider = StateProvider<List<FileItem>>((ref) => []);
 final activeTrackIndexProvider = StateProvider<int>((ref) => 0);
 final audioIsReloadingProvider = StateProvider<bool>((ref) => false);
 
+final audioAutoPlaySessionProvider = StateProvider.autoDispose<bool>((ref) {
+  return ref.watch(settingsProvider).value?.audioAutoPlayNext ?? true;
+});
+
 final currentTrackProvider = Provider<FileItem?>((ref) {
   final queue = ref.watch(audioPlayingQueueProvider);
   final index = ref.watch(activeTrackIndexProvider);
@@ -137,57 +119,35 @@ final audioSortOptionProvider = StateProvider<SortOption?>((ref) => null);
 final audioSearchQueryProvider = StateProvider<String>((ref) => '');
 
 final filteredAndSortedAudioQueueProvider = Provider<List<FileItem>>((ref) {
-  final queue = ref.watch(audioQueueProvider);
-  final query = ref.watch(audioSearchQueryProvider).toLowerCase();
-  final sortOption = ref.watch(audioSortOptionProvider);
-  final viewMode = ref.watch(audioViewModeProvider);
-  final favorites = ref.watch(audioFavoritesProvider);
-
-  // Filter
-  var result = queue;
-  if (viewMode == AudioViewMode.favorites) {
-    result = result.where((item) => favorites.contains(item.path)).toList();
-  }
-
-  if (query.isNotEmpty) {
-    result = result
-        .where((item) => item.name.toLowerCase().contains(query))
-        .toList();
-  }
-
-  // Sort
-  if (sortOption != null) {
-    result = List.from(result);
-    result.sort((a, b) {
-      if (sortOption != SortOption.filesFirst) {
-        if (a.type == FileItemType.folder && b.type != FileItemType.folder)
-          return -1;
-        if (a.type != FileItemType.folder && b.type == FileItemType.folder)
-          return 1;
-      }
-
-      switch (sortOption) {
-        case SortOption.aToZ:
-          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        case SortOption.zToA:
-          return b.name.toLowerCase().compareTo(a.name.toLowerCase());
-        case SortOption.lastModified:
-          return b.modified.compareTo(a.modified);
-        case SortOption.firstModified:
-          return a.modified.compareTo(b.modified);
-        case SortOption.sizeSmallToLarge:
-          return (a.sizeBytes ?? 0).compareTo(b.sizeBytes ?? 0);
-        case SortOption.sizeLargeToSmall:
-          return (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
-        case SortOption.filesFirst:
-          if (a.type == FileItemType.folder && b.type != FileItemType.folder)
-            return 1;
-          if (a.type != FileItemType.folder && b.type == FileItemType.folder)
-            return -1;
-          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      }
-    });
-  }
-
-  return result;
+  return sortAndFilterQueue(
+    queue: ref.watch(audioQueueProvider),
+    searchQuery: ref.watch(audioSearchQueryProvider),
+    sortOption: ref.watch(audioSortOptionProvider),
+    isFavoritesMode:
+        ref.watch(audioViewModeProvider) == AudioViewMode.favorites,
+    favorites: ref.watch(audioFavoritesProvider),
+  );
 });
+
+// ── Provider Config for PlaylistSidebarBase ──────────────────────────────────
+
+/// Pre-built [PlaylistProviderConfig] for the audio playlist sidebar.
+final audioPlaylistProviderConfig = PlaylistProviderConfig(
+  currentPathProvider: audioCurrentPathProvider,
+  rootPathProvider: audioRootPathProvider,
+  pathHistoryProvider: audioPathHistoryProvider,
+  pathForwardHistoryProvider: audioPathForwardHistoryProvider,
+  showHiddenProvider: audioShowHiddenProvider,
+  selectionProvider: audioSelectionProvider,
+  selectionAnchorProvider: audioSelectionAnchorProvider,
+  queueProvider: audioQueueProvider,
+  isReloadingProvider: audioIsReloadingProvider,
+  sortOptionProvider: audioSortOptionProvider,
+  searchQueryProvider: audioSearchQueryProvider,
+  filteredAndSortedQueueProvider: filteredAndSortedAudioQueueProvider,
+  viewModeProvider: audioViewModeProvider,
+  favoritesValue: AudioViewMode.favorites,
+);
+
+final audioIsEmptyProvider = StateProvider<bool>((ref) => false);
+final audioRestartSignalProvider = StateProvider<int>((ref) => 0);

@@ -10,38 +10,48 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/core/widgets/onyx_switch.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import '../providers/file_picker_notifier.dart';
 import 'file_entity_tile.dart';
 import 'file_picker_preview_pane.dart';
+import 'file_picker_new_folder_dialog.dart';
 
 class CustomFilePickerDialog extends ConsumerStatefulWidget {
   final String? title;
   final bool allowMultiple;
   final List<String>? allowedExtensions;
   final bool saveMode;
+  final String? actionText;
   final String? initialFileName;
   final String? initialDirectory;
+  final bool pickDirectory;
 
   const CustomFilePickerDialog({
     this.title,
     this.allowMultiple = false,
     this.allowedExtensions,
     this.saveMode = false,
+    this.actionText,
     this.initialFileName,
     this.initialDirectory,
+    this.pickDirectory = false,
     super.key,
   });
 
-  static Future<List<File>?> show(
+  static String? _lastSelectedDirectory;
+
+  static Future<List<String>?> show(
     BuildContext context, {
     String? title,
     bool allowMultiple = false,
     List<String>? allowedExtensions,
     bool saveMode = false,
+    String? actionText,
     String? initialFileName,
     String? initialDirectory,
-  }) {
-    return showDialog<List<File>>(
+    bool pickDirectory = false,
+  }) async {
+    final result = await showDialog<List<String>>(
       context: context,
       barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) => CustomFilePickerDialog(
@@ -49,10 +59,22 @@ class CustomFilePickerDialog extends ConsumerStatefulWidget {
         allowMultiple: allowMultiple,
         allowedExtensions: allowedExtensions,
         saveMode: saveMode,
+        actionText: actionText,
         initialFileName: initialFileName,
-        initialDirectory: initialDirectory,
+        initialDirectory: initialDirectory ?? _lastSelectedDirectory,
+        pickDirectory: pickDirectory,
       ),
     );
+
+    if (result != null && result.isNotEmpty) {
+      if (pickDirectory) {
+        _lastSelectedDirectory = result.first;
+      } else {
+        _lastSelectedDirectory = p.dirname(result.first);
+      }
+    }
+
+    return result;
   }
 
   @override
@@ -82,6 +104,7 @@ class _CustomFilePickerDialogState
           .initialize(
             allowedExtensions: widget.allowedExtensions,
             initialDirectory: widget.initialDirectory,
+            pickDirectory: widget.pickDirectory,
           );
     });
 
@@ -115,18 +138,49 @@ class _CustomFilePickerDialogState
     super.dispose();
   }
 
+  Future<void> _handleCreateFolder() async {
+    final currentPath = ref.read(filePickerProvider).value?.currentDirectory;
+    if (currentPath == null) return;
+    
+    final folderName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => const FilePickerNewFolderDialog(),
+    );
+
+    if (folderName != null && folderName.isNotEmpty) {
+      final newFolderPath = p.join(currentPath, folderName);
+      try {
+        await io.Directory(newFolderPath).create();
+        // navigate into new directory
+        ref.read(filePickerProvider.notifier).goToDirectory(newFolderPath);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to create folder: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final stateAsync = ref.watch(filePickerProvider);
 
     return CallbackShortcuts(
       bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true): _handleCreateFolder,
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () =>
             ref.read(filePickerProvider.notifier).goBack(),
         const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () =>
             ref.read(filePickerProvider.notifier).goForward(),
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(context).maybePop(),
+        const SingleActivator(LogicalKeyboardKey.enter): () {
+          if (_isSelectionValid(stateAsync.value)) {
+            _handleOpenOrSave(stateAsync.value);
+          }
+        },
       },
       child: Focus(
         autofocus: true,
@@ -183,7 +237,7 @@ class _CustomFilePickerDialogState
                                   child: _buildMainContent(stateAsync),
                                 ),
 
-                                if (!widget.saveMode) ...[
+                                if (!widget.saveMode && !widget.pickDirectory) ...[
                                   // Preview Pane
                                   Container(
                                     width: 1,
@@ -272,6 +326,14 @@ class _CustomFilePickerDialogState
             ),
           ],
           const SizedBox(width: 16),
+          if (widget.pickDirectory) ...[
+            _buildHeaderButton(
+              icon: Icons.create_new_folder_rounded,
+              onPressed: _handleCreateFolder,
+              tooltip: 'New Folder',
+            ),
+            const SizedBox(width: 16),
+          ],
           Row(
             children: [
               Text(
@@ -466,7 +528,7 @@ class _CustomFilePickerDialogState
 
   Widget _buildMainContent(AsyncValue<FilePickerState> stateAsync) {
     return stateAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: BubbleLoader(size: 60)),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (state) {
         if (state.error != null) {
@@ -573,10 +635,26 @@ class _CustomFilePickerDialogState
       }
       return true;
     }
+    
+    if (widget.pickDirectory) {
+      if (state == null) return false;
+      // if selection is empty, we allow picking the current directory
+      if (state.selection.isEmpty) return true;
+      for (final path in state.selection) {
+        final entityIndex = state.contents.indexWhere((e) => e.path == path);
+        if (entityIndex != -1) {
+          if (state.contents[entityIndex] is File) return false;
+        } else {
+          if (io.File(path).existsSync()) return false;
+        }
+      }
+      return true;
+    }
 
     if (state == null || state.selection.isEmpty) return false;
-    if (widget.allowedExtensions == null || widget.allowedExtensions!.isEmpty)
+    if (widget.allowedExtensions == null || widget.allowedExtensions!.isEmpty) {
       return true;
+    }
 
     for (final path in state.selection) {
       // Find the entity in contents to check if it's a directory
@@ -598,7 +676,7 @@ class _CustomFilePickerDialogState
   Widget _buildFooter(FilePickerState? state) {
     final hasSelection = widget.saveMode
         ? _fileNameController.text.isNotEmpty
-        : (state?.selection.isNotEmpty ?? false);
+        : (widget.pickDirectory ? true : (state?.selection.isNotEmpty ?? false));
     final selectionCount = state?.selection.length ?? 0;
     final isValid = _isSelectionValid(state);
 
@@ -698,16 +776,19 @@ class _CustomFilePickerDialogState
   void _handleOpenOrSave(FilePickerState? state) {
     if (widget.saveMode) {
       if (state == null) return;
-      final service = ref.read(fileSystemServiceProvider);
-      final file = service.getFile(
-        p.join(state.currentDirectory, _fileNameController.text),
-      );
+      final file = p.join(state.currentDirectory, _fileNameController.text);
       Navigator.pop(context, [file]);
+    } else if (widget.pickDirectory) {
+      if (state == null) return;
+      if (state.selection.isEmpty) {
+        Navigator.pop(context, [state.currentDirectory]);
+      } else {
+        Navigator.pop(context, state.selection.toList());
+      }
     } else {
       final service = ref.read(fileSystemServiceProvider);
       final files = state!.selection
-          .map((path) => service.getFile(path))
-          .where((f) => f.existsSync())
+          .where((path) => service.getFile(path).existsSync())
           .toList();
       if (files.isNotEmpty) {
         Navigator.pop(context, files);
@@ -732,7 +813,7 @@ class _CustomFilePickerDialogState
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
-            widget.saveMode ? 'SAVE' : 'OPEN',
+            widget.actionText ?? (widget.saveMode ? 'SAVE' : 'OPEN'),
             style: GoogleFonts.manrope(
               color: Colors.white,
               fontSize: 12,

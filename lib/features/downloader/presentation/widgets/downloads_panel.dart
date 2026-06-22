@@ -428,7 +428,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         },
       };
       final jsonString = jsonEncode(data);
-      await File(saveLocation.first.path).writeAsString(jsonString);
+      await File(saveLocation.first).writeAsString(jsonString);
 
       setState(() {
         _parsedItems?.clear();
@@ -495,10 +495,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           initialDirectory: currentDir,
         );
         if (files == null || files.isEmpty) return;
-        filePath = files.first.path;
+        filePath = files.first;
       }
 
-      final content = await File(filePath).readAsString();
+      final content = await File(filePath!).readAsString();
       final decoded = jsonDecode(content);
 
       List<dynamic> itemsList;

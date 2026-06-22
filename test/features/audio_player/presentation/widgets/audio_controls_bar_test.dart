@@ -1,11 +1,19 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/audio_controls_bar.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'dart:io';
+import 'package:hive/hive.dart';
 
 void main() {
+  setUpAll(() {
+    final tempDir = Directory.systemTemp.createTempSync();
+    Hive.init(tempDir.path);
+  });
+
   Widget buildTestWidget({bool isPlaying = false, double volume = 100}) {
     return ProviderScope(
       overrides: [
@@ -76,6 +84,79 @@ void main() {
       await tester.pumpWidget(buildTestWidget(volume: 50));
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+    });
+
+    testWidgets('taps trigger correct callbacks', (tester) async {
+      bool nextPressed = false;
+      bool previousPressed = false;
+
+      final widget = ProviderScope(
+        overrides: [
+          currentTrackProvider.overrideWith((ref) => FileItem(path: '/test.mp3', name: 'test', type: FileItemType.audio, modified: DateTime.now())),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: AudioControlsBar(
+              onNextPressed: () => nextPressed = true,
+              onPreviousPressed: () => previousPressed = true,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(widget);
+      await tester.pumpAndSettle();
+
+      // Tap next
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
+      expect(nextPressed, isTrue);
+
+      // Tap previous
+      await tester.tap(find.byIcon(Icons.skip_previous_rounded));
+      expect(previousPressed, isTrue);
+
+      // Tap favorite (assuming it doesn't crash)
+      await tester.tap(find.byIcon(Icons.favorite_border_rounded));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget); // Toggle works
+      
+      // Tap play/pause
+      await tester.tap(find.byIcon(Icons.play_arrow_rounded)); // Should not crash, triggers player fallback
+
+      // Tap volume toggle
+      await tester.tap(find.byIcon(Icons.volume_up_rounded)); // Should not crash
+
+      // Slide volume
+      await tester.drag(find.byType(Slider), const Offset(20, 0)); // Should not crash
+    });
+
+    testWidgets('render autoplay toggle and toggle on tap (W-AUD-CTRL-28)', (tester) async {
+      final widget = ProviderScope(
+        overrides: [
+          currentTrackProvider.overrideWith((ref) => FileItem(path: '/test.mp3', name: 'test', type: FileItemType.audio, modified: DateTime.now())),
+          audioAutoPlaySessionProvider.overrideWith((ref) => true),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: AudioControlsBar(),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(widget);
+      await tester.pumpAndSettle();
+
+      // Check initial state (autorenew icon)
+      expect(find.byIcon(Icons.autorenew_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.sync_disabled_rounded), findsNothing);
+
+      // Tap to toggle
+      await tester.tap(find.byIcon(Icons.autorenew_rounded));
+      await tester.pumpAndSettle();
+
+      // Now it should show disabled icon
+      expect(find.byIcon(Icons.sync_disabled_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.autorenew_rounded), findsNothing);
     });
   });
 }

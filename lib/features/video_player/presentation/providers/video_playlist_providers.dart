@@ -1,4 +1,3 @@
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
@@ -6,33 +5,13 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/core/playlist/playlist_providers.dart';
 
 enum VideoViewMode { home, favorites }
 
-class VideoFavoritesNotifier extends StateNotifier<Set<String>> {
-  static const String _boxName = 'video_favorites';
-  Box? _box;
-
-  VideoFavoritesNotifier() : super({}) {
-    _init();
-  }
-
-  Future<void> _init() async {
-    _box = await Hive.openBox(_boxName);
-    final favs = _box!.get('favorites', defaultValue: <String>[]);
-    if (mounted) {
-      state = (favs as List).cast<String>().toSet();
-    }
-  }
-
-  void toggleFavorite(String path) {
-    if (state.contains(path)) {
-      state = {...state}..remove(path);
-    } else {
-      state = {...state, path};
-    }
-    _box?.put('favorites', state.toList());
-  }
+/// Video favorites — delegates to the shared [MediaFavoritesNotifier].
+class VideoFavoritesNotifier extends MediaFavoritesNotifier {
+  VideoFavoritesNotifier() : super('video_favorites');
 }
 
 final videoFavoritesProvider =
@@ -80,6 +59,9 @@ final videoAutoPlaySessionProvider = StateProvider.autoDispose<bool>((ref) {
   return ref.watch(settingsProvider).value?.autoPlayNext ?? true;
 });
 
+/// Set to true to prevent the video player from auto-playing on the next _loadMedia call.
+final videoForcePauseNextProvider = StateProvider<bool>((ref) => false);
+
 final currentVideoProvider = Provider<FileItem?>((ref) {
   final queue = ref.watch(videoPlayingQueueProvider);
   final index = ref.watch(activeVideoIndexProvider);
@@ -94,57 +76,35 @@ final videoSortOptionProvider = StateProvider<SortOption?>((ref) => null);
 final videoSearchQueryProvider = StateProvider<String>((ref) => '');
 
 final filteredAndSortedVideoQueueProvider = Provider<List<FileItem>>((ref) {
-  final queue = ref.watch(videoQueueProvider);
-  final query = ref.watch(videoSearchQueryProvider).toLowerCase();
-  final sortOption = ref.watch(videoSortOptionProvider);
-  final viewMode = ref.watch(videoViewModeProvider);
-  final favorites = ref.watch(videoFavoritesProvider);
-
-  // Filter
-  var result = queue;
-  if (viewMode == VideoViewMode.favorites) {
-    result = result.where((item) => favorites.contains(item.path)).toList();
-  }
-
-  if (query.isNotEmpty) {
-    result = result
-        .where((item) => item.name.toLowerCase().contains(query))
-        .toList();
-  }
-
-  // Sort
-  if (sortOption != null) {
-    result = List.from(result);
-    result.sort((a, b) {
-      if (sortOption != SortOption.filesFirst) {
-        if (a.type == FileItemType.folder && b.type != FileItemType.folder)
-          return -1;
-        if (a.type != FileItemType.folder && b.type == FileItemType.folder)
-          return 1;
-      }
-
-      switch (sortOption) {
-        case SortOption.aToZ:
-          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        case SortOption.zToA:
-          return b.name.toLowerCase().compareTo(a.name.toLowerCase());
-        case SortOption.lastModified:
-          return b.modified.compareTo(a.modified);
-        case SortOption.firstModified:
-          return a.modified.compareTo(b.modified);
-        case SortOption.sizeSmallToLarge:
-          return (a.sizeBytes ?? 0).compareTo(b.sizeBytes ?? 0);
-        case SortOption.sizeLargeToSmall:
-          return (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
-        case SortOption.filesFirst:
-          if (a.type == FileItemType.folder && b.type != FileItemType.folder)
-            return 1;
-          if (a.type != FileItemType.folder && b.type == FileItemType.folder)
-            return -1;
-          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      }
-    });
-  }
-
-  return result;
+  return sortAndFilterQueue(
+    queue: ref.watch(videoQueueProvider),
+    searchQuery: ref.watch(videoSearchQueryProvider),
+    sortOption: ref.watch(videoSortOptionProvider),
+    isFavoritesMode:
+        ref.watch(videoViewModeProvider) == VideoViewMode.favorites,
+    favorites: ref.watch(videoFavoritesProvider),
+  );
 });
+
+// ── Provider Config for PlaylistSidebarBase ──────────────────────────────────
+
+/// Pre-built [PlaylistProviderConfig] for the video playlist sidebar.
+final videoPlaylistProviderConfig = PlaylistProviderConfig(
+  currentPathProvider: videoCurrentPathProvider,
+  rootPathProvider: videoRootPathProvider,
+  pathHistoryProvider: videoPathHistoryProvider,
+  pathForwardHistoryProvider: videoPathForwardHistoryProvider,
+  showHiddenProvider: videoShowHiddenProvider,
+  selectionProvider: videoSelectionProvider,
+  selectionAnchorProvider: videoSelectionAnchorProvider,
+  queueProvider: videoQueueProvider,
+  isReloadingProvider: videoIsReloadingProvider,
+  sortOptionProvider: videoSortOptionProvider,
+  searchQueryProvider: videoSearchQueryProvider,
+  filteredAndSortedQueueProvider: filteredAndSortedVideoQueueProvider,
+  viewModeProvider: videoViewModeProvider,
+  favoritesValue: VideoViewMode.favorites,
+);
+
+final videoIsEmptyProvider = StateProvider<bool>((ref) => false);
+final videoRestartSignalProvider = StateProvider<int>((ref) => 0);

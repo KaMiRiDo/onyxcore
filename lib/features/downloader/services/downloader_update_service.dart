@@ -126,7 +126,12 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           final processFuture = engine.install();
           if (processFuture != null) {
             final process = await processFuture;
-            await process.exitCode;
+            final stderrFuture = process.stderr.transform(utf8.decoder).join();
+            final exitCode = await process.exitCode;
+            if (exitCode != 0) {
+              final stderrStr = await stderrFuture;
+              throw Exception('${engine.displayName} installation failed: $stderrStr');
+            }
           }
         }
         completed++;
@@ -183,7 +188,12 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           final processFuture = engine.install();
           if (processFuture != null) {
             final process = await processFuture;
-            await process.exitCode;
+            final stderrFuture = process.stderr.transform(utf8.decoder).join();
+            final exitCode = await process.exitCode;
+            if (exitCode != 0) {
+              final stderrStr = await stderrFuture;
+              throw Exception('${engine.displayName} installation failed: $stderrStr');
+            }
           }
         } else if (engine.updateInfo != null && engine.binaryPath != null) {
           await _downloadLatestRelease(
@@ -234,7 +244,12 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         final processFuture = engine.install();
         if (processFuture != null) {
           final process = await processFuture;
-          await process.exitCode;
+          final stderrFuture = process.stderr.transform(utf8.decoder).join();
+          final exitCode = await process.exitCode;
+          if (exitCode != 0) {
+            final stderrStr = await stderrFuture;
+            throw Exception('${engine.displayName} installation failed: $stderrStr');
+          }
         }
       }
 

@@ -738,10 +738,9 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
             _iconUploads.removeAt(index);
           }
 
-          for (var file in result) {
-            if (file.path == null) continue;
+          for (var path in result) {
             final item = IconUploadItem(
-              rawFilePath: file.path,
+              rawFilePath: path,
               isProcessing: true,
               tagController: TextEditingController(),
             );
