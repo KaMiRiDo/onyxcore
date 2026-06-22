@@ -74,6 +74,7 @@ void main() {
   late ProviderContainer container;
 
   setUpAll(() {
+    EngineRegistry.clearAllEnginesForTesting();
     EngineRegistry.register(DummyEngine());
   });
 

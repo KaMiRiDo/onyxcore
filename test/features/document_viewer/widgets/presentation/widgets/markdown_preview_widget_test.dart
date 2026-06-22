@@ -939,8 +939,12 @@ Display equations:
     });
 
     testWidgets('W-DOC-PREVIEW-33: Lifecycle and interaction coverage', (WidgetTester tester) async {
-      final item1 = FileItem(path: '/test1.md', name: '1.md', type: FileItemType.document, modified: DateTime.now());
-      final item2 = FileItem(path: '/test2.md', name: '2.md', type: FileItemType.document, modified: DateTime.now());
+      final file1 = File('${tempDir.path}/test1.md');
+      file1.writeAsStringSync('test1');
+      final file2 = File('${tempDir.path}/test2.md');
+      file2.writeAsStringSync('test2');
+      final item1 = FileItem(path: file1.path, name: '1.md', type: FileItemType.document, modified: DateTime.now());
+      final item2 = FileItem(path: file2.path, name: '2.md', type: FileItemType.document, modified: DateTime.now());
 
       await tester.pumpWidget(buildTestWidget(content: 'test', customItem: item1));
       await waitForLoad(tester);

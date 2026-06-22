@@ -143,7 +143,7 @@ class MockEngine extends DownloadEngine {
 void main() {
   group('MediaDownloaderBackend Unit Tests', () {
     setUp(() {
-      EngineRegistry.clearRegisteredEngines();
+      EngineRegistry.clearAllEnginesForTesting();
     });
 
     group('1. fetchMetadata — Direct Delegation', () {

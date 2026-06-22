@@ -33,10 +33,14 @@ void main() {
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (tempDir.existsSync()) {
-      tempDir.deleteSync(recursive: true);
-    }
+    try {
+      await Hive.close();
+    } catch (_) {}
+    try {
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    } catch (_) {}
   });
 
   ProviderContainer createContainer({ProviderContainer? parent, List<dynamic> overrides = const []}) {
