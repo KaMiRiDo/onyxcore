@@ -16,6 +16,7 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/core/utils/media_uri_helper.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
@@ -1076,37 +1077,25 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                         Positioned(
                           bottom: 24,
                           left: 24,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.playlist_play,
+                              size: 24,
                             ),
-                            child: IconButton(
-                              icon: Icon(
-                                ref.watch(audioPlaylistSidebarVisibleProvider)
-                                    ? Icons.first_page_rounded
-                                    : Icons.last_page_rounded,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                              onPressed: () {
-                                final isVisible = ref.read(
-                                  audioPlaylistSidebarVisibleProvider,
-                                );
-                                ref
-                                        .read(
-                                          audioPlaylistSidebarVisibleProvider
-                                              .notifier,
-                                        )
-                                        .state =
-                                    !isVisible;
-                              },
-                              tooltip:
-                                  ref.watch(audioPlaylistSidebarVisibleProvider)
-                                  ? 'Hide playlist'
-                                  : 'Show playlist',
-                              splashRadius: 24,
-                            ),
+                            color: ref.watch(audioPlaylistSidebarVisibleProvider) ? AppColors.magenta : Colors.white,
+                            onPressed: () {
+                              final isVisible = ref.read(
+                                audioPlaylistSidebarVisibleProvider,
+                              );
+                              ref
+                                      .read(
+                                        audioPlaylistSidebarVisibleProvider
+                                            .notifier,
+                                      )
+                                      .state =
+                                  !isVisible;
+                            },
+                            tooltip: 'Playlist',
                           ),
                         ),
                       ],

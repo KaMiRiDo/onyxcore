@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
@@ -12,6 +13,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/tab_m
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -24,6 +26,10 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
+import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
+import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
 
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({
@@ -48,6 +54,10 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
 class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     with WindowListener, TickerProviderStateMixin {
   bool _isClosing = false;
+  bool _isEmpty = false;
+  bool _isEmptyAtEnd = true;
+  double _rotation = 0.0;
+  bool _isFlippedHorizontal = false;
   String? _metadata;
   String? _indexString;
   bool _isControlsVisible = true;
@@ -108,6 +118,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        ref.read(imageIsEmptyProvider.notifier).state = false;
+        if (widget.windowId == null && !widget.isStandalone) {
+          final parentPath = p.dirname(widget.item.path);
+          final currentRoot = ref.read(imageRootPathProvider);
+          if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
+            ref.read(imageRootPathProvider.notifier).state = parentPath;
+          }
+          ref.read(imageCurrentPathProvider.notifier).state = parentPath;
+        }
         _precacheAdjacentImages();
         _focusNode.requestFocus();
         if (!_firstFrameCompleter.isCompleted) {
@@ -161,10 +180,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           widget.initParams!['preloadPaths'] as List<dynamic>;
       pathsToPreload = preloadList.map((e) => e.toString()).toList();
     } else if (!widget.isStandalone && widget.windowId == null) {
-      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-      final mediaItems = items
-          .where((i) => i.type == FileItemType.image)
-          .toList();
+      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.isEmpty) {
+        final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+        mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      }
       if (mediaItems.isNotEmpty) {
         final currentIndex = mediaItems.indexWhere(
           (i) => i.path == widget.item.path,
@@ -204,7 +224,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   void _setZoom(double newScale, {Offset? focalPoint, bool animate = true}) {
     final clampedScale = newScale.clamp(1.0, 15.0);
 
-    final P = focalPoint ?? _mousePosition;
+    Offset getFocalPoint() {
+      if (focalPoint != null) return focalPoint;
+      final isSidebarOpen = ref.read(imagePlaylistSidebarVisibleProvider);
+      if (!isSidebarOpen) return _mousePosition;
+      final screenWidth = MediaQuery.of(context).size.width;
+      final minWidth = 240.0;
+      final maxWidth = screenWidth * 0.40;
+      double panelWidth = ref.read(imagePlaylistSidebarWidthProvider) ?? (screenWidth * 0.25);
+      panelWidth = panelWidth.clamp(minWidth, maxWidth);
+      return Offset(_mousePosition.dx - panelWidth, _mousePosition.dy);
+    }
+
+    final P = getFocalPoint();
 
     if (clampedScale == 1.0) {
       if (animate) {
@@ -398,10 +430,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         }
       }
     } else {
-      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-      final mediaItems = items
-          .where((i) => i.type == FileItemType.image)
-          .toList();
+      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.isEmpty) {
+        final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+        mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      }
       final currentIndex =
           mediaItems.indexWhere((i) => i.path == widget.item.path) + 1;
       final totalCount = mediaItems.length;
@@ -492,15 +525,29 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       _transformationController.value = Matrix4.identity();
       setState(() {
         _isLoading = true;
+        _isEmpty = false;
         _rotationAngle = 0.0;
         _brightness = 0.0;
         _currentScale = 1.0;
         _isControlsVisible = false;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(imageIsEmptyProvider.notifier).state = false;
+        }
+      });
       _loadMetadata();
       _updateIndexData();
       if (mounted) {
         _focusNode.requestFocus();
+        if (widget.windowId == null && !widget.isStandalone) {
+          final parentPath = p.dirname(widget.item.path);
+          final currentRoot = ref.read(imageRootPathProvider);
+          if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
+            ref.read(imageRootPathProvider.notifier).state = parentPath;
+          }
+          ref.read(imageCurrentPathProvider.notifier).state = parentPath;
+        }
       }
       _precacheAdjacentImages();
     }
@@ -509,10 +556,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   Future<void> _openInNewWindow() async {
     List<String> preloadPaths = [];
     if (!widget.isStandalone && widget.windowId == null) {
-      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-      final mediaItems = items
-          .where((i) => i.type == FileItemType.image)
-          .toList();
+      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.isEmpty) {
+        final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+        mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      }
       if (mediaItems.isNotEmpty) {
         final currentIndex = mediaItems.indexWhere(
           (i) => i.path == widget.item.path,
@@ -562,24 +610,67 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         widget.parentWindowId ?? '0',
       ).invokeMethod('request_navigation', payload);
     } else {
-      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-      if (items.isEmpty) return;
-
-      final mediaItems = items
-          .where((i) => i.type == FileItemType.image)
-          .toList();
+      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.isEmpty) {
+        final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+        mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      }
       if (mediaItems.isEmpty) return;
 
       final currentIndex = mediaItems.indexWhere(
         (i) => i.path == widget.item.path,
       );
-      if (currentIndex == -1) return;
+      if (currentIndex == -1) {
+        setState(() {
+          _isEmpty = true;
+          _isEmptyAtEnd = true;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(imageIsEmptyProvider.notifier).state = true;
+        });
+        return;
+      }
+
+      if (_isEmpty) {
+        if (_isEmptyAtEnd && forward) return;
+        if (!_isEmptyAtEnd && !forward) return;
+
+        // Recover from empty state
+        setState(() => _isEmpty = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ref.read(imageIsEmptyProvider.notifier).state = false;
+          }
+        });
+        ref.read(previewFileProvider.notifier).state = mediaItems[currentIndex];
+        return;
+      }
 
       int nextIndex;
       if (forward) {
-        nextIndex = (currentIndex + 1) % mediaItems.length;
+        if (currentIndex == mediaItems.length - 1) {
+          setState(() {
+            _isEmpty = true;
+            _isEmptyAtEnd = true;
+          });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(imageIsEmptyProvider.notifier).state = true;
+          });
+          return;
+        }
+        nextIndex = currentIndex + 1;
       } else {
-        nextIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+        if (currentIndex == 0) {
+          setState(() {
+            _isEmpty = true;
+            _isEmptyAtEnd = false;
+          });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(imageIsEmptyProvider.notifier).state = true;
+          });
+          return;
+        }
+        nextIndex = currentIndex - 1;
       }
 
       ref.read(previewFileProvider.notifier).state = mediaItems[nextIndex];
@@ -615,7 +706,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         ).invokeMethod('get_next_prev_media', payload);
         if (response != null && response is String) {
           final data = jsonDecode(response);
-          final String? nextPath = data['nextPath'];
+          final String? nextPath = data['nextPath'] as String?;
           if (nextPath != null && nextPath != widget.item.path) {
             hasMultiple = true;
             nextItem = FileItem(
@@ -632,10 +723,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         debugPrint('Error getting next media in standalone deletion: $e');
       }
     } else {
-      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-      final mediaItems = items
-          .where((i) => i.type == FileItemType.image)
-          .toList();
+      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
+      if (mediaItems.isEmpty) {
+        final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+        mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+      }
       if (mediaItems.length > 1) {
         hasMultiple = true;
         final currentIndex = mediaItems.indexWhere(
@@ -710,6 +802,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(imageRestartSignalProvider, (previous, next) {
+      if (_isEmpty) {
+        setState(() => _isEmpty = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(imageIsEmptyProvider.notifier).state = false;
+        });
+      }
+    });
+
     if (widget.windowId == null && !widget.isStandalone) {
       ref.listen(previewHudVisibleProvider, (previous, next) {
         if (mounted) {
@@ -747,6 +848,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
               event is KeyDownEvent) {
             final shift = HardwareKeyboard.instance.isShiftPressed;
             _handleDelete(permanent: shift);
+            return KeyEventResult.handled;
+          }
+
+          if (event.logicalKey == LogicalKeyboardKey.keyP &&
+              HardwareKeyboard.instance.isControlPressed &&
+              HardwareKeyboard.instance.isShiftPressed) {
+            if (event is KeyDownEvent) {
+              final isOpen = ref.read(imagePlaylistSidebarVisibleProvider);
+              ref.read(imagePlaylistSidebarVisibleProvider.notifier).state = !isOpen;
+            }
             return KeyEventResult.handled;
           }
 
@@ -792,9 +903,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
             final isAltPressed = HardwareKeyboard.instance.isAltPressed;
             if (event.logicalKey == LogicalKeyboardKey.backspace ||
                 (isAltPressed &&
-                    event.logicalKey == LogicalKeyboardKey.arrowLeft)) {
-              ref.read(previewFileProvider.notifier).state = null;
-              return KeyEventResult.handled;
+                    (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+                        event.logicalKey == LogicalKeyboardKey.arrowRight))) {
+              final isSidebarOpen = ref.read(imagePlaylistSidebarVisibleProvider);
+              if (isSidebarOpen && isAltPressed) {
+                if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                  _navigatePlaylistHistoryBack(ref);
+                } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                  _navigatePlaylistHistoryForward(ref);
+                }
+              }
+              return KeyEventResult.handled; // Consume to prevent navigation
             }
           }
         }
@@ -831,11 +950,41 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
             onPointerMove: (event) {
               _mousePosition = event.localPosition;
             },
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Listener(
-                    behavior: HitTestBehavior.translucent,
+            child: Consumer(
+              builder: (context, sidebarRef, _) {
+                final isSidebarOpen = sidebarRef.watch(imagePlaylistSidebarVisibleProvider);
+                final screenWidth = MediaQuery.of(context).size.width;
+                final minWidth = 240.0;
+                final maxWidth = screenWidth * 0.40;
+                double? savedWidth = sidebarRef.watch(imagePlaylistSidebarWidthProvider);
+                double panelWidth = savedWidth ?? (screenWidth * 0.25);
+                panelWidth = panelWidth.clamp(minWidth, maxWidth);
+                final sidebarWidth = isSidebarOpen ? panelWidth : 0.0;
+                
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: sidebarWidth,
+                      child: isSidebarOpen
+                          ? ImagePlaylistSidebar(
+                              onImageSelected: (image) {
+                                if (!widget.isStandalone) {
+                                  ref.read(previewFileProvider.notifier).state = image;
+                                }
+                              },
+                              onDelete: (paths) => _handleDelete(permanent: false),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                if (_isEmpty)
+                  Positioned.fill(child: _buildEmptyState())
+                else
+                  Positioned.fill(
+                    child: Listener(
+                      behavior: HitTestBehavior.translucent,
                     onPointerSignal: (pointerSignal) {
                       if (pointerSignal is PointerScrollEvent) {
                         final ctrl =
@@ -906,14 +1055,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                           _scrubAccumulatedScale *= 1.0 + (dy * 0.005);
                           _setZoomFromGesture(
                             _initialScale * _scrubAccumulatedScale,
-                            _mousePosition,
+                            event.localPosition,
                           );
                         }
                       } else {
                         if (event.scale != 1.0) {
                           _setZoomFromGesture(
                             _initialScale * event.scale,
-                            _mousePosition,
+                            event.localPosition,
                           );
                         } else if (event.panDelta != Offset.zero &&
                             _currentScale > 1.05) {
@@ -1042,6 +1191,22 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                       onClose: () =>
                           ref.read(previewFileProvider.notifier).state = null,
                       extraActions: [
+                        if (!_isEmpty) ...[
+                          Consumer(
+                          builder: (context, ref, _) {
+                            final favorites = ref.watch(imageFavoritesProvider);
+                            final isFavorite = favorites.contains(widget.item.path);
+                            return _buildTopBarButton(
+                              icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              onPressed: () {
+                                ref.read(imageFavoritesProvider.notifier).toggleFavorite(widget.item.path);
+                              },
+                              tooltip: 'Toggle Favorite',
+                              active: isFavorite,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
                         _buildTopBarButton(
                           icon: _isEditing
                               ? Icons.edit_rounded
@@ -1062,20 +1227,47 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                           tooltip: 'Image Settings',
                         ),
                         const SizedBox(width: 8),
+                        ],
                       ],
                     ),
                   ),
                 ),
 
-                if (_isEditing && isVisible)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildEditingPanel(),
-                  ),
+                  if (_isEditing && isVisible)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: _buildEditingPanel(),
+                    ),
 
-                if (_showZoomIndicator)
+                  if (isVisible)
+                    Positioned(
+                      bottom: 32,
+                      left: 32,
+                      child: Consumer(
+                        builder: (context, sidebarRef, _) {
+                          final isSidebarOpen = sidebarRef.watch(imagePlaylistSidebarVisibleProvider);
+                          return AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: isVisible ? 1.0 : 0.0,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.playlist_play,
+                                size: 24,
+                              ),
+                              color: isSidebarOpen ? AppColors.magenta : Colors.white,
+                              onPressed: () {
+                                sidebarRef.read(imagePlaylistSidebarVisibleProvider.notifier).state = !isSidebarOpen;
+                              },
+                              tooltip: 'Playlist',
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                  if (_showZoomIndicator)
                   Positioned(
                     bottom: 32,
                     right: 32,
@@ -1113,6 +1305,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                     ),
                   ),
               ],
+            ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -1227,5 +1424,81 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         splashRadius: 24,
       ),
     );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      color: const Color(0xFF121212),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.image_not_supported_rounded,
+              size: 64,
+              color: Colors.white.withOpacity(0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No more images to view.',
+              style: GoogleFonts.manrope(
+                color: Colors.white.withOpacity(0.5),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigatePlaylistHistoryBack(WidgetRef ref) {
+    final history = ref.read(imagePathHistoryProvider);
+    if (history.isNotEmpty) {
+      final newPath = history.last;
+      final currentPath = ref.read(imageCurrentPathProvider);
+
+      ref.read(imagePathHistoryProvider.notifier).state =
+          history.sublist(0, history.length - 1);
+      ref.read(imagePathForwardHistoryProvider.notifier).update(
+            (state) => [...state, currentPath],
+          );
+
+      _openPlaylistFolder(ref, newPath);
+    }
+  }
+
+  void _navigatePlaylistHistoryForward(WidgetRef ref) {
+    final forwardHistory = ref.read(imagePathForwardHistoryProvider);
+    if (forwardHistory.isNotEmpty) {
+      final newPath = forwardHistory.last;
+      final currentPath = ref.read(imageCurrentPathProvider);
+
+      ref.read(imagePathForwardHistoryProvider.notifier).state =
+          forwardHistory.sublist(0, forwardHistory.length - 1);
+      ref.read(imagePathHistoryProvider.notifier).update(
+            (state) => [...state, currentPath],
+          );
+
+      _openPlaylistFolder(ref, newPath);
+    }
+  }
+
+  void _openPlaylistFolder(WidgetRef ref, String path) async {
+    final repo = ref.read(directoryRepositoryProvider);
+    final showHidden = ref.read(imageShowHiddenProvider);
+    try {
+      final items = await repo.listDirectory(path);
+      final mediaFiles = await compute(processMediaQueueIsolate, {
+        'items': items.map((e) => e.toJson()).toList(),
+        'showHidden': showHidden,
+        'targetType': FileItemType.image.index,
+      });
+
+      if (!mounted) return;
+      ref.read(imageQueueProvider.notifier).state = mediaFiles;
+      ref.read(imageCurrentPathProvider.notifier).state = path;
+    } catch (_) {}
   }
 }

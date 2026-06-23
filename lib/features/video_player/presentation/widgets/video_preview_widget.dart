@@ -294,6 +294,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(videoIsEmptyProvider.notifier).state = false;
+      }
       final initialPath = p.dirname(widget.item.path);
       if (ref.read(videoCurrentPathProvider).isEmpty) {
         ref.read(videoCurrentPathProvider.notifier).state = initialPath;
@@ -594,8 +597,14 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     setState(() {
       _currentItem = item;
       _fps = null;
+      _isEmpty = false;
     });
     ref.read(previewFileProvider.notifier).state = item;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(videoIsEmptyProvider.notifier).state = false;
+      }
+    });
 
     // 3. Open new media
     setState(() => _isOpening = true);
@@ -2092,7 +2101,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                     }
                   },
                   onKeyEvent: (node, event) => _handleKeyEvent(event),
-                  child: _isEmpty ? _buildEmptyState() : Listener(
+                  child: Listener(
                     onPointerSignal: (event) {
                       if (_isMarkerEditorActive) {
                         final RenderBox? box =
@@ -2170,9 +2179,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                           child: Stack(
                             children: [
                               // Video Player (isolated render pipeline)
-                              RepaintBoundary(
-                                child: Center(
-                                  child: Video(
+                              if (_isEmpty)
+                                Positioned.fill(child: _buildEmptyState())
+                              else
+                                RepaintBoundary(
+                                  child: Center(
+                                    child: Video(
                                     controller: controller,
                                     controls: (state) =>
                                         const SizedBox.shrink(),
@@ -2401,7 +2413,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                             .state =
                                         null,
                                 extraActions: [
-                                  _buildTopBarButton(
+                                  if (!_isEmpty) ...[
+                                    _buildTopBarButton(
                                     icon: Icons.edit_outlined,
                                     onPressed: () {
                                       // TODO: Implement video editing
@@ -2419,6 +2432,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                     tooltip: 'Video Settings',
                                   ),
                                   const SizedBox(width: 8),
+                                  ],
                                 ],
                               );
                             },
@@ -2427,6 +2441,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                       ),
 
                       // Custom Bottom Controls
+                      if (!_isEmpty)
                       Positioned(
                         left: 0,
                         right: 0,
@@ -3463,29 +3478,63 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   }
 
   Widget _buildEmptyState() {
-    return Container(
-      color: const Color(0xFF121212),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.videocam_off_rounded,
-              size: 64,
-              color: Colors.white.withOpacity(0.2),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No video files to play next.',
-              style: GoogleFonts.manrope(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: const Color(0xFF121212),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.videocam_off_rounded,
+                    size: 64,
+                    color: Colors.white.withOpacity(0.2),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No video files to play next.',
+                    style: GoogleFonts.manrope(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        Positioned(
+          bottom: 32,
+          left: 32,
+          child: Consumer(
+            builder: (context, sidebarRef, _) {
+              final isSidebarOpen = sidebarRef.watch(videoPlaylistSidebarVisibleProvider);
+              return Container(
+                decoration: BoxDecoration(
+                  color: isSidebarOpen ? AppColors.magenta.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.4),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.playlist_play_rounded,
+                    color: isSidebarOpen ? Colors.white : Colors.white.withValues(alpha: 0.9),
+                  ),
+                  onPressed: () {
+                    sidebarRef.read(videoPlaylistSidebarVisibleProvider.notifier).state = !isSidebarOpen;
+                  },
+                  tooltip: 'Toggle Playlist',
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

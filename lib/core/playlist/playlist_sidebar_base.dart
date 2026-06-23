@@ -16,6 +16,8 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
@@ -52,6 +54,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
   StreamSubscription<FileChangeEvent>? _watcherSub;
   String? _watchedPath;
   Timer? _hoverTimer;
+  int? _lastActiveIndex;
 
   // ── Configuration ──────────────────────────────────────────────────────────
 
@@ -364,6 +367,89 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     }
   }
 
+  Future<void> handleRename(BuildContext context, List<String> paths) async {
+    if (paths.isEmpty) return;
+
+    final result = await showDialog(
+      context: context,
+      builder: (context) => RenameDialog(paths: paths),
+    );
+
+    if (result == null) return;
+
+    final repo = ref.read(directoryRepositoryProvider);
+    final taskNotifier = ref.read(taskProvider.notifier);
+
+    try {
+      if (result is String) {
+        final oldPath = paths.first;
+        final taskId = taskNotifier.addTask(
+          title: 'Renaming item',
+          subtitle: '${p.basename(oldPath)} -> $result',
+          sourcePaths: [oldPath],
+          isLight: true,
+        );
+        try {
+          final newPath = await repo.renameItem(
+            oldPath,
+            result,
+            taskId: taskId,
+            onLog: (msg) => taskNotifier.addLog(taskId, msg),
+          );
+          ref.read(config.selectionProvider.notifier).state = {newPath};
+          taskNotifier.completeTask(taskId);
+        } catch (e) {
+          taskNotifier.failTask(taskId, e.toString());
+          rethrow;
+        }
+      } else if (result is Map) {
+        final mode = result['mode'] as RenameMode;
+        final value = result['value'] as String;
+        List<String> newPaths = [];
+        final taskId = taskNotifier.addTask(
+          title: 'Bulk renaming ${paths.length} items',
+          subtitle: mode == RenameMode.prefix ? 'Prefix: $value' : 'Index: $value',
+          sourcePaths: paths,
+          isLight: true,
+        );
+
+        try {
+          if (mode == RenameMode.prefix) {
+            newPaths = await repo.bulkRename(
+              paths,
+              prefix: value,
+              taskId: taskId,
+              onLog: (msg) => taskNotifier.addLog(taskId, msg),
+            );
+          } else {
+            newPaths = await repo.bulkRename(
+              paths,
+              baseName: value,
+              taskId: taskId,
+              onLog: (msg) => taskNotifier.addLog(taskId, msg),
+            );
+          }
+          taskNotifier.completeTask(taskId);
+        } catch (e) {
+          taskNotifier.failTask(taskId, e.toString());
+          rethrow;
+        }
+        ref.read(config.selectionProvider.notifier).state = Set.from(newPaths);
+      }
+      refreshQueue();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error renaming: $e'),
+            backgroundColor: AppColors.magenta,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   // ── Breadcrumbs ────────────────────────────────────────────────────────────
 
   Widget buildBreadcrumbs(String currentPath, String rootPath) {
@@ -592,8 +678,13 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
   /// Override in subclasses that need listeners. Default is no-op.
   void buildListeners() {}
 
+  /// Watch additional providers needed to determine active item state or trigger rebuilds.
+  /// Override in subclasses that need to watch custom providers. Default is no-op.
+  void watchActiveItemDependencies() {}
+
   @override
   Widget build(BuildContext context) {
+    watchActiveItemDependencies();
     final queue = ref.watch(config.filteredAndSortedQueueProvider);
     final currentPath = ref.watch(config.currentPathProvider);
     final rootPath = ref.watch(config.rootPathProvider);
@@ -602,6 +693,43 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
         ref.watch(config.viewModeProvider) == config.favoritesValue;
 
     buildListeners();
+
+    int activeIndex = -1;
+    for (int i = 0; i < queue.length; i++) {
+      if (isItemActive(ref, queue[i])) {
+        activeIndex = i;
+        break;
+      }
+    }
+
+    if (activeIndex != -1 && activeIndex != _lastActiveIndex) {
+      _lastActiveIndex = activeIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !scrollController.hasClients) return;
+        
+        final double itemHeight = 68.0;
+        final double targetOffset = activeIndex * itemHeight;
+        
+        final currentOffset = scrollController.offset;
+        final viewportHeight = scrollController.position.viewportDimension;
+        
+        // Check if item is completely out of view or partially obscured
+        if (targetOffset < currentOffset || targetOffset + itemHeight > currentOffset + viewportHeight) {
+          // Scroll to center the item
+          double scrollOffset = targetOffset - (viewportHeight / 2) + (itemHeight / 2);
+          // Don't scroll past the boundaries
+          final maxExtent = scrollController.position.maxScrollExtent;
+          if (maxExtent > 0) {
+            scrollOffset = scrollOffset.clamp(0.0, maxExtent);
+            scrollController.animateTo(
+              scrollOffset,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        }
+      });
+    }
 
     return Container(
       width: double.infinity,
@@ -715,24 +843,38 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
 
             // Track List
             Expanded(
-              child: Stack(
-                children: [
-                  queue.isEmpty
-                      ? Center(
-                          child: Text(
-                            isFavoritesMode
-                                ? favoritesEmptyStateText
-                                : emptyStateText,
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 14,
+              child: Focus(
+                autofocus: true,
+                onKeyEvent: (node, event) {
+                  if (event is KeyDownEvent &&
+                      event.logicalKey == LogicalKeyboardKey.f2) {
+                    final currentSelection = ref.read(config.selectionProvider).toList();
+                    if (currentSelection.isNotEmpty) {
+                      handleRename(context, currentSelection);
+                      return KeyEventResult.handled;
+                    }
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: Stack(
+                  children: [
+                    queue.isEmpty
+                        ? Center(
+                            child: Text(
+                              isFavoritesMode
+                                  ? favoritesEmptyStateText
+                                  : emptyStateText,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: scrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: queue.length,
+                          )
+                        : ListView.builder(
+                            controller: scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemExtent: 68.0,
+                            itemCount: queue.length,
                           itemBuilder: (context, index) {
                             final item = queue[index];
                             final isActive = isItemActive(ref, item);
@@ -877,6 +1019,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                 ],
               ),
             ),
+          ),
 
             // Bottom Navigation Bar
             buildBottomNavBar(isFavoritesMode),

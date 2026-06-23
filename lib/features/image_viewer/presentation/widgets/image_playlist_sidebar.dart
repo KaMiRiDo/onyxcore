@@ -5,44 +5,45 @@ import 'package:onyxcore/core/playlist/playlist_providers.dart';
 import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import '../providers/video_playlist_providers.dart';
+import '../providers/image_playlist_providers.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
+import 'dart:io';
 
-class VideoPlaylistSidebar extends PlaylistSidebarBase {
-  final void Function(FileItem)? onVideoSelected;
+class ImagePlaylistSidebar extends PlaylistSidebarBase {
+  final void Function(FileItem)? onImageSelected;
 
-  const VideoPlaylistSidebar({
+  const ImagePlaylistSidebar({
     super.key,
     super.onDelete,
     super.onMove,
     super.onReload,
-    this.onVideoSelected,
+    this.onImageSelected,
   });
 
   @override
-  ConsumerState<VideoPlaylistSidebar> createState() =>
-      _VideoPlaylistSidebarState();
+  ConsumerState<ImagePlaylistSidebar> createState() =>
+      _ImagePlaylistSidebarState();
 }
 
-class _VideoPlaylistSidebarState
-    extends PlaylistSidebarBaseState<VideoPlaylistSidebar> {
+class _ImagePlaylistSidebarState
+    extends PlaylistSidebarBaseState<ImagePlaylistSidebar> {
   // ── Configuration ──────────────────────────────────────────────────────────
 
   @override
-  PlaylistProviderConfig get config => videoPlaylistProviderConfig;
+  PlaylistProviderConfig get config => imagePlaylistProviderConfig;
 
   @override
-  FileItemType get targetMediaType => FileItemType.video;
+  FileItemType get targetMediaType => FileItemType.image;
 
   @override
-  String get emptyStateText => 'No video files found';
+  String get emptyStateText => 'No image files found';
 
   @override
   String get favoritesEmptyStateText => 'No favorite files in this folder';
 
   @override
-  IconData get defaultMediaIcon => Icons.play_arrow_rounded;
+  IconData get defaultMediaIcon => Icons.image_outlined;
 
   @override
   double get defaultMediaIconSize => 32;
@@ -58,8 +59,14 @@ class _VideoPlaylistSidebarState
   }
 
   @override
+  void watchActiveItemDependencies() {
+    ref.watch(imageIsEmptyProvider);
+    ref.watch(previewFileProvider);
+  }
+
+  @override
   void buildListeners() {
-    ref.listen(videoCurrentPathProvider, (previous, next) {
+    ref.listen(imageCurrentPathProvider, (previous, next) {
       if (previous != next && next.isNotEmpty) {
         setupWatcher();
         refreshQueue();
@@ -87,7 +94,7 @@ class _VideoPlaylistSidebarState
           } else {
             ref.read(directoryRepositoryProvider).moveToTrash(selection);
           }
-          ref.read(videoSelectionProvider.notifier).state = {};
+          ref.read(imageSelectionProvider.notifier).state = {};
         },
       ),
       ContextMenuItem.divider(),
@@ -96,7 +103,7 @@ class _VideoPlaylistSidebarState
         icon: Icons.content_copy_rounded,
         onTap: () {
           handleMoveOrCopy(context, selection, false);
-          ref.read(videoSelectionProvider.notifier).state = {};
+          ref.read(imageSelectionProvider.notifier).state = {};
         },
       ),
       ContextMenuItem(
@@ -104,7 +111,7 @@ class _VideoPlaylistSidebarState
         icon: Icons.drive_file_move_outline,
         onTap: () {
           handleMoveOrCopy(context, selection, true);
-          ref.read(videoSelectionProvider.notifier).state = {};
+          ref.read(imageSelectionProvider.notifier).state = {};
         },
       ),
       ContextMenuItem(
@@ -118,35 +125,30 @@ class _VideoPlaylistSidebarState
     ];
   }
 
-  // ── Double Tap (Select Video) ──────────────────────────────────────────────
+  // ── Double Tap (Select Image) ──────────────────────────────────────────────
 
   @override
   void onItemDoubleTap(FileItem item, int realIndex, List<FileItem> queue) {
-    if (ref.read(videoIsEmptyProvider)) {
-      ref.read(videoRestartSignalProvider.notifier).state++;
+    if (ref.read(imageIsEmptyProvider)) {
+      ref.read(imageIsEmptyProvider.notifier).state = false;
+      ref.read(imageRestartSignalProvider.notifier).state++;
     }
-    if (widget.onVideoSelected != null) {
-      widget.onVideoSelected!(item);
+    if (widget.onImageSelected != null) {
+      widget.onImageSelected!(item);
     }
   }
 
   // ── Tile Customization ─────────────────────────────────────────────────────
 
   @override
-  void watchActiveItemDependencies() {
-    ref.watch(videoIsEmptyProvider);
-    ref.watch(previewFileProvider);
-  }
-
-  @override
   String buildSubtitle(FileItem item) {
     if (item.type == FileItemType.folder) {
       return item.itemCount != null
-          ? "${item.itemCount} Video File${item.itemCount == 1 ? '' : 's'}"
+          ? "${item.itemCount} Image File${item.itemCount == 1 ? '' : 's'}"
           : "Folder";
     }
 
-    String subtitle = "Video File";
+    String subtitle = "Image File";
     if (item.sizeBytes != null && item.sizeBytes! > 0) {
       final sizeMB = (item.sizeBytes! / (1024 * 1024)).toStringAsFixed(1);
       subtitle += " • $sizeMB MB";
@@ -155,29 +157,44 @@ class _VideoPlaylistSidebarState
   }
 
   @override
-  Widget? buildCoverArt(WidgetRef ref, FileItem item) => null;
+  Widget? buildCoverArt(WidgetRef ref, FileItem item) {
+    if (item.type != FileItemType.image) return null;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Image.file(
+        File(item.path),
+        width: defaultMediaIconSize,
+        height: defaultMediaIconSize,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            Icon(defaultMediaIcon, size: defaultMediaIconSize, color: Colors.white38),
+      ),
+    );
+  }
 
   @override
   Widget? buildActiveIndicator(bool isPlaying) {
-    return isPlaying
-        ? const Icon(Icons.play_arrow, color: AppColors.violet, size: 16)
-        : const Icon(
-            Icons.pause_rounded,
-            color: AppColors.magenta,
-            size: 16,
-          );
+    return const Icon(
+      Icons.remove_red_eye_rounded,
+      color: AppColors.violet,
+      size: 16,
+    );
   }
 
   @override
   bool isItemActive(WidgetRef ref, FileItem item) {
-    if (ref.watch(videoIsEmptyProvider)) return false;
-    final currentPlayingTrack = ref.watch(previewFileProvider);
-    if (currentPlayingTrack == null) return false;
+    final isEmpty = ref.watch(imageIsEmptyProvider);
+    final currentPreviewTrack = ref.watch(previewFileProvider);
+    
+    debugPrint('[ImageSidebar] isItemActive check for ${item.name}: isEmpty=$isEmpty, currentPreview=${currentPreviewTrack?.name}');
+    
+    if (isEmpty) return false;
+    if (currentPreviewTrack == null) return false;
 
     if (item.type == FileItemType.folder) {
-      return currentPlayingTrack.path.startsWith('${item.path}/');
+      return currentPreviewTrack.path.startsWith('${item.path}/');
     } else {
-      return item.path == currentPlayingTrack.path;
+      return item.path == currentPreviewTrack.path;
     }
   }
 
@@ -188,11 +205,11 @@ class _VideoPlaylistSidebarState
 
   @override
   void onHomeNavTap() {
-    ref.read(videoViewModeProvider.notifier).state = VideoViewMode.home;
+    ref.read(imageViewModeProvider.notifier).state = ImageViewMode.home;
   }
 
   @override
   void onFavoritesNavTap() {
-    ref.read(videoViewModeProvider.notifier).state = VideoViewMode.favorites;
+    ref.read(imageViewModeProvider.notifier).state = ImageViewMode.favorites;
   }
 }
