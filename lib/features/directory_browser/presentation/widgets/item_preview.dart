@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_type_utils.dart';
 import '../../domain/entities/file_item.dart';
+import 'video_thumbnail_preview.dart';
 
 /// Preview widget for items in the file grid — exact same UI as original
 /// _buildItemPreview(), _buildFileFallback(), _buildArchivalIcon(), _buildSvgIcon().
@@ -73,7 +74,7 @@ class ItemPreview extends StatelessWidget {
   }
 
   Widget _buildVideoPreview() {
-    return _buildSvgIcon('assets/icons/video.svg');
+    return VideoThumbnailPreview(item: item, zoom: zoom);
   }
 
   Widget _buildFileFallback() {

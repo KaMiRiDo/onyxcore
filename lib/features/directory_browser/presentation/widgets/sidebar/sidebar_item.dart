@@ -105,6 +105,8 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
                 if (widget.storageText != null) ...[
                   Text(
                     widget.storageText!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.manrope(
                       color: AppColors.textMuted.withOpacity(0.6),
                       fontSize: 9,

@@ -188,6 +188,22 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
     }
   }
 
+  String _getFreeSpaceString(double usage, String totalSizeStr) {
+    if (usage <= 0 || totalSizeStr == '0 B') return totalSizeStr;
+    try {
+      final parts = totalSizeStr.split(' ');
+      if (parts.length != 2) return totalSizeStr;
+
+      final total = double.parse(parts[0]);
+      final suffix = parts[1];
+      final free = total * (1.0 - usage);
+
+      return '${free.toStringAsFixed(1)} $suffix';
+    } catch (_) {
+      return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<List<FileTask>>(taskProvider, (previous, next) {
@@ -233,6 +249,11 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: filteredDevices.map((device) {
             final storageText = _formatUsageString(device.usage, device.size);
+            final freeSpaceText = _getFreeSpaceString(device.usage, device.size);
+            
+            final displayStorageText = freeSpaceText.isNotEmpty 
+                ? '$storageText  •  Free: $freeSpaceText'
+                : storageText;
 
             return SidebarItem(
               icon: device.isMobile
@@ -245,7 +266,7 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
                   (widget.currentPath.startsWith(device.path) &&
                       device.path != '/'),
               progress: device.usage,
-              storageText: storageText,
+              storageText: displayStorageText,
               onEject: device.isRemovable
                   ? () async {
                       if (_isEjecting.contains(device.id)) return;

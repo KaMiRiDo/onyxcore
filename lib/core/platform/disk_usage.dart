@@ -27,6 +27,9 @@ class DiskUsage {
   /// Used size as a human-readable string.
   String get usedHuman => _bytesToHuman(usedBytes);
 
+  /// Available size as a human-readable string.
+  String get availableHuman => _bytesToHuman(availableBytes);
+
   static String _bytesToHuman(int bytes) {
     if (bytes >= 1024 * 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024 * 1024 * 1024)).toStringAsFixed(1)} TB';

@@ -48,20 +48,48 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
     final percentLabel = usage?.usagePercent ?? '60%';
     final usedLabel = usage?.usedHuman ?? '1.2 TB';
     final totalLabel = usage?.totalHuman ?? '2.0 TB';
+    final availableLabel = usage?.availableHuman ?? '';
+    
+    String formattedUsage = '$usedLabel of $totalLabel';
+    try {
+      final parts = totalLabel.split(' ');
+      if (parts.length == 2) {
+        final total = double.parse(parts[0]);
+        final used = total * fraction;
+        formattedUsage = '${used.toStringAsFixed(1)} / $totalLabel';
+      }
+    } catch (_) {}
+    
+    final subtitleText = availableLabel.isNotEmpty
+        ? '$formattedUsage  •  Free: $availableLabel'
+        : formattedUsage;
 
     return Padding(
       padding: const EdgeInsets.only(left: 24, right: 24, top: 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'SYSTEM STORAGE',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: Colors.white.withOpacity(0.3),
-              letterSpacing: 1.1,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'SYSTEM STORAGE',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white.withOpacity(0.3),
+                  letterSpacing: 1.1,
+                ),
+              ),
+              Text(
+                percentLabel,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           Container(
@@ -87,25 +115,12 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                percentLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.white70,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                '$usedLabel of $totalLabel',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.white.withOpacity(0.4),
-                ),
-              ),
-            ],
+          Text(
+            subtitleText,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.white.withOpacity(0.4),
+            ),
           ),
         ],
       ),

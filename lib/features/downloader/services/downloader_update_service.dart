@@ -126,6 +126,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           final processFuture = engine.install();
           if (processFuture != null) {
             final process = await processFuture;
+            process.stdout.drain(); // Consume stdout to prevent pipe deadlock
             final stderrFuture = process.stderr.transform(utf8.decoder).join();
             final exitCode = await process.exitCode;
             if (exitCode != 0) {
@@ -169,10 +170,8 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         await binDir.create(recursive: true);
       }
 
-      // Iterate over all registered engines with update info or python script
-      // Only install required engines or optional engines that are already installed.
-      final engines = EngineRegistry.allEngines
-          .where((e) => !e.isOptional || e.isInstalled)
+      // Only install engines that are actually missing
+      final engines = EngineRegistry.missingRequired
           .where((e) => e.updateInfo != null || e.engineType == EngineType.python)
           .toList();
       if (engines.isEmpty) {
@@ -188,6 +187,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           final processFuture = engine.install();
           if (processFuture != null) {
             final process = await processFuture;
+            process.stdout.drain(); // Consume stdout to prevent pipe deadlock
             final stderrFuture = process.stderr.transform(utf8.decoder).join();
             final exitCode = await process.exitCode;
             if (exitCode != 0) {
@@ -244,6 +244,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         final processFuture = engine.install();
         if (processFuture != null) {
           final process = await processFuture;
+          process.stdout.drain(); // Consume stdout to prevent pipe deadlock
           final stderrFuture = process.stderr.transform(utf8.decoder).join();
           final exitCode = await process.exitCode;
           if (exitCode != 0) {
@@ -282,6 +283,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
     try {
       final process = await processFuture;
+      process.stdout.drain(); // Consume stdout to prevent pipe deadlock
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode;
       final stderr = await stderrFuture;
@@ -318,6 +320,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     String? engineId,
   }) async {
     final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 15);
 
     try {
       final req = await client.getUrl(Uri.parse(apiUrl));
@@ -366,7 +369,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       final file = File(targetPath);
       final sink = file.openWrite();
 
-      await for (final chunk in downloadRes) {
+      await for (final chunk in downloadRes.timeout(const Duration(seconds: 30))) {
         sink.add(chunk);
         downloaded += chunk.length;
 

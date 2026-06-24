@@ -72,7 +72,7 @@ class YtDlpEngine extends DownloadEngine {
       'bash',
       [
         '-c',
-        'python3 -m venv "$venvPath" && "$venvPath/bin/pip" install --upgrade "yt-dlp[default,curl-cffi]"',
+        'rm -rf "$venvPath" && python3 -m venv "$venvPath" && "$venvPath/bin/pip" install --upgrade "yt-dlp[default,curl-cffi]"',
       ],
       environment: {
         'PATH':

@@ -25,6 +25,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/video_thumbnail_preview.dart';
 
 /// Individual file/folder card — pixel-perfect replica of original _buildItemCard().
 class ItemCard extends ConsumerStatefulWidget {
@@ -844,10 +845,9 @@ class _ItemCardState extends ConsumerState<ItemCard> {
         ),
       );
     } else if (widget.item.type == FileItemType.video) {
-      return _buildSvgIcon(
-        'assets/icons/video.svg',
-        isVertical: false,
-        scale: scale,
+      return VideoThumbnailPreview(
+        item: widget.item,
+        zoom: scale ?? widget.zoom,
       );
     } else if (widget.item.type == FileItemType.audio) {
       return _buildSvgIcon(
