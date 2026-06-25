@@ -103,14 +103,16 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
               if (widget.progress != null) ...[
                 const SizedBox(height: 4),
                 if (widget.storageText != null) ...[
-                  Text(
-                    widget.storageText!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.textMuted.withOpacity(0.6),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      widget.storageText!,
+                      style: GoogleFonts.manrope(
+                        color: AppColors.textMuted.withOpacity(0.6),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 2),
