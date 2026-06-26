@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// ignore: implementation_imports
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/platform/disk_usage.dart';
 import 'dart:isolate';
@@ -25,7 +26,7 @@ class DirectoryAnalysisResult {
   final int totalBytes;
   final DiskUsage? diskUsage;
   final Map<FileItemType, CategoryStats> categoryStats;
-  final List<FileStatWithInfo> topLargeFiles;
+  final List<FileStatWithInfo> allFiles;
 
   const DirectoryAnalysisResult({
     required this.path,
@@ -33,14 +34,24 @@ class DirectoryAnalysisResult {
     required this.totalBytes,
     required this.diskUsage,
     required this.categoryStats,
-    required this.topLargeFiles,
+    required this.allFiles,
+  });
+}
+
+class FileStatData {
+  final int size;
+  final DateTime modified;
+
+  const FileStatData({
+    required this.size,
+    required this.modified,
   });
 }
 
 class FileStatWithInfo {
   final String path;
   final String name;
-  final FileStat stat;
+  final FileStatData stat;
   final FileItemType type;
 
   const FileStatWithInfo({
@@ -53,9 +64,15 @@ class FileStatWithInfo {
 
 class _AnalysisParams {
   final String path;
-  final int topCount;
+  final SendPort sendPort;
 
-  _AnalysisParams(this.path, this.topCount);
+  _AnalysisParams(this.path, this.sendPort);
+}
+
+class DirectoryAnalysisProgress {
+  final int totalItems;
+  final int totalBytes;
+  const DirectoryAnalysisProgress(this.totalItems, this.totalBytes);
 }
 
 Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
@@ -63,13 +80,13 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
 ) async {
   final dir = Directory(params.path);
   if (!dir.existsSync()) {
-    return DirectoryAnalysisResult(
-      path: params.path,
+    return const DirectoryAnalysisResult(
+      path: '',
       totalItems: 0,
       totalBytes: 0,
       diskUsage: null,
       categoryStats: {},
-      topLargeFiles: [],
+      allFiles: [],
     );
   }
 
@@ -84,28 +101,13 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
     FileItemType.other: const CategoryStats(),
   };
 
-  final List<FileStatWithInfo> largeFiles = [];
-
-  void addLargeFile(FileStatWithInfo info) {
-    if (largeFiles.length < params.topCount) {
-      largeFiles.add(info);
-      if (largeFiles.length == params.topCount) {
-        largeFiles.sort((a, b) => b.stat.size.compareTo(a.stat.size));
-      }
-    } else {
-      if (info.stat.size > largeFiles.last.stat.size) {
-        largeFiles.removeLast();
-        largeFiles.add(info);
-        largeFiles.sort((a, b) => b.stat.size.compareTo(a.stat.size));
-      }
-    }
-  }
+  final List<FileStatWithInfo> allFiles = [];
 
   try {
-    for (final entity in dir.listSync(recursive: true, followLinks: false)) {
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
       if (entity is File) {
         try {
-          final stat = entity.statSync();
+          final stat = await entity.stat();
           final size = stat.size;
           totalItems++;
           totalBytes += size;
@@ -120,23 +122,24 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
             totalBytes: currentStat.totalBytes + size,
           );
 
-          if (size > 1024 * 1024) {
-            // Only track files > 1MB as candidates
-            addLargeFile(
-              FileStatWithInfo(
-                path: entity.path,
-                name: name,
-                stat: stat,
-                type: type,
-              ),
-            );
+          allFiles.add(
+            FileStatWithInfo(
+              path: entity.path,
+              name: name,
+              stat: FileStatData(size: size, modified: stat.modified),
+              type: type,
+            ),
+          );
+
+          if (totalItems % 1000 == 0) {
+            params.sendPort.send(DirectoryAnalysisProgress(totalItems, totalBytes));
           }
         } catch (_) {}
       }
     }
   } catch (_) {}
 
-  largeFiles.sort((a, b) => b.stat.size.compareTo(a.stat.size));
+  // allFiles.sort((a, b) => b.stat.size.compareTo(a.stat.size)); // Let UI sort if needed
 
   return DirectoryAnalysisResult(
     path: params.path,
@@ -144,7 +147,7 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
     totalBytes: totalBytes,
     diskUsage: null, // Fetched outside isolate
     categoryStats: stats,
-    topLargeFiles: largeFiles,
+    allFiles: allFiles,
   );
 }
 
@@ -159,32 +162,101 @@ void _isolateEntry(_IsolateMessage msg) async {
   msg.sendPort.send(result);
 }
 
-final directoryAnalysisProvider = FutureProvider.autoDispose
-    .family<DirectoryAnalysisResult, String>((ref, path) async {
-      // 1. Get disk usage in main thread
-      final diskUsage = await getDiskUsage(path);
+final directoryAnalysisProgressProvider = StateProvider.autoDispose.family<DirectoryAnalysisProgress?, String>((ref, path) {
+  return null;
+});
 
-      // 2. Spawn isolate for recursive traversal
-      final receivePort = ReceivePort();
-      final isolate = await Isolate.spawn(
-        _isolateEntry,
-        _IsolateMessage(_AnalysisParams(path, 50), receivePort.sendPort),
-      );
+final directoryAnalysisStateProvider = StateProvider.autoDispose.family<AsyncValue<DirectoryAnalysisResult>?, String>((ref, path) {
+  return null;
+});
 
-      ref.onDispose(() {
-        isolate.kill(priority: Isolate.immediate);
-        receivePort.close();
-      });
+final directoryAnalysisProvider = FutureProvider.autoDispose.family<DirectoryAnalysisResult, String>((ref, path) async {
+  final cached = ref.watch(directoryAnalysisStateProvider(path));
+  if (cached != null) {
+    if (cached.hasError) throw cached.error!;
+    return cached.value!;
+  }
 
-      final result = await receivePort.first as DirectoryAnalysisResult;
-      isolate.kill();
+  // 1. Get disk usage in main thread
+  final diskUsage = await getDiskUsage(path);
 
-      return DirectoryAnalysisResult(
-        path: result.path,
-        totalItems: result.totalItems,
-        totalBytes: result.totalBytes,
-        diskUsage: diskUsage,
-        categoryStats: result.categoryStats,
-        topLargeFiles: result.topLargeFiles,
-      );
-    });
+  // 2. Spawn isolate for recursive traversal
+  final receivePort = ReceivePort();
+  final isolate = await Isolate.spawn(
+    _isolateEntry,
+    _IsolateMessage(_AnalysisParams(path, receivePort.sendPort), receivePort.sendPort),
+  );
+
+  ref.onDispose(() {
+    isolate.kill(priority: Isolate.immediate);
+    receivePort.close();
+  });
+
+  DirectoryAnalysisResult? result;
+  await for (final message in receivePort) {
+    if (message is DirectoryAnalysisProgress) {
+      ref.read(directoryAnalysisProgressProvider(path).notifier).state = message;
+    } else if (message is DirectoryAnalysisResult) {
+      result = message;
+      break;
+    }
+  }
+  
+  isolate.kill();
+
+  if (result == null) {
+    throw Exception("Analysis failed to return a result.");
+  }
+
+  return DirectoryAnalysisResult(
+    path: result.path,
+    totalItems: result.totalItems,
+    totalBytes: result.totalBytes,
+    diskUsage: diskUsage,
+    categoryStats: result.categoryStats,
+    allFiles: result.allFiles,
+  );
+});
+
+void removeFilesFromAnalysis(WidgetRef ref, String path, List<String> pathsToRemove) {
+  final currentAsync = ref.read(directoryAnalysisProvider(path));
+  if (!currentAsync.hasValue) return;
+  final currentResult = currentAsync.value!;
+
+  final pathsSet = pathsToRemove.toSet();
+  final newAllFiles = currentResult.allFiles.where((f) => !pathsSet.contains(f.path)).toList();
+
+  // Recompute stats
+  int totalItems = 0;
+  int totalBytes = 0;
+  final Map<FileItemType, CategoryStats> stats = {
+    FileItemType.image: const CategoryStats(),
+    FileItemType.video: const CategoryStats(),
+    FileItemType.audio: const CategoryStats(),
+    FileItemType.document: const CategoryStats(),
+    FileItemType.archive: const CategoryStats(),
+    FileItemType.other: const CategoryStats(),
+  };
+
+  for (final file in newAllFiles) {
+    totalItems++;
+    totalBytes += file.stat.size;
+    final type = file.type;
+    final currentStat = stats[type]!;
+    stats[type] = currentStat.copyWith(
+      count: currentStat.count + 1,
+      totalBytes: currentStat.totalBytes + file.stat.size,
+    );
+  }
+
+  final newResult = DirectoryAnalysisResult(
+    path: currentResult.path,
+    totalItems: totalItems,
+    totalBytes: totalBytes,
+    diskUsage: currentResult.diskUsage,
+    categoryStats: stats,
+    allFiles: newAllFiles,
+  );
+
+  ref.read(directoryAnalysisStateProvider(path).notifier).state = AsyncData(newResult);
+}

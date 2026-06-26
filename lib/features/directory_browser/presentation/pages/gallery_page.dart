@@ -28,8 +28,10 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/preview
 import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/gnome_tab_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rubber_band_overlay.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
@@ -1093,6 +1095,18 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
   void _goBack() {
     if (ref.read(previewFileProvider) != null) return;
+
+    if (ref.read(isAnalysisActiveProvider)) {
+      ref.read(isAnalysisActiveProvider.notifier).set(false);
+      final currentPath = ref.read(currentPathProvider);
+      ref.invalidate(directoryAnalysisProvider(currentPath));
+      ref.invalidate(analysisCurrentPathProvider(currentPath));
+      ref.invalidate(displayedItemsProvider(currentPath));
+      ref.invalidate(typeFilterProvider);
+      ref.invalidate(sizeFilterProvider);
+      ref.invalidate(extensionFilterProvider);
+      return;
+    }
 
     ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();

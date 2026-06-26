@@ -22,6 +22,8 @@ import 'package:onyxcore/features/downloader/presentation/providers/downloads_pa
 import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/filter_overlay.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
@@ -990,6 +992,17 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
       ref.read(previewFileProvider.notifier).state = null;
 
       if (widget.targetPath.isNotEmpty) {
+        if (ref.read(isAnalysisActiveProvider)) {
+          ref.read(isAnalysisActiveProvider.notifier).set(false);
+          final currentPath = ref.read(currentPathProvider);
+          ref.invalidate(directoryAnalysisProvider(currentPath));
+          ref.invalidate(analysisCurrentPathProvider(currentPath));
+          ref.invalidate(displayedItemsProvider(currentPath));
+          ref.invalidate(typeFilterProvider);
+          ref.invalidate(sizeFilterProvider);
+          ref.invalidate(extensionFilterProvider);
+        }
+
         ref.read(selectionProvider.notifier).deselectAll();
         ref.read(navigationProvider.notifier).navigateTo(widget.targetPath);
         ref.read(currentPathProvider.notifier).state = widget.targetPath;
