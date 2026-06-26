@@ -501,18 +501,18 @@ onyxcore/
 - **Linux "Open With" Integration**: High-performance application discovery system that parses system `.desktop` files and uses `gio mime` to categorize compatible apps for any file or folder.
 
 #### 1.6 Archive Management
-- **Native Engine**: Uses `p7zip-full` (`7z` binary) for high-performance compression and extraction via `ArchiveService`.
+- **Native Engine**: Uses `p7zip-full` (`7z` binary) for high-performance compression and extraction via `ArchiveService`. Implements `killZombies()` to gracefully terminate any lingering `7z` child processes during application teardown.
 - **Format Support**: Creates `.zip`, `.tar`, `.gz`, and `.7z` archives. Extracts any format supported by `7z`.
-- **Encryption**: Supports password-protected compression and extraction. Intelligently applies `-mhe=on` (header encryption) exclusively for `.7z` formats to prevent `E_INVALIDARG` failures on standard formats.
+- **Encryption**: Supports password-protected compression and extraction. Intelligently applies `-mhe=on` (header encryption) exclusively for `.7z` formats to prevent `E_INVALIDARG` failures on standard formats. Checks for encryption via `7z l -slt` and looking for `Encrypted = +`.
 - **Interactive Dialogs**: 
-  - **Compress Dialog**: Glassmorphic UI to select format, specify filename (auto-populated with selected item count or parent folder name), and set optional passwords. Supports `Enter` key submission.
-  - **Password Dialog**: Prompts for extraction passwords when encrypted archives are detected (via `7z l -slt`).
-- **Background Task Integration**: All archive operations are executed asynchronously and dispatched to the `TaskNotifier`. Parses `7z -bsp1` stdout stream to provide real-time percentage progress in the Background Tasks Panel.
+  - **Compress Dialog**: Premium glassmorphic UI (`sigma: 20` backdrop blur, dark translucent box) to select format, specify filename, and set optional passwords. The default archive name intelligently auto-populates with the exact file name (if single selection) or the parent directory's name (if multiple selection). Supports `Enter` key submission.
+  - **Password Dialog**: Prompts for extraction passwords when encrypted archives are detected, matching the glassmorphic aesthetic of the Compress Dialog.
+- **Background Task Integration**: All archive operations are executed asynchronously via `ArchiveProvider` and dispatched to the `TaskNotifier`. Parses `7z -bsp1` stdout stream using regex `r'(\d+)%'` to provide real-time percentage progress and execution logs in the Background Tasks Panel.
 - **Global Context Toasts**: Success/failure and task-started toasts are dispatched using a global `appNavigatorKey` overlay. This ensures notifications survive directory navigation. Toasts feature a custom notch pointing to the Background Panel icon.
 - **Workflow Shortcuts**:
   - `Ctrl+Alt+C`: Instantly opens the compress dialog for the current selection.
-  - `Enter`: Pressing Enter on an archive file automatically triggers extraction in the current directory.
-- **Post-Operation Focus**: Upon successful compression or extraction, the application automatically clears the previous selection and highlights the newly created archive or extracted folder, immediately drawing user attention.
+  - `Enter`: Pressing Enter on an archive file automatically triggers extraction in the current directory (into a newly created folder named after the archive).
+- **Post-Operation Focus**: Upon successful compression or extraction, the `ArchiveProvider` automatically clears the previous selection, issues a directory refresh, and highlights the newly created archive or extracted folder, immediately drawing user attention.
 
 #### 1.7 Search & Filter
 - **Instant search** filter in current directory (gradient-highlighted search bar)
@@ -575,9 +575,18 @@ onyxcore/
 
 #### 1.13 Directory Analysis
 - **Background Computation**: Analyzes folder size, item counts, and categorizes files using a `compute` isolate (`directoryAnalysisProvider`).
+- **High-Performance Parsing Pipeline**: 
+  - Uses a pure string-operation `_fastDirname` instead of `path.dirname` to eliminate overhead across 500K+ file iterations.
+  - Replaces `path.isWithin/relative` with direct `indexOf/substring` string scanning in `_groupByCurrentPath`, yielding a 5-10x speedup when grouping massively nested filtered sets.
+- **Layered Isolate Architecture**:
+  - **Layer 1 (Filtering)**: A heavy isolate (`_computeFilterOnly`) strictly filters by type, size, and extension without path-grouping. Only runs when filter configuration changes.
+  - **Layer 2 (Grouping)**: A rapid isolate (`displayedItemsProvider`) groups pre-filtered files into the current visual path using the fast string ops. Ensures instant UI navigation without re-filtering massive trees.
 - **Category Deep Dive**: Visual breakdown of directory contents into specific types (Images, Videos, Music, Documents) displaying count and aggregated byte size.
+- **Donut Chart Viz**: Custom `_DonutChartPainter` rendering a 150x150 total storage ring (`strokeWidth: 14`) using aggregated category percentages.
 - **Large Files Archive**: Rapid identification and ranking of the largest files within a directory hierarchy, sortable and interactively previewable.
-- **Graceful Cancellation**: Ability to cancel long-running directory traversal for extremely large filesystems.
+- **Interactive Action Bar**: Features a "Duplicate Finder" action button, size/type/extension filter dropdowns, and a gradient-highlighted `ShaderMask` text display (red/orange) specifically for selected items total size.
+- **Targeted Operations**: Dedicated `_AnalysisDeleteDialog` for custom trash/permanent delete operations directly within the analysis view.
+- **Graceful Cancellation**: Ability to cancel long-running directory traversal via a prominent "Cancel" button or `Alt+←` keyboard shortcut.
 
 #### 1.14 Unified Side Panel
 - **Resizability**: Features an interactive resize handler (`MouseRegion` + `OverflowBox`) to dynamically resize side panels.
@@ -600,7 +609,10 @@ onyxcore/
 - **Type-routing**: Dispatches to `ImagePreviewWidget`, `VideoPreviewWidget`, `AudioPlayerView`, or `MarkdownPreviewWidget` based on `FileItemType`
 - **PDF placeholder**: Shows a centered icon with "PDF Preview not yet implemented" message and hint to double-tap for external viewer
 - **Double-tap pop-out**: Opens the previewed file in a standalone persistent window via `PersistentViewerManager.openMedia()`, then clears the inline preview
-- **Image preload on pop-out**: When popping out an image, pre-computes 4 adjacent image paths (±2 neighbors) and passes them as `preloadPaths` in `WindowParams.initParams`
+- **Reverse IPC Architecture**: The main `GalleryPage` registers an IPC method handler (`_setupReverseIpc`) via `desktop_multi_window`'s `WindowController` to respond to secondary window requests:
+  - `request_navigation`: Handles previous/next file requests across windows. Pre-computes 4 adjacent paths (±2 neighbors) and dispatches a `load_media` call back to the secondary window.
+  - `save_playback_position`: Cross-process Hive storage syncing for video resume.
+  - `delete_item`: Allows secondary windows to trigger trash/delete workflows in the main window (including UI task toasts).
 - **F-key HUD toggle**: Toggles `previewHudVisibleProvider` with a 300ms debounce to prevent rapid toggling
 - **Close shortcuts**: `Backspace` / `Alt+←` / `Ctrl+W` all close the preview and reset HUD visibility to true
 
@@ -636,7 +648,7 @@ onyxcore/
 - Full-area image display within the file browser
 - Double-tap to **pop out** to standalone window
 - `Backspace` / `Alt+←` / `Ctrl+W` to close preview
-- `F` key to toggle HUD visibility
+- `F` or `Ctrl+F` key to toggle fullscreen/HUD visibility
 - `←`/`→` arrow keys to navigate between images in directory (features a **300ms throttle** for stable continuous key-hold cycling)
 - Global HUD visibility sync with preview container
 - Auto-hide controls after 3s inactivity, wake on mouse movement
@@ -644,6 +656,9 @@ onyxcore/
 - **Matrix Corruption Guard**: Interaction lock (350ms) during the Hero flight animation to prevent random pinch-to-zoom focal point jumps
 - **Boundary Clamping**: Strict lock at 1.0x scale to prevent image drifting off-screen
 - **BubbleLoader** shown during image loading (wrapped in `IgnorePointer` to prevent swallowing background trackpad gestures)
+- **Zero-Latency Navigation (Precaching)**: `_precacheAdjacentImages()` silently loads the next two and previous two images in the queue into memory ahead of time to eliminate loading delays during rapid key cycling.
+- **Intelligent File Support**: Detects `.svg` files, gracefully bypassing binary metadata extraction and dynamically tagging them as "Vector Graphic • Scalable".
+- **Secure Deletion**: Uses `Delete` (trash) or `Shift+Delete` (permanent) hotkeys integrated with the background Task Manager; upon deletion, it seamlessly auto-navigates to the next image to prevent UI disruption.
 
 #### 2.2 Standalone Mode (Persistent Window)
 - Dedicated window via `PersistentViewerManager` (window reuse, hide instead of destroy)
@@ -663,16 +678,21 @@ onyxcore/
 - **EXIF metadata display** — dimensions, file size, date, camera info
 - **Snapshot flash effect** — white overlay animation on capture
 - **Glassmorphism snapshot toast** notification
-- `←`/`→` navigation via reverse IPC to main window
+- `←`/`→` navigation via reverse IPC (`request_navigation`) to main window
 - **ViewerTopBar** with title, metadata, pop-out, close, edit, settings buttons
 
 #### 2.3 Image Editor Overlay
-- **ffmpeg-based** image processing pipeline
-- **Rotation**: 90° CW/CCW with visual preview
-- **Brightness/Contrast** adjustment with slider
-- **Crop tool** with draggable rectangle overlay
-- Save as new file or overwrite original
-- Real-time preview of adjustments
+- **FFMPEG Native Pipeline**: Leverages `Process.run('bash', ['-c', ...])` to pipe exact string commands (`rotate`, `eq=brightness`, `crop`) directly to system `ffmpeg`, performing high-speed non-destructive edits without blowing up Dart heap memory.
+- **Glassmorphic Editor Canvas**: Blur `sigmaX: 20` backing the active editor layer.
+- **Custom Painter UI**: 
+  - 8-point draggable crop frame overlaid with a custom 3x3 `GridPainter`.
+  - Continuous `-180°` to `180°` rotation dial via custom `RotationSliderPainter`.
+- **Live Preview Filters**: Uses `ColorFiltered` matrix manipulations to instantly render brightness/contrast adjustments before committing them to the FFMPEG pipeline.
+- Save dialog with "Save Copy" (auto-increments filename) or "Replace" modes.
+
+#### 2.4 Image Playlist Sidebar
+- **Toggleable Side Panel**: Triggered via `Ctrl+Shift+P` or UI button.
+- **Synchronized Thumbnail Grid**: Automatically mirrors the `filteredAndSortedImageQueueProvider`, allowing direct-click navigation between images in the current folder.
 
 ---
 
@@ -689,7 +709,8 @@ onyxcore/
 #### 3.2 Standalone Mode (Persistent Window)
 - Full `media_kit` Player + VideoController lifecycle
 - **Persistent window** (hide/show, no engine re-initialization)
-- **Zero-Latency Initialization**: Engine startup is deferred by a 300ms post-frame callback to ensure the `BubbleLoader` is fully rendered and animating before the heavy `player.open` call, preventing initial UI thread freezes.
+- **Zero-Latency Initialization**: Engine startup is deferred by a 16ms post-frame callback to ensure the `BubbleLoader` is fully rendered and animating before the heavy `player.open` call.
+- **Native Engine Reuse**: Navigating to new media reuses the same global `Player` instance, simply calling `player.open()` with the new `MediaUri`, thereby eliminating all native disposal deadlocks and providing instant, zero-latency transitions between videos.
 - **BubbleLoader Persistence**: Uses `AnimatedOpacity` to keep the loader in the widget tree, ensuring it continues to animate smoothly during engine initialization and buffering states.
 - **Persistent HUD State**: Standalone viewer maintains its UI state (hidden/visible HUD) during playlist navigation via a shared widget lifecycle (no `ValueKey` reset)
 - **Custom bottom controls bar** with gradient background:
@@ -724,7 +745,8 @@ onyxcore/
 - **Playback memory** — resume from last position via Hive storage
 - **Auto-play next** — configurable in settings
 - **Fast seek** — hold arrow keys for continuous seeking
-- **Keyboard shortcuts**: Space (play/pause), ←/→ (seek), ↑/↓ (volume), M (mute), S (snapshot), F (fullscreen), [ ] (speed), **T (toggle marker editor)**
+- **Secure Deletion**: Uses `Delete` (trash) or `Shift+Delete` (permanent) hotkeys integrated with the background Task Manager; upon deletion, it seamlessly auto-navigates to the next video to prevent UI disruption.
+- **Keyboard shortcuts**: Space (play/pause), ←/→ (seek), ↑/↓ (volume), M (mute), S (snapshot), F (fullscreen), Ctrl+Shift+P (toggle playlist sidebar), [ ] (speed), **T (toggle marker editor)**
 - **FPS display** in top HUD metadata
 - **Resolution badge** (e.g., "1080p") in top HUD
 - **BubbleLoader Integration**: Replaced all generic loaders with the high-performance animated bubble system for loading/buffering/seeking
@@ -890,7 +912,7 @@ onyxcore/
 - **AutoScrollingText**: Custom auto-scrolling track title widget using `Ticker` — text scrolls horizontally at ~60px/sec after a 2s initial delay, loops infinitely. Resets and re-delays on track change.
 - **Track name** display (28px bold, -0.5 letter-spacing) — shows filename without extension
 - **Artist/Album subtitle**: Reads `trackArtist` and `album` from ID3 tags, displays as "Artist | Album" format; falls back to "Audio File"
-- **Responsive layout**: Uses `Spacer` flex-based layout to distribute album art, track info, waveform, and controls proportionally
+- **Responsive layout**: Uses `Spacer` flex-based layout (`flex: 3` top, `flex: 10` cover, `flex: 2` track info, `flex: 1` controls) to distribute album art, track info, waveform, and controls proportionally on any window size
 
 #### 4.3 Waveform Scrubber
 - **Procedurally-generated waveform** visualization using `CustomPainter`
@@ -958,7 +980,7 @@ onyxcore/
 - **Glassmorphic UI**: Integrates seamlessly with the Onyx Monolith aesthetic, featuring custom text fields and a responsive grid layout.
 - **Editable Fields**: Title, Artist, Album, Genre, and Track Number.
 - **Album Art Replacement**: Clickable album art zone allowing users to browse and attach new cover images using `file_selector`. Cover art is processed via `AudioMetadataUtils.prepareCoverArt()` — square-cropped and resized to 600×600px JPEG (90% quality) to prevent OOM errors.
-- **Inline Rename**: File renaming within the tag editor triggers full queue synchronization — updates `audioQueueProvider`, `audioPlayingQueueProvider`, `audioSelectionProvider`, and directory cache. If the renamed file is currently playing, the playing queue's URI reference is updated live.
+- **Inline Rename**: File renaming within the tag editor triggers full queue synchronization — updates `audioQueueProvider`, `audioPlayingQueueProvider`, `audioSelectionProvider`, and directory cache. If the renamed file is currently playing, it actively iterates over the internal `media_kit` `Player.state.playlist.medias` list to safely replace the URI in-place. This prevents native `FileNotFoundException` crashes on Linux when seeking, without forcing playback to restart.
 - **Live Sync**: Saved changes push tag overrides to `audioTagsOverridesProvider` for immediate UI update without re-reading the file from disk.
 
 #### 4.9 Delete Operations
@@ -1014,25 +1036,25 @@ onyxcore/
 ### 5. Document Viewer (Markdown)
 
 #### 5.1 Preview & Markdown Engine
-- Full markdown rendering via `flutter_markdown`
-- Custom `MarkdownStyleSheet` with Onyx dark theme
-- **Offline Mermaid Rendering** (`mermaid_offline_renderer.dart`)
-- Styled: headings, paragraphs, code (inline + block), blockquotes, lists, horizontal rules
-- `←`/`→` to navigate between documents
+- **Core Engine**: Full markdown to HTML parsing (via `markdown`) and rendered natively using `flutter_html`.
+- **Advanced Markdown Support**: 
+  - Parses frontmatter (`--- \n ... \n ---`) and extracts metadata (e.g. `tags`) into a dedicated top header table (`_buildFrontmatterTable`).
+  - Natively renders HTML tables (`flutter_html_table`) and mathematical equations via `TagExtension` for `math-inline` and `math-display` (`flutter_math_fork`).
+  - Checkbox extensions converting `<input type="checkbox">` into custom `<task-checked>` / `<task-unchecked>` tags rendering colored icons.
+- **Custom Code Block Builder**:
+  - Uses `CodeElementBuilder` for `pre` and `code` tags.
+  - Extracts language definitions from class attributes (e.g., `language-dart`).
+  - Features a language label header, a horizontal scroll view for long lines, dark background with rounded corners, and a **copy button** with "COPIED" feedback animation.
+- **Offline Mermaid Rendering** (`mermaid_offline_renderer.dart`): Parses and renders Mermaid diagrams fully offline.
 
-#### 5.2 Editing & Standalone Mode
-- **Edit/Preview Toggle & Dual Pane** — switch between rendered markdown and raw text editor, or view both side-by-side in a responsive dual-pane layout (`_isDualPane`) with a draggable divider (`Ctrl + \`). Includes dual-pane scroll synchronization.
-- **Syntax Highlighting & Line Numbers** — Editor features live markdown syntax highlighting (`MarkdownSyntaxHighlighter`) and custom line numbers rendering (`LineNumbersPainter`)
-- **Undo/Redo Tracking**: Integrated `UndoHistoryController` managing extensive history states with `Ctrl+Z` (Undo) and `Ctrl+Shift+Z` (Redo) support.
-- Editor uses **JetBrains Mono** font with dark theme
-- **Search & Replace Overlay** (`SearchIntent`) with support for regex and case-sensitive queries
-- **Extended Markdown Support**: Natively renders HTML tables (`flutter_html_table`) and mathematical equations (`flutter_math_fork`).
-- **Save** functionality with change detection (cyan highlight when unsaved)
-- **Custom code block builder** (`CodeElementBuilder`):
-  - Language label header
-  - **Copy button** with "COPIED" feedback animation
-  - Horizontal scroll for long lines
-  - Dark background with rounded corners
+#### 5.2 Editing & Dual-Pane Mode
+- **Dual-Pane Layout**: Switch between rendered markdown and raw text editor (`Ctrl + E`), or view both side-by-side in a responsive dual-pane layout (`Ctrl + \`). 
+- **Dynamic Resizing & Sync**: Dual pane features a draggable divider managed by a `ValueNotifier<double> _editorWidthRatioNotifier`. Uses dual `ScrollController` synchronization logic ensuring both panes scroll proportionally.
+- **Intelligent Click-to-Edit**: In preview mode, double-clicking any rendered paragraph walks the `RenderTree`, finds the closest `RenderBox` by Y-coordinate, matches the sanitized text against the editor buffer, and automatically switches to editing mode with the cursor jumped to the exact line.
+- **Syntax Highlighting & Line Numbers**: Editor features live markdown syntax highlighting (`MarkdownSyntaxHighlighter` leveraging `flutter_highlight` atom-one-dark theme) and a dedicated 56px left column for custom line numbers (`LineNumbersPainter`). Editor background is `#181818`.
+- **Search & Replace Overlay** (`SearchIntent` via `Ctrl+F`): Floating widget supporting case-sensitive and regex queries. Includes "Next", "Previous", "Replace", and "Replace All". Highlights matches directly within the `MarkdownSyntaxHighlighter`.
+- **Undo/Redo Tracking**: Integrated `UndoHistoryController` managing extensive history states with `Ctrl+Z` (Undo) and `Ctrl+Shift+Z` (Redo). Restores cursor position perfectly on undo/redo operations via string delta calculations.
+- **Save State Management**: Detects string differences (`_hasChanges`), altering the save icon color (green `#A6E22E` when changes pending). Attempting to close with unsaved changes triggers a "Discard / Save / Cancel" dialog.
 
 #### 5.3 Shared Features
 - ViewerTopBar with Edit, Settings, Pop-out, Close
@@ -1046,20 +1068,28 @@ onyxcore/
 ### 6. Settings
 
 #### 6.1 Configurable Options
-- **Auto Play Next** (video) — boolean toggle
-- **Resume Playback** (video) — resume from last position
-- **Trackpad Speed Control** (video) — dropdown (OFF, Release to Normal, Release to Fix)
-- **Double-Tap Seek Seconds** (video) — integer (options: 5, 10, 15, 20, 25, 30)
-- **Audio Seek Seconds** — integer
-- **Snapshot Prefix** — custom string for snapshot filenames
-- **Show Hidden Files** — boolean toggle
-- **Show Hidden Audio Files** — boolean toggle (independent audio browser setting)
-- **Max Concurrent Tasks** — integer dropdown (1–3)
-- **Global Sort Option** — fallback sort (all `SortOption` enum values)
-- **Show Markers on Timeline** — boolean toggle for video timeline marker visibility
-- **Confirm Delete** — per-viewer boolean toggles: Image, Video, Document, Audio
-- **Pinned Folders** — ordered list
-- **Per-folder Sort Settings** — map persisted in SharedPreferences
+- **Files & Folders**:
+  - **Show Hidden Files** — boolean toggle
+  - **Max Concurrent Tasks** — integer dropdown (1–3) for background operations
+  - **Global Sort Option** — fallback sort (all `SortOption` enum values)
+- **Download Manager**:
+  - **Download to current folder** — boolean toggle (bypass `~/Downloads`)
+  - **Browser for Cookie Extraction** — dynamic dropdown of system-installed browsers + "None" (auto-detects default)
+  - **Max concurrent downloads** — integer dropdown (1–10)
+- **Performance**:
+  - **Hardware Decoder** (`selectedHwDec`) — dropdown (`auto`, `vaapi`, `nvdec`, `d3d11va`, `no`). Triggers a **Restart Required** dialog via `hwDecChanged` detection on save.
+- **Viewers/Players (Image, Video, Audio, Documents)**:
+  - **Confirm Delete** — independent per-viewer boolean toggles for Trash operations
+  - **Auto Play Next** (video/audio) — independent boolean toggles
+  - **Resume Playback** (video) — resume from last known position
+  - **Seek time** (video/audio) — integer dropdowns (video: 5-30s, audio: 3-30s)
+  - **Trackpad Speed Control** (video) — dropdown (OFF, Release to Normal, Release to Fix)
+  - **Show Markers on Timeline** (video) — boolean toggle
+  - **Show Hidden Audio Files** — boolean toggle for audio player
+  - **Case sensitive search / Use regular expressions** (documents) — default search configuration booleans
+- **Volume Memory**: Persists `audioPlayerVolume` and `videoPlayerVolume` across sessions (0.0 to 200.0)
+- **Pinned Folders** — ordered list persisted across sessions
+- **Per-folder Sort Settings** — dynamic map (`path` -> `sortKey`) persisted via SharedPreferences
 
 #### 6.2 Settings Dialog
 - **Onyx Monolith UI**: High-contrast dark grey (`#161616`) theme with full-screen `BackdropFilter` (sigma: 30) for premium glassmorphic depth.
@@ -1152,6 +1182,13 @@ onyxcore/
 - **Interactive Cursor**: The resize handle dynamically changes the system cursor to a hand/pointer (`SystemMouseCursors.click`) on hover.
 - **Hidden File Toggle**: Integrated switch to show/hide dot-files (e.g., `.markers.json`).
 
+#### 9.6 Modes & State Management
+- **State Provider**: Uses `FilePickerNotifier` (`AsyncNotifierProvider`) communicating with a `FileSystemService` for robust, asynchronous directory listings.
+- **Save Mode**: Toggleable `saveMode` boolean that replaces the footer selection text with a styled `TextField` for filename input. Auto-selects the basename on initialization for rapid renaming.
+- **Directory Picking Mode**: `pickDirectory` mode disables file selection. If no folder is explicitly selected, clicking "OPEN" automatically returns the `currentDirectory`.
+- **New Folder Creation**: Integrated `FilePickerNewFolderDialog`. Triggered via UI icon or `Ctrl+Shift+N`. Automatically creates the directory and navigates into it seamlessly.
+- **Directory Memory**: Statically retains `_lastSelectedDirectory` across instantiations to preserve context across multiple file picker invocations.
+
 ---
 
 ### 10. Download Manager
@@ -1180,10 +1217,8 @@ onyxcore/
 #### 10.3 Engine System
 - **`DownloadEngine`** (abstract): Interface defining `id`, `displayName`, `icon`, `color`, `binaryPath`, `updateInfo`, `canHandle(url)`, `buildFetchArgs(url, settings)`, `buildDownloadArgs(mediaInfo, config, destination, settings)`, `parseFetchOutput(stdout)`, `parseProgress(line)`
 - **`EngineRegistry`**: Singleton registry that holds all engine instances and resolves the correct engine for a URL via `canHandle()` matching
-  - **Auto-select mode**: Iterates all engines in priority order; falls back to yt-dlp as default
-  - **Manual override**: User can select a specific engine via the engine dropdown
-  - `allEngines` getter returns all registered engine instances
-  - `findEngine(url)` returns the first engine that can handle the URL
+  - **Auto-select mode**: Uses `resolveEngineSequence()` to generate an ordered list of installed engines. Prioritizes engines whose `urlPatterns` match, sorted by priority (0 to 10), then appends non-matching installed engines as fallbacks.
+  - **Required vs Optional**: Required engines (`yt-dlp`, `gallery-dl`) block UI if missing. Optional engines (`lux`, `you-get`, `streamlink`, `playwright`) can be dynamically installed/deleted from Settings.
 - **`YtDlpEngine`**: CLI wrapper for `yt-dlp`
   - **Binary resolution**: Checks `~/.local/share/onyxcore/bin/yt-dlp` first, then system `yt-dlp`
   - **URL matching**: Handles YouTube, Instagram, Twitter/X, TikTok, Vimeo, Dailymotion, SoundCloud, Bilibili, and generic video URLs
@@ -1220,10 +1255,10 @@ onyxcore/
   - **Execution Configuration**: Uses `-x 16` (connections per server), `-s 16` (splits), `-k 1M` (min split size) and `--summary-interval=1`.
   - **Integration Strategy**: Injected into `yt-dlp` via `--external-downloader aria2c`, and used directly by `PlaywrightEngine` for `.mp4` intercepts. Not applicable to live streams (`streamlink`).
 - **`MediaDownloaderBackend`**: The central process orchestrator
+  - **Multi-Engine Fallback Pipeline**: In `analyzeUrls`, iterates through the ordered engine sequence from `EngineRegistry`. If an engine fails, it gracefully falls back to the next, accumulating all stderr/stacktraces into a unified `pipelineLogs` string attached to `MediaInfo.fetchLogs`.
   - **Fetch flow**: Spawns engine CLI with fetch args → streams stdout → parses JSON output into `MediaInfo` objects → groups results into `MediaGroup` → returns to UI
   - **Download flow**: Spawns engine CLI with download args → streams stdout/stderr → parses progress via engine's `parseProgress()` → updates `DownloadTask` state → records to history on completion
   - **Process lifecycle**: Tracks PIDs for cancellation; uses `ProcessUtils.killProcessTree()` for graceful SIGTERM → SIGKILL cascade
-  - **Error handling**: Captures stderr, detects non-zero exit codes, and surfaces error messages to UI
 - **`CookieHelper`**: Browser cookie extraction utility
   - Detects installed browsers via `BrowserDetector.getInstalledBrowsers()`
   - Resolves the configured `downloadBrowser` setting to a `--cookies-from-browser` CLI argument
@@ -1281,6 +1316,10 @@ onyxcore/
   2. **History view** — Paginated history list with filter/search
   3. **History detail view** — Single entry deep-dive with stats, timeline, logs
 - **State fields**: `_parsedItems` (list of `MediaGroup`), `_configs` (map of index → `DownloadConfig`), `_selectedIndices` (set), `_previewItem`/`_previewIndex` (preview overlay state), `_isFetching`, `_fetchError`, `_sortFilter`, `_selectedEngine`, `_importedListName`/`_importedListPath` (JSON import), `_isListChanged`, `_backgroundLoadingProfiles` (set of URLs currently being hydrated)
+- **Profile Hydration Engine**: Automatically detects profiles/playlists (groups with <= 13 items) and triggers `_hydrateProfile()`. Fetches deep metadata in the background (`MediaDownloaderBackend.activeLogs` provides live streaming logs to UI).
+  - **UI Throttling**: Employs `_pendingStatsUpdate % 5 == 0` counter to throttle expensive size/count statistics recalculations during massive playlist hydration.
+  - **Auto-Quality Selection**: Automatically sorts extracted formats (by resolution height, then filesize) and selects the optimal highest-quality format upon hydration completion.
+- **State Persistence**: Supports exporting (`_exportList`) and importing (`_importList`) the current `_parsedItems` as JSON lists for resuming batch operations later.
 - **Animated gradient border**: `_gradientController` drives a rotating sweep gradient for the drag-and-drop import overlay border via `_GradientBorderPainter`
 
 ---
@@ -1426,5 +1465,49 @@ onyxcore/
   - **Known browsers**: Firefox, Chrome, Chromium, Brave, Vivaldi, Opera, Edge (+ Flatpak variants)
 
 ---
+
+### 11. Core Infrastructure & Utilities (`lib/core/`)
+
+#### 11.1 Caching (`core/cache`)
+- **DirectoryCache**: In-memory LRU cache (default 50 entries) with a 30-second TTL. Features recursive path invalidation to maintain consistency when parent directories are moved or deleted.
+- **MetadataCache**: Persistent cache backed by `SharedPreferences` for image aspect ratios. Uses a background `compute` isolate for JSON serialization (`jsonEncode`) to prevent main thread blocking when saving large cache maps.
+
+#### 11.2 Platform Integrations (`core/platform`)
+- **DirectoryWatcher**: Utilizes Linux `inotify` (via `FileSystemEntity.watch()`) to push kernel-level filesystem events. Implements smart event routing: `create`, `delete`, and `move` events are fired instantly for zero-latency UI updates, while `modify` events are debounced (500ms) to prevent rapid rebuilds during file writes.
+- **DiskUsage**: Direct wrapper around the Linux `df` command (`df -B1 --output=size,used,avail`) to query real block-device storage statistics, returning precise byte counts and usage fractions.
+
+#### 11.3 System Utilities (`core/utils` & `services`)
+- **AppLauncherUtils**: High-performance system application discovery. Parses `.desktop` files from standard Linux paths (`/usr/share/applications`, flatpak, snap). Integrates with `gio mime` to resolve default and recommended applications for specific file types. Implements intelligent icon resolution, prioritizing scalable SVG icons over bitmaps.
+- **DirectorySizeUtils**: Isolate-based recursive directory traversal (`calculateDirectorySizeIncremental`). Sends periodic updates (size, file count, folder count) back to the main thread via `SendPort` to drive real-time UI progress indicators without dropping frames.
+- **ProcessUtils**: Graceful process tree termination for external CLIs (like yt-dlp). Uses `pgrep -P` for bottom-up traversal, sending `SIGTERM` for graceful cleanup, followed by a 1-second delayed `SIGKILL` fallback.
+- **FileTypeClassifier**: Pure Dart extension-to-type mapper designed specifically to run inside background isolates without Flutter dependencies.
+- **MediaUriHelper**: A local HTTP proxy server (`http://127.0.0.1`) that pipes local files to `media_kit`, intentionally bypassing native GLib/GIO URI Unicode parsing bugs on Linux.
+- **FileSystemService**: Abstraction over the `file` package (`LocalFileSystem`), providing easily mockable filesystem operations (`isDirectory`, `listDirectory`, etc.) to facilitate unit testing without real disk I/O.
+
+#### 11.4 Reusable Widgets & Overlays (`core/widgets`)
+- **SearchReplaceOverlay**: Advanced floating search panel used in the Document Viewer. Features regex support (`.*`), case-sensitivity (`Aa`), dual-input fields, keyboard shortcut routing, and a draggable hit-box (`MouseRegion` + `GestureDetector`).
+- **ToastHelper**: Global notification system using `Overlay` and a globally accessible `appNavigatorKey`. Renders glassmorphic toast alerts with a custom `CustomPainter` notch that visually anchors to the top bar. Auto-dismisses after 4 seconds.
+- **OnyxSwitch**: Custom-painted gradient toggle switch used extensively in the Settings dialog.
+- **TaskProgressOverlay**: Real-time pie-chart progress indicator for background tasks, morphing into a checkmark or error icon upon completion.
+
+#### 11.5 Window Management (`core/window_management`)
+- **PersistentViewerManager**: Prevents expensive GTK engine teardown by maintaining a single, hidden secondary window. On subsequent media opens, it signals the existing window to load new content via IPC rather than spawning a new process.
+- **SecondaryWindowApp**: A dedicated, lightweight Riverpod bootstrapping scope for the secondary window to run independently of the primary browser engine.
+- **WindowParams**: Strongly-typed IPC payload serializer for cross-window communication.
+
+---
+
+### 12. Application Entry & Lifecycle
+
+#### 12.1 Engine Initialization (`main.dart`)
+- **Pre-Caching Memory Expansion**: Explicitly increases `PaintingBinding.instance.imageCache.maximumSizeBytes` to 500MB to support aggressive pre-caching of high-res image files (used in the zero-latency Image Viewer) without triggering Flutter's aggressive memory purges.
+- **Multi-Window Bootstrapper**: Intercepts `WindowController.arguments`. If `desktop_multi_window` payloads are present, it reroutes execution to `SecondaryWindowApp` instead of the primary `OnyxCoreApp`, isolating the standalone viewers.
+- **Seamless Window Configuration**: Initializes `windowManager` with `TitleBarStyle.hidden` and `backgroundColor: Colors.transparent` to disable native OS titlebars and enable edge-to-edge custom UI.
+
+#### 12.2 Lifecycle & Process Management (`app.dart`)
+- **Graceful Termination Guards**: Overrides `onWindowClose()` via `WindowListener`. Before exiting, it checks if any active overlay dialogs are open and pops them. If none, it executes a global cleanup:
+  - Triggers `ArchiveService.killZombies()` to sweep and terminate any hanging `7z` subprocesses.
+  - Invokes `exit(0)` to forcefully kill the entire process tree, guaranteeing all secondary windows (`desktop_multi_window` instances) are eliminated alongside the primary process.
+- **Asynchronous Auto-Updates**: Initiates `DownloaderUpdateService`'s `checkForUpdates()` on `OnyxCoreApp.initState` using a non-blocking `Future.microtask` to keep download manager engines (yt-dlp, etc.) silently up-to-date in the background.
 
 *Generated: 2026-06-05 | Comprehensive audit of 159 Dart source files + 5 test files across 9 feature modules, core infrastructure, and services layer.*
