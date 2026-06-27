@@ -26,7 +26,7 @@ class ArchiveService {
     void Function(double)? onProgress,
     void Function(String)? onLog,
   }) async {
-    List<String> args = ['x', archivePath, '-o$outputDir', '-y', '-bsp1'];
+    final args = ['x', archivePath, '-o$outputDir', '-y', '-bsp1'];
     if (password != null && password.isNotEmpty) {
       args.add('-p$password');
     }
@@ -42,7 +42,7 @@ class ArchiveService {
     void Function(double)? onProgress,
     void Function(String)? onLog,
   }) async {
-    List<String> args = ['a', targetArchive, ...sourcePaths, '-y', '-bsp1'];
+    final args = ['a', targetArchive, ...sourcePaths, '-y', '-bsp1'];
     if (password != null && password.isNotEmpty) {
       args.add('-p$password');
       if (targetArchive.toLowerCase().endsWith('.7z')) {
@@ -70,7 +70,7 @@ class ArchiveService {
         // 7z -bsp1 output looks like: " 23% 4 - file.txt" or " 12%"
         if (onProgress != null) {
           final regex = RegExp(r'(\d+)%');
-          for (var line in data.split('\n')) {
+          for (final line in data.split('\n')) {
             final match = regex.firstMatch(line);
             if (match != null) {
               final percentStr = match.group(1);
