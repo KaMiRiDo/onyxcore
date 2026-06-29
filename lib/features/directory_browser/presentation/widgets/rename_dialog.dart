@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/core/widgets/onyx_switch.dart'; // Using existing switch if needed, but radio is better for this.
 import 'package:path/path.dart' as p;
 
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';

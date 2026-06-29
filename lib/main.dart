@@ -15,7 +15,6 @@ import 'dart:convert';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/window_management/secondary_window_app.dart';
-import 'package:onyxcore/core/window_management/window_controller_extension.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +25,7 @@ void main(List<String> args) async {
   // Unified initialization for all engine instances (main and secondary)
   await windowManager.ensureInitialized();
   await Hive.initFlutter();
-  await Hive.openBox('ui_settings');
+  await Hive.openBox<dynamic>('ui_settings');
   MediaKit.ensureInitialized();
 
   final windowController = await WindowController.fromCurrentEngine();

@@ -26,7 +26,6 @@ import 'package:onyxcore/features/directory_browser/presentation/pages/directory
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/filter_overlay.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 
 class TopBar extends ConsumerStatefulWidget {

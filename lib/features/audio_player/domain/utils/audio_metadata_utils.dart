@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:audiotags/audiotags.dart';
 import 'package:image/image.dart' as img;
-import 'package:path/path.dart' as p;
 
 class AudioProperties {
   final String duration;
@@ -87,8 +86,8 @@ class AudioMetadataUtils {
         if (jsonStr.isNotEmpty) {
           final data = jsonDecode(jsonStr);
 
-          final stream = data['streams']?[0] ?? {};
-          final format = data['format'] ?? {};
+          final stream = data['streams']?[0] ?? <String, dynamic>{};
+          final format = data['format'] ?? <String, dynamic>{};
 
           final double durationSec =
               double.tryParse(format['duration']?.toString() ?? '0') ?? 0;

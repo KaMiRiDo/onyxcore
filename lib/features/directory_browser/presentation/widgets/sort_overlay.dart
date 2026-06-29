@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 

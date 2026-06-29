@@ -1,11 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:onyxcore/core/theme/app_theme.dart';
 
 class PlaybackSpeedControl extends StatefulWidget {
   final double currentSpeed;
-  final Function(double) onSpeedSelected;
+  final void Function(double) onSpeedSelected;
 
   const PlaybackSpeedControl({
     required this.currentSpeed,

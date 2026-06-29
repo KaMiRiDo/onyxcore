@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';

@@ -2,10 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 

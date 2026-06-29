@@ -2,7 +2,6 @@ part of '../downloads_panel.dart';
 
 extension DownloadsPanelInputView on _MediaDownloaderPanelState {
   Widget _buildInputView() {
-    final hasItems = _parsedItems != null && _parsedItems!.isNotEmpty;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),

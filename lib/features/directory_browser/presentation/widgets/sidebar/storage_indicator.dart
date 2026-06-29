@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:onyxcore/core/platform/disk_usage.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 

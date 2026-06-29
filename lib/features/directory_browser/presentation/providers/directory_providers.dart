@@ -9,7 +9,6 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/tab_m
 import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:onyxcore/core/cache/directory_cache.dart';
-import 'package:onyxcore/core/cache/metadata_cache.dart';
 import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';

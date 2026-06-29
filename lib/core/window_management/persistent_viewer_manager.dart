@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';

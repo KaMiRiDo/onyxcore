@@ -356,11 +356,11 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
 
         String displayTitle = group.first.title;
         if (group.first.isProfile && displayTitle.toLowerCase() == 'item') {
-          if (group.first.id != null && group.first.id!.isNotEmpty) {
+          if (group.first.id.isNotEmpty) {
             displayTitle = '@${group.first.id}';
-          } else if (group.first.originalUrl != null) {
+          } else {
             try {
-              final uri = Uri.parse(group.first.originalUrl!);
+              final uri = Uri.parse(group.first.originalUrl);
               if (uri.pathSegments.isNotEmpty) {
                 displayTitle = '@${uri.pathSegments.first}';
               }

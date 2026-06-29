@@ -1,4 +1,3 @@
-import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,9 +18,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 import 'package:google_fonts/google_fonts.dart';
 final analysisCurrentPathProvider = StateProvider.family<String, String>((ref, initialPath) => initialPath);

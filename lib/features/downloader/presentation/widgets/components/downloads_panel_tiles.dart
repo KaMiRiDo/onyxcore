@@ -174,11 +174,11 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
 
     String displayTitle = item.title;
     if (item.isProfile && displayTitle.toLowerCase() == 'item') {
-      if (item.id != null && item.id!.isNotEmpty) {
+      if (item.id.isNotEmpty) {
         displayTitle = '@${item.id}';
-      } else if (item.originalUrl != null) {
+      } else {
         try {
-          final uri = Uri.parse(item.originalUrl!);
+          final uri = Uri.parse(item.originalUrl);
           if (uri.pathSegments.isNotEmpty) {
             displayTitle = '@${uri.pathSegments.first}';
           }
@@ -190,10 +190,8 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
     if (sourceBadgeName == null || sourceBadgeName.toLowerCase() == 'generic') {
       try {
         final urlStr = group.originalUrl ?? item.originalUrl;
-        if (urlStr != null) {
-          final uri = Uri.parse(urlStr);
-          sourceBadgeName = uri.host.replaceFirst('www.', '');
-        }
+        final uri = Uri.parse(urlStr);
+        sourceBadgeName = uri.host.replaceFirst('www.', '');
       } catch (_) {
         sourceBadgeName = 'Web';
       }
@@ -388,7 +386,6 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                     ),
                                   ),
                                 ),
-                              if (sourceBadgeName != null)
                                 Positioned(
                                   top: 8,
                                   left: 8,
@@ -683,7 +680,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                       );
                                     },
                                   ),
-                                  CopyUrlButton(url: group.originalUrl ?? ''),
+                                  CopyUrlButton(url: group.originalUrl),
                                 ],
                               ),
                             ],
@@ -770,44 +767,6 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModeRadio(
-    int index,
-    DownloadConfig config,
-    DownloadMode mode,
-    String label,
-  ) {
-    final isSelected = config.mode == mode;
-    return InkWell(
-      onTap: () {
-        setState(() => config.mode = mode);
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: isSelected ? Colors.white : Colors.white38,
-              size: 14,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.manrope(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontSize: 11,
               ),
             ),
           ],

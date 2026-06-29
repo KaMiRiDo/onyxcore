@@ -7,7 +7,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/app_launcher_utils.dart';
 

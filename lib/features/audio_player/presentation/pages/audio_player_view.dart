@@ -1,13 +1,11 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/features/audio_player/domain/utils/audio_queue_isolate.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
@@ -20,14 +18,12 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_controller_extension.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import '../providers/audio_player_providers.dart';
 import '../widgets/playlist_sidebar.dart';
@@ -58,17 +54,16 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
   final FocusNode _focusNode = FocusNode();
   late final Player _player;
-  StreamSubscription? _playlistSub;
-  StreamSubscription? _completedSub;
-  StreamSubscription? _errorSub;
-  StreamSubscription? _bufferingSub;
-  StreamSubscription? _bitrateSub;
+  StreamSubscription<dynamic>? _playlistSub;
+  StreamSubscription<dynamic>? _completedSub;
+  StreamSubscription<dynamic>? _errorSub;
+  StreamSubscription<dynamic>? _bufferingSub;
+  StreamSubscription<dynamic>? _bitrateSub;
   bool _isOpening = false;
   bool _isBuffering = false;
   double? _bitrate;
   bool _sessionSkipConfirm = false;
   bool _isEmpty = false;
-  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -353,15 +348,13 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     if (confirm != true) return;
 
     // Allow the delete dialog's closing animation to finish smoothly
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final currentTrack = ref.read(currentTrackProvider);
     final isPlayingTrackDeleted =
         currentTrack != null && targetPaths.contains(currentTrack.path);
     final queue = ref.read(audioPlayingQueueProvider);
     final currentIndex = ref.read(activeTrackIndexProvider);
-    final hasMultiple = queue.length > 1;
-
     if (isPlayingTrackDeleted) {
       _player.pause();
     }

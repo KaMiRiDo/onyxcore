@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/file_item.dart';
 
 enum FileOperationType { copy, cut, none }
 

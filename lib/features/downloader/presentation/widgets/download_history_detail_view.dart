@@ -45,18 +45,7 @@ class _DownloadHistoryDetailViewState
     final isSuccess = entry.statusName.toLowerCase() == 'completed';
     final isError = entry.statusName.toLowerCase() == 'error';
 
-    Color statusColor = Colors.white54;
-    IconData statusIcon = Icons.info_outline;
-    if (isSuccess) {
-      statusColor = Colors.greenAccent;
-      statusIcon = Icons.check_circle_outline_rounded;
-    } else if (isError) {
-      statusColor = Colors.redAccent;
-      statusIcon = Icons.error_outline_rounded;
-    } else if (entry.statusName.toLowerCase() == 'cancelled') {
-      statusColor = Colors.orangeAccent;
-      statusIcon = Icons.cancel_outlined;
-    }
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

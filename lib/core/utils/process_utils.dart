@@ -25,7 +25,7 @@ class ProcessUtils {
           return; // Process already dead
         }
         // Wait up to 1 second for graceful exit
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
         // Phase 2: Force kill if still alive
         try {
           Process.killPid(pid, ProcessSignal.sigkill);

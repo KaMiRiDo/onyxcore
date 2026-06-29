@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import "package:path/path.dart" as p;
 
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
@@ -15,7 +14,6 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/selec
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/error_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_state_view.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';

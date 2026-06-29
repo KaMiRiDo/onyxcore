@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
@@ -21,10 +20,8 @@ import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:vector_math/vector_math_64.dart' show Vector3;
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
@@ -56,8 +53,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   bool _isClosing = false;
   bool _isEmpty = false;
   bool _isEmptyAtEnd = true;
-  double _rotation = 0.0;
-  bool _isFlippedHorizontal = false;
   String? _metadata;
   String? _indexString;
   bool _isControlsVisible = true;
@@ -85,7 +80,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   bool _isGlobalHudVisible = true;
   bool _isLoading = true;
-  Size? _imageSize;
   Offset? _lastMousePos;
   final Completer<void> _firstFrameCompleter = Completer<void>();
   DateTime? _lastNavTime;
@@ -343,8 +337,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _zoomAnimationController.forward(from: 0);
   }
 
-  Offset _lastFocalPoint = Offset.zero;
-
   void _startHideTimer() {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 3), () {
@@ -488,7 +480,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       if (mounted) {
         final mp = (image.width * image.height / 1000000).toStringAsFixed(1);
         setState(() {
-          _imageSize = Size(image.width.toDouble(), image.height.toDouble());
           _metadata = '${image.width}x${image.height} px • $mp MP';
           _isLoading = false;
         });
@@ -749,7 +740,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       if (hasMultiple && nextItem != null) {
         _navigateMedia(true);
         // Delay slightly to let the navigate IPC execute first
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
       }
 
       await WindowController.fromWindowId(
@@ -1403,26 +1394,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildOverlayButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    required String tooltip,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 20),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        splashRadius: 24,
-      ),
     );
   }
 

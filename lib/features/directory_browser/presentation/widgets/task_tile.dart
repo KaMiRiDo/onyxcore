@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 

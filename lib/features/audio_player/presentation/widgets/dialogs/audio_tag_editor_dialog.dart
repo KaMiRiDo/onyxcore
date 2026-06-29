@@ -18,14 +18,14 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 
 class AudioTagEditorDialog extends ConsumerStatefulWidget {
   final List<String> paths;
-  final Function(String oldPath, String newPath)? onRename;
+  final void Function(String oldPath, String newPath)? onRename;
 
   const AudioTagEditorDialog({super.key, required this.paths, this.onRename});
 
   static Future<void> show(
     BuildContext context,
     List<String> paths, {
-    Function(String, String)? onRename,
+    void Function(String, String)? onRename,
   }) {
     return showDialog(
       context: context,
@@ -359,7 +359,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
 
         // Yield to the event loop so the UI can redraw this specific tile instantly
         // and Flutter can process its image decode queue sequentially without starvation.
-        await Future.delayed(const Duration(milliseconds: 20));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
       } catch (e) {
         notifier.addLog(taskId, 'Error on ${p.basename(path)}: $e');
       }
@@ -383,7 +383,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
     await Future.wait(List.generate(1, (_) => worker()));
 
     // Wait slightly to let any pending UI frames render before we wipe caches
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
 
     // Clear global image caches to completely eliminate any lingering phantom cover arts
     PaintingBinding.instance.imageCache.clear();

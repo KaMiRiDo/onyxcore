@@ -10,7 +10,6 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/backg
 import 'package:onyxcore/features/directory_browser/presentation/widgets/task_tile.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_view.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_detail_view.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 
 /// Slide-in panel from the right showing background processes.
 ///

@@ -7,7 +7,6 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 class FilterOverlay {
   static OverlayEntry? _overlayEntry;

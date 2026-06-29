@@ -12,7 +12,6 @@ import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_
 
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
-import 'package:window_manager/window_manager.dart';
 
 /// Orchestrator for the inline preview mode.
 /// Switches between image and video previewers based on file type.

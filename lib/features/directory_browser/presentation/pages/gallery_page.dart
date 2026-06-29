@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -18,9 +17,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/action_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
@@ -31,7 +28,6 @@ import 'package:onyxcore/features/directory_browser/presentation/pages/directory
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rubber_band_overlay.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
@@ -42,12 +38,10 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/propert
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/create_item_dialog.dart';
-import 'package:onyxcore/core/utils/app_launcher_utils.dart';
 import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/unified_side_panel.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
@@ -1048,17 +1042,6 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         item.type == FileItemType.document) {
       ref.read(previewFileProvider.notifier).state = item;
     }
-  }
-
-  Future<void> _handleProperties() async {
-    final selection = ref.read(selectionProvider);
-    if (selection.selectedPaths.isEmpty) return;
-
-    final paths = selection.selectedPaths.toList();
-    await showDialog(
-      context: context,
-      builder: (context) => PropertiesDialog(paths: paths),
-    );
   }
 
   int _getDirectorySizeSync(String path) {

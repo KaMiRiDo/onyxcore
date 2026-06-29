@@ -5,6 +5,8 @@ analyzer:
     # Treat as warnings during migration
     unused_import: warning
     unused_local_variable: warning
+    # Suppress: setState() in part-of extensions is architectural pattern
+    invalid_use_of_protected_member: ignore
 
 linter:
   rules:

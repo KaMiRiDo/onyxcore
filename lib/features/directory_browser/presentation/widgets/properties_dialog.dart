@@ -10,7 +10,6 @@ import 'package:path/path.dart' as p;
 
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/directory_size_utils.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';

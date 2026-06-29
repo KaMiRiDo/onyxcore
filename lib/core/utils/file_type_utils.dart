@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 // Re-export the pure-Dart types used everywhere
 export 'package:onyxcore/core/utils/file_type_classifier.dart';
 
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 /// Configuration for rendering a file/folder icon with gradient colors.
 class FileIconConfig {

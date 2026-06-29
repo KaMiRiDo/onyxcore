@@ -379,7 +379,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                                   _isFiltering = true;
                                   _showFilterBox = false;
                                 });
-                                await Future.delayed(
+                                await Future<void>.delayed(
                                   const Duration(milliseconds: 300),
                                 );
                                 ref
@@ -430,7 +430,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     );
   }
 
-  Widget _buildStatusDropdown(String value, Function(String?) onChanged) {
+  Widget _buildStatusDropdown(String value, void Function(String?) onChanged) {
     final ops = ['All', 'Completed', 'Error', 'Cancelled'];
     return PopupMenuButton<String>(
       offset: const Offset(0, 40),
@@ -1035,7 +1035,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
 
 class _ClearHistoryDialog extends ConsumerStatefulWidget {
   final VoidCallback onCancel;
-  final Function(DownloadHistoryFilter?) onConfirm;
+  final void Function(DownloadHistoryFilter?) onConfirm;
 
   const _ClearHistoryDialog({
     required this.onCancel,

@@ -12,7 +12,7 @@ class TrackSelectorMenu extends StatelessWidget {
   final List<AudioTrack> audioTracks;
   final List<SubtitleTrack> subtitleTracks;
   final dynamic selectedTrack;
-  final Function(dynamic) onTrackSelected;
+  final void Function(dynamic) onTrackSelected;
   final VoidCallback? onLoadExternal;
 
   const TrackSelectorMenu({

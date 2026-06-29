@@ -9,7 +9,6 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar_item.dart';
 import 'dart:io';
 import 'dart:async';
-import 'package:path/path.dart' as p;
 
 class DevicesSection extends ConsumerStatefulWidget {
   const DevicesSection({

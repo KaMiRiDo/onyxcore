@@ -531,8 +531,10 @@ void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
   RandomAccessFile? destRaf;
 
   try {
-    sourceRaf = await File(sourcePath).open(mode: FileMode.read);
-    destRaf = await File(destPath).open(mode: FileMode.write);
+    final sRaf = await File(sourcePath).open(mode: FileMode.read);
+    sourceRaf = sRaf;
+    final dRaf = await File(destPath).open(mode: FileMode.write);
+    destRaf = dRaf;
 
     final buffer = Uint8List(1024 * 1024 * 8); // 8MB buffer
     int bytesCopied = 0;
@@ -540,10 +542,10 @@ void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
     final stopwatch = Stopwatch()..start();
 
     int bytesRead;
-    while ((bytesRead = await sourceRaf!.readInto(buffer)) > 0) {
+    while ((bytesRead = await sRaf.readInto(buffer)) > 0) {
       if (isCancelled) {
-        await sourceRaf!.close();
-        await destRaf!.close();
+        await sRaf.close();
+        await dRaf.close();
         sourceRaf = null;
         destRaf = null;
 
@@ -556,7 +558,7 @@ void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
         return;
       }
 
-      await destRaf!.writeFrom(buffer, 0, bytesRead);
+      await dRaf.writeFrom(buffer, 0, bytesRead);
       bytesCopied += bytesRead;
       bytesSinceLastFlush += bytesRead;
 
@@ -570,7 +572,7 @@ void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
       }
 
       if (bytesSinceLastFlush >= flushThreshold) {
-        await destRaf!.flush();
+        await dRaf.flush();
         bytesSinceLastFlush = 0;
       }
     }
@@ -583,9 +585,9 @@ void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
 
     mainSendPort.send({'status': 'syncing', 'taskId': taskId});
 
-    await destRaf!.flush();
-    await destRaf!.close();
-    await sourceRaf!.close();
+    await dRaf.flush();
+    await dRaf.close();
+    await sRaf.close();
     sourceRaf = null;
     destRaf = null;
 

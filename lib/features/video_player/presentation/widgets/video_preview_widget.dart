@@ -33,21 +33,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/core/utils/media_uri_helper.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
-import 'package:onyxcore/core/window_management/window_controller_extension.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 
 class VideoPreviewWidget extends ConsumerStatefulWidget {
@@ -92,11 +88,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isClosing = false;
   bool _isAudioMenuVisible = false;
   // ── Video Playlist Sidebar ──
-  static const double _sidebarMinWidth = 200;
-  static const double _sidebarMaxWidth = 480;
   static const double _sidebarDefaultWidth = 280;
   bool _isSidebarDragging = false;
-  double _sidebarWidth = _sidebarDefaultWidth;
   bool _isSubtitleMenuVisible = false;
   bool _isSpeedMenuVisible = false;
   double _playbackSpeed = 1.0;
@@ -112,20 +105,20 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isOpening = false;
   bool _isBuffering = false;
   Timer? _virtualSeekCleanupTimer;
-  StreamSubscription? _trackSubscription;
-  StreamSubscription? _completedSubscription;
-  StreamSubscription? _bufferingSubscription;
-  StreamSubscription? _errorSubscription;
+  StreamSubscription<dynamic>? _trackSubscription;
+  StreamSubscription<dynamic>? _completedSubscription;
+  StreamSubscription<dynamic>? _bufferingSubscription;
+  StreamSubscription<dynamic>? _errorSubscription;
   bool _showFlash = false;
   bool _showSnapshotToast = false;
   Timer? _snapshotToastTimer;
-  StreamSubscription? _audioTrackInitSubscription;
+  StreamSubscription<dynamic>? _audioTrackInitSubscription;
 
   // BUG-001: Sliding Window seek state
   bool _isFastSeeking = false;
   bool _isSmartBuffering = false;
   double _playerWidth = 0;
-  double _playerHeight = 0;
+  double _playerHeight = 0; // ignore: unused_field
   Timer? _smartDelayTimer;
   bool _isScrubbing = false;
   bool _wasPlayingBeforeScrub = false;
@@ -161,12 +154,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     return player.state.position;
   }
 
-  StreamSubscription? _subtitleTrackInitSubscription;
+  StreamSubscription<dynamic>? _subtitleTrackInitSubscription;
 
   late final GlobalKey _audioKey;
   late final GlobalKey _subtitleKey;
   late final GlobalKey _speedKey;
-  late final GlobalKey _playlistKey;
 
   final FocusNode _focusNode = FocusNode();
   OverlayEntry? _activeMenuEntry;
@@ -203,7 +195,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       GlobalKey<MarkerEditorOverlayState>();
   final LayerLink _sliderLink = LayerLink();
   final ValueNotifier<bool> _isPlayingNotifier = ValueNotifier<bool>(false);
-  StreamSubscription? _playingSubscription;
+  StreamSubscription<dynamic>? _playingSubscription;
 
   bool _isSidebarDragOutOfBounds = false;
   double _sidebarDragStartWidth = 0.0;
@@ -314,11 +306,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _audioKey = GlobalKey(debugLabel: 'video_audio_${widget.item.path}');
     _subtitleKey = GlobalKey(debugLabel: 'video_subtitle_${widget.item.path}');
     _speedKey = GlobalKey(debugLabel: 'video_speed_${widget.item.path}');
-    _playlistKey = GlobalKey(debugLabel: 'video_playlist_${widget.item.path}');
 
     // BUG-001: Sliding Window buffer configuration
     // 400MiB forward + 200MiB backward for zero-latency arrow-key seeks
-    if (player.platform is dynamic) {
+    if (player.platform != null) {
       final dynamic platform = player.platform;
       platform.setProperty('demuxer-readahead-secs', '60');
       platform.setProperty('demuxer-max-bytes', '419430400'); // 400 MiB forward
@@ -436,7 +427,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         _,
       ) async {
         // Small stability delay to ensure engine-level media initialization
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
 
         if (mounted) {
           debugPrint(
@@ -559,7 +550,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     // No longer need to wait for audio player disposal because AudioPlayerView
     // now uses a global, reused Player instance that is never disposed.
     // Minimal delay just to let the frame render
-    await Future.delayed(const Duration(milliseconds: 16));
+    await Future<void>.delayed(const Duration(milliseconds: 16));
     if (!mounted || _isClosing) return;
 
     debugPrint('[VideoPlayer] Calling player.open() for: ${_currentItem.path}');
@@ -856,7 +847,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     try {
       if (_isClosing || !mounted) return;
       // Small delay to allow mpv to parse container metadata
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
       if (_isClosing || !mounted) return;
 
       double? fps = player.state.track.video.fps;
@@ -1073,7 +1064,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
   }
 
-  void _toggleControls({bool isKeyboard = false}) {
+  void _toggleControls() {
     if (_isMarkerEditorActive) return; // Locked during editing
 
     setState(() {
@@ -1917,7 +1908,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       if (shouldDelete != true) return;
       
       // Allow the delete dialog's closing animation to finish smoothly
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
     }
 
     final targetPaths = paths ?? [widget.item.path];
@@ -2738,8 +2729,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                       isMarkerEditorActive:
                                                                           _isMarkerEditorActive,
                                                                       onTap: () {
-                                                                        if (player.platform
-                                                                            is dynamic) {
+                                                                        if (player.platform != null) {
                                                                           (player.platform
                                                                                   as dynamic)
                                                                               .setProperty(
@@ -2759,9 +2749,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                                 200,
                                                                           ),
                                                                           () {
-                                                                            if (mounted &&
-                                                                                player.platform
-                                                                                    is dynamic) {
+                                                                            if (mounted && player.platform != null) {
                                                                               (player.platform
                                                                                       as dynamic)
                                                                                   .setProperty(

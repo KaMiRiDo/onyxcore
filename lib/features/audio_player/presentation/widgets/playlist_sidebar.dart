@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/media_uri_helper.dart';
-import 'package:onyxcore/features/audio_player/domain/utils/audio_queue_isolate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audiotags/audiotags.dart';

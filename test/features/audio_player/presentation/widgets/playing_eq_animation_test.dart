@@ -25,7 +25,13 @@ void main() {
       // actually let's just find the inner containers. 
       // The outer widget is a SizedBox(16,16), Row, then AnimatedBuilder -> Container.
       // So there should be exactly 3 containers for the bars.
-      expect(find.byType(AnimatedBuilder), findsNWidgets(5));
+      expect(
+        find.descendant(
+          of: find.byType(PlayingEqAnimation),
+          matching: find.byType(AnimatedBuilder),
+        ),
+        findsNWidgets(3),
+      );
     });
 
     testWidgets('use 600ms animation duration (W-AUD-EQ-03)', (tester) async {

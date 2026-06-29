@@ -7,7 +7,6 @@ import 'package:onyxcore/features/archive_manager/presentation/widgets/compress_
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/core/widgets/toast_helper.dart';
 import 'package:onyxcore/app.dart';
 import 'package:path/path.dart' as p;

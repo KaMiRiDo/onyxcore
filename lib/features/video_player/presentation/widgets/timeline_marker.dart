@@ -14,8 +14,8 @@ class TimelineMarker extends ConsumerStatefulWidget {
   final String videoPath;
   final VoidCallback onTap;
   final VoidCallback onEdit;
-  final Function(bool) onHoverChanged;
-  final Function(bool) onMenuVisibilityChanged;
+  final void Function(bool) onHoverChanged;
+  final void Function(bool) onMenuVisibilityChanged;
   final ValueNotifier<double?> hoverXNotifier;
   final bool isMarkerEditorActive;
 
@@ -112,7 +112,6 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
     // Get the parent timeline area bounds for horizontal clamping
     final parentBox = context.findRenderObject()?.parent as RenderBox?;
     final parentPos = parentBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-    final parentWidth = parentBox?.size.width ?? screenSize.width;
 
     // Find the video player's global boundaries to ensure precise clamping from the video edge
     RenderBox? playerBox;

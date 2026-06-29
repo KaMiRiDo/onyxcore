@@ -26,13 +26,13 @@ class DownloadsPanelWidthNotifier extends Notifier<double> {
 
   @override
   double build() {
-    final box = Hive.box(_boxName);
+    final box = Hive.box<dynamic>(_boxName);
     return box.get(_key, defaultValue: 320.0) as double;
   }
 
   void updateWidth(double newWidth) {
     state = newWidth;
-    Hive.box(_boxName).put(_key, newWidth);
+    Hive.box<dynamic>(_boxName).put(_key, newWidth);
   }
 }
 

@@ -14,7 +14,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 /// `'video_favorites'`).
 class MediaFavoritesNotifier extends StateNotifier<Set<String>> {
   final String _boxName;
-  Box? _box;
+  Box<dynamic>? _box;
 
   MediaFavoritesNotifier(this._boxName) : super({}) {
     _init();

@@ -370,7 +370,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
   Future<void> handleRename(BuildContext context, List<String> paths) async {
     if (paths.isEmpty) return;
 
-    final result = await showDialog(
+    final result = await showDialog<dynamic>(
       context: context,
       builder: (context) => RenameDialog(paths: paths),
     );
@@ -771,7 +771,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                     children: [
                       Builder(
                         builder: (context) {
-                          final sortOption = ref.watch(config.sortOptionProvider);
+                          // Watch sort to trigger rebuild when it changes
+                          ref.watch(config.sortOptionProvider);
                           return IconButton(
                             icon: const Icon(
                               Icons.sort_rounded,

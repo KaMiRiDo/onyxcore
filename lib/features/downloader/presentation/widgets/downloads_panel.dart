@@ -20,12 +20,9 @@ import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:path/path.dart' as p;
-import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_header.dart';
@@ -498,7 +495,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         filePath = files.first;
       }
 
-      final content = await File(filePath!).readAsString();
+      final content = await File(filePath).readAsString();
       final decoded = jsonDecode(content);
 
       List<dynamic> itemsList;
@@ -940,7 +937,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         } else {
           if (isHydrating) {
             totalFilteredItems = group.first.itemCount ?? 0;
-            if (totalFilteredItems != null && totalFilteredItems > 0) {
+            if (totalFilteredItems > 0) {
               shouldAbortHydration = true;
             }
           } else {
@@ -1005,7 +1002,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       int count = 0;
 
       for (final info in itemsToDownload) {
-        if (count++ % 20 == 0) await Future.delayed(Duration.zero);
+        if (count++ % 20 == 0) await Future<void>.delayed(Duration.zero);
         if (singleItemId != null && info.id != singleItemId) continue;
 
         if (config.groupFilter == GroupDownloadType.images && info.isVideo)
@@ -1204,7 +1201,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           bool isHydrating = _backgroundLoadingProfiles.contains(
             group.originalUrl,
           );
-          bool shouldAbortHydration = false;
+
 
           if (config.groupFilter == GroupDownloadType.images) {
             filterType = 'images';
@@ -1223,9 +1220,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           } else {
             if (isHydrating) {
               totalFilteredItems = group.first.itemCount ?? 0;
-              if (totalFilteredItems != null && totalFilteredItems > 0) {
-                shouldAbortHydration = true;
-              }
+              // shouldAbortHydration is unused
             } else {
               totalFilteredItems = itemsToDownloadLocal
                   .where((item) => !item.isProfile)
@@ -1272,7 +1267,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         int count = 0;
 
         for (final info in itemsToDownloadLocal) {
-          if (count++ % 20 == 0) await Future.delayed(Duration.zero);
+          if (count++ % 20 == 0) await Future<void>.delayed(Duration.zero);
           if (config.groupFilter == GroupDownloadType.images && info.isVideo)
             continue;
           if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
@@ -2072,7 +2067,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 }
 
 class _JugglingBallsLoader extends StatefulWidget {
-  const _JugglingBallsLoader({super.key});
+  const _JugglingBallsLoader();
 
   @override
   State<_JugglingBallsLoader> createState() => _JugglingBallsLoaderState();
