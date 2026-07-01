@@ -7,17 +7,46 @@ import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart'
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:path/path.dart' as p;
 
+class MockProcess extends Fake implements Process {
+  @override
+  Future<int> get exitCode => Future.value(0);
+}
+
+class TestYtDlpEngine extends YtDlpEngine {
+  final String testPath;
+  TestYtDlpEngine(this.testPath);
+
+  @override
+  String? get binaryPath => testPath;
+
+  @override
+  Future<Process>? install() async => MockProcess();
+
+  @override
+  Future<Process>? uninstall() async => MockProcess();
+}
+
 void main() {
   late YtDlpEngine engine;
   late String mockYtDlpPath;
 
+  late Directory tempDir;
+
   setUpAll(() {
-    final home = Platform.environment['HOME'] ?? '';
-    mockYtDlpPath = p.join(home, '.local', 'share', 'onyxcore', 'yt-dlp-venv', 'bin', 'yt-dlp');
+    tempDir = Directory.systemTemp.createTempSync('ytdlp_test_');
+    mockYtDlpPath = p.join(tempDir.path, 'yt-dlp');
   });
 
+  tearDownAll(() {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
+
+
+
   setUp(() {
-    engine = YtDlpEngine();
+    engine = TestYtDlpEngine(mockYtDlpPath);
   });
 
   tearDown(() {

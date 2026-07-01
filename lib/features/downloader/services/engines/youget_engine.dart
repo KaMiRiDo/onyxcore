@@ -147,7 +147,7 @@ class YouGetEngine extends DownloadEngine {
   }) async {
     final args = <String>['--json', url];
 
-    final process = await Process.start('you-get', args);
+    final process = await Process.start(binaryPath ?? 'you-get', args);
     if (onProcessStarted != null) {
       onProcessStarted(process.pid);
     }
@@ -312,7 +312,7 @@ class YouGetEngine extends DownloadEngine {
     args.add(url);
 
     return Process.start(
-      'you-get',
+      binaryPath ?? 'you-get',
       args,
       environment: {'PYTHONUNBUFFERED': '1'},
     );

@@ -29,19 +29,42 @@ class MockProcess extends Fake implements Process {
 
 class TestPlaywrightEngine extends PlaywrightEngine {
   MockProcess? mockPythonProcess;
+  final String testPath;
+  TestPlaywrightEngine(this.testPath);
+
+  @override
+  String? get binaryPath => testPath;
 
   @override
   Future<Process> startPythonProcess(String url) async {
     if (mockPythonProcess != null) return mockPythonProcess!;
     return super.startPythonProcess(url);
   }
+
+  @override
+  Future<Process>? install() async => MockProcess(0, '', '');
+
+  @override
+  Future<Process>? uninstall() async => MockProcess(0, '', '');
 }
 
 void main() {
   late TestPlaywrightEngine engine;
 
+  late Directory tempDir;
+
+  setUpAll(() {
+    tempDir = Directory.systemTemp.createTempSync('playwright_test_');
+  });
+
+  tearDownAll(() {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
+
   setUp(() {
-    engine = TestPlaywrightEngine();
+    engine = TestPlaywrightEngine('${tempDir.path}/intercept_media.py');
   });
 
   group('PlaywrightEngine Unit Tests', () {

@@ -45,70 +45,77 @@ class MockCustomEngine extends DownloadEngine {
   Future<Process> startDownload({required String url, required String destination, String? title, MediaFormat? format, bool audioOnly = false, bool mute = false, int? galleryIndex, bool isPlaylist = false, bool isProfile = false, String? browser, bool isZip = false, String? filterType, int? totalItems, String? singleItemId, String? directUrl}) async => throw UnimplementedError();
 }
 
+class TestGalleryDlEngine extends GalleryDlEngine {
+  bool _installed = true;
+  @override
+  bool get isInstalled => _installed;
+  @override
+  String? get binaryPath => null;
+}
+
+class TestYtDlpEngine extends YtDlpEngine {
+  bool _installed = true;
+  @override
+  bool get isInstalled => _installed;
+  @override
+  String? get binaryPath => null;
+}
+
+class TestStreamlinkEngine extends StreamlinkEngine {
+  bool _installed = true;
+  @override
+  bool get isInstalled => _installed;
+  @override
+  String? get binaryPath => null;
+}
+
+class TestLuxEngine extends LuxEngine {
+  bool _installed = true;
+  @override
+  bool get isInstalled => _installed;
+  @override
+  String? get binaryPath => null;
+}
+
+class TestYouGetEngine extends YouGetEngine {
+  bool _installed = true;
+  @override
+  bool get isInstalled => _installed;
+  @override
+  String? get binaryPath => null;
+}
+
+class TestPlaywrightEngine extends PlaywrightEngine {
+  bool _installed = true;
+  @override
+  bool get isInstalled => _installed;
+  @override
+  String? get binaryPath => null;
+}
+
 void setEngineInstalled(DownloadEngine engine, bool installed) {
-  if (engine.id == 'playwright') {
-    final home = Platform.environment['HOME'] ?? '';
-    final chromiumDir = Directory('$home/.cache/ms-playwright');
-    final backupDir = Directory('$home/.cache/ms-playwright_backup');
-    if (installed) {
-      if (!chromiumDir.existsSync()) {
-        if (backupDir.existsSync()) {
-          backupDir.renameSync(chromiumDir.path);
-        } else {
-          chromiumDir.createSync(recursive: true);
-        }
-      }
-    } else {
-      if (chromiumDir.existsSync()) {
-        if (!backupDir.existsSync()) {
-          chromiumDir.renameSync(backupDir.path);
-        } else {
-          try {
-            chromiumDir.deleteSync();
-          } catch (_) {}
-        }
-      }
-    }
-    return;
-  }
-
-  String? targetPath = engine.binaryPath;
-  final home = Platform.environment['HOME'] ?? '';
-  
-  if (targetPath == null) {
-    if (engine.id == 'streamlink') targetPath = '$home/.local/bin/streamlink';
-    if (engine.id == 'you-get') targetPath = '$home/.local/bin/you-get';
-    if (engine.id == 'lux') targetPath = '$home/.local/bin/lux';
-  }
-
-  if (targetPath != null) {
-    final file = File(targetPath);
-    if (installed) {
-      if (!file.existsSync()) {
-        file.createSync(recursive: true);
-      }
-    } else {
-      if (file.existsSync()) {
-        file.deleteSync();
-      }
-    }
-  }
+  if (engine is TestGalleryDlEngine) engine._installed = installed;
+  if (engine is TestYtDlpEngine) engine._installed = installed;
+  if (engine is TestStreamlinkEngine) engine._installed = installed;
+  if (engine is TestLuxEngine) engine._installed = installed;
+  if (engine is TestYouGetEngine) engine._installed = installed;
+  if (engine is TestPlaywrightEngine) engine._installed = installed;
 }
 
 void main() {
   group('Engine Registry Unit Tests', () {
     setUpAll(() {
-      // Ensure all required and optional engines are "installed" for baseline tests
-      for (final engine in EngineRegistry.allEngines) {
-        setEngineInstalled(engine, true);
-      }
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(TestGalleryDlEngine());
+      EngineRegistry.register(TestYtDlpEngine());
+      EngineRegistry.register(TestStreamlinkEngine());
+      EngineRegistry.register(TestLuxEngine());
+      EngineRegistry.register(TestYouGetEngine());
+      EngineRegistry.register(TestPlaywrightEngine());
     });
 
     tearDownAll(() {
-      // Cleanup created mock binaries
-      for (final engine in EngineRegistry.allEngines) {
-        setEngineInstalled(engine, false);
-      }
+      EngineRegistry.clearAllEnginesForTesting();
     });
 
     group('1. Engine Resolution — resolveEngine', () {
@@ -169,19 +176,22 @@ void main() {
 
       test('U-DL-REG-09: Handle no installed engines', () {
         EngineRegistry.clearAllEnginesForTesting();
-        final yt = YtDlpEngine();
+        final yt = TestYtDlpEngine();
+        yt._installed = false;
         EngineRegistry.register(yt);
-        setEngineInstalled(yt, false);
         
         final seq = EngineRegistry.resolveEngineSequence('http://any', 'auto');
         expect(seq.length, 1);
         expect(seq.first, isA<YtDlpEngine>());
 
-        // Restore
-        EngineRegistry.clearRegisteredEngines();
-        for (final engine in EngineRegistry.allEngines) {
-          setEngineInstalled(engine, true);
-        }
+        // Restore mocks
+        EngineRegistry.clearAllEnginesForTesting();
+        EngineRegistry.register(TestGalleryDlEngine());
+        EngineRegistry.register(TestYtDlpEngine());
+        EngineRegistry.register(TestStreamlinkEngine());
+        EngineRegistry.register(TestLuxEngine());
+        EngineRegistry.register(TestYouGetEngine());
+        EngineRegistry.register(TestPlaywrightEngine());
       });
 
       test('U-DL-REG-10: Skip non-matching engines in auto mode', () {

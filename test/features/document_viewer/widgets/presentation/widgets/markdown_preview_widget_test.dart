@@ -548,9 +548,6 @@ Display equations:
       final previewScrollController = tester.widget<Scrollable>(previewScrollable).controller!;
       expect(previewScrollController.offset, greaterThan(0.0), reason: 'Preview should preserve scroll position from Editor');
     });
-    testWidgets('W-DOC-PREVIEW-20: Test something else if it existed', (WidgetTester tester) async {
-      // Skipping the original 20 to preserve bounds
-    }, skip: true);
 
     testWidgets('W-DOC-PREVIEW-21: Ctrl+F opens search overlay', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(content: 'Searchable content here.'));

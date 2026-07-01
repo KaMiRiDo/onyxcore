@@ -5,17 +5,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/services/engines/streamlink_engine.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 
+class MockProcess extends Fake implements Process {
+  @override
+  Future<int> get exitCode => Future.value(0);
+}
+
+class TestStreamlinkEngine extends StreamlinkEngine {
+  final String testPath;
+  TestStreamlinkEngine(this.testPath);
+
+  @override
+  String? get binaryPath => testPath;
+
+  @override
+  Future<Process>? install() async => MockProcess();
+
+  @override
+  Future<Process>? uninstall() async => MockProcess();
+}
+
 void main() {
   late StreamlinkEngine engine;
   late String mockStreamlinkPath;
 
+  late Directory tempDir;
+
   setUpAll(() {
-    final home = Platform.environment['HOME'] ?? '';
-    mockStreamlinkPath = '$home/.local/bin/streamlink';
+    tempDir = Directory.systemTemp.createTempSync('streamlink_test_');
+    mockStreamlinkPath = '${tempDir.path}/streamlink';
   });
 
+  tearDownAll(() {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
+
+
+
   setUp(() {
-    engine = StreamlinkEngine();
+    engine = TestStreamlinkEngine(mockStreamlinkPath);
   });
 
   tearDown(() {
@@ -88,12 +117,12 @@ EOF
         expect(infos.first.extractor, 'Twitch');
 
         // Kick
-        engine = StreamlinkEngine(); // Reset to clear any cache if any
+        engine = TestStreamlinkEngine(mockStreamlinkPath); // Reset to clear any cache if any
         infos = await engine.fetchMetadata(url: 'https://kick.com/a');
         expect(infos.first.extractor, 'Kick');
 
         // YouTube
-        engine = StreamlinkEngine();
+        engine = TestStreamlinkEngine(mockStreamlinkPath);
         infos = await engine.fetchMetadata(url: 'https://youtube.com/live/a');
         expect(infos.first.extractor, 'YouTube Live');
       });

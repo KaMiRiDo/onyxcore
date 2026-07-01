@@ -66,7 +66,7 @@ class ArchiveService {
       process = await Process.start(executable, args);
       _activeProcesses.add(process);
 
-      process.stdout.transform(utf8.decoder).listen((data) {
+      final stdoutFuture = process.stdout.transform(utf8.decoder).forEach((data) {
         // 7z -bsp1 output looks like: " 23% 4 - file.txt" or " 12%"
         if (onProgress != null) {
           final regex = RegExp(r'(\d+)%');
@@ -88,13 +88,15 @@ class ArchiveService {
         }
       });
 
-      process.stderr.transform(utf8.decoder).listen((data) {
+      final stderrFuture = process.stderr.transform(utf8.decoder).forEach((data) {
         if (onLog != null) {
           onLog('ERROR: ${data.trim()}');
         }
       });
 
       final exitCode = await process.exitCode;
+      await Future.wait([stdoutFuture, stderrFuture]);
+      
       if (exitCode != 0) {
         throw Exception(
           'Archive operation failed with code $exitCode (Check password or 7z availability).',

@@ -6,17 +6,46 @@ import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:path/path.dart' as p;
 
+class MockProcess extends Fake implements Process {
+  @override
+  Future<int> get exitCode => Future.value(0);
+}
+
+class TestYouGetEngine extends YouGetEngine {
+  final String testPath;
+  TestYouGetEngine(this.testPath);
+
+  @override
+  String? get binaryPath => testPath;
+
+  @override
+  Future<Process>? install() async => MockProcess();
+
+  @override
+  Future<Process>? uninstall() async => MockProcess();
+}
+
 void main() {
   late YouGetEngine engine;
   late String mockYouGetPath;
 
+  late Directory tempDir;
+
   setUpAll(() {
-    final home = Platform.environment['HOME'] ?? '';
-    mockYouGetPath = '$home/.local/bin/you-get';
+    tempDir = Directory.systemTemp.createTempSync('youget_test_');
+    mockYouGetPath = p.join(tempDir.path, 'you-get');
   });
 
+  tearDownAll(() {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
+
+
+
   setUp(() {
-    engine = YouGetEngine();
+    engine = TestYouGetEngine(mockYouGetPath);
   });
 
   tearDown(() {

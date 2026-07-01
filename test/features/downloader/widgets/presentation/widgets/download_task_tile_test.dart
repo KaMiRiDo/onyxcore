@@ -197,18 +197,6 @@ void main() {
       expect(richText.text.toPlainText(), contains('500 KB/s'));
     });
 
-    testWidgets('W-DL-TIL-10: Thumbnail display', (tester) async {
-      final task = DownloadTask(
-        id: '1',
-        url: 'http://test',
-        destination: '/test',
-        title: 'Task',
-        status: DownloadStatus.pending,
-        createdAt: DateTime.now(),
-      );
-
-      await tester.pumpWidget(createTestWidget(task));
-    }, skip: true);
 
     testWidgets('W-DL-TIL-11: Very long title truncation', (tester) async {
       final task = DownloadTask(

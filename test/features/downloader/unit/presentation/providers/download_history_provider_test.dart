@@ -20,7 +20,7 @@ void main() {
 
   setUp(() {
     // Clear the test database file before each test
-    final dbFile = File('${testDir.path}/download_history.sqlite');
+    final dbFile = File(DownloadHistoryDatabase.testDbPath);
     if (dbFile.existsSync()) {
       dbFile.deleteSync();
     }
@@ -36,8 +36,9 @@ void main() {
   });
 
   tearDownAll(() {
-    if (testDir.existsSync()) {
-      testDir.deleteSync(recursive: true);
+    final dbFile = File(DownloadHistoryDatabase.testDbPath);
+    if (dbFile.existsSync()) {
+      dbFile.deleteSync();
     }
   });
 

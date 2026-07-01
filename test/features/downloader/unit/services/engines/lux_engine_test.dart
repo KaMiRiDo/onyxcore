@@ -6,18 +6,48 @@ import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:path/path.dart' as p;
 
+class MockProcess extends Fake implements Process {
+  @override
+  Future<int> get exitCode => Future.value(0);
+}
+
+class TestLuxEngine extends LuxEngine {
+  final String testPath;
+  TestLuxEngine(this.testPath);
+
+  @override
+  String? get binaryPath => testPath;
+
+  @override
+  Future<Process>? install() async => MockProcess();
+
+  @override
+  Future<Process>? uninstall() async => MockProcess();
+}
+
 void main() {
   late LuxEngine engine;
   late String luxBinaryPath;
   late File luxBinaryFile;
   late File luxBackupFile;
 
+  late Directory tempDir;
+
   setUpAll(() {
-    engine = LuxEngine();
-    luxBinaryPath = engine.binaryPath!;
+    tempDir = Directory.systemTemp.createTempSync('lux_test_');
+    luxBinaryPath = p.join(tempDir.path, 'lux');
+    engine = TestLuxEngine(luxBinaryPath);
     luxBinaryFile = File(luxBinaryPath);
     luxBackupFile = File('${luxBinaryPath}_backup');
   });
+
+  tearDownAll(() {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
+
+
 
   setUp(() {
     // Backup real binary if exists
@@ -57,7 +87,7 @@ EOF
         // LuxEngine currently uses a hardcoded path in ~/.local/share/onyxcore/bin/lux
         // It does not dynamically resolve like streamlink or you-get.
         final home = Platform.environment['HOME'] ?? '';
-        expect(engine.binaryPath, p.join(home, '.local', 'share', 'onyxcore', 'bin', 'lux'));
+        expect(LuxEngine().binaryPath, p.join(home, '.local', 'share', 'onyxcore', 'bin', 'lux'));
       });
 
       test('U-DL-LUX-02: Fallback to which if not in common paths', () {

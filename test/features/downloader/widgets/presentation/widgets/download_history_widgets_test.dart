@@ -63,10 +63,6 @@ void main() {
       expect(find.text('No download history yet'), findsOneWidget);
     });
 
-    testWidgets('W-DL-HIS-02: Trigger Pagination on Scroll', (tester) async {
-      await tester.pumpWidget(createHistoryViewTestWidget());
-      await tester.pumpAndSettle();
-    }, skip: true);
 
     testWidgets('W-DL-HIS-03: Toggle multi-select context menu', (tester) async {
       final container = ProviderContainer();
@@ -90,10 +86,6 @@ void main() {
       expect(find.byIcon(Icons.close_rounded), findsWidgets);
     });
 
-    testWidgets('W-DL-HIS-04: Keyboard navigation and selection', (tester) async {
-      await tester.pumpWidget(createHistoryViewTestWidget());
-      await tester.pumpAndSettle();
-    }, skip: true);
 
     testWidgets('W-DL-HIS-05: Clear All button', (tester) async {
       await tester.pumpWidget(createHistoryViewTestWidget());
@@ -246,26 +238,6 @@ void main() {
       expect(find.byTooltip('Copy URL'), findsOneWidget);
     });
 
-    testWidgets('W-DL-HIS-14: Re-download action', (tester) async {
-      final entry = DownloadHistoryEntry(
-        id: '1',
-        url: 'http://test.com',
-        title: 'Test',
-        destination: '/home/user/Downloads',
-        downloadType: 'video',
-        statusName: 'completed',
-        createdAt: DateTime.now(),
-        logs: const [],
-      );
-
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
-
-      await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));
-      await tester.pumpAndSettle();
-
-    }, skip: true);
 
     testWidgets('W-DL-HIS-15: Display duration', (tester) async {
       final now = DateTime.now();

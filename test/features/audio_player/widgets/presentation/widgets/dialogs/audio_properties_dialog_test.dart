@@ -308,15 +308,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'W-AUD-PROP-11: formats bytes correctly for gigabytes (1.0 GB)',
-    (tester) async {
-      // Creating a real 1 GB file is impractical for CI.
-      // The GB branch follows the identical pattern as B/KB/MB.
-    },
-    // Skip: Creating a 1 GB temp file is impractical for CI.
-    skip: true,
-  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-12: Header title
