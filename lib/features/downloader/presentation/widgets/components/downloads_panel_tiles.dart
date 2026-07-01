@@ -240,9 +240,10 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
         ),
         child: Stack(
           children: [
-            // Removed IgnorePointer to allow interactions during hydration
-            Padding(
-              padding: const EdgeInsets.all(16),
+            IgnorePointer(
+              ignoring: item.id == 'fetch_loading',
+              child: Padding(
+                padding: const EdgeInsets.all(16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -769,6 +770,58 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                 ],
               ),
             ),
+            ),
+            if (item.id == 'fetch_loading')
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.65),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            height: 24,
+                            child: _JugglingBallsLoader(),
+                          ),
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              'Analyzing ${item.originalUrl}...',
+                              style: GoogleFonts.manrope(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (item.id == 'fetch_loading')
+              Positioned(
+                top: 8,
+                right: 8,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _removeParsedItems([index]);
+                    });
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.all(4.0),
+                    child: Icon(Icons.close, color: Colors.white54, size: 16),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

@@ -147,42 +147,6 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_isLoading) ...[
-                    Tooltip(
-                      message: 'Cancel Fetch',
-                      child: Material(
-                        color: AppColors.surfaceBase,
-                        borderRadius: BorderRadius.circular(8),
-                        child: InkWell(
-                          onTap: () {
-                            if (_activeAnalyzePid != null) {
-                              try {
-                                Process.killPid(_activeAnalyzePid!);
-                              } catch (_) {}
-                            }
-                            setState(() {
-                              _isLoading = false;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white10),
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
                   Container(
                     height: 32,
                     width: 140,
@@ -199,7 +163,7 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _analyzeUrls,
+                      onPressed: _analyzeUrls,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -210,19 +174,13 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 24,
-                              width: 40,
-                              child: _JugglingBallsLoader(),
-                            )
-                          : Text(
-                              'Fetch',
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
+                      child: Text(
+                        'Fetch',
+                        style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
                 ],

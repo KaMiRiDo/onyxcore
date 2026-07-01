@@ -81,7 +81,6 @@ class _MediaDownloaderPanel extends ConsumerStatefulWidget {
 class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     with SingleTickerProviderStateMixin, DownloadsPanelHelpersMixin {
   late TextEditingController _urlController;
-  bool _isLoading = false;
   String? _error;
 
   DownloadsListCache get _cache => ref.read(downloadsListCacheProvider);
@@ -746,109 +745,132 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         .toList();
 
     setState(() {
-      _isLoading = true;
       _error = null;
+      _urlController.clear();
+      if (_parsedItems == null) {
+        _parsedItems = [];
+      }
+      
+      for (final url in urls) {
+        final isDuplicate = _parsedItems!.any((existing) => existing.originalUrl == url);
+        if (!isDuplicate) {
+          final placeholderInfo = MediaInfo(
+            id: 'fetch_loading',
+            title: 'Fetching...',
+            originalUrl: url,
+            isVideo: false,
+          );
+          _parsedItems!.add(MediaGroup(originalUrl: url, items: [placeholderInfo]));
+          _backgroundLoadingProfiles.add(url);
+          _configs[_parsedItems!.length - 1] = DownloadConfig(
+             mode: DownloadMode.normal,
+             groupFilter: GroupDownloadType.all,
+             engine: _selectedEngine ?? 'auto',
+          );
+        }
+      }
+      _isListChanged = true;
+      _recalculateFilteredStatistics();
     });
 
-    try {
-      final browser = ref.read(settingsProvider).value?.downloadBrowser;
-      final items = await MediaDownloaderBackend.analyzeUrls(
-        urls,
+    final browser = ref.read(settingsProvider).value?.downloadBrowser;
+    
+    for (final url in urls) {
+      MediaDownloaderBackend.analyzeUrls(
+        [url],
         engine: _selectedEngine,
         browser: browser,
         onProcessStarted: (pid) {
           if (!mounted) return;
           setState(() {
-            _activeAnalyzePid = pid;
+            _activeHydrationPids.putIfAbsent(url, () => []).add(pid);
           });
         },
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _activeAnalyzePid = null;
-        if (_parsedItems == null) {
-          _parsedItems = [];
-        }
-
-        final newGroups = <String, List<MediaInfo>>{};
-        for (final item in items) {
-          if (!newGroups.containsKey(item.originalUrl)) {
-            newGroups[item.originalUrl] = [];
-          }
-          newGroups[item.originalUrl]!.add(item);
-        }
-
-        for (final entry in newGroups.entries) {
-          final groupItems = entry.value;
-          final isDuplicate = _parsedItems!.any(
-            (existing) => existing.originalUrl == entry.key,
-          );
-          if (!isDuplicate) {
-            final group = MediaGroup(originalUrl: entry.key, items: groupItems);
-            _parsedItems!.add(group);
-
-            if ((group.first.isProfile || group.first.isPlaylist) &&
-                group.items.length <= 13) {
-              _hydrateProfile(entry.key);
-            }
-          }
-        }
-
-        for (int i = 0; i < _parsedItems!.length; i++) {
-          if (!_configs.containsKey(i)) {
-            final group = _parsedItems![i];
-            final info = group.first;
-
-            bool hasImages = group.items.any(
-              (item) => !item.isVideo && !item.isPlaylist && !item.isProfile,
-            );
-            bool hasVideos = group.items.any(
-              (item) => item.isVideo || item.isPlaylist,
-            );
-
-            GroupDownloadType defaultFilter = GroupDownloadType.all;
-            if (!info.isProfile) {
-              if (hasImages && !hasVideos) {
-                defaultFilter = GroupDownloadType.images;
-              } else if (hasVideos && !hasImages) {
-                defaultFilter = GroupDownloadType.videos;
-              }
-            }
-
-            _configs[i] = DownloadConfig(
-              format: info.formats.isNotEmpty
-                  ? info.formats.last
-                  : (info.isPlaylist
-                        ? const MediaFormat(
-                            formatId:
-                                'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
-                            extension: 'mp4',
-                            resolution: '1080p',
-                            formatString: '1080p mp4',
-                          )
-                        : null),
-              groupFilter: defaultFilter,
-              engine:
-                  info.engineId ??
-                  'auto', // C3: capture actual resolved engine at fetch time
-            );
-          }
-        }
-        _isListChanged = true;
-        _urlController.clear();
-        _recalculateFilteredStatistics();
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
-    } finally {
-      if (mounted) {
+      ).then((items) {
+        if (!mounted) return;
         setState(() {
-          _isLoading = false;
+          _backgroundLoadingProfiles.remove(url);
+          _activeHydrationPids.remove(url);
+
+          if (_parsedItems != null) {
+            final index = _parsedItems!.indexWhere((g) => g.originalUrl == url);
+            if (index != -1) {
+              if (items.isEmpty) {
+                final errorInfo = MediaInfo(
+                  id: 'fetch_error',
+                  title: 'Fetch failed',
+                  originalUrl: url,
+                  isVideo: false,
+                  isError: true,
+                  errorMessage: 'No media found or fetch failed.',
+                );
+                _parsedItems![index] = MediaGroup(originalUrl: url, items: [errorInfo]);
+              } else {
+                final group = MediaGroup(originalUrl: url, items: items);
+                _parsedItems![index] = group;
+                
+                final info = group.first;
+                bool hasImages = group.items.any(
+                  (item) => !item.isVideo && !item.isPlaylist && !item.isProfile,
+                );
+                bool hasVideos = group.items.any(
+                  (item) => item.isVideo || item.isPlaylist,
+                );
+
+                GroupDownloadType defaultFilter = GroupDownloadType.all;
+                if (!info.isProfile) {
+                  if (hasImages && !hasVideos) {
+                    defaultFilter = GroupDownloadType.images;
+                  } else if (hasVideos && !hasImages) {
+                    defaultFilter = GroupDownloadType.videos;
+                  }
+                }
+
+                _configs[index] = DownloadConfig(
+                  format: info.formats.isNotEmpty
+                      ? info.formats.last
+                      : (info.isPlaylist
+                            ? const MediaFormat(
+                                formatId:
+                                    'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
+                                extension: 'mp4',
+                                resolution: '1080p',
+                                formatString: '1080p mp4',
+                              )
+                            : null),
+                  groupFilter: defaultFilter,
+                  engine: info.engineId ?? 'auto', 
+                );
+
+                if ((info.isProfile || info.isPlaylist) && group.items.length <= 13) {
+                  _hydrateProfile(url);
+                }
+              }
+              _isListChanged = true;
+              _recalculateFilteredStatistics();
+            }
+          }
         });
-      }
+      }).catchError((e) {
+        if (!mounted) return;
+        setState(() {
+          _backgroundLoadingProfiles.remove(url);
+          _activeHydrationPids.remove(url);
+          final index = _parsedItems?.indexWhere((g) => g.originalUrl == url) ?? -1;
+          if (index != -1) {
+            final errorInfo = MediaInfo(
+              id: 'fetch_error',
+              title: 'Fetch failed',
+              originalUrl: url,
+              isVideo: false,
+              isError: true,
+              errorMessage: e.toString(),
+            );
+            _parsedItems![index] = MediaGroup(originalUrl: url, items: [errorInfo]);
+            _error = e.toString();
+          }
+        });
+      });
     }
   }
 
