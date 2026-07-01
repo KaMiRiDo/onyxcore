@@ -110,6 +110,35 @@ class MockYtDlpEngine extends DownloadEngine {
         duration: 120,
         thumbnail: 'https://test.com/thumb',
         filesize: 1048576,
+        formats: const [
+          MediaFormat(
+            formatId: 'fa',
+            extension: 'm4a',
+            resolution: 'audio only',
+            formatString: 'fa',
+            filesize: 100000,
+            videoCodec: 'none',
+            audioCodec: 'mp4a',
+          ),
+          MediaFormat(
+            formatId: 'f2',
+            extension: 'mp4',
+            resolution: '720p',
+            formatString: 'f2',
+            filesize: 500000,
+            videoCodec: 'avc1',
+            audioCodec: 'mp4a',
+          ),
+          MediaFormat(
+            formatId: 'f1',
+            extension: 'mp4',
+            resolution: '1080p',
+            formatString: 'f1',
+            filesize: 1048576,
+            videoCodec: 'avc1',
+            audioCodec: 'mp4a',
+          ),
+        ],
       )
     ];
   }
@@ -273,6 +302,156 @@ class MockErrorEngine extends DownloadEngine {
         isVideo: false,
         isError: true,
         errorMessage: 'Simulated failure to process URL',
+      ),
+    ];
+  }
+
+  @override
+  Future<Process> startDownload({
+    required String url,
+    required String destination,
+    String? title,
+    MediaFormat? format,
+    bool audioOnly = false,
+    bool mute = false,
+    int? galleryIndex,
+    bool isPlaylist = false,
+    bool isProfile = false,
+    String? browser,
+    bool isZip = false,
+    String? filterType,
+    int? totalItems,
+    String? singleItemId,
+    String? directUrl,
+  }) async {
+    throw UnimplementedError();
+  }
+}
+
+class MockDelayedEngine extends DownloadEngine {
+  final Completer<List<MediaInfo>> completer = Completer<List<MediaInfo>>();
+
+  @override
+  String get id => 'yt-dlp';
+  @override
+  String get name => 'mock-delayed';
+  @override
+  String get binaryName => 'yt-dlp';
+  @override
+  bool get isInstalled => true;
+  @override
+  int get priority => 9;
+  @override
+  List<RegExp> get urlPatterns => [];
+  @override
+  String? get binaryPath => null;
+  @override
+  Color get color => const Color(0xFF000000);
+  @override
+  String get displayName => 'Mock Delayed';
+  @override
+  EngineType get engineType => EngineType.cli;
+  @override
+  IconData get icon => Icons.timer;
+  @override
+  EngineUpdateInfo? get updateInfo => null;
+
+  @override
+  Future<List<MediaInfo>> fetchMetadata({
+    required String url,
+    String? browser,
+    bool fetchDeep = false,
+    bool isPlaylist = false,
+    void Function(MediaInfo info)? onProgress,
+    void Function(int pid)? onProcessStarted,
+  }) async {
+    return completer.future;
+  }
+
+  @override
+  Future<Process> startDownload({
+    required String url,
+    required String destination,
+    String? title,
+    MediaFormat? format,
+    bool audioOnly = false,
+    bool mute = false,
+    int? galleryIndex,
+    bool isPlaylist = false,
+    bool isProfile = false,
+    String? browser,
+    bool isZip = false,
+    String? filterType,
+    int? totalItems,
+    String? singleItemId,
+    String? directUrl,
+  }) async {
+    throw UnimplementedError();
+  }
+}
+
+class MockPlaylistEngine extends DownloadEngine {
+  @override
+  String get id => 'yt-dlp';
+  @override
+  String get name => 'mock-playlist';
+  @override
+  String get binaryName => 'yt-dlp';
+  @override
+  bool get isInstalled => true;
+  @override
+  int get priority => 9;
+  @override
+  List<RegExp> get urlPatterns => [];
+  @override
+  String? get binaryPath => null;
+  @override
+  Color get color => const Color(0xFF000000);
+  @override
+  String get displayName => 'Mock Playlist';
+  @override
+  EngineType get engineType => EngineType.cli;
+  @override
+  IconData get icon => Icons.playlist_play;
+  @override
+  EngineUpdateInfo? get updateInfo => null;
+
+  @override
+  Future<List<MediaInfo>> fetchMetadata({
+    required String url,
+    String? browser,
+    bool fetchDeep = false,
+    bool isPlaylist = false,
+    void Function(MediaInfo info)? onProgress,
+    void Function(int pid)? onProcessStarted,
+  }) async {
+    return [
+      MediaInfo(
+        id: 'pl1',
+        title: 'Playlist Root',
+        originalUrl: url,
+        isVideo: false,
+        isPlaylist: true,
+      ),
+      MediaInfo(
+        id: 'v1',
+        title: 'Video 1',
+        originalUrl: url,
+        isVideo: true,
+        formats: const [
+          MediaFormat(formatId: 'f2', extension: 'mp4', resolution: '720p', formatString: 'f2', filesize: 500, videoCodec: 'avc1'),
+          MediaFormat(formatId: 'f1', extension: 'mp4', resolution: '1080p', formatString: 'f1', filesize: 1000, videoCodec: 'avc1'),
+        ],
+      ),
+      MediaInfo(
+        id: 'v2',
+        title: 'Video 2',
+        originalUrl: url,
+        isVideo: true,
+        formats: const [
+          MediaFormat(formatId: 'f3', extension: 'mp4', resolution: '480p', formatString: 'f3', filesize: 300, videoCodec: 'avc1'),
+          MediaFormat(formatId: 'f1', extension: 'mp4', resolution: '1080p', formatString: 'f1', filesize: 1100, videoCodec: 'avc1'),
+        ],
       ),
     ];
   }
@@ -674,5 +853,288 @@ void main() {
       await tester.tap(infoIcon);
       await tester.pump(const Duration(seconds: 1));
     });
+
+    testWidgets('W-DL-PNL-34: Show shaded loading overlay during fetch', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      final delayedEngine = MockDelayedEngine();
+      EngineRegistry.register(delayedEngine);
+
+      await tester.pumpWidget(createTilesTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      final urlField = find.byType(TextField);
+      await tester.tap(urlField);
+      await tester.enterText(urlField, 'https://test.com/delay');
+      await tester.pump();
+
+      await tester.tap(find.text('Fetch'));
+      await tester.pump(); // Start fetch
+
+      // Verify loading state
+      expect(find.textContaining('Analyzing https://test.com/delay...'), findsOneWidget);
+      
+      // Verify the Close button appears on the overlay (and one underneath)
+      expect(find.byIcon(Icons.close), findsWidgets);
+
+      // Resolve the fetch
+      delayedEngine.completer.complete([
+        MediaInfo(
+          id: 'delayed1',
+          title: 'Delayed Video',
+          originalUrl: 'https://test.com/delay',
+          isVideo: false,
+          filesize: 1024,
+        )
+      ]);
+
+      await tester.pump(const Duration(seconds: 1));
+
+      // Loading overlay should be gone, normal tile visible
+      expect(find.textContaining('Analyzing https://test.com/delay...'), findsNothing);
+      expect(find.text('Delayed Video'), findsOneWidget);
+    });
+
+    testWidgets('W-DL-PNL-35: Single item format dropdown interaction', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(MockYtDlpEngine());
+
+      await tester.pumpWidget(createTilesTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      final urlField = find.byType(TextField);
+      await tester.tap(urlField);
+      await tester.enterText(urlField, 'https://test.com/formats');
+      await tester.pump();
+      await tester.tap(find.text('Fetch'));
+      await tester.pump(const Duration(seconds: 2));
+
+      // Wait for the mock engine to complete
+      await tester.pump(const Duration(seconds: 2));
+
+      print('DEBUG: W-DL-PNL-35 Text Widgets:');
+      for (final widget in tester.widgetList<Text>(find.byType(Text))) {
+        print('Found text: "${widget.data}"');
+      }
+
+      // Initially it should auto-select 1080p (mp4) since it's the highest resolution
+      expect(find.text('1080p (mp4)'), findsWidgets);
+
+      // Tap the dropdown
+      final dropdown = find.text('1080p (mp4)');
+      await tester.tap(dropdown.first);
+      for (int i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      // We should see the other options in the popup menu
+      expect(find.text('720p (mp4)'), findsOneWidget);
+      expect(find.text('Audio Only (m4a)'), findsOneWidget); // resolution audio only gets formatted to Audio Only
+
+      // Select 720p
+      await tester.tap(find.text('720p (mp4)'));
+      for (int i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      print('DEBUG: Texts after 720p tap:');
+      for (final widget in tester.widgetList<Text>(find.byType(Text))) {
+        print('Found text: "${widget.data}"');
+      }
+
+      // Dropdown should now show 720p
+      expect(find.text('720p (mp4)'), findsWidgets);
+    });
+
+    testWidgets('W-DL-PNL-36: Playlist format dropdown aggregation', (tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(MockPlaylistEngine());
+
+      await tester.pumpWidget(createTilesTestWidget(container));
+      while (container.read(settingsProvider).value == null) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(seconds: 1));
+
+      final urlField = find.byType(TextField);
+      await tester.tap(urlField);
+      await tester.enterText(urlField, 'https://test.com/playlist');
+      await tester.pump();
+      await tester.tap(find.text('Fetch'));
+      await tester.pump(const Duration(seconds: 2));
+
+      // Wait for UI to settle
+      await tester.pump(const Duration(seconds: 1));
+
+      // The playlist tile should show '1080p (mp4)' aggregated
+      expect(find.text('1080p (mp4)'), findsWidgets);
+
+      // Tap dropdown on the playlist root tile (should be first one)
+      final dropdown = find.text('1080p (mp4)');
+      await tester.tap(dropdown.first);
+      for (int i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      // We should see all aggregated formats: 1080p, 720p, 480p
+      expect(find.text('1080p (mp4)'), findsWidgets);
+      expect(find.text('720p (mp4)'), findsWidgets);
+      expect(find.text('480p (mp4)'), findsWidgets);
+
+      // Select 480p
+      await tester.tap(find.text('480p (mp4)').last, warnIfMissed: false);
+      for (int i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      print('DEBUG: Texts after 480p tap:');
+      for (final widget in tester.widgetList<Text>(find.byType(Text))) {
+        print('Found text: "${widget.data}"');
+      }
+
+      // Verify the selection was applied
+      expect(find.text('480p (mp4)'), findsWidgets);
+    });
+
+    // ─── Placeholder Loading Tile Feature Tests ─────────────────────────────
+
+    testWidgets(
+      'W-DL-PNL-37: Fetch button stays enabled and idle while placeholder tile loads',
+      (tester) async {
+        EngineRegistry.clearAllEnginesForTesting();
+        final delayedEngine = MockDelayedEngine();
+        EngineRegistry.register(delayedEngine);
+
+        await tester.pumpWidget(createTilesTestWidget(container));
+        while (container.read(settingsProvider).value == null) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await tester.pump(const Duration(seconds: 1));
+
+        final urlField = find.byType(TextField);
+        await tester.enterText(urlField, 'https://test.com/busy');
+        await tester.pump();
+
+        await tester.tap(find.text('Fetch'));
+        await tester.pump(); // Start async fetch
+
+        // Placeholder overlay is showing
+        expect(
+          find.textContaining('Analyzing https://test.com/busy...'),
+          findsOneWidget,
+        );
+
+        // Fetch button must still be present and not replaced by a spinner
+        final fetchButton = find.widgetWithText(ElevatedButton, 'Fetch');
+        expect(fetchButton, findsOneWidget,
+            reason: 'Fetch button should remain visible and idle, not show a loading indicator');
+
+        // No CircularProgressIndicator on the fetch button
+        expect(find.byType(CircularProgressIndicator), findsNothing,
+            reason: 'No circular spinner should appear on the Fetch button');
+
+        // Resolve the fetch to clean up
+        delayedEngine.completer.complete([]);
+        await tester.pump(const Duration(seconds: 1));
+      },
+    );
+
+    testWidgets(
+      'W-DL-PNL-38: Submitting the same URL twice does not create a duplicate placeholder tile',
+      (tester) async {
+        EngineRegistry.clearAllEnginesForTesting();
+        final delayedEngine = MockDelayedEngine();
+        EngineRegistry.register(delayedEngine);
+
+        await tester.pumpWidget(createTilesTestWidget(container));
+        while (container.read(settingsProvider).value == null) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await tester.pump(const Duration(seconds: 1));
+
+        const testUrl = 'https://test.com/duplicate';
+
+        // First fetch
+        final urlField = find.byType(TextField);
+        await tester.enterText(urlField, testUrl);
+        await tester.pump();
+        await tester.tap(find.text('Fetch'));
+        await tester.pump();
+
+        // One placeholder tile shown
+        expect(find.textContaining('Analyzing $testUrl...'), findsOneWidget);
+
+        // Second fetch with the same URL
+        await tester.enterText(urlField, testUrl);
+        await tester.pump();
+        await tester.tap(find.text('Fetch'));
+        await tester.pump();
+
+        // Still only ONE placeholder tile, not two
+        expect(
+          find.textContaining('Analyzing $testUrl...'),
+          findsOneWidget,
+          reason:
+              'Submitting the same URL twice should not create a duplicate placeholder tile',
+        );
+
+        // Clean up
+        delayedEngine.completer.complete([]);
+        await tester.pump(const Duration(seconds: 1));
+      },
+    );
+
+    testWidgets(
+      'W-DL-PNL-39: Dismissing placeholder tile via close button removes it while still loading',
+      (tester) async {
+        EngineRegistry.clearAllEnginesForTesting();
+        final delayedEngine = MockDelayedEngine();
+        EngineRegistry.register(delayedEngine);
+
+        await tester.pumpWidget(createTilesTestWidget(container));
+        while (container.read(settingsProvider).value == null) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await tester.pump(const Duration(seconds: 1));
+
+        final urlField = find.byType(TextField);
+        await tester.enterText(urlField, 'https://test.com/cancel');
+        await tester.pump();
+        await tester.tap(find.text('Fetch'));
+        await tester.pump();
+
+        // Placeholder tile is visible
+        expect(
+          find.textContaining('Analyzing https://test.com/cancel...'),
+          findsOneWidget,
+        );
+
+        // Close button on the overlay is visible
+        expect(find.byIcon(Icons.close), findsWidgets);
+
+        // Tap the close (cancel) button on the loading tile
+        await tester.tap(find.byIcon(Icons.close).first, warnIfMissed: false);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Placeholder tile should be gone even though fetch hasn't completed
+        expect(
+          find.textContaining('Analyzing https://test.com/cancel...'),
+          findsNothing,
+          reason:
+              'Tapping close on the loading tile should immediately remove the placeholder',
+        );
+
+        // Clean up: resolve the future so no dangling Future runs in tearDown
+        if (!delayedEngine.completer.isCompleted) {
+          delayedEngine.completer.complete([]);
+        }
+        await tester.pump(const Duration(seconds: 1));
+      },
+    );
   });
 }
