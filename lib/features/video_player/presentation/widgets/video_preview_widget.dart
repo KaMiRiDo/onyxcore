@@ -41,7 +41,7 @@ import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
+// import removed
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
@@ -202,12 +202,30 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   double _sidebarDragStartX = 0.0;
   bool _isEmpty = false;
 
+  void _onWindowFocus() {
+    if (mounted) _focusNode.requestFocus();
+  }
+
   @override
   void initState() {
     super.initState();
+    if (widget.isStandalone && widget.windowId != null) {
+      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(videoIsEmptyProvider.notifier).state = false;
     });
+    // On Linux/GTK, newly spawned windows may take a moment to be mapped by the OS.
+    // A delayed focus request ensures the widget grabs focus after the window is fully active.
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      if (mounted) {
+        if (widget.isStandalone && widget.windowId != null) {
+          await PersistentViewerManager.presentWindow(int.parse(widget.windowId!));
+        }
+        if (mounted) _focusNode.requestFocus();
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _focusNode.requestFocus();
@@ -251,11 +269,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
 
     if (widget.windowId != null || widget.isStandalone) {
-      windowManager.addListener(this);
-      windowManager.setPreventClose(true);
-      // Ensure true fullscreen to hide OS bars
-      windowManager.setFullScreen(true);
-      windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      // In the new Multi-View architecture, we do NOT use window_manager for standalone windows
+      // because window_manager only controls the primary application window.
+      // Fullscreen and window management is handled natively via PersistentViewerManager.
 
       // Initialize playlist from passed arguments if available
       if (widget.initParams?.containsKey('playlistJson') == true) {
@@ -637,19 +653,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     if (settings?.resumePlayback ?? true) {
       int? savedPos;
       if (widget.isStandalone) {
-        final payload = jsonEncode({
-          'path': currentPath,
-        });
-        try {
-          final result = await WindowController.fromWindowId(
-            widget.parentWindowId ?? '0',
-          ).invokeMethod('get_playback_position', payload);
-          if (result is int) {
-            savedPos = result;
-          }
-        } catch (e) {
-          debugPrint('[VideoPlayer] Standalone get position IPC failed: $e');
-        }
+        // Same isolate now, fallback to repository
+        savedPos = await PlaybackMemoryRepository.getPosition(
+          currentPath,
+        );
       } else {
         savedPos = await PlaybackMemoryRepository.getPosition(
           currentPath,
@@ -707,23 +714,33 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         : 0;
 
     if (widget.isStandalone) {
-      final payload = jsonEncode({
-        'path': path,
-        'positionMs': targetPosition,
-      });
-      try {
-        await WindowController.fromWindowId(
-          widget.parentWindowId ?? '0',
-        ).invokeMethod('save_playback_position', payload);
-      } catch (e) {
-        debugPrint('[VideoPlayer] Standalone save position IPC failed: $e');
-      }
+        await PlaybackMemoryRepository.savePosition(path, targetPosition);
     } else {
       await PlaybackMemoryRepository.savePosition(path, targetPosition);
     }
   }
 
+  bool _isStandaloneFullscreen = false; // It starts maximized, not fullscreen
+
   Future<void> _toggleFullscreen() async {
+    if (widget.isStandalone && widget.windowId != null) {
+      final willBeFullScreen = !_isStandaloneFullscreen;
+      _isStandaloneFullscreen = willBeFullScreen;
+      await PersistentViewerManager.setFullScreen(int.parse(widget.windowId!), willBeFullScreen);
+      if (willBeFullScreen) {
+        setState(() {
+          _isControlsVisible = false;
+          _hideTimer?.cancel();
+        });
+      } else {
+        setState(() {
+          _isControlsVisible = true;
+          _startHideTimer();
+        });
+      }
+      return;
+    }
+
     final isFullScreen = await windowManager.isFullScreen();
     final willBeFullScreen = !isFullScreen;
 
@@ -737,6 +754,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     } else {
       await windowManager.setTitleBarStyle(TitleBarStyle.normal);
       // Reveal controls when exiting fullscreen (returning to system UI)
+      setState(() {
+        _isControlsVisible = true;
+        _startHideTimer();
+      });
       _onInteraction();
     }
     // Linux/GTK window transitions can cause temporary focus loss.
@@ -815,6 +836,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _isPlayingNotifier.dispose();
     _hoverXNotifier.dispose();
     _focusNode.dispose();
+    if (widget.isStandalone && widget.windowId != null) {
+      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).removeListener(_onWindowFocus);
+    }
     try {
       final emptyNotifier = ref.read(videoIsEmptyProvider.notifier);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1185,12 +1209,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     );
 
     try {
+      // Close preview first so UI feels responsive
+      ref.read(previewFileProvider.notifier).state = null;
       // Use the singleton manager to handle persistent window logic
       await PersistentViewerManager.openMedia(windowParams);
-
-      if (mounted) {
-        ref.read(previewFileProvider.notifier).state = null;
-      }
     } catch (e) {
       debugPrint('Error opening persistent viewer: $e');
       await player.play(); // Rescue playback on failure
@@ -1793,17 +1815,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   }
 
   void _navigateMedia(bool forward) {
-    if (widget.windowId != null) {
-      // 1. Standalone Mode: Send reverse IPC to Main Window (Window 0)
-      final payload = jsonEncode({
-        'direction': forward ? 'next' : 'prev',
-        'currentPath': _currentItem.path,
-        'type': 'video',
-        'targetWindowId': widget.windowId!,
-      });
-      WindowController.fromWindowId(
-        widget.parentWindowId ?? '0',
-      ).invokeMethod('request_navigation', payload);
+    if (widget.isStandalone) {
+      // Handled natively via shared isolate state or just fallback to inline logic
     } else {
       // 2. Inline Mode: Local Riverpod state update
       List<FileItem> mediaItems = ref.read(filteredAndSortedVideoQueueProvider).where((i) => i.type == FileItemType.video).toList();

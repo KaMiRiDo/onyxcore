@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,15 +7,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:onyxcore/app.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-
-/// Application entry point.
-///
-/// Initializes SharedPreferences and MediaKit before launching the app wrapped
-/// in Riverpod's ProviderScope for global state management.
-import 'dart:convert';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:onyxcore/core/window_management/secondary_window_app.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,34 +16,16 @@ void main(List<String> args) async {
   // Increase image cache to 500MB to support pre-caching of high-res files without compromising resolution
   PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 500;
 
-  // Unified initialization for all engine instances (main and secondary)
+  // Unified initialization
   await windowManager.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox<dynamic>('ui_settings');
   MediaKit.ensureInitialized();
-
-  final windowController = await WindowController.fromCurrentEngine();
-  final String? arguments = windowController.arguments;
-
-  if (arguments != null && arguments.isNotEmpty) {
-    debugPrint('[Main] Received window arguments: $arguments');
-    try {
-      final map = jsonDecode(arguments) as Map<String, dynamic>;
-      runApp(
-        SecondaryWindowApp(
-          windowId: windowController.windowId,
-          arguments: map,
-        ),
-      );
-      return;
-    } catch (e) {
-      debugPrint('[Main] Error parsing window arguments: $e');
-    }
-  }
+  PersistentViewerManager.init();
 
   final prefs = await SharedPreferences.getInstance();
 
-  // Configure window options for a seamless, titlebar-less experience
+  // Configure window options for a seamless, titlebar-less experience for the main window
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1280, 720),
     center: true,
@@ -64,12 +40,64 @@ void main(List<String> args) async {
     await windowManager.focus();
   });
 
-  runApp(
+  runWidget(
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
       ],
-      child: const OnyxCoreApp(),
+      child: const OnyxCoreMultiViewApp(),
     ),
   );
+}
+
+class OnyxCoreMultiViewApp extends StatefulWidget {
+  const OnyxCoreMultiViewApp({super.key});
+
+  @override
+  State<OnyxCoreMultiViewApp> createState() => _OnyxCoreMultiViewAppState();
+}
+
+class _OnyxCoreMultiViewAppState extends State<OnyxCoreMultiViewApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    PersistentViewerManager.updates.addListener(_onUpdates);
+  }
+
+  void _onUpdates() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    PersistentViewerManager.updates.removeListener(_onUpdates);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    // Rebuild when a new view is spawned or removed by the platform dispatcher
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ViewCollection(
+      views: PlatformDispatcher.instance.views.map((FlutterView view) {
+        return View(
+          view: view,
+          child: _buildChildForView(view),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildChildForView(FlutterView view) {
+    if (view == PlatformDispatcher.instance.implicitView || view.viewId == 0) {
+      return const OnyxCoreApp();
+    }
+    return PersistentViewerManager.buildView(view.viewId);
+  }
 }

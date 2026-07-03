@@ -19,9 +19,9 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:onyxcore/core/window_management/window_controller_extension.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
+// import removed
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
@@ -65,9 +65,16 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
   bool _sessionSkipConfirm = false;
   bool _isEmpty = false;
 
+  void _onWindowFocus() {
+    if (mounted) _focusNode.requestFocus();
+  }
+
   @override
   void initState() {
     super.initState();
+    if (widget.isStandalone && widget.windowId != null) {
+      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(audioIsEmptyProvider.notifier).state = false;
     });
@@ -98,6 +105,17 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
       _focusNode.requestFocus();
       _initializePlayer();
+    });
+
+    // On Linux/GTK, newly spawned windows may take a moment to be mapped by the OS.
+    // A delayed focus request ensures the widget grabs focus after the window is fully active.
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      if (mounted) {
+        if (widget.isStandalone && widget.windowId != null) {
+          await PersistentViewerManager.presentWindow(int.parse(widget.windowId!));
+        }
+        if (mounted) _focusNode.requestFocus();
+      }
     });
   }
 
@@ -247,6 +265,10 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
   @override
   void dispose() {
+    if (widget.isStandalone && widget.windowId != null) {
+      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).removeListener(_onWindowFocus);
+    }
+    _focusNode.dispose();
     // 1. Cancel all stream subscriptions first
     _playlistSub?.cancel();
     _completedSub?.cancel();
@@ -1029,9 +1051,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                             ],
                             onClose: () {
                               if (widget.isStandalone) {
-                                WindowController.fromCurrentEngine().then(
-                                  (c) => c.close(),
-                                );
+                                windowManager.close();
                               } else {
                                 ref.read(previewFileProvider.notifier).state =
                                     null;
@@ -1040,20 +1060,19 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                             onPopOut: widget.isStandalone
                                 ? null
                                 : () {
+                                    ref
+                                            .read(
+                                              previewFileProvider.notifier,
+                                            )
+                                            .state =
+                                        null;
                                     final params = WindowParams(
                                       viewerType: ViewerType.audio,
                                       file: currentTrack ?? widget.item,
                                     );
                                     PersistentViewerManager.openMedia(
                                       params,
-                                    ).then((_) {
-                                      ref
-                                              .read(
-                                                previewFileProvider.notifier,
-                                              )
-                                              .state =
-                                          null;
-                                    });
+                                    );
                                   },
                           ),
                         ),

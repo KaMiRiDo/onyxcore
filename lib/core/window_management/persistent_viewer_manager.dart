@@ -1,69 +1,194 @@
-import 'package:flutter/foundation.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
+import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
+import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 
-/// Manages a single persistent secondary window for all media viewing.
-/// This prevents expensive and unstable GTK engine destruction on Linux.
+/// Manages multi-view state and IPC for spawning new native windows using Flutter's Multi-View API.
 class PersistentViewerManager {
-  static String? _viewerWindowId;
+  static const MethodChannel _channel = MethodChannel('onyxcore/window_manager');
+  
+  // Maps view ID to the parameters for that window
+  static final Map<int, ValueNotifier<WindowParams?>> _viewParams = {};
+  
+  // Tracks active view IDs by ViewerType to enforce single instance per type
+  static final Map<ViewerType, int> _activeWindowsByType = {};
 
-  /// Opens the specified media in the persistent secondary window.
-  /// If the window doesn't exist, it creates it; otherwise, it sends an IPC reload signal.
-  static Future<void> openMedia(WindowParams params) async {
-    try {
-      // 1. Fetch current window ID as String
-      String? currentId;
-      try {
-        final currentController = await WindowController.fromCurrentEngine();
-        currentId = currentController.windowId;
-      } catch (e) {
-        debugPrint(
-          '[PersistentViewerManager] Could not fetch current window ID: $e',
-        );
-      }
+  static final ValueNotifier<int> updates = ValueNotifier(0);
+  
+  static final Map<int, ValueNotifier<int>> _focusTriggers = {};
 
-      // Ensure params has the parent ID
-      final effectiveParams = WindowParams(
-        viewerType: params.viewerType,
-        file: params.file,
-        parentWindowId: currentId ?? params.parentWindowId,
-        initParams: params.initParams,
-      );
-
-      // 1. Check if we already have a window that is still alive
-      bool needsCreation = true;
-      if (_viewerWindowId != null) {
-        final allWindows = await WindowController.getAll();
-        if (allWindows.any((w) => w.windowId == _viewerWindowId)) {
-          needsCreation = false;
+  static void init() {
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'on_window_focus') {
+        final viewId = call.arguments['view_id'] as int;
+        
+        // If a tracked secondary window got focus, trigger its specific focus node
+        if (_activeWindowsByType.containsValue(viewId)) {
+          _focusTriggers[viewId]?.value++;
+        } else {
+          // If an untracked window (the main window) regains OS focus (e.g. via Alt+Tab),
+          // clear the global primary focus so keystrokes don't leak to the secondary window!
+          FocusManager.instance.primaryFocus?.unfocus();
         }
       }
+    });
+  }
 
-      if (needsCreation) {
-        debugPrint('[PersistentViewerManager] Creating new viewer window...');
-        final window = await WindowController.create(
-          WindowConfiguration(
-            arguments: effectiveParams.encode(),
-          ),
-        );
-        _viewerWindowId = window.windowId;
-        await window.show();
-      } else {
-        debugPrint(
-          '[PersistentViewerManager] Reusing existing viewer: $_viewerWindowId',
-        );
-        final controller = WindowController.fromWindowId(_viewerWindowId!);
+  static ValueNotifier<int> getFocusTrigger(int viewId) {
+    return _focusTriggers.putIfAbsent(viewId, () => ValueNotifier(0));
+  }
 
-        // Signal the existing window to load new media
-        await controller.invokeMethod('load_media', effectiveParams.toJson());
-
-        // Ensure it comes to foreground
-        await controller.show();
+  static Future<void> openMedia(WindowParams params) async {
+    try {
+      final type = params.viewerType;
+      
+      // Cleanup any dead windows from our tracking before checking
+      _activeWindowsByType.removeWhere((k, v) => !isViewActive(v));
+      
+      // If we already have a window open for this viewer type, reuse it!
+      if (_activeWindowsByType.containsKey(type)) {
+        final existingViewId = _activeWindowsByType[type]!;
+        
+        // Update the reactive params. The ValueListenableBuilder in buildView will automatically rebuild.
+        _viewParams[existingViewId]?.value = params;
+        
+        // Tell the OS to bring the existing window to the front and focus it
+        await _channel.invokeMethod('present_window', {'view_id': existingViewId});
+        return;
       }
+
+      final int viewId = await _channel.invokeMethod('create_window');
+      _viewParams[viewId] = ValueNotifier(params);
+      _activeWindowsByType[type] = viewId;
+      
+      updates.value++;
     } catch (e) {
       debugPrint('[PersistentViewerManager] Error opening media: $e');
-      // On failure, reset state and try one more time by creating fresh
-      _viewerWindowId = null;
     }
   }
+
+  /// Toggles fullscreen for a specific view ID
+  static Future<void> setFullScreen(int viewId, bool isFullScreen) async {
+    try {
+      await _channel.invokeMethod('set_fullscreen', {
+        'view_id': viewId,
+        'is_fullscreen': isFullScreen,
+      });
+    } catch (e) {
+      debugPrint('[PersistentViewerManager] Error setting fullscreen: $e');
+    }
+  }
+
+  /// Brings a specific view ID window to the foreground and forces OS focus
+  static Future<void> presentWindow(int viewId) async {
+    try {
+      await _channel.invokeMethod('present_window', {
+        'view_id': viewId,
+      });
+      // Explicitly trigger the focus event to ensure the Flutter widget tree
+      // regains focus immediately after the native window is brought to front.
+      _focusTriggers[viewId]?.value++;
+    } catch (e) {
+      debugPrint('[PersistentViewerManager] Error presenting window: $e');
+    }
+  }
+  
+  static bool isViewActive(int viewId) {
+    return WidgetsBinding.instance.platformDispatcher.views.any((v) => v.viewId == viewId);
+  }
+
+  static Widget buildView(int viewId) {
+    final notifier = _viewParams.putIfAbsent(viewId, () => ValueNotifier(null));
+    
+    return ValueListenableBuilder<WindowParams?>(
+      valueListenable: notifier,
+      builder: (context, params, child) {
+        if (params == null) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.theme,
+            home: const Scaffold(
+              backgroundColor: Colors.black,
+              body: Center(child: Text("Waiting for media...", style: TextStyle(color: Colors.white))),
+            ),
+          );
+        }
+
+        Widget content;
+        switch (params.viewerType) {
+          case ViewerType.video:
+            final startMs = params.initParams['startPositionMs'] as int?;
+            final rate = params.initParams['playbackRate'] as double?;
+            final audioId = params.initParams['audioTrackId'] as String?;
+            final subtitleId = params.initParams['subtitleTrackId'] as String?;
+            content = VideoPreviewWidget(
+              key: ValueKey(params.file.path),
+              item: params.file,
+              initialPosition: startMs != null ? Duration(milliseconds: startMs) : null,
+              initialRate: rate,
+              initialAudioTrackId: audioId,
+              initialSubtitleTrackId: subtitleId,
+              isStandalone: true,
+              windowId: viewId.toString(),
+              parentWindowId: params.parentWindowId,
+              initParams: params.initParams,
+            );
+            break;
+          case ViewerType.image:
+            content = ImagePreviewWidget(
+              key: ValueKey(params.file.path),
+              item: params.file,
+              isStandalone: true,
+              windowId: viewId.toString(),
+              parentWindowId: params.parentWindowId,
+              initParams: params.initParams,
+            );
+            break;
+          case ViewerType.audio:
+            content = AudioPlayerView(
+              key: ValueKey(params.file.path),
+              item: params.file,
+              isStandalone: true,
+              windowId: viewId.toString(),
+              parentWindowId: params.parentWindowId,
+            );
+            break;
+          case ViewerType.markdown:
+            content = MarkdownPreviewWidget(
+              key: ValueKey(params.file.path),
+              item: params.file,
+              isStandalone: true,
+              windowId: viewId.toString(),
+              parentWindowId: params.parentWindowId,
+            );
+            break;
+          default:
+            content = Center(
+              child: Text("Unsupported preview type for ${params.file.name}", style: const TextStyle(color: Colors.white)),
+            );
+        }
+
+        return ProviderScope(
+          overrides: [
+            previewFileProvider.overrideWith((ref) => params.file),
+          ],
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.theme,
+            home: Scaffold(
+              backgroundColor: Colors.black,
+              body: content,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 }

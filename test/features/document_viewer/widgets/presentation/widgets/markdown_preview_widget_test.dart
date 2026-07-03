@@ -1377,5 +1377,53 @@ Display equations:
         if (file.existsSync()) file.deleteSync();
       });
     });
+    testWidgets('W-DOC-PREVIEW-43: Standalone window requests focus and triggers presentWindow', (WidgetTester tester) async {
+      final List<MethodCall> windowLogs = [];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('onyxcore/window_manager'),
+        (MethodCall methodCall) async {
+          windowLogs.add(methodCall);
+          return null;
+        },
+      );
+
+      final fileItem = FileItem(
+        path: '${tempDir.path}/test_focus.md',
+        name: 'test_focus.md',
+        type: FileItemType.document,
+        modified: DateTime.now(),
+      );
+      
+      await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: MarkdownPreviewWidget(
+              item: fileItem,
+              isStandalone: true,
+              windowId: '100',
+            ),
+          ),
+        ),
+      ));
+      
+      await waitForLoad(tester);
+      
+      // Advance timer by 300ms to trigger the Future.delayed focus logic
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(
+        windowLogs,
+        contains(
+          isA<MethodCall>().having((call) => call.method, 'method', 'present_window')
+                           .having((call) => call.arguments['view_id'], 'view_id', 100),
+        ),
+      );
+
+      // Verify focus is acquired by the preview node
+      // Wait, in preview mode, it's not a textfield, so we can check if it has primaryFocus
+      expect(FocusManager.instance.primaryFocus, isNotNull);
+    });
   });
 }

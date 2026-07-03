@@ -6,18 +6,186 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
-#include <desktop_multi_window/desktop_multi_window_plugin.h>
 
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  FlView* main_view;
+  FlMethodChannel* window_channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
 // Called when first Flutter frame received.
+static guint32 global_last_user_time = 0; // GDK_CURRENT_TIME is 0
+
+static gboolean on_app_input_event(GtkWidget *widget, GdkEvent *event, gpointer data) {
+  guint32 time = gdk_event_get_time(event);
+  if (time != 0) { // 0 is GDK_CURRENT_TIME
+    global_last_user_time = time;
+  }
+  return FALSE; // Continue propagating the event to Flutter
+}
+
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// Window destroy callback for secondary windows
+static void secondary_first_frame_cb(FlView* view, MyApplication* self) {
+  GtkWidget* window = gtk_widget_get_toplevel(GTK_WIDGET(view));
+  if (GTK_IS_WINDOW(window)) {
+    gtk_widget_show(window);
+    
+    // Present the window using the last known user interaction timestamp.
+    // This provides the Window Manager (GNOME/Mutter) with proof that this
+    // window was spawned by a recent user action, granting it immediate focus.
+    gtk_window_present_with_time(GTK_WINDOW(window), global_last_user_time);
+    gtk_widget_grab_focus(GTK_WIDGET(view));
+    
+    // Explicitly notify Dart that this window now has focus natively
+    if (self && self->window_channel) {
+      int64_t view_id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "view_id"));
+      g_autoptr(FlValue) args = fl_value_new_map();
+      fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
+      fl_method_channel_invoke_method(self->window_channel, "on_window_focus", args, nullptr, nullptr, nullptr);
+    }
+  }
+}
+
+// Window destroy callback for secondary windows
+static void on_secondary_window_destroy(GtkWidget* widget, gpointer data) {
+  // We don't need to do anything specific here, GTK handles widget destruction.
+  // Dart side will observe the view being removed.
+}
+
+static gboolean on_secondary_window_focus_in(GtkWidget* widget, GdkEventFocus* event, gpointer data) {
+  GtkWidget* child_view = GTK_WIDGET(data);
+  if (child_view && GTK_IS_WIDGET(child_view)) {
+    gtk_widget_grab_focus(child_view);
+  }
+  
+  MyApplication* app = MY_APPLICATION(g_application_get_default());
+  if (app && app->window_channel) {
+    int64_t view_id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "view_id"));
+    g_autoptr(FlValue) args = fl_value_new_map();
+    fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
+    fl_method_channel_invoke_method(app->window_channel, "on_window_focus", args, nullptr, nullptr, nullptr);
+  }
+  return FALSE;
+}
+
+static gboolean on_main_window_focus_in(GtkWidget* widget, GdkEventFocus* event, gpointer data) {
+  MyApplication* app = MY_APPLICATION(g_application_get_default());
+  if (app && app->window_channel && app->main_view) {
+    int64_t view_id = fl_view_get_id(app->main_view);
+    g_autoptr(FlValue) args = fl_value_new_map();
+    fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
+    fl_method_channel_invoke_method(app->window_channel, "on_window_focus", args, nullptr, nullptr, nullptr);
+  }
+  return FALSE;
+}
+
+static GtkWindow* get_window_by_view_id(MyApplication* self, int64_t target_id) {
+  if (target_id == fl_view_get_id(self->main_view)) {
+    GList* windows = gtk_application_get_windows(GTK_APPLICATION(self));
+    if (windows) return GTK_WINDOW(windows->data);
+  } else {
+    GList* windows = gtk_application_get_windows(GTK_APPLICATION(self));
+    for (GList* l = windows; l != nullptr; l = l->next) {
+      GtkWindow* w = GTK_WINDOW(l->data);
+      gpointer data = g_object_get_data(G_OBJECT(w), "view_id");
+      if (data && GPOINTER_TO_INT(data) == target_id) {
+        return w;
+      }
+    }
+  }
+  return nullptr;
+}
+
+static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* method_call, gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  const gchar* method = fl_method_call_get_name(method_call);
+
+  if (strcmp(method, "create_window") == 0) {
+    if (!self->main_view) {
+       fl_method_call_respond_error(method_call, "ERROR", "Main view not initialized", nullptr, nullptr);
+       return;
+    }
+    
+    FlEngine* engine = fl_view_get_engine(self->main_view);
+    FlView* new_view = fl_view_new_for_engine(engine);
+    
+    GtkWindow* new_window = GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(self)));
+    gtk_window_set_title(new_window, "onyxcore Secondary");
+    gtk_window_set_default_size(new_window, 800, 600);
+    
+    // Maximize the window on creation as requested
+    gtk_window_maximize(new_window);
+    
+    gtk_container_add(GTK_CONTAINER(new_window), GTK_WIDGET(new_view));
+    gtk_widget_show(GTK_WIDGET(new_view));
+    
+    g_signal_connect(new_window, "destroy", G_CALLBACK(on_secondary_window_destroy), nullptr);
+    g_signal_connect(new_window, "focus-in-event", G_CALLBACK(on_secondary_window_focus_in), new_view);
+    g_signal_connect(new_view, "first-frame", G_CALLBACK(secondary_first_frame_cb), self);
+    gtk_widget_realize(GTK_WIDGET(new_view));
+
+    
+    int64_t view_id = fl_view_get_id(new_view);
+    g_object_set_data(G_OBJECT(new_window), "view_id", GINT_TO_POINTER((int)view_id));
+    
+    g_autoptr(FlValue) result = fl_value_new_int(view_id);
+    fl_method_call_respond_success(method_call, result, nullptr);
+  } else if (strcmp(method, "set_fullscreen") == 0) {
+    FlValue* args = fl_method_call_get_args(method_call);
+    FlValue* view_id_val = fl_value_lookup_string(args, "view_id");
+    FlValue* is_full_val = fl_value_lookup_string(args, "is_fullscreen");
+    
+    if (view_id_val && is_full_val && fl_value_get_type(view_id_val) == FL_VALUE_TYPE_INT && fl_value_get_type(is_full_val) == FL_VALUE_TYPE_BOOL) {
+      int64_t target_id = fl_value_get_int(view_id_val);
+      bool is_full = fl_value_get_bool(is_full_val);
+      
+      GtkWindow* target_window = get_window_by_view_id(self, target_id);
+      
+      if (target_window) {
+        if (is_full) {
+          gtk_window_fullscreen(target_window);
+        } else {
+          gtk_window_unfullscreen(target_window);
+        }
+        fl_method_call_respond_success(method_call, nullptr, nullptr);
+      } else {
+        fl_method_call_respond_error(method_call, "ERROR", "Window not found", nullptr, nullptr);
+      }
+    } else {
+      fl_method_call_respond_error(method_call, "ERROR", "Invalid arguments", nullptr, nullptr);
+    }
+  } else if (strcmp(method, "present_window") == 0) {
+    FlValue* args = fl_method_call_get_args(method_call);
+    FlValue* view_id_val = fl_value_lookup_string(args, "view_id");
+    
+    if (view_id_val && fl_value_get_type(view_id_val) == FL_VALUE_TYPE_INT) {
+      int64_t target_id = fl_value_get_int(view_id_val);
+      
+      GtkWindow* target_window = get_window_by_view_id(self, target_id);
+      if (target_window) {
+        gtk_window_present_with_time(target_window, global_last_user_time);
+        // Also grab focus for the child view if it exists
+        GtkWidget* child = gtk_bin_get_child(GTK_BIN(target_window));
+        if (child && GTK_IS_WIDGET(child)) {
+          gtk_widget_grab_focus(child);
+        }
+        fl_method_call_respond_success(method_call, nullptr, nullptr);
+      } else {
+        fl_method_call_respond_error(method_call, "ERROR", "Window not found", nullptr, nullptr);
+      }
+    } else {
+      fl_method_call_respond_error(method_call, "ERROR", "Invalid arguments", nullptr, nullptr);
+    }
+  } else {
+    fl_method_call_respond_not_implemented(method_call, nullptr);
+  }
 }
 
 // Implements GApplication::activate.
@@ -60,11 +228,22 @@ static void my_application_activate(GApplication* application) {
       project, self->dart_entrypoint_arguments);
 
   FlView* view = fl_view_new(project);
+  self->main_view = view;
   GdkRGBA background_color;
   // Background defaults to black, override it here if necessary, e.g. #00000000
   // for transparent.
   gdk_rgba_parse(&background_color, "#000000");
   fl_view_set_background_color(view, &background_color);
+  
+  // Track events to capture the user_time for focus stealing prevention
+  // We attach to the view directly for specific input events, as Flutter stops propagation to the window
+  gtk_widget_add_events(GTK_WIDGET(view), GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK | GDK_TOUCH_MASK);
+  g_signal_connect(view, "button-press-event", G_CALLBACK(on_app_input_event), NULL);
+  g_signal_connect(view, "key-press-event", G_CALLBACK(on_app_input_event), NULL);
+  g_signal_connect(view, "touch-event", G_CALLBACK(on_app_input_event), NULL);
+  
+  g_signal_connect(window, "focus-in-event", G_CALLBACK(on_main_window_focus_in), NULL);
+  
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
 
@@ -76,9 +255,13 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
-  desktop_multi_window_plugin_set_window_created_callback([](FlPluginRegistry* registry) {
-    fl_register_plugins(registry);
-  });
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  FlMethodChannel* channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "onyxcore/window_manager",
+      FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(channel, window_method_call_handler, self, nullptr);
+  self->window_channel = channel; // Store globally for sending events to Dart
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

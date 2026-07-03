@@ -15,7 +15,7 @@ List<FileItem> processMediaQueueIsolate(Map<String, dynamic> args) {
   final showHidden = args['showHidden'] as bool;
   final targetType = FileItemType.values[args['targetType'] as int];
   final items = itemsJson
-      .map((e) => FileItem.fromJson(Map<String, dynamic>.from(e)))
+      .map((e) => FileItem.fromJson(Map<String, dynamic>.from(e as Map)))
       .toList();
 
   final List<FileItem> result = [];

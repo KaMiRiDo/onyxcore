@@ -201,14 +201,15 @@ class _RenameDialogState extends State<RenameDialog> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          spacing: 16,
+          runSpacing: 12,
           children: [
             _buildRadioButton(
               label: "Add Prefix",
               active: _mode == RenameMode.prefix,
               onTap: () => setState(() => _mode = RenameMode.prefix),
             ),
-            const SizedBox(width: 16),
             _buildRadioButton(
               label: "Constant Name",
               active: _mode == RenameMode.constant,

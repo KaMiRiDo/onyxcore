@@ -102,6 +102,51 @@ void main() {
       expect(result[3], itemB); // 200
     });
 
+    test('sorts by size large to small (folders first)', () {
+      final result = sortAndFilterQueue(
+        queue: queue,
+        searchQuery: '',
+        sortOption: SortOption.sizeLargeToSmall,
+        isFavoritesMode: false,
+        favorites: {},
+      );
+
+      expect(result[0], folder1);
+      expect(result[1], itemB); // 200
+      expect(result[2], itemA); // 100
+      expect(result[3], itemC); // 50
+    });
+
+    test('sorts by last modified (folders first)', () {
+      final result = sortAndFilterQueue(
+        queue: queue,
+        searchQuery: '',
+        sortOption: SortOption.lastModified,
+        isFavoritesMode: false,
+        favorites: {},
+      );
+
+      expect(result[0], folder1);
+      expect(result[1], itemA); // -1 day
+      expect(result[2], itemB); // -2 days
+      expect(result[3], itemC); // -3 days
+    });
+
+    test('sorts by first modified (folders first)', () {
+      final result = sortAndFilterQueue(
+        queue: queue,
+        searchQuery: '',
+        sortOption: SortOption.firstModified,
+        isFavoritesMode: false,
+        favorites: {},
+      );
+
+      expect(result[0], folder1);
+      expect(result[1], itemC); // -3 days
+      expect(result[2], itemB); // -2 days
+      expect(result[3], itemA); // -1 day
+    });
+
     test('sorts by files first', () {
       final result = sortAndFilterQueue(
         queue: queue,

@@ -54,6 +54,10 @@ class SearchIntent extends Intent {
   const SearchIntent();
 }
 
+class FullscreenIntent extends Intent {
+  const FullscreenIntent();
+}
+
 class MarkdownPreviewWidget extends ConsumerStatefulWidget {
   const MarkdownPreviewWidget({
     required this.item,
@@ -115,14 +119,25 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
     const _SearchPosition(top: 100.0, right: 16.0),
   );
 
+  void _onWindowFocus() {
+    if (mounted) {
+      if (_isEditing) {
+        _focusNode.requestFocus();
+      } else {
+        _previewFocusNode.requestFocus();
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    if (widget.isStandalone && widget.windowId != null) {
+      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
+    }
     _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
     if (widget.windowId != null) {
-      windowManager.addListener(this);
-      windowManager.setPreventClose(true);
-      windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      // In standalone mode, window management is handled natively by PersistentViewerManager
     }
     _editorScrollController.addListener(_onEditorScroll);
     _scrollController.addListener(_onPreviewScroll);
@@ -201,6 +216,11 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
           _saveFile();
           return KeyEventResult.handled;
         }
+        // Fallback for raw keyboard events, though Shortcuts/Actions usually handles this better
+        if (!isCtrl && event.logicalKey == LogicalKeyboardKey.keyF && !_isEditing) {
+          _toggleFullscreen();
+          return KeyEventResult.handled;
+        }
       }
       return KeyEventResult.ignored;
     }
@@ -214,6 +234,23 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
           _focusNode.requestFocus();
         } else {
           _previewFocusNode.requestFocus();
+        }
+      }
+    });
+
+    // On Linux/GTK, newly spawned windows may take a moment to be mapped by the OS.
+    // A delayed focus request ensures the widget grabs focus after the window is fully active.
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      if (mounted) {
+        if (widget.isStandalone && widget.windowId != null) {
+          await PersistentViewerManager.presentWindow(int.parse(widget.windowId!));
+        }
+        if (mounted) {
+          if (_isEditing) {
+            _focusNode.requestFocus();
+          } else {
+            _previewFocusNode.requestFocus();
+          }
         }
       }
     });
@@ -390,6 +427,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
     }
     _hideTimer?.cancel();
     _debounceTimer?.cancel();
+    if (widget.isStandalone && widget.windowId != null) {
+      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).removeListener(_onWindowFocus);
+    }
     _focusNode.dispose();
     _previewFocusNode.dispose();
     _scrollController.dispose();
@@ -604,6 +644,29 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
     });
   }
 
+  bool _isStandaloneFullscreen = false; // It starts maximized, not fullscreen
+
+  Future<void> _toggleFullscreen() async {
+    if (widget.isStandalone && widget.windowId != null) {
+      final willBeFullScreen = !_isStandaloneFullscreen;
+      _isStandaloneFullscreen = willBeFullScreen;
+      await PersistentViewerManager.setFullScreen(int.parse(widget.windowId!), willBeFullScreen);
+      _onInteraction();
+      return;
+    }
+
+    final isFullScreen = await windowManager.isFullScreen();
+    final willBeFullScreen = !isFullScreen;
+
+    await windowManager.setFullScreen(willBeFullScreen);
+    if (willBeFullScreen) {
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+    } else {
+      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+    }
+    _onInteraction();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.windowId == null && !widget.isStandalone) {
@@ -649,6 +712,8 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
             const CloseIntent(),
         const SingleActivator(LogicalKeyboardKey.keyW, meta: true):
             const CloseIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyF): 
+            const FullscreenIntent(),
         const SingleActivator(LogicalKeyboardKey.escape): const CloseIntent(),
       },
       child: Actions(
@@ -687,6 +752,16 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
               setState(() => _isSearchVisible = true);
               return null;
             },
+          ),
+          FullscreenIntent: CallbackAction<FullscreenIntent>(
+            onInvoke: (intent) {
+              // In document viewer, 'F' should only toggle fullscreen when NOT editing
+              // otherwise it types 'f' or 'F'
+              if (!_isEditing) {
+                _toggleFullscreen();
+              }
+              return null;
+            }
           ),
           CloseIntent: CallbackAction<CloseIntent>(
             onInvoke: (intent) {

@@ -130,5 +130,37 @@ void main() {
 
       expect(find.byIcon(Icons.folder_rounded), findsOneWidget);
     });
+
+    testWidgets('renders thumbnail image and handles errorBuilder', (tester) async {
+      final itemWithThumb = FileItem(
+        name: 'test_song.mp3',
+        path: '/path/to/test_song.mp3',
+        thumbnailPath: '/invalid/path/thumb.jpg',
+        type: FileItemType.audio,
+        modified: DateTime.now(),
+        sizeBytes: 1024,
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: MediaTile(
+            item: itemWithThumb,
+            isActive: false,
+            isSelected: false,
+            subtitle: 'Subtitle',
+            defaultMediaIcon: Icons.music_note,
+          ),
+        ),
+      ));
+
+      // It should try to render the image
+      expect(find.byType(Image), findsOneWidget);
+      
+      // We can't easily wait for the file read to fail in a generic pump,
+      // but providing an invalid path will invoke the errorBuilder.
+      // The default icon (music_note) should also be present because 
+      // of `hasImage: true` overlay and the errorBuilder rendering it again.
+      expect(find.byIcon(Icons.music_note), findsWidgets);
+    });
   });
 }

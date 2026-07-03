@@ -15,7 +15,7 @@ import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
+// import removed
 import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
@@ -85,8 +85,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   DateTime? _lastNavTime;
   bool _isReadyForInteraction = false;
 
+  void _onWindowFocus() {
+    if (mounted) _focusNode.requestFocus();
+  }
+
   void initState() {
     super.initState();
+    if (widget.isStandalone && widget.windowId != null) {
+      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
+    }
     _zoomAnimationController =
         AnimationController(
           vsync: this,
@@ -100,11 +107,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
     _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
     if (widget.windowId != null) {
-      windowManager.addListener(this);
-      windowManager.setPreventClose(true);
-      // Ensure true fullscreen to hide OS bars
-      windowManager.setFullScreen(true);
-      windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      // In the new Multi-View architecture, we do NOT use window_manager for standalone windows
+      // because window_manager only controls the primary application window.
     }
     _loadMetadata();
     _updateIndexData();
@@ -123,6 +127,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         }
         _precacheAdjacentImages();
         _focusNode.requestFocus();
+        
+        // On Linux/GTK, newly spawned windows may take a moment to be mapped by the OS.
+        // A delayed focus request ensures the widget grabs focus after the window is fully active.
+        Future.delayed(const Duration(milliseconds: 300), () async {
+          if (mounted) {
+            if (widget.isStandalone && widget.windowId != null) {
+              await PersistentViewerManager.presentWindow(int.parse(widget.windowId!));
+            }
+            if (mounted) _focusNode.requestFocus();
+          }
+        });
+        
         if (!_firstFrameCompleter.isCompleted) {
           _firstFrameCompleter.complete();
         }
@@ -375,7 +391,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _startHideTimer();
   }
 
+  bool _isStandaloneFullscreen = false; // It starts maximized, not fullscreen
+
   Future<void> _toggleFullscreen() async {
+    if (widget.windowId != null) {
+      final willBeFullScreen = !_isStandaloneFullscreen;
+      _isStandaloneFullscreen = willBeFullScreen;
+      await PersistentViewerManager.setFullScreen(int.parse(widget.windowId!), willBeFullScreen);
+      _onInteraction();
+      return;
+    }
+
     final isFullScreen = await windowManager.isFullScreen();
     final willBeFullScreen = !isFullScreen;
 
@@ -391,36 +417,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   Future<void> _updateIndexData() async {
-    if (widget.windowId != null) {
-      if (widget.initParams != null &&
-          widget.initParams!['currentIndex'] != null) {
+    if (widget.windowId != null && widget.initParams != null && widget.initParams!['currentIndex'] != null) {
         if (mounted) {
           setState(() {
-            _indexString =
-                '${widget.initParams!['currentIndex']}/${widget.initParams!['totalCount']}';
+            _indexString = '${widget.initParams!['currentIndex']}/${widget.initParams!['totalCount']}';
           });
         }
-      } else {
-        try {
-          final payload = jsonEncode({
-            'currentPath': widget.item.path,
-            'type': 'image',
-          });
-          final response = await WindowController.fromWindowId(
-            widget.parentWindowId ?? '0',
-          ).invokeMethod('get_next_prev_media', payload);
-          if (response != null && response is String) {
-            final data = jsonDecode(response);
-            if (mounted && data['currentIndex'] != null) {
-              setState(() {
-                _indexString = '${data['currentIndex']}/${data['totalCount']}';
-              });
-            }
-          }
-        } catch (e) {
-          debugPrint('Error getting index from IPC: $e');
-        }
-      }
     } else {
       List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
       if (mediaItems.isEmpty) {
@@ -497,6 +499,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     }
     _hideTimer?.cancel();
     _zoomTimer?.cancel();
+    if (widget.isStandalone && widget.windowId != null) {
+      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).removeListener(_onWindowFocus);
+    }
     _focusNode.dispose();
     _transformationController.dispose();
     _zoomAnimationController.dispose();
@@ -580,27 +585,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     );
 
     try {
+      ref.read(previewFileProvider.notifier).state = null;
       await PersistentViewerManager.openMedia(windowParams);
-      if (mounted) {
-        ref.read(previewFileProvider.notifier).state = null;
-      }
     } catch (e) {
       debugPrint('Error opening persistent image viewer: $e');
     }
   }
 
   void _navigateMedia(bool forward) {
-    if (widget.windowId != null) {
-      final payload = jsonEncode({
-        'direction': forward ? 'next' : 'prev',
-        'currentPath': widget.item.path,
-        'type': 'image',
-        'targetWindowId': widget.windowId!,
-      });
-      WindowController.fromWindowId(
-        widget.parentWindowId ?? '0',
-      ).invokeMethod('request_navigation', payload);
-    } else {
+      // IPC removed, falling back to local state
       List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
       if (mediaItems.isEmpty) {
         final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
@@ -665,7 +658,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       }
 
       ref.read(previewFileProvider.notifier).state = mediaItems[nextIndex];
-    }
   }
 
   Future<void> _handleDelete({required bool permanent}) async {
@@ -686,33 +678,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     FileItem? nextItem;
     bool hasMultiple = false;
 
-    if (widget.windowId != null) {
-      try {
-        final payload = jsonEncode({
-          'currentPath': widget.item.path,
-          'type': 'image',
-        });
-        final response = await WindowController.fromWindowId(
-          widget.parentWindowId ?? '0',
-        ).invokeMethod('get_next_prev_media', payload);
-        if (response != null && response is String) {
-          final data = jsonDecode(response);
-          final String? nextPath = data['nextPath'] as String?;
-          if (nextPath != null && nextPath != widget.item.path) {
-            hasMultiple = true;
-            nextItem = FileItem(
-              name: (data['nextName'] as String?) ?? '',
-              path: nextPath,
-              type: FileItemType.image,
-              sizeBytes: 0,
-              modified: DateTime.now(),
-              hasWritePermission: true,
-            );
-          }
-        }
-      } catch (e) {
-        debugPrint('Error getting next media in standalone deletion: $e');
-      }
+    if (widget.isStandalone) {
+      // Handled natively or safely ignored
     } else {
       List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
       if (mediaItems.isEmpty) {
@@ -731,22 +698,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       }
     }
 
-    if (widget.windowId != null) {
-      final payload = jsonEncode({
-        'path': widget.item.path,
-        'permanent': permanent,
-      });
-
-      if (hasMultiple && nextItem != null) {
-        _navigateMedia(true);
-        // Delay slightly to let the navigate IPC execute first
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-      }
-
-      await WindowController.fromWindowId(
-        widget.parentWindowId ?? '0',
-      ).invokeMethod('delete_item', payload);
-
+    if (widget.isStandalone) {
       if (!hasMultiple) {
         await windowManager.hide();
       }
