@@ -603,6 +603,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     return {
       // General Navigation
       if (!isLocationEditing &&
+          !isSearchActive &&
           !isDownloadInputFocused &&
           !isPreviewActive) ...{
         const SingleActivator(LogicalKeyboardKey.backspace): _goBack,

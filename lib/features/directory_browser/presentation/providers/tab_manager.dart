@@ -302,8 +302,7 @@ final tabManagerProvider = NotifierProvider<TabManager, TabManagerState>(
 );
 
 final activeTabIdProvider = Provider<String>((ref) {
-  final state = ref.watch(tabManagerProvider);
-  return state.activeTab.id;
+  return ref.watch(tabManagerProvider.select((state) => state.activeTab.id));
 });
 
 final tabIdProvider = Provider<String>((ref) {

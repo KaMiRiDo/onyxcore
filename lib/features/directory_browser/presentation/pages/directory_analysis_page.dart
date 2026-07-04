@@ -65,13 +65,14 @@ class BrowserItem {
 final displayedItemsPageProvider = StateProvider.autoDispose.family<int, String>((ref, path) => 50);
 
 // Args for the heavy filter-only isolate step (no currentPath — that's cheap)
-class _FilterOnlyArgs {
+@visibleForTesting
+class FilterOnlyArgs {
   final List<FileStatWithInfo> allFiles;
   final Set<FileItemType> typeFilter;
   final Set<String> extFilter;
   final int? sizeFilter;
 
-  _FilterOnlyArgs({
+  FilterOnlyArgs({
     required this.allFiles,
     required this.typeFilter,
     required this.extFilter,
@@ -80,7 +81,8 @@ class _FilterOnlyArgs {
 }
 
 // Runs in isolate: only applies type/size/ext filters — no path grouping
-List<FileStatWithInfo> _computeFilterOnly(_FilterOnlyArgs args) {
+@visibleForTesting
+List<FileStatWithInfo> computeFilterOnly(FilterOnlyArgs args) {
   Iterable<FileStatWithInfo> files = args.allFiles;
 
   if (args.sizeFilter != null) {
@@ -101,7 +103,8 @@ List<FileStatWithInfo> _computeFilterOnly(_FilterOnlyArgs args) {
 }
 
 // Fast dirname using pure string ops (avoids p.dirname overhead for 500K+ calls)
-String _fastDirname(String path) {
+@visibleForTesting
+String fastDirname(String path) {
   final idx = path.lastIndexOf('/');
   if (idx < 0) return '.';
   if (idx == 0) return '/';
@@ -111,13 +114,14 @@ String _fastDirname(String path) {
 // Groups pre-filtered files by current path using fast string prefix matching.
 // Replaces p.isWithin / p.relative / p.split / p.join with simple indexOf/substring
 // — gives 5-10x speedup for large filtered sets.
-List<BrowserItem> _groupByCurrentPath(List<FileStatWithInfo> filteredFiles, String currentPath) {
+@visibleForTesting
+List<BrowserItem> groupByCurrentPath(List<FileStatWithInfo> filteredFiles, String currentPath) {
   // Build prefix once — avoids repeated string concatenation in the loop
   final prefix = currentPath.endsWith('/') ? currentPath : '$currentPath/';
   final items = <String, BrowserItem>{};
 
   for (final f in filteredFiles) {
-    final dir = _fastDirname(f.path);
+    final dir = fastDirname(f.path);
     if (dir == currentPath) {
       // Direct child file in current directory
       items[f.path] = BrowserItem(
@@ -161,14 +165,16 @@ List<BrowserItem> _groupByCurrentPath(List<FileStatWithInfo> filteredFiles, Stri
 }
 
 // Args for compute()-based grouping
-class _GroupArgs {
+@visibleForTesting
+class GroupArgs {
   final List<FileStatWithInfo> filteredFiles;
   final String currentPath;
-  _GroupArgs(this.filteredFiles, this.currentPath);
+  GroupArgs(this.filteredFiles, this.currentPath);
 }
 
-List<BrowserItem> _computeGroupByPath(_GroupArgs args) =>
-    _groupByCurrentPath(args.filteredFiles, args.currentPath);
+@visibleForTesting
+List<BrowserItem> computeGroupByPath(GroupArgs args) =>
+    groupByCurrentPath(args.filteredFiles, args.currentPath);
 
 /// Layer 1 — Heavy: filters all files in a background isolate via compute().
 /// Only re-runs when the raw file list OR filter settings change.
@@ -180,7 +186,7 @@ final filteredFilesProvider = FutureProvider.family<List<FileStatWithInfo>, Stri
   final extFilter = ref.watch(extensionFilterProvider);
   final sizeFilter = ref.watch(sizeFilterProvider);
 
-  return compute(_computeFilterOnly, _FilterOnlyArgs(
+  return compute(computeFilterOnly, FilterOnlyArgs(
     allFiles: analysis.allFiles,
     typeFilter: typeFilter,
     extFilter: extFilter,
@@ -197,9 +203,9 @@ final displayedItemsProvider = FutureProvider.family<List<BrowserItem>, String>(
 
   // Offload to isolate for large sets; inline for small sets (avoids isolate spawn overhead)
   if (filteredFiles.length < 500) {
-    return _groupByCurrentPath(filteredFiles, currentPath);
+    return groupByCurrentPath(filteredFiles, currentPath);
   }
-  return compute(_computeGroupByPath, _GroupArgs(filteredFiles, currentPath));
+  return compute(computeGroupByPath, GroupArgs(filteredFiles, currentPath));
 });
 
 class DirectoryAnalysisPage extends ConsumerWidget {

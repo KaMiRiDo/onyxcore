@@ -261,11 +261,13 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
-                                      'Apply this for all files/folders',
-                                      style: GoogleFonts.manrope(
-                                        color: Colors.white70,
-                                        fontSize: 13,
+                                    Expanded(
+                                      child: Text(
+                                        'Apply this for all files/folders',
+                                        style: GoogleFonts.manrope(
+                                          color: Colors.white70,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ),
                                   ],

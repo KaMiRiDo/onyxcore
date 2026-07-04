@@ -112,7 +112,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
     // Handle initial section scrolling
     if (widget.initialSection != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (!mounted) return;
         final tabName = widget.initialTab == 0
             ? 'General'
             : (widget.initialTab == 1
@@ -139,6 +140,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   }
 
   Future<void> _loadBrowsers() async {
+    // Wait for the dialog transition animation to finish before starting processes
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+    
     final installed = await BrowserDetector.getInstalledBrowsers();
     final defaultB = await BrowserDetector.getDefaultBrowser();
     if (mounted) {
@@ -254,10 +259,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                   child: TabBarView(
                                     controller: _tabController,
                                     children: [
-                                      _buildGeneralTab(_draftSettings!),
-                                      _buildViewersTab(),
-                                      _buildSecurityTab(),
-                                      _buildShortcutsTab(),
+                                      Builder(builder: (_) => _buildGeneralTab(_draftSettings!)),
+                                      Builder(builder: (_) => _buildViewersTab()),
+                                      Builder(builder: (_) => _buildSecurityTab()),
+                                      Builder(builder: (_) => _buildShortcutsTab()),
                                     ],
                                   ),
                                 ),

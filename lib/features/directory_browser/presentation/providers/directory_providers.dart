@@ -137,6 +137,12 @@ class IsSearchActiveNotifier extends Notifier<bool> {
 
   void set(bool value) {
     final tabId = ref.read(tabIdProvider);
+    final current = ref.read(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive,
+      ),
+    );
+    if (current == value) return;
     ref.read(tabManagerProvider.notifier).setSearchActive(tabId, value);
   }
 
@@ -169,6 +175,12 @@ class IsAnalysisActiveNotifier extends Notifier<bool> {
 
   void set(bool value) {
     final tabId = ref.read(tabIdProvider);
+    final current = ref.read(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive,
+      ),
+    );
+    if (current == value) return;
     ref.read(tabManagerProvider.notifier).setAnalysisActive(tabId, value);
   }
 
@@ -202,6 +214,12 @@ class IsLocationEditingNotifier extends Notifier<bool> {
 
   void set(bool value) {
     final tabId = ref.read(tabIdProvider);
+    final current = ref.read(
+      tabManagerProvider.select(
+        (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing,
+      ),
+    );
+    if (current == value) return;
     ref.read(tabManagerProvider.notifier).setLocationEditing(tabId, value);
   }
 
