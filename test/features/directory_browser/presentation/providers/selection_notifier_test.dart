@@ -23,7 +23,7 @@ void main() {
 
     setUp(() {
       final mockSettings = MockSettingsRepository();
-      when(() => mockSettings.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
+
       container = ProviderContainer(
         overrides: [
           settingsRepositoryProvider.overrideWithValue(mockSettings),

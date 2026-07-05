@@ -58,11 +58,11 @@ abstract class SettingsRepository {
 
   // ——— Gallery Sorting ———
 
-  /// Get the sort key for a specific folder path.
-  SortOption getFolderSort(String path, SortOption globalDefault);
-
   /// Set the sort key for a specific folder path.
   Future<void> setFolderSort(String path, SortOption option);
+
+  /// Remove sort keys for specific folder paths and their subdirectories.
+  Future<void> removeFolderSorts(List<String> paths);
 
   // ——— Gallery Pinning ———
 

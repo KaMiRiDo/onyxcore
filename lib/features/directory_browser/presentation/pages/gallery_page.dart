@@ -1291,6 +1291,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       ref.read(taskProvider.notifier).completeTask(taskId);
       ref.read(selectionProvider.notifier).deselectAll();
       ref.read(directoryItemsProvider.notifier).refresh();
+      ref.read(settingsProvider.notifier).cleanupFolderSorts(paths);
     } catch (e) {
       debugPrint('Delete error: $e');
     }

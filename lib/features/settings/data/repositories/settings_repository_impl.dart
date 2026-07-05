@@ -292,17 +292,12 @@ class SettingsRepositoryImpl implements SettingsRepository {
   // ——— Gallery Sorting ———
 
   @override
-  SortOption getFolderSort(String path, SortOption globalDefault) {
-    // Note: This synchronous method is called from UI code.
-    // The gallery sort settings are loaded into gallerySortSettings in AppSettings.
-    // Direct DB access should use setFolderSort + re-load pattern.
-    // For synchronous access, callers should use AppSettings.gallerySortSettings.
-    return globalDefault;
-  }
-
-  @override
   Future<void> setFolderSort(String path, SortOption option) =>
       _db.setFolderSort(path, option.name);
+
+  @override
+  Future<void> removeFolderSorts(List<String> paths) =>
+      _db.removeFolderSorts(paths);
 
   // ——— Gallery Pinning ———
 

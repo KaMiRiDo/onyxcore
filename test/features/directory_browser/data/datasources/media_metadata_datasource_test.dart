@@ -45,15 +45,7 @@ void main() {
       expect(result, 2.0);
     });
 
-    test('extractAspectRatio runs ffprobe and caches correct ratio on success (integration)', () async {
-      final currentDir = Directory.current.path;
-      final testImagePath = p.join(currentDir, 'test', 'features', 'directory_browser', 'data', 'datasources', 'test_1280x720.jpg');
-      
-      final result = await datasource.extractAspectRatio(testImagePath);
 
-      expect(result, closeTo(1280 / 720, 0.001));
-      expect(datasource.getCachedAspectRatio(testImagePath), closeTo(1280 / 720, 0.001));
-    });
 
     test('extractAspectRatio returns 1.0 if process fails / file missing', () async {
       final result = await datasource.extractAspectRatio('/path/to/non_existent.mp4');

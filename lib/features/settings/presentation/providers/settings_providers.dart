@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:onyxcore/core/cache/metadata_cache.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/domain/repositories/settings_repository.dart';
@@ -117,6 +118,39 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
   Future<void> setDownloadToCurrentFolder({required bool value}) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.setDownloadToCurrentFolder(value: value);
+  }
+
+  Future<void> setFolderSort(String path, SortOption option) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setFolderSort(path, option);
+    
+    // Update local state since watchAllSettings only covers the generic Settings table.
+    if (state.hasValue && state.value != null) {
+      final newSorts = Map<String, String>.from(state.value!.gallerySortSettings);
+      newSorts[path] = option.name;
+      state = AsyncValue.data(state.value!.copyWith(gallerySortSettings: newSorts));
+    }
+  }
+
+  Future<void> cleanupFolderSorts(List<String> paths) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.removeFolderSorts(paths);
+
+    // Update local state by removing matching paths
+    if (state.hasValue && state.value != null) {
+      final newSorts = Map<String, String>.from(state.value!.gallerySortSettings);
+      bool changed = false;
+      for (final path in paths) {
+        final toRemove = newSorts.keys.where((k) => k == path || k.startsWith('$path/')).toList();
+        for (final k in toRemove) {
+          newSorts.remove(k);
+          changed = true;
+        }
+      }
+      if (changed) {
+        state = AsyncValue.data(state.value!.copyWith(gallerySortSettings: newSorts));
+      }
+    }
   }
 
   Future<void> saveSettings(AppSettings settings) async {

@@ -32,6 +32,19 @@ class TabManager extends Notifier<TabManagerState> {
   @override
   TabManagerState build() {
     final home = Platform.environment['HOME'] ?? '/';
+
+    ref.listen(settingsProvider, (previous, next) {
+      if (previous?.hasValue != true && next.hasValue && next.value != null) {
+        final currentTabs = state.tabs;
+        final newTabs = currentTabs.map((tab) {
+          return tab.copyWith(
+            sortSettings: SortSettings(option: _getFolderSort(tab.currentPath)),
+          );
+        }).toList();
+        state = state.copyWith(tabs: newTabs);
+      }
+    });
+
     return TabManagerState(
       tabs: [
         TabState(
@@ -40,12 +53,7 @@ class TabManager extends Notifier<TabManagerState> {
           history: [home],
           historyIndex: 0,
           sortSettings: SortSettings(
-            option: ref
-                .read(settingsRepositoryProvider)
-                .getFolderSort(
-                  home,
-                  SortOption.aToZ, // Fallback during initial build
-                ),
+            option: _getFolderSort(home),
           ),
         ),
       ],
@@ -53,13 +61,26 @@ class TabManager extends Notifier<TabManagerState> {
     );
   }
 
+  SortOption _getFolderSort(String path) {
+    final settingsState = ref.read(settingsProvider).value;
+    final globalSort = settingsState?.globalSortOption ?? SortOption.aToZ;
+    
+    if (settingsState != null) {
+      final savedSortStr = settingsState.gallerySortSettings[path];
+      if (savedSortStr != null) {
+        return SortOption.values.firstWhere(
+          (e) => e.name == savedSortStr,
+          orElse: () => globalSort,
+        );
+      }
+    }
+    return globalSort;
+  }
+
   void addTab({String? path, List<String>? history, int? historyIndex}) {
     final home = Platform.environment['HOME'] ?? '/';
     final newPath = path ?? home;
-    final settingsRepo = ref.read(settingsRepositoryProvider);
-    final globalSort =
-        ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
-    final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
+    final folderSort = _getFolderSort(newPath);
 
     final newTab = TabState(
       id: const Uuid().v4(),
@@ -133,10 +154,7 @@ class TabManager extends Notifier<TabManagerState> {
     historyIndex = history.length - 1;
 
     // Load folder-specific sort settings
-    final settingsRepo = ref.read(settingsRepositoryProvider);
-    final globalSort =
-        ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
-    final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
+    final folderSort = _getFolderSort(newPath);
 
     final updatedTab = tab.copyWith(
       currentPath: newPath,
@@ -162,10 +180,7 @@ class TabManager extends Notifier<TabManagerState> {
 
     final newPath = tab.history[tab.historyIndex - 1];
 
-    final settingsRepo = ref.read(settingsRepositoryProvider);
-    final globalSort =
-        ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
-    final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
+    final folderSort = _getFolderSort(newPath);
 
     final updatedTab = tab.copyWith(
       historyIndex: tab.historyIndex - 1,
@@ -187,10 +202,7 @@ class TabManager extends Notifier<TabManagerState> {
 
     final newPath = tab.history[tab.historyIndex + 1];
 
-    final settingsRepo = ref.read(settingsRepositoryProvider);
-    final globalSort =
-        ref.read(settingsProvider).value?.globalSortOption ?? SortOption.aToZ;
-    final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
+    final folderSort = _getFolderSort(newPath);
 
     final updatedTab = tab.copyWith(
       historyIndex: tab.historyIndex + 1,
@@ -281,11 +293,7 @@ class TabManager extends Notifier<TabManagerState> {
     state = state.copyWith(tabs: newTabs);
 
     // Persist folder-specific sort
-    final settingsRepo = ref.read(settingsRepositoryProvider);
-    settingsRepo.setFolderSort(tab.currentPath, sort.option);
-
-    // Also notify settings provider that something changed (if needed)
-    // ref.invalidate(settingsProvider); // Optional
+    ref.read(settingsProvider.notifier).setFolderSort(tab.currentPath, sort.option);
   }
 
   void updateFilterSettings(String tabId, FilterSettings filter) {

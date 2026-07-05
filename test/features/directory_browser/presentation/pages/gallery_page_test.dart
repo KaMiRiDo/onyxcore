@@ -84,7 +84,7 @@ Widget createWidgetUnderTest(
 }) {
   final mockSettingsRepository = mockSettingsRepo ?? MockSettingsRepository();
   when(mockSettingsRepository.load).thenAnswer((_) async => AppSettings());
-  when(() => mockSettingsRepository.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
+
   when(() => mockSettingsRepository.setFolderSort(any(), any())).thenAnswer((_) async {});
 
   final mockDirectoryRepository = mockDirRepo ?? MockDirectoryRepository();
@@ -353,7 +353,7 @@ void main() {
 
       final mockSettingsRepository = MockSettingsRepository();
       when(mockSettingsRepository.load).thenAnswer((_) async => AppSettings());
-      when(() => mockSettingsRepository.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
+
       when(() => mockSettingsRepository.setFolderSort(any(), any())).thenAnswer((_) async {});
 
       final mockDirectoryRepository = MockDirectoryRepository();
@@ -417,7 +417,7 @@ void main() {
 
       final mockSettingsRepository = MockSettingsRepository();
       when(mockSettingsRepository.load).thenAnswer((_) async => AppSettings());
-      when(() => mockSettingsRepository.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
+
       when(() => mockSettingsRepository.setFolderSort(any(), any())).thenAnswer((_) async {});
 
       final mockDirectoryRepository = MockDirectoryRepository();
@@ -869,7 +869,7 @@ void main() {
       
       final mockSettingsRepository = MockSettingsRepository();
       when(mockSettingsRepository.load).thenAnswer((_) async => AppSettings());
-      when(() => mockSettingsRepository.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
+
       when(() => mockSettingsRepository.setFolderSort(any(), any())).thenAnswer((_) async {});
 
       final mockDirectoryRepository = MockDirectoryRepository();
@@ -915,7 +915,7 @@ void main() {
 
       final mockSettingsRepository = MockSettingsRepository();
       when(mockSettingsRepository.load).thenAnswer((_) async => AppSettings());
-      when(() => mockSettingsRepository.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
+
 
       final mockMediaMetadataDatasource = MockMediaMetadataDatasource();
       when(() => mockMediaMetadataDatasource.extractAspectRatio(any())).thenAnswer((_) async => null);
@@ -951,7 +951,7 @@ void main() {
 
       final mockSettingsRepository = MockSettingsRepository();
       when(mockSettingsRepository.load).thenAnswer((_) async => AppSettings());
-      when(() => mockSettingsRepository.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
+
 
       final mockMediaMetadataDatasource = MockMediaMetadataDatasource();
       when(() => mockMediaMetadataDatasource.extractAspectRatio(any())).thenAnswer((_) async => null);
@@ -1114,7 +1114,7 @@ void main() {
 
       final mockSettingsRepository = MockSettingsRepository();
       when(mockSettingsRepository.load).thenAnswer((_) async => AppSettings());
-      when(() => mockSettingsRepository.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
+
       when(() => mockSettingsRepository.setFolderSort(any(), any())).thenAnswer((_) async {});
 
       final mockMediaMetadataDatasource = MockMediaMetadataDatasource();

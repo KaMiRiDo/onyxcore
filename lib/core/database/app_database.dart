@@ -405,6 +405,17 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> removeFolderSorts(List<String> folderPaths) async {
+    await transaction(() async {
+      for (final path in folderPaths) {
+        await (delete(folderSortPreferences)
+              ..where((t) =>
+                  t.folderPath.equals(path) | t.folderPath.like('$path/%')))
+            .go();
+      }
+    });
+  }
+
   // ── MarkerRecents helpers ─────────────────────────────────────────────────
 
   Future<List<String>> getMarkerRecents() async {

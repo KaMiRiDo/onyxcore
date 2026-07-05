@@ -71,9 +71,7 @@ void main() {
       when(
         () => mockSettingsRepository.load(),
       ).thenAnswer((_) async => AppSettings());
-      when(
-        () => mockSettingsRepository.getFolderSort(any(), any()),
-      ).thenReturn(SortOption.aToZ);
+
       when(
         () => mockSettingsRepository.setFolderSort(any(), any()),
       ).thenAnswer((_) async {});
