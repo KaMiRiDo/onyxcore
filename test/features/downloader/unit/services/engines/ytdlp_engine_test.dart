@@ -1,10 +1,9 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
 import 'package:path/path.dart' as p;
 
 class MockProcess extends Fake implements Process {
@@ -13,8 +12,8 @@ class MockProcess extends Fake implements Process {
 }
 
 class TestYtDlpEngine extends YtDlpEngine {
-  final String testPath;
   TestYtDlpEngine(this.testPath);
+  final String testPath;
 
   @override
   String? get binaryPath => testPath;
@@ -115,7 +114,7 @@ exit $exitCode
       
       test('U-DL-YTD-05: Extract proxy configs from browser strings', () async {
         // Just checking that args parsing doesn't fail
-        setMockOutput(jsonEncode({"id": "1", "title": "test"}));
+        setMockOutput(jsonEncode({'id': '1', 'title': 'test'}));
         final infos = await engine.fetchMetadata(
           url: 'http://test.com',
           browser: 'Firefox', // Pass Firefox
@@ -127,11 +126,11 @@ exit $exitCode
     group('3. Output Parsing & Errors', () {
       test('U-DL-YTD-06: Construct single MediaInfo from JSON', () async {
         setMockOutput(jsonEncode({
-          "id": "123",
-          "title": "Single Video",
-          "extractor": "youtube",
-          "formats": [
-            {"format_id": "137", "ext": "mp4"}
+          'id': '123',
+          'title': 'Single Video',
+          'extractor': 'youtube',
+          'formats': [
+            {'format_id': '137', 'ext': 'mp4'}
           ]
         }));
         
@@ -143,8 +142,8 @@ exit $exitCode
 
       test('U-DL-YTD-07: Construct multiple MediaInfo from ndjson', () async {
         final ndjson = [
-          jsonEncode({"id": "1", "title": "Vid 1"}),
-          jsonEncode({"id": "2", "title": "Vid 2"})
+          jsonEncode({'id': '1', 'title': 'Vid 1'}),
+          jsonEncode({'id': '2', 'title': 'Vid 2'})
         ].join('\n');
         
         setMockOutput(ndjson);

@@ -1,15 +1,17 @@
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/drift.dart' hide Column;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:io';
-import 'dart:ui';
-import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_components.dart';
 
 import 'mock_providers.dart';
 
@@ -27,35 +29,38 @@ void main() {
 
   group('Downloads Panel Preview & Results View Tests', () {
     late ProviderContainer container;
+    late AppDatabase appDb;
 
     setUpAll(() {
       TestWidgetsFlutterBinding.ensureInitialized();
-      final window = TestWidgetsFlutterBinding.instance.window;
-      window.physicalSizeTestValue = const Size(1600, 1000);
-      window.devicePixelRatioTestValue = 1.0;
-      // Removed MockBinaryHelper
+      final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+      view.physicalSize = const Size(1600, 1000);
+      view.devicePixelRatio = 1.0;
     });
 
     tearDownAll(() {
-      final window = TestWidgetsFlutterBinding.instance.window;
-      window.clearPhysicalSizeTestValue();
-      window.clearDevicePixelRatioTestValue();
+      final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+      view.resetPhysicalSize();
+      view.resetDevicePixelRatio();
     });
 
     setUp(() {
       EngineRegistry.clearAllEnginesForTesting();
       EngineRegistry.register(MockYtDlpEngine());
+      appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
       container = ProviderContainer(
         overrides: [
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
-          currentPathProvider.overrideWith(() => MockCurrentPathNotifier()),
-          downloadTaskProvider.overrideWith(() => MockDownloadTaskNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+          currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
+          downloadTaskProvider.overrideWith(MockDownloadTaskNotifier.new),
+          databaseProvider.overrideWithValue(appDb),
         ],
       );
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
+      // await appDb.close();
     });
 
     testWidgets('W-DL-PRE-01: Open single preview overlay and close it', (tester) async {
@@ -80,7 +85,7 @@ void main() {
       await tester.tap(fetchButton);
       await tester.pump();
 
-      for (int i = 0; i < 5; i++) {
+      for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -135,7 +140,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.widgetWithText(ElevatedButton, 'Fetch'));
       
-      int pumpCount = 0;
+      var pumpCount = 0;
       while (find.byIcon(Icons.broken_image).evaluate().isEmpty && pumpCount < 50) {
         await tester.pump(const Duration(milliseconds: 100));
         pumpCount++;
@@ -177,7 +182,7 @@ void main() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Fetch'));
       
       // Wait for fetch to complete and tile to appear
-      int pumpCount = 0;
+      var pumpCount = 0;
       while (find.byIcon(Icons.broken_image).evaluate().isEmpty && pumpCount < 50) {
         await tester.pump(const Duration(milliseconds: 100));
         pumpCount++;
@@ -225,7 +230,7 @@ void main() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Fetch'));
       
       // Wait for fetch to complete and tile to appear
-      int pumpCount = 0;
+      var pumpCount = 0;
       while (find.byIcon(Icons.broken_image).evaluate().isEmpty && pumpCount < 50) {
         await tester.pump(const Duration(milliseconds: 100));
         pumpCount++;

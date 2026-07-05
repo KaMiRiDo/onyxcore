@@ -1,9 +1,9 @@
 
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/waveform_scrubber.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/waveform_scrubber.dart';
 
 void main() {
   group('WaveformPainter Unit Tests', () {
@@ -85,7 +85,7 @@ void main() {
       expect(customPaintFinder, findsOneWidget);
       
       final customPaint = tester.widget<CustomPaint>(customPaintFinder);
-      final painter = customPaint.painter as WaveformPainter;
+      final painter = customPaint.painter! as WaveformPainter;
       
       expect(painter.progress, 0.0);
     });
@@ -100,7 +100,7 @@ void main() {
 
       final customPaintFinder = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is WaveformPainter);
       final customPaint = tester.widget<CustomPaint>(customPaintFinder);
-      final painter = customPaint.painter as WaveformPainter;
+      final painter = customPaint.painter! as WaveformPainter;
       
       expect(painter.barCount, 50);
     });
@@ -140,7 +140,7 @@ void main() {
 
       final customPaintFinder = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is WaveformPainter);
       final customPaint = tester.widget<CustomPaint>(customPaintFinder);
-      final painter = customPaint.painter as WaveformPainter;
+      final painter = customPaint.painter! as WaveformPainter;
       
       expect(painter.seed, 'test.mp3'.hashCode);
     });
@@ -169,7 +169,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Perform a tap down
-      final RenderBox box = tester.renderObject(customPaintFinder);
+      final box = tester.renderObject(customPaintFinder) as RenderBox;
       await tester.tapAt(box.localToGlobal(const Offset(50, 10)));
       await tester.pumpAndSettle();
 

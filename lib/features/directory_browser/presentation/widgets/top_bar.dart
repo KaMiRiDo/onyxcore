@@ -1018,10 +1018,7 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: _buildGradientText(
           widget.name,
-          style: GoogleFonts.manrope(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
+          style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -1098,10 +1095,6 @@ Widget _buildGradientText(String text, {required TextStyle style}) {
 Widget _buildGradientIcon(IconData icon, {double size = 18}) {
   return ShaderMask(
     shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-    child: Icon(
-      icon,
-      size: size,
-      color: Colors.white,
-    ),
+    child: Icon(icon, size: size, color: Colors.white),
   );
 }

@@ -1,22 +1,24 @@
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/drift.dart' hide Column;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 
 import '../mock_providers.dart';
 
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  setUpAll(() {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    // Removed MockBinaryHelper
-  });
+  setUpAll(TestWidgetsFlutterBinding.ensureInitialized);
 
   tearDownAll(() {
     // Removed MockBinaryHelper
@@ -34,17 +36,25 @@ void main() {
   }
 
   group('DownloadsPanelResultsView Tests', () {
+    late AppDatabase appDb;
+
     setUp(() {
       EngineRegistry.clearAllEnginesForTesting();
       EngineRegistry.register(MockYtDlpEngine());
+      appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+    });
+
+    tearDown(() async {
+      // await appDb.close();
     });
 
     testWidgets('Renders empty state initially, checking Import / Export buttons', (tester) async {
       final container = ProviderContainer(
         overrides: [
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
-          currentPathProvider.overrideWith(() => MockCurrentPathNotifier()),
-          downloadTaskProvider.overrideWith(() => MockDownloadTaskNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+          currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
+          downloadTaskProvider.overrideWith(MockDownloadTaskNotifier.new),
+          databaseProvider.overrideWithValue(appDb),
         ],
       );
       addTearDown(container.dispose);
@@ -64,9 +74,10 @@ void main() {
     testWidgets('Renders results view and sort dropdown after fetching items', (tester) async {
       final container = ProviderContainer(
         overrides: [
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
-          currentPathProvider.overrideWith(() => MockCurrentPathNotifier()),
-          downloadTaskProvider.overrideWith(() => MockDownloadTaskNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+          currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
+          downloadTaskProvider.overrideWith(MockDownloadTaskNotifier.new),
+          databaseProvider.overrideWithValue(appDb),
         ],
       );
       addTearDown(container.dispose);
@@ -82,7 +93,7 @@ void main() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Fetch'));
       
       // Wait for fetch to complete instead of pumpAndSettle
-      int pumpCount = 0;
+      var pumpCount = 0;
       while (find.byIcon(Icons.broken_image).evaluate().isEmpty && pumpCount < 50) {
         await tester.pump(const Duration(milliseconds: 100));
         pumpCount++;

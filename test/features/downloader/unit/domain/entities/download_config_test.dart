@@ -73,7 +73,7 @@ void main() {
       });
 
       test('U-DL-CFG-06: initializes itemFormats to empty map when null', () {
-        final config = DownloadConfig(itemFormats: null);
+        final config = DownloadConfig();
         expect(config.itemFormats, isNotNull);
         expect(config.itemFormats, isEmpty);
       });

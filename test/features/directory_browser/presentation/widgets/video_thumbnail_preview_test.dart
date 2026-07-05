@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/video_thumbnail_preview.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/video_thumbnail_preview.dart';
 
 void main() {
   testWidgets('VideoThumbnailPreview handles unplayable video gracefully', (tester) async {
@@ -18,7 +18,7 @@ void main() {
         home: Scaffold(
           body: VideoThumbnailPreview(
             item: item,
-            zoom: 1.0,
+            zoom: 1,
           ),
         ),
       ),

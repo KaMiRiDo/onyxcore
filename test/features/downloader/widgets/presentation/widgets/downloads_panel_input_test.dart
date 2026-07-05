@@ -1,15 +1,19 @@
-import 'dart:io';
-import 'package:path/path.dart' as p;
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/drift.dart' hide Column;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+
 import 'mock_providers.dart';
 
 void main() {
@@ -17,9 +21,9 @@ void main() {
 
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
-    final window = TestWidgetsFlutterBinding.instance.window;
-    window.physicalSizeTestValue = const Size(1600, 1000);
-    window.devicePixelRatioTestValue = 1.0;
+    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    view.physicalSize = const Size(1600, 1000);
+    view.devicePixelRatio = 1.0;
 
     // Removed MockBinaryHelper
 
@@ -32,9 +36,9 @@ void main() {
   });
 
   tearDownAll(() {
-    final window = TestWidgetsFlutterBinding.instance.window;
-    window.clearPhysicalSizeTestValue();
-    window.clearDevicePixelRatioTestValue();
+    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    view.resetPhysicalSize();
+    view.resetDevicePixelRatio();
   });
 
   Widget createPanelTestWidget(ProviderContainer container) {
@@ -54,21 +58,25 @@ void main() {
 
   group('Downloads Panel Input Widgets Tests', () {
     late ProviderContainer container;
+    late AppDatabase appDb;
 
     setUp(() {
       EngineRegistry.clearAllEnginesForTesting();
       EngineRegistry.register(MockYtDlpEngine());
+      appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
       container = ProviderContainer(
         overrides: [
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
-          currentPathProvider.overrideWith(() => MockCurrentPathNotifier()),
-          downloadTaskProvider.overrideWith(() => MockDownloadTaskNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+          currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
+          downloadTaskProvider.overrideWith(MockDownloadTaskNotifier.new),
+          databaseProvider.overrideWithValue(appDb),
         ],
       );
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
+      // await appDb.close();
     });
 
     testWidgets('W-DL-PNL-06: Trigger URL analysis on Submit (Ctrl+Enter)', (tester) async {
@@ -210,7 +218,7 @@ void main() {
       await tester.pump();
 
       // The selection should encompass the entire text
-      final TextField widget = tester.widget(textField);
+      final widget = tester.widget<TextField>(textField);
       expect(widget.controller?.selection.baseOffset, 0);
       expect(widget.controller?.selection.extentOffset, widget.controller?.text.length);
     });
@@ -223,7 +231,7 @@ void main() {
       await tester.enterText(urlField, 'https://example.com');
       await tester.pump();
       await tester.tap(find.text('Fetch'));
-      for (int i = 0; i < 10; i++) {
+      for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 

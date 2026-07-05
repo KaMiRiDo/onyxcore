@@ -1,25 +1,36 @@
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/unified_side_panel.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/unified_side_panel.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 
 class MockDownloadsPanelWidthNotifier extends DownloadsPanelWidthNotifier {
   @override
-  double build() => 300.0;
+  Future<double> build() async => 300.0;
 }
 
 void main() {
+  late AppDatabase db;
+  setUp(() {
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+  tearDown(() async {
+    await db.close();
+  });
   Future<void> pumpTestWidget(WidgetTester tester, Widget widget) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(widget);
-    for (int i = 0; i < 5; i++) {
+    for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
@@ -29,7 +40,8 @@ void main() {
       tester,
       ProviderScope(
         overrides: [
-          downloadsPanelWidthProvider.overrideWith(() => MockDownloadsPanelWidthNotifier()),
+          downloadsPanelWidthProvider.overrideWith(MockDownloadsPanelWidthNotifier.new),
+          databaseProvider.overrideWithValue(db),
           downloadsPanelOpenProvider.overrideWith((ref) => true),
           backgroundPanelOpenProvider.overrideWith((ref) => false),
         ],
@@ -62,7 +74,8 @@ void main() {
       tester,
       ProviderScope(
         overrides: [
-          downloadsPanelWidthProvider.overrideWith(() => MockDownloadsPanelWidthNotifier()),
+          downloadsPanelWidthProvider.overrideWith(MockDownloadsPanelWidthNotifier.new),
+          databaseProvider.overrideWithValue(db),
           downloadsPanelOpenProvider.overrideWith((ref) => false),
           backgroundPanelOpenProvider.overrideWith((ref) => true),
         ],

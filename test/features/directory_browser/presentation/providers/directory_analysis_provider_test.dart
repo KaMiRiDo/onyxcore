@@ -1,9 +1,10 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:flutter/material.dart';
 import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 
 void main() {
   group('DirectoryAnalysisProvider Tests', () {

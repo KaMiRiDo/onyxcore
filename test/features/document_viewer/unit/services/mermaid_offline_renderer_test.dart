@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/document_viewer/services/mermaid_offline_renderer.dart';
@@ -22,7 +21,7 @@ flowchart TD
     A([Start Day]) --> B{Sleepy?}
     ''';
     
-    final result = await MermaidOfflineRenderer.renderToPng(code, isDarkMode: true);
+    final result = await MermaidOfflineRenderer.renderToPng(code);
     
     expect(result, isNotNull);
     expect(result!.isNotEmpty, isTrue);

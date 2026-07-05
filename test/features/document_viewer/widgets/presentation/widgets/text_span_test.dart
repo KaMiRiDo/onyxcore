@@ -6,7 +6,7 @@ void main() {
   testWidgets('buildTextSpan preserves all characters exactly', (WidgetTester tester) async {
     final highlighter = MarkdownSyntaxHighlighter();
     
-    final text = '''
+    const text = '''
 ---
 title: Welcome to Markdown Viewer
 ---
@@ -35,14 +35,14 @@ function renderMarkdown() {
       
       final reconstructed = span.toPlainText();
       
-      print('Original length: \${text.length}');
-      print('Reconstructed length: \${reconstructed.length}');
+      print(r'Original length: ${text.length}');
+      print(r'Reconstructed length: ${reconstructed.length}');
       
       if (text != reconstructed) {
         print('MISMATCH!');
-        for (int i = 0; i < text.length && i < reconstructed.length; i++) {
+        for (var i = 0; i < text.length && i < reconstructed.length; i++) {
           if (text[i] != reconstructed[i]) {
-            print('First mismatch at index \$i: expected "\${text[i]}" got "\${reconstructed[i]}"');
+            print(r'First mismatch at index $i: expected "${text[i]}" got "${reconstructed[i]}"');
             break;
           }
         }

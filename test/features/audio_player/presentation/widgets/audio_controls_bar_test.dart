@@ -1,24 +1,33 @@
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/audio_controls_bar.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/audio_controls_bar.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'dart:io';
-import 'package:hive/hive.dart';
 
 void main() {
+  late AppDatabase db;
   setUpAll(() {
-    final tempDir = Directory.systemTemp.createTempSync();
-    Hive.init(tempDir.path);
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+
+  tearDownAll(() async {
+    // Memory db doesn't require manual closing and doing so interrupts widget disposal streams
   });
 
   Widget buildTestWidget({bool isPlaying = false, double volume = 100}) {
     return ProviderScope(
       overrides: [
+        databaseProvider.overrideWithValue(db),
         audioPlayingProvider.overrideWith((ref) => Stream.value(isPlaying)),
         audioVolumeProvider.overrideWith((ref) => Stream.value(volume)),
+        audioAutoPlaySessionProvider.overrideWith((ref) => true),
+        currentTrackProvider.overrideWith((ref) => FileItem(path: '/test.mp3', name: 'test', type: FileItemType.audio, modified: DateTime.now())),
       ],
       child: const MaterialApp(
         home: Scaffold(
@@ -36,7 +45,7 @@ void main() {
     });
 
     testWidgets('render play icon when paused (W-AUD-CTRL-21)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(isPlaying: false));
+      await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
     });
@@ -87,12 +96,14 @@ void main() {
     });
 
     testWidgets('taps trigger correct callbacks', (tester) async {
-      bool nextPressed = false;
-      bool previousPressed = false;
+      var nextPressed = false;
+      var previousPressed = false;
 
       final widget = ProviderScope(
         overrides: [
+          databaseProvider.overrideWithValue(db),
           currentTrackProvider.overrideWith((ref) => FileItem(path: '/test.mp3', name: 'test', type: FileItemType.audio, modified: DateTime.now())),
+          audioAutoPlaySessionProvider.overrideWith((ref) => true),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -133,6 +144,7 @@ void main() {
     testWidgets('render autoplay toggle and toggle on tap (W-AUD-CTRL-28)', (tester) async {
       final widget = ProviderScope(
         overrides: [
+          databaseProvider.overrideWithValue(db),
           currentTrackProvider.overrideWith((ref) => FileItem(path: '/test.mp3', name: 'test', type: FileItemType.audio, modified: DateTime.now())),
           audioAutoPlaySessionProvider.overrideWith((ref) => true),
         ],

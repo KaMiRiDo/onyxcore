@@ -20,6 +20,7 @@ import 'package:onyxcore/features/video_player/presentation/widgets/playback_spe
 import 'package:onyxcore/features/video_player/presentation/widgets/video_playlist_sidebar.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/hover_preview.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -201,6 +202,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   double _sidebarDragStartWidth = 0.0;
   double _sidebarDragStartX = 0.0;
   bool _isEmpty = false;
+  late final PlaybackMemoryRepository _playbackRepo;
 
   void _onWindowFocus() {
     if (mounted) _focusNode.requestFocus();
@@ -209,6 +211,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   @override
   void initState() {
     super.initState();
+    _currentItem = widget.item;
+    _playbackRepo = PlaybackMemoryRepository(ref.read(databaseProvider));
     if (widget.isStandalone && widget.windowId != null) {
       PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
     }
@@ -411,6 +415,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     _playingSubscription = player.stream.playing.listen((playing) {
       _isPlayingNotifier.value = playing;
+      if (!playing) {
+        _savePlaybackPosition();
+      }
     });
 
     player.stream.volume.listen((vol) {
@@ -632,12 +639,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             play: shouldPlay,
           );
           if (mounted) setState(() => _isOpening = false);
+          
+          // 4. Initialize new media (subs, memory) after open completes
+          _initMedia();
         }
       });
     });
-
-    // 4. Initialize new media (subs, memory)
-    _initMedia();
 
     _onInteraction();
   }
@@ -652,26 +659,23 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     final settings = ref.read(settingsProvider).value;
     if (settings?.resumePlayback ?? true) {
       int? savedPos;
-      if (widget.isStandalone) {
-        // Same isolate now, fallback to repository
-        savedPos = await PlaybackMemoryRepository.getPosition(
-          currentPath,
-        );
-      } else {
-        savedPos = await PlaybackMemoryRepository.getPosition(
-          currentPath,
-        );
-      }
+      savedPos = await _playbackRepo.getPosition(currentPath);
+      debugPrint('[VideoPlayer] getPosition for $currentPath returned: $savedPos');
 
       if (savedPos != null && savedPos > 0 && widget.initialPosition == null) {
         debugPrint('[VideoPlayer] Resuming from saved position: $savedPos');
         try {
-          // Add 5s timeout to duration wait to prevent hanging UI
-          await player.stream.duration
-              .firstWhere((d) => d > Duration.zero)
-              .timeout(const Duration(seconds: 5));
+          if (player.state.duration == Duration.zero) {
+            await player.stream.duration
+                .firstWhere((d) => d > Duration.zero)
+                .timeout(const Duration(seconds: 5));
+          }
+
+          // Small stability delay to ensure engine-level media initialization
+          await Future<void>.delayed(const Duration(milliseconds: 200));
 
           if (mounted && _currentItem.path == currentPath) {
+            debugPrint('[VideoPlayer] Seeking to $savedPos');
             await player.seek(Duration(milliseconds: savedPos));
           }
         } catch (e) {
@@ -708,15 +712,20 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     final duration = player.state.duration.inMilliseconds;
     final path = _currentItem.path;
 
+    // Do not save if duration is 0 (player not fully loaded)
+    if (duration == 0) return;
+
     // Don't save if near the end (95%)
-    final targetPosition = (duration > 0 && position < (duration * 0.95))
-        ? position
-        : 0;
+    final targetPosition = (position < (duration * 0.95)) ? position : 0;
+        
+    debugPrint('[VideoPlayer] _savePlaybackPosition called for: $path, position: $position, duration: $duration, target: $targetPosition');
 
     if (widget.isStandalone) {
-        await PlaybackMemoryRepository.savePosition(path, targetPosition);
+        await _playbackRepo.savePosition(path, targetPosition);
+        debugPrint('[VideoPlayer] _savePlaybackPosition saved standalone');
     } else {
-      await PlaybackMemoryRepository.savePosition(path, targetPosition);
+      await _playbackRepo.savePosition(path, targetPosition);
+      debugPrint('[VideoPlayer] _savePlaybackPosition saved normal');
     }
   }
 

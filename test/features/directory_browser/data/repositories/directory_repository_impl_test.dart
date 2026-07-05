@@ -1,12 +1,11 @@
-import 'dart:isolate';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/features/directory_browser/data/repositories/directory_repository_impl.dart';
-import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
 import 'package:onyxcore/core/cache/directory_cache.dart';
 import 'package:onyxcore/core/platform/directory_watcher.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
+import 'package:onyxcore/features/directory_browser/data/repositories/directory_repository_impl.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 class MockLocalFileDatasource extends Mock implements LocalFileDatasource {}
 class MockDirectoryCache extends Mock implements DirectoryCache<List<FileItem>> {}
@@ -18,7 +17,7 @@ void main() {
   late MockDirectoryWatcher mockWatcher;
   late DirectoryRepositoryImpl repository;
 
-  final tPath = '/path/to/folder';
+  const tPath = '/path/to/folder';
   final tItem = FileItem(
     path: '/path/to/folder/f1.txt',
     name: 'f1.txt',
@@ -140,7 +139,7 @@ void main() {
 
     test('copyItems delegates and invalidates destination', () async {
       final sources = ['/src/f1.txt'];
-      final dest = '/dest';
+      const dest = '/dest';
       when(() => mockDatasource.copyItems(sources, dest)).thenAnswer((_) async {});
       when(() => mockCache.invalidate(dest)).thenReturn(null);
 
@@ -151,8 +150,8 @@ void main() {
     });
 
     test('copyItemTo delegates and invalidates correctly', () async {
-      final src = '/src/f1.txt';
-      final dest = '/dest/f1.txt';
+      const src = '/src/f1.txt';
+      const dest = '/dest/f1.txt';
       when(() => mockDatasource.copyItemTo(src, dest)).thenAnswer((_) async {});
       when(() => mockCache.invalidateRecursive(dest)).thenReturn(null);
       when(() => mockCache.invalidate('/dest')).thenReturn(null);
@@ -166,7 +165,7 @@ void main() {
 
     test('moveItems delegates and invalidates correctly', () async {
       final sources = ['/src/f1.txt'];
-      final dest = '/dest';
+      const dest = '/dest';
       when(() => mockDatasource.moveItems(sources, dest)).thenAnswer((_) async {});
       when(() => mockCache.invalidate(dest)).thenReturn(null);
       when(() => mockCache.invalidateRecursive('/src/f1.txt')).thenReturn(null);
@@ -181,8 +180,8 @@ void main() {
     });
 
     test('moveItemTo delegates and invalidates correctly', () async {
-      final src = '/src/f1.txt';
-      final dest = '/dest/f1.txt';
+      const src = '/src/f1.txt';
+      const dest = '/dest/f1.txt';
       when(() => mockDatasource.moveItemTo(src, dest)).thenAnswer((_) async {});
       when(() => mockCache.invalidateRecursive(src)).thenReturn(null);
       when(() => mockCache.invalidateRecursive(dest)).thenReturn(null);
@@ -199,8 +198,8 @@ void main() {
     });
 
     test('renameItem delegates and invalidates correctly', () async {
-      final path = '/src/f1.txt';
-      final newPath = '/src/f2.txt';
+      const path = '/src/f1.txt';
+      const newPath = '/src/f2.txt';
       when(() => mockDatasource.renameItem(path, 'f2.txt')).thenAnswer((_) async => newPath);
       when(() => mockCache.invalidateRecursive(path)).thenReturn(null);
       when(() => mockCache.invalidate('/src')).thenReturn(null);

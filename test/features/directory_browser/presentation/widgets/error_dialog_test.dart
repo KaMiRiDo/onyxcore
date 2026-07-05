@@ -10,7 +10,7 @@ void main() {
         body: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () {
-              showDialog(
+              showDialog<void>(
                 context: context,
                 builder: (context) => const ErrorDialog(
                   title: 'Error Title',

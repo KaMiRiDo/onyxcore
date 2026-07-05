@@ -1,6 +1,4 @@
 
-import 'package:hive/hive.dart' as import_hive;
-import 'dart:io' as import_io;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -9,13 +7,7 @@ import 'package:onyxcore/features/audio_player/domain/utils/audio_queue_isolate.
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 void main() {
-  setUpAll(() {
-    try {
-      import_hive.Hive.init(import_io.Directory.systemTemp.path);
-    } catch (_) {}
-  });
-
-  // ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
   // Shared test infrastructure
   // ─────────────────────────────────────────────────────────────────────────
   late Directory tempDir;

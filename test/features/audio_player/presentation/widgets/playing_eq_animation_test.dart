@@ -1,7 +1,7 @@
 
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/playing_eq_animation.dart';
 
 void main() {
@@ -58,7 +58,7 @@ void main() {
     testWidgets('render bars with AppColors.magenta color (W-AUD-EQ-08)', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       final container = tester.widgetList<Container>(find.byType(Container)).first;
-      final decoration = container.decoration as BoxDecoration;
+      final decoration = container.decoration! as BoxDecoration;
       // We just verify it has a color set
       expect(decoration.color, isNotNull); 
     });
@@ -73,7 +73,7 @@ void main() {
     testWidgets('render bars with 2px border radius (W-AUD-EQ-10)', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       final container = tester.widgetList<Container>(find.byType(Container)).first;
-      final decoration = container.decoration as BoxDecoration;
+      final decoration = container.decoration! as BoxDecoration;
       expect(decoration.borderRadius, BorderRadius.circular(2));
     });
   });

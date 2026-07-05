@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 
 class DummyWidget extends StatefulWidget {
@@ -87,7 +87,6 @@ void main() {
           id: 'test_item',
           title: 'Test Video',
           originalUrl: 'http://test',
-          isVideo: true,
           formats: [
             MediaFormat(formatString: 'test', formatId: '1', resolution: '1920x1080', videoCodec: 'avc', audioCodec: 'aac', filesize: 50 * 1024 * 1024, extension: 'mp4'),
             MediaFormat(formatString: 'test', formatId: '2', resolution: '1920x1080', videoCodec: 'avc', audioCodec: 'none', filesize: 45 * 1024 * 1024, extension: 'mp4'),
@@ -150,7 +149,6 @@ void main() {
           id: 'test_item',
           title: 'Test Video',
           originalUrl: 'http://test',
-          isVideo: true,
           directUrl: 'http://direct',
           formats: [
             MediaFormat(formatString: 'test', formatId: '1', resolution: '1920x1080', videoCodec: 'avc', audioCodec: 'none', filesize: 45 * 1024 * 1024, extension: 'mp4'),
@@ -180,7 +178,7 @@ void main() {
       test('U-DL-HLP-24: Estimate combined size for video without audio', () {
         final format = item.formats[0]; // Video without audio
         // The helper should add the size of the best audio format
-        final expected = 45 * 1024 * 1024 + 5 * 1024 * 1024;
+        const expected = 45 * 1024 * 1024 + 5 * 1024 * 1024;
         expect(helper.getFormatBytesForTesting(item, format, config), expected);
       });
 
@@ -207,7 +205,7 @@ void main() {
       test('U-DL-HLP-27: Ignore profiles and playlists in calculation', () {
         final group = MediaGroup(
           originalUrl: 'g', items: [
-            MediaInfo(id: '1', title: '1', originalUrl: 'u1', isVideo: true, filesize: 10 * 1024 * 1024, formats: []),
+            MediaInfo(id: '1', title: '1', originalUrl: 'u1', filesize: 10 * 1024 * 1024, formats: []),
             MediaInfo(id: '2', title: '2', originalUrl: 'u2', isProfile: true, formats: []),
             MediaInfo(id: '3', title: '3', originalUrl: 'u3', isPlaylist: true, formats: []),
           ]
@@ -219,7 +217,7 @@ void main() {
         config.groupFilter = GroupDownloadType.images;
         final group = MediaGroup(
           originalUrl: 'g', items: [
-            MediaInfo(id: '1', title: '1', originalUrl: 'u1', isVideo: true, filesize: 10 * 1024 * 1024, formats: []),
+            MediaInfo(id: '1', title: '1', originalUrl: 'u1', filesize: 10 * 1024 * 1024, formats: []),
             MediaInfo(id: '2', title: '2', originalUrl: 'u2', isVideo: false, filesize: 2 * 1024 * 1024, formats: []), // Image
           ]
         );
@@ -229,8 +227,8 @@ void main() {
       test('U-DL-HLP-29: Estimate missing video sizes using average of known videos', () {
         final group = MediaGroup(
           originalUrl: 'g', items: [
-            MediaInfo(id: '1', title: '1', originalUrl: 'u1', isVideo: true, filesize: 10 * 1024 * 1024, formats: []),
-            MediaInfo(id: '2', title: '2', originalUrl: 'u2', isVideo: true, formats: []), // Missing size
+            MediaInfo(id: '1', title: '1', originalUrl: 'u1', filesize: 10 * 1024 * 1024, formats: []),
+            MediaInfo(id: '2', title: '2', originalUrl: 'u2', formats: []), // Missing size
           ]
         );
         // Average is 10MB, total is 20MB
@@ -251,7 +249,7 @@ void main() {
       test('U-DL-HLP-31: Fallback to constants if no known sizes', () {
         final group = MediaGroup(
           originalUrl: 'g', items: [
-            MediaInfo(id: '1', title: '1', originalUrl: 'u1', isVideo: true, formats: []),
+            MediaInfo(id: '1', title: '1', originalUrl: 'u1', formats: []),
             MediaInfo(id: '2', title: '2', originalUrl: 'u2', isVideo: false, formats: []),
           ]
         );

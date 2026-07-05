@@ -4,7 +4,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_
 
 void main() {
   Future<void> pump(WidgetTester tester) async {
-    for (int i = 0; i < 5; i++) {
+    for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
   }

@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:hive/hive.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 
@@ -20,24 +21,24 @@ final isDownloadInputFocusedProvider = StateProvider<bool>((ref) => false);
 final isDownloadsPanelFocusedProvider = StateProvider<bool>((ref) => false);
 final downloadUrlFocusRequestProvider = StateProvider<int>((ref) => 0);
 
-class DownloadsPanelWidthNotifier extends Notifier<double> {
-  static const String _boxName = 'ui_settings';
-  static const String _key = 'side_panel_width_pixels';
-
+class DownloadsPanelWidthNotifier extends AsyncNotifier<double> {
   @override
-  double build() {
-    final box = Hive.box<dynamic>(_boxName);
-    return box.get(_key, defaultValue: 320.0) as double;
+  Future<double> build() async {
+    final db = ref.read(databaseProvider);
+    final repo = SettingsRepositoryImpl(db);
+    return repo.getDownloadsPanelWidth();
   }
 
-  void updateWidth(double newWidth) {
-    state = newWidth;
-    Hive.box<dynamic>(_boxName).put(_key, newWidth);
+  Future<void> updateWidth(double newWidth) async {
+    state = AsyncValue.data(newWidth);
+    final db = ref.read(databaseProvider);
+    final repo = SettingsRepositoryImpl(db);
+    await repo.setDownloadsPanelWidth(newWidth);
   }
 }
 
 final downloadsPanelWidthProvider =
-    NotifierProvider<DownloadsPanelWidthNotifier, double>(
+    AsyncNotifierProvider<DownloadsPanelWidthNotifier, double>(
       DownloadsPanelWidthNotifier.new,
     );
 

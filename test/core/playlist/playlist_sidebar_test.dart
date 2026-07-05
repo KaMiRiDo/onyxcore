@@ -1,25 +1,18 @@
-
-import 'package:hive/hive.dart' as import_hive;
-import 'dart:io' as import_io;
-import 'package:flutter/gestures.dart';
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/playlist_sidebar.dart';
-import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/widgets/tooltip_if_truncated.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:riverpod/riverpod.dart' as riverpod;
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
-import 'dart:async';
-
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/core/widgets/tooltip_if_truncated.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/playlist_sidebar.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 
 class MockDirectoryRepository extends Mock implements DirectoryRepository {}
 
@@ -55,11 +48,14 @@ class MockDirectoryRepository extends Mock implements DirectoryRepository {}
   }
 
 void main() {
+  late AppDatabase db;
 
   setUpAll(() {
-    try {
-      import_hive.Hive.init(import_io.Directory.systemTemp.path);
-    } catch (_) {}
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+
+  tearDownAll(() async {
+    await db.close();
   });
 
   final dummyFile1 = FileItem(
@@ -93,7 +89,10 @@ void main() {
 
   Widget buildTestWidget({List<dynamic> overrides = const []}) {
     return ProviderScope(
-      overrides: [...overrides.cast()],
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        ...overrides.cast()
+      ],
       child: const MaterialApp(
         home: Scaffold(
           body: SizedBox(

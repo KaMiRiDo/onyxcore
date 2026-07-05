@@ -58,7 +58,7 @@ class MarkerRepository {
 
   static List<VideoMarker> _parseMarkers(String jsonString) {
     try {
-      final List<dynamic> jsonList = jsonDecode(jsonString);
+      final List<dynamic> jsonList = jsonDecode(jsonString) as List<dynamic>;
       return jsonList
           .map((e) => VideoMarker.fromJson(e as Map<String, dynamic>))
           .toList();

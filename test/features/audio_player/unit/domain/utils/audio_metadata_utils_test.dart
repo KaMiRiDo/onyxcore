@@ -1,6 +1,4 @@
 
-import 'package:hive/hive.dart' as import_hive;
-import 'dart:io' as import_io;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -64,13 +62,7 @@ Uint8List _createMinimalWav({int durationMs = 1000, int sampleRate = 44100}) {
 }
 
 void main() {
-  setUpAll(() {
-    try {
-      import_hive.Hive.init(import_io.Directory.systemTemp.path);
-    } catch (_) {}
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
   // prepareCoverArt
   // ═══════════════════════════════════════════════════════════════════════════
   group('AudioMetadataUtils.prepareCoverArt', () {
@@ -208,7 +200,6 @@ void main() {
 
       final wavBytes = _createMinimalWav(
         durationMs: 2000,
-        sampleRate: 44100,
       );
       final wavFile = File('${tempDir.path}/test_audio.wav')
         ..writeAsBytesSync(wavBytes);
@@ -270,8 +261,7 @@ void main() {
         }
 
         final wavBytes = _createMinimalWav(
-          durationMs: 1000,
-          sampleRate: 44100,
+          
         );
         final wavFile = File('${tempDir.path}/bitrate_test.wav')
           ..writeAsBytesSync(wavBytes);
@@ -351,7 +341,6 @@ void main() {
       // ~5 seconds of audio
       final wavBytes = _createMinimalWav(
         durationMs: 5000,
-        sampleRate: 44100,
       );
       final wavFile = File('${tempDir.path}/short_duration.wav')
         ..writeAsBytesSync(wavBytes);

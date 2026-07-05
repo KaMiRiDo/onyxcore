@@ -1,21 +1,47 @@
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/drift.dart' hide Column;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/database/app_database.dart' hide DownloadHistoryEntry;
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/download_history_view.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/download_history_detail_view.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/download_history_view.dart';
 
 void main() {
+  late AppDatabase appDb;
+
+  setUp(() {
+    appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+
+  tearDown(() async {
+    // await appDb.close();
+  });
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  Widget createHistoryViewTestWidget() {
-    return const ProviderScope(
-      child: MaterialApp(
+  Widget createHistoryViewTestWidget(ProviderContainer? existingContainer) {
+    if (existingContainer != null) {
+      return UncontrolledProviderScope(
+        container: existingContainer,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: DownloadHistoryView(),
+          ),
+        ),
+      );
+    }
+    return ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(appDb),
+      ],
+      child: const MaterialApp(
         home: Scaffold(
           body: DownloadHistoryView(),
         ),
@@ -57,7 +83,7 @@ void main() {
     // ── 1. History List View ──
 
     testWidgets('W-DL-HIS-01: Render empty state', (tester) async {
-      await tester.pumpWidget(createHistoryViewTestWidget());
+      await tester.pumpWidget(createHistoryViewTestWidget(null));
       await tester.pumpAndSettle();
 
       expect(find.text('No download history yet'), findsOneWidget);
@@ -65,7 +91,9 @@ void main() {
 
 
     testWidgets('W-DL-HIS-03: Toggle multi-select context menu', (tester) async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(appDb)],
+      );
       addTearDown(container.dispose);
       container.read(downloadHistorySelectionProvider.notifier).toggle('1');
       container.read(downloadHistorySelectionProvider.notifier).toggle('2');
@@ -88,7 +116,7 @@ void main() {
 
 
     testWidgets('W-DL-HIS-05: Clear All button', (tester) async {
-      await tester.pumpWidget(createHistoryViewTestWidget());
+      await tester.pumpWidget(createHistoryViewTestWidget(null));
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.delete_sweep_rounded), findsOneWidget);
@@ -99,7 +127,9 @@ void main() {
     });
 
     testWidgets('W-DL-HIS-06: Delete Confirmation dialog', (tester) async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(appDb)],
+      );
       addTearDown(container.dispose);
       container.read(downloadHistorySelectionProvider.notifier).toggle('1');
 
@@ -122,7 +152,7 @@ void main() {
     });
 
     testWidgets('W-DL-HIS-07: Empty selection prevents delete', (tester) async {
-      await tester.pumpWidget(createHistoryViewTestWidget());
+      await tester.pumpWidget(createHistoryViewTestWidget(null));
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Selected'), findsNothing);
@@ -132,7 +162,7 @@ void main() {
     // ── 2. History Filters ──
 
     testWidgets('W-DL-HIS-08: Render Status Dropdown', (tester) async {
-      await tester.pumpWidget(createHistoryViewTestWidget());
+      await tester.pumpWidget(createHistoryViewTestWidget(null));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.filter_list_rounded).first);
@@ -142,7 +172,7 @@ void main() {
     });
 
     testWidgets('W-DL-HIS-09: Update Status Filter State', (tester) async {
-      await tester.pumpWidget(createHistoryViewTestWidget());
+      await tester.pumpWidget(createHistoryViewTestWidget(null));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.filter_list_rounded).first);
@@ -157,7 +187,7 @@ void main() {
     });
 
     testWidgets('W-DL-HIS-10: Date filter calendar UI', (tester) async {
-      await tester.pumpWidget(createHistoryViewTestWidget());
+      await tester.pumpWidget(createHistoryViewTestWidget(null));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.filter_list_rounded).first);
@@ -179,10 +209,11 @@ void main() {
         statusName: 'completed',
         createdAt: DateTime.now(),
         completedAt: DateTime.now(),
-        logs: const [],
       );
 
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(appDb)],
+      );
       addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
@@ -203,10 +234,11 @@ void main() {
         downloadType: 'video',
         statusName: 'completed',
         createdAt: DateTime.now(),
-        logs: const [],
       );
 
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(appDb)],
+      );
       addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
@@ -225,10 +257,11 @@ void main() {
         downloadType: 'video',
         statusName: 'completed',
         createdAt: DateTime.now(),
-        logs: const [],
       );
 
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(appDb)],
+      );
       addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
@@ -250,10 +283,11 @@ void main() {
         statusName: 'completed',
         createdAt: now.subtract(const Duration(minutes: 5, seconds: 20)),
         completedAt: now,
-        logs: const [],
       );
 
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(appDb)],
+      );
       addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
@@ -276,7 +310,9 @@ void main() {
         logs: const ['[debug] starting', '[error] failed to download'],
       );
 
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(appDb)],
+      );
       addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 
@@ -298,10 +334,11 @@ void main() {
         downloadType: 'video',
         statusName: 'completed',
         createdAt: DateTime.now(),
-        logs: const [],
       );
 
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(appDb)],
+      );
       addTearDown(container.dispose);
       container.read(selectedDownloadHistoryIdProvider.notifier).state = '1';
 

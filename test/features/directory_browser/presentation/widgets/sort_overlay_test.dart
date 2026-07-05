@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
 
 void main() {
   testWidgets('SortOverlay shows correctly and returns selected option', (tester) async {

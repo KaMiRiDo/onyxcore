@@ -1,19 +1,22 @@
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/storage_indicator.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/storage_indicator.dart';
 
 void main() {
-  late SharedPreferences prefs;
+  late AppDatabase db;
 
-  setUpAll(() async {
-    SharedPreferences.setMockInitialValues({});
-    prefs = await SharedPreferences.getInstance();
+  setUpAll(() {
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+
+  tearDownAll(() async {
+    await db.close();
   });
 
   Widget buildTestWidget(ProviderContainer container) {
@@ -30,7 +33,7 @@ void main() {
   testWidgets('StorageIndicator renders correctly and handles timer', (tester) async {
     final container = ProviderContainer(
       overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
+        databaseProvider.overrideWithValue(db),
       ],
     );
     await tester.pumpWidget(buildTestWidget(container));

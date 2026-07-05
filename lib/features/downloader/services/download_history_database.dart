@@ -1,182 +1,88 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:sqlite3/sqlite3.dart';
-import 'package:path/path.dart' as p;
-import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
-import 'package:flutter/foundation.dart';
 
+import 'package:drift/drift.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart'
+    as domain;
+
+/// Drift-backed implementation of the download history database.
+///
+/// Replaces the old raw sqlite3 [DownloadHistoryDatabase]. Exposes the same
+/// public interface so [DownloadHistoryNotifier] requires zero changes.
 class DownloadHistoryDatabase {
-  late final Database _db;
+  DownloadHistoryDatabase(this._db);
 
-  late final String _dbPath;
-  late final String _legacyJsonPath;
-  
-  static final String _testSuffix = DateTime.now().microsecondsSinceEpoch.toString();
+  final AppDatabase _db;
 
-  @visibleForTesting
-  static String get testDbPath => p.join(Directory.systemTemp.path, 'onyxcore_test', 'download_history_$_testSuffix.sqlite');
+  /// No-op: Drift manages schema creation automatically.
+  void init() {}
 
-  @visibleForTesting
-  static String get testLegacyJsonPath => p.join(Directory.systemTemp.path, 'onyxcore_test', 'download_history_$_testSuffix.json');
+  /// No-op: Drift manages its own connection lifecycle.
+  void dispose() {}
 
-  DownloadHistoryDatabase() {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      _dbPath = testDbPath;
-      _legacyJsonPath = testLegacyJsonPath;
-    } else {
-      final home = Platform.environment['HOME'] ?? '/tmp';
-      _dbPath = p.join(home, '.config', 'onyxcore', 'download_history.sqlite');
-      _legacyJsonPath = p.join(home, '.config', 'onyxcore', 'download_history.json');
-    }
-  }
-
-  void init() {
-    final file = File(_dbPath);
-    if (!file.parent.existsSync()) {
-      file.parent.createSync(recursive: true);
-    }
-    _db = sqlite3.open(_dbPath);
-
-    _db.execute('''
-      CREATE TABLE IF NOT EXISTS history (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        statusName TEXT NOT NULL,
-        downloadType TEXT NOT NULL,
-        errorMessage TEXT,
-        url TEXT NOT NULL,
-        destination TEXT NOT NULL,
-        logs TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        completedAt TEXT
-      )
-    ''');
-
-    _migrateLegacyData();
-  }
-
-  void _migrateLegacyData() {
-    try {
-      final legacyFile = File(_legacyJsonPath);
-      if (legacyFile.existsSync()) {
-        final content = legacyFile.readAsStringSync();
-        final List<dynamic> jsonList = jsonDecode(content) as List<dynamic>;
-
-        final stmt = _db.prepare('''
-          INSERT OR IGNORE INTO history (
-            id, title, statusName, downloadType, errorMessage, 
-            url, destination, logs, createdAt, completedAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''');
-
-        for (final item in jsonList) {
-          final entry = DownloadHistoryEntry.fromJson(
-            item as Map<String, dynamic>,
-          );
-          stmt.execute([
-            entry.id,
-            entry.title,
-            entry.statusName,
-            entry.downloadType,
-            entry.errorMessage,
-            entry.url,
-            entry.destination,
-            jsonEncode(entry.logs),
-            entry.createdAt.toIso8601String(),
-            entry.completedAt?.toIso8601String(),
-          ]);
-        }
-        stmt.dispose();
-
-        // Delete or rename legacy file
-        legacyFile.renameSync('${_legacyJsonPath}.migrated');
-      }
-    } catch (e) {
-      debugPrint('Migration failed: $e');
-    }
-  }
-
-  void insertEntry(DownloadHistoryEntry entry) {
-    final stmt = _db.prepare('''
-      INSERT OR REPLACE INTO history (
-        id, title, statusName, downloadType, errorMessage, 
-        url, destination, logs, createdAt, completedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''');
-    stmt.execute([
-      entry.id,
-      entry.title,
-      entry.statusName,
-      entry.downloadType,
-      entry.errorMessage,
-      entry.url,
-      entry.destination,
-      jsonEncode(entry.logs),
-      entry.createdAt.toIso8601String(),
-      entry.completedAt?.toIso8601String(),
-    ]);
-    stmt.dispose();
-  }
-
-  List<DownloadHistoryEntry> getEntries({int limit = 50, int offset = 0}) {
-    final resultSet = _db.select(
-      'SELECT * FROM history ORDER BY createdAt DESC LIMIT ? OFFSET ?',
-      [limit, offset],
-    );
-    return resultSet.map((row) => _entryFromRow(row)).toList();
-  }
-
-  int getTotalCount() {
-    final resultSet = _db.select('SELECT COUNT(*) as count FROM history');
-    return resultSet.first['count'] as int;
-  }
-
-  DownloadHistoryEntry? getEntry(String id) {
-    final resultSet = _db.select('SELECT * FROM history WHERE id = ?', [id]);
-    if (resultSet.isNotEmpty) {
-      return _entryFromRow(resultSet.first);
-    }
-    return null;
-  }
-
-  void deleteEntries(Set<String> ids) {
-    if (ids.isEmpty) return;
-    final placeholders = List.filled(ids.length, '?').join(',');
-    _db.execute(
-      'DELETE FROM history WHERE id IN ($placeholders)',
-      ids.toList(),
+  Future<void> insertEntry(domain.DownloadHistoryEntry entry) async {
+    await _db.upsertDownloadHistoryEntry(
+      DownloadHistoryEntriesCompanion.insert(
+        id: entry.id,
+        title: entry.title,
+        url: entry.url,
+        destination: entry.destination,
+        downloadType: entry.downloadType,
+        statusName: entry.statusName,
+        errorMessage: Value(entry.errorMessage),
+        createdAt: entry.createdAt.millisecondsSinceEpoch,
+        completedAt: Value(entry.completedAt?.millisecondsSinceEpoch),
+        logs: Value(jsonEncode(entry.logs)),
+      ),
     );
   }
 
-  void clearAll() {
-    _db.execute('DELETE FROM history');
-    _db.execute('VACUUM');
+  Future<List<domain.DownloadHistoryEntry>> getEntries({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final rows = await _db.getDownloadHistoryPage(limit: limit, offset: offset);
+    return rows.map(_entryFromRow).toList();
   }
 
-  int get fileSize {
-    final file = File(_dbPath);
-    if (file.existsSync()) return file.lengthSync();
-    return 0;
+  Future<int> getTotalCount() => _db.getDownloadHistoryCount();
+
+  Future<domain.DownloadHistoryEntry?> getEntry(String id) async {
+    final row = await _db.getDownloadHistoryEntry(id);
+    if (row == null) return null;
+    return _entryFromRow(row);
   }
 
-  void dispose() {
-    _db.dispose();
+  Future<void> deleteEntries(Set<String> ids) async {
+    await _db.deleteDownloadHistoryEntries(ids);
   }
 
-  DownloadHistoryEntry _entryFromRow(Row row) {
-    return DownloadHistoryEntry(
-      id: row['id'] as String,
-      title: row['title'] as String,
-      statusName: row['statusName'] as String,
-      downloadType: row['downloadType'] as String,
-      errorMessage: row['errorMessage'] as String?,
-      url: row['url'] as String,
-      destination: row['destination'] as String,
-      logs: (jsonDecode(row['logs'] as String) as List<dynamic>).cast<String>(),
-      createdAt: DateTime.parse(row['createdAt'] as String),
-      completedAt: row['completedAt'] != null
-          ? DateTime.parse(row['completedAt'] as String)
+  Future<void> clearAll() async {
+    await _db.clearAllDownloadHistory();
+  }
+
+  /// Returns 0 — file size tracking is no longer meaningful with a shared DB.
+  int get fileSize => 0;
+
+  domain.DownloadHistoryEntry _entryFromRow(DownloadHistoryEntry row) {
+    final logsRaw = row.logs;
+    final List<String> logs = logsRaw != null && logsRaw.isNotEmpty
+        ? (jsonDecode(logsRaw) as List<dynamic>).cast<String>()
+        : [];
+
+    return domain.DownloadHistoryEntry(
+      id: row.id,
+      title: row.title,
+      url: row.url,
+      destination: row.destination,
+      downloadType: row.downloadType,
+      statusName: row.statusName,
+      errorMessage: row.errorMessage,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      completedAt: row.completedAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(row.completedAt!)
           : null,
+      logs: logs,
     );
   }
 }

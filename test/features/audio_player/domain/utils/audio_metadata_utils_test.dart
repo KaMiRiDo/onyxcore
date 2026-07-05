@@ -1,20 +1,14 @@
 
-import 'package:hive/hive.dart' as import_hive;
 import 'dart:io' as import_io;
 import 'dart:typed_data';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
-import 'package:image/image.dart' as img;
+
 import 'package:audiotags/audiotags.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
 
 void main() {
-  setUpAll(() {
-    try {
-      import_hive.Hive.init(import_io.Directory.systemTemp.path);
-    } catch (_) {}
-  });
-
-  group('AudioMetadataUtils', () {
+group('AudioMetadataUtils', () {
     group('readTags & writeTags', () {
       test('readTags returns a Tag object for a valid audio file (U-AUD-META-01)', () async {
         // Note: In unit tests, the FFI library might not load, so readTags catches the error and returns null.
@@ -129,13 +123,13 @@ void main() {
       });
 
       test('fallback to stream bitrate when format bitrate is missing (U-AUD-META-21)', () async {
-        String mockPath = 'dummy" >/dev/null 2>&1; echo \'{"format":{},"streams":[{"bit_rate":"256000"}]}\' #"';
+        const mockPath = 'dummy" >/dev/null 2>&1; echo \'{"format":{},"streams":[{"bit_rate":"256000"}]}\' #"';
         final props = await AudioMetadataUtils.getProperties(mockPath);
         expect(props.bitrate, '256 kbps');
       });
 
       test('return "Unknown" bitrate when value is 0 or absent (U-AUD-META-22)', () async {
-        String mockPath = 'dummy" >/dev/null 2>&1; echo \'{"format":{"bit_rate":"0"},"streams":[{"bit_rate":"0"}]}\' #"';
+        const mockPath = 'dummy" >/dev/null 2>&1; echo \'{"format":{"bit_rate":"0"},"streams":[{"bit_rate":"0"}]}\' #"';
         final props = await AudioMetadataUtils.getProperties(mockPath);
         expect(props.bitrate, 'Unknown');
       });

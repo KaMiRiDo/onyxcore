@@ -1,268 +1,313 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/settings_codec.dart';
 import 'package:path/path.dart' as p;
 
 import '../../domain/entities/app_settings.dart';
 import '../../domain/repositories/settings_repository.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
-/// SharedPreferences-based implementation of [SettingsRepository].
+/// Drift-backed implementation of [SettingsRepository].
 ///
-/// Android-specific settings (biometric auth, vault, singleTapPlayPause)
-/// have been removed. Only Linux-relevant settings are persisted.
+/// All AppSettings fields are stored as individual rows in the [Settings] Drift
+/// table (key → JSON-encoded value). Structured data (folder sorts, pinned
+/// folders) has dedicated tables.
 class SettingsRepositoryImpl implements SettingsRepository {
-  SettingsRepositoryImpl(this._prefs);
+  SettingsRepositoryImpl(this._db);
 
-  final SharedPreferences _prefs;
+  final AppDatabase _db;
 
-  // In-memory state
-  Map<String, String> _gallerySortSettings = {};
-  List<String> _pinnedFolders = [];
+  // ── Keys for the Settings table ──────────────────────────────────────────
+  static const _autoPlayNext = 'autoPlayNext';
+  static const _audioAutoPlayNext = 'audioAutoPlayNext';
+  static const _showHiddenFiles = 'showHiddenFiles';
+  static const _showHiddenAudioFiles = 'showHiddenAudioFiles';
+  static const _snapshotPrefix = 'snapshotPrefix';
+  static const _doubleTapSeekSeconds = 'doubleTapSeekSeconds';
+  static const _maxConcurrentTasks = 'maxConcurrentTasks';
+  static const _globalSortOption = 'globalSortOption';
+  static const _resumePlayback = 'resumePlayback';
+  static const _audioSeekSeconds = 'audioSeekSeconds';
+  static const _selectedHwDec = 'selectedHwDec';
+  static const _cachedResolvedHwDec = 'cachedResolvedHwDec';
+  static const _trackpadSpeedControl = 'trackpad_speed_control';
+  static const _filePickerWidth = 'filePickerWidth';
+  static const _filePickerHeight = 'filePickerHeight';
+  static const _settingsWidth = 'settingsWidth';
+  static const _settingsHeight = 'settingsHeight';
+  static const _downloaderWidth = 'downloaderWidth';
+  static const _downloaderHeight = 'downloaderHeight';
+  static const _confirmDeleteImage = 'confirmDeleteImage';
+  static const _confirmDeleteVideo = 'confirmDeleteVideo';
+  static const _confirmDeleteDocument = 'confirmDeleteDocument';
+  static const _confirmDeleteAudio = 'confirmDeleteAudio';
+  static const _downloadBrowser = 'downloadBrowser';
+  static const _downloadToCurrentFolder = 'downloadToCurrentFolder';
+  static const _maxConcurrentDownloads = 'maxConcurrentDownloads';
+  static const _maxLiveRecordingMinutes = 'maxLiveRecordingMinutes';
+  static const _documentSearchCaseSensitive = 'documentSearchCaseSensitive';
+  static const _documentSearchUseRegex = 'documentSearchUseRegex';
+  static const _audioPlayerVolume = 'audioPlayerVolume';
+  static const _videoPlayerVolume = 'videoPlayerVolume';
+  static const _openWithDialogWidth = 'open_with_dialog_width';
+  static const _openWithDialogHeight = 'open_with_dialog_height';
+  static const _sidePanelWidthPixels = 'side_panel_width_pixels';
+
+  // Helper to read multiple settings at once (minimizes async round trips)
+  Future<Map<String, String?>> _readAll(List<String> keys) async {
+    final result = <String, String?>{};
+    for (final key in keys) {
+      result[key] = await _db.getSetting(key);
+    }
+    return result;
+  }
 
   @override
   Future<AppSettings> load() async {
-    // Load sort settings
-    final sortStr = _prefs.getString('gallerySortSettings');
-    if (sortStr != null && sortStr.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(sortStr) as Map<String, dynamic>;
-        _gallerySortSettings = Map<String, String>.from(decoded);
-      } catch (_) {}
-    }
+    final keys = [
+      _autoPlayNext, _audioAutoPlayNext, _showHiddenFiles, _showHiddenAudioFiles,
+      _snapshotPrefix, _doubleTapSeekSeconds, _maxConcurrentTasks,
+      _globalSortOption, _resumePlayback, _audioSeekSeconds, _selectedHwDec,
+      _cachedResolvedHwDec, _trackpadSpeedControl, _filePickerWidth,
+      _filePickerHeight, _settingsWidth, _settingsHeight, _downloaderWidth,
+      _downloaderHeight, _confirmDeleteImage, _confirmDeleteVideo,
+      _confirmDeleteDocument, _confirmDeleteAudio, _downloadBrowser,
+      _downloadToCurrentFolder, _maxConcurrentDownloads, _maxLiveRecordingMinutes,
+      _documentSearchCaseSensitive, _documentSearchUseRegex,
+      _audioPlayerVolume, _videoPlayerVolume,
+    ];
 
-    // Load pinned folders
-    _pinnedFolders = _prefs.getStringList('pinnedFolders') ?? [];
+    final vals = await _readAll(keys);
 
-    // Load global sort option
-    final globalSortStr = _prefs.getString('globalSortOption');
+    final globalSortStr = vals[_globalSortOption];
     final globalSort = SortOption.values.firstWhere(
       (e) => e.name == globalSortStr,
       orElse: () => SortOption.aToZ,
     );
 
+    // Load pinned folders from dedicated table
+    final pinnedFolders = await _db.getOrderedPinnedFolders();
+
     return AppSettings(
-      autoPlayNext: _prefs.getBool('autoPlayNext') ?? true,
-      audioAutoPlayNext: _prefs.getBool('audioAutoPlayNext') ?? true,
-      showHiddenFiles: _prefs.getBool('showHiddenFiles') ?? false,
-      showHiddenAudioFiles: _prefs.getBool('showHiddenAudioFiles') ?? false,
-      snapshotPrefix: _prefs.getString('snapshotPrefix') ?? 'snapshot',
-      doubleTapSeekSeconds: _prefs.getInt('doubleTapSeekSeconds') ?? 10,
-      pinnedFolders: List<String>.from(_pinnedFolders),
-      gallerySortSettings: Map<String, String>.from(_gallerySortSettings),
-      maxConcurrentTasks: _prefs.getInt('maxConcurrentTasks') ?? 3,
+      autoPlayNext: SettingsCodec.decodeBool(vals[_autoPlayNext], fallback: true),
+      audioAutoPlayNext: SettingsCodec.decodeBool(vals[_audioAutoPlayNext], fallback: true),
+      showHiddenFiles: SettingsCodec.decodeBool(vals[_showHiddenFiles], fallback: false),
+      showHiddenAudioFiles: SettingsCodec.decodeBool(vals[_showHiddenAudioFiles], fallback: false),
+      snapshotPrefix: SettingsCodec.decodeString(vals[_snapshotPrefix], fallback: 'snapshot'),
+      doubleTapSeekSeconds: SettingsCodec.decodeInt(vals[_doubleTapSeekSeconds], fallback: 10),
+      pinnedFolders: pinnedFolders,
+      gallerySortSettings: await _loadGallerySortSettings(),
+      maxConcurrentTasks: SettingsCodec.decodeInt(vals[_maxConcurrentTasks], fallback: 3),
       globalSortOption: globalSort,
-      resumePlayback: _prefs.getBool('resumePlayback') ?? true,
-      audioSeekSeconds: _prefs.getInt('audioSeekSeconds') ?? 5,
-      selectedHwDec: _prefs.getString('selectedHwDec') ?? 'auto',
-      cachedResolvedHwDec: _prefs.getString('cachedResolvedHwDec'),
+      resumePlayback: SettingsCodec.decodeBool(vals[_resumePlayback], fallback: true),
+      audioSeekSeconds: SettingsCodec.decodeInt(vals[_audioSeekSeconds], fallback: 5),
+      selectedHwDec: SettingsCodec.decodeString(vals[_selectedHwDec], fallback: 'auto'),
+      cachedResolvedHwDec: SettingsCodec.decodeNullableString(vals[_cachedResolvedHwDec]),
       trackpadSpeedControl: SpeedControlOption.values.firstWhere(
-        (e) => e.name == _prefs.getString('trackpad_speed_control'),
+        (e) => e.name == vals[_trackpadSpeedControl],
         orElse: () => SpeedControlOption.off,
       ),
-      filePickerWidth: _prefs.getDouble('filePickerWidth') ?? 1000.0,
-      filePickerHeight: _prefs.getDouble('filePickerHeight') ?? 650.0,
-      settingsWidth: _prefs.getDouble('settingsWidth') ?? 760.0,
-      settingsHeight: _prefs.getDouble('settingsHeight') ?? 560.0,
-      downloaderWidth: _prefs.getDouble('downloaderWidth') ?? 750.0,
-      downloaderHeight: _prefs.getDouble('downloaderHeight') ?? 560.0,
-      confirmDeleteImage: _prefs.getBool('confirmDeleteImage') ?? true,
-      confirmDeleteVideo: _prefs.getBool('confirmDeleteVideo') ?? true,
-      confirmDeleteDocument: _prefs.getBool('confirmDeleteDocument') ?? true,
-      confirmDeleteAudio: _prefs.getBool('confirmDeleteAudio') ?? true,
-      downloadBrowser: _prefs.getString('downloadBrowser'),
-      downloadToCurrentFolder:
-          _prefs.getBool('downloadToCurrentFolder') ?? true,
-      maxConcurrentDownloads: _prefs.getInt('maxConcurrentDownloads') ?? 3,
-      maxLiveRecordingMinutes: _prefs.getInt('maxLiveRecordingMinutes') ?? 0,
-      documentSearchCaseSensitive:
-          _prefs.getBool('documentSearchCaseSensitive') ?? false,
-      documentSearchUseRegex: _prefs.getBool('documentSearchUseRegex') ?? false,
-      audioPlayerVolume: _prefs.getDouble('audioPlayerVolume') ?? 100.0,
-      videoPlayerVolume: _prefs.getDouble('videoPlayerVolume') ?? 100.0,
+      filePickerWidth: SettingsCodec.decodeDouble(vals[_filePickerWidth], fallback: 1000.0),
+      filePickerHeight: SettingsCodec.decodeDouble(vals[_filePickerHeight], fallback: 650.0),
+      settingsWidth: SettingsCodec.decodeDouble(vals[_settingsWidth], fallback: 760.0),
+      settingsHeight: SettingsCodec.decodeDouble(vals[_settingsHeight], fallback: 560.0),
+      downloaderWidth: SettingsCodec.decodeDouble(vals[_downloaderWidth], fallback: 750.0),
+      downloaderHeight: SettingsCodec.decodeDouble(vals[_downloaderHeight], fallback: 560.0),
+      confirmDeleteImage: SettingsCodec.decodeBool(vals[_confirmDeleteImage], fallback: true),
+      confirmDeleteVideo: SettingsCodec.decodeBool(vals[_confirmDeleteVideo], fallback: true),
+      confirmDeleteDocument: SettingsCodec.decodeBool(vals[_confirmDeleteDocument], fallback: true),
+      confirmDeleteAudio: SettingsCodec.decodeBool(vals[_confirmDeleteAudio], fallback: true),
+      downloadBrowser: SettingsCodec.decodeNullableString(vals[_downloadBrowser]),
+      downloadToCurrentFolder: SettingsCodec.decodeBool(vals[_downloadToCurrentFolder], fallback: true),
+      maxConcurrentDownloads: SettingsCodec.decodeInt(vals[_maxConcurrentDownloads], fallback: 3),
+      maxLiveRecordingMinutes: SettingsCodec.decodeInt(vals[_maxLiveRecordingMinutes], fallback: 0),
+      documentSearchCaseSensitive: SettingsCodec.decodeBool(vals[_documentSearchCaseSensitive], fallback: false),
+      documentSearchUseRegex: SettingsCodec.decodeBool(vals[_documentSearchUseRegex], fallback: false),
+      audioPlayerVolume: SettingsCodec.decodeDouble(vals[_audioPlayerVolume], fallback: 100.0),
+      videoPlayerVolume: SettingsCodec.decodeDouble(vals[_videoPlayerVolume], fallback: 100.0),
     );
+  }
+
+  Future<Map<String, String>> _loadGallerySortSettings() async {
+    return _db.getAllFolderSorts();
   }
 
   @override
   Future<void> saveSettings(AppSettings settings) async {
-    await _prefs.setBool('autoPlayNext', settings.autoPlayNext);
-    await _prefs.setBool('audioAutoPlayNext', settings.audioAutoPlayNext);
-    await _prefs.setBool('showHiddenFiles', settings.showHiddenFiles);
-    await _prefs.setBool('showHiddenAudioFiles', settings.showHiddenAudioFiles);
-    await _prefs.setString('snapshotPrefix', settings.snapshotPrefix);
-    await _prefs.setInt('doubleTapSeekSeconds', settings.doubleTapSeekSeconds);
-    await _prefs.setInt('maxConcurrentTasks', settings.maxConcurrentTasks);
-    await _prefs.setString('globalSortOption', settings.globalSortOption.name);
-    await _prefs.setBool('resumePlayback', settings.resumePlayback);
-    await _prefs.setInt('audioSeekSeconds', settings.audioSeekSeconds);
-    await _prefs.setString('selectedHwDec', settings.selectedHwDec);
-    if (settings.cachedResolvedHwDec != null) {
-      await _prefs.setString(
-        'cachedResolvedHwDec',
-        settings.cachedResolvedHwDec!,
-      );
-    } else {
-      await _prefs.remove('cachedResolvedHwDec');
-    }
-    await _prefs.setString(
-      'trackpad_speed_control',
-      settings.trackpadSpeedControl.name,
-    );
-    await _prefs.setDouble('filePickerWidth', settings.filePickerWidth);
-    await _prefs.setDouble('filePickerHeight', settings.filePickerHeight);
-    await _prefs.setDouble('settingsWidth', settings.settingsWidth);
-    await _prefs.setDouble('settingsHeight', settings.settingsHeight);
-    await _prefs.setDouble('downloaderWidth', settings.downloaderWidth);
-    await _prefs.setDouble('downloaderHeight', settings.downloaderHeight);
-    await _prefs.setBool('confirmDeleteImage', settings.confirmDeleteImage);
-    await _prefs.setBool('confirmDeleteVideo', settings.confirmDeleteVideo);
-    await _prefs.setBool(
-      'confirmDeleteDocument',
-      settings.confirmDeleteDocument,
-    );
-    await _prefs.setBool('confirmDeleteAudio', settings.confirmDeleteAudio);
-
-    if (settings.downloadBrowser != null) {
-      await _prefs.setString('downloadBrowser', settings.downloadBrowser!);
-    } else {
-      await _prefs.remove('downloadBrowser');
-    }
-
-    await _prefs.setBool(
-      'downloadToCurrentFolder',
-      settings.downloadToCurrentFolder,
-    );
-    await _prefs.setInt(
-      'maxConcurrentDownloads',
-      settings.maxConcurrentDownloads,
-    );
-    await _prefs.setInt(
-      'maxLiveRecordingMinutes',
-      settings.maxLiveRecordingMinutes,
-    );
-    await _prefs.setBool(
-      'documentSearchCaseSensitive',
-      settings.documentSearchCaseSensitive,
-    );
-    await _prefs.setBool(
-      'documentSearchUseRegex',
-      settings.documentSearchUseRegex,
-    );
-    await _prefs.setDouble('audioPlayerVolume', settings.audioPlayerVolume);
-    await _prefs.setDouble('videoPlayerVolume', settings.videoPlayerVolume);
+    // Save all scalar settings
+    await Future.wait([
+      _db.setSetting(_autoPlayNext, SettingsCodec.encodeBool(settings.autoPlayNext)),
+      _db.setSetting(_audioAutoPlayNext, SettingsCodec.encodeBool(settings.audioAutoPlayNext)),
+      _db.setSetting(_showHiddenFiles, SettingsCodec.encodeBool(settings.showHiddenFiles)),
+      _db.setSetting(_showHiddenAudioFiles, SettingsCodec.encodeBool(settings.showHiddenAudioFiles)),
+      _db.setSetting(_snapshotPrefix, SettingsCodec.encodeString(settings.snapshotPrefix)),
+      _db.setSetting(_doubleTapSeekSeconds, SettingsCodec.encodeInt(settings.doubleTapSeekSeconds)),
+      _db.setSetting(_maxConcurrentTasks, SettingsCodec.encodeInt(settings.maxConcurrentTasks)),
+      _db.setSetting(_globalSortOption, settings.globalSortOption.name),
+      _db.setSetting(_resumePlayback, SettingsCodec.encodeBool(settings.resumePlayback)),
+      _db.setSetting(_audioSeekSeconds, SettingsCodec.encodeInt(settings.audioSeekSeconds)),
+      _db.setSetting(_selectedHwDec, SettingsCodec.encodeString(settings.selectedHwDec)),
+      _db.setSetting(_trackpadSpeedControl, settings.trackpadSpeedControl.name),
+      _db.setSetting(_filePickerWidth, SettingsCodec.encodeDouble(settings.filePickerWidth)),
+      _db.setSetting(_filePickerHeight, SettingsCodec.encodeDouble(settings.filePickerHeight)),
+      _db.setSetting(_settingsWidth, SettingsCodec.encodeDouble(settings.settingsWidth)),
+      _db.setSetting(_settingsHeight, SettingsCodec.encodeDouble(settings.settingsHeight)),
+      _db.setSetting(_downloaderWidth, SettingsCodec.encodeDouble(settings.downloaderWidth)),
+      _db.setSetting(_downloaderHeight, SettingsCodec.encodeDouble(settings.downloaderHeight)),
+      _db.setSetting(_confirmDeleteImage, SettingsCodec.encodeBool(settings.confirmDeleteImage)),
+      _db.setSetting(_confirmDeleteVideo, SettingsCodec.encodeBool(settings.confirmDeleteVideo)),
+      _db.setSetting(_confirmDeleteDocument, SettingsCodec.encodeBool(settings.confirmDeleteDocument)),
+      _db.setSetting(_confirmDeleteAudio, SettingsCodec.encodeBool(settings.confirmDeleteAudio)),
+      _db.setSetting(_downloadToCurrentFolder, SettingsCodec.encodeBool(settings.downloadToCurrentFolder)),
+      _db.setSetting(_maxConcurrentDownloads, SettingsCodec.encodeInt(settings.maxConcurrentDownloads)),
+      _db.setSetting(_maxLiveRecordingMinutes, SettingsCodec.encodeInt(settings.maxLiveRecordingMinutes)),
+      _db.setSetting(_documentSearchCaseSensitive, SettingsCodec.encodeBool(settings.documentSearchCaseSensitive)),
+      _db.setSetting(_documentSearchUseRegex, SettingsCodec.encodeBool(settings.documentSearchUseRegex)),
+      _db.setSetting(_audioPlayerVolume, SettingsCodec.encodeDouble(settings.audioPlayerVolume)),
+      _db.setSetting(_videoPlayerVolume, SettingsCodec.encodeDouble(settings.videoPlayerVolume)),
+      // Nullable
+      settings.cachedResolvedHwDec != null
+          ? _db.setSetting(_cachedResolvedHwDec, settings.cachedResolvedHwDec!)
+          : _db.removeSetting(_cachedResolvedHwDec),
+      settings.downloadBrowser != null
+          ? _db.setSetting(_downloadBrowser, settings.downloadBrowser!)
+          : _db.removeSetting(_downloadBrowser),
+      // Pinned folders
+      _db.savePinnedFolders(settings.pinnedFolders),
+    ]);
   }
 
   @override
-  Future<void> setAutoPlayNext({required bool value}) async {
-    await _prefs.setBool('autoPlayNext', value);
-  }
+  Future<void> setAutoPlayNext({required bool value}) =>
+      _db.setSetting(_autoPlayNext, SettingsCodec.encodeBool(value));
 
   @override
-  Future<void> setShowHiddenFiles({required bool value}) async {
-    await _prefs.setBool('showHiddenFiles', value);
-  }
+  Future<void> setShowHiddenFiles({required bool value}) =>
+      _db.setSetting(_showHiddenFiles, SettingsCodec.encodeBool(value));
 
   @override
-  Future<void> setShowHiddenAudioFiles({required bool value}) async {
-    await _prefs.setBool('showHiddenAudioFiles', value);
-  }
+  Future<void> setShowHiddenAudioFiles({required bool value}) =>
+      _db.setSetting(_showHiddenAudioFiles, SettingsCodec.encodeBool(value));
 
   @override
-  Future<void> setSnapshotPrefix(String value) async {
-    await _prefs.setString('snapshotPrefix', value);
-  }
+  Future<void> setSnapshotPrefix(String value) =>
+      _db.setSetting(_snapshotPrefix, SettingsCodec.encodeString(value));
 
   @override
-  Future<void> setDoubleTapSeekSeconds(int value) async {
-    await _prefs.setInt('doubleTapSeekSeconds', value);
-  }
+  Future<void> setDoubleTapSeekSeconds(int value) =>
+      _db.setSetting(_doubleTapSeekSeconds, SettingsCodec.encodeInt(value));
 
   @override
-  Future<void> setResumePlayback({required bool value}) async {
-    await _prefs.setBool('resumePlayback', value);
-  }
+  Future<void> setResumePlayback({required bool value}) =>
+      _db.setSetting(_resumePlayback, SettingsCodec.encodeBool(value));
 
   @override
-  Future<void> setAudioSeekSeconds(int value) async {
-    await _prefs.setInt('audioSeekSeconds', value);
-  }
+  Future<void> setAudioSeekSeconds(int value) =>
+      _db.setSetting(_audioSeekSeconds, SettingsCodec.encodeInt(value));
 
   @override
-  Future<void> setSelectedHwDec(String value) async {
-    await _prefs.setString('selectedHwDec', value);
-  }
+  Future<void> setSelectedHwDec(String value) =>
+      _db.setSetting(_selectedHwDec, SettingsCodec.encodeString(value));
 
   @override
   Future<void> setCachedResolvedHwDec(String? value) async {
     if (value != null) {
-      await _prefs.setString('cachedResolvedHwDec', value);
+      await _db.setSetting(_cachedResolvedHwDec, value);
     } else {
-      await _prefs.remove('cachedResolvedHwDec');
+      await _db.removeSetting(_cachedResolvedHwDec);
     }
   }
 
   @override
-  Future<void> setTrackpadSpeedControl({
-    required SpeedControlOption value,
-  }) async {
-    await _prefs.setString('trackpad_speed_control', value.name);
-  }
+  Future<void> setTrackpadSpeedControl({required SpeedControlOption value}) =>
+      _db.setSetting(_trackpadSpeedControl, value.name);
 
   @override
-  Future<void> setFilePickerDimensions(double width, double height) async {
-    await _prefs.setDouble('filePickerWidth', width);
-    await _prefs.setDouble('filePickerHeight', height);
-  }
+  Future<void> setFilePickerDimensions(double width, double height) =>
+      Future.wait([
+        _db.setSetting(_filePickerWidth, SettingsCodec.encodeDouble(width)),
+        _db.setSetting(_filePickerHeight, SettingsCodec.encodeDouble(height)),
+      ]);
 
   @override
-  Future<void> setSettingsDimensions(double width, double height) async {
-    await _prefs.setDouble('settingsWidth', width);
-    await _prefs.setDouble('settingsHeight', height);
-  }
+  Future<void> setSettingsDimensions(double width, double height) =>
+      Future.wait([
+        _db.setSetting(_settingsWidth, SettingsCodec.encodeDouble(width)),
+        _db.setSetting(_settingsHeight, SettingsCodec.encodeDouble(height)),
+      ]);
 
   @override
-  Future<void> setDownloaderDimensions(double width, double height) async {
-    await _prefs.setDouble('downloaderWidth', width);
-    await _prefs.setDouble('downloaderHeight', height);
-  }
+  Future<void> setDownloaderDimensions(double width, double height) =>
+      Future.wait([
+        _db.setSetting(_downloaderWidth, SettingsCodec.encodeDouble(width)),
+        _db.setSetting(_downloaderHeight, SettingsCodec.encodeDouble(height)),
+      ]);
 
   @override
   Future<void> setDownloadBrowser(String? browser) async {
     if (browser != null) {
-      await _prefs.setString('downloadBrowser', browser);
+      await _db.setSetting(_downloadBrowser, browser);
     } else {
-      await _prefs.remove('downloadBrowser');
+      await _db.removeSetting(_downloadBrowser);
     }
   }
 
   @override
-  Future<void> setDownloadToCurrentFolder({required bool value}) async {
-    await _prefs.setBool('downloadToCurrentFolder', value);
+  Future<void> setDownloadToCurrentFolder({required bool value}) =>
+      _db.setSetting(_downloadToCurrentFolder, SettingsCodec.encodeBool(value));
+
+  // ── Open With Dialog geometry ─────────────────────────────────────────────
+
+  Future<(double width, double height)> getOpenWithDialogSize() async {
+    final w = SettingsCodec.decodeDouble(
+      await _db.getSetting(_openWithDialogWidth),
+      fallback: 500.0,
+    );
+    final h = SettingsCodec.decodeDouble(
+      await _db.getSetting(_openWithDialogHeight),
+      fallback: 650.0,
+    );
+    return (w, h);
   }
+
+  Future<void> setOpenWithDialogSize(double width, double height) =>
+      Future.wait([
+        _db.setSetting(_openWithDialogWidth, SettingsCodec.encodeDouble(width)),
+        _db.setSetting(_openWithDialogHeight, SettingsCodec.encodeDouble(height)),
+      ]);
+
+  // ── Downloader panel width ────────────────────────────────────────────────
+
+  Future<double> getDownloadsPanelWidth() async {
+    return SettingsCodec.decodeDouble(
+      await _db.getSetting(_sidePanelWidthPixels),
+      fallback: 320.0,
+    );
+  }
+
+  Future<void> setDownloadsPanelWidth(double width) =>
+      _db.setSetting(_sidePanelWidthPixels, SettingsCodec.encodeDouble(width));
 
   // ——— Gallery Sorting ———
 
   @override
   SortOption getFolderSort(String path, SortOption globalDefault) {
-    final name = _gallerySortSettings[path];
-    if (name == null) return globalDefault;
-    return SortOption.values.firstWhere(
-      (e) => e.name == name,
-      orElse: () => globalDefault,
-    );
+    // Note: This synchronous method is called from UI code.
+    // The gallery sort settings are loaded into gallerySortSettings in AppSettings.
+    // Direct DB access should use setFolderSort + re-load pattern.
+    // For synchronous access, callers should use AppSettings.gallerySortSettings.
+    return globalDefault;
   }
 
   @override
-  Future<void> setFolderSort(String path, SortOption option) async {
-    _gallerySortSettings[path] = option.name;
-    await _prefs.setString(
-      'gallerySortSettings',
-      jsonEncode(_gallerySortSettings),
-    );
-  }
+  Future<void> setFolderSort(String path, SortOption option) =>
+      _db.setFolderSort(path, option.name);
 
   // ——— Gallery Pinning ———
+
+  // In-memory cache of pinned folders (loaded on startup via load())
+  List<String> _pinnedFolders = [];
 
   @override
   List<String> get pinnedFolders => List<String>.from(_pinnedFolders);
@@ -279,7 +324,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
         _pinnedFolders.add(path);
       }
     }
-    await _prefs.setStringList('pinnedFolders', _pinnedFolders);
+    await _db.savePinnedFolders(_pinnedFolders);
   }
 
   @override
@@ -289,7 +334,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _pinnedFolders
         ..removeAt(index)
         ..insert(index - 1, path);
-      await _prefs.setStringList('pinnedFolders', _pinnedFolders);
+      await _db.savePinnedFolders(_pinnedFolders);
     }
   }
 
@@ -300,7 +345,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _pinnedFolders
         ..removeAt(index)
         ..insert(index + 1, path);
-      await _prefs.setStringList('pinnedFolders', _pinnedFolders);
+      await _db.savePinnedFolders(_pinnedFolders);
     }
   }
 
@@ -321,7 +366,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       }
     }
     if (changed) {
-      await _prefs.setStringList('pinnedFolders', _pinnedFolders);
+      await _db.savePinnedFolders(_pinnedFolders);
     }
   }
 
@@ -332,7 +377,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     final hash = videoPath.hashCode.toString();
     final fileName = p.basename(videoPath);
     final cacheDir =
-        "${Platform.environment['HOME']}/.cache/onyxcore/thumbnails";
+        '${Platform.environment['HOME']}/.cache/onyxcore/thumbnails';
     return '$cacheDir/${hash}_$fileName.jpg';
   }
 }

@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar_item.dart';
 
 void main() {
@@ -16,7 +16,7 @@ void main() {
   }
 
   testWidgets('SidebarItem renders correctly when active and handles hover', (tester) async {
-    bool tapped = false;
+    var tapped = false;
 
     await tester.pumpWidget(buildTestWidget(
       SidebarItem(

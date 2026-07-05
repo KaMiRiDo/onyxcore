@@ -29,12 +29,13 @@ enum AudioViewMode { home, favorites }
 
 /// Audio favorites — delegates to the shared [MediaFavoritesNotifier].
 class AudioFavoritesNotifier extends MediaFavoritesNotifier {
-  AudioFavoritesNotifier() : super('audio_favorites');
+  AudioFavoritesNotifier() : super(MediaType.audio);
 }
 
 final audioFavoritesProvider =
     StateNotifierProvider<AudioFavoritesNotifier, Set<String>>((ref) {
-      return AudioFavoritesNotifier();
+      final notifier = AudioFavoritesNotifier()..setRef(ref);
+      return notifier;
     });
 
 final audioViewModeProvider = StateProvider<AudioViewMode>(

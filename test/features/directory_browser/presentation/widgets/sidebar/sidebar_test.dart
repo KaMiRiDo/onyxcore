@@ -1,24 +1,26 @@
+import 'dart:async';
+
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar_item.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/storage_indicator.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
-
-import 'dart:async';
-import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 void main() {
-  late SharedPreferences prefs;
+  late AppDatabase db;
 
-  setUpAll(() async {
-    SharedPreferences.setMockInitialValues({});
-    prefs = await SharedPreferences.getInstance();
+  setUpAll(() {
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+
+  tearDownAll(() async {
+    // Memory db doesn't require manual closing and doing so interrupts widget disposal streams
   });
 
   Widget buildTestWidget() {
@@ -26,7 +28,7 @@ void main() {
     return ProviderScope(
       overrides: [
         deviceProvider.overrideWith((ref) => streamController.stream),
-        sharedPreferencesProvider.overrideWithValue(prefs),
+        databaseProvider.overrideWithValue(db),
       ],
       child: const MaterialApp(
         home: Scaffold(
@@ -76,6 +78,6 @@ void main() {
     
     // Dispose the widget tree to cancel StorageIndicator periodic timers
     await tester.pumpWidget(const SizedBox());
-    await tester.pump();
+    await tester.pumpAndSettle();
   });
 }

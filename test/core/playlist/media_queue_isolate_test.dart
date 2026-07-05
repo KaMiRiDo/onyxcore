@@ -42,7 +42,7 @@ void main() {
     }
   });
 
-  List<Map<String, dynamic>> _buildItemsJson() {
+  List<Map<String, dynamic>> buildItemsJson() {
     return [
       FileItem(name: 'song.mp3', path: p.join(tempDir.path, 'song.mp3'), type: FileItemType.audio, modified: DateTime.now()).toJson(),
       FileItem(name: 'video.mp4', path: p.join(tempDir.path, 'video.mp4'), type: FileItemType.video, modified: DateTime.now()).toJson(),
@@ -58,7 +58,7 @@ void main() {
   group('processMediaQueueIsolate', () {
     test('filters audio files and folders containing audio files (showHidden = false)', () {
       final args = {
-        'items': _buildItemsJson(),
+        'items': buildItemsJson(),
         'showHidden': false,
         'targetType': FileItemType.audio.index,
       };
@@ -79,7 +79,7 @@ void main() {
 
     test('filters audio files and folders containing audio files (showHidden = true)', () {
       final args = {
-        'items': _buildItemsJson(),
+        'items': buildItemsJson(),
         'showHidden': true,
         'targetType': FileItemType.audio.index,
       };
@@ -101,7 +101,7 @@ void main() {
 
     test('filters video files and folders containing video files (showHidden = false)', () {
       final args = {
-        'items': _buildItemsJson(),
+        'items': buildItemsJson(),
         'showHidden': false,
         'targetType': FileItemType.video.index,
       };

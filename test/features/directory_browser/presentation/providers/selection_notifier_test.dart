@@ -1,17 +1,17 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:mocktail/mocktail.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/domain/repositories/settings_repository.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
 class MockSettingsRepository extends Mock implements SettingsRepository {}
 class MockSettingsNotifier extends SettingsNotifier {
   @override
-  Future<AppSettings> build() async => AppSettings(globalSortOption: SortOption.aToZ);
+  Future<AppSettings> build() async => AppSettings();
 }
 
 void main() {
@@ -27,7 +27,7 @@ void main() {
       container = ProviderContainer(
         overrides: [
           settingsRepositoryProvider.overrideWithValue(mockSettings),
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
         ],
       );
       container.read(tabManagerProvider.notifier).addTab(path: '/initial');

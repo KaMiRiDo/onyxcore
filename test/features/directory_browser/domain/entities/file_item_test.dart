@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 void main() {
   group('FileItem', () {
-    final tModified = DateTime(2023, 1, 1);
+    final tModified = DateTime(2023);
     final tItem = FileItem(
       path: '/path/to/doc.pdf',
       name: 'doc.pdf',
@@ -13,7 +13,6 @@ void main() {
       sizeBytes: 1024,
       thumbnailPath: '/path/thumb.jpg',
       imageAspectRatio: 1.5,
-      itemCount: null,
       isExecutable: true,
       hasWritePermission: false,
     );
@@ -27,7 +26,6 @@ void main() {
         sizeBytes: 1024,
         thumbnailPath: '/path/thumb.jpg',
         imageAspectRatio: 1.5,
-        itemCount: null,
         isExecutable: true,
         hasWritePermission: false,
       );
@@ -52,7 +50,7 @@ void main() {
         modified: newModified,
         sizeBytes: 2048,
         thumbnailPath: '/new/thumb.jpg',
-        imageAspectRatio: 2.0,
+        imageAspectRatio: 2,
         itemCount: 5,
         isExecutable: false,
         hasWritePermission: true,

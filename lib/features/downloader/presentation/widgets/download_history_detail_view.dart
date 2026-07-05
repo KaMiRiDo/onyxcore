@@ -7,9 +7,16 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart' as domain;
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:path/path.dart' as p;
+
+/// FutureProvider to look up a single history entry by ID asynchronously.
+final _downloadHistoryEntryProvider =
+    FutureProvider.family<domain.DownloadHistoryEntry?, String>((ref, id) {
+  return ref.read(downloadHistoryProvider.notifier).getEntry(id);
+});
 
 class DownloadHistoryDetailView extends ConsumerStatefulWidget {
   const DownloadHistoryDetailView({super.key});
@@ -32,15 +39,34 @@ class _DownloadHistoryDetailViewState
       return const SizedBox();
     }
 
-    final entry = ref.watch(downloadHistoryProvider.notifier).getEntry(entryId);
-    if (entry == null) {
-      return Center(
+    final entryAsync = ref.watch(_downloadHistoryEntryProvider(entryId));
+    return entryAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
         child: Text(
           'History not found',
           style: GoogleFonts.manrope(color: Colors.white),
         ),
-      );
-    }
+      ),
+      data: (entry) {
+        if (entry == null) {
+          return Center(
+            child: Text(
+              'History not found',
+              style: GoogleFonts.manrope(color: Colors.white),
+            ),
+          );
+        }
+        return _buildDetail(context, entry, entryId);
+      },
+    );
+  }
+
+  Widget _buildDetail(
+    BuildContext context,
+    domain.DownloadHistoryEntry entry,
+    String entryId,
+  ) {
 
     final isSuccess = entry.statusName.toLowerCase() == 'completed';
     final isError = entry.statusName.toLowerCase() == 'error';

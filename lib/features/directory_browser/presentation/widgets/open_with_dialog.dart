@@ -3,14 +3,16 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/app_launcher_utils.dart';
+import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
 
-class OpenWithDialog extends StatefulWidget {
+class OpenWithDialog extends ConsumerStatefulWidget {
   final String filePath;
 
   const OpenWithDialog({
@@ -27,10 +29,10 @@ class OpenWithDialog extends StatefulWidget {
   }
 
   @override
-  State<OpenWithDialog> createState() => _OpenWithDialogState();
+  ConsumerState<OpenWithDialog> createState() => _OpenWithDialogState();
 }
 
-class _OpenWithDialogState extends State<OpenWithDialog> {
+class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
   double _width = 500;
   double _height = 650;
   bool _isResizing = false;
@@ -207,19 +209,21 @@ class _OpenWithDialogState extends State<OpenWithDialog> {
   }
 
   Future<void> _loadDimensions() async {
-    final prefs = await SharedPreferences.getInstance();
+    final db = ref.read(databaseProvider);
+    final repo = SettingsRepositoryImpl(db);
+    final (w, h) = await repo.getOpenWithDialogSize();
     if (mounted) {
       setState(() {
-        _width = prefs.getDouble('open_with_dialog_width') ?? 500;
-        _height = prefs.getDouble('open_with_dialog_height') ?? 650;
+        _width = w;
+        _height = h;
       });
     }
   }
 
   Future<void> _saveDimensions() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('open_with_dialog_width', _width);
-    await prefs.setDouble('open_with_dialog_height', _height);
+    final db = ref.read(databaseProvider);
+    final repo = SettingsRepositoryImpl(db);
+    await repo.setOpenWithDialogSize(_width, _height);
   }
 
   @override

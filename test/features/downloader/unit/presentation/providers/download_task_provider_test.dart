@@ -1,14 +1,11 @@
-import 'dart:async';
 import 'dart:io';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-// ignore: implementation_imports
-import 'package:flutter_riverpod/legacy.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 
@@ -16,13 +13,11 @@ class DummyEngine extends DownloadEngine {
   @override
   String get id => 'dummy';
   @override
-  String get name => 'Dummy';
-  @override
   int get priority => 100;
   @override
   bool get isInstalled => true;
   @override
-  List<RegExp> get urlPatterns => [RegExp(r'.*')];
+  List<RegExp> get urlPatterns => [RegExp('.*')];
   @override
   String get displayName => 'Dummy';
   @override
@@ -65,7 +60,7 @@ class DummyEngine extends DownloadEngine {
     String? directUrl,
   }) async {
     // Return a dummy process that exits immediately
-    return await Process.start('echo', ['dummy']);
+    return Process.start('echo', ['dummy']);
   }
 }
 
@@ -82,13 +77,13 @@ void main() {
     container = ProviderContainer(
       overrides: [
         // Prevent history provider from trying to init sqlite in temp
-        downloadHistoryProvider.overrideWith(() => DownloadHistoryNotifier()),
+        downloadHistoryProvider.overrideWith(DownloadHistoryNotifier.new),
       ],
     );
   });
 
   tearDown(() async {
-    await Future.delayed(const Duration(milliseconds: 50));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
     container.dispose();
   });
 
@@ -388,7 +383,7 @@ void main() {
         id = notifier.state.first.id;
         
         final items = [
-          const MediaInfo(id: '1', title: '1', originalUrl: 'U', isVideo: true),
+          const MediaInfo(id: '1', title: '1', originalUrl: 'U'),
           const MediaInfo(id: '2', title: '2', originalUrl: 'U', isVideo: false),
           const MediaInfo(id: '3', title: '3', originalUrl: 'U', isVideo: false),
         ];
@@ -404,7 +399,7 @@ void main() {
         id = notifier.state.first.id;
         
         final items = [
-          const MediaInfo(id: '1', title: '1', originalUrl: 'U', isVideo: true),
+          const MediaInfo(id: '1', title: '1', originalUrl: 'U'),
           const MediaInfo(id: '2', title: '2', originalUrl: 'U', isVideo: false),
           const MediaInfo(id: '3', title: '3', originalUrl: 'U', isVideo: false),
         ];
@@ -444,7 +439,7 @@ void main() {
           DownloadTask(id: '1', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
           DownloadTask(id: '2', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.completed),
           DownloadTask(id: '3', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.error),
-          DownloadTask(id: '4', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.pending),
+          DownloadTask(id: '4', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now()),
         ];
         
         notifier.clearHistory();
@@ -463,7 +458,7 @@ void main() {
           DownloadTask(id: '1', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
           DownloadTask(id: '2', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
           DownloadTask(id: '3', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.completed),
-          DownloadTask(id: '4', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.pending),
+          DownloadTask(id: '4', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now()),
         ];
         
         final active = container.read(activeDownloadTaskProvider);

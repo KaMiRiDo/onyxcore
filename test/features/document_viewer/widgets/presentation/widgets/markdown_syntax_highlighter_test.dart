@@ -149,8 +149,6 @@ void main() {
       final highlighter = MarkdownSyntaxHighlighter(
         text: 'This is a test document with test data.',
         searchQuery: 'test',
-        caseSensitive: false,
-        useRegex: false,
         currentMatchIndex: 0,
       );
       
@@ -182,9 +180,7 @@ void main() {
       final highlighter = MarkdownSyntaxHighlighter(
         text: 'Error 404 and Error 500',
         searchQuery: r'\b\d{3}\b', // match 3 digits
-        caseSensitive: false,
         useRegex: true,
-        currentMatchIndex: -1,
       );
       
       final textSpan = highlighter.buildTextSpan(

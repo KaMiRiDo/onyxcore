@@ -1,27 +1,25 @@
 import 'dart:async';
-import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
+import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+
 import 'mock_utils.dart';
-import 'package:riverpod/riverpod.dart';
 
 class MockDirectoryRepository extends Mock implements DirectoryRepository {}
 
@@ -44,7 +42,6 @@ class MockTabManager extends TabManager {
           id: 'mock-tab-id',
           currentPath: '/mock',
           history: ['/mock'],
-          historyIndex: 0,
         ),
       ],
       activeTabIndex: 0,
@@ -115,12 +112,12 @@ void main() {
 
   group('DirectoryAnalysisPage Widget Tests', () {
     late MockDirectoryRepository mockRepo;
-    late SharedPreferences mockPrefs;
+    late AppDatabase mockDb;
     late MockSettingsRepository mockSettingsRepo;
     
     setUp(() async {
       mockRepo = MockDirectoryRepository();
-      mockPrefs = await getMockPrefs();
+      mockDb = getMockDb();
       mockSettingsRepo = getMockSettingsRepo();
     });
 
@@ -130,27 +127,24 @@ void main() {
       String? error,
       List<dynamic>? overrides,
     }) {
-      final baseOverrides = [
-        tabIdProvider.overrideWithValue('mock-tab-id'),
-        directoryRepositoryProvider.overrideWithValue(mockRepo),
-        sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        settingsRepositoryProvider.overrideWithValue(mockSettingsRepo),
-        settingsProvider.overrideWith(MockSettingsNotifier.new),
-        pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
-        tabManagerProvider.overrideWith(MockTabManager.new),
-        
-        if (isLoading)
-          directoryAnalysisProvider('/mock').overrideWith((ref) => Completer<DirectoryAnalysisResult>().future)
-        else if (error != null)
-          directoryAnalysisProvider('/mock').overrideWith((ref) => Future.error(error, StackTrace.empty))
-        else if (initialData != null)
-          directoryAnalysisProvider('/mock').overrideWith((ref) => Future.value(initialData)),
-      ];
-
       return ProviderScope(
         overrides: [
-          ...baseOverrides,
-          if (overrides != null) ...overrides,
+          tabIdProvider.overrideWithValue('mock-tab-id'),
+          directoryRepositoryProvider.overrideWithValue(mockRepo),
+          databaseProvider.overrideWithValue(mockDb),
+          settingsRepositoryProvider.overrideWithValue(mockSettingsRepo),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+          pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
+          tabManagerProvider.overrideWith(MockTabManager.new),
+          
+          if (isLoading)
+            directoryAnalysisProvider('/mock').overrideWith((ref) => Completer<DirectoryAnalysisResult>().future)
+          else if (error != null)
+            directoryAnalysisProvider('/mock').overrideWith((ref) => Future.error(error, StackTrace.empty))
+          else if (initialData != null)
+            directoryAnalysisProvider('/mock').overrideWith((ref) => Future.value(initialData)),
+          
+          if (overrides != null) ...overrides.cast(),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -186,11 +180,11 @@ void main() {
         categoryStats: {
           FileItemType.image: CategoryStats(count: 2, totalBytes: 1024),
           FileItemType.video: CategoryStats(count: 1, totalBytes: 512),
-          FileItemType.audio: CategoryStats(count: 0, totalBytes: 0),
-          FileItemType.document: CategoryStats(count: 0, totalBytes: 0),
-          FileItemType.archive: CategoryStats(count: 0, totalBytes: 0),
-          FileItemType.other: CategoryStats(count: 0, totalBytes: 0),
-          FileItemType.folder: CategoryStats(count: 0, totalBytes: 0),
+          FileItemType.audio: CategoryStats(),
+          FileItemType.document: CategoryStats(),
+          FileItemType.archive: CategoryStats(),
+          FileItemType.other: CategoryStats(),
+          FileItemType.folder: CategoryStats(),
         },
       );
       
@@ -231,13 +225,13 @@ void main() {
         diskUsage: null,
         allFiles: statItems,
         categoryStats: {
-          FileItemType.image: CategoryStats(count: 0, totalBytes: 0),
-          FileItemType.video: CategoryStats(count: 0, totalBytes: 0),
-          FileItemType.audio: CategoryStats(count: 0, totalBytes: 0),
+          FileItemType.image: CategoryStats(),
+          FileItemType.video: CategoryStats(),
+          FileItemType.audio: CategoryStats(),
           FileItemType.document: CategoryStats(count: 1, totalBytes: 100),
-          FileItemType.archive: CategoryStats(count: 0, totalBytes: 0),
-          FileItemType.other: CategoryStats(count: 0, totalBytes: 0),
-          FileItemType.folder: CategoryStats(count: 0, totalBytes: 0),
+          FileItemType.archive: CategoryStats(),
+          FileItemType.other: CategoryStats(),
+          FileItemType.folder: CategoryStats(),
         },
       );
 

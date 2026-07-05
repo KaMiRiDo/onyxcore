@@ -777,7 +777,6 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   }
 
   void _refresh() async {
-    debugPrint("Refresh triggered via Ctrl+R");
     final currentPath = ref.read(currentPathProvider);
     ref.read(directoryRepositoryProvider).invalidateCache(currentPath);
     ref.read(refreshCountProvider.notifier).state =
@@ -962,7 +961,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         .compressItems(context, selection.selectedPaths.toList(), currentDir);
   }
 
-  void _handlePaste() async {
+  void _handlePaste() async { 
     final clipboard = ref.read(clipboardProvider);
     if (clipboard == null || clipboard.paths.isEmpty) return;
 

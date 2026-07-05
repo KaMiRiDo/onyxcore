@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/action_bar.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
-import '../pages/mock_utils.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/action_bar.dart';
 
 // Dummy Repository for testing
 class DummyDirectoryRepository implements DirectoryRepository {
@@ -21,8 +20,8 @@ class DummyDirectoryRepository implements DirectoryRepository {
 }
 
 class MockTaskNotifier extends TaskNotifier {
-  final List<FileTask> initialTasks;
   MockTaskNotifier(this.initialTasks);
+  final List<FileTask> initialTasks;
   @override
   List<FileTask> build() => initialTasks;
 
@@ -53,7 +52,7 @@ void main() {
   Widget buildTestWidget({required DirectoryRepository repo}) {
     return ProviderScope(
       overrides: [
-        currentPathProvider.overrideWith(() => MockCurrentPathNotifier()),
+        currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
         directoryRepositoryProvider.overrideWithValue(repo),
         taskProvider.overrideWith(() => MockTaskNotifier([])),
       ],

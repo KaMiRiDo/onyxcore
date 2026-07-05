@@ -44,7 +44,12 @@ class _UnifiedSidePanelState extends ConsumerState<UnifiedSidePanel> {
         0.25; // "currently implemented width" is 0.25 of screenWidth
     final maxWidth = mainAreaWidth / 2;
 
-    double panelWidth = ref.watch(downloadsPanelWidthProvider);
+    final panelWidthAsync = ref.watch(downloadsPanelWidthProvider);
+    double panelWidth = panelWidthAsync.when(
+      data: (v) => v,
+      loading: () => 320.0,
+      error: (_, __) => 320.0,
+    );
     panelWidth = panelWidth.clamp(minWidth, maxWidth);
 
     final isDragging = ref.watch(isDownloadsPanelDraggingProvider);

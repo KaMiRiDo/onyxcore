@@ -3,16 +3,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/services/engines/playwright_engine.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
+import 'package:onyxcore/features/downloader/services/engines/playwright_engine.dart';
 
 class MockProcess extends Fake implements Process {
+
+  MockProcess(this._exitCode, this._stdout, this._stderr);
   final int _exitCode;
   final String _stdout;
   final String _stderr;
-
-  MockProcess(this._exitCode, this._stdout, this._stderr);
 
   @override
   int get pid => 12345;
@@ -28,9 +27,9 @@ class MockProcess extends Fake implements Process {
 }
 
 class TestPlaywrightEngine extends PlaywrightEngine {
+  TestPlaywrightEngine(this.testPath);
   MockProcess? mockPythonProcess;
   final String testPath;
-  TestPlaywrightEngine(this.testPath);
 
   @override
   String? get binaryPath => testPath;
@@ -81,7 +80,7 @@ void main() {
 
       test('U-DL-PLW-04: Generate transient python script', () async {
         // fetchMetadata writes the script. We mock the process so it doesn't fail.
-        engine.mockPythonProcess = MockProcess(0, jsonEncode({"thumbnail": "", "media": [{"url": "http://vid.mp4", "type": "video/mp4", "size": "100"}]}), '');
+        engine.mockPythonProcess = MockProcess(0, jsonEncode({'thumbnail': '', 'media': [{'url': 'http://vid.mp4', 'type': 'video/mp4', 'size': '100'}]}), '');
         
         await engine.fetchMetadata(url: 'http://test.com');
         final script = File(engine.binaryPath!);
@@ -92,9 +91,9 @@ void main() {
     group('2. Scraping & Metadata Fetching', () {
       test('U-DL-PLW-05: Execute Python script to extract direct video URL', () async {
         engine.mockPythonProcess = MockProcess(0, jsonEncode({
-          "thumbnail": "data:image/jpeg;base64,...",
-          "media": [
-            {"url": "http://test.com/vid.mp4", "type": "video/mp4", "size": "1048576"}
+          'thumbnail': 'data:image/jpeg;base64,...',
+          'media': [
+            {'url': 'http://test.com/vid.mp4', 'type': 'video/mp4', 'size': '1048576'}
           ]
         }), '');
 
@@ -107,8 +106,8 @@ void main() {
 
       test('U-DL-PLW-06: Parse embedded HLS/M3U8 streams', () async {
         engine.mockPythonProcess = MockProcess(0, jsonEncode({
-          "media": [
-            {"url": "http://test.com/stream.m3u8", "type": "application/x-mpegurl", "size": "0"}
+          'media': [
+            {'url': 'http://test.com/stream.m3u8', 'type': 'application/x-mpegurl', 'size': '0'}
           ]
         }), '');
 
@@ -119,7 +118,7 @@ void main() {
 
       test('U-DL-PLW-07: Bypass failure or CAPTCHA block', () async {
         engine.mockPythonProcess = MockProcess(0, jsonEncode({
-          "media": []
+          'media': []
         }), 'hCaptcha blocked');
 
         expect(

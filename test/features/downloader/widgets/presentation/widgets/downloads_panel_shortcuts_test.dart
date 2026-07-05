@@ -1,19 +1,29 @@
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/drift.dart' hide Column;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/pages/gallery_page.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 
 void main() {
   testWidgets('Global Keyboard Shortcuts Propagation', (WidgetTester tester) async {
+    final appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+    
     final container = ProviderContainer(
       overrides: [
         downloadsPanelOpenProvider.overrideWith((ref) => true),
+        databaseProvider.overrideWithValue(appDb),
       ],
     );
-    addTearDown(container.dispose);
+    addTearDown(() async {
+      container.dispose();
+      // await appDb.close();
+    });
     
     final listFocusNode = FocusNode();
     final urlFocusNode = FocusNode();
@@ -61,9 +71,7 @@ void main() {
                         node: panelFocusScopeNode,
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            panelFocusScopeNode.requestFocus();
-                          },
+                          onTap: panelFocusScopeNode.requestFocus,
                           child: Listener(
                             onPointerDown: (_) {
                               listFocusNode.requestFocus();

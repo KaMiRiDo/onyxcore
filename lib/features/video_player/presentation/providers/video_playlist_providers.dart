@@ -10,12 +10,13 @@ enum VideoViewMode { home, favorites }
 
 /// Video favorites — delegates to the shared [MediaFavoritesNotifier].
 class VideoFavoritesNotifier extends MediaFavoritesNotifier {
-  VideoFavoritesNotifier() : super('video_favorites');
+  VideoFavoritesNotifier() : super(MediaType.video);
 }
 
 final videoFavoritesProvider =
     StateNotifierProvider<VideoFavoritesNotifier, Set<String>>((ref) {
-      return VideoFavoritesNotifier();
+      final notifier = VideoFavoritesNotifier()..setRef(ref);
+      return notifier;
     });
 
 final videoViewModeProvider = StateProvider<VideoViewMode>(

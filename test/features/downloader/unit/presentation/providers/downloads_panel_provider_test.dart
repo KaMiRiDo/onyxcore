@@ -1,32 +1,35 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'dart:io';
-
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 
 void main() {
+  late AppDatabase db;
   late ProviderContainer container;
-  late Box<dynamic> appSettingsBox;
 
-  setUpAll(() async {
-    final tempDir = await Directory.systemTemp.createTemp('hive_panel_test');
-    Hive.init(tempDir.path);
-    appSettingsBox = await Hive.openBox('ui_settings');
+  setUpAll(() {
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
   });
 
   setUp(() {
-    container = ProviderContainer();
+    container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+      ],
+    );
   });
 
-  tearDown(() {
+  tearDown(() async {
     container.dispose();
+    await db.delete(db.settings).go();
   });
 
   tearDownAll(() async {
-    await appSettingsBox.close();
-    await Hive.deleteBoxFromDisk('ui_settings');
+    await db.close();
   });
 
   group('DownloadsPanelProvider Unit Tests', () {
@@ -70,33 +73,45 @@ void main() {
     });
 
     group('DownloadsPanelWidthNotifier', () {
-      test('U-DL-PNL-09: loads width from Hive box', () async {
-        await appSettingsBox.put('side_panel_width_pixels', 400.0);
-        final customContainer = ProviderContainer();
+      test('U-DL-PNL-09: loads width from AppDatabase', () async {
+        await db.delete(db.settings).go();
+        await db.into(db.settings).insertOnConflictUpdate(
+          const SettingsCompanion(key: Value('side_panel_width_pixels'), value: Value('400.0')),
+        );
+        final customContainer = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+          ],
+        );
         
-        // Read the provider to initialize it
-        final width = customContainer.read(downloadsPanelWidthProvider);
-        expect(width, 400.0);
+        final widthAsync = await customContainer.read(downloadsPanelWidthProvider.future);
+        expect(widthAsync, 400.0);
         customContainer.dispose();
       });
 
-      test('U-DL-PNL-10: defaults to 320.0 if Hive key missing', () async {
-        await appSettingsBox.delete('side_panel_width_pixels');
-        final customContainer = ProviderContainer();
+      test('U-DL-PNL-10: defaults to 320.0 if database key missing', () async {
+        await db.delete(db.settings).go();
+        final customContainer = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+          ],
+        );
         
-        final width = customContainer.read(downloadsPanelWidthProvider);
-        expect(width, 320.0);
+        final widthAsync = await customContainer.read(downloadsPanelWidthProvider.future);
+        expect(widthAsync, 320.0);
         customContainer.dispose();
       });
 
-      test('U-DL-PNL-11: updates state and persists to Hive', () async {
-        await appSettingsBox.delete('side_panel_width_pixels');
-        
+      test('U-DL-PNL-11: updates state and persists to database', () async {
+        await db.delete(db.settings).go();
+        await container.read(downloadsPanelWidthProvider.future);
         final notifier = container.read(downloadsPanelWidthProvider.notifier);
-        notifier.updateWidth(500.0);
+        await notifier.updateWidth(500);
         
-        expect(container.read(downloadsPanelWidthProvider), 500.0);
-        expect(appSettingsBox.get('side_panel_width_pixels'), 500.0);
+        expect(container.read(downloadsPanelWidthProvider).value, 500.0);
+        
+        final row = await (db.select(db.settings)..where((t) => t.key.equals('side_panel_width_pixels'))).getSingleOrNull();
+        expect(row?.value, '500.0');
       });
     });
 

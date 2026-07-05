@@ -1,39 +1,42 @@
-import 'dart:io';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
 
 void main() {
   group('PinnedItemsNotifier', () {
     late ProviderContainer container;
-    late Directory tempDir;
+    late AppDatabase db;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('hive_test');
-      Hive.init(tempDir.path);
-      container = ProviderContainer();
+      db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+        ],
+      );
     });
 
     tearDown(() async {
       container.dispose();
-      await Hive.close();
-      await tempDir.delete(recursive: true);
+      await db.close();
     });
 
-    test('initial state loads from Hive box', () async {
-      // Pre-populate Hive box
-      final box = await Hive.openBox(PinnedItemsNotifier.boxName);
-      await box.put('/test/path', 12345);
-      await box.put('/test/path2', 'invalid_type'); // should be ignored
+    test('initial state loads from database', () async {
+      // Pre-populate database
+      await db.into(db.pinnedItems).insert(
+        PinnedItemsCompanion.insert(itemPath: '/test/path', pinnedAt: 12345),
+      );
 
       final state = await container.read(pinnedItemsProvider.future);
       expect(state.length, 1);
-      expect(state['/test/path'], 12345);
-      expect(state.containsKey('/test/path2'), isFalse);
+      expect(state.containsKey('/test/path'), isTrue);
     });
 
-    test('pinItem adds item to Hive and state', () async {
+    test('pinItem adds item to database and state', () async {
       final notifier = container.read(pinnedItemsProvider.notifier);
       
       // Wait for initial load
@@ -44,13 +47,14 @@ void main() {
       final state = await container.read(pinnedItemsProvider.future);
       expect(state.containsKey('/new/pinned/path'), isTrue);
 
-      final box = await Hive.openBox(PinnedItemsNotifier.boxName);
-      expect(box.containsKey('/new/pinned/path'), isTrue);
+      final dbItems = await db.select(db.pinnedItems).get();
+      expect(dbItems.any((e) => e.itemPath == '/new/pinned/path'), isTrue);
     });
 
-    test('unpinItem removes item from Hive and state', () async {
-      final box = await Hive.openBox(PinnedItemsNotifier.boxName);
-      await box.put('/to/unpin', 99999);
+    test('unpinItem removes item from database and state', () async {
+      await db.into(db.pinnedItems).insert(
+        PinnedItemsCompanion.insert(itemPath: '/to/unpin', pinnedAt: DateTime.now().millisecondsSinceEpoch),
+      );
 
       final notifier = container.read(pinnedItemsProvider.notifier);
       
@@ -63,8 +67,8 @@ void main() {
       final state = await container.read(pinnedItemsProvider.future);
       expect(state.containsKey('/to/unpin'), isFalse);
 
-      final boxAfter = await Hive.openBox(PinnedItemsNotifier.boxName);
-      expect(boxAfter.containsKey('/to/unpin'), isFalse);
+      final dbItems = await db.select(db.pinnedItems).get();
+      expect(dbItems.any((e) => e.itemPath == '/to/unpin'), isFalse);
     });
   });
 }

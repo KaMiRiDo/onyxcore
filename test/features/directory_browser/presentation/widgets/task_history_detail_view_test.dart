@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_detail_view.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_detail_view.dart';
 
 class MockTaskHistoryNotifier extends TaskHistoryNotifier {
   @override
@@ -41,7 +41,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          taskHistoryProvider.overrideWith(() => MockTaskHistoryNotifier()),
+          taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
           selectedHistoryIdProvider.overrideWith((ref) => '1'),
         ],
         child: const MaterialApp(

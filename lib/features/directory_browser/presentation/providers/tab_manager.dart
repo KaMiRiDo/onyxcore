@@ -4,6 +4,7 @@ import '../../domain/entities/tab_state.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:uuid/uuid.dart';
 
 class TabManagerState {
   final List<TabState> tabs;
@@ -34,7 +35,7 @@ class TabManager extends Notifier<TabManagerState> {
     return TabManagerState(
       tabs: [
         TabState(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          id: const Uuid().v4(),
           currentPath: home,
           history: [home],
           historyIndex: 0,
@@ -61,7 +62,7 @@ class TabManager extends Notifier<TabManagerState> {
     final folderSort = settingsRepo.getFolderSort(newPath, globalSort);
 
     final newTab = TabState(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       currentPath: newPath,
       history: history != null ? List<String>.from(history) : [newPath],
       historyIndex: historyIndex ?? 0,

@@ -9,7 +9,7 @@ void main() {
         body: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () async {
-              final result = await showDialog(
+              final result = await showDialog<dynamic>(
                 context: context,
                 builder: (context) => RenameDialog(paths: paths),
               );

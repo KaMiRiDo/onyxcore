@@ -251,7 +251,7 @@ void main() {
 
       test('U-DL-MIN-04: fallbacks originalUrl to webpage_url from JSON', () {
         final json = {'webpage_url': 'https://example.com'};
-        final info = MediaInfo.fromJson(json, originalUrl: '');
+        final info = MediaInfo.fromJson(json);
         expect(info.originalUrl, 'https://example.com');
       });
 
@@ -308,12 +308,12 @@ void main() {
       });
 
       test('U-DL-MIN-12: fallbacks to "Unknown Playlist" for playlists', () {
-        final info = MediaInfo.fromJson({'title': '', '_type': 'playlist'}, originalUrl: '');
+        final info = MediaInfo.fromJson({'title': '', '_type': 'playlist'});
         expect(info.title, 'Unknown Playlist');
       });
 
       test('U-DL-MIN-13: fallbacks to "Unknown Title" for singles', () {
-        final info = MediaInfo.fromJson({'title': ''}, originalUrl: '');
+        final info = MediaInfo.fromJson({'title': ''});
         expect(info.title, 'Unknown Title');
       });
 
@@ -478,7 +478,7 @@ void main() {
       });
 
       test('U-DL-MIN-33: conditionally includes isLive only when true', () {
-        const info = MediaInfo(id: '1', title: 'T', originalUrl: 'U', isLive: false);
+        const info = MediaInfo(id: '1', title: 'T', originalUrl: 'U');
         final map = info.toMap();
         expect(map.containsKey('isLive'), isFalse);
 
@@ -579,8 +579,8 @@ void main() {
         const group = MediaGroup(
           originalUrl: 'U',
           items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', isVideo: true),
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', isVideo: true),
+            MediaInfo(id: '1', title: 'T', originalUrl: 'U'),
+            MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
             MediaInfo(id: '3', title: 'T', originalUrl: 'U', isVideo: false),
             MediaInfo(id: '4', title: 'T', originalUrl: 'U', isVideo: false),
             MediaInfo(id: '5', title: 'T', originalUrl: 'U', isVideo: false),
@@ -610,8 +610,8 @@ void main() {
         const group = MediaGroup(
           originalUrl: 'U',
           items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 10485760, isVideo: true), // 10MB
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: null, isVideo: true),
+            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 10485760), // 10MB
+            MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
           ],
         );
         // Average is 10MB. 10MB (known) + 10MB (estimated) = 20MB
@@ -623,7 +623,7 @@ void main() {
           originalUrl: 'U',
           items: [
             MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 2097152, isVideo: false), // 2MB
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: null, isVideo: false),
+            MediaInfo(id: '2', title: 'T', originalUrl: 'U', isVideo: false),
           ],
         );
         // Average is 2MB. 2MB + 2MB = 4MB
@@ -634,8 +634,8 @@ void main() {
         const group = MediaGroup(
           originalUrl: 'U',
           items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: null, isVideo: true),
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: null, isVideo: true),
+            MediaInfo(id: '1', title: 'T', originalUrl: 'U'),
+            MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
           ],
         );
         // 2 videos * 15MB = 30MB
@@ -646,8 +646,8 @@ void main() {
         const group = MediaGroup(
           originalUrl: 'U',
           items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: null, isVideo: false),
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: null, isVideo: false),
+            MediaInfo(id: '1', title: 'T', originalUrl: 'U', isVideo: false),
+            MediaInfo(id: '2', title: 'T', originalUrl: 'U', isVideo: false),
           ],
         );
         // 2 images * 1MB = 2MB
@@ -658,10 +658,10 @@ void main() {
         const group = MediaGroup(
           originalUrl: 'U',
           items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 10 * 1024 * 1024, isVideo: true),
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: null, isVideo: true),
+            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 10 * 1024 * 1024),
+            MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
             MediaInfo(id: '3', title: 'T', originalUrl: 'U', filesize: 2 * 1024 * 1024, isVideo: false),
-            MediaInfo(id: '4', title: 'T', originalUrl: 'U', filesize: null, isVideo: false),
+            MediaInfo(id: '4', title: 'T', originalUrl: 'U', isVideo: false),
           ],
         );
         // Vid: 10 + 10 = 20MB. Img: 2 + 2 = 4MB. Total = 24MB.
@@ -672,7 +672,7 @@ void main() {
         const group = MediaGroup(
           originalUrl: 'U',
           items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 100, isError: false),
+            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 100),
             MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: 200, isError: true),
           ],
         );

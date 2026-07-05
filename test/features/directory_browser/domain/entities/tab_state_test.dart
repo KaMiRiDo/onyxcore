@@ -1,8 +1,9 @@
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
 
 void main() {
   group('TabState', () {
@@ -37,7 +38,7 @@ void main() {
     });
 
     test('canGoBack is true only when historyIndex > 0', () {
-      expect(TabState(id: '1', currentPath: '/', historyIndex: 0).canGoBack, isFalse);
+      expect(TabState(id: '1', currentPath: '/').canGoBack, isFalse);
       expect(TabState(id: '1', currentPath: '/', historyIndex: 1).canGoBack, isTrue);
     });
 

@@ -1,31 +1,31 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
+
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/drift.dart' hide Column;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:ui';
-import 'dart:io';
-import 'dart:async';
-import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
-
+import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:google_fonts/google_fonts.dart';
-
-import 'mock_providers.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class MockSettingsNotifier extends SettingsNotifier {
   @override
   Future<AppSettings> build() {
     return Future.value(const AppSettings(
       downloadBrowser: 'none',
-      downloadToCurrentFolder: true,
     ));
   }
 }
@@ -44,7 +44,7 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
   }
 
   @override
-  void addDownloadTask({
+  void startDownload({
     required String url,
     required String destination,
     required String title,
@@ -53,7 +53,8 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
     bool audioOnly = false,
     bool mute = false,
     int? galleryIndex,
-    String? engine,
+    String engine = '',
+    int expectedBytes = 0,
     bool isPlaylist = false,
     bool isProfile = false,
     String? browser,
@@ -70,10 +71,7 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
 class MockYtDlpEngine extends DownloadEngine {
   @override
   String get id => 'yt-dlp';
-  @override
-  String get name => 'yt-dlp mock';
-  @override
-  String get binaryName => 'yt-dlp';
+
   @override
   bool get isInstalled => true;
   @override
@@ -176,10 +174,7 @@ class MockGroupedPostEngine extends DownloadEngine {
 
   @override
   String get id => 'yt-dlp';
-  @override
-  String get name => 'mock-grouped';
-  @override
-  String get binaryName => 'yt-dlp';
+
   @override
   bool get isInstalled => true;
   @override
@@ -263,10 +258,6 @@ class MockErrorEngine extends DownloadEngine {
   @override
   String get id => 'yt-dlp';
   @override
-  String get name => 'mock-error';
-  @override
-  String get binaryName => 'yt-dlp';
-  @override
   bool get isInstalled => true;
   @override
   int get priority => 9;
@@ -334,10 +325,6 @@ class MockDelayedEngine extends DownloadEngine {
   @override
   String get id => 'yt-dlp';
   @override
-  String get name => 'mock-delayed';
-  @override
-  String get binaryName => 'yt-dlp';
-  @override
   bool get isInstalled => true;
   @override
   int get priority => 9;
@@ -394,10 +381,6 @@ class MockPlaylistEngine extends DownloadEngine {
   @override
   String get id => 'yt-dlp';
   @override
-  String get name => 'mock-playlist';
-  @override
-  String get binaryName => 'yt-dlp';
-  @override
   bool get isInstalled => true;
   @override
   int get priority => 9;
@@ -437,7 +420,6 @@ class MockPlaylistEngine extends DownloadEngine {
         id: 'v1',
         title: 'Video 1',
         originalUrl: url,
-        isVideo: true,
         formats: const [
           MediaFormat(formatId: 'f2', extension: 'mp4', resolution: '720p', formatString: 'f2', filesize: 500, videoCodec: 'avc1'),
           MediaFormat(formatId: 'f1', extension: 'mp4', resolution: '1080p', formatString: 'f1', filesize: 1000, videoCodec: 'avc1'),
@@ -447,7 +429,6 @@ class MockPlaylistEngine extends DownloadEngine {
         id: 'v2',
         title: 'Video 2',
         originalUrl: url,
-        isVideo: true,
         formats: const [
           MediaFormat(formatId: 'f3', extension: 'mp4', resolution: '480p', formatString: 'f3', filesize: 300, videoCodec: 'avc1'),
           MediaFormat(formatId: 'f1', extension: 'mp4', resolution: '1080p', formatString: 'f1', filesize: 1100, videoCodec: 'avc1'),
@@ -498,12 +479,13 @@ void main() {
 
   group('Downloads Panel Tiles Tests', () {
     late ProviderContainer container;
+    late AppDatabase appDb;
 
     setUpAll(() {
       TestWidgetsFlutterBinding.ensureInitialized();
-      final window = TestWidgetsFlutterBinding.instance.window;
-      window.physicalSizeTestValue = const Size(1600, 1000);
-      window.devicePixelRatioTestValue = 1.0;
+      final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+      view.physicalSize = const Size(1600, 1000);
+      view.devicePixelRatio = 1.0;
 
       // Removed MockBinaryHelper
 
@@ -532,25 +514,28 @@ void main() {
     });
 
     tearDownAll(() {
-      final window = TestWidgetsFlutterBinding.instance.window;
-      window.clearPhysicalSizeTestValue();
-      window.clearDevicePixelRatioTestValue();
+      final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+      view.resetPhysicalSize();
+      view.resetDevicePixelRatio();
     });
 
     setUp(() {
       EngineRegistry.clearAllEnginesForTesting();
       EngineRegistry.register(MockYtDlpEngine());
+      appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
       container = ProviderContainer(
         overrides: [
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
-          currentPathProvider.overrideWith(() => MockCurrentPathNotifier()),
-          downloadTaskProvider.overrideWith(() => MockDownloadTaskNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+          currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
+          downloadTaskProvider.overrideWith(MockDownloadTaskNotifier.new),
+          databaseProvider.overrideWithValue(appDb),
         ],
       );
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
+      // await appDb.close();
     });
 
     testWidgets('W-DL-PNL-27: Show parsed items as tiles and test interaction', (tester) async {
@@ -633,7 +618,7 @@ void main() {
       await tester.tap(fetchButton);
       await tester.pump();
 
-      for (int i = 0; i < 5; i++) {
+      for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -678,7 +663,7 @@ void main() {
       await tester.tap(fetchButton);
       await tester.pump();
 
-      for (int i = 0; i < 5; i++) {
+      for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -928,7 +913,7 @@ void main() {
       // Tap the dropdown
       final dropdown = find.text('1080p (mp4)');
       await tester.tap(dropdown.first);
-      for (int i = 0; i < 10; i++) {
+      for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -938,7 +923,7 @@ void main() {
 
       // Select 720p
       await tester.tap(find.text('720p (mp4)'));
-      for (int i = 0; i < 15; i++) {
+      for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -977,7 +962,7 @@ void main() {
       // Tap dropdown on the playlist root tile (should be first one)
       final dropdown = find.text('1080p (mp4)');
       await tester.tap(dropdown.first);
-      for (int i = 0; i < 10; i++) {
+      for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -988,7 +973,7 @@ void main() {
 
       // Select 480p
       await tester.tap(find.text('480p (mp4)').last, warnIfMissed: false);
-      for (int i = 0; i < 15; i++) {
+      for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 

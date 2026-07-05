@@ -1,11 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
-import 'package:onyxcore/core/widgets/bubble_loader.dart';
 
 // Mock TaskNotifier to track calls
 class MockTaskNotifier extends TaskNotifier {

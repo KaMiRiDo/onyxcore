@@ -72,7 +72,7 @@ void main() {
     });
 
     testWidgets('triggers onTap', (tester) async {
-      bool tapped = false;
+      var tapped = false;
       await tester.pumpWidget(buildTile(
         onTap: () => tapped = true,
       ));
@@ -82,7 +82,7 @@ void main() {
     });
 
     testWidgets('triggers onDoubleTap', (tester) async {
-      bool doubleTapped = false;
+      var doubleTapped = false;
       await tester.pumpWidget(buildTile(
         onDoubleTap: () => doubleTapped = true,
       ));
@@ -97,7 +97,7 @@ void main() {
     });
 
     testWidgets('triggers onSecondaryTapDown', (tester) async {
-      bool secondaryTapped = false;
+      var secondaryTapped = false;
       await tester.pumpWidget(buildTile(
         onSecondaryTapDown: (details, context) => secondaryTapped = true,
       ));

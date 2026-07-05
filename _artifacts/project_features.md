@@ -6,7 +6,7 @@
 
 ## Summary
 
-OnyxCore is a Linux-native multimedia file manager built with Flutter. It combines a full-featured directory browser with integrated media viewers (image, video, audio, markdown) in a single application. The app uses a custom "Onyx Monolith" dark design system, Riverpod state management, isolate-based file I/O, and a persistent multi-window viewer architecture powered by `desktop_multi_window`.
+OnyxCore is a Linux-native multimedia file manager built with Flutter. It combines a full-featured directory browser with integrated media viewers (image, video, audio, markdown) in a single application. The app uses a custom "Onyx Monolith" dark design system, Riverpod state management, isolate-based file I/O, a single source of truth persistence layer powered by `drift` (SQLite), and a persistent multi-window viewer architecture powered by Flutter's native Multi-View API.
 
 ---
 
@@ -18,14 +18,18 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | **Media** | `media_kit` | ^1.2.6 | Video/audio playback engine |
 | | `media_kit_video` | ^2.0.1 | Video rendering widget |
 | | `media_kit_libs_video` | ^1.0.7 | Native codec libraries |
-| **Window** | `desktop_multi_window` | ^0.3.0 | Multi-window IPC |
-| | `window_manager` | ^0.5.1 | Window lifecycle control |
-| **Storage** | `hive` / `hive_flutter` | ^2.2.3 / ^1.1.0 | Local key-value persistence |
-| | `shared_preferences` | ^2.2.3 | Settings persistence |
-| | `sqlite3` | ^3.3.2 | Download history database |
+| **Window** | `window_manager` | ^0.5.1 | Window lifecycle control |
+| | Flutter Multi-View API | Native | Native multi-window support |
+| **Storage** | `drift` / `drift_flutter` | ^2.26.0 / ^0.3.0 | Single source of truth persistence |
+| | `sqlite3` | ^3.3.2 | Core database engine (used by drift) |
 | **UI** | `google_fonts` | ^6.2.1 | Typography (Manrope, Outfit, JetBrains Mono) |
 | | `flutter_svg` | ^2.2.4 | SVG icon rendering |
-| | `flutter_markdown` | ^0.7.1 | Markdown rendering |
+| | `flutter_markdown` | ^0.7.1 | Basic markdown parsing |
+| | `flutter_html` | ^3.0.0 | Advanced HTML and table rendering |
+| | `flutter_mermaid` | ^0.1.0 | Offline Mermaid diagram rendering |
+| | `flutter_highlight` | ^0.7.0 | Syntax highlighting for code blocks |
+| | `flutter_math_fork` | ^0.7.4 | Math equation rendering (LaTeX) |
+| | `desktop_drop` | ^0.7.1 | Drag and drop file interactions |
 | **Utility** | `path` | ^1.9.0 | Path manipulation |
 | | `intl` | ^0.19.0 | Number formatting |
 | | `equatable` | ^2.0.7 | Value equality |
@@ -37,8 +41,10 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `audiotags` | ^1.4.5 | ID3 audio metadata manipulation |
 | | `file_selector` | ^1.1.0 | Platform-native file selection dialogs |
 | **Lint** | `very_good_analysis` | ^10.1.0 | Static analysis rules |
-| **Test** | `flutter_test` | SDK | Widget testing framework |
+| **Test & Dev** | `flutter_test` | SDK | Widget testing framework |
 | | `mocktail` | ^1.0.4 | Mock object generation for tests |
+| | `drift_dev` | ^2.26.0 | Code generation for Drift database |
+| | `build_runner` | ^2.5.4 | Dart code generator runner |
 | **External** | `ffmpeg` (CLI) | system | Image editing (rotate, crop, brightness); hover thumbnail extraction (video preview) |
 | | `ffprobe` (CLI) | system | Audio properties extraction (duration, bitrate, sample rate) |
 | | `lsblk` / `udisksctl` (CLI) | system | Device detection & mounting |
@@ -59,8 +65,9 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 ```mermaid
 graph TB
     subgraph Entry["Application Entry"]
-        Main["main.dart"] --> |"Primary Engine"| App["OnyxCoreApp"]
-        Main --> |"Secondary Engine + IPC Args"| SecWin["SecondaryWindowApp"]
+        Main["main.dart"] --> |"Multi-View Dispatcher"| App["OnyxCoreMultiViewApp"]
+        App --> |"View 0"| MainView["OnyxCoreApp"]
+        App --> |"View > 0"| SecWin["PersistentViewerManager.buildView"]
     end
 
     subgraph Core["core/"]
@@ -92,7 +99,7 @@ graph TB
             VidPreview["VideoPreviewWidget"]
             HoverPrev["HoverPreview (ffmpeg subprocess)"]
             VidWidgets["VideoPreviewWidget / MarkerEditor / HoverPreview / PlaylistOverlay / TrackSelector / VolumeOverlay / SpeedOverlay / TimelineMarker"]
-            PlaybackMem["PlaybackMemoryRepository (Hive)"]
+            PlaybackMem["PlaybackMemoryRepository (Drift)"]
         end
 
         subgraph AudioPlayer["audio_player"]
@@ -107,7 +114,7 @@ graph TB
 
         subgraph Settings["settings"]
             SettingsEntity["AppSettings"]
-            SettingsRepo["SettingsRepository (SharedPreferences)"]
+            SettingsRepo["SettingsRepository (Drift)"]
             SettingsUI["SettingsDialog"]
         end
 
@@ -123,7 +130,7 @@ graph TB
         end
     end
 
-    App --> Pages
+    MainView --> Pages
     Pages --> BrowserWidgets
     Pages --> ImgPreview
     Pages --> VidPreview
@@ -148,6 +155,11 @@ onyxcore/
 │   │   ├── cache/
 │   │   │   ├── directory_cache.dart
 │   │   │   └── metadata_cache.dart
+│   │   ├── database/
+│   │   │   ├── app_database.dart
+│   │   │   ├── app_database.g.dart
+│   │   │   ├── database_provider.dart
+│   │   │   └── settings_codec.dart
 │   │   ├── errors/
 │   │   │   ├── exceptions.dart
 │   │   │   └── failures.dart
@@ -184,8 +196,6 @@ onyxcore/
 │   │   │   └── viewer_top_bar.dart
 │   │   └── window_management/
 │   │       ├── persistent_viewer_manager.dart
-│   │       ├── secondary_window_app.dart
-│   │       ├── window_controller_extension.dart
 │   │       └── window_params.dart
 │   ├── features/
 │   │   ├── archive_manager/
@@ -443,7 +453,7 @@ onyxcore/
 - **Tab bar auto-scroll**: Scrolls to reveal newly created tabs (300ms `easeOut` animation)
 - New tab button
 - Each tab has independent: path, history, selection, sort settings, filter settings, search state, location editing state, refresh count
-- **Per-folder sort persistence**: When navigating to a folder, its previously-saved sort preference is loaded from `SharedPreferences` via `SettingsRepository.getFolderSort()`. Falls back to the global default.
+- **Per-folder sort persistence**: When navigating to a folder, its previously-saved sort preference is loaded from `Drift` via `SettingsRepository.getFolderSort()`. Falls back to the global default.
 - **Filter reset on navigate**: Filters are automatically cleared when navigating to a new folder.
 - **Last tab protection**: The last remaining tab cannot be closed — prevents accidental application exit.
 
@@ -571,7 +581,7 @@ onyxcore/
 
 #### 1.12 Caching
 - **DirectoryCache**: in-memory with 30-second TTL, keyed by path
-- **MetadataCache**: SharedPreferences-backed image aspect ratio cache
+- **MetadataCache**: Drift-backed image aspect ratio cache
 - **ImageCache**: High-capacity 500MB global limit to support instant pre-caching of massive uncompressed DSLR/Pexels images without downscaling or cache thrashing
 
 #### 1.13 Directory Analysis
@@ -610,10 +620,10 @@ onyxcore/
 - **Type-routing**: Dispatches to `ImagePreviewWidget`, `VideoPreviewWidget`, `AudioPlayerView`, or `MarkdownPreviewWidget` based on `FileItemType`
 - **PDF placeholder**: Shows a centered icon with "PDF Preview not yet implemented" message and hint to double-tap for external viewer
 - **Double-tap pop-out**: Opens the previewed file in a standalone persistent window via `PersistentViewerManager.openMedia()`, then clears the inline preview
-- **Reverse IPC Architecture**: The main `GalleryPage` registers an IPC method handler (`_setupReverseIpc`) via `desktop_multi_window`'s `WindowController` to respond to secondary window requests:
-  - `request_navigation`: Handles previous/next file requests across windows. Pre-computes 4 adjacent paths (±2 neighbors) and dispatches a `load_media` call back to the secondary window.
-  - `save_playback_position`: Cross-process Hive storage syncing for video resume.
-  - `delete_item`: Allows secondary windows to trigger trash/delete workflows in the main window (including UI task toasts).
+- **Shared State Architecture**: Using Flutter's Native Multi-View API, all windows run in the same isolate and directly share the same Riverpod state, eliminating complex JSON-based IPC.
+  - `request_navigation`: Secondary windows directly invoke navigation callbacks or update shared providers to navigate between adjacent paths.
+  - `save_playback_position`: Direct writing to the Drift database from any window automatically synchronizes playback memory globally.
+  - `delete_item`: Secondary windows directly dispatch trash/delete tasks to the shared `TaskNotifier` which updates the main UI seamlessly.
 - **F-key HUD toggle**: Toggles `previewHudVisibleProvider` with a 300ms debounce to prevent rapid toggling
 - **Close shortcuts**: `Backspace` / `Alt+←` / `Ctrl+W` all close the preview and reset HUD visibility to true
 
@@ -622,13 +632,13 @@ onyxcore/
 - **Open With Dialog**:
   - **Categorized Discovery**: Displays "Default", "Recommended", and "All Apps" using Linux system MIME associations.
   - **Onyx Monolith Styling**: Matte-dark theme with BackdropFilter, Outfit typography, and consistent padding.
-  - **Resizable Geometry**: Dialog width/height can be adjusted via a resize handle and is persisted across sessions via `SharedPreferences`.
+  - **Resizable Geometry**: Dialog width/height can be adjusted via a resize handle and is persisted across sessions via `Drift`.
   - **Keyboard Navigation**:
     *   **High-Speed Repeat**: Arrow keys feature a refined **150ms repeat logic** for responsive browsing through large application lists.
     *   **Center-Focus Scrolling**: Advanced list logic that keeps the selected item centered in the viewport during navigation, providing superior visual tracking.
   - **Persistent Search Focus**: The search box is **permanently active**. Any alphanumeric keypress immediately populates the search; the focus is maintained even after category switching or item interaction, ensuring the user is always one keystroke away from finding an app.
   - **Global Category Search**: The search filter operates across **Default**, **Recommended**, and **All Apps** categories simultaneously, preventing missing results when an application is categorized unexpectedly.
-  - **Persistent Geometry**: Window dimensions (width/height) are stored in `SharedPreferences` and restored on each launch, allowing users to customize their preferred workspace layout.
+  - **Persistent Geometry**: Window dimensions (width/height) are stored in `Drift` and restored on each launch, allowing users to customize their preferred workspace layout.
   - **Icon & Metadata Resolution**: Advanced parsing for dotted `.desktop` names (e.g., `org.gnome.Nautilus`, `org.gnome.TextEditor`) with intelligent resolution of symbolic system icons and standard theme fallbacks.
   - **Manual Rescan**: Dedicated manual refresh button with a 360-degree `RotationTransition` animation for instant system-wide application re-discovery.
   - **Launch Sanitization**: Handles complex `.desktop` `Exec` strings with field code expansion (e.g., `%f`, `%u`).
@@ -743,7 +753,7 @@ onyxcore/
 - **Seek indicator overlay** — large cinematic timestamp display (top-right, Outfit font 54px with text shadows)
 - **Double-tap to seek** — left half seeks backward, right half seeks forward (configurable seconds)
 - **Cinematic Snapshot**: High-performance frame capture with a visible flash overlay and a glassmorphism notification toast
-- **Playback memory** — resume from last position via Hive storage
+- **Playback memory** — resume from last position via Drift storage
 - **Auto-play next** — configurable in settings
 - **Fast seek** — hold arrow keys for continuous seeking
 - **Secure Deletion**: Uses `Delete` (trash) or `Shift+Delete` (permanent) hotkeys integrated with the background Task Manager; upon deletion, it seamlessly auto-navigates to the next video to prevent UI disruption.
@@ -857,7 +867,7 @@ onyxcore/
   - **Notched Bubble Design**: High-fidelity glassmorphism with custom-painter notch, backdrop blur, and animated entry.
   - **Content Input**: Auto-focusing text field with 20-character limit and "Save" / "Cancel" glassmorphic buttons.
   - **Asset Library**: Integrated picker for standard emojis, custom emoji sets, and uploaded custom icons.
-  - **Recents Ribbon**: Hive-backed ribbon that persists the last 12 used icons/emojis for rapid repeated tagging.
+  - **Recents Ribbon**: Drift-backed ribbon that persists the last 12 used icons/emojis for rapid repeated tagging.
   - **Individual Item Deletion**: The "Add Custom Icons" tab features a red-accented cross button for each entry, allowing users to prune the upload list before finalizing.
   - **Persistent Add Entry**: The "Add New" input slot at the bottom of the list is protected from deletion, providing a permanent and clear entry point for new icon uploads.
   - **Custom Icon Pipeline**: Supports uploading PNG/JPG files; uses a background `compute` isolate to square-crop and resize to 96x96px for performance-optimized marker rendering.
@@ -865,7 +875,7 @@ onyxcore/
   - **Sidecar Strategy**: Markers are saved to `.markers.json` files within a hidden `.onyxcore/` directory adjacent to the video file, ensuring portability across systems.
   - **Robust Fallback**: For read-only filesystems (e.g., optical media), markers are automatically saved to the application's local support directory using a safe, path-hashed filename.
 - **Custom Emoji Set Engine**: 
-  - **Hive Persistence**: Custom emoji sets and keywords are stored in a dedicated Hive box (`custom_emojis`) for high-performance persistence across restarts.
+  - **Drift Persistence**: Custom emoji sets and keywords are stored in a dedicated Drift table for high-performance persistence across restarts.
   - **Sidebar Navigation**: Scrollable category list with a professional thin scrollbar and counter-badges on custom folder icons (e.g., [1], [2]).
   - **Context Menu Management**: Right-click custom category icons to open a menu with **Edit** and **Remove** options.
   - **Emoji Definition Format**: Supports the `'😀': 'keywords'` definition format with multi-line support and manual Enter-key routing to prevent focus conflicts.
@@ -932,7 +942,7 @@ onyxcore/
 - **Volume slider** (0–200%) — slider turns magenta when volume exceeds 100% for visual overdrive warning
 - **Volume percentage label** — right-aligned 36px-wide text display
 - **Mute toggle** — icon button toggles between volume_up and volume_off
-- **Favorite button** — heart icon toggles per-track via `AudioFavoritesNotifier` (Hive-backed `audio_favorites` box); filled magenta when active, outline white70 when inactive
+- **Favorite button** — heart icon toggles per-track via `AudioFavoritesNotifier` (Drift-backed); filled magenta when active, outline white70 when inactive
 - **Strict centering**: Uses `Stack` with centered `Row` for transport controls, ensuring perfect alignment regardless of left/right action bar contents
 
 #### 4.5 Playlist Sidebar (Directory Browser)
@@ -966,7 +976,7 @@ onyxcore/
 - **Click-to-deselect**: Tapping empty space in sidebar or hero pane clears selection
 
 #### 4.6 Favorites System
-- **Hive-backed persistence**: `AudioFavoritesNotifier` stores favorite paths in `audio_favorites` Hive box
+- **Drift-backed persistence**: `AudioFavoritesNotifier` stores favorite paths in the Drift database
 - **Toggle via heart icon**: `AudioControlsBar` includes a favorite button that toggles the current track's path in the favorites set
 - **Filtered view**: `AudioViewMode.favorites` filters the queue to show only favorited tracks via `filteredAndSortedAudioQueueProvider`
 - **Bottom nav bar**: Switch between Home (all audio) and Favorites views
@@ -1091,11 +1101,11 @@ onyxcore/
   - **Case sensitive search / Use regular expressions** (documents) — default search configuration booleans
 - **Volume Memory**: Persists `audioPlayerVolume` and `videoPlayerVolume` across sessions (0.0 to 200.0)
 - **Pinned Folders** — ordered list persisted across sessions
-- **Per-folder Sort Settings** — dynamic map (`path` -> `sortKey`) persisted via SharedPreferences
+- **Per-folder Sort Settings** — dynamic map (`path` -> `sortKey`) persisted via Drift
 
 #### 6.2 Settings Dialog
 - **Onyx Monolith UI**: High-contrast dark grey (`#161616`) theme with full-screen `BackdropFilter` (sigma: 30) for premium glassmorphic depth.
-- **Dynamic Geometry**: Dialog width and height are resizable via a bottom-right handle and persisted via `SharedPreferences`.
+- **Dynamic Geometry**: Dialog width and height are resizable via a bottom-right handle and persisted via `Drift`.
 - **Unified Typographic Hierarchy**: Standardized text scale for clear information architecture:
     - Main Header: 16px (w800, Uppercase).
     - Section Headers: 15px (w800, Uppercase, 1.5 tracking).
@@ -1122,12 +1132,11 @@ onyxcore/
 
 ### 7. Window Management (Persistent Viewer Architecture)
 
-- **PersistentViewerManager**: singleton that tracks window IDs per viewer type
-- Windows are **hidden** instead of destroyed to avoid GTK/engine re-initialization cost
-- On re-open, existing window is shown and updated via IPC
-- **SecondaryWindowApp**: bootstraps a lightweight Riverpod scope for secondary engines
-- **Reverse IPC**: secondary windows send `request_navigation` to main window (Window 0) for next/prev media
-- **WindowParams**: serializable payload for viewer type, file path, parent window ID
+- **Native Multi-View Integration**: Powered by Flutter's native Multi-View API (`PlatformDispatcher.instance.views`), avoiding the overhead and complexity of multiple engine instances and cross-isolate IPC found in `desktop_multi_window`.
+- **PersistentViewerManager**: Singleton that tracks native view IDs per viewer type and coordinates with `MethodChannel('onyxcore/window_manager')` for native OS window focus and lifecycle.
+- **Shared Isolate**: All windows (Main View 0 and secondary media viewers) operate within the exact same Dart isolate. This allows seamless `ProviderScope` sharing, meaning Riverpod state is identical and reactive across all OS windows.
+- **On-Demand Rendering**: `OnyxCoreMultiViewApp` iterates through active views and dynamically wraps them in `PersistentViewerManager.buildView(viewId)`, rebuilding immediately when a new OS window is mapped.
+- **WindowParams**: Strongly-typed payload containing viewer type, `FileItem`, and initialization parameters, passed via shared memory instead of serialized IPC.
 
 ---
 
@@ -1156,7 +1165,7 @@ onyxcore/
 - **New Folder Creation**: Includes `file_picker_new_folder_dialog.dart` for inline folder creation during file selection.
 - **Onyx Monolith UI**: High-contrast dark grey (`#161616`) theme with full-screen `BackdropFilter` (sigma: 30) for a premium glassmorphic depth effect.
 - **Manrope Typography**: Standardized use of the project's primary 'Manrope' font across all UI elements (headers, file lists, buttons).
-- **Persistent Geometry**: Dialog width and height are resizable via a bottom-right handle and persisted via `SharedPreferences`.
+- **Persistent Geometry**: Dialog width and height are resizable via a bottom-right handle and persisted via `Drift`.
 - **Blur Depth**: Uses `sigma: 30` backdrop blur to isolate the picker from the main application background.
 
 #### 9.2 Navigation & Selection
@@ -1269,7 +1278,7 @@ onyxcore/
   - Detects installed browsers via `BrowserDetector.getInstalledBrowsers()`
   - Resolves the configured `downloadBrowser` setting to a `--cookies-from-browser` CLI argument
   - Supports: Firefox, Chrome, Chromium, Brave, Vivaldi, Opera, Edge (native and Flatpak)
-- **`DownloadHistoryDatabase`**: SQLite3-backed persistent history
+- **`DownloadHistoryDatabase`**: Drift-backed persistent history
   - **Schema**: `download_history` table with columns: `id` (TEXT PK), `title`, `url`, `destination`, `download_type`, `status_name`, `error_message`, `created_at`, `completed_at`, `duration_ms`, `logs` (JSON-serialized list)
   - **Operations**: `insert`, `getAll` (paginated with LIMIT/OFFSET), `getEntry`, `delete`, `deleteAll`, `deleteFiltered`, `getAvailableDates` (distinct dates for calendar filter), `getFileSize` (database file size on disk)
   - **File path**: `~/.local/share/onyxcore/downloads.db`
@@ -1476,7 +1485,7 @@ onyxcore/
 
 #### 11.1 Caching (`core/cache`)
 - **DirectoryCache**: In-memory LRU cache (default 50 entries) with a 30-second TTL. Features recursive path invalidation to maintain consistency when parent directories are moved or deleted.
-- **MetadataCache**: Persistent cache backed by `SharedPreferences` for image aspect ratios. Uses a background `compute` isolate for JSON serialization (`jsonEncode`) to prevent main thread blocking when saving large cache maps.
+- **MetadataCache**: Persistent cache backed by the `Drift` database for image aspect ratios. Maintains an in-memory LRU cache (5000 items) for instant synchronous reads.
 
 #### 11.2 Platform Integrations (`core/platform`)
 - **DirectoryWatcher**: Utilizes Linux `inotify` (via `FileSystemEntity.watch()`) to push kernel-level filesystem events. Implements smart event routing: `create`, `delete`, and `move` events are fired instantly for zero-latency UI updates, while `modify` events are debounced (500ms) to prevent rapid rebuilds during file writes.
@@ -1497,9 +1506,13 @@ onyxcore/
 - **TaskProgressOverlay**: Real-time pie-chart progress indicator for background tasks, morphing into a checkmark or error icon upon completion.
 
 #### 11.5 Window Management (`core/window_management`)
-- **PersistentViewerManager**: Prevents expensive GTK engine teardown by maintaining a single, hidden secondary window. On subsequent media opens, it signals the existing window to load new content via IPC rather than spawning a new process.
-- **SecondaryWindowApp**: A dedicated, lightweight Riverpod bootstrapping scope for the secondary window to run independently of the primary browser engine.
-- **WindowParams**: Strongly-typed IPC payload serializer for cross-window communication.
+- **PersistentViewerManager**: Leverages Flutter's native Multi-View API (`PlatformDispatcher.instance.views`) to manage multiple OS windows within a single Dart isolate, bypassing heavy multi-process IPC architectures.
+- **WindowParams**: Strongly-typed payload containing the viewer configuration, shared instantly via memory across the unified Riverpod provider scope rather than being serialized over IPC.
+
+#### 11.6 Single Source of Truth Persistence (`core/database`)
+- **Drift Consolidation**: Completely replaced fragmented `hive`, `hive_flutter`, `shared_preferences`, and `sqlite3` implementations with a unified, strongly-typed Drift database (`AppDatabase`).
+- **Unified Schema**: Centralized schema definition for app settings, pinned folders, gallery sort orders, video markers, and download histories inside a single SQLite file, preventing sync errors.
+- **Type-Safe JSON Codecs**: Uses `SettingsCodec` to safely serialize non-primitive configuration types into the database, guaranteeing atomic multi-field updates.
 
 ---
 
@@ -1507,13 +1520,14 @@ onyxcore/
 
 #### 12.1 Engine Initialization (`main.dart`)
 - **Pre-Caching Memory Expansion**: Explicitly increases `PaintingBinding.instance.imageCache.maximumSizeBytes` to 500MB to support aggressive pre-caching of high-res image files (used in the zero-latency Image Viewer) without triggering Flutter's aggressive memory purges.
-- **Multi-Window Bootstrapper**: Intercepts `WindowController.arguments`. If `desktop_multi_window` payloads are present, it reroutes execution to `SecondaryWindowApp` instead of the primary `OnyxCoreApp`, isolating the standalone viewers.
+- **Single Isolate Multi-View Dispatcher**: The `main()` entrypoint boots an `OnyxCoreMultiViewApp` which iterates over `PlatformDispatcher.instance.views` to natively render multiple independent desktop windows from the same Dart execution context.
+- **Database Initialization**: `AppDatabase` (Drift) is instantiated precisely once during boot and injected into the global `databaseProvider` to act as the single source of truth for all modules across all windows.
 - **Seamless Window Configuration**: Initializes `windowManager` with `TitleBarStyle.hidden` and `backgroundColor: Colors.transparent` to disable native OS titlebars and enable edge-to-edge custom UI.
 
 #### 12.2 Lifecycle & Process Management (`app.dart`)
 - **Graceful Termination Guards**: Overrides `onWindowClose()` via `WindowListener`. Before exiting, it checks if any active overlay dialogs are open and pops them. If none, it executes a global cleanup:
   - Triggers `ArchiveService.killZombies()` to sweep and terminate any hanging `7z` subprocesses.
-  - Invokes `exit(0)` to forcefully kill the entire process tree, guaranteeing all secondary windows (`desktop_multi_window` instances) are eliminated alongside the primary process.
+  - Invokes `exit(0)` to forcefully kill the entire process tree, cleaning up all views spawned via the Multi-View API.
 - **Asynchronous Auto-Updates**: Initiates `DownloaderUpdateService`'s `checkForUpdates()` on `OnyxCoreApp.initState` using a non-blocking `Future.microtask` to keep download manager engines (yt-dlp, etc.) silently up-to-date in the background.
 
 *Generated: 2026-06-05 | Comprehensive audit of 159 Dart source files + 5 test files across 9 feature modules, core infrastructure, and services layer.*

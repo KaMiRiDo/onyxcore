@@ -1,15 +1,16 @@
-import "package:flutter/material.dart";
 import 'dart:io';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/downloader/services/engines/gallery_dl_engine.dart';
-import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
-import 'package:onyxcore/features/downloader/services/engines/streamlink_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
-import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/playwright_engine.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/services/engines/streamlink_engine.dart';
+import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart';
+import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
 
 class MockCustomEngine extends DownloadEngine {
   @override
@@ -25,7 +26,7 @@ class MockCustomEngine extends DownloadEngine {
   int get priority => 100;
 
   @override
-  List<RegExp> get urlPatterns => [RegExp(r'.*custom.*')];
+  List<RegExp> get urlPatterns => [RegExp('.*custom.*')];
 
   @override
   bool get isInstalled => true;
@@ -114,9 +115,7 @@ void main() {
       EngineRegistry.register(TestPlaywrightEngine());
     });
 
-    tearDownAll(() {
-      EngineRegistry.clearAllEnginesForTesting();
-    });
+    tearDownAll(EngineRegistry.clearAllEnginesForTesting);
 
     group('1. Engine Resolution — resolveEngine', () {
       test('U-DL-REG-01: Return specific engine by preference', () {

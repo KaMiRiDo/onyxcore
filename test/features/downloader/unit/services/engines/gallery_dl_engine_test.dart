@@ -4,8 +4,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/services/engines/gallery_dl_engine.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/cookie_helper.dart';
 
 class MockHttpClient extends Fake implements HttpClient {
   int statusCode = 200;
@@ -25,10 +23,10 @@ class MockHttpClient extends Fake implements HttpClient {
 }
 
 class MockHttpClientRequest extends Fake implements HttpClientRequest {
-  final MockHttpClient client;
-  final MockHttpHeaders _headers = MockHttpHeaders();
 
   MockHttpClientRequest(this.client);
+  final MockHttpClient client;
+  final MockHttpHeaders _headers = MockHttpHeaders();
 
   @override
   HttpHeaders get headers => _headers;
@@ -53,11 +51,11 @@ class MockHttpHeaders extends Fake implements HttpHeaders {
 }
 
 class MockHttpClientResponse extends Fake implements HttpClientResponse {
+
+  MockHttpClientResponse(this.statusCode, this._body);
   @override
   final int statusCode;
   final String _body;
-
-  MockHttpClientResponse(this.statusCode, this._body);
 
   @override
   Stream<S> transform<S>(StreamTransformer<List<int>, S> streamTransformer) {
@@ -158,13 +156,13 @@ void main() {
         final block = jsonEncode([
           [
             3,
-            {"url": "http://img.com/1.jpg", "title": "My Post"},
-            "http://img.com/1.jpg"
+            {'url': 'http://img.com/1.jpg', 'title': 'My Post'},
+            'http://img.com/1.jpg'
           ]
         ]);
         final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
         expect(infos.length, 1);
-        expect(infos.first.formats.first.formatString, "http://img.com/1.jpg");
+        expect(infos.first.formats.first.formatString, 'http://img.com/1.jpg');
       });
 
       test('U-DL-GAL-13: Deduplicate identical file URLs', () async {
@@ -174,11 +172,11 @@ void main() {
         final block = jsonEncode([
           [
             3,
-            {"url": "http://img.com/1.jpg", "title": "My Post"}
+            {'url': 'http://img.com/1.jpg', 'title': 'My Post'}
           ],
           [
             3,
-            {"url": "http://img.com/1.jpg", "title": "My Post"}
+            {'url': 'http://img.com/1.jpg', 'title': 'My Post'}
           ]
         ]);
         final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
@@ -191,7 +189,7 @@ void main() {
         final block = jsonEncode([
           [
             3,
-            {"subreddit": "pics", "title": "Cat", "author": "User123", "url": "http://img.com/1.jpg"}
+            {'subreddit': 'pics', 'title': 'Cat', 'author': 'User123', 'url': 'http://img.com/1.jpg'}
           ]
         ]);
         final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
@@ -202,7 +200,7 @@ void main() {
         final block = jsonEncode([
           [
             3,
-            {"tweet_id": "12345", "user": {"screen_name": "test"}, "url": "http://img.com/1.jpg"}
+            {'tweet_id': '12345', 'user': {'screen_name': 'test'}, 'url': 'http://img.com/1.jpg'}
           ]
         ]);
         final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
@@ -214,9 +212,9 @@ void main() {
           [
             3,
             {
-              "secure_media": {
-                "reddit_video": {
-                  "fallback_url": "http://vid.com/1.mp4"
+              'secure_media': {
+                'reddit_video': {
+                  'fallback_url': 'http://vid.com/1.mp4'
                 }
               }
             }
@@ -231,13 +229,13 @@ void main() {
         final block = jsonEncode([
           [
             3,
-            {"shortcode": "test1234", "url": "http://img.com/1.jpg"},
-            "http://img.com/1.jpg"
+            {'shortcode': 'test1234', 'url': 'http://img.com/1.jpg'},
+            'http://img.com/1.jpg'
           ],
           [
             3,
-            {"shortcode": "test1234", "url": "http://img.com/2.jpg"},
-            "http://img.com/2.jpg"
+            {'shortcode': 'test1234', 'url': 'http://img.com/2.jpg'},
+            'http://img.com/2.jpg'
           ]
         ]);
         final infos = await engine.parseGalleryDlJsonBlock(block, 'https://www.instagram.com/p/test1234', false, null, 0, false);

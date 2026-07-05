@@ -62,7 +62,7 @@ void main() {
       const emptyState = NavigationState();
       expect(emptyState.currentPath, isEmpty);
 
-      const invalidState = NavigationState(history: ['/a'], historyIndex: -1);
+      const invalidState = NavigationState(history: ['/a']);
       expect(invalidState.currentPath, isEmpty);
     });
 

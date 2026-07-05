@@ -127,14 +127,14 @@ void main() {
   });
 
   testWidgets('PermanentDeleteDialog handles dontAskAgain', (tester) async {
-    bool dontAskAgainResult = false;
+    var dontAskAgainResult = false;
     await pumpTestWidget(tester, 
       MaterialApp(
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () {
-                showDialog(
+                showDialog<void>(
                   context: context,
                   builder: (context) => PermanentDeleteDialog(
                     filesCount: 2,
@@ -174,7 +174,7 @@ void main() {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () {
-                showDialog(
+                showDialog<void>(
                   context: context,
                   builder: (context) => const ViewerDeleteDialog(
                     fileName: 'test.png',

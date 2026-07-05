@@ -7,6 +7,16 @@ import 'package:onyxcore/features/downloader/services/engines/download_engine.da
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 
 class MockEngine extends DownloadEngine {
+
+  MockEngine({
+    required this.id,
+    this.priority = 100,
+    this.urlPatterns = const [],
+    this.shouldThrow = false,
+    this.throwException,
+    this.mockResults,
+    this.onFetchMetadata,
+  });
   @override
   final String id;
   @override
@@ -39,16 +49,6 @@ class MockEngine extends DownloadEngine {
   bool fetchMetadataCalled = false;
   bool startDownloadCalled = false;
   Map<String, dynamic> lastArgs = {};
-
-  MockEngine({
-    required this.id,
-    this.priority = 100,
-    this.urlPatterns = const [],
-    this.shouldThrow = false,
-    this.throwException,
-    this.mockResults,
-    this.onFetchMetadata,
-  });
 
   @override
   bool get isInstalled => true;
@@ -142,9 +142,7 @@ class MockEngine extends DownloadEngine {
 
 void main() {
   group('MediaDownloaderBackend Unit Tests', () {
-    setUp(() {
-      EngineRegistry.clearAllEnginesForTesting();
-    });
+    setUp(EngineRegistry.clearAllEnginesForTesting);
 
     group('1. fetchMetadata — Direct Delegation', () {
       test('U-DL-BND-01/02: Delegate to the correct engine and pass parameters', () async {
@@ -199,7 +197,7 @@ void main() {
         EngineRegistry.register(failMock);
         EngineRegistry.register(successMock);
 
-        final results = await MediaDownloaderBackend.analyzeUrls(['http://fallback.com'], engine: 'auto');
+        final results = await MediaDownloaderBackend.analyzeUrls(['http://fallback.com']);
         
         expect(failMock.fetchMetadataCalled, isTrue);
         expect(successMock.fetchMetadataCalled, isTrue);
@@ -217,7 +215,7 @@ void main() {
         EngineRegistry.register(fail2);
 
         // Ensure other engines don't intervene by mocking them? Well, the real engines might fail too (since they're not installed or fail to parse).
-        final results = await MediaDownloaderBackend.analyzeUrls(['http://fail_all.com'], engine: 'auto');
+        final results = await MediaDownloaderBackend.analyzeUrls(['http://fail_all.com']);
         
         expect(results.length, 1);
         expect(results.first.isError, isTrue);
@@ -255,7 +253,7 @@ void main() {
         EngineRegistry.register(partialMock);
         EngineRegistry.register(nextMock);
 
-        final results = await MediaDownloaderBackend.analyzeUrls(['http://partial.com'], engine: 'auto');
+        final results = await MediaDownloaderBackend.analyzeUrls(['http://partial.com']);
         
         expect(partialMock.fetchMetadataCalled, isTrue);
         expect(nextMock.fetchMetadataCalled, isFalse); // Did not fallback
@@ -284,7 +282,7 @@ void main() {
         EngineRegistry.register(emptyPartialMock);
         EngineRegistry.register(nextMock);
 
-        final results = await MediaDownloaderBackend.analyzeUrls(['http://empty_partial.com'], engine: 'auto');
+        final results = await MediaDownloaderBackend.analyzeUrls(['http://empty_partial.com']);
         
         expect(emptyPartialMock.fetchMetadataCalled, isTrue);
         expect(nextMock.fetchMetadataCalled, isTrue); // Fallback happened
@@ -354,7 +352,7 @@ void main() {
         EngineRegistry.register(failMock);
         EngineRegistry.register(successMock);
 
-        final results = await MediaDownloaderBackend.analyzeUrls(['http://logs.com'], engine: 'auto');
+        final results = await MediaDownloaderBackend.analyzeUrls(['http://logs.com']);
         
         final logs = results.first.fetchLogs;
         expect(logs, contains('[mock_log_fail]:'));

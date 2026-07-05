@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import '../../services/download_history_database.dart';
 import 'download_task_provider.dart';
 
@@ -88,39 +89,51 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
   List<DownloadHistoryEntry> _currentEntries = [];
   int _loadedCount = 0;
 
+  bool _isDisposed = false;
+
   @override
   List<DownloadHistoryEntry> build() {
-    _db = DownloadHistoryDatabase();
+    ref.onDispose(() => _isDisposed = true);
+    _db = DownloadHistoryDatabase(ref.read(databaseProvider));
     _db.init();
-
-    // Register a dispose listener to close the DB if the provider is destroyed
-    ref.onDispose(() {
-      _db.dispose();
-    });
-
-    return _loadInitial();
+    // Note: No AppDatabase close needed — its lifecycle is managed by main.dart
+    _loadInitialAsync();
+    return [];
   }
 
-  bool get hasMore => _loadedCount < _db.getTotalCount();
-  int get totalEntries => _db.getTotalCount();
+  Future<void> _loadInitialAsync() async {
+    _loadedCount = _pageSize;
+    _currentEntries = await _db.getEntries(limit: _loadedCount, offset: 0);
+    await _refreshTotal();
+    if (_isDisposed) return;
+    state = List.from(_currentEntries);
+  }
+
+  bool get hasMore => _loadedCount < (_totalCount ?? 0);
+  int? _totalCount;
+  int get totalEntries => _totalCount ?? 0;
+
+  Future<void> _refreshTotal() async {
+    _totalCount = await _db.getTotalCount();
+  }
 
   List<DownloadHistoryEntry> _loadInitial() {
     _loadedCount = _pageSize;
-    _currentEntries = _db.getEntries(limit: _loadedCount, offset: 0);
-    return _currentEntries;
+    return [];
   }
 
-  void loadMore() {
+  Future<void> loadMore() async {
     if (!hasMore) return;
-    final additional = _db.getEntries(limit: _pageSize, offset: _loadedCount);
+    final additional = await _db.getEntries(limit: _pageSize, offset: _loadedCount);
     _loadedCount += additional.length;
     _currentEntries.addAll(additional);
     state = List.from(_currentEntries);
   }
 
-  void addEntry(DownloadTask task) {
+  Future<void> addEntry(DownloadTask task) async {
     final entry = DownloadHistoryEntry.fromTask(task);
-    _db.insertEntry(entry);
+    await _db.insertEntry(entry);
+    await _refreshTotal();
 
     // Update local state without full reload if it's already at top
     _currentEntries.insert(0, entry);
@@ -128,47 +141,36 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
     state = List.from(_currentEntries);
   }
 
-  DownloadHistoryEntry? getEntry(String id) {
-    return _db.getEntry(id);
-  }
+  Future<DownloadHistoryEntry?> getEntry(String id) => _db.getEntry(id);
 
-  void clearAll() {
-    _db.clearAll();
+  Future<void> clearAll() async {
+    await _db.clearAll();
+    _totalCount = 0;
     _currentEntries.clear();
     _loadedCount = 0;
     state = [];
   }
 
-  void deleteEntries(Set<String> ids) {
-    _db.deleteEntries(ids);
+  Future<void> deleteEntries(Set<String> ids) async {
+    await _db.deleteEntries(ids);
     _currentEntries.removeWhere((e) => ids.contains(e.id));
     _loadedCount -= ids.length;
     if (_loadedCount < 0) _loadedCount = 0;
+    await _refreshTotal();
     state = List.from(_currentEntries);
   }
 
-  void deleteEntry(String id) {
-    deleteEntries({id});
-  }
+  Future<void> deleteEntry(String id) => deleteEntries({id});
 
-  int get historyFileSize {
-    return _db.fileSize;
-  }
+  int get historyFileSize => 0;
 
-  void deleteFiltered(DownloadHistoryFilter filter) {
-    // Note: To truly delete filtered in SQLite efficiently we would translate
-    // the filter to a DELETE query. For now, since deleteFiltered requires
-    // examining all items, we can fetch all, filter them in Dart, and delete by ID.
-    // However, if the db gets large, we might want to do this in batches.
-
-    // As a simple implementation for now: fetch all IDs that match and delete them
-    final allItems = _db.getEntries(limit: 9999999);
+  Future<void> deleteFiltered(DownloadHistoryFilter filter) async {
+    final allItems = await _db.getEntries(limit: 9999999);
     final toDelete = allItems
         .where((entry) => _matchesFilter(entry, filter))
         .map((e) => e.id)
         .toSet();
-
-    deleteEntries(toDelete);
+    await deleteEntries(toDelete);
   }
 
   static bool _matchesFilter(

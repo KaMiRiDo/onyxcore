@@ -1,26 +1,23 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/core/playlist/playlist_providers.dart';
-import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
+import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
-import 'dart:isolate';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
-import 'package:onyxcore/core/platform/directory_watcher.dart';
-import 'package:onyxcore/core/playlist/playlist_tile.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
-import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 import 'package:path/path.dart' as p;
 
 late Directory tempDir;
@@ -213,22 +210,22 @@ void main() {
   }
 
   group('PlaylistSidebarBase Coverage Tests', () {
-    setUp((() {
-      final TestWidgetsFlutterBinding binding = TestWidgetsFlutterBinding.ensureInitialized();
+    setUp(() {
+      final binding = TestWidgetsFlutterBinding.ensureInitialized();
       binding.window.physicalSizeTestValue = const Size(1920, 1080);
       binding.window.devicePixelRatioTestValue = 1.0;
-    }));
+    });
 
-    tearDown((() {
-      final TestWidgetsFlutterBinding binding = TestWidgetsFlutterBinding.ensureInitialized();
-      binding.window.clearPhysicalSizeTestValue();
-      binding.window.clearDevicePixelRatioTestValue();
-    }));
+    tearDown(() {
+      final binding = TestWidgetsFlutterBinding.ensureInitialized();
+      binding.platformDispatcher.views.first.resetPhysicalSize();
+      binding.platformDispatcher.views.first.resetDevicePixelRatio();
+    });
 
     testWidgets('renders UI and loads mock data', (tester) async {
       await tester.pumpWidget(buildTestApp());
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -238,8 +235,8 @@ void main() {
 
     testWidgets('toggles showHidden files using icon', (tester) async {
       await tester.pumpWidget(buildTestApp());
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -254,8 +251,8 @@ void main() {
 
     testWidgets('navigates breadcrumbs', (tester) async {
       await tester.pumpWidget(buildTestApp());
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -263,8 +260,8 @@ void main() {
       final state = tester.state<PlaylistSidebarBaseState>(find.byType(TestPlaylistSidebar));
       state.openFolder(state.ref, testFolder);
       
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('B.mp3').evaluate().isNotEmpty) break;
       }
@@ -275,8 +272,8 @@ void main() {
       if (rootFinder.evaluate().isNotEmpty) {
         await tester.ensureVisible(rootFinder);
         await tester.tap(rootFinder);
-        for (int i = 0; i < 50; i++) {
-          await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+        for (var i = 0; i < 50; i++) {
+          await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
           await tester.pump();
           if (find.text('A.mp3').evaluate().isNotEmpty) break;
         }
@@ -288,8 +285,8 @@ void main() {
 
     testWidgets('handleSelect supports Ctrl and Shift click', (tester) async {
       await tester.pumpWidget(buildTestApp());
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -315,8 +312,8 @@ void main() {
 
     testWidgets('context menu rendering', (tester) async {
       await tester.pumpWidget(buildTestApp());
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -331,8 +328,8 @@ void main() {
 
     testWidgets('F2 keyboard event triggers rename dialog', (tester) async {
       await tester.pumpWidget(buildTestApp());
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -362,8 +359,8 @@ void main() {
     testWidgets('executeMoveOrCopy works correctly', (tester) async {
       final repo = MockDirectoryRepository();
       await tester.pumpWidget(buildTestApp(repo: repo));
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -373,15 +370,15 @@ void main() {
       final targetDir = p.join(testRoot, 'TargetDir');
       
       await state.executeMoveOrCopy([sourceFile], targetDir, true); // Move
-      for (int i = 0; i < 10; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
       }
       expect(repo.moveCalls, contains('$sourceFile -> ${p.join(targetDir, 'A.mp3')}'));
 
       await state.executeMoveOrCopy([sourceFile], targetDir, false); // Copy
-      for (int i = 0; i < 10; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
       }
       expect(repo.copyCalls, contains('$sourceFile -> ${p.join(targetDir, 'A.mp3')}'));
@@ -389,8 +386,8 @@ void main() {
 
     testWidgets('auto-scrolls to active item', (tester) async {
       await tester.pumpWidget(buildTestApp());
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -411,8 +408,8 @@ void main() {
 
     testWidgets('drag and drop on folder', (tester) async {
       await tester.pumpWidget(buildTestApp());
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -428,8 +425,8 @@ void main() {
       
       await tester.pump(const Duration(milliseconds: 300));
 
-      for (int i = 0; i < 10; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
       }
 
@@ -440,8 +437,8 @@ void main() {
     testWidgets('watcher triggers refresh', (tester) async {
       final repo = MockDirectoryRepository();
       await tester.pumpWidget(buildTestApp(repo: repo));
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -449,8 +446,8 @@ void main() {
       // Trigger watcher event
       repo.watcherController.add(FileChangeEvent(type: FileChangeType.modify, path: p.join(testRoot, 'A.mp3')));
       await tester.pump(const Duration(milliseconds: 100));
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
       }
       expect(true, isTrue);
@@ -459,8 +456,8 @@ void main() {
     testWidgets('F2 keyboard event triggers bulk rename dialog for multiple items', (tester) async {
       final repo = MockDirectoryRepository();
       await tester.pumpWidget(buildTestApp(repo: repo));
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -500,7 +497,7 @@ void main() {
       
       expect(find.byType(RenameDialog), findsNothing, reason: 'Dialog should be dismissed after tapping RENAME');
       
-      for (int i = 0; i < 20; i++) {
+      for (var i = 0; i < 20; i++) {
         if (repo.bulkRenameCalls.isNotEmpty) break;
         await tester.pump(const Duration(milliseconds: 100));
       }
@@ -518,8 +515,8 @@ void main() {
     testWidgets('exception in moveOrCopy shows error', (tester) async {
       final repo = MockDirectoryRepository();
       await tester.pumpWidget(buildTestApp(repo: repo));
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('A.mp3').evaluate().isNotEmpty) break;
       }
@@ -529,8 +526,8 @@ void main() {
       final targetDir = p.join(testRoot, 'TargetDir');
       
       await state.executeMoveOrCopy([sourceFile], targetDir, true); // Move
-      for (int i = 0; i < 10; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
       }
       expect(true, isTrue); // Should not crash, just fail task
@@ -539,8 +536,8 @@ void main() {
     testWidgets('exception in rename shows snackbar', (tester) async {
       final repo = MockDirectoryRepository();
       await tester.pumpWidget(buildTestApp(repo: repo));
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('error.mp3').evaluate().isNotEmpty) break;
       }
@@ -572,8 +569,8 @@ void main() {
       final repo = MockDirectoryRepository();
       repo.itemsToReturn = [];
       await tester.pumpWidget(buildTestApp(repo: repo));
-      for (int i = 0; i < 50; i++) {
-        await tester.runAsync(() async => await Future.delayed(const Duration(milliseconds: 100)));
+      for (var i = 0; i < 50; i++) {
+        await tester.runAsync(() async => Future<void>.delayed(const Duration(milliseconds: 100)));
         await tester.pump();
         if (find.text('No items').evaluate().isNotEmpty) break;
       }

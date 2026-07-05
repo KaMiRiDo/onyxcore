@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 
 class MockTabManager extends TabManager {
   @override
@@ -14,7 +14,6 @@ class MockTabManager extends TabManager {
         TabState(
           id: '1',
           currentPath: '/home/user/docs',
-          isSearchActive: false,
         ),
       ],
       activeTabIndex: 0,
@@ -27,7 +26,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          tabManagerProvider.overrideWith(() => MockTabManager()),
+          tabManagerProvider.overrideWith(MockTabManager.new),
           deviceProvider.overrideWith((ref) => Stream.value([])),
         ],
         child: const MaterialApp(

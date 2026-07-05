@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 
 void main() {
@@ -40,7 +40,7 @@ void main() {
       t = t.copyWith(startedAt: now.subtract(const Duration(seconds: 10)), progress: 0.5);
       expect(t.estimatedRemaining?.inSeconds, 10);
       
-      t = t.copyWith(isSyncing: true, progress: 1.0);
+      t = t.copyWith(isSyncing: true, progress: 1);
       expect(t.estimatedRemaining, isNull);
       expect(t.progress, 0.99); // syncing clamped
     });
@@ -143,9 +143,9 @@ void main() {
       notifier.maxConcurrent = 1;
       
       // Heavy task
-      notifier.addTask(title: 'H1', subtitle: 'H1', isLight: false);
+      notifier.addTask(title: 'H1', subtitle: 'H1');
       // Another heavy task (pending)
-      notifier.addTask(title: 'H2', subtitle: 'H2', isLight: false);
+      notifier.addTask(title: 'H2', subtitle: 'H2');
       // Light task (always runs)
       notifier.addTask(title: 'L1', subtitle: 'L1', isLight: true);
 
@@ -169,7 +169,7 @@ void main() {
       final notifier = container.read(taskProvider.notifier);
       final id = notifier.addTask(title: 'T', subtitle: 'S');
       
-      notifier.setSyncing(id, true);
+      notifier.setSyncing(id);
       expect(container.read(taskProvider).first.isSyncing, isTrue);
       
       notifier.addLog(id, 'Log msg');

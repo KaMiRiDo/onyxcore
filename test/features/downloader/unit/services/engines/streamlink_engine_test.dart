@@ -1,9 +1,8 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/services/engines/streamlink_engine.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 
 class MockProcess extends Fake implements Process {
   @override
@@ -11,8 +10,8 @@ class MockProcess extends Fake implements Process {
 }
 
 class TestStreamlinkEngine extends StreamlinkEngine {
-  final String testPath;
   TestStreamlinkEngine(this.testPath);
+  final String testPath;
 
   @override
   String? get binaryPath => testPath;
@@ -73,15 +72,15 @@ EOF
     group('1. Metadata Fetching — JSON Parsing', () {
       test('U-DL-STR-01: Parse standard Streamlink JSON', () async {
         final mockJson = jsonEncode({
-          "plugin": "twitch",
-          "metadata": {
-            "title": "My Stream",
-            "category": "Just Chatting",
-            "author": "streamer"
+          'plugin': 'twitch',
+          'metadata': {
+            'title': 'My Stream',
+            'category': 'Just Chatting',
+            'author': 'streamer'
           },
-          "streams": {
-            "720p": {"type": "hls"},
-            "1080p": {"type": "hls"}
+          'streams': {
+            '720p': {'type': 'hls'},
+            '1080p': {'type': 'hls'}
           }
         });
         setMockStreamlinkOutput(mockJson);
@@ -95,7 +94,7 @@ EOF
       });
 
       test('U-DL-STR-02: Handle internal Streamlink JSON error', () async {
-        final mockJson = jsonEncode({"error": "Offline"});
+        final mockJson = jsonEncode({'error': 'Offline'});
         setMockStreamlinkOutput(mockJson);
 
         expect(
@@ -106,9 +105,9 @@ EOF
 
       test('U-DL-STR-03: Extract correct platform name', () async {
         final mockJson = jsonEncode({
-          "plugin": "custom",
-          "metadata": {"title": "Live"},
-          "streams": {"best": {"type": "hls"}}
+          'plugin': 'custom',
+          'metadata': {'title': 'Live'},
+          'streams': {'best': {'type': 'hls'}}
         });
         setMockStreamlinkOutput(mockJson);
 
@@ -131,10 +130,10 @@ EOF
     group('2. Metadata Fetching — Quality Streams', () {
       test('U-DL-STR-04: Parse available qualities', () async {
         final mockJson = jsonEncode({
-          "metadata": {"title": "Live"},
-          "streams": {
-            "720p": {"type": "hls"},
-            "1080p": {"type": "hls"}
+          'metadata': {'title': 'Live'},
+          'streams': {
+            '720p': {'type': 'hls'},
+            '1080p': {'type': 'hls'}
           }
         });
         setMockStreamlinkOutput(mockJson);
@@ -174,7 +173,8 @@ EOF
         // We launch a process that ignores SIGINT.
         // bash script with trap '' SIGINT
         final script = File('/tmp/ignore_sigint.sh');
-        script.writeAsStringSync('''#!/bin/bash
+        script.writeAsStringSync('''
+#!/bin/bash
 trap '' INT
 sleep 10
 ''');

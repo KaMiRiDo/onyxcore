@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 
 void main() {
   group('FilterSettings', () {
-    final tDate = DateTime(2023, 1, 1);
+    final tDate = DateTime(2023);
     
     final itemToday = FileItem(
       path: '/today.txt',
@@ -52,7 +52,7 @@ void main() {
         category: FileItemType.document,
         extensions: const {'.pdf'},
       );
-      final s3 = const FilterSettings();
+      const s3 = FilterSettings();
 
       expect(s1, equals(s2));
       expect(s1, isNot(equals(s3)));

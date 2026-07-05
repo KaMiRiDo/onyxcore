@@ -1,87 +1,72 @@
-import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:onyxcore/core/database/app_database.dart';
 
 /// Persistent cache for file metadata (image aspect ratios, etc.)
 ///
-/// Wraps SharedPreferences with isolate-based serialization to avoid
-/// blocking the main thread when serializing large cache maps.
+/// Backed by the [MetadataCacheEntries] Drift table. Maintains an in-memory
+/// copy for fast synchronous reads — the DB is the authoritative persistent
+/// store.
 class MetadataCache {
-  MetadataCache(this._prefs);
+  MetadataCache(this._db);
 
-  final SharedPreferences _prefs;
+  static const int maxCacheSize = 5000;
+
+  final AppDatabase _db;
   Map<String, double> _aspectRatios = {};
-
-  static const _cacheKey = 'imageAspectRatioCache';
 
   /// The in-memory aspect ratio cache, keyed by file path.
   Map<String, double> get aspectRatios => _aspectRatios;
 
-  /// Load the cache from SharedPreferences.
-  void load() {
-    final raw = _prefs.getString(_cacheKey);
-    if (raw != null && raw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(raw) as Map<String, dynamic>;
-        _aspectRatios = decoded.map(
-          (key, value) => MapEntry(key, (value as num).toDouble()),
-        );
-      } catch (_) {
-        _aspectRatios = {};
-      }
-    }
+  /// Load all cached aspect ratios from the database into memory.
+  Future<void> load() async {
+    // Perform LRU pruning before loading to keep memory in check.
+    await _db.pruneMetadataCache(maxCacheSize);
+    final rows = await _db.getAllMetadataCache();
+    _aspectRatios = {for (final r in rows) r.filePath: r.aspectRatio};
   }
 
   /// Save a single aspect ratio to the cache.
   Future<void> saveRatio(String path, double ratio) async {
     _aspectRatios[path] = ratio;
-    await _persist();
+    await _db.upsertMetadataCache(path, ratio);
   }
 
   /// Save multiple aspect ratios at once.
   Future<void> saveRatioBatch(Map<String, double> ratios) async {
     _aspectRatios.addAll(ratios);
-    await _persist();
+    await Future.wait(
+      ratios.entries.map((e) => _db.upsertMetadataCache(e.key, e.value)),
+    );
+    await _pruneIfNeeded();
+  }
+
+  Future<void> _pruneIfNeeded() async {
+    if (_aspectRatios.length > maxCacheSize) {
+      final removedPaths = await _db.pruneMetadataCache(maxCacheSize);
+      for (final path in removedPaths) {
+        _aspectRatios.remove(path);
+      }
+    }
   }
 
   /// Remove a single entry from the cache.
   Future<void> removeRatio(String path) async {
     if (_aspectRatios.containsKey(path)) {
       _aspectRatios.remove(path);
-      await _persist();
+      await _db.deleteMetadataCache(path);
     }
   }
 
   /// Remove all entries whose paths start with [folderPath].
   Future<void> removeForFolder(String folderPath) async {
-    final keysToRemove = _aspectRatios.keys
-        .where((k) => k.startsWith(folderPath))
-        .toList();
-    if (keysToRemove.isEmpty) return;
-
-    for (final key in keysToRemove) {
-      _aspectRatios.remove(key);
-    }
-    await _persist();
+    _aspectRatios.removeWhere((k, _) => k.startsWith(folderPath));
+    await _db.deleteMetadataCacheForFolder(folderPath);
   }
 
   /// Remove multiple specific entries by path.
   Future<void> removeBatch(List<String> paths) async {
-    var changed = false;
     for (final path in paths) {
-      if (_aspectRatios.containsKey(path)) {
-        _aspectRatios.remove(path);
-        changed = true;
-      }
+      _aspectRatios.remove(path);
     }
-    if (changed) await _persist();
+    await _db.deleteMetadataCacheBatch(paths);
   }
-
-  Future<void> _persist() async {
-    final encoded = await compute(_serializeMap, _aspectRatios);
-    await _prefs.setString(_cacheKey, encoded);
-  }
-
-  static String _serializeMap(Map<String, double> cache) => jsonEncode(cache);
 }

@@ -13,6 +13,16 @@ import 'package:onyxcore/features/downloader/services/engines/engine_registry.da
 // real binaries, does NOT touch system resources.
 // ---------------------------------------------------------------------------
 class MockEngine extends DownloadEngine {
+
+  MockEngine({
+    required this.id,
+    this.isOptional = false,
+    this.engineType = EngineType.cli,
+    this.updateInfo,
+    this.mockInstalledVersion,
+    this.mockLatestVersion,
+    this.mockIsInstalled = true,
+  });
   @override
   final String id;
   @override
@@ -33,16 +43,6 @@ class MockEngine extends DownloadEngine {
   String? mockInstalledVersion;
   String? mockLatestVersion;
 
-  MockEngine({
-    required this.id,
-    this.isOptional = false,
-    this.engineType = EngineType.cli,
-    this.updateInfo,
-    this.mockInstalledVersion,
-    this.mockLatestVersion,
-    this.mockIsInstalled = true,
-  });
-
   @override
   bool get isInstalled => mockIsInstalled;
 
@@ -60,10 +60,6 @@ class MockEngine extends DownloadEngine {
   Future<Process>? install() => null;
 
   // Minimal stubs for abstract members — never invoked in these tests.
-  @override
-  String get binaryName => id;
-  @override
-  String get name => displayName;
   @override
   int get priority => 1;
   @override
@@ -162,7 +158,7 @@ void main() {
         state = state.copyWith(engineProgress: {'e1': 0.5, 'e2': 0.8});
         expect(state.engineProgress['e1'], 0.5);
         expect(state.engineProgress['e2'], 0.8);
-        final next = state.copyWith(progress: 1.0);
+        final next = state.copyWith(progress: 1);
         expect(next.engineProgress['e1'], 0.5); // preserved
       });
     });
@@ -208,7 +204,6 @@ void main() {
       test('U-DL-UPD-07: Engine with null installedVersion is skipped in map', () async {
         final e1 = MockEngine(
           id: 'e1',
-          mockInstalledVersion: null,
           mockLatestVersion: '1.1',
         );
         EngineRegistry.register(e1);
@@ -227,8 +222,6 @@ void main() {
       test('U-DL-UPD-XX: Both null versions — engine absent from both maps', () async {
         final e1 = MockEngine(
           id: 'e1',
-          mockInstalledVersion: null,
-          mockLatestVersion: null,
         );
         EngineRegistry.register(e1);
 
@@ -274,7 +267,6 @@ void main() {
         final e1 = MockEngine(
           id: 'e1',
           isOptional: true,
-          mockIsInstalled: true,
         );
         EngineRegistry.register(e1);
         notifier.state = notifier.state.copyWith(
@@ -331,7 +323,7 @@ void main() {
     // -----------------------------------------------------------------------
     group('5. updateEngine — guard and state logic', () {
       test('U-DL-UPD-22: Skip engine with no updateInfo and not Python', () async {
-        final e1 = MockEngine(id: 'e1', engineType: EngineType.cli);
+        final e1 = MockEngine(id: 'e1');
         await notifier.updateEngine(e1);
         expect(notifier.state.engineProgress, isEmpty);
       });
@@ -372,7 +364,7 @@ void main() {
 
         final future = notifier.installProcessEngine(e1, processFuture);
 
-        await Future.delayed(const Duration(milliseconds: 10));
+        await Future<void>.delayed(const Duration(milliseconds: 10));
         expect(notifier.state.engineProgress['py1'], -1.0);
 
         await future;
@@ -439,7 +431,7 @@ void main() {
           notifier.installProcessEngine(e2, f2),
         ];
 
-        await Future.delayed(const Duration(milliseconds: 20));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
         // Both should be tracked simultaneously.
         expect(notifier.state.engineProgress.containsKey('py1'), isTrue);
         expect(notifier.state.engineProgress.containsKey('py2'), isTrue);

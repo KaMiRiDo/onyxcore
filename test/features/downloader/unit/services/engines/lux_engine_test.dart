@@ -1,9 +1,9 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
 import 'package:path/path.dart' as p;
 
 class MockProcess extends Fake implements Process {
@@ -12,8 +12,8 @@ class MockProcess extends Fake implements Process {
 }
 
 class TestLuxEngine extends LuxEngine {
-  final String testPath;
   TestLuxEngine(this.testPath);
+  final String testPath;
 
   @override
   String? get binaryPath => testPath;
@@ -100,14 +100,14 @@ EOF
     group('2. Metadata Fetching', () {
       test('U-DL-LUX-03: Parse standard Lux JSON', () async {
         final mockJson = jsonEncode({
-          "url": "http://video.com/1",
-          "title": "My Lux Video",
-          "site": "Bilibili",
-          "streams": {
-            "1080p": {
-              "quality": "1080p High",
-              "size": 1048576,
-              "parts": [{"ext": "mp4"}]
+          'url': 'http://video.com/1',
+          'title': 'My Lux Video',
+          'site': 'Bilibili',
+          'streams': {
+            '1080p': {
+              'quality': '1080p High',
+              'size': 1048576,
+              'parts': [{'ext': 'mp4'}]
             }
           }
         });
@@ -126,8 +126,8 @@ EOF
       test('U-DL-LUX-04: Handle missing streams gracefully', () async {
         // If streams object is missing, it should just yield an empty format list
         final mockJson = jsonEncode({
-          "url": "http://video.com/1",
-          "title": "Missing Streams Video"
+          'url': 'http://video.com/1',
+          'title': 'Missing Streams Video'
         });
         setMockLuxOutput(mockJson);
 
@@ -139,8 +139,8 @@ EOF
       test('U-DL-LUX-05: Handle partial JSON chunks', () async {
         // Handled naturally by the bash script outputting all at once
         final mockJson = jsonEncode([
-          {"url": "v1", "title": "t1"},
-          {"url": "v2", "title": "t2"}
+          {'url': 'v1', 'title': 't1'},
+          {'url': 'v2', 'title': 't2'}
         ]);
         setMockLuxOutput(mockJson);
 

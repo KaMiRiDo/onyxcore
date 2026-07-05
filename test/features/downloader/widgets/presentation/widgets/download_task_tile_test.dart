@@ -1,15 +1,33 @@
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/drift.dart' hide Column;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/download_task_tile.dart';
 
 void main() {
+  late AppDatabase appDb;
+
+  setUp(() {
+    appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+
+  tearDown(() async {
+    // await appDb.close();
+  });
+
   GoogleFonts.config.allowRuntimeFetching = false;
 
   Widget createTestWidget(DownloadTask task) {
     return ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(appDb),
+      ],
       child: MaterialApp(
         home: Scaffold(
           body: DownloadTaskTile(task: task),
@@ -27,8 +45,6 @@ void main() {
         url: 'http://test',
         destination: '/test',
         title: 'Pending Task',
-        status: DownloadStatus.pending,
-        progress: 0.0,
         createdAt: DateTime.now(),
       );
 
@@ -60,7 +76,7 @@ void main() {
       
       final richTextFinder = find.byType(RichText).last;
       expect(richTextFinder, findsOneWidget);
-      final RichText richText = tester.widget(richTextFinder);
+      final richText = tester.widget<RichText>(richTextFinder);
       final spanText = richText.text.toPlainText();
       expect(spanText, contains('1 MB/s'));
       expect(spanText, contains('ETA 10s'));
@@ -152,7 +168,7 @@ void main() {
       await tester.pumpWidget(createTestWidget(task));
       
       final richTextFinder = find.byType(RichText).last;
-      final RichText richText = tester.widget(richTextFinder);
+      final richText = tester.widget<RichText>(richTextFinder);
       expect(richText.text.toPlainText(), contains('3/10'));
     });
 
@@ -172,7 +188,7 @@ void main() {
       await tester.pumpWidget(createTestWidget(task));
       
       final richTextFinder = find.byType(RichText).last;
-      final RichText richText = tester.widget(richTextFinder);
+      final richText = tester.widget<RichText>(richTextFinder);
       // Since it's 50% done in 60s, remaining should be ~60s. So 1m 00s
       expect(richText.text.toPlainText(), contains('ETA 1m 00s'));
     });
@@ -192,7 +208,7 @@ void main() {
       await tester.pumpWidget(createTestWidget(task));
       
       final richTextFinder = find.byType(RichText).last;
-      final RichText richText = tester.widget(richTextFinder);
+      final richText = tester.widget<RichText>(richTextFinder);
       expect(richText.text.toPlainText(), contains('15 MB'));
       expect(richText.text.toPlainText(), contains('500 KB/s'));
     });
@@ -204,7 +220,6 @@ void main() {
         url: 'http://test',
         destination: '/test',
         title: 'A' * 200,
-        status: DownloadStatus.pending,
         createdAt: DateTime.now(),
       );
 
@@ -212,7 +227,7 @@ void main() {
       
       final textFinder = find.text('A' * 200);
       expect(textFinder, findsOneWidget);
-      final Text titleText = tester.widget(textFinder);
+      final titleText = tester.widget<Text>(textFinder);
       expect(titleText.overflow, TextOverflow.ellipsis);
     });
 

@@ -1,22 +1,37 @@
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
 
 void main() {
+  late AppDatabase db;
+  
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+
+  tearDown(() async {
+    await db.close();
   });
 
   Widget buildTestWidget() {
-    return MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () {
-              OpenWithDialog.show(context, '/home/user/document.txt');
-            },
-            child: const Text('Show Dialog'),
+    return ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () {
+                OpenWithDialog.show(context, '/home/user/document.txt');
+              },
+              child: const Text('Show Dialog'),
+            ),
           ),
         ),
       ),

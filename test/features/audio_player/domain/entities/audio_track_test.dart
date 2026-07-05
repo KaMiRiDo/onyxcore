@@ -1,15 +1,8 @@
 
-import 'package:hive/hive.dart' as import_hive;
-import 'dart:io' as import_io;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/audio_player/domain/entities/audio_track.dart';
 
 void main() {
-  setUpAll(() {
-    try {
-      import_hive.Hive.init(import_io.Directory.systemTemp.path);
-    } catch (_) {}
-  });
 
   group('AudioTrack', () {
     test('create an AudioTrack with all required fields (U-AUD-TRACK-01)', () {
@@ -48,8 +41,6 @@ void main() {
         title: 'Song Title',
         artist: 'Artist Name',
         path: '/path/to/song.mp3',
-        albumArtPath: null,
-        duration: null,
       );
 
       expect(track.albumArtPath, isNull);
@@ -102,7 +93,6 @@ void main() {
         title: 'Song',
         artist: 'Artist',
         path: '/path',
-        duration: null,
       );
 
       expect(track1, isNot(equals(track2)));

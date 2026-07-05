@@ -1,12 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:media_kit/media_kit.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:onyxcore/app.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 
@@ -18,15 +17,15 @@ void main(List<String> args) async {
 
   // Unified initialization
   await windowManager.ensureInitialized();
-  await Hive.initFlutter();
-  await Hive.openBox<dynamic>('ui_settings');
+
+  // Initialize the Drift database (single source of truth for all persistence).
+  final db = AppDatabase();
+
   MediaKit.ensureInitialized();
   PersistentViewerManager.init();
 
-  final prefs = await SharedPreferences.getInstance();
-
   // Configure window options for a seamless, titlebar-less experience for the main window
-  WindowOptions windowOptions = const WindowOptions(
+  const WindowOptions windowOptions = WindowOptions(
     size: Size(1280, 720),
     center: true,
     backgroundColor: Colors.transparent,
@@ -43,7 +42,7 @@ void main(List<String> args) async {
   runWidget(
     ProviderScope(
       overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
+        databaseProvider.overrideWithValue(db),
       ],
       child: const OnyxCoreMultiViewApp(),
     ),

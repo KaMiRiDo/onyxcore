@@ -1,40 +1,80 @@
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
 // ── Shared Favorites Notifier ────────────────────────────────────────────────
 
-/// Generic Hive-backed favorites notifier reusable across media types.
-///
-/// Pass a unique [boxName] per media type (e.g. `'audio_favorites'`,
-/// `'video_favorites'`).
-class MediaFavoritesNotifier extends StateNotifier<Set<String>> {
-  final String _boxName;
-  Box<dynamic>? _box;
+enum MediaType { audio, video, image }
 
-  MediaFavoritesNotifier(this._boxName) : super({}) {
+/// Base class for Drift-backed media favorites notifiers.
+///
+/// Subclasses specify whether they manage audio, video or image favorites via
+/// [_mediaType]. The Drift [AppDatabase] is accessed via the Riverpod ref
+/// stored in [_ref].
+abstract class MediaFavoritesNotifier extends StateNotifier<Set<String>> {
+  final MediaType _mediaType;
+  Ref? _ref;
+
+  MediaFavoritesNotifier(this._mediaType) : super({}) {
+    // _ref is injected by the factory provider immediately after construction.
+  }
+
+  void setRef(Ref ref) {
+    _ref = ref;
     _init();
   }
 
+  AppDatabase get _db => _ref!.read(databaseProvider);
+
   Future<void> _init() async {
-    _box = await Hive.openBox(_boxName);
-    final favs = _box!.get('favorites', defaultValue: <String>[]);
-    if (mounted) {
-      state = (favs as List).cast<String>().toSet();
+    final Set<String> favs;
+    switch (_mediaType) {
+      case MediaType.audio:
+        favs = await _db.getAudioFavorites();
+        break;
+      case MediaType.video:
+        favs = await _db.getVideoFavorites();
+        break;
+      case MediaType.image:
+        favs = await _db.getImageFavorites();
+        break;
     }
+    if (mounted) state = favs;
   }
 
   void toggleFavorite(String path) {
     if (state.contains(path)) {
       state = {...state}..remove(path);
+      switch (_mediaType) {
+        case MediaType.audio:
+          _db.removeAudioFavorite(path);
+          break;
+        case MediaType.video:
+          _db.removeVideoFavorite(path);
+          break;
+        case MediaType.image:
+          _db.removeImageFavorite(path);
+          break;
+      }
     } else {
       state = {...state, path};
+      switch (_mediaType) {
+        case MediaType.audio:
+          _db.addAudioFavorite(path);
+          break;
+        case MediaType.video:
+          _db.addVideoFavorite(path);
+          break;
+        case MediaType.image:
+          _db.addImageFavorite(path);
+          break;
+      }
     }
-    _box?.put('favorites', state.toList());
   }
 }
 

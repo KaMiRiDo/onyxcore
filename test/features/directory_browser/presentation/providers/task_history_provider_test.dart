@@ -1,7 +1,8 @@
-import 'dart:io' as io;
 import 'dart:convert';
-import 'package:flutter_test/flutter_test.dart';
+import 'dart:io' as io;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 
@@ -170,8 +171,8 @@ void main() {
     });
 
     test('can load more and delete entries', () {
-      final List<Map<String, dynamic>> fakeEntries = [];
-      for (int i = 0; i < 55; i++) {
+      final fakeEntries = <Map<String, dynamic>>[];
+      for (var i = 0; i < 55; i++) {
         fakeEntries.add({
           'id': 't$i',
           'title': 'Rename $i',

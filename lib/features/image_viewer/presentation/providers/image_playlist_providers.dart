@@ -10,7 +10,7 @@ enum ImageViewMode { home, favorites }
 
 /// Image favorites — delegates to the shared [MediaFavoritesNotifier].
 class ImageFavoritesNotifier extends MediaFavoritesNotifier {
-  ImageFavoritesNotifier() : super('image_favorites');
+  ImageFavoritesNotifier() : super(MediaType.image);
 }
 
 final imageFavoritesProvider =

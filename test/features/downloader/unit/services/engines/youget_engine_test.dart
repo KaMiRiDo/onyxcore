@@ -1,9 +1,9 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart';
 import 'package:path/path.dart' as p;
 
 class MockProcess extends Fake implements Process {
@@ -12,8 +12,8 @@ class MockProcess extends Fake implements Process {
 }
 
 class TestYouGetEngine extends YouGetEngine {
-  final String testPath;
   TestYouGetEngine(this.testPath);
+  final String testPath;
 
   @override
   String? get binaryPath => testPath;
@@ -91,13 +91,13 @@ exit $exitCode
     group('2. Metadata Fetching', () {
       test('U-DL-YGT-03: Parse You-Get standard JSON', () async {
         final mockJson = jsonEncode({
-          "title": "My You-Get Video",
-          "site": "Bilibili",
-          "streams": {
-            "flv": {
-              "container": "flv",
-              "quality": "1080p High",
-              "size": 1048576
+          'title': 'My You-Get Video',
+          'site': 'Bilibili',
+          'streams': {
+            'flv': {
+              'container': 'flv',
+              'quality': '1080p High',
+              'size': 1048576
             }
           }
         });
@@ -132,7 +132,8 @@ exit $exitCode
         // Let's output empty stdout and some stderr. Wait, our mock script writes to stdout.
         // Let's write directly to stderr.
         final file = File(mockYouGetPath);
-        final script = '''#!/bin/bash
+        const script = '''
+#!/bin/bash
 echo "Network error" >&2
 exit 1
 ''';

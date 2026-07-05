@@ -1,40 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 
+/// Manages sidebar media-item pins (path → pinned_at timestamp).
+///
+/// This is distinct from [PinnedFolders] — those are directory browser
+/// sidebar shortcuts. [PinnedItems] are generic media-item pins used in the
+/// secondary pinned-items panel.
 class PinnedItemsNotifier extends AsyncNotifier<Map<String, int>> {
-  static const String boxName = 'pinned_items';
+  AppDatabase get _db => ref.read(databaseProvider);
 
   @override
   Future<Map<String, int>> build() async {
-    final box = await Hive.openBox(boxName);
-    final map = <String, int>{};
-    for (final key in box.keys) {
-      final value = box.get(key);
-      if (value is int) {
-        map[key as String] = value;
-      }
-    }
-    return map;
+    return _db.getAllPinnedItems();
   }
 
   Future<void> pinItem(String path) async {
-    final box = await Hive.openBox(boxName);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    await box.put(path, timestamp);
+    await _db.addPinnedItem(path, timestamp);
 
     final currentMap = state.value ?? {};
-    final newMap = Map<String, int>.from(currentMap);
-    newMap[path] = timestamp;
-    state = AsyncValue.data(newMap);
+    state = AsyncValue.data({...currentMap, path: timestamp});
   }
 
   Future<void> unpinItem(String path) async {
-    final box = await Hive.openBox(boxName);
-    await box.delete(path);
+    await _db.removePinnedItem(path);
 
     final currentMap = state.value ?? {};
-    final newMap = Map<String, int>.from(currentMap);
-    newMap.remove(path);
+    final newMap = Map<String, int>.from(currentMap)..remove(path);
     state = AsyncValue.data(newMap);
   }
 }

@@ -1,17 +1,18 @@
-import 'package:flutter_test/flutter_test.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:mocktail/mocktail.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/domain/repositories/settings_repository.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
 class MockSettingsRepository extends Mock implements SettingsRepository {}
 class MockSettingsNotifier extends SettingsNotifier {
   @override
-  Future<AppSettings> build() async => AppSettings(globalSortOption: SortOption.aToZ);
+  Future<AppSettings> build() async => AppSettings();
 }
 
 void main() {
@@ -21,20 +22,24 @@ void main() {
   group('NavigationNotifier', () {
     late ProviderContainer container;
 
+    // Use a stable path that is guaranteed to exist on Linux and
+    // does NOT start with '/mnt' so handleEject can return it as fallback.
+    const initialPath = '/home';
+
     setUp(() async {
       final mockSettings = MockSettingsRepository();
       when(() => mockSettings.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
       container = ProviderContainer(
         overrides: [
           settingsRepositoryProvider.overrideWithValue(mockSettings),
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
         ],
       );
       // Initialize tab manager with a default tab to avoid StateError
       // Wait a few milliseconds to ensure the new tab gets a unique ID 
       // based on DateTime.now().millisecondsSinceEpoch
-      await Future.delayed(const Duration(milliseconds: 5));
-      container.read(tabManagerProvider.notifier).addTab(path: '/initial');
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      container.read(tabManagerProvider.notifier).addTab(path: initialPath);
     });
 
     tearDown(() {
@@ -43,7 +48,7 @@ void main() {
 
     test('initial state pulls from tab manager', () {
       final state = container.read(navigationProvider);
-      expect(state.history, ['/initial']);
+      expect(state.history, [initialPath]);
       expect(state.historyIndex, 0);
     });
 
@@ -52,7 +57,7 @@ void main() {
       notifier.initialize('/new/path');
       
       final state = container.read(navigationProvider);
-      expect(state.history, ['/initial']);
+      expect(state.history, [initialPath]);
       expect(state.historyIndex, 0);
     });
 
@@ -61,7 +66,7 @@ void main() {
       notifier.navigateTo('/new/path');
       
       final state = container.read(navigationProvider);
-      expect(state.history, ['/initial', '/new/path']);
+      expect(state.history, [initialPath, '/new/path']);
       expect(state.historyIndex, 1);
     });
 
@@ -89,15 +94,16 @@ void main() {
 
       final result = notifier.handleEject('/mnt/usb1');
       
-      expect(result, '/initial');
+      expect(result, initialPath);
       
-      final state = container.read(navigationProvider);
-      expect(state.history.last, '/initial');
+      final stateAfter = container.read(navigationProvider);
+      expect(stateAfter.history.last, initialPath);
     });
 
     test('handleEject returns null if no valid previous path', () {
       final notifier = container.read(navigationProvider.notifier);
-      final result = notifier.handleEject('/initial');
+      // Eject a path that covers all history entries → no valid fallback
+      final result = notifier.handleEject('/home');
       expect(result, isNull);
     });
   });

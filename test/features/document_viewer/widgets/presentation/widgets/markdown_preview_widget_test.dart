@@ -1,26 +1,20 @@
 import 'dart:io';
 import 'dart:ui';
-import 'dart:convert';
-import 'dart:async';
-import 'package:flutter/services.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:onyxcore/core/widgets/search_replace_overlay.dart';
-import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:mocktail_image_network/mocktail_image_network.dart';
-import 'package:flutter_mermaid/flutter_mermaid.dart';
-import 'package:flutter_html/flutter_html.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
-import 'package:flutter_highlight/flutter_highlight.dart';
-import 'package:onyxcore/features/document_viewer/services/mermaid_offline_renderer.dart';
+import 'package:onyxcore/core/widgets/search_replace_overlay.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/line_numbers_painter.dart';
+import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
+import 'package:onyxcore/features/document_viewer/services/mermaid_offline_renderer.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -114,9 +108,9 @@ void main() {
   }
 
   Future<void> waitForLoad(WidgetTester tester) async {
-    for (int i = 0; i < 50; i++) {
+    for (var i = 0; i < 50; i++) {
       await tester.runAsync(() async {
-        await Future.delayed(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
       });
       await tester.pump(const Duration(milliseconds: 100));
       tester.takeException(); // Clear font exceptions
@@ -146,7 +140,8 @@ void main() {
     });
 
     testWidgets('W-DOC-PREVIEW-02: Render YAML Frontmatter and tag badges', (WidgetTester tester) async {
-      final content = '''---
+      const content = '''
+---
 title: Test Document
 tags: ["alpha", "beta"]
 ---
@@ -163,7 +158,7 @@ Body content
     });
 
     testWidgets('W-DOC-PREVIEW-03: Pre-process and render Math equations natively', (WidgetTester tester) async {
-      final content = r'$$\frac{1}{2}$$';
+      const content = r'$$\frac{1}{2}$$';
       await tester.pumpWidget(buildTestWidget(content: content));
       await waitForLoad(tester);
 
@@ -174,7 +169,7 @@ Body content
     });
 
     testWidgets('W-DOC-PREVIEW-04: Render Mermaid diagram using flutter_mermaid', (WidgetTester tester) async {
-      final content = '''
+      const content = '''
 ```mermaid
 graph TD
 A-->B
@@ -189,14 +184,14 @@ A-->B
     });
 
     testWidgets('W-DOC-PREVIEW-05: Render custom code blocks with language and copy button', (WidgetTester tester) async {
-      final List<MethodCall> log = [];
+      final log = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, (MethodCall methodCall) async {
         log.add(methodCall);
         return null;
       });
 
-      final content = '''
+      const content = '''
 ```dart
 print('hello');
 ```
@@ -312,7 +307,7 @@ print('hello');
     });
 
     testWidgets('W-DOC-PREVIEW-09: Render task list checkboxes', (WidgetTester tester) async {
-      final content = '- [x] Completed\n- [ ] Pending';
+      const content = '- [x] Completed\n- [ ] Pending';
       await tester.pumpWidget(buildTestWidget(content: content));
       await waitForLoad(tester);
       await tester.pump();
@@ -323,7 +318,7 @@ print('hello');
     });
 
     testWidgets('W-DOC-PREVIEW-10: Render tables correctly', (WidgetTester tester) async {
-      final content = '''
+      const content = '''
 | Header |
 |---|
 | Cell |
@@ -398,7 +393,8 @@ print('hello');
       addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
       addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
 
-      final String complexMermaid = '''### Morning Beverage Decision Matrix
+      const complexMermaid = '''
+### Morning Beverage Decision Matrix
 
 ```mermaid
 %%{init: {
@@ -445,7 +441,7 @@ flowchart TD
 
 
     testWidgets('W-DOC-PREVIEW-15: Markdown parsing error recovery', (WidgetTester tester) async {
-      const complexContent = '''
+      const complexContent = r'''
 ---
 title: Welcome to Markdown Viewer
 description: A GitHub-style Markdown renderer
@@ -463,10 +459,10 @@ flowchart LR
 ```
 
 ## 🧮 Mathematical Expressions
-Inline equation: \$\$E = mc^2\$\$
+Inline equation: $$E = mc^2$$
 
 Display equations:
-\$\$\\frac{\\partial f}{\\partial x} = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}\$\$
+$$\frac{\partial f}{\partial x} = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}$$
 
 ## 📋 Task Management
 - [x] Create responsive layout
@@ -491,9 +487,9 @@ Display equations:
     testWidgets('W-DOC-PREVIEW-19: Switching from editor to preview mode preserves scroll position', (WidgetTester tester) async {
       // Create a long document
       final buffer = StringBuffer();
-      for (int i = 0; i < 100; i++) {
-        buffer.writeln('# Heading \$i');
-        buffer.writeln('This is paragraph \$i to make the document sufficiently long.');
+      for (var i = 0; i < 100; i++) {
+        buffer.writeln(r'# Heading $i');
+        buffer.writeln(r'This is paragraph $i to make the document sufficiently long.');
         buffer.writeln();
       }
       final longContent = buffer.toString();
@@ -652,7 +648,7 @@ Display equations:
     });
     testWidgets('W-DOC-PREVIEW-25: Scroll sync maintains accurate line numbers to the bottom of long documents', (WidgetTester tester) async {
       final buffer = StringBuffer();
-      for (int i = 0; i < 200; i++) {
+      for (var i = 0; i < 200; i++) {
         // Some lines plain, some wrapped, some bold wrapped
         if (i % 5 == 0) {
           buffer.writeln('**This is a very long bold line that should wrap multiple times $i** ' * 5);
@@ -845,7 +841,7 @@ Display equations:
       
       // Wait for real file I/O
       await tester.runAsync(() async {
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       });
       await tester.pump();
 
@@ -881,7 +877,7 @@ Display equations:
       
       // Wait for real file I/O
       await tester.runAsync(() async {
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       });
       await tester.pump();
 
@@ -889,7 +885,7 @@ Display equations:
     });
 
     testWidgets('W-DOC-PREVIEW-31: Double click preview to edit', (WidgetTester tester) async {
-      final content = 'Line 1\n\nLine 2\n\nLine 3';
+      const content = 'Line 1\n\nLine 2\n\nLine 3';
       await tester.pumpWidget(buildTestWidget(content: content));
       await waitForLoad(tester);
 
@@ -1028,7 +1024,7 @@ Display equations:
       // Test SaveIntent
       Actions.invoke(tester.element(find.byType(TextField).last), const SaveIntent());
       await tester.runAsync(() async {
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       });
       await tester.pump();
 
@@ -1118,7 +1114,7 @@ Display equations:
       LineNumbersPainter? painter;
       for (final cp in customPaints) {
         if (cp.painter is LineNumbersPainter) {
-          painter = cp.painter as LineNumbersPainter;
+          painter = cp.painter! as LineNumbersPainter;
           break;
         }
       }
@@ -1268,7 +1264,7 @@ Display equations:
 
     testWidgets('W-DOC-PREVIEW-41: TDD - Cursor position is correct after undo with duplicate text on different lines', (WidgetTester tester) async {
       // Content with "sam" on an early line and editing happens on a later line
-      final content = 'Line 1\nLine 2\nLine 3\nLine 4\nThe word sam appears here\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10\nLine 11\nLine 12\nLine 13\nLine 14\nAnother sam here';
+      const content = 'Line 1\nLine 2\nLine 3\nLine 4\nThe word sam appears here\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10\nLine 11\nLine 12\nLine 13\nLine 14\nAnother sam here';
       late File file;
       await tester.runAsync(() async {
         file = File('${tempDir.path}/test_cursor_undo.md');
@@ -1378,7 +1374,7 @@ Display equations:
       });
     });
     testWidgets('W-DOC-PREVIEW-43: Standalone window requests focus and triggers presentWindow', (WidgetTester tester) async {
-      final List<MethodCall> windowLogs = [];
+      final windowLogs = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
         const MethodChannel('onyxcore/window_manager'),

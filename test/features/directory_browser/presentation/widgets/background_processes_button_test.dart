@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 
 class MockTaskNotifier extends TaskNotifier {
-  final List<FileTask> initialTasks;
   MockTaskNotifier(this.initialTasks);
+  final List<FileTask> initialTasks;
   
   @override
   List<FileTask> build() => initialTasks;

@@ -1,40 +1,41 @@
 import 'dart:io';
+
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:flutter_test/flutter_test.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-
-import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
-import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
-import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   
   late Directory tempDir;
-  const MethodChannel channel = MethodChannel('onyxcore/window_manager');
-  final List<MethodCall> log = [];
-  bool shouldThrow = false;
+  late AppDatabase db;
+  const channel = MethodChannel('onyxcore/window_manager');
+  final log = <MethodCall>[];
+  var shouldThrow = false;
 
   setUpAll(() {
     MediaKit.ensureInitialized();
     tempDir = Directory.systemTemp.createTempSync('persistent_viewer_manager_test_');
-    Hive.init(tempDir.path);
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
   });
 
   tearDownAll(() async {
-    try {
-      await Hive.close();
-    } catch (_) {}
+    // Memory db doesn't require manual closing and doing so interrupts widget disposal streams
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
     }
@@ -214,9 +215,9 @@ void main() {
       
       final widget = PersistentViewerManager.buildView(999) as ValueListenableBuilder<WindowParams?>;
       final built = widget.builder(context, null, null) as MaterialApp;
-      final scaffold = built.home as Scaffold;
-      final center = scaffold.body as Center;
-      final text = center.child as Text;
+      final scaffold = built.home! as Scaffold;
+      final center = scaffold.body! as Center;
+      final text = center.child! as Text;
       expect(text.data, 'Waiting for media...');
     });
 
@@ -230,10 +231,19 @@ void main() {
       );
       final widget = PersistentViewerManager.buildView(1001) as ValueListenableBuilder<WindowParams?>;
       final built = widget.builder(context, params, null) as ProviderScope;
-      final app = built.child as MaterialApp;
-      final scaffold = app.home as Scaffold;
       
-      final previewWidget = scaffold.body as VideoPreviewWidget;
+      final overriddenScope = ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          ...built.overrides,
+        ],
+        child: built.child,
+      );
+      
+      final app = overriddenScope.child as MaterialApp;
+      final scaffold = app.home! as Scaffold;
+      
+      final previewWidget = scaffold.body! as VideoPreviewWidget;
       expect(previewWidget.initialPosition, isNull);
     });
 
@@ -248,10 +258,19 @@ void main() {
       );
       final widget = PersistentViewerManager.buildView(1001) as ValueListenableBuilder<WindowParams?>;
       final built = widget.builder(context, params, null) as ProviderScope;
-      final app = built.child as MaterialApp;
-      final scaffold = app.home as Scaffold;
       
-      final previewWidget = scaffold.body as VideoPreviewWidget;
+      final overriddenScope = ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          ...built.overrides,
+        ],
+        child: built.child,
+      );
+      
+      final app = overriddenScope.child as MaterialApp;
+      final scaffold = app.home! as Scaffold;
+      
+      final previewWidget = scaffold.body! as VideoPreviewWidget;
       expect(previewWidget.initialPosition, const Duration(milliseconds: 12345));
       expect(previewWidget.initialRate, 1.5);
       expect(previewWidget.initialAudioTrackId, 'aud1');
@@ -268,8 +287,17 @@ void main() {
       );
       final widget = PersistentViewerManager.buildView(1002) as ValueListenableBuilder<WindowParams?>;
       final built = widget.builder(context, params, null) as ProviderScope;
-      final app = built.child as MaterialApp;
-      final scaffold = app.home as Scaffold;
+      
+      final overriddenScope = ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          ...built.overrides,
+        ],
+        child: built.child,
+      );
+      
+      final app = overriddenScope.child as MaterialApp;
+      final scaffold = app.home! as Scaffold;
       expect(scaffold.body, isA<ImagePreviewWidget>());
     });
 
@@ -283,8 +311,17 @@ void main() {
       );
       final widget = PersistentViewerManager.buildView(1003) as ValueListenableBuilder<WindowParams?>;
       final built = widget.builder(context, params, null) as ProviderScope;
-      final app = built.child as MaterialApp;
-      final scaffold = app.home as Scaffold;
+
+      final overriddenScope = ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          ...built.overrides,
+        ],
+        child: built.child,
+      );
+      
+      final app = overriddenScope.child as MaterialApp;
+      final scaffold = app.home! as Scaffold;
       expect(scaffold.body, isA<AudioPlayerView>());
     });
 
@@ -298,8 +335,17 @@ void main() {
       );
       final widget = PersistentViewerManager.buildView(1004) as ValueListenableBuilder<WindowParams?>;
       final built = widget.builder(context, params, null) as ProviderScope;
-      final app = built.child as MaterialApp;
-      final scaffold = app.home as Scaffold;
+      
+      final overriddenScope = ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          ...built.overrides,
+        ],
+        child: built.child,
+      );
+      
+      final app = overriddenScope.child as MaterialApp;
+      final scaffold = app.home! as Scaffold;
       expect(scaffold.body, isA<MarkdownPreviewWidget>());
     });
 
@@ -313,10 +359,19 @@ void main() {
       );
       final widget = PersistentViewerManager.buildView(1005) as ValueListenableBuilder<WindowParams?>;
       final built = widget.builder(context, params, null) as ProviderScope;
-      final app = built.child as MaterialApp;
-      final scaffold = app.home as Scaffold;
-      final center = scaffold.body as Center;
-      final text = center.child as Text;
+      
+      final overriddenScope = ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          ...built.overrides,
+        ],
+        child: built.child,
+      );
+      
+      final app = overriddenScope.child as MaterialApp;
+      final scaffold = app.home! as Scaffold;
+      final center = scaffold.body! as Center;
+      final text = center.child! as Text;
       expect(text.data, 'Unsupported preview type for unknown.xyz');
     });
 
@@ -332,14 +387,26 @@ void main() {
       
       final built = widget.builder(context, params, null) as ProviderScope;
       
+      final overriddenScope = ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          ...built.overrides,
+        ],
+        child: built.child,
+      );
+      
       // Pump the ProviderScope so we can read the provider
-      await tester.pumpWidget(built);
+      await tester.pumpWidget(overriddenScope);
       await tester.pump(const Duration(seconds: 3));
       
       final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
       final file = container.read(previewFileProvider);
       
       expect(file, params.file);
+      
+      // Unmount the widget tree to dispose of any active Timers/Animations
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
     });
   });
 }

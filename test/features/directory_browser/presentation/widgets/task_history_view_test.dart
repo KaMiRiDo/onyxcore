@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_view.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_view.dart';
 
 class MockTaskHistoryNotifier extends TaskHistoryNotifier {
   @override
@@ -35,7 +35,6 @@ class MockTaskHistoryNotifier extends TaskHistoryNotifier {
         totalCount: 5,
         totalSizeBytes: 1024 * 1024,
         sourcePaths: ['/home/user/file1.txt'],
-        targetPath: null,
         logs: ['Error deleting file'],
       ),
     ];
@@ -47,7 +46,7 @@ class MockTaskHistoryNotifier extends TaskHistoryNotifier {
   }
   
   @override
-  Future<void> clearHistory() async {
+  void clearAll() {
     state = [];
   }
 }
@@ -64,7 +63,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          taskHistoryProvider.overrideWith(() => EmptyMockTaskHistoryNotifier()),
+          taskHistoryProvider.overrideWith(EmptyMockTaskHistoryNotifier.new),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -83,7 +82,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          taskHistoryProvider.overrideWith(() => MockTaskHistoryNotifier()),
+          taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -109,7 +108,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          taskHistoryProvider.overrideWith(() => MockTaskHistoryNotifier()),
+          taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
         ],
         child: MaterialApp(
           builder: (context, child) => MediaQuery(

@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_missing_binaries_view.dart';
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
-import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/gallery_dl_engine.dart';
-
-import '../mock_providers.dart';
+import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
 
 class MockDownloaderUpdateNotifier extends DownloaderUpdateNotifier {
   @override
@@ -45,9 +43,7 @@ void main() {
     EngineRegistry.register(MissingGalleryDlEngine());
   });
 
-  tearDown(() {
-    EngineRegistry.clearAllEnginesForTesting();
-  });
+  tearDown(EngineRegistry.clearAllEnginesForTesting);
 
   Widget buildWidget(WidgetRef ref) {
     return const MaterialApp(
@@ -62,7 +58,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            downloaderUpdateProvider.overrideWith(() => MockDownloaderUpdateNotifier()),
+            downloaderUpdateProvider.overrideWith(MockDownloaderUpdateNotifier.new),
           ],
           child: const MaterialApp(
             home: Scaffold(

@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/devices_section.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/devices_section.dart';
+
 class MockTaskNotifier extends TaskNotifier {
-  final List<FileTask> initialTasks;
   MockTaskNotifier(this.initialTasks);
+  final List<FileTask> initialTasks;
   
   @override
   List<FileTask> build() => initialTasks;
@@ -61,7 +62,7 @@ void main() {
         name: 'Zero Size Drive',
         path: '/media/zero',
         size: '0 B',
-        usage: 0.0,
+        usage: 0,
         isRemovable: true,
       ),
       Device(
@@ -77,7 +78,7 @@ void main() {
         name: 'Unmounted Drive',
         path: '',
         size: '100 GB',
-        usage: 0.0,
+        usage: 0,
         isRemovable: true,
       ),
       Device(
@@ -134,7 +135,6 @@ void main() {
           createdAt: DateTime.now(),
         )
       ],
-      currentPath: '/home',
     ));
     await tester.pumpAndSettle();
     

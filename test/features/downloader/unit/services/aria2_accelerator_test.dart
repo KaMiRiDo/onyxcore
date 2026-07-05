@@ -12,9 +12,7 @@ void main() {
     mockAria2Path = p.join(mockHome, '.local', 'share', 'onyxcore', 'bin', 'aria2c');
   });
 
-  setUp(() {
-    Aria2Accelerator.resetCache();
-  });
+  setUp(Aria2Accelerator.resetCache);
 
   tearDown(() {
     Aria2Accelerator.resetCache();
@@ -145,7 +143,6 @@ void main() {
         final process = await Aria2Accelerator.download(
           url: 'http://test.com',
           destination: '/tmp',
-          filename: null,
         );
         expect(await process.exitCode, 0);
       });

@@ -1,21 +1,14 @@
 
-import 'package:hive/hive.dart' as import_hive;
-import 'dart:io' as import_io;
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/audio_player/domain/utils/audio_queue_isolate.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:path/path.dart' as p;
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 void main() {
-  setUpAll(() {
-    try {
-      import_hive.Hive.init(import_io.Directory.systemTemp.path);
-    } catch (_) {}
-  });
-
-  late Directory tempDir;
+late Directory tempDir;
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('audio_queue_isolate_test_');
@@ -27,7 +20,7 @@ void main() {
     }
   });
 
-  FileItem _createMockFileItem(String name, FileItemType type, [String? parentPath]) {
+  FileItem createMockFileItem(String name, FileItemType type, [String? parentPath]) {
     final path = parentPath != null ? p.join(parentPath, name) : p.join(tempDir.path, name);
     return FileItem(
       path: path,
@@ -41,9 +34,9 @@ void main() {
   group('processAudioQueueIsolate', () {
     test('filter out non-audio file items from input list (U-AUD-ISOLATE-01)', () {
       final items = [
-        _createMockFileItem('song.mp3', FileItemType.audio).toJson(),
-        _createMockFileItem('video.mp4', FileItemType.video).toJson(),
-        _createMockFileItem('doc.txt', FileItemType.document).toJson(),
+        createMockFileItem('song.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('video.mp4', FileItemType.video).toJson(),
+        createMockFileItem('doc.txt', FileItemType.document).toJson(),
       ];
 
       final result = processAudioQueueIsolate({
@@ -61,7 +54,7 @@ void main() {
       File(p.join(folder.path, 'song2.flac')).createSync();
       File(p.join(folder.path, 'song3.wav')).createSync();
 
-      final folderItem = _createMockFileItem('Music', FileItemType.folder).toJson();
+      final folderItem = createMockFileItem('Music', FileItemType.folder).toJson();
 
       final result = processAudioQueueIsolate({
         'items': [folderItem],
@@ -77,7 +70,7 @@ void main() {
       final folder = Directory(p.join(tempDir.path, 'Pictures'))..createSync();
       File(p.join(folder.path, 'img.jpg')).createSync();
 
-      final folderItem = _createMockFileItem('Pictures', FileItemType.folder).toJson();
+      final folderItem = createMockFileItem('Pictures', FileItemType.folder).toJson();
 
       final result = processAudioQueueIsolate({
         'items': [folderItem],
@@ -89,8 +82,8 @@ void main() {
 
     test('hide hidden files when showHidden is false (U-AUD-ISOLATE-04)', () {
       final items = [
-        _createMockFileItem('.hidden_song.mp3', FileItemType.audio).toJson(),
-        _createMockFileItem('visible_song.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('.hidden_song.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('visible_song.mp3', FileItemType.audio).toJson(),
       ];
 
       final result = processAudioQueueIsolate({
@@ -104,8 +97,8 @@ void main() {
 
     test('show hidden files when showHidden is true (U-AUD-ISOLATE-05)', () {
       final items = [
-        _createMockFileItem('.hidden_song.mp3', FileItemType.audio).toJson(),
-        _createMockFileItem('visible_song.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('.hidden_song.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('visible_song.mp3', FileItemType.audio).toJson(),
       ];
 
       final result = processAudioQueueIsolate({
@@ -121,7 +114,7 @@ void main() {
       File(p.join(folder.path, '.hidden.mp3')).createSync();
       File(p.join(folder.path, 'visible.mp3')).createSync();
 
-      final folderItem = _createMockFileItem('Music', FileItemType.folder).toJson();
+      final folderItem = createMockFileItem('Music', FileItemType.folder).toJson();
 
       final result = processAudioQueueIsolate({
         'items': [folderItem],
@@ -137,7 +130,7 @@ void main() {
       File(p.join(folder.path, '.hidden.mp3')).createSync();
       File(p.join(folder.path, 'visible.mp3')).createSync();
 
-      final folderItem = _createMockFileItem('Music', FileItemType.folder).toJson();
+      final folderItem = createMockFileItem('Music', FileItemType.folder).toJson();
 
       final result = processAudioQueueIsolate({
         'items': [folderItem],
@@ -150,8 +143,8 @@ void main() {
 
     test('return empty list when all items are non-audio and non-folder (U-AUD-ISOLATE-08)', () {
       final items = [
-        _createMockFileItem('vid.mp4', FileItemType.video).toJson(),
-        _createMockFileItem('img.jpg', FileItemType.image).toJson(),
+        createMockFileItem('vid.mp4', FileItemType.video).toJson(),
+        createMockFileItem('img.jpg', FileItemType.image).toJson(),
       ];
 
       final result = processAudioQueueIsolate({
@@ -172,7 +165,7 @@ void main() {
     });
 
     test('handle non-existent folder paths gracefully (U-AUD-ISOLATE-10)', () {
-      final folderItem = _createMockFileItem('Missing', FileItemType.folder, '/does/not/exist').toJson();
+      final folderItem = createMockFileItem('Missing', FileItemType.folder, '/does/not/exist').toJson();
 
       final result = processAudioQueueIsolate({
         'items': [folderItem],
@@ -189,7 +182,7 @@ void main() {
       final subFolder = Directory(p.join(folder.path, 'SubFolder'))..createSync();
       File(p.join(subFolder.path, 'nested_song.mp3')).createSync();
 
-      final folderItem = _createMockFileItem('Music', FileItemType.folder).toJson();
+      final folderItem = createMockFileItem('Music', FileItemType.folder).toJson();
 
       final result = processAudioQueueIsolate({
         'items': [folderItem],
@@ -202,9 +195,9 @@ void main() {
 
     test('preserve original order of audio items (U-AUD-ISOLATE-12)', () {
       final items = [
-        _createMockFileItem('audio_c.mp3', FileItemType.audio).toJson(),
-        _createMockFileItem('audio_a.mp3', FileItemType.audio).toJson(),
-        _createMockFileItem('audio_b.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('audio_c.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('audio_a.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('audio_b.mp3', FileItemType.audio).toJson(),
       ];
 
       final result = processAudioQueueIsolate({
@@ -220,7 +213,7 @@ void main() {
 
     test('correctly deserialize FileItem from JSON map (U-AUD-ISOLATE-13)', () {
       final items = [
-        _createMockFileItem('song.mp3', FileItemType.audio).toJson(),
+        createMockFileItem('song.mp3', FileItemType.audio).toJson(),
       ];
 
       final result = processAudioQueueIsolate({
@@ -240,7 +233,7 @@ void main() {
       File(p.join(folder.path, 'video.mp4')).createSync();
       File(p.join(folder.path, 'doc.txt')).createSync();
 
-      final folderItem = _createMockFileItem('Mixed', FileItemType.folder).toJson();
+      final folderItem = createMockFileItem('Mixed', FileItemType.folder).toJson();
 
       final result = processAudioQueueIsolate({
         'items': [folderItem],

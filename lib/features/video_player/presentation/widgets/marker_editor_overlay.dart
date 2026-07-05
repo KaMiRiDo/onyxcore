@@ -3,9 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:hive/hive.dart';
 import 'emoji_data.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -96,7 +97,7 @@ Future<Uint8List?> _processAndResizeImage(Uint8List bytes) async {
   }, bytes);
 }
 
-class MarkerEditorOverlay extends StatefulWidget {
+class MarkerEditorOverlay extends ConsumerStatefulWidget {
   final String? initialContent;
   final String? initialIcon;
   final Duration timestamp;
@@ -115,10 +116,10 @@ class MarkerEditorOverlay extends StatefulWidget {
   });
 
   @override
-  State<MarkerEditorOverlay> createState() => MarkerEditorOverlayState();
+  ConsumerState<MarkerEditorOverlay> createState() => MarkerEditorOverlayState();
 }
 
-class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
+class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
     with SingleTickerProviderStateMixin {
   late final TextEditingController _controller;
   late final AnimationController _shakeController;
@@ -149,8 +150,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
   late ScrollController _sidebarScrollController;
   ScrollController? _gridScrollController;
   ScrollController? _recentScrollController;
-  static const String _hiveBoxName = 'marker_editor_settings';
-  static const String _recentIconsKey = 'recent_icons';
+  static const int _maxRecents = 20;
 
   @override
   void initState() {
@@ -165,7 +165,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
     _sidebarScrollController = ScrollController();
     _gridScrollController = ScrollController();
     _recentScrollController = ScrollController();
-    _loadSettingsFromHive();
+    _loadSettingsFromDrift();
 
     _shakeController = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -186,60 +186,97 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
   bool get isCreatingCustom => _isCreatingCustom;
   bool get isTagFieldFocused => _textFieldFocusNode.hasFocus;
 
-  Future<void> _loadSettingsFromHive() async {
+  Future<void> _loadSettingsFromDrift() async {
     try {
-      final box = await Hive.openBox(_hiveBoxName);
-      final List? savedSets = box.get('custom_sets');
-      if (savedSets != null) {
+      final db = ref.read(databaseProvider);
+
+      // Load custom emoji sets
+      final emojiRows = await db.getAllCustomEmojiSets();
+      if (emojiRows.isNotEmpty) {
         setState(() {
-          _customSets = savedSets
+          _customSets = emojiRows
               .map(
-                (e) => CustomEmojiSet.fromJson(
-                  Map<String, dynamic>.from(e as Map),
+                (r) => CustomEmojiSet(
+                  rawData: r.rawData,
+                  parsedMap: Map<String, String>.from(
+                    jsonDecode(r.definitions) as Map,
+                  ),
                 ),
               )
               .toList();
         });
       }
 
-      final List? savedIcons = box.get('custom_icons');
-      if (savedIcons != null) {
+      // Load custom icon sets
+      final iconRows = await db.getAllCustomIconSets();
+      if (iconRows.isNotEmpty) {
         setState(() {
-          _customIcons = savedIcons
+          _customIcons = iconRows
               .map(
-                (e) =>
-                    CustomIconSet.fromJson(Map<String, dynamic>.from(e as Map)),
+                (r) => CustomIconSet(
+                  imageBytes: base64Decode(r.imageBytes),
+                  tags: r.tags,
+                ),
               )
               .toList();
         });
       }
 
-      final List<dynamic>? recent = box.get(_recentIconsKey);
-      if (recent != null) {
+      // Load recents
+      final recentValues = await db.getMarkerRecents();
+      if (recentValues.isNotEmpty) {
         setState(() {
           _recentlyUsed.clear();
-          _recentlyUsed.addAll(List<String>.from(recent));
-          // Ensure Pin is ALWAYS first, even after loading from Hive
+          _recentlyUsed.addAll(recentValues);
+          // Ensure Pin is ALWAYS first
           _recentlyUsed.remove('📍');
           _recentlyUsed.insert(0, '📍');
         });
       }
     } catch (e) {
-      debugPrint('Error loading marker editor settings: $e');
+      debugPrint('Error loading marker editor settings from Drift: $e');
     }
   }
 
-  Future<void> _saveSettingsToHive() async {
+  Future<void> _saveSettingsToDrift() async {
     try {
-      final box = await Hive.openBox(_hiveBoxName);
-      await box.put('custom_sets', _customSets.map((e) => e.toJson()).toList());
-      await box.put(
-        'custom_icons',
-        _customIcons.map((e) => e.toJson()).toList(),
+      final db = ref.read(databaseProvider);
+
+      // Save emoji sets
+      await db.replaceAllCustomEmojiSets(
+        _customSets
+            .map(
+              (s) => (
+                id: s.rawData.hashCode.toString(),
+                rawData: s.rawData,
+                definitions: jsonEncode(s.parsedMap),
+              ),
+            )
+            .toList(),
       );
-      await box.put(_recentIconsKey, _recentlyUsed);
+
+      // Save icon sets
+      await db.replaceAllCustomIconSets(
+        _customIcons
+            .asMap()
+            .entries
+            .map(
+              (e) => (
+                id: e.key.toString(),
+                imageBytes: base64Encode(e.value.imageBytes),
+                tags: e.value.tags,
+              ),
+            )
+            .toList(),
+      );
+
+      // Save recents (skip the first '📍' pin)
+      for (final v in _recentlyUsed.skip(1)) {
+        await db.upsertMarkerRecent(v);
+      }
+      await db.pruneMarkerRecents(_maxRecents);
     } catch (e) {
-      debugPrint('Error saving marker editor settings: $e');
+      debugPrint('Error saving marker editor settings to Drift: $e');
     }
   }
 
@@ -289,7 +326,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
         }
         _isAddingIcon = false;
         _editorError = null;
-        _saveSettingsToHive();
+        _saveSettingsToDrift();
       });
     } else {
       widget.onSave(_controller.text, _selectedIcon ?? '📍');
@@ -308,7 +345,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
         _recentlyUsed.insert(1, icon);
       }
       _selectedIcon = icon;
-      _saveSettingsToHive();
+      _saveSettingsToDrift();
     });
   }
 
@@ -331,7 +368,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
       _recentlyUsed.clear();
       _recentlyUsed.addAll(['📍']);
       _selectedIcon = null;
-      _saveSettingsToHive();
+      _saveSettingsToDrift();
     });
   }
 
@@ -1089,7 +1126,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
                   }
                   _customSets.removeWhere((set) => set.parsedMap.isEmpty);
                   _recentlyUsed.removeWhere((item) => item == emoji);
-                  _saveSettingsToHive();
+                  _saveSettingsToDrift();
                   if (_selectedIcon == emoji) {
                     _selectedIcon = null;
                   }
@@ -1147,7 +1184,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
                 _recentlyUsed.removeWhere(
                   (item) => item == base64String,
                 ); // Fallback exact match
-                _saveSettingsToHive();
+                _saveSettingsToDrift();
                 if (_selectedIcon != null &&
                     _selectedIcon!.startsWith('B64:')) {
                   try {
@@ -1634,7 +1671,7 @@ class MarkerEditorOverlayState extends State<MarkerEditorOverlay>
                           }
                           _isCreatingCustom = false;
                           _editorError = null;
-                          _saveSettingsToHive();
+                          _saveSettingsToDrift();
                         });
                       },
                       style: ElevatedButton.styleFrom(

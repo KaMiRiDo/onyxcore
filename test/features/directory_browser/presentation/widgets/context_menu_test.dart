@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 
 void main() {
   testWidgets('ContextMenu renders items and handles taps', (tester) async {
-    bool wasTapped = false;
+    var wasTapped = false;
     final items = [
       ContextMenuItem(
         title: 'Copy',

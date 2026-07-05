@@ -1,20 +1,18 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
-import 'package:path/path.dart' as p;
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class MockSettingsNotifier extends SettingsNotifier {
   @override
   Future<AppSettings> build() {
     return Future.value(const AppSettings(
       downloadBrowser: 'None',
-      downloadToCurrentFolder: true,
     ));
   }
 }
@@ -33,7 +31,7 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
   }
 
   @override
-  void addDownloadTask({
+  void startDownload({
     required String url,
     required String destination,
     required String title,
@@ -42,7 +40,7 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
     bool audioOnly = false,
     bool mute = false,
     int? galleryIndex,
-    String? engine,
+    String engine = 'auto',
     bool isPlaylist = false,
     bool isProfile = false,
     String? browser,
@@ -51,30 +49,16 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    int expectedBytes = 0,
   }) {
     // Do nothing for tests
   }
-
-  @override
-  void startListening(WidgetRef ref) {}
-
-  @override
-  void addDownload(MediaInfo info) {
-    // Empty
-  }
-
-  @override
-  void updateProgress(String id, double progress, String speed, String eta) {}
 }
 
 
 class MockYtDlpEngine extends DownloadEngine {
   @override
   String get id => 'yt-dlp';
-  @override
-  String get name => 'yt-dlp mock';
-  @override
-  String get binaryName => 'yt-dlp';
   @override
   bool get isInstalled => true;
   @override
@@ -141,10 +125,6 @@ class MockGroupedEngine extends DownloadEngine {
   @override
   String get id => 'mock-grouped';
   @override
-  String get name => 'mock-grouped';
-  @override
-  String get binaryName => 'mock-grouped';
-  @override
   bool get isInstalled => true;
   @override
   int get priority => 10;
@@ -178,7 +158,6 @@ class MockGroupedEngine extends DownloadEngine {
         title: 'Grouped Post',
         originalUrl: url,
         webpageUrl: 'https://instagram.com/p/individual_1/',
-        isVideo: true,
         filesize: 512000,
       ),
       MediaInfo(

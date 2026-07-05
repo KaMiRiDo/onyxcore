@@ -1,26 +1,24 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'mock_utils.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
+import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+
+import 'mock_utils.dart';
 
 class MockDirectoryRepository extends Mock implements DirectoryRepository {}
 class MockSettingsNotifier extends SettingsNotifier {
@@ -35,14 +33,14 @@ class MockTabManager extends TabManager {
   @override
   TabManagerState build() {
     return TabManagerState(
-      tabs: [TabState(id: 'mock-tab-id', currentPath: '/mock', history: ['/mock'], historyIndex: 0)],
+      tabs: [TabState(id: 'mock-tab-id', currentPath: '/mock', history: ['/mock'])],
       activeTabIndex: 0,
     );
   }
 }
 class MockSelectionNotifier extends SelectionNotifier {
   @override
-  SelectionState build() => const SelectionState();
+  SelectionState build() => SelectionState.empty;
 }
 
 void main() {
@@ -51,12 +49,12 @@ void main() {
   });
   group('Extra Analysis Page Tests', () {
     late MockDirectoryRepository mockRepo;
-    late SharedPreferences mockPrefs;
+    late AppDatabase mockDb;
     late MockSettingsRepository mockSettingsRepo;
     
     setUp(() async {
       mockRepo = MockDirectoryRepository();
-      mockPrefs = await getMockPrefs();
+      mockDb = getMockDb();
       mockSettingsRepo = getMockSettingsRepo();
     });
 
@@ -83,13 +81,13 @@ void main() {
         overrides: [
           tabIdProvider.overrideWithValue('mock-tab-id'),
           directoryRepositoryProvider.overrideWithValue(mockRepo),
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
+          databaseProvider.overrideWithValue(mockDb),
           settingsRepositoryProvider.overrideWithValue(mockSettingsRepo),
           settingsProvider.overrideWith(MockSettingsNotifier.new),
           pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
           tabManagerProvider.overrideWith(MockTabManager.new),
           directoryAnalysisProvider('/mock').overrideWith((ref) => Future.value(initialData)),
-          if (extraOverrides != null) ...extraOverrides,
+          if (extraOverrides != null) ...extraOverrides.cast(),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -110,12 +108,12 @@ void main() {
       ],
       categoryStats: {
         FileItemType.document: CategoryStats(count: 1, totalBytes: 100),
-        FileItemType.folder: CategoryStats(count: 1, totalBytes: 0),
-        FileItemType.image: CategoryStats(count: 0, totalBytes: 0),
-        FileItemType.video: CategoryStats(count: 0, totalBytes: 0),
-        FileItemType.audio: CategoryStats(count: 0, totalBytes: 0),
-        FileItemType.archive: CategoryStats(count: 0, totalBytes: 0),
-        FileItemType.other: CategoryStats(count: 0, totalBytes: 0),
+        FileItemType.folder: CategoryStats(count: 1),
+        FileItemType.image: CategoryStats(),
+        FileItemType.video: CategoryStats(),
+        FileItemType.audio: CategoryStats(),
+        FileItemType.archive: CategoryStats(),
+        FileItemType.other: CategoryStats(),
       },
     );
 

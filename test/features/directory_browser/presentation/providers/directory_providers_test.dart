@@ -1,36 +1,32 @@
-import 'package:flutter/widgets.dart';
 import 'dart:io';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/platform/directory_watcher.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/repositories/settings_repository.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/domain/repositories/settings_repository.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+
+import '../pages/mock_utils.dart';
 
 class MockSettingsRepository extends Mock implements SettingsRepository {}
 
 class MockSettingsNotifier extends SettingsNotifier {
   @override
-  Future<AppSettings> build() async => AppSettings(globalSortOption: SortOption.aToZ, showHiddenFiles: true);
+  Future<AppSettings> build() async => AppSettings(showHiddenFiles: true);
 }
-
-
 
 class MockTabManager extends TabManager {
   @override
@@ -41,8 +37,7 @@ class MockTabManager extends TabManager {
           id: 'tab_1',
           currentPath: Platform.environment['HOME'] ?? '/',
           history: [Platform.environment['HOME'] ?? '/'],
-          historyIndex: 0,
-          sortSettings: SortSettings(option: SortOption.aToZ),
+          sortSettings: SortSettings(),
         ),
       ],
       activeTabIndex: 0,
@@ -52,7 +47,8 @@ class MockTabManager extends TabManager {
 
 class MockDirectoryRepository extends Mock implements DirectoryRepository {}
 
-class MockMediaMetadataDatasource extends Mock implements MediaMetadataDatasource {}
+class MockMediaMetadataDatasource extends Mock
+    implements MediaMetadataDatasource {}
 
 class MockPinnedItemsNotifier extends PinnedItemsNotifier {
   @override
@@ -72,27 +68,42 @@ void main() {
 
     setUp(() async {
       mockSettingsRepository = MockSettingsRepository();
-      when(() => mockSettingsRepository.load()).thenAnswer((_) async => AppSettings());
-      when(() => mockSettingsRepository.getFolderSort(any(), any())).thenReturn(SortOption.aToZ);
-      when(() => mockSettingsRepository.setFolderSort(any(), any())).thenAnswer((_) async {});
+      when(
+        () => mockSettingsRepository.load(),
+      ).thenAnswer((_) async => AppSettings());
+      when(
+        () => mockSettingsRepository.getFolderSort(any(), any()),
+      ).thenReturn(SortOption.aToZ);
+      when(
+        () => mockSettingsRepository.setFolderSort(any(), any()),
+      ).thenAnswer((_) async {});
 
       mockDirectoryRepository = MockDirectoryRepository();
-      when(() => mockDirectoryRepository.listDirectory(any())).thenAnswer((_) async => []);
-      when(() => mockDirectoryRepository.watchDirectory(any())).thenAnswer((_) => const Stream.empty());
+      when(
+        () => mockDirectoryRepository.listDirectory(any()),
+      ).thenAnswer((_) async => []);
+      when(
+        () => mockDirectoryRepository.watchDirectory(any()),
+      ).thenAnswer((_) => const Stream.empty());
 
       mockMediaMetadataDatasource = MockMediaMetadataDatasource();
-      when(() => mockMediaMetadataDatasource.extractAspectRatio(any())).thenAnswer((_) async => null);
+      when(
+        () => mockMediaMetadataDatasource.extractAspectRatio(any()),
+      ).thenAnswer((_) async => null);
 
-      SharedPreferences.setMockInitialValues({});
-      final mockPrefs = await SharedPreferences.getInstance();
+      final mockDb = getMockDb();
 
       container = ProviderContainer(
         overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
+          databaseProvider.overrideWithValue(mockDb),
           settingsRepositoryProvider.overrideWithValue(mockSettingsRepository),
           settingsProvider.overrideWith(MockSettingsNotifier.new),
-          directoryRepositoryProvider.overrideWithValue(mockDirectoryRepository),
-          mediaMetadataDatasourceProvider.overrideWithValue(mockMediaMetadataDatasource),
+          directoryRepositoryProvider.overrideWithValue(
+            mockDirectoryRepository,
+          ),
+          mediaMetadataDatasourceProvider.overrideWithValue(
+            mockMediaMetadataDatasource,
+          ),
           pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
           tabManagerProvider.overrideWith(MockTabManager.new),
           tabIdProvider.overrideWithValue('tab_1'),
@@ -156,7 +167,10 @@ void main() {
     });
 
     test('SearchQueryNotifier gets and sets query', () {
-      expect(container.read(searchQueryProvider), ''); // initial is null or empty, depending on tab state but gets mapped to string
+      expect(
+        container.read(searchQueryProvider),
+        '',
+      ); // initial is null or empty, depending on tab state but gets mapped to string
 
       container.read(searchQueryProvider.notifier).state = 'hello';
       expect(container.read(searchQueryProvider), 'hello');
@@ -171,33 +185,51 @@ void main() {
     test('DirectoryItemsNotifier returns items from repository', () async {
       // Setup mock list
       final mockItems = [
-        FileItem(path: '/test/a.txt', name: 'a.txt', type: FileItemType.other, modified: DateTime.now()),
-        FileItem(path: '/test/.hidden', name: '.hidden', type: FileItemType.other, modified: DateTime.now()),
-        FileItem(path: '/test/img.png', name: 'img.png', type: FileItemType.image, modified: DateTime.now()),
+        FileItem(
+          path: '/test/a.txt',
+          name: 'a.txt',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+        ),
+        FileItem(
+          path: '/test/.hidden',
+          name: '.hidden',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+        ),
+        FileItem(
+          path: '/test/img.png',
+          name: 'img.png',
+          type: FileItemType.image,
+          modified: DateTime.now(),
+        ),
       ];
-      when(() => mockDirectoryRepository.listDirectory(any())).thenAnswer((_) async => mockItems);
-      when(() => mockMediaMetadataDatasource.extractAspectRatio(any())).thenAnswer((_) async => 1.5);
-      
+      when(
+        () => mockDirectoryRepository.listDirectory(any()),
+      ).thenAnswer((_) async => mockItems);
+      when(
+        () => mockMediaMetadataDatasource.extractAspectRatio(any()),
+      ).thenAnswer((_) async => 1.5);
+
       // Override current path to a valid test path
-      container.read(currentPathProvider.notifier).state = Platform.environment['HOME'] ?? '/';
-      
+      container.read(currentPathProvider.notifier).state =
+          Platform.environment['HOME'] ?? '/';
+
       final itemsAsync = await container.read(directoryItemsProvider.future);
       expect(itemsAsync, isA<List<FileItem>>());
       expect(itemsAsync.length, 3);
-      
+
       // Wait for the async metadata generator to finish
-      await Future.delayed(const Duration(milliseconds: 100));
-      
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
       // Call refresh to test cache invalidation
       await container.read(directoryItemsProvider.notifier).refresh();
       await container.read(directoryItemsProvider.future);
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
     });
 
-
-
     test('State Providers basic getters and setters', () {
-      expect(container.read(zoomProvider), {});
+      expect(container.read(zoomProvider), <String, double>{});
       container.read(zoomProvider.notifier).state = {'/test': 1.5};
       expect(container.read(zoomProvider), {'/test': 1.5});
 
@@ -213,7 +245,12 @@ void main() {
       expect(container.read(draggingPathsProvider), {'/test/a.txt'});
 
       expect(container.read(previewFileProvider), isNull);
-      final fileItem = FileItem(path: '/test/a.txt', name: 'a.txt', type: FileItemType.other, modified: DateTime.now());
+      final fileItem = FileItem(
+        path: '/test/a.txt',
+        name: 'a.txt',
+        type: FileItemType.other,
+        modified: DateTime.now(),
+      );
       container.read(previewFileProvider.notifier).state = fileItem;
       expect(container.read(previewFileProvider), fileItem);
 
@@ -232,59 +269,88 @@ void main() {
       expect(container.read(isVirtualPathProvider), false);
       container.read(currentPathProvider.notifier).state = 'virtual:recent';
       expect(container.read(isVirtualPathProvider), true);
-      
+
       expect(container.read(filterSettingsProvider), isA<FilterSettings>());
     });
 
     test('filteredDirectoryItemsProvider filters correctly', () async {
       final mockItems = [
-        FileItem(path: '/test/a.txt', name: 'a.txt', type: FileItemType.other, modified: DateTime.now()),
-        FileItem(path: '/test/.hidden', name: '.hidden', type: FileItemType.other, modified: DateTime.now()),
-        FileItem(path: '/test/b.png', name: 'b.png', type: FileItemType.image, modified: DateTime.now()),
+        FileItem(
+          path: '/test/a.txt',
+          name: 'a.txt',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+        ),
+        FileItem(
+          path: '/test/.hidden',
+          name: '.hidden',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+        ),
+        FileItem(
+          path: '/test/b.png',
+          name: 'b.png',
+          type: FileItemType.image,
+          modified: DateTime.now(),
+        ),
       ];
-      
+
       final localContainer = ProviderContainer(
         overrides: [
-          directoryItemsProvider.overrideWith(() => _FakeDirectoryItemsNotifier(mockItems)),
+          directoryItemsProvider.overrideWith(
+            () => _FakeDirectoryItemsNotifier(mockItems),
+          ),
           tabIdProvider.overrideWithValue('tab_1'),
           tabManagerProvider.overrideWith(MockTabManager.new),
           settingsProvider.overrideWith(MockSettingsNotifier.new),
           pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
-        ]
+        ],
       );
-      
+
       await localContainer.read(directoryItemsProvider.future);
-      
+
       // Test search query filtering
       localContainer.read(searchQueryProvider.notifier).state = 'a.txt';
-      var filteredAsync = localContainer.read(filteredDirectoryItemsProvider);
+      final filteredAsync = localContainer.read(filteredDirectoryItemsProvider);
       expect(filteredAsync.value?.length, 1);
-      
+
       // Reset search
       localContainer.read(searchQueryProvider.notifier).state = '';
     });
-    
+
     test('sortedDirectoryItemsProvider sorts correctly', () async {
       final mockItems = [
-        FileItem(path: '/test/b.txt', name: 'b.txt', type: FileItemType.other, modified: DateTime.now()),
-        FileItem(path: '/test/a.txt', name: 'a.txt', type: FileItemType.other, modified: DateTime.now()),
+        FileItem(
+          path: '/test/b.txt',
+          name: 'b.txt',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+        ),
+        FileItem(
+          path: '/test/a.txt',
+          name: 'a.txt',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+        ),
       ];
-      
+
       final localContainer = ProviderContainer(
         overrides: [
-          directoryItemsProvider.overrideWith(() => _FakeDirectoryItemsNotifier(mockItems)),
+          directoryItemsProvider.overrideWith(
+            () => _FakeDirectoryItemsNotifier(mockItems),
+          ),
           tabIdProvider.overrideWithValue('tab_1'),
           tabManagerProvider.overrideWith(MockTabManager.new),
           settingsProvider.overrideWith(MockSettingsNotifier.new),
           pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
-        ]
+        ],
       );
-      
+
       await localContainer.read(directoryItemsProvider.future);
       await localContainer.read(pinnedItemsProvider.future);
       localContainer.read(sortedDirectoryItemsProvider); // start build
-      await Future.delayed(const Duration(milliseconds: 100));
-      
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
       final sortedAsync = localContainer.read(sortedDirectoryItemsProvider);
       if (sortedAsync.hasError) {
         print('Error in sortedAsync: ${sortedAsync.error}');
@@ -304,33 +370,58 @@ void main() {
     });
     test('DirectoryItemsNotifier extra methods', () async {
       final mockItems = [
-        FileItem(path: '/test/a.txt', name: 'a.txt', type: FileItemType.other, modified: DateTime.now()),
+        FileItem(
+          path: '/test/a.txt',
+          name: 'a.txt',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+        ),
       ];
       final localContainer = ProviderContainer(
         overrides: [
-          directoryRepositoryProvider.overrideWithValue(mockDirectoryRepository),
-          mediaMetadataDatasourceProvider.overrideWithValue(mockMediaMetadataDatasource),
+          directoryRepositoryProvider.overrideWithValue(
+            mockDirectoryRepository,
+          ),
+          mediaMetadataDatasourceProvider.overrideWithValue(
+            mockMediaMetadataDatasource,
+          ),
           tabIdProvider.overrideWithValue('tab_1'),
           tabManagerProvider.overrideWith(MockTabManager.new),
-        ]
+        ],
       );
-      
-      when(() => mockDirectoryRepository.listDirectory(any())).thenAnswer((_) async => mockItems);
-      
+
+      when(
+        () => mockDirectoryRepository.listDirectory(any()),
+      ).thenAnswer((_) async => mockItems);
+
       final notifier = localContainer.read(directoryItemsProvider.notifier);
       await localContainer.read(directoryItemsProvider.future);
-      
+
       await notifier.refresh();
-      verify(() => mockDirectoryRepository.listDirectory(any())).called(greaterThan(0));
+      verify(
+        () => mockDirectoryRepository.listDirectory(any()),
+      ).called(greaterThan(0));
     });
 
     test('sortedDirectoryItemsProvider extra sorts', () async {
       final now = DateTime.now();
       final mockItems = [
-        FileItem(path: '/test/b.txt', name: 'b.txt', type: FileItemType.other, modified: now.subtract(const Duration(days: 1)), sizeBytes: 100),
-        FileItem(path: '/test/a.txt', name: 'a.txt', type: FileItemType.folder, modified: now, sizeBytes: 200),
+        FileItem(
+          path: '/test/b.txt',
+          name: 'b.txt',
+          type: FileItemType.other,
+          modified: now.subtract(const Duration(days: 1)),
+          sizeBytes: 100,
+        ),
+        FileItem(
+          path: '/test/a.txt',
+          name: 'a.txt',
+          type: FileItemType.folder,
+          modified: now,
+          sizeBytes: 200,
+        ),
       ];
-      
+
       final sortOptions = [
         SortOption.zToA,
         SortOption.firstModified,
@@ -339,25 +430,31 @@ void main() {
         SortOption.sizeLargeToSmall,
         SortOption.filesFirst,
       ];
-      
+
       for (final option in sortOptions) {
         final localContainer = ProviderContainer(
           overrides: [
-            directoryItemsProvider.overrideWith(() => _FakeDirectoryItemsNotifier(mockItems)),
+            directoryItemsProvider.overrideWith(
+              () => _FakeDirectoryItemsNotifier(mockItems),
+            ),
             tabIdProvider.overrideWithValue('tab_1'),
             tabManagerProvider.overrideWith(MockTabManager.new),
             settingsProvider.overrideWith(MockSettingsNotifier.new),
             pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
-            sortSettingsProvider.overrideWithValue(SortSettings(option: option)),
-          ]
+            sortSettingsProvider.overrideWithValue(
+              SortSettings(option: option),
+            ),
+          ],
         );
-        
+
         await localContainer.read(directoryItemsProvider.future);
         await localContainer.read(pinnedItemsProvider.future);
-        
+
         localContainer.read(sortedDirectoryItemsProvider);
-        await Future.delayed(const Duration(milliseconds: 20));
-        final sortedItems = localContainer.read(sortedDirectoryItemsProvider).value;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        final sortedItems = localContainer
+            .read(sortedDirectoryItemsProvider)
+            .value;
         expect(sortedItems, isNotNull);
       }
     });
@@ -367,14 +464,14 @@ void main() {
         overrides: [
           tabIdProvider.overrideWithValue('tab_1'),
           tabManagerProvider.overrideWith(MockTabManager.new),
-        ]
+        ],
       );
       final notifier = localContainer.read(refreshCountProvider.notifier);
       expect(localContainer.read(refreshCountProvider), 0);
-      
+
       notifier.state = 1; // triggers increment in TabManager
       expect(localContainer.read(tabManagerProvider).tabs[0].refreshCount, 1);
-      
+
       notifier.update((curr) => curr + 1);
       expect(localContainer.read(tabManagerProvider).tabs[0].refreshCount, 2);
     });
@@ -382,11 +479,11 @@ void main() {
     test('ItemKeysNotifier tests', () {
       final notifier = container.read(itemKeysProvider.notifier);
       expect(container.read(itemKeysProvider).isEmpty, true);
-      
+
       final key = GlobalKey();
       notifier.register('/test/a', key);
       expect(container.read(itemKeysProvider)['/test/a'], key);
-      
+
       notifier.update((curr) => {});
       expect(container.read(itemKeysProvider).isEmpty, true);
     });
@@ -394,13 +491,11 @@ void main() {
 }
 
 class _FakeDirectoryItemsNotifier extends DirectoryItemsNotifier {
-  final List<FileItem> _items;
   _FakeDirectoryItemsNotifier(this._items);
+  final List<FileItem> _items;
 
   @override
   Future<List<FileItem>> build() async {
     return _items;
   }
 }
-
-

@@ -1,35 +1,38 @@
 import 'dart:io';
+
+import 'package:drift/drift.dart' hide isNotNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tempDir;
+  late AppDatabase db;
 
   setUpAll(() {
     MediaKit.ensureInitialized();
     tempDir = Directory.systemTemp.createTempSync('video_player_focus_test_');
-    Hive.init(tempDir.path);
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
   });
 
   tearDownAll(() async {
-    try {
-      await Hive.close();
-    } catch (_) {}
+    await db.close();
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
     }
   });
 
   testWidgets('VideoPreviewWidget requests focus and triggers presentWindow when standalone', (WidgetTester tester) async {
-    final List<MethodCall> windowLogs = [];
+    final windowLogs = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('onyxcore/window_manager'),
@@ -47,6 +50,9 @@ void main() {
     );
 
     await tester.pumpWidget(ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+      ],
       child: MaterialApp(
         home: Scaffold(
           body: VideoPreviewWidget(
@@ -58,7 +64,7 @@ void main() {
       ),
     ));
 
-    // Wait for the widget to build and the async Future.delayed(300ms) to fire
+    // Wait for the widget to build and the async Future<void>.delayed(300ms) to fire
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(seconds: 1));
 
@@ -75,7 +81,7 @@ void main() {
 
     // Cleanup and swallow unmount exceptions from mocked native dependencies
     await tester.pumpWidget(const SizedBox());
-    await tester.pump();
+    await tester.pumpAndSettle();
     while (tester.takeException() != null) {}
   });
 }

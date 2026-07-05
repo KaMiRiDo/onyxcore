@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/gnome_tab_bar.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/gnome_tab_bar.dart';
 
 class MockTabManager extends TabManager {
-  final TabManagerState _initialState;
   MockTabManager(this._initialState);
+  final TabManagerState _initialState;
   
   @override
   TabManagerState build() => _initialState;
