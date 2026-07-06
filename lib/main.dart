@@ -8,6 +8,7 @@ import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,9 @@ void main(List<String> args) async {
 
   MediaKit.ensureInitialized();
   PersistentViewerManager.init();
+
+  // Pre-warm the global audio player so first-click on audio doesn't freeze the UI
+  Future.microtask(() => globalAudioPlayer);
 
   // Configure window options for a seamless, titlebar-less experience for the main window
   const WindowOptions windowOptions = WindowOptions(

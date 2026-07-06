@@ -117,6 +117,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   // BUG-001: Sliding Window seek state
   bool _isFastSeeking = false;
+  bool _isPlayerInitialized = false;
+
   bool _isSmartBuffering = false;
   double _playerWidth = 0;
   double _playerHeight = 0; // ignore: unused_field
@@ -146,6 +148,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   /// Unified position the UI should render (OSD, progress bar, slider).
   Duration get displayPosition {
+    if (!_isPlayerInitialized) return Duration.zero;
     if (_isScrubbing && _virtualScrubPosition != null) {
       return _virtualScrubPosition!;
     }
@@ -321,11 +324,18 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     WidgetsBinding.instance.addObserver(this);
 
     _currentItem = widget.item;
-    player = Player();
-
     _audioKey = GlobalKey(debugLabel: 'video_audio_${widget.item.path}');
     _subtitleKey = GlobalKey(debugLabel: 'video_subtitle_${widget.item.path}');
     _speedKey = GlobalKey(debugLabel: 'video_speed_${widget.item.path}');
+    _isOpening = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _initPlayerAsync();
+    });
+  }
+
+  void _initPlayerAsync() {
+    player = Player();
 
     // BUG-001: Sliding Window buffer configuration
     // 400MiB forward + 200MiB backward for zero-latency arrow-key seeks
@@ -377,7 +387,31 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       }
     }
 
-    controller = VideoController(player);
+    // FIX: On devices where EGL/GPU is unavailable (e.g., certain Linux Mint
+    // configurations), media_kit falls back to S/W rendering. The native layer
+    // initialises with a 1×1 pixel texture by default, and when mpv's S/W renderer
+    // immediately tries to crop a decoded frame to this 1×1 surface, the internal
+    // assertion `x1 <= img->w && y1 <= img->h` in mp_image.c fails → core dump.
+    //
+    // Setting an initial width/height matching the physical screen resolution ensures
+    // the render buffer is always large enough to hold any video frame on first render.
+    // This is ONLY the starting size — NativeVideoController's videoParamsSubscription
+    // calls SetSize with the real video dimensions the moment video-out-params arrive,
+    // so the final render size always matches the video's native dimensions and the
+    // aspect ratio is fully preserved.
+    final display = PlatformDispatcher.instance.displays.isNotEmpty
+        ? PlatformDispatcher.instance.displays.first
+        : null;
+    final int safeWidth = (display?.size.width ?? 1920.0).round().clamp(1, 3840);
+    final int safeHeight = (display?.size.height ?? 1080.0).round().clamp(1, 2160);
+    debugPrint('[VideoPlayer] Initial render buffer size: ${safeWidth}x$safeHeight');
+    controller = VideoController(
+      player,
+      configuration: VideoControllerConfiguration(
+        width: safeWidth,
+        height: safeHeight,
+      ),
+    );
 
     // EPX-008: Hardware Decoder Resolution Listener
     _trackSubscription = player.stream.track.listen((track) {
@@ -432,10 +466,19 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     _isOpening = true;
 
-    // Ensure the loader is rendered and animating before engine-level open
+    // Ensure the loader is rendered and animating before engine-level open.
+    // The double-frame delay (two addPostFrameCallback calls) ensures the Video
+    // widget's LayoutBuilder has reported real non-trivial dimensions to the
+    // native layer before mpv begins decoding. This closes the race window where
+    // the S/W renderer could fire its first render callback while the texture is
+    // still at its initial bootstrap size.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _openMediaWithDelay();
+      setState(() => _isPlayerInitialized = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _openMediaWithDelay();
+      });
     });
 
     // Resume from initial position if provided
@@ -2003,6 +2046,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       }
     });
 
+    if (!_isPlayerInitialized) {
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: BubbleLoader(
+            size: 40,
+          ),
+        ),
+      );
+    }
+
     // In standalone mode, we ignore the global HUD visibility provider as the window
     // itself is the dedicated viewer. We only care about the internal control timer.
     // Hide the main HUD (timeline, play button, etc.) during active trackpad gestures
@@ -2191,10 +2245,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                           onHover: (_) => _onInteraction(),
                           child: Stack(
                             children: [
-                              // Video Player (isolated render pipeline)
+                                // Video Player (isolated render pipeline)
                               if (_isEmpty)
                                 Positioned.fill(child: _buildEmptyState())
-                              else
+                              else if (_isPlayerInitialized)
                                 RepaintBoundary(
                                   child: Center(
                                     child: Video(
