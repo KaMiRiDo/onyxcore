@@ -230,7 +230,8 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
              ext.endsWith('.jpg') || ext.endsWith('.jpeg') ||
              ext.endsWith('.png') || ext.endsWith('.webp') ||
              ext.endsWith('.gif') || ext.endsWith('.bmp') ||
-             ext.endsWith('.tiff') || ext.endsWith('.tif')
+             ext.endsWith('.tiff') || ext.endsWith('.tif') ||
+             ext.endsWith('.dng')
           );
 
           bool generated = false;
@@ -240,15 +241,16 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
             generated = await compute(_generateImageThumbnail, [filePath, tempThumbPath]);
           }
 
-          // 2. Try heif-thumbnailer for HEIC/HEIF
-          if (!generated && (ext.endsWith('.heic') || ext.endsWith('.heif'))) {
+          // 2. Try heif-thumbnailer for HEIC/HEIF/AVIF
+          if (!generated && (ext.endsWith('.heic') || ext.endsWith('.heif') || ext.endsWith('.avif'))) {
             final process = await Process.start('heif-thumbnailer', [
               '-s', '320',
               filePath,
               tempThumbPath,
             ]);
-            final exitCode = await process.exitCode;
-            generated = exitCode == 0 && File(tempThumbPath).existsSync();
+            await process.exitCode;
+            final file = File(tempThumbPath);
+            generated = file.existsSync() && file.lengthSync() > 0;
           }
 
           // 3. Fallback to FFmpeg for videos and RAW images
@@ -256,6 +258,8 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
             final ffmpegArgs = isImage ? [
               '-y',
               '-i', filePath,
+              '-vframes', '1',
+              '-update', '1',
               '-vf', 'scale=320:-1',
               '-q:v', '5',
               '-loglevel', 'error',

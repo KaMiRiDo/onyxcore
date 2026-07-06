@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:async';
+import 'package:image/image.dart' as img;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +28,21 @@ import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
+
+Future<bool> _convertDngToJpgPreview(List<String> args) async {
+  final sourcePath = args[0];
+  final destPath = args[1];
+  try {
+    final bytes = File(sourcePath).readAsBytesSync();
+    final image = img.decodeImage(bytes);
+    if (image == null) return false;
+    final jpegBytes = img.encodeJpg(image, quality: 90);
+    File(destPath).writeAsBytesSync(jpegBytes);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({
@@ -88,26 +104,48 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   String? _convertedHeicPath;
   bool _isConvertingHeic = false;
 
-  Future<void> _loadHeicIfNecessary() async {
+  Future<void> _loadSpecialImageIfNecessary() async {
     final ext = widget.item.path.toLowerCase();
-    if (ext.endsWith('.heic') || ext.endsWith('.heif')) {
+    final isHeic = ext.endsWith('.heic') || ext.endsWith('.heif') || ext.endsWith('.avif');
+    final isDng = ext.endsWith('.dng') || ext.endsWith('.raw');
+    
+    if (isHeic || isDng) {
       setState(() => _isConvertingHeic = true);
-      final tempPath = '${Directory.systemTemp.path}/onyx_heic_${widget.item.path.hashCode}.jpg';
-      if (!File(tempPath).existsSync()) {
+      final tempPath = '${Directory.systemTemp.path}/onyx_special_${widget.item.path.hashCode}.jpg';
+      final tempFile = File(tempPath);
+      if (!tempFile.existsSync() || tempFile.lengthSync() == 0) {
         try {
-          final process = await Process.start('heif-thumbnailer', [
-            '-s', '10000',
-            widget.item.path,
-            tempPath,
-          ]);
-          await process.exitCode;
+          if (isHeic) {
+            final process = await Process.start('heif-thumbnailer', [
+              '-s', '10000',
+              widget.item.path,
+              tempPath,
+            ]);
+            await process.exitCode;
+            
+            final file = File(tempPath);
+            if (!file.existsSync() || file.lengthSync() == 0) {
+              final fallbackProcess = await Process.start('ffmpeg', [
+                '-y',
+                '-i', widget.item.path,
+                '-vframes', '1',
+                '-q:v', '2',
+                '-update', '1',
+                tempPath,
+              ]);
+              await fallbackProcess.exitCode;
+            }
+          } else if (isDng) {
+            await compute(_convertDngToJpgPreview, [widget.item.path, tempPath]);
+          }
         } catch (e) {
-          debugPrint('Failed to convert HEIC: $e');
+          debugPrint('Failed to convert special image: $e');
         }
       }
       if (mounted) {
         setState(() {
-          _convertedHeicPath = File(tempPath).existsSync() ? tempPath : null;
+          final file = File(tempPath);
+          _convertedHeicPath = (file.existsSync() && file.lengthSync() > 0) ? tempPath : null;
           _isConvertingHeic = false;
         });
       }
@@ -149,7 +187,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _loadMetadata();
     _updateIndexData();
     _startHideTimer();
-    _loadHeicIfNecessary();
+    _loadSpecialImageIfNecessary();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -571,7 +609,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       });
       _loadMetadata();
       _updateIndexData();
-      _loadHeicIfNecessary();
+      _loadSpecialImageIfNecessary();
       if (mounted) {
         _focusNode.requestFocus();
         if (widget.windowId == null && !widget.isStandalone) {

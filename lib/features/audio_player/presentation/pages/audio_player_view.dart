@@ -275,7 +275,6 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     _errorSub?.cancel();
     _bufferingSub?.cancel();
     _bitrateSub?.cancel();
-    _focusNode.dispose();
     try {
       final emptyNotifier = ref.read(audioIsEmptyProvider.notifier);
       WidgetsBinding.instance.addPostFrameCallback((_) {

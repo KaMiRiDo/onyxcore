@@ -123,7 +123,18 @@ class ThumbnailCacheService {
     }
 
     if (entry.status == 'failed') return ThumbnailLookupResult.failed;
-    if (entry.status == 'ready') return ThumbnailLookupResult.hit;
+    if (entry.status == 'ready') {
+      bool valid = false;
+      if (entry.cacheFileNormal != null) {
+        final f = File(entry.cacheFileNormal!);
+        if (f.existsSync() && f.lengthSync() > 0) valid = true;
+      }
+      if (entry.cacheFileLarge != null) {
+        final f = File(entry.cacheFileLarge!);
+        if (f.existsSync() && f.lengthSync() > 0) valid = true;
+      }
+      if (valid) return ThumbnailLookupResult.hit;
+    }
 
     // 'pending' or unknown status → miss
     return ThumbnailLookupResult.miss;
@@ -139,9 +150,19 @@ class ThumbnailCacheService {
     if (entry == null || entry.status != 'ready') return null;
 
     if (size == ThumbnailSize.normal) {
-      return entry.cacheFileNormal ?? entry.cacheFileLarge;
+      final path = entry.cacheFileNormal ?? entry.cacheFileLarge;
+      if (path != null) {
+        final f = File(path);
+        if (f.existsSync() && f.lengthSync() > 0) return path;
+      }
+      return null;
     } else {
-      return entry.cacheFileLarge ?? entry.cacheFileNormal;
+      final path = entry.cacheFileLarge ?? entry.cacheFileNormal;
+      if (path != null) {
+        final f = File(path);
+        if (f.existsSync() && f.lengthSync() > 0) return path;
+      }
+      return null;
     }
   }
 
