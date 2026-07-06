@@ -6,7 +6,7 @@
 class DirectoryCache<T> {
   DirectoryCache({
     this.maxEntries = 50,
-    this.ttl = const Duration(seconds: 30),
+    this.ttl = const Duration(seconds: 60),
   });
 
   final int maxEntries;

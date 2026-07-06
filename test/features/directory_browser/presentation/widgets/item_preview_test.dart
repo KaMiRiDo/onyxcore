@@ -1,11 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_preview.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
+
+class MockThumbnailCacheService extends Mock implements ThumbnailCacheService {}
 
 void main() {
+  late MockThumbnailCacheService mockCacheService;
+
+  setUp(() {
+    mockCacheService = MockThumbnailCacheService();
+    when(() => mockCacheService.ensureLoaded()).thenAnswer((_) async {});
+    when(() => mockCacheService.lookup(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenReturn(ThumbnailLookupResult.failed);
+  });
+
   testWidgets('ItemPreview renders file icon for generic file', (tester) async {
     final item = FileItem(
       path: '/home/user/document.pdf',
@@ -16,11 +34,16 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: ItemPreview(
-            item: item,
-            zoom: 1,
+      ProviderScope(
+        overrides: [
+          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ItemPreview(
+              item: item,
+              zoom: 1,
+            ),
           ),
         ),
       ),
@@ -39,11 +62,16 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: ItemPreview(
-            item: item,
-            zoom: 1,
+      ProviderScope(
+        overrides: [
+          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ItemPreview(
+              item: item,
+              zoom: 1,
+            ),
           ),
         ),
       ),
@@ -62,20 +90,21 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: ItemPreview(
-            item: item,
-            zoom: 1,
+      ProviderScope(
+        overrides: [
+          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ItemPreview(
+              item: item,
+              zoom: 1,
+            ),
           ),
         ),
       ),
     );
 
-    // Image will fail to load in test (or use memory image if actual image widget)
-    // We expect it to fallback to an icon or show the widget that handles image loading
-    // Since ItemPreview tries to load the real path, it'll fail in tests and fallback or show nothing
-    // We just ensure it renders without crashing
     expect(find.byType(ItemPreview), findsOneWidget);
   });
 }

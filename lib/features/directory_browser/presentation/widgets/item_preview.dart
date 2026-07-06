@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_type_utils.dart';
 import '../../domain/entities/file_item.dart';
-import 'video_thumbnail_preview.dart';
+import 'media_thumbnail_preview.dart';
 
 /// Preview widget for items in the file grid — exact same UI as original
 /// _buildItemPreview(), _buildFileFallback(), _buildArchivalIcon(), _buildSvgIcon().
@@ -44,37 +44,11 @@ class ItemPreview extends StatelessWidget {
   }
 
   Widget _buildImagePreview() {
-    final file = File(item.path);
-    if (!file.existsSync()) {
-      return _buildSvgIcon('assets/icons/image.svg');
-    }
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-      child: SizedBox(
-        width: double.infinity,
-        height: double.infinity,
-        child: Image.file(
-          file,
-          fit: item.imageAspectRatio != null && item.imageAspectRatio! < 1
-              ? BoxFit.contain
-              : BoxFit.cover,
-          cacheWidth: 300,
-          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-            if (wasSynchronouslyLoaded) return child;
-            if (frame == null) {
-              return _buildSvgIcon('assets/icons/image_placeholder.svg');
-            }
-            return child;
-          },
-          errorBuilder: (_, __, ___) => _buildSvgIcon('assets/icons/image.svg'),
-        ),
-      ),
-    );
+    return MediaThumbnailPreview(item: item, zoom: zoom);
   }
 
   Widget _buildVideoPreview() {
-    return VideoThumbnailPreview(item: item, zoom: zoom);
+    return MediaThumbnailPreview(item: item, zoom: zoom);
   }
 
   Widget _buildFileFallback() {

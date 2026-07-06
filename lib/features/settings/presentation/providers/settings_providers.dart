@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:onyxcore/core/cache/metadata_cache.dart';
+import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
@@ -21,6 +22,15 @@ final metadataCacheProvider = Provider<MetadataCache>((ref) {
   // The in-memory map starts empty and fills in as the async query resolves.
   cache.load();
   return cache;
+});
+
+/// Provider for ThumbnailCacheService (global freedesktop-style thumbnail cache).
+final thumbnailCacheServiceProvider = Provider<ThumbnailCacheService>((ref) {
+  final db = ref.watch(databaseProvider);
+  final service = ThumbnailCacheService(db);
+  // Fire-and-forget: loads the in-memory index from DB.
+  service.load();
+  return service;
 });
 
 /// Notifier for app settings state.

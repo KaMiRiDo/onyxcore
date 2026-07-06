@@ -249,13 +249,8 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
 
         if (_newCoverArt != null || _clearCoverArt) {
           try {
-            final repo = container.read(settingsRepositoryProvider);
-            final thumbPath = repo.getThumbnailPath(path);
-            final thumbFile = File(thumbPath);
-            if (thumbFile.existsSync()) {
-              FileImage(thumbFile).evict();
-              thumbFile.deleteSync();
-            }
+            final cacheService = container.read(thumbnailCacheServiceProvider);
+            await cacheService.removeEntries([path]);
 
             // Forcefully remove the thumbnailPath from the current provider state
             // because `copyWith` ignores null values.

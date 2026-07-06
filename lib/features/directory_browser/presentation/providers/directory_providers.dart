@@ -348,6 +348,32 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     ref.read(directoryCacheProvider).invalidate(path);
     ref.invalidateSelf();
   }
+
+  /// Optimistically remove items from the visible list.
+  ///
+  /// Used for trash/delete operations to provide instant UI feedback
+  /// before the async operation completes. If the operation fails,
+  /// call [restoreItems] with the removed items to roll back.
+  List<FileItem> optimisticallyRemove(List<String> paths) {
+    final current = state.value;
+    if (current == null) return [];
+
+    final pathSet = paths.toSet();
+    final removed = current.where((item) => pathSet.contains(item.path)).toList();
+
+    state = AsyncValue.data(
+      current.where((item) => !pathSet.contains(item.path)).toList(),
+    );
+
+    return removed;
+  }
+
+  /// Restore previously removed items (rollback for failed operations).
+  void restoreItems(List<FileItem> items) {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncValue.data([...current, ...items]);
+  }
 }
 
 final directoryItemsProvider =

@@ -23,7 +23,7 @@ class FileChangeEvent {
 /// providing kernel-pushed notifications instead of polling.
 /// Events are debounced to prevent rapid rebuilds during batch operations.
 class DirectoryWatcher {
-  DirectoryWatcher({this.debounceDuration = const Duration(milliseconds: 500)});
+  DirectoryWatcher({this.debounceDuration = const Duration(milliseconds: 300)});
 
   final Duration debounceDuration;
 

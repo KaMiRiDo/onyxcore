@@ -24,7 +24,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/video_thumbnail_preview.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
 
 /// Individual file/folder card — pixel-perfect replica of original _buildItemCard().
 class ItemCard extends ConsumerStatefulWidget {
@@ -756,6 +756,13 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                 sourcePaths: paths,
                 isLight: true,
               );
+
+          // Optimistic UI: remove items immediately before async op
+          ref.read(selectionProvider.notifier).deselectAll();
+          final removedItems = ref
+              .read(directoryItemsProvider.notifier)
+              .optimisticallyRemove(paths);
+
           final repo = ref.read(directoryRepositoryProvider);
           try {
             await repo.deleteItems(
@@ -770,9 +777,10 @@ class _ItemCardState extends ConsumerState<ItemCard> {
               },
             );
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref.read(selectionProvider.notifier).deselectAll();
             ref.read(directoryItemsProvider.notifier).refresh();
           } catch (e) {
+            // Rollback: restore optimistically removed items
+            ref.read(directoryItemsProvider.notifier).restoreItems(removedItems);
             ref.read(taskProvider.notifier).failTask(taskId, e.toString());
             ScaffoldMessenger.of(
               context,
@@ -830,21 +838,12 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           ),
         );
       }
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.file(
-          File(widget.item.path),
-          fit: BoxFit.contain,
-          cacheWidth: 300,
-          errorBuilder: (_, __, ___) => _buildSvgIcon(
-            'assets/icons/image.svg',
-            isVertical: false,
-            scale: scale,
-          ),
-        ),
+      return MediaThumbnailPreview(
+        item: widget.item,
+        zoom: scale ?? widget.zoom,
       );
     } else if (widget.item.type == FileItemType.video) {
-      return VideoThumbnailPreview(
+      return MediaThumbnailPreview(
         item: widget.item,
         zoom: scale ?? widget.zoom,
       );

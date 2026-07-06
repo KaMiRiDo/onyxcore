@@ -84,6 +84,42 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   final Completer<void> _firstFrameCompleter = Completer<void>();
   DateTime? _lastNavTime;
   bool _isReadyForInteraction = false;
+  
+  String? _convertedHeicPath;
+  bool _isConvertingHeic = false;
+
+  Future<void> _loadHeicIfNecessary() async {
+    final ext = widget.item.path.toLowerCase();
+    if (ext.endsWith('.heic') || ext.endsWith('.heif')) {
+      setState(() => _isConvertingHeic = true);
+      final tempPath = '${Directory.systemTemp.path}/onyx_heic_${widget.item.path.hashCode}.jpg';
+      if (!File(tempPath).existsSync()) {
+        try {
+          final process = await Process.start('heif-thumbnailer', [
+            '-s', '10000',
+            widget.item.path,
+            tempPath,
+          ]);
+          await process.exitCode;
+        } catch (e) {
+          debugPrint('Failed to convert HEIC: $e');
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _convertedHeicPath = File(tempPath).existsSync() ? tempPath : null;
+          _isConvertingHeic = false;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _convertedHeicPath = null;
+          _isConvertingHeic = false;
+        });
+      }
+    }
+  }
 
   void _onWindowFocus() {
     if (mounted) _focusNode.requestFocus();
@@ -113,6 +149,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _loadMetadata();
     _updateIndexData();
     _startHideTimer();
+    _loadHeicIfNecessary();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -534,6 +571,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       });
       _loadMetadata();
       _updateIndexData();
+      _loadHeicIfNecessary();
       if (mounted) {
         _focusNode.requestFocus();
         if (widget.windowId == null && !widget.isStandalone) {
@@ -1049,15 +1087,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                         child: Builder(
                           builder: (context) {
                             Widget _buildImageWidget() {
-                              return widget.item.path.toLowerCase().endsWith(
-                                    '.svg',
-                                  )
+                              if (_isConvertingHeic) {
+                                return const Center(child: BubbleLoader(size: 60));
+                              }
+                              
+                              final imagePath = _convertedHeicPath ?? widget.item.path;
+                              return imagePath.toLowerCase().endsWith('.svg')
                                   ? SvgPicture.file(
-                                      File(widget.item.path),
+                                      File(imagePath),
                                       fit: BoxFit.contain,
                                     )
                                   : Image.file(
-                                      File(widget.item.path),
+                                      File(imagePath),
                                       fit: BoxFit.contain,
                                       filterQuality:
                                           (_isInteracting ||

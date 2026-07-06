@@ -20,6 +20,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/filter_setti
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
 class FileGrid extends ConsumerStatefulWidget {
@@ -33,6 +34,7 @@ class _FileGridState extends ConsumerState<FileGrid>
     with WidgetsBindingObserver {
   String? _hoveredPath;
   late final FocusNode _focusNode;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _FileGridState extends ConsumerState<FileGrid>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -336,30 +339,72 @@ class _FileGridState extends ConsumerState<FileGrid>
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 180 * zoom,
-        mainAxisSpacing: 16 * zoom,
-        crossAxisSpacing: 24 * zoom,
-        mainAxisExtent: 215 * zoom,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return ItemCard(
-          key: ValueKey(item.path),
-          item: item,
-          zoom: zoom,
-          isSelected: selection.selectedPaths.contains(item.path),
-          isHovered: _hoveredPath == item.path,
-          onTap: () => _handleTap(items, index),
-          onDoubleTap: () => _handleDoubleTap(items, index),
-          onHoverChanged: (hovered) {
-            setState(() => _hoveredPath = hovered ? item.path : null);
-          },
-        );
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is ScrollEndNotification ||
+            notification is ScrollUpdateNotification) {
+          _reprioritizeThumbnails(items, zoom);
+        }
+        return false;
       },
+      child: GridView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 180 * zoom,
+          mainAxisSpacing: 16 * zoom,
+          crossAxisSpacing: 24 * zoom,
+          mainAxisExtent: 215 * zoom,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return ItemCard(
+            key: ValueKey(item.path),
+            item: item,
+            zoom: zoom,
+            isSelected: selection.selectedPaths.contains(item.path),
+            isHovered: _hoveredPath == item.path,
+            onTap: () => _handleTap(items, index),
+            onDoubleTap: () => _handleDoubleTap(items, index),
+            onHoverChanged: (hovered) {
+              setState(() => _hoveredPath = hovered ? item.path : null);
+            },
+          );
+        },
+      ),
     );
+  }
+
+  /// Compute which items are visible on screen and tell the thumbnail
+  /// generation queue to prioritize them.
+  void _reprioritizeThumbnails(List<FileItem> items, double zoom) {
+    if (!_scrollController.hasClients) return;
+
+    final viewportHeight = _scrollController.position.viewportDimension;
+    final scrollOffset = _scrollController.offset;
+    final itemExtent = 215 * zoom;
+    final mainAxisSpacing = 16 * zoom;
+
+    // Estimate visible range
+    final firstVisibleRow = (scrollOffset / (itemExtent + mainAxisSpacing)).floor();
+    final visibleRows = (viewportHeight / (itemExtent + mainAxisSpacing)).ceil() + 1;
+
+    // We don't know exact columns without layout info, so over-estimate
+    // with a generous cross-axis assumption (6 columns max at min zoom)
+    const maxCols = 8;
+    final firstIndex = (firstVisibleRow * maxCols).clamp(0, items.length);
+    final lastIndex = ((firstVisibleRow + visibleRows) * maxCols).clamp(0, items.length);
+
+    final visiblePaths = <String>{};
+    for (int i = firstIndex; i < lastIndex; i++) {
+      if (items[i].type == FileItemType.video || items[i].type == FileItemType.image) {
+        visiblePaths.add(items[i].path);
+      }
+    }
+
+    if (visiblePaths.isNotEmpty) {
+      ThumbnailGenerationQueue.reprioritize(visiblePaths);
+    }
   }
 }

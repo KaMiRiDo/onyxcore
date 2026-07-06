@@ -1,8 +1,5 @@
-import 'dart:io';
-
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/settings_codec.dart';
-import 'package:path/path.dart' as p;
 
 import '../../domain/entities/app_settings.dart';
 import '../../domain/repositories/settings_repository.dart';
@@ -363,16 +360,5 @@ class SettingsRepositoryImpl implements SettingsRepository {
     if (changed) {
       await _db.savePinnedFolders(_pinnedFolders);
     }
-  }
-
-  // ——— Thumbnail Management ———
-
-  @override
-  String getThumbnailPath(String videoPath) {
-    final hash = videoPath.hashCode.toString();
-    final fileName = p.basename(videoPath);
-    final cacheDir =
-        '${Platform.environment['HOME']}/.cache/onyxcore/thumbnails';
-    return '$cacheDir/${hash}_$fileName.jpg';
   }
 }

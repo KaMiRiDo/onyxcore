@@ -86,9 +86,4 @@ abstract class SettingsRepository {
     String currentPath,
     List<String> validFolders,
   );
-
-  // ——— Thumbnail Management ———
-
-  /// Generate the deterministic cache path for a video thumbnail.
-  String getThumbnailPath(String videoPath);
 }

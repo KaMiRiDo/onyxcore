@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path/path.dart' as p;
@@ -169,6 +171,47 @@ class DownloadHistoryEntries extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Global thumbnail cache — freedesktop-style, keyed by MD5 of file URI.
+///
+/// Each media file maps to a single cache entry via its `file://` URI hash.
+/// Invalidation is based on mtime + size matching (not just path).
+/// Supports two size tiers (normal=128px, large=256px) and negative caching
+/// for files that can't be thumbnailed.
+class ThumbnailCacheEntries extends Table {
+  @override
+  String get tableName => 'thumbnail_cache';
+
+  /// MD5 hash of 'file://' + absolute path — the cache key.
+  TextColumn get fileHash => text()();
+
+  /// Original absolute file path (for debugging and reverse lookups).
+  TextColumn get filePath => text()();
+
+  /// Source file's last-modified time (ms since epoch) at generation time.
+  IntColumn get mtime => integer()();
+
+  /// Source file's size in bytes at generation time.
+  IntColumn get sizeBytes => integer()();
+
+  /// Path to the 128px cached thumbnail image, or null if not generated.
+  TextColumn get cacheFileNormal => text().nullable()();
+
+  /// Path to the 256px cached thumbnail image, or null if not generated.
+  TextColumn get cacheFileLarge => text().nullable()();
+
+  /// Media kind: 'image' or 'video'.
+  TextColumn get kind => text()();
+
+  /// Cache entry status: 'ready', 'failed', or 'pending'.
+  TextColumn get status => text()();
+
+  /// Timestamp when this cache entry was generated (ms since epoch).
+  IntColumn get generatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {fileHash};
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Database class
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,6 +231,7 @@ class DownloadHistoryEntries extends Table {
     CustomIconSetEntries,
     MarkerRecentEntries,
     DownloadHistoryEntries,
+    ThumbnailCacheEntries,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -195,7 +239,20 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      await m.createAll();
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // v2: Add thumbnail_cache table.
+        await m.createTable(thumbnailCacheEntries);
+      }
+    },
+  );
 
   // ── Settings helpers ──────────────────────────────────────────────────────
 
@@ -575,6 +632,66 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<DownloadHistoryEntry>> getAllDownloadHistoryEntries() {
     return select(downloadHistoryEntries).get();
+  }
+
+  // ── ThumbnailCache helpers ──────────────────────────────────────────────
+
+  /// Compute the freedesktop-style MD5 hash for a file path.
+  /// Key = md5('file://' + absolutePath).
+  static String computeFileHash(String absolutePath) {
+    final uri = 'file://$absolutePath';
+    return md5.convert(utf8.encode(uri)).toString();
+  }
+
+  /// Look up a thumbnail cache entry by file hash.
+  Future<ThumbnailCacheEntry?> lookupThumbnail(String fileHash) async {
+    return (select(thumbnailCacheEntries)
+          ..where((t) => t.fileHash.equals(fileHash)))
+        .getSingleOrNull();
+  }
+
+  /// Upsert a thumbnail cache entry (insert or update on conflict).
+  Future<void> upsertThumbnail(ThumbnailCacheEntriesCompanion entry) async {
+    await into(thumbnailCacheEntries).insertOnConflictUpdate(entry);
+  }
+
+  /// Mark a thumbnail as failed (negative cache).
+  Future<void> markThumbnailFailed({
+    required String fileHash,
+    required String filePath,
+    required int mtime,
+    required int sizeBytes,
+    required String kind,
+  }) async {
+    await into(thumbnailCacheEntries).insertOnConflictUpdate(
+      ThumbnailCacheEntriesCompanion.insert(
+        fileHash: fileHash,
+        filePath: filePath,
+        mtime: mtime,
+        sizeBytes: sizeBytes,
+        kind: kind,
+        status: 'failed',
+        generatedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  /// Delete thumbnail cache entries for specific file paths.
+  Future<void> deleteThumbnailsForPaths(List<String> paths) async {
+    final hashes = paths.map(computeFileHash).toList();
+    await (delete(thumbnailCacheEntries)
+          ..where((t) => t.fileHash.isIn(hashes)))
+        .go();
+  }
+
+  /// Delete all thumbnail cache entries.
+  Future<void> clearAllThumbnails() async {
+    await delete(thumbnailCacheEntries).go();
+  }
+
+  /// Get all thumbnail cache entries (for bulk loading into memory).
+  Future<List<ThumbnailCacheEntry>> getAllThumbnailEntries() {
+    return select(thumbnailCacheEntries).get();
   }
 }
 

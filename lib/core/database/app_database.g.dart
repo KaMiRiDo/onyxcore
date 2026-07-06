@@ -3465,6 +3465,605 @@ class DownloadHistoryEntriesCompanion
   }
 }
 
+class $ThumbnailCacheEntriesTable extends ThumbnailCacheEntries
+    with TableInfo<$ThumbnailCacheEntriesTable, ThumbnailCacheEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ThumbnailCacheEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _fileHashMeta = const VerificationMeta(
+    'fileHash',
+  );
+  @override
+  late final GeneratedColumn<String> fileHash = GeneratedColumn<String>(
+    'file_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mtimeMeta = const VerificationMeta('mtime');
+  @override
+  late final GeneratedColumn<int> mtime = GeneratedColumn<int>(
+    'mtime',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sizeBytesMeta = const VerificationMeta(
+    'sizeBytes',
+  );
+  @override
+  late final GeneratedColumn<int> sizeBytes = GeneratedColumn<int>(
+    'size_bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cacheFileNormalMeta = const VerificationMeta(
+    'cacheFileNormal',
+  );
+  @override
+  late final GeneratedColumn<String> cacheFileNormal = GeneratedColumn<String>(
+    'cache_file_normal',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cacheFileLargeMeta = const VerificationMeta(
+    'cacheFileLarge',
+  );
+  @override
+  late final GeneratedColumn<String> cacheFileLarge = GeneratedColumn<String>(
+    'cache_file_large',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _generatedAtMeta = const VerificationMeta(
+    'generatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> generatedAt = GeneratedColumn<int>(
+    'generated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    fileHash,
+    filePath,
+    mtime,
+    sizeBytes,
+    cacheFileNormal,
+    cacheFileLarge,
+    kind,
+    status,
+    generatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'thumbnail_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ThumbnailCacheEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('file_hash')) {
+      context.handle(
+        _fileHashMeta,
+        fileHash.isAcceptableOrUnknown(data['file_hash']!, _fileHashMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileHashMeta);
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_filePathMeta);
+    }
+    if (data.containsKey('mtime')) {
+      context.handle(
+        _mtimeMeta,
+        mtime.isAcceptableOrUnknown(data['mtime']!, _mtimeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mtimeMeta);
+    }
+    if (data.containsKey('size_bytes')) {
+      context.handle(
+        _sizeBytesMeta,
+        sizeBytes.isAcceptableOrUnknown(data['size_bytes']!, _sizeBytesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sizeBytesMeta);
+    }
+    if (data.containsKey('cache_file_normal')) {
+      context.handle(
+        _cacheFileNormalMeta,
+        cacheFileNormal.isAcceptableOrUnknown(
+          data['cache_file_normal']!,
+          _cacheFileNormalMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cache_file_large')) {
+      context.handle(
+        _cacheFileLargeMeta,
+        cacheFileLarge.isAcceptableOrUnknown(
+          data['cache_file_large']!,
+          _cacheFileLargeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('generated_at')) {
+      context.handle(
+        _generatedAtMeta,
+        generatedAt.isAcceptableOrUnknown(
+          data['generated_at']!,
+          _generatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_generatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {fileHash};
+  @override
+  ThumbnailCacheEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ThumbnailCacheEntry(
+      fileHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_hash'],
+      )!,
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      )!,
+      mtime: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}mtime'],
+      )!,
+      sizeBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}size_bytes'],
+      )!,
+      cacheFileNormal: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cache_file_normal'],
+      ),
+      cacheFileLarge: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cache_file_large'],
+      ),
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      generatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}generated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ThumbnailCacheEntriesTable createAlias(String alias) {
+    return $ThumbnailCacheEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class ThumbnailCacheEntry extends DataClass
+    implements Insertable<ThumbnailCacheEntry> {
+  /// MD5 hash of 'file://' + absolute path — the cache key.
+  final String fileHash;
+
+  /// Original absolute file path (for debugging and reverse lookups).
+  final String filePath;
+
+  /// Source file's last-modified time (ms since epoch) at generation time.
+  final int mtime;
+
+  /// Source file's size in bytes at generation time.
+  final int sizeBytes;
+
+  /// Path to the 128px cached thumbnail image, or null if not generated.
+  final String? cacheFileNormal;
+
+  /// Path to the 256px cached thumbnail image, or null if not generated.
+  final String? cacheFileLarge;
+
+  /// Media kind: 'image' or 'video'.
+  final String kind;
+
+  /// Cache entry status: 'ready', 'failed', or 'pending'.
+  final String status;
+
+  /// Timestamp when this cache entry was generated (ms since epoch).
+  final int generatedAt;
+  const ThumbnailCacheEntry({
+    required this.fileHash,
+    required this.filePath,
+    required this.mtime,
+    required this.sizeBytes,
+    this.cacheFileNormal,
+    this.cacheFileLarge,
+    required this.kind,
+    required this.status,
+    required this.generatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['file_hash'] = Variable<String>(fileHash);
+    map['file_path'] = Variable<String>(filePath);
+    map['mtime'] = Variable<int>(mtime);
+    map['size_bytes'] = Variable<int>(sizeBytes);
+    if (!nullToAbsent || cacheFileNormal != null) {
+      map['cache_file_normal'] = Variable<String>(cacheFileNormal);
+    }
+    if (!nullToAbsent || cacheFileLarge != null) {
+      map['cache_file_large'] = Variable<String>(cacheFileLarge);
+    }
+    map['kind'] = Variable<String>(kind);
+    map['status'] = Variable<String>(status);
+    map['generated_at'] = Variable<int>(generatedAt);
+    return map;
+  }
+
+  ThumbnailCacheEntriesCompanion toCompanion(bool nullToAbsent) {
+    return ThumbnailCacheEntriesCompanion(
+      fileHash: Value(fileHash),
+      filePath: Value(filePath),
+      mtime: Value(mtime),
+      sizeBytes: Value(sizeBytes),
+      cacheFileNormal: cacheFileNormal == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cacheFileNormal),
+      cacheFileLarge: cacheFileLarge == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cacheFileLarge),
+      kind: Value(kind),
+      status: Value(status),
+      generatedAt: Value(generatedAt),
+    );
+  }
+
+  factory ThumbnailCacheEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ThumbnailCacheEntry(
+      fileHash: serializer.fromJson<String>(json['fileHash']),
+      filePath: serializer.fromJson<String>(json['filePath']),
+      mtime: serializer.fromJson<int>(json['mtime']),
+      sizeBytes: serializer.fromJson<int>(json['sizeBytes']),
+      cacheFileNormal: serializer.fromJson<String?>(json['cacheFileNormal']),
+      cacheFileLarge: serializer.fromJson<String?>(json['cacheFileLarge']),
+      kind: serializer.fromJson<String>(json['kind']),
+      status: serializer.fromJson<String>(json['status']),
+      generatedAt: serializer.fromJson<int>(json['generatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'fileHash': serializer.toJson<String>(fileHash),
+      'filePath': serializer.toJson<String>(filePath),
+      'mtime': serializer.toJson<int>(mtime),
+      'sizeBytes': serializer.toJson<int>(sizeBytes),
+      'cacheFileNormal': serializer.toJson<String?>(cacheFileNormal),
+      'cacheFileLarge': serializer.toJson<String?>(cacheFileLarge),
+      'kind': serializer.toJson<String>(kind),
+      'status': serializer.toJson<String>(status),
+      'generatedAt': serializer.toJson<int>(generatedAt),
+    };
+  }
+
+  ThumbnailCacheEntry copyWith({
+    String? fileHash,
+    String? filePath,
+    int? mtime,
+    int? sizeBytes,
+    Value<String?> cacheFileNormal = const Value.absent(),
+    Value<String?> cacheFileLarge = const Value.absent(),
+    String? kind,
+    String? status,
+    int? generatedAt,
+  }) => ThumbnailCacheEntry(
+    fileHash: fileHash ?? this.fileHash,
+    filePath: filePath ?? this.filePath,
+    mtime: mtime ?? this.mtime,
+    sizeBytes: sizeBytes ?? this.sizeBytes,
+    cacheFileNormal: cacheFileNormal.present
+        ? cacheFileNormal.value
+        : this.cacheFileNormal,
+    cacheFileLarge: cacheFileLarge.present
+        ? cacheFileLarge.value
+        : this.cacheFileLarge,
+    kind: kind ?? this.kind,
+    status: status ?? this.status,
+    generatedAt: generatedAt ?? this.generatedAt,
+  );
+  ThumbnailCacheEntry copyWithCompanion(ThumbnailCacheEntriesCompanion data) {
+    return ThumbnailCacheEntry(
+      fileHash: data.fileHash.present ? data.fileHash.value : this.fileHash,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      mtime: data.mtime.present ? data.mtime.value : this.mtime,
+      sizeBytes: data.sizeBytes.present ? data.sizeBytes.value : this.sizeBytes,
+      cacheFileNormal: data.cacheFileNormal.present
+          ? data.cacheFileNormal.value
+          : this.cacheFileNormal,
+      cacheFileLarge: data.cacheFileLarge.present
+          ? data.cacheFileLarge.value
+          : this.cacheFileLarge,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      status: data.status.present ? data.status.value : this.status,
+      generatedAt: data.generatedAt.present
+          ? data.generatedAt.value
+          : this.generatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ThumbnailCacheEntry(')
+          ..write('fileHash: $fileHash, ')
+          ..write('filePath: $filePath, ')
+          ..write('mtime: $mtime, ')
+          ..write('sizeBytes: $sizeBytes, ')
+          ..write('cacheFileNormal: $cacheFileNormal, ')
+          ..write('cacheFileLarge: $cacheFileLarge, ')
+          ..write('kind: $kind, ')
+          ..write('status: $status, ')
+          ..write('generatedAt: $generatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    fileHash,
+    filePath,
+    mtime,
+    sizeBytes,
+    cacheFileNormal,
+    cacheFileLarge,
+    kind,
+    status,
+    generatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ThumbnailCacheEntry &&
+          other.fileHash == this.fileHash &&
+          other.filePath == this.filePath &&
+          other.mtime == this.mtime &&
+          other.sizeBytes == this.sizeBytes &&
+          other.cacheFileNormal == this.cacheFileNormal &&
+          other.cacheFileLarge == this.cacheFileLarge &&
+          other.kind == this.kind &&
+          other.status == this.status &&
+          other.generatedAt == this.generatedAt);
+}
+
+class ThumbnailCacheEntriesCompanion
+    extends UpdateCompanion<ThumbnailCacheEntry> {
+  final Value<String> fileHash;
+  final Value<String> filePath;
+  final Value<int> mtime;
+  final Value<int> sizeBytes;
+  final Value<String?> cacheFileNormal;
+  final Value<String?> cacheFileLarge;
+  final Value<String> kind;
+  final Value<String> status;
+  final Value<int> generatedAt;
+  final Value<int> rowid;
+  const ThumbnailCacheEntriesCompanion({
+    this.fileHash = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.mtime = const Value.absent(),
+    this.sizeBytes = const Value.absent(),
+    this.cacheFileNormal = const Value.absent(),
+    this.cacheFileLarge = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.status = const Value.absent(),
+    this.generatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ThumbnailCacheEntriesCompanion.insert({
+    required String fileHash,
+    required String filePath,
+    required int mtime,
+    required int sizeBytes,
+    this.cacheFileNormal = const Value.absent(),
+    this.cacheFileLarge = const Value.absent(),
+    required String kind,
+    required String status,
+    required int generatedAt,
+    this.rowid = const Value.absent(),
+  }) : fileHash = Value(fileHash),
+       filePath = Value(filePath),
+       mtime = Value(mtime),
+       sizeBytes = Value(sizeBytes),
+       kind = Value(kind),
+       status = Value(status),
+       generatedAt = Value(generatedAt);
+  static Insertable<ThumbnailCacheEntry> custom({
+    Expression<String>? fileHash,
+    Expression<String>? filePath,
+    Expression<int>? mtime,
+    Expression<int>? sizeBytes,
+    Expression<String>? cacheFileNormal,
+    Expression<String>? cacheFileLarge,
+    Expression<String>? kind,
+    Expression<String>? status,
+    Expression<int>? generatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (fileHash != null) 'file_hash': fileHash,
+      if (filePath != null) 'file_path': filePath,
+      if (mtime != null) 'mtime': mtime,
+      if (sizeBytes != null) 'size_bytes': sizeBytes,
+      if (cacheFileNormal != null) 'cache_file_normal': cacheFileNormal,
+      if (cacheFileLarge != null) 'cache_file_large': cacheFileLarge,
+      if (kind != null) 'kind': kind,
+      if (status != null) 'status': status,
+      if (generatedAt != null) 'generated_at': generatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ThumbnailCacheEntriesCompanion copyWith({
+    Value<String>? fileHash,
+    Value<String>? filePath,
+    Value<int>? mtime,
+    Value<int>? sizeBytes,
+    Value<String?>? cacheFileNormal,
+    Value<String?>? cacheFileLarge,
+    Value<String>? kind,
+    Value<String>? status,
+    Value<int>? generatedAt,
+    Value<int>? rowid,
+  }) {
+    return ThumbnailCacheEntriesCompanion(
+      fileHash: fileHash ?? this.fileHash,
+      filePath: filePath ?? this.filePath,
+      mtime: mtime ?? this.mtime,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
+      cacheFileNormal: cacheFileNormal ?? this.cacheFileNormal,
+      cacheFileLarge: cacheFileLarge ?? this.cacheFileLarge,
+      kind: kind ?? this.kind,
+      status: status ?? this.status,
+      generatedAt: generatedAt ?? this.generatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (fileHash.present) {
+      map['file_hash'] = Variable<String>(fileHash.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (mtime.present) {
+      map['mtime'] = Variable<int>(mtime.value);
+    }
+    if (sizeBytes.present) {
+      map['size_bytes'] = Variable<int>(sizeBytes.value);
+    }
+    if (cacheFileNormal.present) {
+      map['cache_file_normal'] = Variable<String>(cacheFileNormal.value);
+    }
+    if (cacheFileLarge.present) {
+      map['cache_file_large'] = Variable<String>(cacheFileLarge.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (generatedAt.present) {
+      map['generated_at'] = Variable<int>(generatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ThumbnailCacheEntriesCompanion(')
+          ..write('fileHash: $fileHash, ')
+          ..write('filePath: $filePath, ')
+          ..write('mtime: $mtime, ')
+          ..write('sizeBytes: $sizeBytes, ')
+          ..write('cacheFileNormal: $cacheFileNormal, ')
+          ..write('cacheFileLarge: $cacheFileLarge, ')
+          ..write('kind: $kind, ')
+          ..write('status: $status, ')
+          ..write('generatedAt: $generatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3491,6 +4090,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $MarkerRecentEntriesTable(this);
   late final $DownloadHistoryEntriesTable downloadHistoryEntries =
       $DownloadHistoryEntriesTable(this);
+  late final $ThumbnailCacheEntriesTable thumbnailCacheEntries =
+      $ThumbnailCacheEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3509,6 +4110,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     customIconSetEntries,
     markerRecentEntries,
     downloadHistoryEntries,
+    thumbnailCacheEntries,
   ];
 }
 
@@ -5789,6 +6391,307 @@ typedef $$DownloadHistoryEntriesTableProcessedTableManager =
       DownloadHistoryEntry,
       PrefetchHooks Function()
     >;
+typedef $$ThumbnailCacheEntriesTableCreateCompanionBuilder =
+    ThumbnailCacheEntriesCompanion Function({
+      required String fileHash,
+      required String filePath,
+      required int mtime,
+      required int sizeBytes,
+      Value<String?> cacheFileNormal,
+      Value<String?> cacheFileLarge,
+      required String kind,
+      required String status,
+      required int generatedAt,
+      Value<int> rowid,
+    });
+typedef $$ThumbnailCacheEntriesTableUpdateCompanionBuilder =
+    ThumbnailCacheEntriesCompanion Function({
+      Value<String> fileHash,
+      Value<String> filePath,
+      Value<int> mtime,
+      Value<int> sizeBytes,
+      Value<String?> cacheFileNormal,
+      Value<String?> cacheFileLarge,
+      Value<String> kind,
+      Value<String> status,
+      Value<int> generatedAt,
+      Value<int> rowid,
+    });
+
+class $$ThumbnailCacheEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $ThumbnailCacheEntriesTable> {
+  $$ThumbnailCacheEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get fileHash => $composableBuilder(
+    column: $table.fileHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mtime => $composableBuilder(
+    column: $table.mtime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sizeBytes => $composableBuilder(
+    column: $table.sizeBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cacheFileNormal => $composableBuilder(
+    column: $table.cacheFileNormal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cacheFileLarge => $composableBuilder(
+    column: $table.cacheFileLarge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ThumbnailCacheEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ThumbnailCacheEntriesTable> {
+  $$ThumbnailCacheEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get fileHash => $composableBuilder(
+    column: $table.fileHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mtime => $composableBuilder(
+    column: $table.mtime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sizeBytes => $composableBuilder(
+    column: $table.sizeBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cacheFileNormal => $composableBuilder(
+    column: $table.cacheFileNormal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cacheFileLarge => $composableBuilder(
+    column: $table.cacheFileLarge,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ThumbnailCacheEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ThumbnailCacheEntriesTable> {
+  $$ThumbnailCacheEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get fileHash =>
+      $composableBuilder(column: $table.fileHash, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<int> get mtime =>
+      $composableBuilder(column: $table.mtime, builder: (column) => column);
+
+  GeneratedColumn<int> get sizeBytes =>
+      $composableBuilder(column: $table.sizeBytes, builder: (column) => column);
+
+  GeneratedColumn<String> get cacheFileNormal => $composableBuilder(
+    column: $table.cacheFileNormal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get cacheFileLarge => $composableBuilder(
+    column: $table.cacheFileLarge,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$ThumbnailCacheEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ThumbnailCacheEntriesTable,
+          ThumbnailCacheEntry,
+          $$ThumbnailCacheEntriesTableFilterComposer,
+          $$ThumbnailCacheEntriesTableOrderingComposer,
+          $$ThumbnailCacheEntriesTableAnnotationComposer,
+          $$ThumbnailCacheEntriesTableCreateCompanionBuilder,
+          $$ThumbnailCacheEntriesTableUpdateCompanionBuilder,
+          (
+            ThumbnailCacheEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $ThumbnailCacheEntriesTable,
+              ThumbnailCacheEntry
+            >,
+          ),
+          ThumbnailCacheEntry,
+          PrefetchHooks Function()
+        > {
+  $$ThumbnailCacheEntriesTableTableManager(
+    _$AppDatabase db,
+    $ThumbnailCacheEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ThumbnailCacheEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ThumbnailCacheEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ThumbnailCacheEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> fileHash = const Value.absent(),
+                Value<String> filePath = const Value.absent(),
+                Value<int> mtime = const Value.absent(),
+                Value<int> sizeBytes = const Value.absent(),
+                Value<String?> cacheFileNormal = const Value.absent(),
+                Value<String?> cacheFileLarge = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> generatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ThumbnailCacheEntriesCompanion(
+                fileHash: fileHash,
+                filePath: filePath,
+                mtime: mtime,
+                sizeBytes: sizeBytes,
+                cacheFileNormal: cacheFileNormal,
+                cacheFileLarge: cacheFileLarge,
+                kind: kind,
+                status: status,
+                generatedAt: generatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String fileHash,
+                required String filePath,
+                required int mtime,
+                required int sizeBytes,
+                Value<String?> cacheFileNormal = const Value.absent(),
+                Value<String?> cacheFileLarge = const Value.absent(),
+                required String kind,
+                required String status,
+                required int generatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ThumbnailCacheEntriesCompanion.insert(
+                fileHash: fileHash,
+                filePath: filePath,
+                mtime: mtime,
+                sizeBytes: sizeBytes,
+                cacheFileNormal: cacheFileNormal,
+                cacheFileLarge: cacheFileLarge,
+                kind: kind,
+                status: status,
+                generatedAt: generatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ThumbnailCacheEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ThumbnailCacheEntriesTable,
+      ThumbnailCacheEntry,
+      $$ThumbnailCacheEntriesTableFilterComposer,
+      $$ThumbnailCacheEntriesTableOrderingComposer,
+      $$ThumbnailCacheEntriesTableAnnotationComposer,
+      $$ThumbnailCacheEntriesTableCreateCompanionBuilder,
+      $$ThumbnailCacheEntriesTableUpdateCompanionBuilder,
+      (
+        ThumbnailCacheEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $ThumbnailCacheEntriesTable,
+          ThumbnailCacheEntry
+        >,
+      ),
+      ThumbnailCacheEntry,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5822,4 +6725,6 @@ class $AppDatabaseManager {
         _db,
         _db.downloadHistoryEntries,
       );
+  $$ThumbnailCacheEntriesTableTableManager get thumbnailCacheEntries =>
+      $$ThumbnailCacheEntriesTableTableManager(_db, _db.thumbnailCacheEntries);
 }

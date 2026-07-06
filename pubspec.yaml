@@ -34,6 +34,7 @@ dependencies:
   media_kit_libs_video: ^1.0.7
   window_manager: ^0.5.1
   uuid: ^4.5.3
+  crypto: ^3.0.6
   path_provider: ^2.1.5
   image: ^4.8.0
   audiotags: ^1.4.5
