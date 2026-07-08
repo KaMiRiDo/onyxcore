@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
@@ -44,22 +45,83 @@ final downloadsPanelWidthProvider =
 
 final isDownloadsPanelDraggingProvider = StateProvider<bool>((ref) => false);
 
-class DownloadsListCache {
+class _CacheState {
   List<MediaGroup>? parsedItems;
   final Map<int, DownloadConfig> configs = {};
   String? importedListName;
   String? importedListPath;
   bool isListChanged = false;
+}
+
+class DownloadsListCache extends ChangeNotifier {
+  final Map<String, _CacheState> _states = {};
+  String _activePath = 'default';
+
+  _CacheState get _activeState {
+    return _states.putIfAbsent(_activePath, () => _CacheState());
+  }
+
+  void switchList(String? path) {
+    _activePath = path ?? 'default';
+    notifyListeners();
+  }
+  
+  bool hasCache(String path) {
+    return _states.containsKey(path);
+  }
+  
+  bool isCacheChanged(String path) {
+    return _states[path]?.isListChanged ?? false;
+  }
+  
+  void invalidateCache(String path) {
+    _states.remove(path);
+    if (_activePath == path) {
+      _activePath = 'default';
+      notifyListeners();
+    }
+  }
+
+  List<MediaGroup>? get parsedItems => _activeState.parsedItems;
+  set parsedItems(List<MediaGroup>? value) {
+    _activeState.parsedItems = value;
+    notifyListeners();
+  }
+
+  Map<int, DownloadConfig> get configs => _activeState.configs;
+
+  String? get importedListName => _activeState.importedListName;
+  set importedListName(String? value) {
+    _activeState.importedListName = value;
+    notifyListeners();
+  }
+
+  String? get importedListPath => _activeState.importedListPath;
+  set importedListPath(String? value) {
+    _activeState.importedListPath = value;
+    notifyListeners();
+  }
+
+  bool get isListChanged => _activeState.isListChanged;
+  set isListChanged(bool value) {
+    _activeState.isListChanged = value;
+    notifyListeners();
+  }
+
+  void notify() {
+    notifyListeners();
+  }
 
   void clear() {
-    parsedItems = null;
-    configs.clear();
-    importedListName = null;
-    importedListPath = null;
-    isListChanged = false;
+    _activeState.parsedItems = null;
+    _activeState.configs.clear();
+    _activeState.importedListName = null;
+    _activeState.importedListPath = null;
+    _activeState.isListChanged = false;
+    notifyListeners();
   }
 }
 
-final downloadsListCacheProvider = Provider<DownloadsListCache>(
+final downloadsListCacheProvider = ChangeNotifierProvider<DownloadsListCache>(
   (ref) => DownloadsListCache(),
 );

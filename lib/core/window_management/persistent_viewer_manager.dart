@@ -5,6 +5,7 @@ import 'package:onyxcore/features/video_player/presentation/widgets/video_previe
 import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
+import 'package:onyxcore/features/downloader/presentation/pages/standalone_downloader_window.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
@@ -63,7 +64,31 @@ class PersistentViewerManager {
         return;
       }
 
-      final int viewId = await _channel.invokeMethod('create_window');
+      int width = 800;
+      int height = 600;
+      bool maximize = false;
+      
+      if (params.initParams != null) {
+        if (params.initParams!['width'] != null) {
+          width = params.initParams!['width'] as int;
+        }
+        if (params.initParams!['height'] != null) {
+          height = params.initParams!['height'] as int;
+        }
+        if (params.initParams!['maximize'] != null) {
+          maximize = params.initParams!['maximize'] as bool;
+        }
+      }
+      
+      if (type == ViewerType.downloader) {
+        maximize = true;
+      }
+
+      final int viewId = await _channel.invokeMethod('create_window', {
+        'width': width,
+        'height': height,
+        'maximize': maximize,
+      });
       _viewParams[viewId] = ValueNotifier(params);
       _activeWindowsByType[type] = viewId;
       
@@ -82,6 +107,28 @@ class PersistentViewerManager {
       });
     } catch (e) {
       debugPrint('[PersistentViewerManager] Error setting fullscreen: $e');
+    }
+  }
+
+  /// Closes a specific view ID window
+  static Future<void> closeWindow(int viewId) async {
+    try {
+      await _channel.invokeMethod('close_window', {
+        'view_id': viewId,
+      });
+    } catch (e) {
+      debugPrint('[PersistentViewerManager] Error closing window: $e');
+    }
+  }
+
+  /// Minimizes a specific view ID window
+  static Future<void> minimizeWindow(int viewId) async {
+    try {
+      await _channel.invokeMethod('minimize_window', {
+        'view_id': viewId,
+      });
+    } catch (e) {
+      debugPrint('[PersistentViewerManager] Error minimizing window: $e');
     }
   }
 
@@ -166,6 +213,13 @@ class PersistentViewerManager {
               isStandalone: true,
               windowId: viewId.toString(),
               parentWindowId: params.parentWindowId,
+            );
+            break;
+          case ViewerType.downloader:
+            content = StandaloneDownloaderWindow(
+              key: const ValueKey('downloader'),
+              windowId: viewId,
+              initParams: params.initParams,
             );
             break;
           default:

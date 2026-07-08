@@ -611,7 +611,7 @@ class _CustomFilePickerDialogState
                         .read(filePickerProvider.notifier)
                         .goToDirectory(entity.path);
                   } else if (entity is File) {
-                    Navigator.pop(context, [entity]);
+                    Navigator.pop(context, [entity.path]);
                   }
                 },
               );

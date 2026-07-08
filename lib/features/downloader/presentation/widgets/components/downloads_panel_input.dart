@@ -112,7 +112,10 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildEngineDropdown(),
+                  EngineSelectorDropdown(
+                    selectedEngine: _selectedEngine,
+                    onChanged: (val) => setState(() => _selectedEngine = val),
+                  ),
                   const SizedBox(width: 8),
                   Tooltip(
                     message: 'Downloader Settings',

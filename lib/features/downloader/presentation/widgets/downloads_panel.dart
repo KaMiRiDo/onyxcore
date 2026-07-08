@@ -29,6 +29,7 @@ import 'package:onyxcore/features/downloader/presentation/widgets/components/dow
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_empty_state.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_components.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_missing_binaries_view.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 
@@ -750,9 +751,11 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       if (_parsedItems == null) {
         _parsedItems = [];
       }
-      
+
       for (final url in urls) {
-        final isDuplicate = _parsedItems!.any((existing) => existing.originalUrl == url);
+        final isDuplicate = _parsedItems!.any(
+          (existing) => existing.originalUrl == url,
+        );
         if (!isDuplicate) {
           final placeholderInfo = MediaInfo(
             id: 'fetch_loading',
@@ -760,12 +763,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             originalUrl: url,
             isVideo: false,
           );
-          _parsedItems!.add(MediaGroup(originalUrl: url, items: [placeholderInfo]));
+          _parsedItems!.add(
+            MediaGroup(originalUrl: url, items: [placeholderInfo]),
+          );
           _backgroundLoadingProfiles.add(url);
           _configs[_parsedItems!.length - 1] = DownloadConfig(
-             mode: DownloadMode.normal,
-             groupFilter: GroupDownloadType.all,
-             engine: _selectedEngine ?? 'auto',
+            mode: DownloadMode.normal,
+            groupFilter: GroupDownloadType.all,
+            engine: _selectedEngine ?? 'auto',
           );
         }
       }
@@ -774,103 +779,116 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     });
 
     final browser = ref.read(settingsProvider).value?.downloadBrowser;
-    
+
     for (final url in urls) {
       MediaDownloaderBackend.analyzeUrls(
-        [url],
-        engine: _selectedEngine,
-        browser: browser,
-        onProcessStarted: (pid) {
-          if (!mounted) return;
-          setState(() {
-            _activeHydrationPids.putIfAbsent(url, () => []).add(pid);
-          });
-        },
-      ).then((items) {
-        if (!mounted) return;
-        setState(() {
-          _backgroundLoadingProfiles.remove(url);
-          _activeHydrationPids.remove(url);
+            [url],
+            engine: _selectedEngine,
+            browser: browser,
+            onProcessStarted: (pid) {
+              if (!mounted) return;
+              setState(() {
+                _activeHydrationPids.putIfAbsent(url, () => []).add(pid);
+              });
+            },
+          )
+          .then((items) {
+            if (!mounted) return;
+            setState(() {
+              _backgroundLoadingProfiles.remove(url);
+              _activeHydrationPids.remove(url);
 
-          if (_parsedItems != null) {
-            final index = _parsedItems!.indexWhere((g) => g.originalUrl == url);
-            if (index != -1) {
-              if (items.isEmpty) {
+              if (_parsedItems != null) {
+                final index = _parsedItems!.indexWhere(
+                  (g) => g.originalUrl == url,
+                );
+                if (index != -1) {
+                  if (items.isEmpty) {
+                    final errorInfo = MediaInfo(
+                      id: 'fetch_error',
+                      title: 'Fetch failed',
+                      originalUrl: url,
+                      isVideo: false,
+                      isError: true,
+                      errorMessage: 'No media found or fetch failed.',
+                    );
+                    _parsedItems![index] = MediaGroup(
+                      originalUrl: url,
+                      items: [errorInfo],
+                    );
+                  } else {
+                    final group = MediaGroup(originalUrl: url, items: items);
+                    _parsedItems![index] = group;
+
+                    final info = group.first;
+                    bool hasImages = group.items.any(
+                      (item) =>
+                          !item.isVideo && !item.isPlaylist && !item.isProfile,
+                    );
+                    bool hasVideos = group.items.any(
+                      (item) => item.isVideo || item.isPlaylist,
+                    );
+
+                    GroupDownloadType defaultFilter = GroupDownloadType.all;
+                    if (!info.isProfile) {
+                      if (hasImages && !hasVideos) {
+                        defaultFilter = GroupDownloadType.images;
+                      } else if (hasVideos && !hasImages) {
+                        defaultFilter = GroupDownloadType.videos;
+                      }
+                    }
+
+                    _configs[index] = DownloadConfig(
+                      format: info.formats.isNotEmpty
+                          ? info.formats.last
+                          : (info.isPlaylist
+                                ? const MediaFormat(
+                                    formatId:
+                                        'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
+                                    extension: 'mp4',
+                                    resolution: '1080p',
+                                    formatString: '1080p mp4',
+                                  )
+                                : null),
+                      groupFilter: defaultFilter,
+                      engine: info.engineId ?? 'auto',
+                    );
+
+                    if ((info.isProfile || info.isPlaylist) &&
+                        group.items.length <= 13) {
+                      _hydrateProfile(url);
+                    }
+                  }
+                  _isListChanged = true;
+                  _recalculateFilteredStatistics();
+                }
+              }
+            });
+          })
+          .catchError((e) {
+            if (!mounted) return;
+            setState(() {
+              _backgroundLoadingProfiles.remove(url);
+              _activeHydrationPids.remove(url);
+              final index =
+                  _parsedItems?.indexWhere((g) => g.originalUrl == url) ?? -1;
+              if (index != -1) {
                 final errorInfo = MediaInfo(
                   id: 'fetch_error',
                   title: 'Fetch failed',
                   originalUrl: url,
                   isVideo: false,
                   isError: true,
-                  errorMessage: 'No media found or fetch failed.',
+                  errorMessage: e.toString(),
                 );
-                _parsedItems![index] = MediaGroup(originalUrl: url, items: [errorInfo]);
-              } else {
-                final group = MediaGroup(originalUrl: url, items: items);
-                _parsedItems![index] = group;
-                
-                final info = group.first;
-                bool hasImages = group.items.any(
-                  (item) => !item.isVideo && !item.isPlaylist && !item.isProfile,
+                _parsedItems![index] = MediaGroup(
+                  originalUrl: url,
+                  items: [errorInfo],
                 );
-                bool hasVideos = group.items.any(
-                  (item) => item.isVideo || item.isPlaylist,
-                );
-
-                GroupDownloadType defaultFilter = GroupDownloadType.all;
-                if (!info.isProfile) {
-                  if (hasImages && !hasVideos) {
-                    defaultFilter = GroupDownloadType.images;
-                  } else if (hasVideos && !hasImages) {
-                    defaultFilter = GroupDownloadType.videos;
-                  }
-                }
-
-                _configs[index] = DownloadConfig(
-                  format: info.formats.isNotEmpty
-                      ? info.formats.last
-                      : (info.isPlaylist
-                            ? const MediaFormat(
-                                formatId:
-                                    'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
-                                extension: 'mp4',
-                                resolution: '1080p',
-                                formatString: '1080p mp4',
-                              )
-                            : null),
-                  groupFilter: defaultFilter,
-                  engine: info.engineId ?? 'auto', 
-                );
-
-                if ((info.isProfile || info.isPlaylist) && group.items.length <= 13) {
-                  _hydrateProfile(url);
-                }
+                _error = e.toString();
               }
-              _isListChanged = true;
-              _recalculateFilteredStatistics();
-            }
-          }
-        });
-      }).catchError((e) {
-        if (!mounted) return;
-        setState(() {
-          _backgroundLoadingProfiles.remove(url);
-          _activeHydrationPids.remove(url);
-          final index = _parsedItems?.indexWhere((g) => g.originalUrl == url) ?? -1;
-          if (index != -1) {
-            final errorInfo = MediaInfo(
-              id: 'fetch_error',
-              title: 'Fetch failed',
-              originalUrl: url,
-              isVideo: false,
-              isError: true,
-              errorMessage: e.toString(),
-            );
-            _parsedItems![index] = MediaGroup(originalUrl: url, items: [errorInfo]);
-            _error = e.toString();
-          }
-        });
-      });
+            });
+          });
     }
   }
 
@@ -1052,10 +1070,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
         if (match != null) {
           suffix = ' - ${match.group(1)}';
-          finalTitle = finalTitle.replaceAll(
-            RegExp(r' \(\d+\)$'),
-            '',
-          );
+          finalTitle = finalTitle.replaceAll(RegExp(r' \(\d+\)$'), '');
         } else if (info.galleryIndex != null) {
           suffix = ' - ${info.galleryIndex}';
         }
@@ -1223,7 +1238,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           bool isHydrating = _backgroundLoadingProfiles.contains(
             group.originalUrl,
           );
-
 
           if (config.groupFilter == GroupDownloadType.images) {
             filterType = 'images';
@@ -1826,10 +1840,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(
-          LogicalKeyboardKey.keyS,
-          control: true,
-        ): () {
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
           if (_importedListPath != null && _isListChanged) {
             _updateList();
           }
@@ -1861,10 +1872,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             });
           }
         },
-        const SingleActivator(
-          LogicalKeyboardKey.keyA,
-          control: true,
-        ): () {
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true): () {
           setState(() {
             final items = _filteredItems;
             if (items.isNotEmpty) {
@@ -1877,9 +1885,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
           });
         },
-        const SingleActivator(
-          LogicalKeyboardKey.arrowDown,
-        ): () {
+        const SingleActivator(LogicalKeyboardKey.arrowDown): () {
           setState(() {
             final items = _filteredItems;
             if (items.isEmpty) return;
@@ -1895,10 +1901,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
           });
         },
-        const SingleActivator(
-          LogicalKeyboardKey.arrowDown,
-          shift: true,
-        ): () {
+        const SingleActivator(LogicalKeyboardKey.arrowDown, shift: true): () {
           setState(() {
             final items = _filteredItems;
             if (items.isEmpty) return;
@@ -1913,9 +1916,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
           });
         },
-        const SingleActivator(
-          LogicalKeyboardKey.arrowUp,
-        ): () {
+        const SingleActivator(LogicalKeyboardKey.arrowUp): () {
           setState(() {
             final items = _filteredItems;
             if (items.isEmpty) return;
@@ -1937,10 +1938,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
           });
         },
-        const SingleActivator(
-          LogicalKeyboardKey.arrowUp,
-          shift: true,
-        ): () {
+        const SingleActivator(LogicalKeyboardKey.arrowUp, shift: true): () {
           setState(() {
             final items = _filteredItems;
             if (items.isEmpty) return;
@@ -2040,9 +2038,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceBase.withOpacity(
-                                  0.95,
-                                ),
+                                color: AppColors.surfaceBase.withOpacity(0.95),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: Colors.white10),
                                 boxShadow: [

@@ -8,6 +8,7 @@ enum ViewerType {
   image,
   markdown,
   audio,
+  downloader,
   unsupported,
 }
 

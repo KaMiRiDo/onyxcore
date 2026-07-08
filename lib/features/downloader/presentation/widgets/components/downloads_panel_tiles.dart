@@ -703,11 +703,18 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                           constraints: const BoxConstraints(
                                             maxWidth: 130,
                                           ),
-                                          child: _buildFormatDropdown(
-                                            item,
-                                            config,
-                                            index,
+                                          child: FormatSelectionDropdown(
+                                            item: item,
+                                            config: config,
+                                            index: index,
                                             group: group,
+                                            getHeight: _getHeight,
+                                            matchTargetFormat: matchTargetFormat,
+                                            onChanged: (val) {
+                                              setState(() {
+                                                config.format = val;
+                                              });
+                                            },
                                           ),
                                         ),
                                       )
@@ -717,9 +724,15 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                           constraints: const BoxConstraints(
                                             maxWidth: 130,
                                           ),
-                                          child: _buildGroupFilterDropdown(
-                                            config,
-                                            group,
+                                          child: GroupFilterDropdown(
+                                            selectedFilter: config.groupFilter,
+                                            isEnabled: group.first.isProfile || (group.items.any((item) => !item.isVideo) && group.items.any((item) => item.isVideo)),
+                                            onChanged: (val) {
+                                              setState(() {
+                                                config.groupFilter = val;
+                                                _previewCarouselIndex = 0;
+                                              });
+                                            },
                                           ),
                                         ),
                                       ),
@@ -822,229 +835,6 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                   ),
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFormatDropdown(
-    MediaInfo item,
-    DownloadConfig config,
-    int index, {
-    bool isItemLevel = false,
-    MediaGroup? group,
-  }) {
-    var formats = <MediaFormat>[];
-
-    if (group != null && item.isPlaylist) {
-      final formatSet = <String, MediaFormat>{};
-      for (final vid in group.items) {
-        if (vid.isVideo) {
-          final sortedFormats = vid.formats.toList()
-            ..sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
-          for (final f in sortedFormats) {
-            if (!formatSet.containsKey(f.resolution)) {
-              formatSet[f.resolution] = f;
-            } else {
-              final existing = formatSet[f.resolution]!;
-              if ((f.filesize ?? 0) > (existing.filesize ?? 0)) {
-                formatSet[f.resolution] = f;
-              }
-            }
-          }
-        }
-      }
-      formats = formatSet.values.toList();
-
-      if (formats.isEmpty) {
-        formats = [
-          const MediaFormat(
-            formatId:
-                'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
-            extension: 'mp4',
-            resolution: '1080p',
-            formatString: '1080p mp4',
-          ),
-          const MediaFormat(
-            formatId:
-                'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
-            extension: 'mp4',
-            resolution: '720p',
-            formatString: '720p mp4',
-          ),
-          const MediaFormat(
-            formatId:
-                'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best',
-            extension: 'mp4',
-            resolution: '480p',
-            formatString: '480p mp4',
-          ),
-          const MediaFormat(
-            formatId: 'bestaudio[ext=m4a]/bestaudio',
-            extension: 'm4a',
-            resolution: 'audio',
-            formatString: 'Audio Only',
-          ),
-        ];
-      }
-    } else {
-      formats = item.formats.toSet().toList();
-    }
-
-    formats.sort((a, b) {
-      final aAudio =
-          a.resolution == 'audio only' || a.resolution.toLowerCase() == 'audio';
-      final bAudio =
-          b.resolution == 'audio only' || b.resolution.toLowerCase() == 'audio';
-      if (aAudio != bAudio) return aAudio ? 1 : -1;
-
-      final hA = _getHeight(a.resolution);
-      final hB = _getHeight(b.resolution);
-      if (hA != hB) return hB.compareTo(hA);
-
-      final sizeA = a.filesize ?? 0;
-      final sizeB = b.filesize ?? 0;
-      return sizeB.compareTo(sizeA);
-    });
-
-    final maxH = formats.fold<int>(0, (max, f) {
-      final h = _getHeight(f.resolution);
-      return h > max ? h : max;
-    });
-
-    if (maxH >= 480) {
-      formats = formats.where((f) {
-        if (f.resolution == 'audio only' ||
-            f.resolution.toLowerCase() == 'audio')
-          return true;
-        return _getHeight(f.resolution) >= 480;
-      }).toList();
-    }
-
-    final currentFormat = isItemLevel
-        ? config.itemFormats[item.id] ?? config.format
-        : config.format;
-
-    bool isMixed = false;
-    if (!isItemLevel && group != null && item.isPlaylist) {
-      for (final vid in group.items) {
-        if (vid.isVideo) {
-          final individualFormat = config.itemFormats[vid.id];
-          if (individualFormat != null &&
-              individualFormat.resolution != config.format?.resolution) {
-            isMixed = true;
-            break;
-          }
-        }
-      }
-    }
-
-    final hasMultiple = formats.length > 1;
-    final displayFormat = isItemLevel
-        ? matchTargetFormat(item, currentFormat)
-        : (formats.contains(currentFormat)
-              ? currentFormat
-              : (formats.isNotEmpty ? formats.first : null));
-
-    return PopupMenuButton<MediaFormat>(
-      initialValue: displayFormat,
-      enabled: hasMultiple,
-      offset: const Offset(0, 36),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
-      ),
-      color: const Color(0xFF1E1E1E),
-      surfaceTintColor: Colors.transparent,
-      elevation: 24,
-      tooltip: '',
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(maxHeight: 250),
-      onSelected: (val) {
-        setState(() {
-          if (isItemLevel) {
-            config.itemFormats[item.id] = val;
-          } else {
-            config.format = val;
-            if (group != null && item.isPlaylist) {
-              config.itemFormats.clear();
-            }
-          }
-          _recalculateFilteredStatistics();
-        });
-      },
-      itemBuilder: (context) => formats.map((f) {
-        final isSelected = f == displayFormat;
-        return PopupMenuItem<MediaFormat>(
-          value: f,
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? Colors.white.withAlpha(15)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Builder(
-              builder: (context) {
-                return Text(
-                  '${_formatResolution(f.resolution)} (${f.extension})',
-                  style: GoogleFonts.manrope(
-                    color: isSelected ? Colors.white : Colors.white70,
-                    fontSize: 11,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                );
-              },
-            ),
-          ),
-        );
-      }).toList(),
-      child: Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(hasMultiple ? 0.05 : 0.02),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.white.withOpacity(hasMultiple ? 0.1 : 0.05),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Builder(
-                builder: (context) {
-                  return Text(
-                    isMixed
-                        ? 'Mixed'
-                        : (displayFormat != null
-                              ? '${_formatResolution(displayFormat.resolution)} (${displayFormat.extension})'
-                              : 'Select'),
-                    style: GoogleFonts.manrope(
-                      color: hasMultiple ? Colors.white : Colors.white54,
-                      fontSize: 11,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  );
-                },
-              ),
-            ),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: hasMultiple ? Colors.white54 : Colors.white24,
-              size: 16,
-            ),
           ],
         ),
       ),

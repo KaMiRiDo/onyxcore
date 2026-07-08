@@ -113,15 +113,36 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
        return;
     }
     
+    int width = 800;
+    int height = 600;
+    bool maximize = false;
+    
+    FlValue* args = fl_method_call_get_args(method_call);
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+      FlValue* w_val = fl_value_lookup_string(args, "width");
+      if (w_val && fl_value_get_type(w_val) == FL_VALUE_TYPE_INT) {
+        width = fl_value_get_int(w_val);
+      }
+      FlValue* h_val = fl_value_lookup_string(args, "height");
+      if (h_val && fl_value_get_type(h_val) == FL_VALUE_TYPE_INT) {
+        height = fl_value_get_int(h_val);
+      }
+      FlValue* max_val = fl_value_lookup_string(args, "maximize");
+      if (max_val && fl_value_get_type(max_val) == FL_VALUE_TYPE_BOOL) {
+        maximize = fl_value_get_bool(max_val);
+      }
+    }
+    
     FlEngine* engine = fl_view_get_engine(self->main_view);
     FlView* new_view = fl_view_new_for_engine(engine);
     
     GtkWindow* new_window = GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(self)));
     gtk_window_set_title(new_window, "onyxcore Secondary");
-    gtk_window_set_default_size(new_window, 800, 600);
+    gtk_window_set_default_size(new_window, width, height);
     
-    // Maximize the window on creation as requested
-    gtk_window_maximize(new_window);
+    if (maximize) {
+      gtk_window_maximize(new_window);
+    }
     
     gtk_container_add(GTK_CONTAINER(new_window), GTK_WIDGET(new_view));
     gtk_widget_show(GTK_WIDGET(new_view));

@@ -238,10 +238,17 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                         alignment: Alignment.centerLeft,
                                         child: ConstrainedBox(
                                           constraints: const BoxConstraints(maxWidth: 140),
-                                          child: _buildFormatDropdown(
-                                            item.first,
-                                            config,
-                                            index,
+                                          child: FormatSelectionDropdown(
+                                            item: item.first,
+                                            config: config,
+                                            index: index,
+                                            getHeight: _getHeight,
+                                            matchTargetFormat: matchTargetFormat,
+                                            onChanged: (val) {
+                                              setState(() {
+                                                config.format = val;
+                                              });
+                                            },
                                           ),
                                         ),
                                       ),
@@ -252,9 +259,15 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                         alignment: Alignment.centerLeft,
                                         child: ConstrainedBox(
                                           constraints: const BoxConstraints(maxWidth: 140),
-                                          child: _buildGroupFilterDropdown(
-                                            config,
-                                            item,
+                                          child: GroupFilterDropdown(
+                                            selectedFilter: config.groupFilter,
+                                            isEnabled: item.first.isProfile || (item.items.any((i) => !i.isVideo) && item.items.any((i) => i.isVideo)),
+                                            onChanged: (val) {
+                                              setState(() {
+                                                config.groupFilter = val;
+                                                _previewCarouselIndex = 0;
+                                              });
+                                            },
                                           ),
                                         ),
                                       ),
@@ -541,15 +554,28 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                             child: ConstrainedBox(
                                               constraints: const BoxConstraints(maxWidth: 140),
                                               child: group.first.isPlaylist
-                                                  ? _buildFormatDropdown(
-                                                      group.first,
-                                                      config,
-                                                      groupIndex,
+                                                  ? FormatSelectionDropdown(
+                                                      item: group.first,
+                                                      config: config,
+                                                      index: groupIndex,
                                                       group: group,
+                                                      getHeight: _getHeight,
+                                                      matchTargetFormat: matchTargetFormat,
+                                                      onChanged: (val) {
+                                                        setState(() {
+                                                          config.format = val;
+                                                        });
+                                                      },
                                                     )
-                                                  : _buildGroupFilterDropdown(
-                                                      config,
-                                                      group,
+                                                  : GroupFilterDropdown(
+                                                      selectedFilter: config.groupFilter,
+                                                      isEnabled: group.first.isProfile || (group.items.any((i) => !i.isVideo) && group.items.any((i) => i.isVideo)),
+                                                      onChanged: (val) {
+                                                        setState(() {
+                                                          config.groupFilter = val;
+                                                          _previewCarouselIndex = 0;
+                                                        });
+                                                      },
                                                     ),
                                             ),
                                           ),
@@ -865,11 +891,18 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                               alignment: Alignment.centerLeft,
                                               child: ConstrainedBox(
                                                 constraints: const BoxConstraints(maxWidth: 140),
-                                                child: _buildFormatDropdown(
-                                                  currentItem,
-                                                  config,
-                                                  groupIndex,
+                                                child: FormatSelectionDropdown(
+                                                  item: currentItem,
+                                                  config: config,
+                                                  index: groupIndex,
                                                   isItemLevel: true,
+                                                  getHeight: _getHeight,
+                                                  matchTargetFormat: matchTargetFormat,
+                                                  onChanged: (val) {
+                                                    setState(() {
+                                                      config.itemFormats[currentItem.id] = val;
+                                                    });
+                                                  },
                                                 ),
                                               ),
                                             ),
