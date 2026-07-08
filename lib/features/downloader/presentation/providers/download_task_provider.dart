@@ -1,16 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
+import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:uuid/uuid.dart';
+import 'package:window_manager/window_manager.dart';
 
 enum DownloadStatus {
   pending,
@@ -22,6 +23,27 @@ enum DownloadStatus {
 }
 
 class DownloadTask {
+
+  const DownloadTask({
+    required this.id,
+    required this.url,
+    required this.destination,
+    required this.title,
+    required this.createdAt, this.downloadType = 'generic',
+    this.status = DownloadStatus.pending,
+    this.progress = 0.0,
+    this.speed = '',
+    this.eta = '',
+    this.totalSize = '',
+    this.expectedBytes = 0,
+    this.downloadedBytes = 0,
+    this.completedItems = 0,
+    this.totalItems = 0,
+    this.error,
+    this.process,
+    this.logs = const [],
+    this.completedAt,
+  });
   final String id;
   final String url;
   final String destination;
@@ -41,28 +63,6 @@ class DownloadTask {
   final List<String> logs;
   final DateTime createdAt;
   final DateTime? completedAt;
-
-  const DownloadTask({
-    required this.id,
-    required this.url,
-    required this.destination,
-    required this.title,
-    this.downloadType = 'generic',
-    this.status = DownloadStatus.pending,
-    this.progress = 0.0,
-    this.speed = '',
-    this.eta = '',
-    this.totalSize = '',
-    this.expectedBytes = 0,
-    this.downloadedBytes = 0,
-    this.completedItems = 0,
-    this.totalItems = 0,
-    this.error,
-    this.process,
-    this.logs = const [],
-    required this.createdAt,
-    this.completedAt,
-  });
 
   DownloadTask copyWith({
     String? title,
@@ -109,10 +109,14 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     with WindowListener {
   final _uuid = const Uuid();
 
+  bool _mounted = true;
+
   @override
   List<DownloadTask> build() {
     windowManager.addListener(this);
+
     ref.onDispose(() {
+      _mounted = false;
       windowManager.removeListener(this);
     });
     return [];
@@ -137,7 +141,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     return ref.read(settingsProvider).value?.maxConcurrentDownloads ?? 3;
   }
 
-  void _processQueue() async {
+  Future<void> _processQueue() async {
     final runningCount = state
         .where((t) => t.status == DownloadStatus.running)
         .length;
@@ -157,13 +161,13 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }
   }
 
-  void _startProcessForTask(String id) async {
+  Future<void> _startProcessForTask(String id) async {
     _updateTask(id, status: DownloadStatus.running);
     final args = _taskArgs[id];
     if (args == null) return;
 
-    StreamSubscription? stdoutSub;
-    StreamSubscription? stderrSub;
+    StreamSubscription<String>? stdoutSub;
+    StreamSubscription<String>? stderrSub;
 
     try {
       final process = await MediaDownloaderBackend.startDownload(
@@ -218,7 +222,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         _updateTask(
           id,
           status: DownloadStatus.completed,
-          progress: 1.0,
+          progress: 1,
           completedAt: DateTime.now(),
         );
       } else {
@@ -277,7 +281,6 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       destination: destination,
       title: title,
       downloadType: downloadType,
-      status: DownloadStatus.pending,
       expectedBytes: expectedBytes,
       totalItems: totalItems ?? 0,
       createdAt: DateTime.now(),
@@ -423,7 +426,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           (task.status == DownloadStatus.running ||
               task.status == DownloadStatus.pending)) {
         final filterType = _taskArgs[task.id]?['filterType'] as String?;
-        int newTotal = 0;
+        var newTotal = 0;
 
         if (filterType == 'images') {
           newTotal = items
@@ -448,7 +451,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           _updateTask(
             task.id,
             progress: _downloadedCounts[task.id]! / newTotal,
-            completedItems: _downloadedCounts[task.id]!,
+            completedItems: _downloadedCounts[task.id],
             totalItems: newTotal,
           );
         }
@@ -487,6 +490,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     Process? process,
     DateTime? completedAt,
   }) {
+    if (!_mounted) return;
     state = state.map((task) {
       if (task.id == id) {
         final updated = task.copyWith(
@@ -530,9 +534,9 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }).toList();
   }
 
-  void _parseProgress(String id, String data) {
+  void _parseProgress(String id, String rawData) {
     // Strip ANSI escape codes (colors, clear lines) before parsing
-    data = data.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
+    var data = rawData.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
 
     void updateWithProgress(
       double percentage, {
@@ -540,8 +544,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       String? speed,
       String? eta,
     }) {
-      double finalProgress = percentage / 100.0;
-      String? finalTotalSize = totalSize;
+      var finalProgress = percentage / 100.0;
+      final finalTotalSize = totalSize;
       int? completedItems;
       int? updatedTotalItems;
 
@@ -588,7 +592,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     // [download]  13.0% of  107.0MiB at  16.0MiB/s ETA 00:05
     // [download]  13.0% of ~10.0MiB at Unknown B/s ETA Unknown
     // [download] 100% of 10.0MiB in 00:01
-    final RegExp progressRegExp = RegExp(
+    final progressRegExp = RegExp(
       r'\[download\]\s+([\d\.]+)\%\s+of\s+([^\s]+)(?:.*?at\s+([^ ]+))?(?:.*?ETA\s+(.*))?',
     );
     final match = progressRegExp.firstMatch(data);
@@ -609,7 +613,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }
 
     // 1.2 Track playlist item index: [download] Downloading video 1 of 25
-    final RegExp itemIndexRegExp = RegExp(
+    final itemIndexRegExp = RegExp(
       r'\[download\]\s+Downloading\s+(?:video|item)\s+(\d+)\s+of\s+(\d+)',
     );
     final indexMatch = itemIndexRegExp.firstMatch(data);
@@ -640,7 +644,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }
 
     // 1.5 Handle fragmented downloads: [download] Frag 1/10
-    final RegExp fragRegExp = RegExp(r'\[download\]\s+Frag\s+(\d+)/(\d+)');
+    final fragRegExp = RegExp(r'\[download\]\s+Frag\s+(\d+)/(\d+)');
     final fragMatch = fragRegExp.firstMatch(data);
     if (fragMatch != null) {
       final frag = double.tryParse(fragMatch.group(1) ?? '0.0') ?? 0.0;
@@ -653,7 +657,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     }
 
     // 1.6 Handle unknown total sizes: [download] 10.0MiB at 5.0MiB/s
-    final RegExp unknownTotalRegExp = RegExp(
+    final unknownTotalRegExp = RegExp(
       r'\[download\]\s+([\d\.]+[a-zA-Z]+)\s+at\s+([^ ]+)(?:.*?ETA\s+(.*))?',
     );
     final unknownMatch = unknownTotalRegExp.firstMatch(data);
@@ -662,7 +666,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       final speed = unknownMatch.group(2) ?? '';
       final eta = unknownMatch.group(3) ?? '';
       updateWithProgress(
-        0.0,
+        0,
         speed: speed,
         eta: eta,
         totalSize: '$downloadedSize / ?',
@@ -672,7 +676,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
     // 2. Handle aria2c output
     // Matches: [#bb8141 1.7MiB/113MiB(1%) CN:16 DL:2.7MiB ETA:41s]
-    final RegExp ariaRegExp = RegExp(
+    final ariaRegExp = RegExp(
       r'([\d.]+)([a-zA-Z]+)\s*/\s*([\d.]+)([a-zA-Z]+)\s*\(([\d.]+)%\).*?DL:\s*([^\s\]]+)(?:.*?ETA:\s*([^\s\]]+))?',
     );
     final ariaMatch = ariaRegExp.firstMatch(data);
@@ -695,13 +699,13 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     if (data.contains('Download complete:')) {
       final currentTotal = _taskArgs[id]?['totalItems'] as int?;
       if (currentTotal == null || currentTotal <= 1) {
-        _updateTask(id, progress: 1.0);
+        _updateTask(id, progress: 1);
       }
       return;
     }
 
     // 5. Handle You-Get progress: 98.5% ( 24.0/ 24.4MB) [==============>]
-    final RegExp youGetProgress = RegExp(
+    final youGetProgress = RegExp(
       r'(\d+\.?\d*)%\s+\(\s*[\d.]+/\s*([\d.]+\s*\w+)\)',
     );
     final youGetMatch = youGetProgress.firstMatch(data);
@@ -717,12 +721,12 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
     // 6. Handle You-Get download complete
     if (data.contains('(✓)') && data.contains('Downloaded to:')) {
-      _updateTask(id, progress: 1.0);
+      _updateTask(id, progress: 1);
       return;
     }
 
     // 7. Handle Lux progress: 50.00% |████████░░░░| 25.0/50.0 MiB 5.0 MiB/s 5s
-    final RegExp luxProgress = RegExp(
+    final luxProgress = RegExp(
       r'(\d+\.?\d*)%\s+\|.*?\|\s+([\d.]+/[\d.]+\s+\w+)\s+([\d.]+\s+\w+/s)\s+(\S+)',
     );
     final luxMatch = luxProgress.firstMatch(data);
@@ -775,12 +779,12 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         );
         if (extRegExp.hasMatch(data.trim()) ||
             data.contains('/') ||
-            data.contains('\\')) {
+            data.contains(r'\')) {
           _downloadedCounts[id] = (_downloadedCounts[id] ?? 0) + 1;
           final count = _downloadedCounts[id]!;
 
           if (currentTotal != null && currentTotal > 0) {
-            double prog = count / currentTotal;
+            var prog = count / currentTotal;
             if (prog > 1.0) prog = 1.0;
             _updateTask(
               id,
@@ -844,7 +848,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       try {
         final dir = Directory(destination);
         if (dir.existsSync()) {
-          int size = 0;
+          var size = 0;
           for (final entity in dir.listSync(recursive: true)) {
             if (entity is File) {
               size += entity.lengthSync();
@@ -864,8 +868,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   @visibleForTesting
-  void parseProgressForTesting(String id, String data) =>
-      _parseProgress(id, data);
+  void parseProgressForTesting(String id, String rawData) =>
+      _parseProgress(id, rawData);
 
   @visibleForTesting
   void appendLogForTesting(String id, String data) => _appendLog(id, data);

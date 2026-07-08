@@ -1,14 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/browser_detector.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
-import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/services/cookie_helper.dart';
+import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:path/path.dart' as p;
 
 /// Concrete [DownloadEngine] implementation for gallery-dl.
@@ -151,7 +151,7 @@ class GalleryDlEngine extends DownloadEngine {
 
     final isSocialProfileVar = isSocialProfile(url);
 
-    String? actualBrowser = browser;
+    var actualBrowser = browser;
     if (actualBrowser == null) {
       final defaultBrowser = await BrowserDetector.getDefaultBrowser();
       if (defaultBrowser != null) actualBrowser = defaultBrowser;
@@ -226,19 +226,19 @@ class GalleryDlEngine extends DownloadEngine {
       }
 
       // Streaming JSON state machine for gallery-dl output
-      int braceCount = 0;
-      int bracketCount = 0;
-      bool inString = false;
-      bool escape = false;
+      var braceCount = 0;
+      var bracketCount = 0;
+      var inString = false;
+      var escape = false;
 
-      bool isOuterArray = false;
-      bool initialized = false;
-      bool tracking = false;
-      StringBuffer currentBlock = StringBuffer();
+      var isOuterArray = false;
+      var initialized = false;
+      var tracking = false;
+      final currentBlock = StringBuffer();
 
-      await for (var chunk in process.stdout.transform(utf8.decoder)) {
+      await for (final chunk in process.stdout.transform(utf8.decoder)) {
         final codeUnits = chunk.codeUnits;
-        for (int i = 0; i < codeUnits.length; i++) {
+        for (var i = 0; i < codeUnits.length; i++) {
           final c = codeUnits[i];
 
           if (!initialized) {
@@ -293,13 +293,13 @@ class GalleryDlEngine extends DownloadEngine {
 
           if (tracking) {
             currentBlock.writeCharCode(c);
-            bool blockComplete = false;
+            var blockComplete = false;
             if (isOuterArray) {
               blockComplete =
-                  (braceCount == 0 && bracketCount == 1 && !inString);
+                  braceCount == 0 && bracketCount == 1 && !inString;
             } else {
               blockComplete =
-                  (braceCount == 0 && bracketCount == 0 && !inString);
+                  braceCount == 0 && bracketCount == 0 && !inString;
             }
 
             if (blockComplete) {
@@ -337,7 +337,7 @@ class GalleryDlEngine extends DownloadEngine {
                     .firstOrNull;
                 final currentFileUrl = fileUrlFormat?.formatString;
 
-                bool isDuplicate = false;
+                var isDuplicate = false;
                 if (currentFileUrl != null) {
                   for (final existing in parsedInfos) {
                     final existingUrlFormat = existing.formats
@@ -366,7 +366,7 @@ class GalleryDlEngine extends DownloadEngine {
                 hydrationLogsBuffer.writeln(
                   'Successfully fetched metadata for: "${info.title}"\n',
                 );
-                String currentLogs = hydrationLogsBuffer.toString();
+                var currentLogs = hydrationLogsBuffer.toString();
                 if (stderrBuffer.isNotEmpty) {
                   final formattedErrors = stderrBuffer
                       .toString()
@@ -407,7 +407,7 @@ class GalleryDlEngine extends DownloadEngine {
         parsedInfos.removeWhere((info) => !info.isProfile);
       }
 
-      String combinedLogs = hydrationLogsBuffer.toString();
+      var combinedLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
         final formattedErrors = stderrBuffer
             .toString()
@@ -467,7 +467,7 @@ class GalleryDlEngine extends DownloadEngine {
 
     final args = <String>[];
 
-    String? actualBrowser = browser;
+    var actualBrowser = browser;
     if (actualBrowser == null) {
       final defaultBrowser = await BrowserDetector.getDefaultBrowser();
       if (defaultBrowser != null) actualBrowser = defaultBrowser;
@@ -585,7 +585,7 @@ class GalleryDlEngine extends DownloadEngine {
           originalUrl: url,
         );
 
-        final List<MediaInfo> results = [profileInfo];
+        final results = <MediaInfo>[profileInfo];
 
         if (fetchDeep) {
           final edges =
@@ -602,7 +602,7 @@ class GalleryDlEngine extends DownloadEngine {
                 ? 'https://www.instagram.com/p/$shortcode/'
                 : url;
 
-            String itemTitle = title; // default to profile title
+            var itemTitle = title; // default to profile title
             final captionEdges =
                 node['edge_media_to_caption']?['edges'] as List<dynamic>? ?? [];
             if (captionEdges.isNotEmpty) {
@@ -657,11 +657,11 @@ class GalleryDlEngine extends DownloadEngine {
       final json = jsonDecode(block);
 
       if (json is List) {
-        bool isListOfEvents = json.isNotEmpty && json.first is List;
-        List<dynamic> events = isListOfEvents ? json : [json];
+        final isListOfEvents = json.isNotEmpty && json.first is List;
+        final events = isListOfEvents ? json : [json];
 
-        Map<String, dynamic> sharedMeta = {};
-        int fileCount = 0;
+        final sharedMeta = <String, dynamic>{};
+        var fileCount = 0;
 
         for (final event in events) {
           if (event is List && event.isNotEmpty) {
@@ -680,7 +680,7 @@ class GalleryDlEngine extends DownloadEngine {
               if (sharedMeta['video_versions'] is List &&
                   (sharedMeta['video_versions'] as List).isNotEmpty) {
                 final versions = List<Map<dynamic, dynamic>>.from(
-                  (sharedMeta['video_versions'] as List).where((e) => e is Map),
+                  (sharedMeta['video_versions'] as List).whereType<Map>(),
                 );
                 if (versions.isNotEmpty) {
                   versions.sort((a, b) {
@@ -791,7 +791,7 @@ class GalleryDlEngine extends DownloadEngine {
                 itemUrl = sharedMeta['post_url'].toString();
               }
 
-              String? thumb = sharedMeta['thumbnail']?.toString();
+              var thumb = sharedMeta['thumbnail']?.toString();
               if (thumb != null && !thumb.startsWith('http')) {
                 thumb =
                     null; // Ignore invalid thumbnails like "self", "default", "nsfw"
@@ -816,7 +816,7 @@ class GalleryDlEngine extends DownloadEngine {
                 thumb = fileUrl;
               }
 
-              bool isVid = false;
+              var isVid = false;
               if (sharedMeta['is_video'] == true ||
                   sharedMeta['is_video'] == 'true' ||
                   sharedMeta['video'] == true ||
@@ -891,7 +891,7 @@ class GalleryDlEngine extends DownloadEngine {
                 isVideo: isVid || parsedJsonInfo.isVideo,
               );
               if (fileUrl != null) {
-                String ext = fileUrl.split('?').first.split('.').last;
+                var ext = fileUrl.split('?').first.split('.').last;
                 if (ext.contains('/')) {
                   ext = isVid ? 'mp4' : 'jpg'; // fallback extension
                 }
@@ -909,7 +909,7 @@ class GalleryDlEngine extends DownloadEngine {
           }
         }
 
-        bool hasProfileData =
+        final hasProfileData =
             sharedMeta.containsKey('user') ||
             sharedMeta.containsKey('username') ||
             (sharedMeta['subcategory'] == 'user' &&
@@ -918,7 +918,7 @@ class GalleryDlEngine extends DownloadEngine {
             sharedMeta.isNotEmpty &&
             existingCount == 0 &&
             (fileCount > 0 || hasProfileData)) {
-          String title = '';
+          var title = '';
           String? profilePic;
           final userMeta = sharedMeta['user'] as Map<String, dynamic>?;
           if (userMeta != null) {
@@ -1023,26 +1023,26 @@ class GalleryDlEngine extends DownloadEngine {
     }
 
     // Size probing for parsed items
-    for (int i = 0; i < parsedInfos.length; i++) {
+    for (var i = 0; i < parsedInfos.length; i++) {
       var info = parsedInfos[i];
       final fileUrlFormat = info.formats
           .where((f) => f.formatId == 'original')
           .firstOrNull;
       final urlForSize = fileUrlFormat?.formatString ?? info.thumbnail;
 
-      bool needsSize = info.filesize == null;
+      var needsSize = info.filesize == null;
       if (info.isVideo &&
           info.filesize != null &&
           info.filesize! < 1024 * 1024 &&
-          info.extractor?.contains('instagram') == true) {
+          (info.extractor?.contains('instagram') ?? false)) {
         needsSize = true;
-        info = info.copyWith(filesize: null);
+        info = info.copyWith();
         parsedInfos[i] = info;
       }
 
       if (needsSize && urlForSize != null && urlForSize.startsWith('http')) {
         final isInstagram =
-            info.extractor?.contains('instagram') == true ||
+            (info.extractor?.contains('instagram') ?? false) ||
             urlForSize.contains('cdninstagram.com') ||
             urlForSize.contains('fbcdn.net');
 

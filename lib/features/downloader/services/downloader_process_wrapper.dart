@@ -40,7 +40,7 @@ class MediaDownloaderBackend {
     for (final url in urls) {
       if (url.trim().isEmpty) continue;
       final sequence = EngineRegistry.resolveEngineSequence(url.trim(), engine);
-      bool success = false;
+      var success = false;
       final engineErrors = <String, String>{};
       List<MediaInfo>? successfulInfos;
       String? successfulEngineId;
@@ -106,7 +106,7 @@ class MediaDownloaderBackend {
               successfulInfos[i].fetchLogs ?? 'Fetch completed successfully.';
 
           final formattedSuccessLogs =
-              pipelineLogs.toString() + '[$engineId]:\n$currentLogs';
+              '$pipelineLogs[$engineId]:\n$currentLogs';
 
           if (successfulInfos[i].engineId == null) {
             successfulInfos[i] = MediaInfo(

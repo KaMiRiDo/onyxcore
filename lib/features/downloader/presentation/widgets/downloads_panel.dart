@@ -1,44 +1,44 @@
-import 'dart:io';
-import 'dart:ui';
-import 'dart:math';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/download_task_tile.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/download_history_view.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/download_history_detail_view.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:onyxcore/core/utils/process_utils.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_empty_state.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_header.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_missing_binaries_view.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_components.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/download_history_detail_view.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/download_history_view.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/download_task_tile.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:path/path.dart' as p;
-import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:path/path.dart' as p;
 
-import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_header.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_empty_state.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_components.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_missing_binaries_view.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
-import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import 'package:onyxcore/core/utils/process_utils.dart';
-
-part 'downloads_panel_helpers.dart';
+part 'components/downloads_panel_controls.dart';
 part 'components/downloads_panel_input.dart';
+part 'components/downloads_panel_preview.dart';
 part 'components/downloads_panel_results_view.dart';
 part 'components/downloads_panel_tiles.dart';
-part 'components/downloads_panel_preview.dart';
-part 'components/downloads_panel_controls.dart';
+part 'downloads_panel_helpers.dart';
 
 class DownloadsPanel extends ConsumerWidget {
   const DownloadsPanel({super.key});
@@ -47,17 +47,14 @@ class DownloadsPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final view = ref.watch(downloadsPanelViewProvider);
 
-    int viewIndex = 0;
+    var viewIndex = 0;
     switch (view) {
       case DownloadsPanelView.tasks:
         viewIndex = 0;
-        break;
       case DownloadsPanelView.history:
         viewIndex = 1;
-        break;
       case DownloadsPanelView.historyDetail:
         viewIndex = 2;
-        break;
     }
 
     return IndexedStack(
@@ -108,7 +105,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   int _totalListImages = 0;
   int _totalListVideos = 0;
   int _pendingStatsUpdate = 0; // C5: throttle counter for stats recalculation
-  int? _activeAnalyzePid;
   bool _hasUnderestimatedSize = false;
 
   void _recalculateFilteredStatistics() {
@@ -118,27 +114,29 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     _totalListVideos = 0;
     _hasUnderestimatedSize = false;
     if (_parsedItems == null) return;
-    for (int i = 0; i < _parsedItems!.length; i++) {
-      var itemGrp = _parsedItems![i];
+    for (var i = 0; i < _parsedItems!.length; i++) {
+      final itemGrp = _parsedItems![i];
       final config = _configs[i];
 
-      int groupSize = 0;
+      var groupSize = 0;
       if (config != null) {
         groupSize = _getGroupBytes(itemGrp, config);
       } else {
         groupSize = itemGrp.totalFilesize;
       }
 
-      int groupVideos = 0;
-      int groupImages = 0;
+      var groupVideos = 0;
+      var groupImages = 0;
 
-      for (var item in itemGrp.items) {
+      for (final item in itemGrp.items) {
         if (item.isError) continue;
 
-        if (config?.groupFilter == GroupDownloadType.images && item.isVideo)
+        if (config?.groupFilter == GroupDownloadType.images && item.isVideo) {
           continue;
-        if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo)
+        }
+        if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo) {
           continue;
+        }
 
         if (item.isVideo) {
           groupVideos++;
@@ -185,7 +183,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         _activeLogItem = latestItem;
       }
 
-      String? logsToUse = _activeLogItem!.fetchLogs;
+      var logsToUse = _activeLogItem!.fetchLogs;
 
       // If the item is actively hydrating, pull live logs from backend
       if (_backgroundLoadingProfiles.contains(_activeLogItem!.originalUrl) ||
@@ -271,10 +269,12 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     if (config == null) return _previewItem!.items;
 
     final filtered = _previewItem!.items.where((info) {
-      if (config.groupFilter == GroupDownloadType.images && info.isVideo)
+      if (config.groupFilter == GroupDownloadType.images && info.isVideo) {
         return false;
-      if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
+      }
+      if (config.groupFilter == GroupDownloadType.videos && !info.isVideo) {
         return false;
+      }
       return true;
     }).toList();
 
@@ -406,7 +406,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       final saveLocation = await CustomFilePickerDialog.show(
         context,
         title: 'EXPORT LIST',
-        allowMultiple: false,
         allowedExtensions: ['json'],
         saveMode: true,
         initialFileName: 'export_list.json',
@@ -481,13 +480,12 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   Future<void> _importList([String? path]) async {
     try {
-      String? filePath = path;
+      var filePath = path;
       if (filePath == null) {
         final currentDir = ref.read(currentPathProvider);
         final files = await CustomFilePickerDialog.show(
           context,
           title: 'IMPORT LIST',
-          allowMultiple: false,
           allowedExtensions: ['json'],
           initialDirectory: currentDir,
         );
@@ -514,10 +512,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       setState(() {
         _parsedItems = importedItems;
         _configs.clear();
-        for (int i = 0; i < importedItems.length; i++) {
+        for (var i = 0; i < importedItems.length; i++) {
           _configs[i] = DownloadConfig(
-            mode: DownloadMode.normal,
-            groupFilter: GroupDownloadType.all,
             engine: importedItems[i].first.engineId ?? 'auto',
           );
         }
@@ -584,8 +580,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             );
             if (groupIndex != -1) {
               final group = _parsedItems![groupIndex];
-              if (info.isProfile && group.items.any((e) => e.isProfile))
+              if (info.isProfile && group.items.any((e) => e.isProfile)) {
                 return; // Skip duplicate fallback profile
+              }
 
               // Check if it already exists, if not, append to show progressive update
               final existsIndex = group.items.indexWhere(
@@ -663,10 +660,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
             group.items.clear();
             if (playlistInfo != null) {
-              final String? errorMsg = items.isNotEmpty
+              final errorMsg = items.isNotEmpty
                   ? items.first.errorMessage
                   : null;
-              final String? fetchLogs = items.isNotEmpty
+              final fetchLogs = items.isNotEmpty
                   ? items.first.fetchLogs
                   : null;
               if (errorMsg != null || fetchLogs != null) {
@@ -748,9 +745,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     setState(() {
       _error = null;
       _urlController.clear();
-      if (_parsedItems == null) {
-        _parsedItems = [];
-      }
+      _parsedItems ??= [];
 
       for (final url in urls) {
         final isDuplicate = _parsedItems!.any(
@@ -768,9 +763,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           );
           _backgroundLoadingProfiles.add(url);
           _configs[_parsedItems!.length - 1] = DownloadConfig(
-            mode: DownloadMode.normal,
-            groupFilter: GroupDownloadType.all,
-            engine: _selectedEngine ?? 'auto',
+            engine: _selectedEngine,
           );
         }
       }
@@ -821,15 +814,15 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                     _parsedItems![index] = group;
 
                     final info = group.first;
-                    bool hasImages = group.items.any(
+                    final hasImages = group.items.any(
                       (item) =>
                           !item.isVideo && !item.isPlaylist && !item.isProfile,
                     );
-                    bool hasVideos = group.items.any(
+                    final hasVideos = group.items.any(
                       (item) => item.isVideo || item.isPlaylist,
                     );
 
-                    GroupDownloadType defaultFilter = GroupDownloadType.all;
+                    var defaultFilter = GroupDownloadType.all;
                     if (!info.isProfile) {
                       if (hasImages && !hasVideos) {
                         defaultFilter = GroupDownloadType.images;
@@ -865,7 +858,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               }
             });
           })
-          .catchError((e) {
+          .catchError((Object e) {
             if (!mounted) return;
             setState(() {
               _backgroundLoadingProfiles.remove(url);
@@ -901,7 +894,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
       final downloadToCurrent =
           ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
-      String dest = downloadToCurrent
+      final dest = downloadToCurrent
           ? ref.read(currentPathProvider)
           : '${Platform.environment['HOME']}/Downloads';
 
@@ -911,7 +904,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
       // Batch download logic for profiles AND grouped posts
       if ((group.first.isProfile || group.items.length > 1) &&
           singleItemId == null) {
-        String safeName = group.first.title.replaceAll(
+        var safeName = group.first.title.replaceAll(
           RegExp(r'[\\/:*?"<>|]'),
           '_',
         );
@@ -924,22 +917,22 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
         if (!isProfileOrPlaylist) {
           final dir = Directory(itemDest);
-          List<File> existingFiles = [];
+          var existingFiles = <File>[];
           if (dir.existsSync()) {
             existingFiles = dir.listSync().whereType<File>().toList();
           }
 
-          bool groupExists = existingFiles.any((f) {
+          final groupExists = existingFiles.any((f) {
             final base = p.basenameWithoutExtension(f.path);
             return base.startsWith('${safeName}_') || base == safeName;
           });
 
           if (groupExists) {
-            int conflictCounter = 1;
+            var conflictCounter = 1;
             while (existingFiles.any((f) {
               final base = p.basenameWithoutExtension(f.path);
-              return base.startsWith('${safeName} ($conflictCounter)_') ||
-                  base == '${safeName} ($conflictCounter)';
+              return base.startsWith('$safeName ($conflictCounter)_') ||
+                  base == '$safeName ($conflictCounter)';
             })) {
               conflictCounter++;
             }
@@ -949,10 +942,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
         String? filterType;
         int? totalFilteredItems;
-        bool isHydrating = _backgroundLoadingProfiles.contains(
+        final isHydrating = _backgroundLoadingProfiles.contains(
           group.originalUrl,
         );
-        bool shouldAbortHydration = false;
+        var shouldAbortHydration = false;
 
         if (config.groupFilter == GroupDownloadType.images) {
           filterType = 'images';
@@ -987,7 +980,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           }
         }
 
-        int expectedBytes = isHydrating
+        final expectedBytes = isHydrating
             ? 0
             : _getGroupBytes(
                 MediaGroup(
@@ -1016,7 +1009,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                   .read(settingsProvider)
                   .value
                   ?.downloadBrowser, // C4: add missing browser
-              isZip: false, // Ensure zip is off
               filterType: filterType,
               totalItems: totalFilteredItems,
               expectedBytes: expectedBytes,
@@ -1038,21 +1030,23 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         return;
       }
 
-      final Map<String, List<File>> dirCache = {};
-      int count = 0;
+      final dirCache = <String, List<File>>{};
+      var count = 0;
 
       for (final info in itemsToDownload) {
         if (count++ % 20 == 0) await Future<void>.delayed(Duration.zero);
         if (singleItemId != null && info.id != singleItemId) continue;
 
-        if (config.groupFilter == GroupDownloadType.images && info.isVideo)
+        if (config.groupFilter == GroupDownloadType.images && info.isVideo) {
           continue;
-        if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
+        }
+        if (config.groupFilter == GroupDownloadType.videos && !info.isVideo) {
           continue;
+        }
 
         final format = config.itemFormats[info.id] ?? config.format;
 
-        String itemDest = dest;
+        var itemDest = dest;
         if ((group.first.isPlaylist || group.first.isProfile) &&
             singleItemId == null) {
           final safeName = group.first.title.replaceAll(
@@ -1065,8 +1059,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           }
         }
 
-        String finalTitle = info.title;
-        String suffix = '';
+        var finalTitle = info.title;
+        var suffix = '';
         final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
         if (match != null) {
           suffix = ' - ${match.group(1)}';
@@ -1096,7 +1090,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             (f) => p.basenameWithoutExtension(f.path) == safeName,
           );
           if (exists) {
-            int conflictCounter = 1;
+            var conflictCounter = 1;
             while (existingFiles.any(
               (f) =>
                   p.basenameWithoutExtension(f.path) ==
@@ -1124,8 +1118,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               mute: config.mode == DownloadMode.mute,
               galleryIndex: info.galleryIndex,
               engine: config.engine, // C3: use engine captured at fetch time
-              isPlaylist:
-                  false, // Ensure isPlaylist is false for single items to avoid size monitor overrides
               browser: ref.read(settingsProvider).value?.downloadBrowser,
               totalItems: 1,
               singleItemId: singleItemId,
@@ -1162,7 +1154,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         : List.of(_filteredItems);
     if (itemsToDownload.isEmpty) return;
 
-    final Set<String> sessionNames = {};
+    final sessionNames = <String>{};
 
     try {
       // Collect group references and their configs instead of just indices
@@ -1173,7 +1165,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
         }
       }
 
-      final Map<String, List<File>> dirCache = {};
+      final dirCache = <String, List<File>>{};
 
       for (final entry in groupsToProcess.entries) {
         final group = entry.key;
@@ -1181,7 +1173,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
         final downloadToCurrent =
             ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
-        String dest = downloadToCurrent
+        final dest = downloadToCurrent
             ? ref.read(currentPathProvider)
             : '${Platform.environment['HOME']}/Downloads';
 
@@ -1190,7 +1182,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
         // Batch download logic for profiles AND grouped posts
         if (group.first.isProfile || group.items.length > 1) {
-          String safeName = group.first.title.replaceAll(
+          var safeName = group.first.title.replaceAll(
             RegExp(r'[\\/:*?"<>|]'),
             '_',
           );
@@ -1212,17 +1204,17 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
             final existingFiles = dirCache[itemDest]!;
 
-            bool groupExists = existingFiles.any((f) {
+            final groupExists = existingFiles.any((f) {
               final base = p.basenameWithoutExtension(f.path);
               return base.startsWith('${safeName}_') || base == safeName;
             });
 
             if (groupExists || sessionNames.contains(safeName)) {
-              int conflictCounter = 1;
+              var conflictCounter = 1;
               while (existingFiles.any((f) {
                     final base = p.basenameWithoutExtension(f.path);
-                    return base.startsWith('${safeName} ($conflictCounter)_') ||
-                        base == '${safeName} ($conflictCounter)';
+                    return base.startsWith('$safeName ($conflictCounter)_') ||
+                        base == '$safeName ($conflictCounter)';
                   }) ||
                   sessionNames.contains('$safeName ($conflictCounter)')) {
                 conflictCounter++;
@@ -1235,7 +1227,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
           String? filterType;
           int? totalFilteredItems;
-          bool isHydrating = _backgroundLoadingProfiles.contains(
+          final isHydrating = _backgroundLoadingProfiles.contains(
             group.originalUrl,
           );
 
@@ -1264,7 +1256,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
           }
 
-          int expectedBytes = _getGroupBytes(
+          final expectedBytes = _getGroupBytes(
             MediaGroup(
               originalUrl: group.originalUrl,
               items: itemsToDownloadLocal,
@@ -1292,7 +1284,6 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                     .read(settingsProvider)
                     .value
                     ?.downloadBrowser, // C4: add missing browser
-                isZip: false, // Ensure zip is off
                 filterType: filterType,
                 totalItems: totalFilteredItems,
                 expectedBytes: expectedBytes,
@@ -1300,16 +1291,18 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           continue;
         }
 
-        int count = 0;
+        var count = 0;
 
         for (final info in itemsToDownloadLocal) {
           if (count++ % 20 == 0) await Future<void>.delayed(Duration.zero);
-          if (config.groupFilter == GroupDownloadType.images && info.isVideo)
+          if (config.groupFilter == GroupDownloadType.images && info.isVideo) {
             continue;
-          if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
+          }
+          if (config.groupFilter == GroupDownloadType.videos && !info.isVideo) {
             continue;
+          }
 
-          String itemDest = dest;
+          var itemDest = dest;
           if (info.isPlaylist) {
             final safeName = info.title.replaceAll(
               RegExp(r'[\\/:*?"<>|]'),
@@ -1321,8 +1314,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             }
           }
 
-          String finalTitle = info.title;
-          String suffix = '';
+          var finalTitle = info.title;
+          var suffix = '';
           final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
           if (match != null) {
             suffix = ' - ${match.group(1)}';
@@ -1356,7 +1349,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             );
 
             if (exists || sessionNames.contains(safeName)) {
-              int conflictCounter = 1;
+              var conflictCounter = 1;
               while (existingFiles.any(
                     (f) =>
                         p.basenameWithoutExtension(f.path) ==
@@ -1400,7 +1393,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               .where((i) => i != -1)
               .toList();
           if (currentIndices.isNotEmpty) {
-            bool shouldAbort = false;
+            var shouldAbort = false;
             for (final group in groupsToProcess.keys) {
               final config = groupsToProcess[group];
               if (config != null &&
@@ -1446,7 +1439,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     final remainingItems = <MediaGroup>[];
     final remainingConfigs = <DownloadConfig>[];
 
-    for (int i = 0; i < _parsedItems!.length; i++) {
+    for (var i = 0; i < _parsedItems!.length; i++) {
       if (!sortedIndices.contains(i)) {
         remainingItems.add(_parsedItems![i]);
         remainingConfigs.add(
@@ -1466,7 +1459,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
     _configs.clear();
     _itemKeys.clear(); // RISK-008: Prevent GlobalKey memory leak
-    for (int i = 0; i < remainingItems.length; i++) {
+    for (var i = 0; i < remainingItems.length; i++) {
       _configs[i] = remainingConfigs[i];
     }
 
@@ -1501,20 +1494,20 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   void _updateShiftSelection(List<MapEntry<int, MediaGroup>> items) {
     if (_anchorIndex == -1) _anchorIndex = _lastSelectedIndex;
-    int visualStart = items.indexWhere((e) => e.key == _anchorIndex);
-    int visualEnd = items.indexWhere((e) => e.key == _lastSelectedIndex);
+    final visualStart = items.indexWhere((e) => e.key == _anchorIndex);
+    final visualEnd = items.indexWhere((e) => e.key == _lastSelectedIndex);
     if (visualStart != -1 && visualEnd != -1) {
-      int start = visualStart < visualEnd ? visualStart : visualEnd;
-      int end = visualStart > visualEnd ? visualStart : visualEnd;
+      final start = visualStart < visualEnd ? visualStart : visualEnd;
+      final end = visualStart > visualEnd ? visualStart : visualEnd;
       _selectedIndices.clear();
-      for (int i = start; i <= end; i++) {
+      for (var i = start; i <= end; i++) {
         _selectedIndices.add(items[i].key);
       }
     }
   }
 
   Widget _buildErrorLogsOverlay() {
-    bool isCopied = false;
+    var isCopied = false;
 
     return Positioned.fill(
       child: GestureDetector(
@@ -1523,8 +1516,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             _errorLogsMessage = null;
           });
         },
-        child: Container(
-          color: Colors.black.withOpacity(0.8),
+        child: ColoredBox(
+          color: Colors.black.withValues(alpha: 0.8),
           child: Center(
             child: GestureDetector(
               onTap: () {}, // Prevent taps inside the dialog from bubbling up
@@ -1538,7 +1531,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                   border: Border.all(color: Colors.white10),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       blurRadius: 30,
                       offset: const Offset(0, 10),
                     ),
@@ -1618,9 +1611,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                 size: 18,
                               ),
                               onPressed: () {
-                                setState(() {
-                                  _updateLogsMessage();
-                                });
+                                setState(_updateLogsMessage);
                                 _scrollToBottomLogs();
                               },
                               tooltip: 'Refresh Logs',
@@ -1655,10 +1646,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                           ),
                         ),
                         child: TextField(
@@ -1692,8 +1683,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
   Widget _buildUnsavedConfirmationOverlay() {
     return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.8),
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.8),
         child: Center(
           child: Container(
             width: 320,
@@ -1704,7 +1695,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
               border: Border.all(color: Colors.white10),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 30,
                   offset: const Offset(0, 10),
                 ),
@@ -1716,7 +1707,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -1783,14 +1774,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                           });
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent.withOpacity(0.2),
+                          backgroundColor: Colors.redAccent.withValues(alpha: 0.2),
                           foregroundColor: Colors.redAccent,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                             side: BorderSide(
-                              color: Colors.redAccent.withOpacity(0.5),
+                              color: Colors.redAccent.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -1877,7 +1868,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             final items = _filteredItems;
             if (items.isNotEmpty) {
               _selectedIndices.clear();
-              for (var item in items) {
+              for (final item in items) {
                 _selectedIndices.add(item.key);
               }
               _anchorIndex = items.first.key;
@@ -1889,7 +1880,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           setState(() {
             final items = _filteredItems;
             if (items.isEmpty) return;
-            int currentVisualIndex = items.indexWhere(
+            final currentVisualIndex = items.indexWhere(
               (e) => e.key == _lastSelectedIndex,
             );
             if (currentVisualIndex < items.length - 1) {
@@ -1906,7 +1897,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             final items = _filteredItems;
             if (items.isEmpty) return;
             if (_anchorIndex == -1) _anchorIndex = _lastSelectedIndex;
-            int currentVisualIndex = items.indexWhere(
+            final currentVisualIndex = items.indexWhere(
               (e) => e.key == _lastSelectedIndex,
             );
             if (currentVisualIndex < items.length - 1) {
@@ -1920,7 +1911,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           setState(() {
             final items = _filteredItems;
             if (items.isEmpty) return;
-            int currentVisualIndex = items.indexWhere(
+            final currentVisualIndex = items.indexWhere(
               (e) => e.key == _lastSelectedIndex,
             );
             if (currentVisualIndex > 0) {
@@ -1943,7 +1934,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
             final items = _filteredItems;
             if (items.isEmpty) return;
             if (_anchorIndex == -1) _anchorIndex = _lastSelectedIndex;
-            int currentVisualIndex = items.indexWhere(
+            final currentVisualIndex = items.indexWhere(
               (e) => e.key == _lastSelectedIndex,
             );
             if (currentVisualIndex > 0) {
@@ -1954,11 +1945,10 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           });
         },
       },
-      child: Container(
+      child: ColoredBox(
         color: Colors.transparent,
         child: Focus(
           focusNode: _listFocusNode,
-          autofocus: false,
           descendantsAreFocusable: true,
           child: Listener(
             onPointerDown: (_) {
@@ -1994,9 +1984,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                       height: 1,
                                     ),
                                     Expanded(
-                                      child: Container(
-                                        color: Colors.black.withOpacity(
-                                          0.2,
+                                      child: ColoredBox(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.2,
                                         ), // Differentiate the results section
                                         child: _buildResultsView(),
                                       ),
@@ -2038,12 +2028,12 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceBase.withOpacity(0.95),
+                                color: AppColors.surfaceBase.withValues(alpha: 0.95),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: Colors.white10),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.5),
+                                    color: Colors.black.withValues(alpha: 0.5),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
@@ -2119,9 +2109,9 @@ class _JugglingBallsLoaderState extends State<_JugglingBallsLoader>
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(3, (index) {
-            final double t = _controller.value * 2 * pi;
-            final double offset = index * (pi / 2);
-            final double y = sin(t + offset) * 3;
+            final t = _controller.value * 2 * pi;
+            final offset = index * (pi / 2);
+            final y = sin(t + offset) * 3;
             return Transform.translate(
               offset: Offset(0, y),
               child: Padding(
@@ -2130,7 +2120,7 @@ class _JugglingBallsLoaderState extends State<_JugglingBallsLoader>
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8 - (index * 0.2)),
+                    color: Colors.white.withValues(alpha: 0.8 - (index * 0.2)),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -2144,10 +2134,6 @@ class _JugglingBallsLoaderState extends State<_JugglingBallsLoader>
 }
 
 class _GradientBorderPainter extends CustomPainter {
-  final double animation;
-  final List<Color> colors;
-  final double radius;
-  final double strokeWidth;
 
   _GradientBorderPainter(
     this.animation, {
@@ -2160,6 +2146,10 @@ class _GradientBorderPainter extends CustomPainter {
     this.radius = 12.0,
     this.strokeWidth = 1.5,
   });
+  final double animation;
+  final List<Color> colors;
+  final double radius;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {

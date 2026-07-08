@@ -313,6 +313,7 @@ void main() {
 
       setUp(() {
         notifier = container.read(downloadTaskProvider.notifier);
+        notifier.state = [];
         notifier.startDownload(url: 'U', destination: 'D', title: 'T', totalItems: 25);
         id = notifier.state.first.id;
       });
@@ -365,6 +366,7 @@ void main() {
 
       setUp(() {
         notifier = container.read(downloadTaskProvider.notifier);
+        notifier.state = [];
         notifier.startDownload(url: 'hyd_url', destination: 'D', title: 'T');
         id = notifier.state.first.id;
       });
@@ -424,6 +426,7 @@ void main() {
     group('Task Removal & History Archival', () {
       test('U-DL-TSK-48: removeTask removes task from state', () {
         final notifier = container.read(downloadTaskProvider.notifier);
+        notifier.state = [];
         notifier.startDownload(url: 'U', destination: 'D', title: 'T');
         final id = notifier.state.first.id;
         
@@ -476,6 +479,21 @@ void main() {
         
         final completed = container.read(completedDownloadTaskProvider);
         expect(completed.length, 3);
+      });
+    });
+
+    group('Download Process Lifecycle', () {
+      late DownloadTaskNotifier notifier;
+      
+      setUp(() {
+        notifier = container.read(downloadTaskProvider.notifier);
+      });
+
+      test('U-DL-TSK-70: onWindowClose does not crash when tasks have no process', () {
+        notifier.state = [
+          DownloadTask(id: '1', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
+        ];
+        expect(() => notifier.onWindowClose(), returnsNormally);
       });
     });
   });

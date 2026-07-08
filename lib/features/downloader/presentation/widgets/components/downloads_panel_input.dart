@@ -61,8 +61,9 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
                               _selectedIndices.add(_lastSelectedIndex);
                             }
                           });
-                          if (_lastSelectedIndex != -1)
+                          if (_lastSelectedIndex != -1) {
                             _scrollToIndex(_lastSelectedIndex);
+                          }
                           return KeyEventResult.handled;
                         }
                       }
@@ -125,7 +126,6 @@ extension DownloadsPanelInputView on _MediaDownloaderPanelState {
                       child: InkWell(
                         onTap: () => SettingsDialog.show(
                           context,
-                          initialTab: 0,
                           section: 'Download Manager',
                         ),
                         borderRadius: BorderRadius.circular(8),

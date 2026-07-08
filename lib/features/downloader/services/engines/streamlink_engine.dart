@@ -1,12 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 
 /// Concrete [DownloadEngine] implementation for Streamlink.
 ///
@@ -224,7 +224,7 @@ class StreamlinkEngine extends DownloadEngine {
       }
 
       // Extract stream title for display
-      String displayTitle = title;
+      var displayTitle = title;
       if (category != null && category.isNotEmpty) {
         displayTitle = '$title — $category';
       }
@@ -246,7 +246,6 @@ class StreamlinkEngine extends DownloadEngine {
         title: displayTitle,
         extractor: extractor,
         formats: formats,
-        isVideo: true,
         isLive: true,
         originalUrl: url,
       );
@@ -254,7 +253,7 @@ class StreamlinkEngine extends DownloadEngine {
       hydrationLogsBuffer.writeln(
         'Successfully fetched metadata for: "${info.title}"\n',
       );
-      String currentLogs = hydrationLogsBuffer.toString();
+      var currentLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
         final formattedErrors = stderrBuffer
             .toString()
@@ -265,7 +264,7 @@ class StreamlinkEngine extends DownloadEngine {
             .join('\n\n');
         currentLogs += '\n\n--- Streamlink Raw Logs ---\n$formattedErrors';
       }
-      var finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
+      final finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
 
       parsedInfos.add(finalInfo);
       onProgress?.call(finalInfo);

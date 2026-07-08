@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:path/path.dart' as p;
 
 /// Concrete [DownloadEngine] implementation for Lux (formerly Annie).
@@ -163,7 +164,7 @@ class LuxEngine extends DownloadEngine {
       final parsed = jsonDecode(jsonString);
 
       // Lux can return a list or a single object
-      final List<dynamic> items = parsed is List ? parsed : [parsed];
+      final items = parsed is List ? parsed : [parsed];
 
       for (final json in items) {
         if (json is! Map<String, dynamic>) continue;
@@ -209,7 +210,6 @@ class LuxEngine extends DownloadEngine {
           title: title,
           extractor: site ?? 'lux',
           formats: formats,
-          isVideo: true,
           filesize: totalSize,
           originalUrl: json['url']?.toString() ?? url,
         );
@@ -217,7 +217,7 @@ class LuxEngine extends DownloadEngine {
         hydrationLogsBuffer.writeln(
           'Successfully fetched metadata for: "${info.title}"\n',
         );
-        String currentLogs = hydrationLogsBuffer.toString();
+        var currentLogs = hydrationLogsBuffer.toString();
         if (stderrBuffer.isNotEmpty) {
           final formattedErrors = stderrBuffer
               .toString()
@@ -239,7 +239,7 @@ class LuxEngine extends DownloadEngine {
       }
 
       // Update all results with final combined logs
-      String combinedLogs = hydrationLogsBuffer.toString();
+      var combinedLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
         final formattedErrors = stderrBuffer
             .toString()
@@ -250,7 +250,7 @@ class LuxEngine extends DownloadEngine {
             .join('\n\n');
         combinedLogs += '\n\n--- lux Raw Logs ---\n$formattedErrors';
       }
-      for (int i = 0; i < results.length; i++) {
+      for (var i = 0; i < results.length; i++) {
         results[i] = results[i].copyWith(fetchLogs: combinedLogs.trim());
       }
     }

@@ -123,11 +123,11 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                               color: const Color(0xFF2A2A35),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
                             ),
                             textStyle: GoogleFonts.manrope(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 12,
                             ),
                             child: Text(
@@ -166,7 +166,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Icon(
@@ -194,39 +194,37 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       color: _sortFilter != 'added_desc'
-                          ? AppColors.violet.withOpacity(0.1)
-                          : Colors.white.withOpacity(0.05),
+                          ? AppColors.violet.withValues(alpha: 0.1)
+                          : Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: _sortFilter != 'added_desc'
-                            ? AppColors.violet.withOpacity(0.5)
-                            : Colors.white.withOpacity(0.1),
+                            ? AppColors.violet.withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     child: PopupMenuButton<String>(
                       offset: const Offset(0, 40),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                       ),
                       color: const Color(0xFF2A2A35),
                       elevation: 24,
                       tooltip: '',
                       padding: EdgeInsets.zero,
-                      onSelected: (val) {
-                        _setSortFilter(val);
-                      },
+                      onSelected: _setSortFilter,
                       itemBuilder: (context) {
                         return sortOptions.map((opt) {
                           final isSelected = _sortFilter == opt['value'];
                           return PopupMenuItem<String>(
-                            value: opt['value'] as String,
+                            value: opt['value']! as String,
                             height: 40,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  opt['icon'] as IconData,
+                                  opt['icon']! as IconData,
                                   size: 16,
                                   color: isSelected
                                       ? AppColors.violet
@@ -234,7 +232,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  opt['label'] as String,
+                                  opt['label']! as String,
                                   style: GoogleFonts.manrope(
                                     color: isSelected
                                         ? Colors.white
@@ -254,7 +252,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            activeSortOpt['icon'] as IconData,
+                            activeSortOpt['icon']! as IconData,
                             size: 16,
                             color: _sortFilter != 'added_desc'
                                 ? AppColors.violet
@@ -262,7 +260,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            activeSortOpt['label'] as String,
+                            activeSortOpt['label']! as String,
                             style: GoogleFonts.manrope(
                               color: _sortFilter != 'added_desc'
                                   ? AppColors.violet
@@ -301,7 +299,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                 ignoring: !hasItems,
                 child: Opacity(
                   opacity: hasItems ? 1.0 : 0.4,
-                  child: Container(
+                  child: SizedBox(
                     height: 32,
                     child: ElevatedButton.icon(
                       onPressed: () {
@@ -334,7 +332,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.1),
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         minimumSize: Size.zero,
@@ -362,9 +360,9 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   border: Border(
-                    bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                    bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
                   ),
                 ),
                 child: Row(
@@ -509,9 +507,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                 children: [
                   // Critical for hit-testing the Drag-and-Drop over empty space
                   Container(color: Colors.transparent),
-                  displayItems.isEmpty
-                      ? const DownloadsEmptyState()
-                      : ListView.builder(
+                  if (displayItems.isEmpty) const DownloadsEmptyState() else ListView.builder(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 8,
@@ -523,10 +519,10 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                             final item = entry.value;
                             final key = _itemKeys.putIfAbsent(
                               index,
-                              () => GlobalKey(),
+                              GlobalKey.new,
                             );
 
-                            Widget tile = _buildMediaTile(index, item);
+                            final tile = _buildMediaTile(index, item);
                             return Container(key: key, child: tile);
                           },
                         ),
@@ -543,11 +539,11 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                               gradient: LinearGradient(
                                 colors: hasConflict
                                     ? [
-                                        Colors.black.withOpacity(0.85),
-                                        Colors.black.withOpacity(0.85),
+                                        Colors.black.withValues(alpha: 0.85),
+                                        Colors.black.withValues(alpha: 0.85),
                                       ]
                                     : [
-                                        AppColors.violet.withOpacity(0.15),
+                                        AppColors.violet.withValues(alpha: 0.15),
                                         Colors.transparent,
                                       ],
                                 begin: Alignment.topCenter,
@@ -558,15 +554,15 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                               child: AnimatedBuilder(
                                 animation: _gradientController,
                                 child: Container(
-                                  padding: const EdgeInsets.all(2.0),
+                                  padding: const EdgeInsets.all(2),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 24,
                                       vertical: 16,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.surfaceBase.withOpacity(
-                                        0.8,
+                                      color: AppColors.surfaceBase.withValues(
+                                        alpha: 0.8,
                                       ),
                                       borderRadius: BorderRadius.circular(16),
                                     ),
@@ -616,8 +612,8 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                   return CustomPaint(
                                     painter: _GradientBorderPainter(
                                       _gradientController.value,
-                                      radius: 16.0,
-                                      strokeWidth: 2.0,
+                                      radius: 16,
+                                      strokeWidth: 2,
                                       colors: hasConflict
                                           ? [
                                               Colors.redAccent,
@@ -654,11 +650,11 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
               top: Radius.circular(24),
             ),
             border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.05)),
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 blurRadius: 15,
                 spreadRadius: 2,
                 offset: const Offset(0, -5),
@@ -681,7 +677,6 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Row(
                               mainAxisSize: MainAxisSize.min,
@@ -731,8 +726,8 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                             8,
                                           ),
                                           side: BorderSide(
-                                            color: Colors.white.withOpacity(
-                                              0.1,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.1,
                                             ),
                                           ),
                                         ),
@@ -746,7 +741,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                   child: Opacity(
                                     opacity: hasItems ? 0.4 : 1.0,
                                     child: ElevatedButton.icon(
-                                      onPressed: () => _importList(),
+                                      onPressed: _importList,
                                       icon: const Icon(
                                         Icons.upload_file,
                                         size: 16,
@@ -773,8 +768,8 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                             8,
                                           ),
                                           side: BorderSide(
-                                            color: Colors.white.withOpacity(
-                                              0.1,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.1,
                                             ),
                                           ),
                                         ),
@@ -857,10 +852,10 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                             color: const Color(0xFF16161D),
                             border: Border(
                               top: BorderSide(
-                                color: Colors.white.withOpacity(0.03),
+                                color: Colors.white.withValues(alpha: 0.03),
                               ),
                               bottom: BorderSide(
-                                color: Colors.white.withOpacity(0.03),
+                                color: Colors.white.withValues(alpha: 0.03),
                               ),
                             ),
                           ),
@@ -879,7 +874,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                 child: Container(
                                   height: 6,
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.3),
+                                    color: Colors.black.withValues(alpha: 0.3),
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                   child: LayoutBuilder(
@@ -902,10 +897,6 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                                           AppColors.violet,
                                                           AppColors.indigo,
                                                         ],
-                                                        begin: Alignment
-                                                            .centerLeft,
-                                                        end: Alignment
-                                                            .centerRight,
                                                       ),
                                                   borderRadius:
                                                       BorderRadius.circular(2),
@@ -1024,14 +1015,15 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                       final activeTasks = ref.watch(
                                         activeDownloadTaskProvider,
                                       );
-                                      if (activeTasks.isEmpty)
+                                      if (activeTasks.isEmpty) {
                                         return const SizedBox.shrink();
+                                      }
                                       return Container(
                                         decoration: BoxDecoration(
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(
-                                                0.5,
+                                              color: Colors.black.withValues(
+                                                alpha: 0.5,
                                               ),
                                               blurRadius: 8,
                                               offset: const Offset(0, 4),
@@ -1072,8 +1064,8 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                               side: BorderSide(
-                                                color: Colors.white.withOpacity(
-                                                  0.1,
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.1,
                                                 ),
                                               ),
                                             ),
@@ -1086,7 +1078,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                 if (_showCancelAllConfirmation)
                                   Positioned.fill(
                                     child: Container(
-                                      color: Colors.black.withOpacity(0.6),
+                                      color: Colors.black.withValues(alpha: 0.6),
                                       alignment: Alignment.center,
                                       child: Container(
                                         margin: const EdgeInsets.symmetric(
@@ -1099,14 +1091,14 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                             12,
                                           ),
                                           border: Border.all(
-                                            color: Colors.white.withOpacity(
-                                              0.1,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.1,
                                             ),
                                           ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(
-                                                0.5,
+                                              color: Colors.black.withValues(
+                                                alpha: 0.5,
                                               ),
                                               blurRadius: 16,
                                               offset: const Offset(0, 8),
@@ -1115,8 +1107,6 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                         ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
                                           children: [
                                             Row(
                                               mainAxisSize: MainAxisSize.min,
@@ -1201,7 +1191,7 @@ extension DownloadsPanelResultsView on _MediaDownloaderPanelState {
                                                       style: TextButton.styleFrom(
                                                         backgroundColor: Colors
                                                             .redAccent
-                                                            .withOpacity(0.15),
+                                                            .withValues(alpha: 0.15),
                                                         foregroundColor:
                                                             Colors.redAccent,
                                                         minimumSize: const Size(

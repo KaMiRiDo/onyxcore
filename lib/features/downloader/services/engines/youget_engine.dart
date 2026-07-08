@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 
 /// Concrete [DownloadEngine] implementation for You-Get.
 ///
@@ -230,7 +231,6 @@ class YouGetEngine extends DownloadEngine {
         title: title,
         extractor: site ?? 'you-get',
         formats: formats,
-        isVideo: true,
         filesize: totalSize,
         originalUrl: url,
       );
@@ -238,7 +238,7 @@ class YouGetEngine extends DownloadEngine {
       hydrationLogsBuffer.writeln(
         'Successfully fetched metadata for: "${info.title}"\n',
       );
-      String currentLogs = hydrationLogsBuffer.toString();
+      var currentLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
         final formattedErrors = stderrBuffer
             .toString()
@@ -249,7 +249,7 @@ class YouGetEngine extends DownloadEngine {
             .join('\n\n');
         currentLogs += '\n\n--- You-Get Raw Logs ---\n$formattedErrors';
       }
-      var finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
+      final finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
 
       parsedInfos.add(finalInfo);
       onProgress?.call(finalInfo);

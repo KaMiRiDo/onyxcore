@@ -6,14 +6,12 @@ import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 
 class EngineSelectorDropdown extends StatelessWidget {
-  final String selectedEngine;
-  final ValueChanged<String> onChanged;
 
   const EngineSelectorDropdown({
-    super.key,
-    required this.selectedEngine,
-    required this.onChanged,
+    required this.selectedEngine, required this.onChanged, super.key,
   });
+  final String selectedEngine;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +45,7 @@ class EngineSelectorDropdown extends StatelessWidget {
       offset: const Offset(0, 40),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       color: const Color(0xFF2A2A35),
       elevation: 24,
@@ -56,9 +54,9 @@ class EngineSelectorDropdown extends StatelessWidget {
       onSelected: onChanged,
       itemBuilder: (context) => options.map((opt) {
         final isSelected = opt['key'] == selectedEngine;
-        final isInstalled = opt['installed'] as bool;
+        final isInstalled = opt['installed']! as bool;
         return PopupMenuItem<String>(
-          value: opt['key'] as String,
+          value: opt['key']! as String,
           enabled: isInstalled,
           height: 38,
           padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -75,23 +73,23 @@ class EngineSelectorDropdown extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  opt['icon'] as IconData,
+                  opt['icon']! as IconData,
                   size: 16,
                   color: isInstalled
-                      ? (opt['color'] as Color)
-                      : (opt['color'] as Color).withOpacity(0.3),
+                      ? (opt['color']! as Color)
+                      : (opt['color']! as Color).withValues(alpha: 0.3),
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  opt['label'] as String,
+                  opt['label']! as String,
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                     color: isInstalled
                         ? (isSelected
                               ? Colors.white
-                              : Colors.white.withOpacity(0.8))
-                        : Colors.white.withOpacity(0.3),
+                              : Colors.white.withValues(alpha: 0.8))
+                        : Colors.white.withValues(alpha: 0.3),
                   ),
                 ),
               ],
@@ -116,14 +114,14 @@ class EngineSelectorDropdown extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    selected['icon'] as IconData,
+                    selected['icon']! as IconData,
                     size: 16,
-                    color: selected['color'] as Color,
+                    color: selected['color']! as Color,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      selected['label'] as String,
+                      selected['label']! as String,
                       style: GoogleFonts.manrope(
                         color: Colors.white,
                         fontSize: 13,
@@ -149,20 +147,17 @@ class EngineSelectorDropdown extends StatelessWidget {
 }
 
 class GroupFilterDropdown extends StatelessWidget {
+
+  const GroupFilterDropdown({
+    required this.selectedFilter, required this.isEnabled, required this.onChanged, super.key,
+    this.hasVideos = true,
+    this.hasImages = true,
+  });
   final GroupDownloadType selectedFilter;
   final bool isEnabled;
   final bool hasVideos;
   final bool hasImages;
   final ValueChanged<GroupDownloadType> onChanged;
-
-  const GroupFilterDropdown({
-    super.key,
-    required this.selectedFilter,
-    required this.isEnabled,
-    this.hasVideos = true,
-    this.hasImages = true,
-    required this.onChanged,
-  });
 
   String _getLabel(GroupDownloadType type) {
     if (!hasVideos && hasImages) return 'Images';
@@ -180,7 +175,7 @@ class GroupFilterDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool actuallyEnabled = isEnabled && hasVideos && hasImages;
+    final actuallyEnabled = isEnabled && hasVideos && hasImages;
     final displayFilter = (!hasVideos && hasImages) 
         ? GroupDownloadType.images 
         : (hasVideos && !hasImages) ? GroupDownloadType.videos : selectedFilter;
@@ -191,7 +186,7 @@ class GroupFilterDropdown extends StatelessWidget {
       offset: const Offset(0, 36),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       color: const Color(0xFF1E1E1E),
       surfaceTintColor: Colors.transparent,
@@ -271,6 +266,12 @@ class GroupFilterDropdown extends StatelessWidget {
 }
 
 class FormatSelectionDropdown extends StatelessWidget {
+
+  const FormatSelectionDropdown({
+    required this.item, required this.config, required this.index, required this.onChanged, required this.getHeight, required this.matchTargetFormat, super.key,
+    this.isItemLevel = false,
+    this.group,
+  });
   final MediaInfo item;
   final DownloadConfig config;
   final int index;
@@ -280,23 +281,11 @@ class FormatSelectionDropdown extends StatelessWidget {
   final int Function(String) getHeight;
   final MediaFormat? Function(MediaInfo, MediaFormat?) matchTargetFormat;
 
-  const FormatSelectionDropdown({
-    super.key,
-    required this.item,
-    required this.config,
-    required this.index,
-    required this.onChanged,
-    required this.getHeight,
-    required this.matchTargetFormat,
-    this.isItemLevel = false,
-    this.group,
-  });
-
   String getTitle(MediaFormat f) {
     final sizeText = (f.filesize != null)
         ? ' (${(f.filesize! / 1024 / 1024).toStringAsFixed(1)}MB)'
         : '';
-    String title = f.resolution;
+    var title = f.resolution;
     if (f.resolution.toLowerCase() == 'original' && item.width != null && item.height != null) {
       title = '${item.width}x${item.height}';
     } else if (f.resolution.toLowerCase() == 'audio only') {
@@ -388,8 +377,9 @@ class FormatSelectionDropdown extends StatelessWidget {
     if (maxH >= 480) {
       formats = formats.where((f) {
         if (f.resolution == 'audio only' ||
-            f.resolution.toLowerCase() == 'audio')
+            f.resolution.toLowerCase() == 'audio') {
           return true;
+        }
         return getHeight(f.resolution) >= 480;
       }).toList();
     }
@@ -398,7 +388,7 @@ class FormatSelectionDropdown extends StatelessWidget {
         ? config.itemFormats[item.id] ?? config.format
         : config.format;
 
-    bool isMixed = false;
+    var isMixed = false;
     if (!isItemLevel && group != null && item.isPlaylist) {
       for (final vid in group!.items) {
         if (vid.isVideo) {
@@ -419,7 +409,7 @@ class FormatSelectionDropdown extends StatelessWidget {
               ? currentFormat
               : (formats.isNotEmpty ? formats.first : null));
 
-    String titleText = 'Original';
+    var titleText = 'Original';
     if (isMixed) {
       titleText = 'Mixed';
     } else if (displayFormat != null) {
@@ -441,10 +431,8 @@ class FormatSelectionDropdown extends StatelessWidget {
       padding: EdgeInsets.zero,
       onSelected: onChanged,
       itemBuilder: (context) => formats.map<PopupMenuEntry<MediaFormat>>((f) {
-        final isSelected = isMixed
-            ? false
-            : displayFormat?.resolution == f.resolution &&
-                displayFormat?.extension == f.extension;
+        final isSelected = !isMixed && (displayFormat?.resolution == f.resolution &&
+                displayFormat?.extension == f.extension);
 
         return PopupMenuItem<MediaFormat>(
           value: f,
@@ -489,12 +477,16 @@ class FormatSelectionDropdown extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              titleText,
-              style: GoogleFonts.outfit(
-                color: hasMultiple ? Colors.white : Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                titleText,
+                style: GoogleFonts.outfit(
+                  color: hasMultiple ? Colors.white : Colors.white54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (hasMultiple) ...[

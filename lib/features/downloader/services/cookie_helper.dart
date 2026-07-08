@@ -93,7 +93,7 @@ class CookieHelper {
           "host LIKE '%instagram%' OR host LIKE '%cdninstagram%' OR host LIKE '%fbcdn%'";
 
       final rows = db.select(
-        "SELECT name, value FROM moz_cookies WHERE $domainFilter",
+        'SELECT name, value FROM moz_cookies WHERE $domainFilter',
       );
 
       final cookies = <String>[];

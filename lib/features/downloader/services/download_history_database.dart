@@ -8,7 +8,7 @@ import 'package:onyxcore/features/downloader/presentation/providers/download_his
 /// Drift-backed implementation of the download history database.
 ///
 /// Replaces the old raw sqlite3 [DownloadHistoryDatabase]. Exposes the same
-/// public interface so [DownloadHistoryNotifier] requires zero changes.
+/// public interface so [domain.DownloadHistoryNotifier] requires zero changes.
 class DownloadHistoryDatabase {
   DownloadHistoryDatabase(this._db);
 
@@ -66,9 +66,9 @@ class DownloadHistoryDatabase {
 
   domain.DownloadHistoryEntry _entryFromRow(DownloadHistoryEntry row) {
     final logsRaw = row.logs;
-    final List<String> logs = logsRaw != null && logsRaw.isNotEmpty
+    final logs = logsRaw != null && logsRaw.isNotEmpty
         ? (jsonDecode(logsRaw) as List<dynamic>).map((e) => e.toString()).toList()
-        : [];
+        : <String>[];
 
     return domain.DownloadHistoryEntry(
       id: row.id,

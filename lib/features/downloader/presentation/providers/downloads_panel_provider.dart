@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
-import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
 
 enum DownloadsPanelView {
   tasks,
@@ -58,7 +58,7 @@ class DownloadsListCache extends ChangeNotifier {
   String _activePath = 'default';
 
   _CacheState get _activeState {
-    return _states.putIfAbsent(_activePath, () => _CacheState());
+    return _states.putIfAbsent(_activePath, _CacheState.new);
   }
 
   void switchList(String? path) {

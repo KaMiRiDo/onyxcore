@@ -11,12 +11,11 @@ import 'package:onyxcore/features/downloader/services/engines/engine_registry.da
 /// exclusively from Settings → Downloads → Installed Engines and never block
 /// the panel here.
 class DownloadsMissingBinariesView extends ConsumerWidget {
-  final VoidCallback onCheckBinaries;
 
   const DownloadsMissingBinariesView({
-    super.key,
-    required this.onCheckBinaries,
+    required this.onCheckBinaries, super.key,
   });
+  final VoidCallback onCheckBinaries;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,13 +23,13 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
     final missingEngines = EngineRegistry.missingRequired;
 
     ref.listen(downloaderUpdateProvider, (prev, next) {
-      if (prev?.isUpdating == true && !next.isUpdating && next.error == null) {
+      if ((prev?.isUpdating ?? false) && !next.isUpdating && next.error == null) {
         onCheckBinaries();
       }
     });
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -63,7 +62,7 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
           // Per-engine status indicators
           ...missingEngines.map(
             (engine) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -84,7 +83,7 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.15),
+                      color: AppColors.error.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -104,7 +103,7 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
           const SizedBox(height: 16),
           if (updateState.error != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
+              padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 'Error: ${updateState.error}',
                 style: GoogleFonts.manrope(

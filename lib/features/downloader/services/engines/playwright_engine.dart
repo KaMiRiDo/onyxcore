@@ -1,12 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
+import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:path/path.dart' as p;
 
@@ -196,11 +196,11 @@ class PlaywrightEngine extends DownloadEngine {
         throw Exception('Playwright found no media URLs on this page');
       }
 
-      int startIndex = rawOutput.indexOf('{');
+      var startIndex = rawOutput.indexOf('{');
       if (startIndex == -1) startIndex = rawOutput.indexOf('[');
 
-      int endIndex = rawOutput.lastIndexOf('}');
-      int bracketEnd = rawOutput.lastIndexOf(']');
+      var endIndex = rawOutput.lastIndexOf('}');
+      final bracketEnd = rawOutput.lastIndexOf(']');
       if (bracketEnd > endIndex) endIndex = bracketEnd;
 
       if (startIndex == -1 || endIndex == -1 || endIndex < startIndex) {
@@ -212,7 +212,7 @@ class PlaywrightEngine extends DownloadEngine {
       final jsonString = rawOutput.substring(startIndex, endIndex + 1);
       final decoded = jsonDecode(jsonString);
 
-      List<dynamic> intercepted = [];
+      var intercepted = <dynamic>[];
       String? thumbnailB64;
 
       if (decoded is List) {
@@ -227,7 +227,7 @@ class PlaywrightEngine extends DownloadEngine {
       }
 
       final formats = <MediaFormat>[];
-      for (int i = 0; i < intercepted.length; i++) {
+      for (var i = 0; i < intercepted.length; i++) {
         final item = intercepted[i] as Map<String, dynamic>;
         final mediaUrl = item['url']?.toString() ?? '';
         final contentType = item['type']?.toString() ?? '';
@@ -241,7 +241,7 @@ class PlaywrightEngine extends DownloadEngine {
         final isTs = mediaUrl.contains('.ts');
         final isMp4 = mediaUrl.contains('.mp4') || contentType.contains('mp4');
 
-        String ext = 'mp4';
+        var ext = 'mp4';
         if (isHls) ext = 'ts';
         if (isTs) ext = 'ts';
 
@@ -249,7 +249,7 @@ class PlaywrightEngine extends DownloadEngine {
         final sizeText = sizeBytes > 0
             ? '${(sizeBytes / 1024 / 1024).toStringAsFixed(1)} MB'
             : '';
-        String resName = isHls ? 'HLS Stream' : 'Resolution ${i + 1}';
+        var resName = isHls ? 'HLS Stream' : 'Resolution ${i + 1}';
         if (sizeText.isNotEmpty) {
           resName += ' ($sizeText)';
         }
@@ -273,7 +273,6 @@ class PlaywrightEngine extends DownloadEngine {
         title: 'Intercepted Media',
         originalUrl: url,
         extractor: 'playwright',
-        isVideo: true,
         thumbnail: (thumbnailB64 != null && thumbnailB64.isNotEmpty)
             ? thumbnailB64
             : null,
@@ -283,7 +282,7 @@ class PlaywrightEngine extends DownloadEngine {
       hydrationLogsBuffer.writeln(
         'Successfully fetched metadata for: "${info.title}"\n',
       );
-      String currentLogs = hydrationLogsBuffer.toString();
+      var currentLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
         final formattedErrors = stderrBuffer
             .toString()
@@ -294,7 +293,7 @@ class PlaywrightEngine extends DownloadEngine {
             .join('\n\n');
         currentLogs += '\n\n--- Playwright Raw Logs ---\n$formattedErrors';
       }
-      var finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
+      final finalInfo = info.copyWith(fetchLogs: currentLogs.trim());
 
       parsedInfos.add(finalInfo);
       onProgress?.call(finalInfo);
@@ -373,7 +372,7 @@ class PlaywrightEngine extends DownloadEngine {
   }
 
   /// The bundled Python interception script.
-  static const String _interceptScript = '''
+  static const String _interceptScript = r'''
 import sys
 import json
 
@@ -398,7 +397,7 @@ def intercept(url, timeout=15000):
             try:
                 ct = response.headers.get("content-type", "")
                 r_url = response.url
-                if any(x in ct for x in ["mpegurl", "mp4", "video", "octet-stream"]) or \\
+                if any(x in ct for x in ["mpegurl", "mp4", "video", "octet-stream"]) or \
                    any(x in r_url for x in [".m3u8", ".mp4", ".ts", ".webm"]):
                     # Skip tiny tracking pixels and analytics
                     cl = response.headers.get("content-length", "0")

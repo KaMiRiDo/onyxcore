@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
-import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
 import 'package:onyxcore/features/downloader/presentation/pages/standalone_downloader_window.dart';
-import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 
 /// Manages multi-view state and IPC for spawning new native windows using Flutter's Multi-View API.
 class PersistentViewerManager {
@@ -27,7 +28,8 @@ class PersistentViewerManager {
   static void init() {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'on_window_focus') {
-        final viewId = call.arguments['view_id'] as int;
+        final args = call.arguments as Map;
+        final viewId = args['view_id'] as int;
         
         // If a tracked secondary window got focus, trigger its specific focus node
         if (_activeWindowsByType.containsValue(viewId)) {
@@ -64,19 +66,19 @@ class PersistentViewerManager {
         return;
       }
 
-      int width = 800;
-      int height = 600;
-      bool maximize = false;
+      var width = 800;
+      var height = 600;
+      var maximize = false;
       
-      if (params.initParams != null) {
-        if (params.initParams!['width'] != null) {
-          width = params.initParams!['width'] as int;
+      if (params.initParams.isNotEmpty) {
+        if (params.initParams['width'] != null) {
+          width = params.initParams['width'] as int;
         }
-        if (params.initParams!['height'] != null) {
-          height = params.initParams!['height'] as int;
+        if (params.initParams['height'] != null) {
+          height = params.initParams['height'] as int;
         }
-        if (params.initParams!['maximize'] != null) {
-          maximize = params.initParams!['maximize'] as bool;
+        if (params.initParams['maximize'] != null) {
+          maximize = params.initParams['maximize'] as bool;
         }
       }
       
@@ -84,14 +86,15 @@ class PersistentViewerManager {
         maximize = true;
       }
 
-      final int viewId = await _channel.invokeMethod('create_window', {
+      final viewId = (await _channel.invokeMethod<int>('create_window', {
         'width': width,
         'height': height,
         'maximize': maximize,
-      });
+      })) ?? 0;
+
+      // Notify listeners to build the new window content
       _viewParams[viewId] = ValueNotifier(params);
       _activeWindowsByType[type] = viewId;
-      
       updates.value++;
     } catch (e) {
       debugPrint('[PersistentViewerManager] Error opening media: $e');
@@ -99,6 +102,7 @@ class PersistentViewerManager {
   }
 
   /// Toggles fullscreen for a specific view ID
+  // ignore: avoid_positional_boolean_parameters
   static Future<void> setFullScreen(int viewId, bool isFullScreen) async {
     try {
       await _channel.invokeMethod('set_fullscreen', {
@@ -162,7 +166,7 @@ class PersistentViewerManager {
             theme: AppTheme.theme,
             home: const Scaffold(
               backgroundColor: Colors.black,
-              body: Center(child: Text("Waiting for media...", style: TextStyle(color: Colors.white))),
+              body: Center(child: Text('Waiting for media...', style: TextStyle(color: Colors.white))),
             ),
           );
         }
@@ -186,7 +190,6 @@ class PersistentViewerManager {
               parentWindowId: params.parentWindowId,
               initParams: params.initParams,
             );
-            break;
           case ViewerType.image:
             content = ImagePreviewWidget(
               key: ValueKey(params.file.path),
@@ -196,7 +199,6 @@ class PersistentViewerManager {
               parentWindowId: params.parentWindowId,
               initParams: params.initParams,
             );
-            break;
           case ViewerType.audio:
             content = AudioPlayerView(
               key: ValueKey(params.file.path),
@@ -205,7 +207,6 @@ class PersistentViewerManager {
               windowId: viewId.toString(),
               parentWindowId: params.parentWindowId,
             );
-            break;
           case ViewerType.markdown:
             content = MarkdownPreviewWidget(
               key: ValueKey(params.file.path),
@@ -214,17 +215,15 @@ class PersistentViewerManager {
               windowId: viewId.toString(),
               parentWindowId: params.parentWindowId,
             );
-            break;
           case ViewerType.downloader:
             content = StandaloneDownloaderWindow(
               key: const ValueKey('downloader'),
               windowId: viewId,
               initParams: params.initParams,
             );
-            break;
-          default:
+          case ViewerType.unsupported:
             content = Center(
-              child: Text("Unsupported preview type for ${params.file.name}", style: const TextStyle(color: Colors.white)),
+              child: Text('Unsupported preview type for ${params.file.name}', style: const TextStyle(color: Colors.white)),
             );
         }
 

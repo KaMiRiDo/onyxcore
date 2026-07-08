@@ -13,10 +13,11 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
 
         setState(() {
           if (isCtrl) {
-            if (isSelected)
+            if (isSelected) {
               _selectedIndices.remove(index);
-            else
+            } else {
               _selectedIndices.add(index);
+            }
             _lastSelectedIndex = index;
             _anchorIndex = index;
           } else if (isShift && _anchorIndex != -1) {
@@ -38,8 +39,8 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? Colors.redAccent.withOpacity(0.5)
-                : Colors.redAccent.withOpacity(0.2),
+                ? Colors.redAccent.withValues(alpha: 0.5)
+                : Colors.redAccent.withValues(alpha: 0.2),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -55,7 +56,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.1),
+                      color: Colors.redAccent.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -98,7 +99,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                           Text(
                             item.errorMessage!,
                             style: GoogleFonts.manrope(
-                              color: Colors.redAccent.withOpacity(0.8),
+                              color: Colors.redAccent.withValues(alpha: 0.8),
                               fontSize: 11,
                             ),
                             maxLines: 2,
@@ -154,7 +155,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                   });
                 },
                 child: const Padding(
-                  padding: EdgeInsets.all(4.0),
+                  padding: EdgeInsets.all(4),
                   child: Icon(Icons.close, color: Colors.white38, size: 16),
                 ),
               ),
@@ -172,7 +173,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
     final config = _configs[index]!;
     final isSelected = _selectedIndices.contains(index);
 
-    String displayTitle = item.title;
+    var displayTitle = item.title;
     if (item.isProfile && displayTitle.toLowerCase() == 'item') {
       if (item.id.isNotEmpty) {
         displayTitle = '@${item.id}';
@@ -186,7 +187,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
       }
     }
 
-    String? sourceBadgeName = item.extractor;
+    var sourceBadgeName = item.extractor;
     if (sourceBadgeName == null || sourceBadgeName.toLowerCase() == 'generic') {
       try {
         final urlStr = group.originalUrl ?? item.originalUrl;
@@ -196,7 +197,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
         sourceBadgeName = 'Web';
       }
     }
-    if (sourceBadgeName != null && sourceBadgeName.length > 15) {
+    if (sourceBadgeName.length > 15) {
       sourceBadgeName = '${sourceBadgeName.substring(0, 12)}...';
     }
 
@@ -208,10 +209,11 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
 
         setState(() {
           if (isCtrl) {
-            if (isSelected)
+            if (isSelected) {
               _selectedIndices.remove(index);
-            else
+            } else {
               _selectedIndices.add(index);
+            }
             _lastSelectedIndex = index;
             _anchorIndex = index;
           } else if (isShift && _anchorIndex != -1) {
@@ -233,8 +235,8 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? AppColors.violet.withOpacity(0.5)
-                : Colors.white.withOpacity(0.05),
+                ? AppColors.violet.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.05),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -275,8 +277,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                           borderRadius: BorderRadius.circular(8),
                           child: Stack(
                             children: [
-                              item.thumbnail != null
-                                  ? (item.thumbnail!.startsWith('data:image')
+                              if (item.thumbnail != null) item.thumbnail!.startsWith('data:image')
                                         ? Image.memory(
                                             base64Decode(
                                               item.thumbnail!.split(',').last,
@@ -302,8 +303,9 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                                   child,
                                                   loadingProgress,
                                                 ) {
-                                                  if (loadingProgress == null)
+                                                  if (loadingProgress == null) {
                                                     return child;
+                                                  }
                                                   return Container(
                                                     width: 160,
                                                     height: 104,
@@ -348,8 +350,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                                     ),
                                                   )
                                                 : const FallbackThumb(),
-                                          ))
-                                  : item.isProfile
+                                          ) else item.isProfile
                                   ? Container(
                                       width: 160,
                                       height: 104,
@@ -380,8 +381,8 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                 group.originalUrl,
                               ))
                                 Positioned.fill(
-                                  child: Container(
-                                    color: Colors.black.withOpacity(0.6),
+                                  child: ColoredBox(
+                                    color: Colors.black.withValues(alpha: 0.6),
                                     child: const Center(
                                       child: BubbleLoader(size: 40),
                                     ),
@@ -396,7 +397,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.7),
+                                      color: Colors.black.withValues(alpha: 0.7),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
@@ -415,7 +416,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.7),
+                                    color: Colors.black.withValues(alpha: 0.7),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Icon(
@@ -443,7 +444,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.7),
+                                      color: Colors.black.withValues(alpha: 0.7),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
@@ -514,7 +515,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.7),
+                                      color: Colors.black.withValues(alpha: 0.7),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
@@ -536,7 +537,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.7),
+                                    color: Colors.black.withValues(alpha: 0.7),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: ValueListenableBuilder<int>(
@@ -645,8 +646,9 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                       final engineObj = EngineRegistry.findById(
                                         config.engine,
                                       );
-                                      if (engineObj == null)
+                                      if (engineObj == null) {
                                         return const SizedBox.shrink();
+                                      }
                                       return Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -660,7 +662,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                             engineObj.displayName,
                                             style: GoogleFonts.manrope(
                                               color: engineObj.color
-                                                  .withOpacity(0.8),
+                                                  .withValues(alpha: 0.8),
                                               fontSize: 11,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -746,7 +748,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                       onPressed: () => _startDownload(index),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColors.violet
-                                            .withOpacity(0.2),
+                                            .withValues(alpha: 0.2),
                                         foregroundColor: AppColors.violet,
                                         elevation: 0,
                                         fixedSize: const Size.fromHeight(32),
@@ -788,8 +790,8 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
               Positioned.fill(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    color: Colors.black.withOpacity(0.65),
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.65),
                     child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -830,7 +832,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                     });
                   },
                   child: const Padding(
-                    padding: EdgeInsets.all(4.0),
+                    padding: EdgeInsets.all(4),
                     child: Icon(Icons.close, color: Colors.white54, size: 16),
                   ),
                 ),

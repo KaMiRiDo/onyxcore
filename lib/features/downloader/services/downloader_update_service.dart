@@ -1,18 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
+import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:path/path.dart' as p;
 
 class DownloaderUpdateState {
-  final bool isUpdating;
-  final double progress; // 0.0 to 1.0
-  final String? error;
-  final Map<String, double> engineProgress;
-  final Map<String, String> installedVersions;
-  final Map<String, String> latestVersions;
-  final bool isCheckingForUpdates;
 
   const DownloaderUpdateState({
     this.isUpdating = false,
@@ -23,6 +17,13 @@ class DownloaderUpdateState {
     this.latestVersions = const {},
     this.isCheckingForUpdates = false,
   });
+  final bool isUpdating;
+  final double progress; // 0.0 to 1.0
+  final String? error;
+  final Map<String, double> engineProgress;
+  final Map<String, String> installedVersions;
+  final Map<String, String> latestVersions;
+  final bool isCheckingForUpdates;
 
   DownloaderUpdateState copyWith({
     bool? isUpdating,
@@ -79,7 +80,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     if (state.isUpdating) return;
     state = state.copyWith(
       isUpdating: true,
-      progress: 0.0,
+      progress: 0,
       engineProgress: {},
       clearError: true,
     );
@@ -110,7 +111,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       );
       if (!await binDir.exists()) await binDir.create(recursive: true);
 
-      int completed = 0;
+      var completed = 0;
       for (final engine in enginesToUpdate) {
         if (engine.updateInfo != null && engine.binaryPath != null) {
           await _downloadLatestRelease(
@@ -150,7 +151,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
     state = state.copyWith(
       isUpdating: true,
-      progress: 0.0,
+      progress: 0,
       engineProgress: {},
       clearError: true,
     );
@@ -175,12 +176,12 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           .where((e) => e.updateInfo != null || e.engineType == EngineType.python)
           .toList();
       if (engines.isEmpty) {
-        state = const DownloaderUpdateState(isUpdating: false, progress: 1.0);
+        state = const DownloaderUpdateState(progress: 1);
         return;
       }
       final progressPerEngine = 1.0 / engines.length;
 
-      for (int i = 0; i < engines.length; i++) {
+      for (var i = 0; i < engines.length; i++) {
         final engine = engines[i];
         
         if (engine.engineType == EngineType.python) {
@@ -207,11 +208,9 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         }
       }
 
-      state = state.copyWith(isUpdating: false, progress: 1.0);
+      state = state.copyWith(isUpdating: false, progress: 1);
     } catch (e) {
       state = DownloaderUpdateState(
-        isUpdating: false,
-        progress: 0.0,
         error: e.toString(),
         engineProgress: state.engineProgress,
       );
@@ -220,8 +219,9 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
   /// Update a single engine that has updateInfo or is a python script engine.
   Future<void> updateEngine(DownloadEngine engine) async {
-    if (engine.updateInfo == null && engine.engineType != EngineType.python)
+    if (engine.updateInfo == null && engine.engineType != EngineType.python) {
       return;
+    }
 
     final newEngineProgress = Map<String, double>.from(state.engineProgress);
     newEngineProgress[engine.id] =
@@ -236,8 +236,8 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           assetName: engine.updateInfo!.assetName,
           checksumAssetName: engine.updateInfo!.checksumAssetName,
           savePath: engine.binaryPath!,
-          progressWeight: 1.0,
-          progressOffset: 0.0,
+          progressWeight: 1,
+          progressOffset: 0,
           engineId: engine.id,
         );
       } else if (engine.engineType == EngineType.python) {
@@ -313,10 +313,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
   Future<void> _downloadLatestRelease({
     required String apiUrl,
     required String assetName,
-    String? checksumAssetName,
-    required String savePath,
-    required double progressWeight,
-    required double progressOffset,
+    required String savePath, required double progressWeight, required double progressOffset, String? checksumAssetName,
     String? engineId,
   }) async {
     final client = HttpClient();
@@ -362,7 +359,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       final contentLength = downloadRes.contentLength > 0
           ? downloadRes.contentLength
           : 1;
-      int downloaded = 0;
+      var downloaded = 0;
 
       final isTarGz = assetName.endsWith('.tar.gz');
       final targetPath = isTarGz ? '$savePath.tar.gz' : savePath;
@@ -384,7 +381,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           final newEngineProgress = Map<String, double>.from(
             state.engineProgress,
           );
-          newEngineProgress[engineId!] = newProgress;
+          newEngineProgress[engineId] = newProgress;
           state = state.copyWith(
             progress: progressOffset + (subProgress * progressWeight),
             engineProgress: newEngineProgress,

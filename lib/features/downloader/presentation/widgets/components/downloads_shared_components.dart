@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/services.dart';
 import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class FallbackThumb extends StatelessWidget {
   const FallbackThumb({super.key});
@@ -18,16 +19,14 @@ class FallbackThumb extends StatelessWidget {
 }
 
 class CountIndicator extends StatelessWidget {
+
+  const CountIndicator({
+    required this.icon, required this.count, super.key,
+    this.disabled = false,
+  });
   final IconData icon;
   final int count;
   final bool disabled;
-
-  const CountIndicator({
-    super.key,
-    required this.icon,
-    required this.count,
-    this.disabled = false,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,8 +34,8 @@ class CountIndicator extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: disabled
-            ? Colors.black.withOpacity(0.3)
-            : Colors.black.withOpacity(0.7),
+            ? Colors.black.withValues(alpha: 0.3)
+            : Colors.black.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -59,9 +58,9 @@ class CountIndicator extends StatelessWidget {
 }
 
 class CopyUrlButton extends StatefulWidget {
-  final String url;
 
-  const CopyUrlButton({super.key, required this.url});
+  const CopyUrlButton({required this.url, super.key});
+  final String url;
 
   @override
   State<CopyUrlButton> createState() => _CopyUrlButtonState();

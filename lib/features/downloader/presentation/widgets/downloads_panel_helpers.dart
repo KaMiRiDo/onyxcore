@@ -27,8 +27,9 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
 
   String _formatResolution(String res) {
     if (res.isEmpty) return 'Unknown';
-    if (res == 'audio only' || res.toLowerCase() == 'audio')
+    if (res == 'audio only' || res.toLowerCase() == 'audio') {
       return 'Audio Only';
+    }
 
     final parts = res.toLowerCase().split('x');
     if (parts.length == 2) {
@@ -39,7 +40,7 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
         return '${height}p';
       }
     } else {
-      final height = int.tryParse(res.replaceAll(RegExp(r'[^0-9]'), ''));
+      final height = int.tryParse(res.replaceAll(RegExp('[^0-9]'), ''));
       if (height != null) {
         if (height >= 2160) return '4K';
         if (height >= 1440) return '1440p';
@@ -50,8 +51,9 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   }
 
   int _getHeight(String res) {
-    if (res.isEmpty || res == 'audio only' || res.toLowerCase() == 'audio')
+    if (res.isEmpty || res == 'audio only' || res.toLowerCase() == 'audio') {
       return 0;
+    }
     final lower = res.toLowerCase();
     if (lower.contains('4k') || lower.contains('2160')) return 2160;
     if (lower.contains('1440') || lower.contains('2k')) return 1440;
@@ -63,7 +65,7 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
     if (parts.length == 2) {
       return int.tryParse(parts[1]) ?? 0;
     } else {
-      return int.tryParse(lower.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      return int.tryParse(lower.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
     }
   }
 
@@ -158,12 +160,12 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
       return size;
     }
 
-    int? bytes = format.filesize ?? _resolvedFileSizes[item.id];
+    var bytes = format.filesize ?? _resolvedFileSizes[item.id];
 
     if (config.mode == DownloadMode.normal &&
         format.resolution != 'audio only' &&
         format.resolution.toLowerCase() != 'audio') {
-      final bool noAudio =
+      final noAudio =
           format.audioCodec == 'none' ||
           format.audioCodec == null ||
           format.audioCodec!.isEmpty ||
@@ -230,7 +232,7 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   }
 
   String? _getFileSize(MediaInfo item, DownloadConfig config) {
-    MediaFormat? currentFormat = config.itemFormats[item.id] ?? config.format;
+    var currentFormat = config.itemFormats[item.id] ?? config.format;
 
     if (currentFormat != null) {
       currentFormat = matchTargetFormat(item, currentFormat);
@@ -245,22 +247,24 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   }
 
   int _getGroupBytes(MediaGroup group, DownloadConfig config) {
-    int totalVideo = 0;
-    int videoWithSize = 0;
-    int videoWithoutSize = 0;
+    var totalVideo = 0;
+    var videoWithSize = 0;
+    var videoWithoutSize = 0;
 
-    int totalImage = 0;
-    int imageWithSize = 0;
-    int imageWithoutSize = 0;
+    var totalImage = 0;
+    var imageWithSize = 0;
+    var imageWithoutSize = 0;
 
     for (final item in group.items) {
       if (item.isProfile || item.isPlaylist) continue;
-      if (config.groupFilter == GroupDownloadType.images && item.isVideo)
+      if (config.groupFilter == GroupDownloadType.images && item.isVideo) {
         continue;
-      if (config.groupFilter == GroupDownloadType.videos && !item.isVideo)
+      }
+      if (config.groupFilter == GroupDownloadType.videos && !item.isVideo) {
         continue;
+      }
 
-      MediaFormat? currentFormat = config.itemFormats[item.id] ?? config.format;
+      var currentFormat = config.itemFormats[item.id] ?? config.format;
 
       if (currentFormat != null) {
         currentFormat = matchTargetFormat(item, currentFormat);

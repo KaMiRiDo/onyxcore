@@ -17,9 +17,9 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
           });
         },
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          color: Colors.black.withOpacity(
-            0.8,
+        child: ColoredBox(
+          color: Colors.black.withValues(
+            alpha: 0.8,
           ), // Made the background more shaded
           child: Center(
             child: GestureDetector(
@@ -32,16 +32,16 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                   child: Container(
                     margin: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2C2C35).withOpacity(
-                        0.85,
+                      color: const Color(0xFF2C2C35).withValues(
+                        alpha: 0.85,
                       ), // Lighter, more visible glassmorphism shade
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                       ), // Stronger border to help it pop
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           blurRadius: 30,
                           offset: const Offset(0, 15),
                         ),
@@ -79,8 +79,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                item.first.thumbnail != null
-                                    ? (item.first.thumbnail!.startsWith(
+                                if (item.first.thumbnail != null) item.first.thumbnail!.startsWith(
                                             'data:image',
                                           )
                                           ? Image.memory(
@@ -106,8 +105,9 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                     child,
                                                     loadingProgress,
                                                   ) {
-                                                    if (loadingProgress == null)
+                                                    if (loadingProgress == null) {
                                                       return child;
+                                                    }
                                                     return const SizedBox(
                                                       height: 210,
                                                       child: Center(
@@ -118,8 +118,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                   },
                                               errorBuilder: (_, __, ___) =>
                                                   const FallbackThumb(),
-                                            ))
-                                    : const FallbackThumb(),
+                                            ) else const FallbackThumb(),
                                 if (item.isSingle && item.first.isVideo)
                                   Positioned(
                                     bottom: 8,
@@ -130,7 +129,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.7),
+                                        color: Colors.black.withValues(alpha: 0.7),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
@@ -284,10 +283,10 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.white,
                                   side: BorderSide(
-                                    color: Colors.white.withOpacity(0.1),
+                                    color: Colors.white.withValues(alpha: 0.1),
                                   ),
-                                  backgroundColor: Colors.white.withOpacity(
-                                    0.05,
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.05,
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
@@ -315,8 +314,8 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                   });
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.violet.withOpacity(
-                                    0.2,
+                                  backgroundColor: AppColors.violet.withValues(
+                                    alpha: 0.2,
                                   ),
                                   foregroundColor: AppColors.violet,
                                   padding: const EdgeInsets.symmetric(
@@ -367,7 +366,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
       builder: (context, _, __) {
         final visibleItems = _visiblePreviewItems;
 
-        String displayTitle = group.first.title;
+        var displayTitle = group.first.title;
         if (group.first.isProfile && displayTitle.toLowerCase() == 'item') {
           if (group.first.id.isNotEmpty) {
             displayTitle = '@${group.first.id}';
@@ -432,8 +431,8 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                 });
               },
               behavior: HitTestBehavior.opaque,
-              child: Container(
-                color: Colors.black.withOpacity(0.8),
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: 0.8),
                 child: Center(
                   child: GestureDetector(
                     onTap: () {}, // Absorb taps
@@ -445,14 +444,14 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                           margin: const EdgeInsets.all(24),
                           width: 650, // Fixed width for better carousel look
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2C2C35).withOpacity(0.85),
+                            color: const Color(0xFF2C2C35).withValues(alpha: 0.85),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.5),
+                                color: Colors.black.withValues(alpha: 0.5),
                                 blurRadius: 30,
                                 offset: const Offset(0, 15),
                               ),
@@ -590,7 +589,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                           },
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: AppColors.violet
-                                                .withOpacity(0.2),
+                                                .withValues(alpha: 0.2),
                                             foregroundColor: AppColors.violet,
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 16,
@@ -648,17 +647,15 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                         child: Stack(
                                           alignment: Alignment.center,
                                           children: [
-                                            currentItem.id ==
-                                                    'hydration_loading'
-                                                ? Container(
+                                            if (currentItem.id ==
+                                                    'hydration_loading') ColoredBox(
                                                     color: Colors.black
-                                                        .withOpacity(0.6),
+                                                        .withValues(alpha: 0.6),
                                                     child: const Center(
                                                       child:
                                                           _JugglingBallsLoader(),
                                                     ),
-                                                  )
-                                                : currentItem.thumbnail != null
+                                                  ) else currentItem.thumbnail != null
                                                 ? (currentItem.thumbnail!
                                                           .startsWith(
                                                             'data:image',
@@ -689,14 +686,15 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                                 loadingProgress,
                                                               ) {
                                                                 if (loadingProgress ==
-                                                                    null)
+                                                                    null) {
                                                                   return child;
+                                                                }
                                                                 return Center(
                                                                   child: CircularProgressIndicator(
                                                                     color: AppColors
                                                                         .violet
-                                                                        .withOpacity(
-                                                                          0.5,
+                                                                        .withValues(
+                                                                          alpha: 0.5,
                                                                         ),
                                                                     strokeWidth:
                                                                         2,
@@ -707,7 +705,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                               group
                                                                   .first
                                                                   .isProfile
-                                                              ? Container(
+                                                              ? ColoredBox(
                                                                   color: const Color(
                                                                     0xFF1E1E26,
                                                                   ),
@@ -724,7 +722,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                               : const FallbackThumb(),
                                                         ))
                                                 : group.first.isProfile
-                                                ? Container(
+                                                ? ColoredBox(
                                                     color: const Color(
                                                       0xFF1E1E26,
                                                     ),
@@ -750,8 +748,8 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                       ),
                                                   decoration: BoxDecoration(
                                                     color: Colors.black
-                                                        .withOpacity(
-                                                          0.7,
+                                                        .withValues(
+                                                          alpha: 0.7,
                                                         ),
                                                     borderRadius:
                                                         BorderRadius.circular(
@@ -785,8 +783,8 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                     ),
                                                 decoration: BoxDecoration(
                                                   color: Colors.black
-                                                      .withOpacity(
-                                                        0.7,
+                                                      .withValues(
+                                                        alpha: 0.7,
                                                       ),
                                                   borderRadius:
                                                       BorderRadius.circular(4),
@@ -811,8 +809,8 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                 child: Container(
                                                   decoration: BoxDecoration(
                                                     color: Colors.black
-                                                        .withOpacity(
-                                                          0.6,
+                                                        .withValues(
+                                                          alpha: 0.6,
                                                         ),
                                                     borderRadius:
                                                         BorderRadius.circular(
@@ -865,8 +863,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                       CrossAxisAlignment.stretch,
                                   children: [
                                     Text(
-                                      _trimMiddle(currentItem.title, 40) +
-                                          ' (${_getFileSize(currentItem, config) ?? "Unknown size"})',
+                                      '${_trimMiddle(currentItem.title, 40)} (${_getFileSize(currentItem, config) ?? "Unknown size"})',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.manrope(
@@ -919,12 +916,12 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                           style: OutlinedButton.styleFrom(
                                             foregroundColor: Colors.white,
                                             side: BorderSide(
-                                              color: Colors.white.withOpacity(
-                                                0.1,
+                                              color: Colors.white.withValues(
+                                                alpha: 0.1,
                                               ),
                                             ),
                                             backgroundColor: Colors.white
-                                                .withOpacity(0.05),
+                                                .withValues(alpha: 0.05),
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 12,
                                             ),
@@ -957,7 +954,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                           },
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: AppColors.violet
-                                                .withOpacity(0.2),
+                                                .withValues(alpha: 0.2),
                                             foregroundColor: AppColors.violet,
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 16,

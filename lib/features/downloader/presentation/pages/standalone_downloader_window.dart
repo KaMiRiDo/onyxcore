@@ -1,43 +1,40 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/download_task_tile.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'dart:io';
-import 'dart:convert';
-import 'package:path/path.dart' as p;
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-
+import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/download_task_tile.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:path/path.dart' as p;
 
 class StandaloneDownloaderWindow extends ConsumerStatefulWidget {
-  final int windowId;
-  final Map<String, dynamic> initParams;
 
   const StandaloneDownloaderWindow({
-    super.key,
-    required this.windowId,
+    required this.windowId, super.key,
     this.initParams = const {},
   });
+  final int windowId;
+  final Map<String, dynamic> initParams;
 
   @override
   ConsumerState<StandaloneDownloaderWindow> createState() =>
@@ -75,7 +72,7 @@ class _StandaloneDownloaderWindowState
 
     if (isShiftPressed) {
       // Prompt for permanent delete
-      showDialog(
+      showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: const Color(0xFF1E1E1E),
@@ -174,8 +171,24 @@ class _StandaloneDownloaderWindowState
     _controller.recalculateFilteredStatistics();
   }
 
-  @override
-  int _getHeight(String res) => getHeightForTesting(res);
+  int _getHeight(String res) {
+    if (res.isEmpty || res == 'audio only' || res.toLowerCase() == 'audio') {
+      return 0;
+    }
+    final lower = res.toLowerCase();
+    if (lower.contains('4k') || lower.contains('2160')) return 2160;
+    if (lower.contains('1440') || lower.contains('2k')) return 1440;
+    if (lower.contains('1080')) return 1080;
+    if (lower.contains('720')) return 720;
+    if (lower.contains('480')) return 480;
+
+    final parts = lower.split('x');
+    if (parts.length == 2) {
+      return int.tryParse(parts[1]) ?? 0;
+    } else {
+      return int.tryParse(lower.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
+    }
+  }
 
   int _getGroupBytes(MediaGroup group, DownloadConfig config) => 0;
 
@@ -289,14 +302,14 @@ class _StandaloneDownloaderWindowState
 
       final downloadToCurrent =
           ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
-      String dest = downloadToCurrent
+      final dest = downloadToCurrent
           ? ref.read(currentPathProvider)
           : '${Platform.environment['HOME']}/Downloads';
 
       final itemsToDownload = List<MediaInfo>.from(group.items);
 
       if (group.first.isProfile || group.first.isPlaylist) {
-        String safeName = group.first.title.replaceAll(
+        var safeName = group.first.title.replaceAll(
           RegExp(r'[\\/:*?"<>|]'),
           '_',
         );
@@ -309,20 +322,20 @@ class _StandaloneDownloaderWindowState
 
         if (!isProfileOrPlaylist) {
           final dir = Directory(itemDest);
-          List<File> existingFiles = [];
+          var existingFiles = <File>[];
           if (dir.existsSync()) {
             existingFiles = dir.listSync().whereType<File>().toList();
           }
-          bool groupExists = existingFiles.any((f) {
+          final groupExists = existingFiles.any((f) {
             final base = p.basenameWithoutExtension(f.path);
             return base.startsWith('${safeName}_') || base == safeName;
           });
           if (groupExists) {
-            int conflictCounter = 1;
+            var conflictCounter = 1;
             while (existingFiles.any((f) {
               final base = p.basenameWithoutExtension(f.path);
-              return base.startsWith('${safeName} ($conflictCounter)_') ||
-                  base == '${safeName} ($conflictCounter)';
+              return base.startsWith('$safeName ($conflictCounter)_') ||
+                  base == '$safeName ($conflictCounter)';
             })) {
               conflictCounter++;
             }
@@ -352,7 +365,7 @@ class _StandaloneDownloaderWindowState
               .length;
         }
 
-        int expectedBytes = _getGroupBytes(
+        final expectedBytes = _getGroupBytes(
           MediaGroup(originalUrl: group.originalUrl, items: itemsToDownload),
           config,
         );
@@ -373,7 +386,6 @@ class _StandaloneDownloaderWindowState
               isPlaylist: group.first.isPlaylist,
               isProfile: group.first.isProfile,
               browser: ref.read(settingsProvider).value?.downloadBrowser,
-              isZip: false,
               filterType: filterType,
               totalItems: totalFilteredItems,
               expectedBytes: expectedBytes,
@@ -387,19 +399,21 @@ class _StandaloneDownloaderWindowState
         return;
       }
 
-      final Map<String, List<File>> dirCache = {};
-      int count = 0;
-      final Set<String> sessionNames = {};
+      final dirCache = <String, List<File>>{};
+      var count = 0;
+      final sessionNames = <String>{};
 
       for (final info in itemsToDownload) {
         if (count++ % 20 == 0) await Future<void>.delayed(Duration.zero);
-        if (config.groupFilter == GroupDownloadType.images && info.isVideo)
+        if (config.groupFilter == GroupDownloadType.images && info.isVideo) {
           continue;
-        if (config.groupFilter == GroupDownloadType.videos && !info.isVideo)
+        }
+        if (config.groupFilter == GroupDownloadType.videos && !info.isVideo) {
           continue;
+        }
 
         final format = config.itemFormats[info.id] ?? config.format;
-        String itemDest = dest;
+        var itemDest = dest;
 
         if (group.first.isPlaylist || group.first.isProfile) {
           final safeName = group.first.title.replaceAll(
@@ -412,8 +426,8 @@ class _StandaloneDownloaderWindowState
           }
         }
 
-        String finalTitle = info.title;
-        String suffix = '';
+        var finalTitle = info.title;
+        var suffix = '';
         final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
         if (match != null) {
           suffix = ' - ${match.group(1)}';
@@ -442,7 +456,7 @@ class _StandaloneDownloaderWindowState
             (f) => p.basenameWithoutExtension(f.path) == safeName,
           );
           if (exists || sessionNames.contains(safeName)) {
-            int conflictCounter = 1;
+            var conflictCounter = 1;
             while (existingFiles.any(
                   (f) =>
                       p.basenameWithoutExtension(f.path) ==
@@ -473,7 +487,6 @@ class _StandaloneDownloaderWindowState
               mute: config.mode == DownloadMode.mute,
               galleryIndex: info.galleryIndex,
               engine: config.engine,
-              isPlaylist: false,
               browser: ref.read(settingsProvider).value?.downloadBrowser,
               totalItems: 1,
               directUrl: info.directUrl,
@@ -555,7 +568,7 @@ class _StandaloneDownloaderWindowState
     return Scaffold(
       backgroundColor: AppColors.background,
       body: GestureDetector(
-        onTap: () => _mainFocusNode.requestFocus(),
+        onTap: _mainFocusNode.requestFocus,
         child: Focus(
           focusNode: _mainFocusNode,
           autofocus: true,
@@ -764,10 +777,9 @@ class _StandaloneDownloaderWindowState
                       EngineSelectorDropdown(
                         selectedEngine: _controller.selectedEngine,
                         onChanged: (val) {
-                          if (val != null)
-                            setState(() {
-                              _controller.selectedEngine = val;
-                            });
+                          setState(() {
+                            _controller.selectedEngine = val;
+                          });
                         },
                       ),
                       const SizedBox(width: 8),
@@ -778,7 +790,6 @@ class _StandaloneDownloaderWindowState
                           child: GestureDetector(
                             onTap: () => SettingsDialog.show(
                               context,
-                              initialTab: 0,
                               section: 'Download Manager',
                             ),
                             child: Container(
@@ -882,7 +893,6 @@ class _StandaloneDownloaderWindowState
                     final files = await CustomFilePickerDialog.show(
                       context,
                       title: 'IMPORT LIST',
-                      allowMultiple: false,
                       allowedExtensions: ['txt', 'json'],
                       initialDirectory: _currentPath,
                     );
@@ -1006,10 +1016,10 @@ class _StandaloneDownloaderWindowState
     );
   }
 
-  void _restoreTrash() async {
+  Future<void> _restoreTrash() async {
     // Group trashed items by their list path
     final mapByList = <String, List<_TrashItem>>{};
-    for (var item in _trash) {
+    for (final item in _trash) {
       mapByList.putIfAbsent(item.listPath, () => []).add(item);
     }
 
@@ -1022,7 +1032,7 @@ class _StandaloneDownloaderWindowState
       if (listPath == currentListPath) {
         // Restore to active memory
         setState(() {
-          for (var tItem in itemsToRestore) {
+          for (final tItem in itemsToRestore) {
             if (tItem.parentGroup == null) {
               // Root level
               _controller.cache.parsedItems?.add(tItem.item as MediaGroup);
@@ -1047,12 +1057,12 @@ class _StandaloneDownloaderWindowState
             final file = File(listPath);
             if (await file.exists()) {
               final jsonStr = await file.readAsString();
-              final List<dynamic> jsonList = jsonDecode(jsonStr) as List<dynamic>;
-              final List<MediaGroup> parsed = jsonList
+              final jsonList = jsonDecode(jsonStr) as List<dynamic>;
+              final parsed = jsonList
                   .map((j) => MediaGroup.fromMap(j as Map<String, dynamic>))
                   .toList();
 
-              for (var tItem in itemsToRestore) {
+              for (final tItem in itemsToRestore) {
                 if (tItem.parentGroup == null) {
                   parsed.add(tItem.item as MediaGroup);
                 } else {
@@ -1077,9 +1087,7 @@ class _StandaloneDownloaderWindowState
       }
     }
 
-    setState(() {
-      _trash.clear();
-    });
+    setState(_trash.clear);
   }
 
   Widget _buildTrashTab() {
@@ -1142,12 +1150,6 @@ class _StandaloneDownloaderWindowState
     int? cachedImages,
     int? cachedSize,
   }) {
-    final videos = isActive ? _controller.totalListVideos : (cachedVideos ?? 0);
-    final images = isActive ? _controller.totalListImages : (cachedImages ?? 0);
-    final size = isActive ? _controller.totalListSize : (cachedSize ?? 0);
-    final sizeStr = (size / (1024 * 1024)).toStringAsFixed(2);
-    final hasItems = size > 0;
-
     return Container(
       decoration: BoxDecoration(
         color: isActive
@@ -1179,8 +1181,7 @@ class _StandaloneDownloaderWindowState
             padding: const EdgeInsets.only(left: 13, right: 16, top: 12, bottom: 12),
       child: Row(
         children: [
-          isActive
-              ? ShaderMask(
+          if (isActive) ShaderMask(
                   blendMode: BlendMode.srcIn,
                   shaderCallback: (bounds) => const LinearGradient(
                     colors: [AppColors.magenta, AppColors.violet],
@@ -1188,8 +1189,7 @@ class _StandaloneDownloaderWindowState
                     end: Alignment.bottomRight,
                   ).createShader(bounds),
                   child: const Icon(Icons.list_alt, size: 20, color: Colors.white),
-                )
-              : const Icon(Icons.list_alt, color: Colors.white54, size: 20),
+                ) else const Icon(Icons.list_alt, color: Colors.white54, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: isActive
@@ -1219,7 +1219,7 @@ class _StandaloneDownloaderWindowState
               onPressed: () {
                 final path = _lastCustomListPath;
                 if (path != null && _controller.cache.isCacheChanged(path)) {
-                  showDialog(
+                  showDialog<void>(
                     context: context,
                     builder: (context) => AlertDialog(
                       backgroundColor: const Color(0xFF1E1E1E),
@@ -1405,7 +1405,7 @@ class _StandaloneDownloaderWindowState
                 icon: const Icon(Icons.delete_forever, size: 16),
                 label: const Text('Empty'),
                 onPressed: () {
-                  setState(() { _trash.clear(); });
+                  setState(_trash.clear);
                 },
                 style: ElevatedButton.styleFrom(
                    backgroundColor: AppColors.error,
@@ -1461,8 +1461,8 @@ class _StandaloneDownloaderWindowState
                       borderRadius: BorderRadius.circular(4),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 4.0,
-                          vertical: 2.0,
+                          horizontal: 4,
+                          vertical: 2,
                         ),
                         child: Text(
                           _controller.cache.importedListName ?? 'Default List',
@@ -1477,7 +1477,7 @@ class _StandaloneDownloaderWindowState
                     ),
                   ),
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
+                    padding: EdgeInsets.symmetric(horizontal: 8),
                     child: Icon(Icons.chevron_right, color: Colors.white54),
                   ),
                   Expanded(
@@ -1521,7 +1521,7 @@ class _StandaloneDownloaderWindowState
                     item: _currentGroup!.first,
                     config: config,
                     index: rootIndex,
-                    group: _currentGroup!,
+                    group: _currentGroup,
                     getHeight: _getHeight,
                     matchTargetFormat: matchTargetFormat,
                     onChanged: (val) {
@@ -1583,25 +1583,6 @@ class _StandaloneDownloaderWindowState
     );
   }
 
-  Widget _buildDropdown(String hint) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        children: [
-          Text(
-            hint,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.arrow_drop_down, color: Colors.white54, size: 16),
-        ],
-      ),
-    );
-  }
 
   Widget _buildMediaGrid() {
     if (_isTrashView) {
@@ -1658,16 +1639,18 @@ class _StandaloneDownloaderWindowState
         }
       }).toList();
     } else if (_currentGroup != null) {
-      int rootIndex = _controller.cache.parsedItems!.indexOf(_currentGroup!);
+      final rootIndex = _controller.cache.parsedItems!.indexOf(_currentGroup!);
       final config = rootIndex != -1
           ? _controller.cache.configs[rootIndex]
           : null;
 
-      var filteredItems = _currentGroup!.items.where((item) {
-        if (config?.groupFilter == GroupDownloadType.images && item.isVideo)
+      final filteredItems = _currentGroup!.items.where((item) {
+        if (config?.groupFilter == GroupDownloadType.images && item.isVideo) {
           return false;
-        if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo)
+        }
+        if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo) {
           return false;
+        }
         return true;
       }).toList();
 
@@ -1706,7 +1689,7 @@ class _StandaloneDownloaderWindowState
               config = _controller.cache.configs[index];
             }
           } else {
-            int rootIndex = _controller.cache.parsedItems!.indexOf(
+            final rootIndex = _controller.cache.parsedItems!.indexOf(
               _currentGroup!,
             );
             if (rootIndex != -1 &&
@@ -1715,20 +1698,20 @@ class _StandaloneDownloaderWindowState
             }
           }
 
-          IconData typeIcon = Icons.image_rounded;
+          var typeIcon = Icons.image_rounded;
           if (group.first.isProfile) {
             typeIcon = Icons.account_circle_rounded;
           } else if (group.first.isPlaylist) {
             typeIcon = Icons.video_library_rounded;
           } else if (group.items.length > 1) {
             typeIcon = Icons.filter_none_rounded;
-          } else if (firstItem?.isVideo == true) {
+          } else if (firstItem?.isVideo ?? false) {
             typeIcon = Icons.videocam_rounded;
           }
 
           final isSelected = _selectedIndices.contains(index);
 
-          double aspectRatio = 1.0;
+          double aspectRatio = 1;
           if (firstItem != null) {
             if (firstItem.width != null &&
                 firstItem.height != null &&
@@ -1740,7 +1723,7 @@ class _StandaloneDownloaderWindowState
             }
           }
 
-          Widget itemCard = GestureDetector(
+          final Widget itemCard = GestureDetector(
             onTap: () {
               _mainFocusNode.requestFocus();
               final isCtrl = HardwareKeyboard.instance.isControlPressed;
@@ -1762,7 +1745,7 @@ class _StandaloneDownloaderWindowState
                       ? _lastSelectedIndex
                       : index;
                   _selectedIndices.clear();
-                  for (int i = start; i <= end; i++) {
+                  for (var i = start; i <= end; i++) {
                     _selectedIndices.add(i);
                   }
                 } else {
@@ -1877,7 +1860,7 @@ class _StandaloneDownloaderWindowState
                       child: Builder(
                         builder: (context) {
                           double sizeInMB = 0;
-                          bool hasSize = false;
+                          var hasSize = false;
 
                           if (group.first.isProfile ||
                               group.first.isPlaylist ||
@@ -1897,8 +1880,7 @@ class _StandaloneDownloaderWindowState
                               } else {
                                 selectedFormat = config?.format;
                               }
-                              if (selectedFormat == null) {
-                                selectedFormat = firstItem.formats
+                              selectedFormat ??= firstItem.formats
                                     .fold<MediaFormat>(
                                       firstItem.formats.first,
                                       (a, b) =>
@@ -1906,7 +1888,6 @@ class _StandaloneDownloaderWindowState
                                           ? a
                                           : b,
                                     );
-                              }
                               if (selectedFormat.filesize != null &&
                                   selectedFormat.filesize! > 0) {
                                 sizeInMB =
@@ -1935,7 +1916,7 @@ class _StandaloneDownloaderWindowState
                                 fontWeight: FontWeight.w600,
                               ),
                             );
-                          } else if (firstItem?.isVideo == true &&
+                          } else if ((firstItem?.isVideo ?? false) &&
                               firstItem?.duration != null) {
                             return Text(
                               '${firstItem!.duration! ~/ 60}:${(firstItem.duration! % 60).toString().padLeft(2, '0')}',
@@ -2126,8 +2107,9 @@ class _StandaloneDownloaderWindowState
                                       hasVideos: hasVideos,
                                       onChanged: (val) {
                                         setState(() {
-                                          if (config != null)
-                                            config!.groupFilter = val;
+                                          if (config != null) {
+                                            config.groupFilter = val;
+                                          }
                                         });
                                         _controller
                                             .recalculateFilteredStatistics();
@@ -2141,11 +2123,7 @@ class _StandaloneDownloaderWindowState
                                       item: firstItem!,
                                       config:
                                           config ??
-                                          DownloadConfig(
-                                            engine: 'auto',
-                                            mode: DownloadMode.normal,
-                                            groupFilter: GroupDownloadType.all,
-                                          ),
+                                          DownloadConfig(),
                                       index: index,
                                       group: group,
                                       isItemLevel: _currentGroup != null,
@@ -2156,7 +2134,7 @@ class _StandaloneDownloaderWindowState
                                           if (_currentGroup == null) {
                                             config?.format = val;
                                           } else {
-                                            config?.itemFormats[firstItem!.id] =
+                                            config?.itemFormats[firstItem.id] =
                                                 val;
                                           }
                                         });
@@ -2217,12 +2195,12 @@ class _StandaloneDownloaderWindowState
   }
 
   Widget _buildLocationBar() {
-    int videos = 0;
-    int images = 0;
-    int size = 0;
+    var videos = 0;
+    var images = 0;
+    var size = 0;
 
     if (_isTrashView) {
-      for (var t in _trash) {
+      for (final t in _trash) {
         if (t.item is MediaGroup) {
           final g = t.item as MediaGroup;
           videos += g.items.where((i) => i.isVideo).length;
@@ -2245,8 +2223,8 @@ class _StandaloneDownloaderWindowState
     final sizeStr = '${(size / 1024 / 1024).toStringAsFixed(1)} MB';
     final statsText = '$videos Videos • $images Images • $sizeStr';
 
-    final bool isCustom = _controller.cache.importedListName != null;
-    final bool isChanged = _controller.cache.isListChanged;
+    final isCustom = _controller.cache.importedListName != null;
+    final isChanged = _controller.cache.isListChanged;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -2265,7 +2243,6 @@ class _StandaloneDownloaderWindowState
           ),
           const SizedBox(width: 8),
           Expanded(
-            flex: 1, // 1/3 of the flex space
             child: Container(
               height: 36,
               decoration: BoxDecoration(
@@ -2405,7 +2382,6 @@ class _StandaloneDownloaderWindowState
                   final saveLocation = await CustomFilePickerDialog.show(
                     context,
                     title: 'EXPORT LIST',
-                    allowMultiple: false,
                     allowedExtensions: ['json', 'txt'],
                   );
                   if (saveLocation != null && saveLocation.isNotEmpty) {
@@ -2451,9 +2427,7 @@ class _StandaloneDownloaderWindowState
               borderRadius: BorderRadius.circular(5),
             ),
             child: ElevatedButton(
-              onPressed: () {
-                _downloadAll();
-              },
+              onPressed: _downloadAll,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
@@ -2481,22 +2455,22 @@ class _StandaloneDownloaderWindowState
 }
 
 class _GradientBorderPainter extends CustomPainter {
-  final double animation;
-  final List<Color> colors;
-  final double radius;
-  final double strokeWidth;
 
   _GradientBorderPainter(
     this.animation, {
+    this.radius = 12.0,
+    this.strokeWidth = 1.5,
     this.colors = const [
       AppColors.magenta,
       AppColors.violet,
       AppColors.indigo,
       AppColors.magenta,
     ],
-    this.radius = 12.0,
-    this.strokeWidth = 1.5,
   });
+  final double animation;
+  final List<Color> colors;
+  final double radius;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2521,10 +2495,6 @@ class _GradientBorderPainter extends CustomPainter {
 }
 
 class _TrashItem {
-  final dynamic item;
-  final String listPath;
-  final MediaGroup? parentGroup;
-  final DownloadConfig? config;
 
   _TrashItem({
     required this.item,
@@ -2532,4 +2502,8 @@ class _TrashItem {
     this.parentGroup,
     this.config,
   });
+  final dynamic item;
+  final String listPath;
+  final MediaGroup? parentGroup;
+  final DownloadConfig? config;
 }

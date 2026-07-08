@@ -20,6 +20,7 @@ void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
   setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     TestWidgetsFlutterBinding.ensureInitialized();
     final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1600, 1000);

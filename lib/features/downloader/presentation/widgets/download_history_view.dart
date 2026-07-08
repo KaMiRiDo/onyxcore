@@ -1,13 +1,14 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:path/path.dart' as p;
 
 class DownloadHistoryView extends ConsumerStatefulWidget {
@@ -66,7 +67,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         return KeyEventResult.ignored;
       },
       child: GestureDetector(
-        onTap: () => _focusNode.requestFocus(),
+        onTap: _focusNode.requestFocus,
         child: Stack(
           children: [
             Column(
@@ -124,7 +125,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
               child: Icon(
                 hasSelection ? Icons.close_rounded : Icons.arrow_back_rounded,
                 size: 18,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ),
@@ -154,7 +155,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                 child: Icon(
                   Icons.close_rounded,
                   size: 18,
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -177,9 +178,9 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.02),
+        color: Colors.white.withValues(alpha: 0.02),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04), width: 0.5),
         ),
       ),
       child: Row(
@@ -187,13 +188,13 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
           Icon(
             Icons.history_rounded,
             size: 12,
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
           ),
           const SizedBox(width: 8),
           Text(
             '$totalCount Tasks',
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.4),
+              color: Colors.white.withValues(alpha: 0.4),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -203,7 +204,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
             child: Text(
               '•',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 fontSize: 10,
               ),
             ),
@@ -211,7 +212,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
           Text(
             totalSize,
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -230,7 +231,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
               icon: Icon(
                 Icons.close_rounded,
                 size: 14,
-                color: AppColors.error.withOpacity(0.6),
+                color: AppColors.error.withValues(alpha: 0.6),
               ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -264,19 +265,19 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.violet.withOpacity(0.2)
+              ? AppColors.violet.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: active
-                ? AppColors.violet.withOpacity(0.3)
+                ? AppColors.violet.withValues(alpha: 0.3)
                 : Colors.transparent,
           ),
         ),
         child: Icon(
           icon,
           size: 14,
-          color: active ? AppColors.violet : Colors.white.withOpacity(0.4),
+          color: active ? AppColors.violet : Colors.white.withValues(alpha: 0.4),
         ),
       ),
     );
@@ -305,12 +306,12 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
               width: 280,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
+                color: Colors.white.withValues(alpha: 0.03),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 40,
                     spreadRadius: -10,
                   ),
@@ -365,7 +366,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.violet.withOpacity(0.3),
+                                color: AppColors.violet.withValues(alpha: 0.3),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -389,8 +390,9 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                                         )
                                         .state =
                                     _tempFilter;
-                                if (mounted)
+                                if (mounted) {
                                   setState(() => _isFiltering = false);
+                                }
                               },
                               borderRadius: BorderRadius.circular(10),
                               child: Center(
@@ -409,7 +411,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                                         color: Colors.white,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.0,
+                                        letterSpacing: 1,
                                       ),
                                     ),
                                   ],
@@ -436,7 +438,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
       offset: const Offset(0, 40),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       color: const Color(0xFF2A2A35),
       elevation: 24,
@@ -465,7 +467,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 color: isSelected
                     ? Colors.white
-                    : Colors.white.withOpacity(0.8),
+                    : Colors.white.withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -477,7 +479,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         decoration: BoxDecoration(
           color: Colors.black26,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -508,16 +510,16 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
             child: CircularProgressIndicator(
               strokeWidth: 3,
               valueColor: AlwaysStoppedAnimation<Color>(
-                AppColors.violet.withOpacity(0.5),
+                AppColors.violet.withValues(alpha: 0.5),
               ),
-              backgroundColor: Colors.white.withOpacity(0.05),
+              backgroundColor: Colors.white.withValues(alpha: 0.05),
             ),
           ),
           const SizedBox(height: 16),
           Text(
             'Filtering history...',
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               fontSize: 13,
             ),
           ),
@@ -557,7 +559,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                             child: Text(
                               _formatDate(entry.createdAt),
                               style: GoogleFonts.manrope(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.2,
@@ -576,7 +578,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
           decoration: BoxDecoration(
             color: Colors.black26,
             border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.05)),
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
             ),
           ),
           child: Row(
@@ -622,7 +624,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                 ? Icons.filter_list_off_rounded
                 : Icons.history_rounded,
             size: 48,
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
           ),
           const SizedBox(height: 16),
           Text(
@@ -630,7 +632,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                 ? 'No downloads matching the filter'
                 : 'No download history yet',
             style: GoogleFonts.manrope(
-              color: AppColors.textMuted.withOpacity(0.5),
+              color: AppColors.textMuted.withValues(alpha: 0.5),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -719,7 +721,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Material(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             child: Center(child: child),
           ),
         ),
@@ -742,12 +744,12 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: color.withOpacity(0.1),
+        backgroundColor: color.withValues(alpha: 0.1),
         foregroundColor: color,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: color.withOpacity(0.2)),
+          side: BorderSide(color: color.withValues(alpha: 0.2)),
         ),
         elevation: 0,
       ),
@@ -766,7 +768,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     final isError = entry.statusName.toLowerCase() == 'error';
     final isCancelled = entry.statusName.toLowerCase() == 'cancelled';
 
-    int itemCount = 0;
+    var itemCount = 0;
     for (final log in entry.logs) {
       if (log.startsWith('/') || log.startsWith(r'C:\')) {
         final ext = p.extension(log).toLowerCase();
@@ -776,41 +778,37 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
       }
     }
 
-    Color statusColor = Colors.white54;
-    if (isSuccess)
+    var statusColor = Colors.white54;
+    if (isSuccess) {
       statusColor = Colors.greenAccent;
-    else if (isError)
+    } else if (isError)
       statusColor = Colors.redAccent;
     else if (isCancelled)
       statusColor = Colors.orangeAccent;
 
-    IconData typeIcon = Icons.file_download_rounded;
-    Color typeColor = Colors.white54;
+    var typeIcon = Icons.file_download_rounded;
+    var typeColor = Colors.white54;
 
     switch (entry.downloadType) {
       case 'video':
         typeIcon = Icons.videocam_rounded;
         typeColor = Colors.blueAccent;
-        break;
       case 'image':
         typeIcon = Icons.image_rounded;
         typeColor = Colors.pinkAccent;
-        break;
       case 'playlist':
         typeIcon = Icons.queue_music_rounded;
         typeColor = Colors.orangeAccent;
-        break;
       case 'profile':
         typeIcon = Icons.person_outline_rounded;
         typeColor = Colors.purpleAccent;
-        break;
     }
 
     if (isError) typeColor = Colors.redAccent;
     if (isCancelled) typeColor = Colors.orangeAccent;
 
     // Subtitle logic
-    String subtitle = 'in ${p.basename(entry.destination)}';
+    final subtitle = 'in ${p.basename(entry.destination)}';
 
     // We try to find the size from the current file on disk if it is a single file.
     // If it's a directory, this provides the folder name.
@@ -876,13 +874,13 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.violet.withOpacity(0.15)
-              : statusColor.withOpacity(0.02),
+              ? AppColors.violet.withValues(alpha: 0.15)
+              : statusColor.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? AppColors.violet.withOpacity(0.4)
-                : statusColor.withOpacity(0.05),
+                ? AppColors.violet.withValues(alpha: 0.4)
+                : statusColor.withValues(alpha: 0.05),
           ),
         ),
         child: Row(
@@ -890,13 +888,13 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(isSelected ? 0.3 : 0.05),
+                color: typeColor.withValues(alpha: isSelected ? 0.3 : 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 typeIcon,
                 size: 16,
-                color: isSelected ? Colors.white : typeColor.withOpacity(0.8),
+                color: isSelected ? Colors.white : typeColor.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(width: 12),
@@ -910,7 +908,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                         child: Text(
                           entry.title,
                           style: GoogleFonts.outfit(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -928,17 +926,17 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.05),
+                              color: Colors.white.withValues(alpha: 0.05),
                               width: 0.5,
                             ),
                           ),
                           child: Text(
                             '$itemCount ITEM${itemCount > 1 ? 'S' : ''}',
                             style: GoogleFonts.manrope(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 8,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.5,
@@ -952,17 +950,17 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: statusColor.withOpacity(0.1),
+                            color: statusColor.withValues(alpha: 0.1),
                             width: 0.5,
                           ),
                         ),
                         child: Text(
                           entry.statusName.toUpperCase(),
                           style: GoogleFonts.manrope(
-                            color: statusColor.withOpacity(0.8),
+                            color: statusColor.withValues(alpha: 0.8),
                             fontSize: 8,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.5,
@@ -978,7 +976,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                         child: Text(
                           subtitle,
                           style: GoogleFonts.manrope(
-                            color: AppColors.textMuted.withOpacity(0.5),
+                            color: AppColors.textMuted.withValues(alpha: 0.5),
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -999,7 +997,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                 Text(
                   _formatTime(entry.createdAt),
                   style: GoogleFonts.firaCode(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     fontSize: 10,
                   ),
                 ),
@@ -1007,7 +1005,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 14,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ],
             ),
@@ -1034,13 +1032,13 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
 }
 
 class _ClearHistoryDialog extends ConsumerStatefulWidget {
-  final VoidCallback onCancel;
-  final void Function(DownloadHistoryFilter?) onConfirm;
 
   const _ClearHistoryDialog({
     required this.onCancel,
     required this.onConfirm,
   });
+  final VoidCallback onCancel;
+  final void Function(DownloadHistoryFilter?) onConfirm;
 
   @override
   ConsumerState<_ClearHistoryDialog> createState() =>
@@ -1061,10 +1059,10 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
       decoration: BoxDecoration(
         color: const Color(0xFF16161E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 40,
             spreadRadius: -10,
           ),
@@ -1134,7 +1132,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
               offset: const Offset(0, 40),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               ),
               color: const Color(0xFF2A2A35),
               elevation: 24,
@@ -1171,7 +1169,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                               : FontWeight.w600,
                           color: isSelected
                               ? Colors.white
-                              : Colors.white.withOpacity(0.8),
+                              : Colors.white.withValues(alpha: 0.8),
                         ),
                       ),
                     ),
@@ -1184,7 +1182,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                 decoration: BoxDecoration(
                   color: Colors.black26,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1228,7 +1226,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                   onPressed: () =>
                       widget.onConfirm(_customOps ? _filter : null),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withOpacity(0.8),
+                    backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -1250,11 +1248,6 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
 }
 
 class _DeleteConfirmDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String confirmLabel;
-  final VoidCallback onConfirm;
-  final VoidCallback onCancel;
 
   const _DeleteConfirmDialog({
     required this.title,
@@ -1263,6 +1256,11 @@ class _DeleteConfirmDialog extends StatelessWidget {
     required this.onConfirm,
     required this.onCancel,
   });
+  final String title;
+  final String message;
+  final String confirmLabel;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -1272,10 +1270,10 @@ class _DeleteConfirmDialog extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF16161E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 40,
             spreadRadius: -10,
           ),
@@ -1321,7 +1319,7 @@ class _DeleteConfirmDialog extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onConfirm,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withOpacity(0.8),
+                    backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -1343,15 +1341,15 @@ class _DeleteConfirmDialog extends StatelessWidget {
 }
 
 class _SimpleCalendar extends StatefulWidget {
-  final Set<DateTime> selectedDates;
-  final Set<DateTime> availableDates;
-  final ValueChanged<Set<DateTime>> onDatesChanged;
 
   const _SimpleCalendar({
     required this.selectedDates,
     required this.availableDates,
     required this.onDatesChanged,
   });
+  final Set<DateTime> selectedDates;
+  final Set<DateTime> availableDates;
+  final ValueChanged<Set<DateTime>> onDatesChanged;
 
   @override
   State<_SimpleCalendar> createState() => _SimpleCalendarState();
@@ -1375,7 +1373,7 @@ class _SimpleCalendarState extends State<_SimpleCalendar> {
 
   @override
   Widget build(BuildContext context) {
-    final firstDayOfMonth = DateTime(_viewDate.year, _viewDate.month, 1);
+    final firstDayOfMonth = DateTime(_viewDate.year, _viewDate.month);
     final lastDayOfMonth = DateTime(_viewDate.year, _viewDate.month + 1, 0);
     final firstWeekday = firstDayOfMonth.weekday % 7;
 

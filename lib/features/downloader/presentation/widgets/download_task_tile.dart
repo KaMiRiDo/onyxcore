@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 
 class DownloadTaskTile extends ConsumerStatefulWidget {
-  final DownloadTask task;
 
-  const DownloadTaskTile({super.key, required this.task});
+  const DownloadTaskTile({required this.task, super.key});
+  final DownloadTask task;
 
   @override
   ConsumerState<DownloadTaskTile> createState() => _DownloadTaskTileState();
@@ -22,7 +22,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
     final separator = TextSpan(
       text: '  •  ',
       style: GoogleFonts.manrope(
-        color: AppColors.textMuted.withOpacity(0.4),
+        color: AppColors.textMuted.withValues(alpha: 0.4),
         fontSize: 11,
       ),
     );
@@ -115,9 +115,9 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -160,7 +160,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                             child: Text(
                               'To: ${task.destination}',
                               style: GoogleFonts.manrope(
-                                color: AppColors.textMuted.withOpacity(0.7),
+                                color: AppColors.textMuted.withValues(alpha: 0.7),
                                 fontSize: 11,
                               ),
                               maxLines: 1,
@@ -203,7 +203,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                           child: Icon(
                             Icons.close_rounded,
                             size: 16,
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withValues(alpha: 0.4),
                           ),
                         ),
                       )
@@ -216,7 +216,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.orange.withOpacity(0.6),
+                              Colors.orange.withValues(alpha: 0.6),
                             ),
                           ),
                         ),
@@ -234,7 +234,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                           child: Icon(
                             Icons.delete_outline_rounded,
                             size: 16,
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withValues(alpha: 0.4),
                           ),
                         ),
                       ),
@@ -256,11 +256,11 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                           height: 4,
                           child: task.status == DownloadStatus.cancelling
                               ? LinearProgressIndicator(
-                                  backgroundColor: Colors.white.withOpacity(
-                                    0.06,
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.06,
                                   ),
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.orange.withOpacity(0.6),
+                                    Colors.orange.withValues(alpha: 0.6),
                                   ),
                                 )
                               : TweenAnimationBuilder<double>(
@@ -270,7 +270,6 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                         : task.progress,
                                   ),
                                   duration: const Duration(milliseconds: 500),
-                                  curve: Curves.linear,
                                   builder: (context, animatedProgress, _) {
                                     return LinearProgressIndicator(
                                       value:
@@ -280,13 +279,13 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                                   DownloadStatus.running
                                           ? null
                                           : animatedProgress,
-                                      backgroundColor: Colors.white.withOpacity(
-                                        0.06,
+                                      backgroundColor: Colors.white.withValues(
+                                        alpha: 0.06,
                                       ),
                                       valueColor: AlwaysStoppedAnimation<Color>(
                                         task.status == DownloadStatus.pending
-                                            ? Colors.white.withOpacity(0.1)
-                                            : AppColors.violet.withOpacity(0.8),
+                                            ? Colors.white.withValues(alpha: 0.1)
+                                            : AppColors.violet.withValues(alpha: 0.8),
                                       ),
                                     );
                                   },
@@ -314,8 +313,8 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                   : '${(task.progress * 100).toStringAsFixed(1)}%',
                               style: GoogleFonts.manrope(
                                 color: task.status == DownloadStatus.cancelling
-                                    ? Colors.orange.withOpacity(0.7)
-                                    : AppColors.textMuted.withOpacity(0.6),
+                                    ? Colors.orange.withValues(alpha: 0.7)
+                                    : AppColors.textMuted.withValues(alpha: 0.6),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -337,7 +336,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                             textAlign: TextAlign.right,
                             text: TextSpan(
                               style: GoogleFonts.manrope(
-                                color: AppColors.textMuted.withOpacity(0.8),
+                                color: AppColors.textMuted.withValues(alpha: 0.8),
                                 fontSize: 11,
                               ),
                               children: _buildStatsSpans(task),
@@ -356,7 +355,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                   child: Text(
                     task.error!,
                     style: GoogleFonts.manrope(
-                      color: AppColors.error.withOpacity(0.8),
+                      color: AppColors.error.withValues(alpha: 0.8),
                       fontSize: 12,
                     ),
                     maxLines: 2,
@@ -377,7 +376,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
 
   Widget _buildCancelConfirmation() {
     return Material(
-      color: Colors.black.withOpacity(0.8),
+      color: Colors.black.withValues(alpha: 0.8),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -396,14 +395,14 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
               children: [
                 _confirmButton(
                   'No',
-                  Colors.white.withOpacity(0.1),
+                  Colors.white.withValues(alpha: 0.1),
                   Colors.white,
                   () => setState(() => _showCancelConfirm = false),
                 ),
                 const SizedBox(width: 12),
                 _confirmButton(
                   'Yes, Cancel',
-                  AppColors.error.withOpacity(0.2),
+                  AppColors.error.withValues(alpha: 0.2),
                   AppColors.error,
                   () {
                     ref
@@ -434,7 +433,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: textColor.withOpacity(0.2)),
+          border: Border.all(color: textColor.withValues(alpha: 0.2)),
         ),
         child: Text(
           label,
@@ -455,35 +454,29 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
 
     switch (status) {
       case DownloadStatus.running:
-        bgColor = AppColors.violet.withOpacity(0.15);
+        bgColor = AppColors.violet.withValues(alpha: 0.15);
         textColor = AppColors.violet;
         label = 'Running';
-        break;
       case DownloadStatus.pending:
-        bgColor = Colors.amber.withOpacity(0.1);
+        bgColor = Colors.amber.withValues(alpha: 0.1);
         textColor = Colors.amber;
         label = 'Pending';
-        break;
       case DownloadStatus.completed:
-        bgColor = AppColors.success.withOpacity(0.1);
+        bgColor = AppColors.success.withValues(alpha: 0.1);
         textColor = AppColors.success;
         label = 'Completed';
-        break;
       case DownloadStatus.error:
-        bgColor = AppColors.error.withOpacity(0.1);
+        bgColor = AppColors.error.withValues(alpha: 0.1);
         textColor = AppColors.error;
         label = 'Error';
-        break;
       case DownloadStatus.cancelled:
-        bgColor = Colors.orange.withOpacity(0.1);
+        bgColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         label = 'Cancelled';
-        break;
       case DownloadStatus.cancelling:
-        bgColor = Colors.orange.withOpacity(0.15);
+        bgColor = Colors.orange.withValues(alpha: 0.15);
         textColor = Colors.orange;
         label = 'Cancelling';
-        break;
     }
 
     return Container(

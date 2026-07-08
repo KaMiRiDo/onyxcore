@@ -1,25 +1,33 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
-import 'package:onyxcore/core/utils/media_uri_helper.dart';
 
 class DownloadsSharedController extends ChangeNotifier {
-  final Ref ref;
 
   DownloadsSharedController(this.ref);
+  final Ref ref;
 
   final Set<String> backgroundLoadingProfiles = {};
   final Map<String, List<int>> activeHydrationPids = {};
   final ValueNotifier<int> hydrationNotifier = ValueNotifier<int>(0);
+
+  bool _isDisposed = false;
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   String selectedEngine = 'auto';
 
@@ -40,25 +48,25 @@ class DownloadsSharedController extends ChangeNotifier {
 
     final parsedItems = cache.parsedItems;
     if (parsedItems == null) {
-      notifyListeners();
+      if (!_isDisposed) notifyListeners();
       return;
     }
 
-    for (int i = 0; i < parsedItems.length; i++) {
-      var itemGrp = parsedItems[i];
+    for (var i = 0; i < parsedItems.length; i++) {
+      final itemGrp = parsedItems[i];
       final config = cache.configs[i];
 
-      int groupSize = 0;
+      var groupSize = 0;
       if (config != null) {
         groupSize = _getGroupBytes(itemGrp, config);
       } else {
         groupSize = itemGrp.totalFilesize;
       }
 
-      int groupVideos = 0;
-      int groupImages = 0;
+      var groupVideos = 0;
+      var groupImages = 0;
 
-      for (var item in itemGrp.items) {
+      for (final item in itemGrp.items) {
         if (item.isError) continue;
 
         if (config?.groupFilter == GroupDownloadType.images && item.isVideo) continue;
@@ -79,7 +87,7 @@ class DownloadsSharedController extends ChangeNotifier {
       totalListVideos += groupVideos;
       totalListImages += groupImages;
     }
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
   int _getGroupBytes(MediaGroup group, DownloadConfig config) {
@@ -108,7 +116,7 @@ class DownloadsSharedController extends ChangeNotifier {
     final urls = text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
     if (urls.isEmpty) return;
 
-    if (cache.parsedItems == null) cache.parsedItems = [];
+    cache.parsedItems ??= [];
 
     for (final url in urls) {
       final isDuplicate = cache.parsedItems!.any((existing) => existing.originalUrl == url);
@@ -122,8 +130,6 @@ class DownloadsSharedController extends ChangeNotifier {
         cache.parsedItems!.add(MediaGroup(originalUrl: url, items: [placeholderInfo]));
         backgroundLoadingProfiles.add(url);
         cache.configs[cache.parsedItems!.length - 1] = DownloadConfig(
-           mode: DownloadMode.normal,
-           groupFilter: GroupDownloadType.all,
            engine: selectedEngine,
         );
       }
@@ -131,7 +137,7 @@ class DownloadsSharedController extends ChangeNotifier {
     cache.isListChanged = true;
     cache.notify();
     recalculateFilteredStatistics();
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
 
     final browser = ref.read(settingsProvider).value?.downloadBrowser;
     
@@ -142,7 +148,7 @@ class DownloadsSharedController extends ChangeNotifier {
         browser: browser,
         onProcessStarted: (pid) {
           activeHydrationPids.putIfAbsent(url, () => []).add(pid);
-          notifyListeners();
+          if (!_isDisposed) notifyListeners();
         },
       ).then((items) {
         backgroundLoadingProfiles.remove(url);
@@ -170,18 +176,18 @@ class DownloadsSharedController extends ChangeNotifier {
             recalculateFilteredStatistics();
           }
         }
-        notifyListeners();
+        if (!_isDisposed) notifyListeners();
       }).catchError((e) {
         backgroundLoadingProfiles.remove(url);
         activeHydrationPids.remove(url);
-        notifyListeners();
+        if (!_isDisposed) notifyListeners();
       });
     }
   }
 
   Future<void> hydrateProfile(String url) async {
     backgroundLoadingProfiles.add(url);
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
 
     try {
       final browser = ref.read(settingsProvider).value?.downloadBrowser;
@@ -195,7 +201,7 @@ class DownloadsSharedController extends ChangeNotifier {
         isPlaylist: isPlaylist,
         onProcessStarted: (int pid) {
           activeHydrationPids.putIfAbsent(url, () => []).add(pid);
-          notifyListeners();
+          if (!_isDisposed) notifyListeners();
         },
         onProgress: (MediaInfo info) {
           if (cache.parsedItems != null) {
@@ -256,8 +262,8 @@ class DownloadsSharedController extends ChangeNotifier {
 
           group.items.clear();
           if (playlistInfo != null) {
-            final String? errorMsg = items.isNotEmpty ? items.first.errorMessage : null;
-            final String? fetchLogs = items.isNotEmpty ? items.first.fetchLogs : null;
+            final errorMsg = items.isNotEmpty ? items.first.errorMessage : null;
+            final fetchLogs = items.isNotEmpty ? items.first.fetchLogs : null;
             if (errorMsg != null || fetchLogs != null) {
               group.items.add(playlistInfo.copyWith(errorMessage: errorMsg, fetchLogs: fetchLogs));
             } else {
@@ -304,10 +310,10 @@ class DownloadsSharedController extends ChangeNotifier {
       }
 
       ref.read(downloadTaskProvider.notifier).onHydrationFinished(url, items);
-      notifyListeners();
+      if (!_isDisposed) notifyListeners();
     } catch (e) {
       backgroundLoadingProfiles.remove(url);
-      notifyListeners();
+      if (!_isDisposed) notifyListeners();
     }
   }
 
@@ -348,16 +354,15 @@ class DownloadsSharedController extends ChangeNotifier {
           
           cache.parsedItems = importedItems;
           cache.configs.clear();
-          for (int i = 0; i < importedItems.length; i++) {
+          for (var i = 0; i < importedItems.length; i++) {
             cache.configs[i] = DownloadConfig(
-              mode: DownloadMode.normal,
-              groupFilter: GroupDownloadType.all,
+              
             );
           }
           
           recalculateFilteredStatistics();
           hydrationNotifier.value++;
-          notifyListeners();
+          if (!_isDisposed) notifyListeners();
         } catch (e) {
           debugPrint('Error parsing JSON: $e');
           await analyzeUrls(contents);

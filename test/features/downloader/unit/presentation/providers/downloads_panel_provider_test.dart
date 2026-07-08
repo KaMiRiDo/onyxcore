@@ -141,6 +141,173 @@ void main() {
         expect(cache.importedListPath, isNull);
         expect(cache.isListChanged, isFalse);
       });
+
+      test('U-DL-PNL-14: switchList changes active state bucket', () {
+        final cache = DownloadsListCache();
+        cache.switchList('/a');
+        cache.importedListName = 'List A';
+        
+        cache.switchList('/b');
+        expect(cache.importedListName, isNull); // Bucket B is empty
+      });
+
+      test('U-DL-PNL-15: Lists are fully isolated from each other', () {
+        final cache = DownloadsListCache();
+        cache.switchList('/a');
+        cache.parsedItems = [];
+        
+        cache.switchList('/b');
+        expect(cache.parsedItems, isNull);
+        
+        cache.switchList('/a');
+        expect(cache.parsedItems, isNotNull);
+      });
+
+      test('U-DL-PNL-16: switchList with null defaults to default', () {
+        final cache = DownloadsListCache();
+        cache.switchList('default');
+        cache.importedListName = 'Default';
+        
+        cache.switchList(null);
+        expect(cache.importedListName, 'Default');
+      });
+
+      test('U-DL-PNL-17: switchList triggers notifyListeners', () {
+        final cache = DownloadsListCache();
+        int notifyCount = 0;
+        cache.addListener(() => notifyCount++);
+        
+        cache.switchList('/new');
+        expect(notifyCount, 1);
+      });
+
+      test('U-DL-PNL-18: hasCache returns false for a path never touched', () {
+        final cache = DownloadsListCache();
+        expect(cache.hasCache('/untouched'), isFalse);
+      });
+
+      test('U-DL-PNL-19: hasCache returns true after any state is set for that path', () {
+        final cache = DownloadsListCache();
+        cache.switchList('/touched');
+        cache.parsedItems = [];
+        expect(cache.hasCache('/touched'), isTrue);
+      });
+
+      test('U-DL-PNL-20: isCacheChanged returns false for untouched path', () {
+        final cache = DownloadsListCache();
+        expect(cache.isCacheChanged('/untouched'), isFalse);
+      });
+
+      test('U-DL-PNL-21: isCacheChanged returns correct per-path changed flag', () {
+        final cache = DownloadsListCache();
+        cache.switchList('/a');
+        cache.isListChanged = true;
+        cache.switchList('/b');
+        cache.isListChanged = false;
+        
+        expect(cache.isCacheChanged('/a'), isTrue);
+        expect(cache.isCacheChanged('/b'), isFalse);
+      });
+
+      test('U-DL-PNL-22: invalidateCache removes a list state', () {
+        final cache = DownloadsListCache();
+        cache.switchList('/a');
+        cache.parsedItems = [];
+        cache.invalidateCache('/a');
+        expect(cache.hasCache('/a'), isFalse);
+      });
+
+      test('U-DL-PNL-23: invalidateCache on active path resets active to default', () {
+        final cache = DownloadsListCache();
+        cache.switchList('default');
+        cache.importedListName = 'Default';
+        
+        cache.switchList('/a');
+        cache.invalidateCache('/a');
+        
+        expect(cache.importedListName, 'Default');
+      });
+
+      test('U-DL-PNL-24: invalidateCache triggers notifyListeners only when active', () {
+        final cache = DownloadsListCache();
+        cache.switchList('default');
+        cache.switchList('/a');
+        cache.switchList('default');
+        
+        int notifyCount = 0;
+        cache.addListener(() => notifyCount++);
+        
+        cache.invalidateCache('/a'); // not active, shouldn't notify
+        expect(notifyCount, 0);
+        
+        cache.switchList('/b');
+        notifyCount = 0;
+        cache.invalidateCache('/b'); // active, should notify
+        expect(notifyCount, 1);
+      });
+
+      test('U-DL-PNL-25: Invalidating a non-active path does not affect active state', () {
+        final cache = DownloadsListCache();
+        cache.switchList('/a');
+        cache.importedListName = 'A';
+        cache.switchList('/b');
+        cache.importedListName = 'B';
+        
+        cache.invalidateCache('/a');
+        expect(cache.importedListName, 'B');
+      });
+
+      test('U-DL-PNL-26: notify() triggers ChangeNotifier listeners', () {
+        final cache = DownloadsListCache();
+        int notifyCount = 0;
+        cache.addListener(() => notifyCount++);
+        
+        cache.notify();
+        expect(notifyCount, 1);
+      });
+
+      test('U-DL-PNL-27: clear() resets only active list, other lists preserved', () {
+        final cache = DownloadsListCache();
+        cache.switchList('/a');
+        cache.importedListName = 'A';
+        cache.switchList('/b');
+        cache.importedListName = 'B';
+        
+        cache.clear(); // clears B
+        
+        cache.switchList('/a');
+        expect(cache.importedListName, 'A');
+      });
+
+      test('U-DL-PNL-28: configs getter always reflects active list config map', () {
+        final cache = DownloadsListCache();
+        cache.switchList('/a');
+        cache.configs[0] = DownloadConfig();
+        
+        cache.switchList('/b');
+        expect(cache.configs, isEmpty);
+        
+        cache.switchList('/a');
+        expect(cache.configs, isNotEmpty);
+      });
+
+      test('U-DL-PNL-29: Setting parsedItems, importedListName, importedListPath, isListChanged triggers notifyListeners', () {
+        final cache = DownloadsListCache();
+        int notifyCount = 0;
+        cache.addListener(() => notifyCount++);
+        
+        cache.parsedItems = [];
+        expect(notifyCount, 1);
+        
+        cache.importedListName = 'Test';
+        expect(notifyCount, 2);
+        
+        cache.importedListPath = '/test';
+        expect(notifyCount, 3);
+        
+        cache.isListChanged = true;
+        expect(notifyCount, 4);
+      });
     });
   });
 }

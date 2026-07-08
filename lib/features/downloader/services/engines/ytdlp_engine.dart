@@ -1,15 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/browser_detector.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
-import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:path/path.dart' as p;
-import 'dart:async';
 
 /// Concrete [DownloadEngine] implementation for yt-dlp.
 ///
@@ -47,7 +47,7 @@ class YtDlpEngine extends DownloadEngine {
 
   @override
   List<RegExp> get urlPatterns => [
-    RegExp(r'.*'), // Fallback — matches everything
+    RegExp('.*'), // Fallback — matches everything
   ];
 
   @override
@@ -129,7 +129,7 @@ class YtDlpEngine extends DownloadEngine {
   }) async {
     final args = <String>[];
 
-    String? actualBrowser = browser;
+    var actualBrowser = browser;
     if (actualBrowser == null) {
       final defaultBrowser = await BrowserDetector.getDefaultBrowser();
       if (defaultBrowser != null) actualBrowser = defaultBrowser;
@@ -240,13 +240,13 @@ class YtDlpEngine extends DownloadEngine {
           json as Map<String, dynamic>,
           originalUrl: url,
         );
-        info = await _probeSize(json as Map<String, dynamic>, info);
+        info = await _probeSize(json, info);
         parsedInfos.add(info);
         hydrationLogsBuffer.writeln(
           'Successfully fetched metadata for: "${info.title}"\n',
         );
 
-        String currentLogs = hydrationLogsBuffer.toString();
+        var currentLogs = hydrationLogsBuffer.toString();
         if (stderrBuffer.isNotEmpty) {
           final formattedErrors = stderrBuffer
               .toString()
@@ -273,13 +273,13 @@ class YtDlpEngine extends DownloadEngine {
                 json as Map<String, dynamic>,
                 originalUrl: url,
               );
-              info = await _probeSize(json as Map<String, dynamic>, info);
+              info = await _probeSize(json, info);
               parsedInfos.add(info);
               hydrationLogsBuffer.writeln(
                 'Successfully fetched metadata for: "${info.title}"\n',
               );
 
-              String currentLogs = hydrationLogsBuffer.toString();
+              var currentLogs = hydrationLogsBuffer.toString();
               if (stderrBuffer.isNotEmpty) {
                 final formattedErrors = stderrBuffer
                     .toString()
@@ -326,7 +326,7 @@ class YtDlpEngine extends DownloadEngine {
           : const Duration(minutes: 3);
       await processOutput().timeout(timeoutDuration);
 
-      String combinedLogs = hydrationLogsBuffer.toString();
+      var combinedLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
         final formattedErrors = stderrBuffer
             .toString()
@@ -347,7 +347,7 @@ class YtDlpEngine extends DownloadEngine {
         '!!! Hydration timed out after 10 minutes !!!',
       );
 
-      String combinedLogs = hydrationLogsBuffer.toString();
+      var combinedLogs = hydrationLogsBuffer.toString();
       if (stderrBuffer.isNotEmpty) {
         final formattedErrors = stderrBuffer
             .toString()
@@ -433,7 +433,7 @@ class YtDlpEngine extends DownloadEngine {
       'no-external-downloader-progress',
     ];
 
-    String? actualBrowser = browser;
+    var actualBrowser = browser;
     if (actualBrowser == null) {
       final defaultBrowser = await BrowserDetector.getDefaultBrowser();
       if (defaultBrowser != null) actualBrowser = defaultBrowser;
@@ -450,8 +450,8 @@ class YtDlpEngine extends DownloadEngine {
       args.addAll(['--sleep-interval', '3', '--max-sleep-interval', '5']);
     }
 
-    String downloadTarget = url;
-    final fallbackDirectUrl = (format?.url?.isNotEmpty == true)
+    var downloadTarget = url;
+    final fallbackDirectUrl = (format?.url?.isNotEmpty ?? false)
         ? format!.url!
         : directUrl;
 

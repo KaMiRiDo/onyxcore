@@ -68,8 +68,7 @@ class _DownloadHistoryDetailViewState
     String entryId,
   ) {
 
-    final isSuccess = entry.statusName.toLowerCase() == 'completed';
-    final isError = entry.statusName.toLowerCase() == 'error';
+
 
 
 
@@ -94,7 +93,7 @@ class _DownloadHistoryDetailViewState
                   child: Icon(
                     Icons.arrow_back_rounded,
                     size: 18,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
               ),
@@ -113,7 +112,7 @@ class _DownloadHistoryDetailViewState
                 icon: Icon(
                   Icons.delete_outline_rounded,
                   size: 20,
-                  color: AppColors.error.withOpacity(0.7),
+                  color: AppColors.error.withValues(alpha: 0.7),
                 ),
                 tooltip: 'Delete History',
                 onPressed: () {
@@ -142,7 +141,7 @@ class _DownloadHistoryDetailViewState
                     child: Icon(
                       Icons.close_rounded,
                       size: 18,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
@@ -162,9 +161,9 @@ class _DownloadHistoryDetailViewState
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.03),
+                    color: Colors.white.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,7 +173,7 @@ class _DownloadHistoryDetailViewState
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppColors.violet.withOpacity(0.1),
+                              color: AppColors.violet.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
@@ -204,10 +203,10 @@ class _DownloadHistoryDetailViewState
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.error.withOpacity(0.1),
+                            color: AppColors.error.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: AppColors.error.withOpacity(0.2),
+                              color: AppColors.error.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Row(
@@ -242,7 +241,7 @@ class _DownloadHistoryDetailViewState
                 Text(
                   'FLOW',
                   style: GoogleFonts.manrope(
-                    color: AppColors.textMuted.withOpacity(0.4),
+                    color: AppColors.textMuted.withValues(alpha: 0.4),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
@@ -252,7 +251,7 @@ class _DownloadHistoryDetailViewState
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.02),
+                    color: Colors.white.withValues(alpha: 0.02),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -288,7 +287,7 @@ class _DownloadHistoryDetailViewState
                         child: Icon(
                           Icons.south_rounded,
                           size: 14,
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
                       ),
                       _buildPathItem(
@@ -318,9 +317,9 @@ class _DownloadHistoryDetailViewState
                 ),
                 // Processed Items and Stats
                 ...(() {
-                  int size = 0;
-                  int itemCount = 0;
-                  List<String> processedFilePaths = [];
+                  var size = 0;
+                  var itemCount = 0;
+                  final processedFilePaths = <String>[];
 
                   // Parse logs to find downloaded files
                   for (final log in entry.logs) {
@@ -367,7 +366,7 @@ class _DownloadHistoryDetailViewState
                       Text(
                         'PROCESSED ITEMS',
                         style: GoogleFonts.manrope(
-                          color: AppColors.textMuted.withOpacity(0.4),
+                          color: AppColors.textMuted.withValues(alpha: 0.4),
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.5,
@@ -377,10 +376,10 @@ class _DownloadHistoryDetailViewState
                       Container(
                         height: 200,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.02),
+                          color: Colors.white.withValues(alpha: 0.02),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.04),
+                            color: Colors.white.withValues(alpha: 0.04),
                           ),
                         ),
                         child: ListView.builder(
@@ -415,7 +414,7 @@ class _DownloadHistoryDetailViewState
                                   decoration: BoxDecoration(
                                     border: Border(
                                       bottom: BorderSide(
-                                        color: Colors.white.withOpacity(0.04),
+                                        color: Colors.white.withValues(alpha: 0.04),
                                         width: 0.5,
                                       ),
                                     ),
@@ -426,7 +425,7 @@ class _DownloadHistoryDetailViewState
                                         Icons.insert_drive_file_rounded,
                                         size: 16,
                                         color: exists
-                                            ? AppColors.violet.withOpacity(0.6)
+                                            ? AppColors.violet.withValues(alpha: 0.6)
                                             : Colors.white24,
                                       ),
                                       const SizedBox(width: 12),
@@ -435,7 +434,7 @@ class _DownloadHistoryDetailViewState
                                           p.basename(path),
                                           style: GoogleFonts.manrope(
                                             color: exists
-                                                ? Colors.white.withOpacity(0.8)
+                                                ? Colors.white.withValues(alpha: 0.8)
                                                 : Colors.white54,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,
@@ -443,8 +442,8 @@ class _DownloadHistoryDetailViewState
                                                 ? TextDecoration.underline
                                                 : TextDecoration.lineThrough,
                                             decorationColor: exists
-                                                ? AppColors.violet.withOpacity(
-                                                    0.5,
+                                                ? AppColors.violet.withValues(
+                                                    alpha: 0.5,
                                                   )
                                                 : Colors.white24,
                                           ),
@@ -456,8 +455,8 @@ class _DownloadHistoryDetailViewState
                                         Text(
                                           'Deleted',
                                           style: GoogleFonts.manrope(
-                                            color: Colors.redAccent.withOpacity(
-                                              0.5,
+                                            color: Colors.redAccent.withValues(
+                                              alpha: 0.5,
                                             ),
                                             fontSize: 10,
                                             fontWeight: FontWeight.w800,
@@ -478,7 +477,7 @@ class _DownloadHistoryDetailViewState
                     Text(
                       'STATISTICS',
                       style: GoogleFonts.manrope(
-                        color: AppColors.textMuted.withOpacity(0.4),
+                        color: AppColors.textMuted.withValues(alpha: 0.4),
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.5,
@@ -488,10 +487,10 @@ class _DownloadHistoryDetailViewState
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.03),
+                        color: Colors.white.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                         ),
                       ),
                       child: Row(
@@ -544,7 +543,7 @@ class _DownloadHistoryDetailViewState
                 Text(
                   'TIMELINE',
                   style: GoogleFonts.manrope(
-                    color: AppColors.textMuted.withOpacity(0.4),
+                    color: AppColors.textMuted.withValues(alpha: 0.4),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
@@ -564,12 +563,12 @@ class _DownloadHistoryDetailViewState
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.03),
+                        color: Colors.white.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: _logsExpanded
-                              ? AppColors.violet.withOpacity(0.2)
-                              : Colors.white.withOpacity(0.04),
+                              ? AppColors.violet.withValues(alpha: 0.2)
+                              : Colors.white.withValues(alpha: 0.04),
                         ),
                       ),
                       child: Row(
@@ -589,7 +588,7 @@ class _DownloadHistoryDetailViewState
                                 Text(
                                   'Execution Logs',
                                   style: GoogleFonts.outfit(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -597,7 +596,7 @@ class _DownloadHistoryDetailViewState
                                 Text(
                                   '${entry.logs.length} entries recorded',
                                   style: GoogleFonts.manrope(
-                                    color: AppColors.textMuted.withOpacity(0.5),
+                                    color: AppColors.textMuted.withValues(alpha: 0.5),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -609,7 +608,7 @@ class _DownloadHistoryDetailViewState
                             _logsExpanded
                                 ? Icons.keyboard_arrow_up_rounded
                                 : Icons.keyboard_arrow_down_rounded,
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                           ),
                         ],
                       ),
@@ -623,10 +622,10 @@ class _DownloadHistoryDetailViewState
                           height: 250,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.4),
+                            color: Colors.black.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.04),
+                              color: Colors.white.withValues(alpha: 0.04),
                             ),
                           ),
                           child: ListView.builder(
@@ -637,7 +636,7 @@ class _DownloadHistoryDetailViewState
                                 child: Text(
                                   entry.logs[index],
                                   style: GoogleFonts.firaCode(
-                                    color: Colors.white.withOpacity(0.4),
+                                    color: Colors.white.withValues(alpha: 0.4),
                                     fontSize: 10,
                                     height: 1.5,
                                   ),
@@ -667,7 +666,7 @@ class _DownloadHistoryDetailViewState
     final isSuccess = statusName.toLowerCase() == 'completed';
     final isError = statusName.toLowerCase() == 'error';
 
-    Color color = Colors.white54;
+    var color = Colors.white54;
     if (isSuccess) color = Colors.greenAccent;
     if (isError) color = Colors.redAccent;
     if (statusName.toLowerCase() == 'cancelled') color = Colors.orangeAccent;
@@ -675,9 +674,9 @@ class _DownloadHistoryDetailViewState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
         statusName.toUpperCase(),
@@ -695,7 +694,7 @@ class _DownloadHistoryDetailViewState
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: AppColors.violet.withOpacity(0.5)),
+        Icon(icon, size: 14, color: AppColors.violet.withValues(alpha: 0.5)),
         const SizedBox(height: 6),
         Text(
           value,
@@ -710,7 +709,7 @@ class _DownloadHistoryDetailViewState
         Text(
           label.toUpperCase(),
           style: GoogleFonts.manrope(
-            color: AppColors.textMuted.withOpacity(0.4),
+            color: AppColors.textMuted.withValues(alpha: 0.4),
             fontSize: 8,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
@@ -726,7 +725,7 @@ class _DownloadHistoryDetailViewState
       height: 24,
       width: 1,
       margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: Colors.white.withOpacity(0.05),
+      color: Colors.white.withValues(alpha: 0.05),
     );
   }
 
@@ -746,8 +745,8 @@ class _DownloadHistoryDetailViewState
           icon,
           size: 20,
           color: exists
-              ? Colors.white.withOpacity(0.2)
-              : Colors.white.withOpacity(0.05),
+              ? Colors.white.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.05),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -757,7 +756,7 @@ class _DownloadHistoryDetailViewState
               Text(
                 label,
                 style: GoogleFonts.manrope(
-                  color: AppColors.textMuted.withOpacity(0.4),
+                  color: AppColors.textMuted.withValues(alpha: 0.4),
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -768,14 +767,14 @@ class _DownloadHistoryDetailViewState
                   color: exists
                       ? (onTap != null
                             ? AppColors.violet
-                            : Colors.white.withOpacity(0.7))
-                      : Colors.white.withOpacity(0.2),
+                            : Colors.white.withValues(alpha: 0.7))
+                      : Colors.white.withValues(alpha: 0.2),
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   decoration: exists
                       ? (onTap != null ? TextDecoration.underline : null)
                       : TextDecoration.lineThrough,
-                  decorationColor: AppColors.violet.withOpacity(0.5),
+                  decorationColor: AppColors.violet.withValues(alpha: 0.5),
                 ),
               ),
             ],
@@ -788,7 +787,7 @@ class _DownloadHistoryDetailViewState
               size: 16,
               color: isCopied
                   ? Colors.greenAccent
-                  : Colors.white.withOpacity(0.5),
+                  : Colors.white.withValues(alpha: 0.5),
             ),
             onPressed: onCopy,
             tooltip: isCopied ? 'Copied!' : 'Copy URL',
@@ -817,7 +816,7 @@ class _DownloadHistoryDetailViewState
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: AppColors.violet.withOpacity(0.5),
+            color: AppColors.violet.withValues(alpha: 0.5),
             shape: BoxShape.circle,
           ),
         ),
@@ -825,7 +824,7 @@ class _DownloadHistoryDetailViewState
         Text(
           label,
           style: GoogleFonts.manrope(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -834,7 +833,7 @@ class _DownloadHistoryDetailViewState
         Text(
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}:${date.second.toString().padLeft(2, '0')}',
           style: GoogleFonts.firaCode(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 12,
           ),
         ),
@@ -857,7 +856,7 @@ class _DownloadHistoryDetailViewState
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(

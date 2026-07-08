@@ -1,36 +1,15 @@
 class MediaFormat {
-  final String formatId;
-  final String extension;
-  final String resolution;
-  final String? videoCodec;
-  final String? audioCodec;
-  final int? filesize;
-  final String? formatNote;
-  final String formatString;
-  final String? url;
 
   const MediaFormat({
     required this.formatId,
     required this.extension,
     required this.resolution,
-    this.videoCodec,
+    required this.formatString, this.videoCodec,
     this.audioCodec,
     this.filesize,
     this.formatNote,
-    required this.formatString,
     this.url,
   });
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is MediaFormat &&
-        other.formatId == formatId &&
-        other.formatString == formatString;
-  }
-
-  @override
-  int get hashCode => formatId.hashCode ^ formatString.hashCode;
 
   factory MediaFormat.fromJson(Map<String, dynamic> json) {
     return MediaFormat(
@@ -51,6 +30,26 @@ class MediaFormat {
       url: json['url']?.toString(),
     );
   }
+  final String formatId;
+  final String extension;
+  final String resolution;
+  final String? videoCodec;
+  final String? audioCodec;
+  final int? filesize;
+  final String? formatNote;
+  final String formatString;
+  final String? url;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is MediaFormat &&
+        other.formatId == formatId &&
+        other.formatString == formatString;
+  }
+
+  @override
+  int get hashCode => formatId.hashCode ^ formatString.hashCode;
 
   Map<String, dynamic> toJson() {
     return {
@@ -68,33 +67,11 @@ class MediaFormat {
 }
 
 class MediaInfo {
-  final String id;
-  final String title;
-  final String? thumbnail;
-  final int? duration;
-  final String? extractor; // 'youtube', 'gallery-dl', etc.
-  final String? engineId;
-  final List<MediaFormat> formats;
-  final bool isVideo;
-  final bool isPlaylist;
-  final bool isProfile;
-  final int? itemCount;
-  final int? galleryIndex;
-  final int? width;
-  final int? height;
-  final int? filesize;
-  final String originalUrl;
-  final String? directUrl;
-  final String? webpageUrl;
-  final bool isError;
-  final String? errorMessage;
-  final String? fetchLogs;
-  final bool isLive;
 
   const MediaInfo({
     required this.id,
     required this.title,
-    this.thumbnail,
+    required this.originalUrl, this.thumbnail,
     this.duration,
     this.extractor,
     this.engineId,
@@ -107,7 +84,6 @@ class MediaInfo {
     this.width,
     this.height,
     this.filesize,
-    required this.originalUrl,
     this.directUrl,
     this.webpageUrl,
     this.isError = false,
@@ -120,8 +96,8 @@ class MediaInfo {
     Map<String, dynamic> json, {
     String originalUrl = '',
   }) {
-    var formatsJson = json['formats'] as List<dynamic>?;
-    List<MediaFormat> parsedFormats = [];
+    final formatsJson = json['formats'] as List<dynamic>?;
+    var parsedFormats = <MediaFormat>[];
     if (formatsJson != null) {
       parsedFormats = formatsJson
           .map((e) => MediaFormat.fromJson(e as Map<String, dynamic>))
@@ -130,7 +106,7 @@ class MediaInfo {
 
     final type = json['_type']?.toString();
     final isPlaylist = type == 'playlist';
-    final isProfile = false; // Will set in backend based on url/extractor
+    const isProfile = false; // Will set in backend based on url/extractor
 
     int? itemCount;
     if (isPlaylist && json['playlist_count'] != null) {
@@ -139,7 +115,7 @@ class MediaInfo {
       itemCount = (json['entries'] as List).length;
     }
 
-    String parsedTitle = json['title']?.toString() ?? '';
+    var parsedTitle = json['title']?.toString() ?? '';
     if (parsedTitle.isEmpty && originalUrl.isNotEmpty) {
       try {
         final uri = Uri.parse(originalUrl);
@@ -158,7 +134,7 @@ class MediaInfo {
       parsedTitle = isPlaylist ? 'Unknown Playlist' : 'Unknown Title';
     }
 
-    bool isVid = false;
+    var isVid = false;
     if (json['vcodec'] != null) {
       isVid = json['vcodec'] != 'none';
     } else if (formatsJson != null && formatsJson.isNotEmpty) {
@@ -193,7 +169,6 @@ class MediaInfo {
       formats: parsedFormats,
       isVideo: isVid,
       isPlaylist: isPlaylist,
-      isProfile: isProfile,
       itemCount: itemCount,
       galleryIndex: json['galleryIndex'] as int?,
       width: json['width'] as int?,
@@ -203,51 +178,7 @@ class MediaInfo {
           : (json['webpage_url']?.toString() ?? ''),
       directUrl: json['url']?.toString(),
       webpageUrl: json['webpage_url']?.toString(),
-      isError: false,
-      errorMessage: null,
-      fetchLogs: null,
       isLive: json['is_live'] == true,
-    );
-  }
-
-  MediaInfo copyWith({
-    String? id,
-    bool? isProfile,
-    String? thumbnail,
-    String? title,
-    int? galleryIndex,
-    int? filesize,
-    bool? isLive,
-    String? originalUrl,
-    String? directUrl,
-    String? webpageUrl,
-    String? engineId,
-    String? errorMessage,
-    String? fetchLogs,
-    bool? isVideo,
-  }) {
-    return MediaInfo(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      thumbnail: thumbnail ?? this.thumbnail,
-      duration: duration,
-      extractor: extractor,
-      formats: formats,
-      isVideo: isVideo ?? this.isVideo,
-      isPlaylist: isPlaylist,
-      isProfile: isProfile ?? this.isProfile,
-      itemCount: itemCount,
-      galleryIndex: galleryIndex ?? this.galleryIndex,
-      width: width,
-      height: height,
-      filesize: filesize ?? this.filesize,
-      originalUrl: originalUrl ?? this.originalUrl,
-      directUrl: directUrl ?? this.directUrl,
-      webpageUrl: webpageUrl ?? this.webpageUrl,
-      isLive: isLive ?? this.isLive,
-      engineId: engineId ?? this.engineId,
-      errorMessage: errorMessage ?? this.errorMessage,
-      fetchLogs: fetchLogs ?? this.fetchLogs,
     );
   }
 
@@ -281,6 +212,72 @@ class MediaInfo {
       fetchLogs: map['fetchLogs']?.toString(),
     );
   }
+  final String id;
+  final String title;
+  final String? thumbnail;
+  final int? duration;
+  final String? extractor; // 'youtube', 'gallery-dl', etc.
+  final String? engineId;
+  final List<MediaFormat> formats;
+  final bool isVideo;
+  final bool isPlaylist;
+  final bool isProfile;
+  final int? itemCount;
+  final int? galleryIndex;
+  final int? width;
+  final int? height;
+  final int? filesize;
+  final String originalUrl;
+  final String? directUrl;
+  final String? webpageUrl;
+  final bool isError;
+  final String? errorMessage;
+  final String? fetchLogs;
+  final bool isLive;
+
+  MediaInfo copyWith({
+    String? id,
+    bool? isProfile,
+    String? thumbnail,
+    String? title,
+    int? galleryIndex,
+    int? filesize,
+    bool? isLive,
+    String? originalUrl,
+    String? directUrl,
+    String? webpageUrl,
+    String? engineId,
+    String? errorMessage,
+    String? fetchLogs,
+    bool? isVideo,
+    List<MediaFormat>? formats,
+    int? width,
+    int? height,
+  }) {
+    return MediaInfo(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      thumbnail: thumbnail ?? this.thumbnail,
+      duration: duration,
+      extractor: extractor,
+      formats: formats ?? this.formats,
+      isVideo: isVideo ?? this.isVideo,
+      isPlaylist: isPlaylist,
+      isProfile: isProfile ?? this.isProfile,
+      itemCount: itemCount,
+      galleryIndex: galleryIndex ?? this.galleryIndex,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      filesize: filesize ?? this.filesize,
+      originalUrl: originalUrl ?? this.originalUrl,
+      directUrl: directUrl ?? this.directUrl,
+      webpageUrl: webpageUrl ?? this.webpageUrl,
+      isLive: isLive ?? this.isLive,
+      engineId: engineId ?? this.engineId,
+      errorMessage: errorMessage ?? this.errorMessage,
+      fetchLogs: fetchLogs ?? this.fetchLogs,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -311,8 +308,6 @@ class MediaInfo {
 }
 
 class MediaGroup {
-  final String originalUrl;
-  final List<MediaInfo> items;
 
   const MediaGroup({
     required this.originalUrl,
@@ -329,6 +324,8 @@ class MediaGroup {
           [],
     );
   }
+  final String originalUrl;
+  final List<MediaInfo> items;
 
   Map<String, dynamic> toMap() {
     return {
@@ -343,13 +340,13 @@ class MediaGroup {
   int get imageCount => items.where((i) => !i.isVideo).length;
   int get videoCount => items.where((i) => i.isVideo).length;
   int get totalFilesize {
-    int totalVideo = 0;
-    int videoWithSize = 0;
-    int videoWithoutSize = 0;
+    var totalVideo = 0;
+    var videoWithSize = 0;
+    var videoWithoutSize = 0;
 
-    int totalImage = 0;
-    int imageWithSize = 0;
-    int imageWithoutSize = 0;
+    var totalImage = 0;
+    var imageWithSize = 0;
+    var imageWithoutSize = 0;
 
     for (final item in items) {
       final bytes = item.filesize;

@@ -2,31 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
-import '../../services/download_history_database.dart';
-import 'download_task_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+import 'package:onyxcore/features/downloader/services/download_history_database.dart';
 
 class DownloadHistoryEntry {
-  final String id;
-  final String title;
-  final String statusName;
-  final String downloadType;
-  final String? errorMessage;
-  final String url;
-  final String destination;
-  final List<String> logs;
-  final DateTime createdAt;
-  final DateTime? completedAt;
 
   const DownloadHistoryEntry({
     required this.id,
     required this.title,
     required this.statusName,
-    this.downloadType = 'generic',
+    required this.url, required this.destination, required this.createdAt, this.downloadType = 'generic',
     this.errorMessage,
-    required this.url,
-    required this.destination,
     this.logs = const [],
-    required this.createdAt,
     this.completedAt,
   });
 
@@ -63,6 +50,16 @@ class DownloadHistoryEntry {
           : null,
     );
   }
+  final String id;
+  final String title;
+  final String statusName;
+  final String downloadType;
+  final String? errorMessage;
+  final String url;
+  final String destination;
+  final List<String> logs;
+  final DateTime createdAt;
+  final DateTime? completedAt;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -103,7 +100,7 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
 
   Future<void> _loadInitialAsync() async {
     _loadedCount = _pageSize;
-    _currentEntries = await _db.getEntries(limit: _loadedCount, offset: 0);
+    _currentEntries = await _db.getEntries(limit: _loadedCount);
     await _refreshTotal();
     if (_isDisposed) return;
     state = List.from(_currentEntries);
@@ -124,7 +121,7 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
 
   Future<void> loadMore() async {
     if (!hasMore) return;
-    final additional = await _db.getEntries(limit: _pageSize, offset: _loadedCount);
+    final additional = await _db.getEntries(offset: _loadedCount);
     _loadedCount += additional.length;
     _currentEntries.addAll(additional);
     state = List.from(_currentEntries);
@@ -179,7 +176,7 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
   ) {
     if (filter.isEmpty) return true;
 
-    bool dateMatch = true;
+    var dateMatch = true;
     if (filter.selectedDates != null && filter.selectedDates!.isNotEmpty) {
       dateMatch = filter.selectedDates!.any(
         (d) =>
@@ -189,7 +186,7 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
       );
     }
 
-    bool opMatch = true;
+    var opMatch = true;
     if (filter.status != null && filter.status != 'All') {
       opMatch = entry.statusName.toLowerCase() == filter.status!.toLowerCase();
     }
@@ -199,10 +196,10 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
 }
 
 class DownloadHistoryFilter {
-  final Set<DateTime>? selectedDates;
-  final String? status;
 
   const DownloadHistoryFilter({this.selectedDates, this.status});
+  final Set<DateTime>? selectedDates;
+  final String? status;
 
   bool get isEmpty =>
       (selectedDates == null || selectedDates!.isEmpty) &&

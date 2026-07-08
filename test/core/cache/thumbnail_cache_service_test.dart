@@ -13,6 +13,14 @@ void main() {
   late MockAppDatabase mockDb;
 
   setUpAll(() {
+    // Create dummy files for tests so lengthSync() > 0 logic passes
+    File('/tmp/cache_normal.jpg')
+      ..createSync()
+      ..writeAsStringSync('dummy_data');
+    File('/tmp/cache_large.jpg')
+      ..createSync()
+      ..writeAsStringSync('dummy_data');
+
     registerFallbackValue(
       ThumbnailCacheEntriesCompanion.insert(
         fileHash: 'dummy',
@@ -24,6 +32,13 @@ void main() {
         generatedAt: 0,
       ),
     );
+  });
+
+  tearDownAll(() {
+    final normalCache = File('/tmp/cache_normal.jpg');
+    if (normalCache.existsSync()) normalCache.deleteSync();
+    final largeCache = File('/tmp/cache_large.jpg');
+    if (largeCache.existsSync()) largeCache.deleteSync();
   });
 
   setUp(() {
@@ -151,8 +166,10 @@ void main() {
     test('storeThumbnail upserts entry and copies file', () async {
       when(() => mockDb.upsertThumbnail(any())).thenAnswer((_) async {});
 
-      // Use a real temp file so copy succeeds
-      final tempFile = File('/tmp/thumbnail_test_gen.jpg')..createSync();
+      // Use a real temp file with data so copy succeeds and lengthSync() > 0 passes
+      final tempFile = File('/tmp/thumbnail_test_gen.jpg')
+        ..createSync()
+        ..writeAsStringSync('dummy_data');
       addTearDown(() => tempFile.deleteSync());
 
       await cacheService.storeThumbnail(
@@ -189,8 +206,12 @@ void main() {
       await cacheService.load();
 
       // Create dummy cache files to test deletion
-      final normalCache = File('/tmp/cache_normal.jpg')..createSync();
-      final largeCache = File('/tmp/cache_large.jpg')..createSync();
+      final normalCache = File('/tmp/cache_normal.jpg')
+        ..createSync()
+        ..writeAsStringSync('dummy_data');
+      final largeCache = File('/tmp/cache_large.jpg')
+        ..createSync()
+        ..writeAsStringSync('dummy_data');
 
       await cacheService.removeEntries(['/test.jpg']);
 

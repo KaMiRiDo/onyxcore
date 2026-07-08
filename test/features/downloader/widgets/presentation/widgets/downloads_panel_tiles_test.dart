@@ -482,6 +482,7 @@ void main() {
     late AppDatabase appDb;
 
     setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       TestWidgetsFlutterBinding.ensureInitialized();
       final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
       view.physicalSize = const Size(1600, 1000);
@@ -559,9 +560,7 @@ void main() {
 
       final homeDir = Platform.environment['HOME'] ?? '';
       final expectedPath = '$homeDir/.local/share/onyxcore/yt-dlp-venv/bin/yt-dlp';
-      print('DEBUG: yt-dlp exists: ${File(expectedPath).existsSync()}');
       final settings = container.read(settingsProvider);
-      print('DEBUG: settings state: ${settings.value?.downloadBrowser}');
 
       final fetchButton = find.widgetWithText(ElevatedButton, 'Fetch');
       await tester.tap(fetchButton);
@@ -569,11 +568,6 @@ void main() {
 
       // Wait for the mock engine to complete
       await tester.pump(const Duration(seconds: 1));
-
-      print('DEBUG: _parsedItems empty?');
-      for (final widget in tester.widgetList<Text>(find.byType(Text))) {
-        print('Found text: "${widget.data}"');
-      }
 
       // The parsed item tile should show "Mock Video Content"
       expect(find.textContaining('Mock Video Content'), findsWidgets);
@@ -902,38 +896,28 @@ void main() {
       // Wait for the mock engine to complete
       await tester.pump(const Duration(seconds: 2));
 
-      print('DEBUG: W-DL-PNL-35 Text Widgets:');
-      for (final widget in tester.widgetList<Text>(find.byType(Text))) {
-        print('Found text: "${widget.data}"');
-      }
-
-      // Initially it should auto-select 1080p (mp4) since it's the highest resolution
-      expect(find.text('1080p (mp4)'), findsWidgets);
+      // Initially it should auto-select 1080p (1.0MB) since it's the highest resolution
+      expect(find.text('1080p (1.0MB)'), findsWidgets);
 
       // Tap the dropdown
-      final dropdown = find.text('1080p (mp4)');
+      final dropdown = find.text('1080p (1.0MB)');
       await tester.tap(dropdown.first);
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
       // We should see the other options in the popup menu
-      expect(find.text('720p (mp4)'), findsOneWidget);
-      expect(find.text('Audio Only (m4a)'), findsOneWidget); // resolution audio only gets formatted to Audio Only
+      expect(find.text('720p (0.5MB)'), findsOneWidget);
+      expect(find.text('Audio (0.1MB)'), findsOneWidget); // resolution audio only gets formatted to Audio Only
 
       // Select 720p
-      await tester.tap(find.text('720p (mp4)'));
+      await tester.tap(find.text('720p (0.5MB)'));
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
-      print('DEBUG: Texts after 720p tap:');
-      for (final widget in tester.widgetList<Text>(find.byType(Text))) {
-        print('Found text: "${widget.data}"');
-      }
-
       // Dropdown should now show 720p
-      expect(find.text('720p (mp4)'), findsWidgets);
+      expect(find.text('720p (0.5MB)'), findsWidgets);
     });
 
     testWidgets('W-DL-PNL-36: Playlist format dropdown aggregation', (tester) async {
@@ -956,34 +940,29 @@ void main() {
       // Wait for UI to settle
       await tester.pump(const Duration(seconds: 1));
 
-      // The playlist tile should show '1080p (mp4)' aggregated
-      expect(find.text('1080p (mp4)'), findsWidgets);
+      // The playlist tile should show '1080p (0.0MB)' aggregated
+      expect(find.text('1080p (0.0MB)'), findsWidgets);
 
       // Tap dropdown on the playlist root tile (should be first one)
-      final dropdown = find.text('1080p (mp4)');
+      final dropdown = find.text('1080p (0.0MB)');
       await tester.tap(dropdown.first);
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
       // We should see all aggregated formats: 1080p, 720p, 480p
-      expect(find.text('1080p (mp4)'), findsWidgets);
-      expect(find.text('720p (mp4)'), findsWidgets);
-      expect(find.text('480p (mp4)'), findsWidgets);
+      expect(find.text('1080p (0.0MB)'), findsWidgets);
+      expect(find.text('720p (0.0MB)'), findsWidgets);
+      expect(find.text('480p (0.0MB)'), findsWidgets);
 
       // Select 480p
-      await tester.tap(find.text('480p (mp4)').last, warnIfMissed: false);
+      await tester.tap(find.text('480p (0.0MB)').last, warnIfMissed: false);
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
-      print('DEBUG: Texts after 480p tap:');
-      for (final widget in tester.widgetList<Text>(find.byType(Text))) {
-        print('Found text: "${widget.data}"');
-      }
-
       // Verify the selection was applied
-      expect(find.text('480p (mp4)'), findsWidgets);
+      expect(find.text('480p (0.0MB)'), findsWidgets);
     });
 
     // ─── Placeholder Loading Tile Feature Tests ─────────────────────────────
