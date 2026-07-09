@@ -512,12 +512,15 @@ class _CustomFilePickerDialogState
               color: isSelected ? AppColors.magenta : Colors.white38,
             ),
             const SizedBox(width: 12),
-            Text(
-              title,
-              style: GoogleFonts.manrope(
-                color: isSelected ? Colors.white : Colors.white60,
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.manrope(
+                  color: isSelected ? Colors.white : Colors.white60,
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

@@ -1,78 +1,46 @@
-# DownloaderUpdateService Unit Test Plan
+# Downloader Update Service Test Plan
 
 **File Under Test:** `lib/features/downloader/services/downloader_update_service.dart`
 **Target Layer:** Services
-**Coverage Target:** >85%
+**Coverage Target:** >90%
 
-## 1. DownloaderUpdateState
-
-| Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
-|---|---|---|---|---|---|---|
-| U-DL-UPD-01 | `downloader_update_service.dart` | `DownloaderUpdateState()` | Initialize with all defaults | - | Create `DownloaderUpdateState()` | `isUpdating=false`, `progress=0.0`, `error=null`, `engineProgress={}`, `installedVersions={}`, `latestVersions={}`, `isCheckingForUpdates=false` |
-| U-DL-UPD-02 | `downloader_update_service.dart` | `DownloaderUpdateState.copyWith` | Override specific fields | State with defaults | Call `copyWith(isUpdating: true, progress: 0.5)` | `isUpdating=true`, `progress=0.5`, other fields unchanged |
-| U-DL-UPD-03 | `downloader_update_service.dart` | `DownloaderUpdateState.copyWith` | Clear error via `clearError` flag | State with `error: 'failure'` | Call `copyWith(clearError: true)` | `error` is `null` |
-| U-DL-UPD-04 | `downloader_update_service.dart` | `DownloaderUpdateState.copyWith` | Preserve error when `clearError` is false | State with `error: 'failure'` | Call `copyWith(progress: 0.5)` (no `clearError`) | `error` is still `'failure'` |
-
-## 2. Update Checking
+## Unit Test Plan
 
 | Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
 |---|---|---|---|---|---|---|
-| U-DL-UPD-05 | `downloader_update_service.dart` | `checkForUpdates` | Query all engines for installed vs latest versions | Mock `EngineRegistry` with 2 engines | Call `checkForUpdates` | State updates `installedVersions` and `latestVersions` maps |
-| U-DL-UPD-06 | `downloader_update_service.dart` | `checkForUpdates` | Prevent concurrent checks | Service is currently checking (`isCheckingForUpdates=true`) | Call `checkForUpdates` | Exits early, no secondary API calls |
-| U-DL-UPD-07 | `downloader_update_service.dart` | `checkForUpdates` | Handle engine returning null version | Mock engine `getInstalledVersion()` returns `null` | Call `checkForUpdates` | Map does not contain key for that engine |
-| U-DL-UPD-08 | `downloader_update_service.dart` | `checkForUpdates` | Set `isCheckingForUpdates` to false after completion | - | Call `checkForUpdates`, wait | `isCheckingForUpdates` is `false` |
+| U-DL-UPD-01 | `downloader_update_service.dart` | `DownloaderUpdateState()` | create the documented default state | none | instantiate | updating/checking flags are false, progress `0`, maps empty, error `null` |
+| U-DL-UPD-02 | `downloader_update_service.dart` | `DownloaderUpdateState.copyWith` | override selected fields while preserving the rest | state with seeded values | call `copyWith` | only supplied fields change |
+| U-DL-UPD-03 | `downloader_update_service.dart` | `DownloaderUpdateState.copyWith` | clear error only when `clearError=true` | state contains existing error | call with and without `clearError` | error is removed only for the explicit clear branch |
+| U-DL-UPD-04 | `downloader_update_service.dart` | `build` | expose the initial provider state | provider container | read notifier state | equals `const DownloaderUpdateState()` |
+| U-DL-UPD-05 | `downloader_update_service.dart` | `checkForUpdates` | skip concurrent checks | state already marks `isCheckingForUpdates=true` | call method again | no engine version calls are made |
+| U-DL-UPD-06 | `downloader_update_service.dart` | `checkForUpdates` | populate installed and latest maps for all engines, ignoring null responses | engine registry with mixed version results | await check | maps contain only non-null versions and `isCheckingForUpdates` resets to false |
+| U-DL-UPD-07 | `downloader_update_service.dart` | `checkForUpdates` | preserve existing error when `clearError=false` | state has an error | call `checkForUpdates(clearError:false)` | error survives while versions refresh |
+| U-DL-UPD-08 | `downloader_update_service.dart` | `updateAll` entry guard | refuse to start when an update is already running | state `isUpdating=true` | call `updateAll` | no work starts |
+| U-DL-UPD-09 | `downloader_update_service.dart` | `updateAll` filtering | update only installed engines whose installed and latest versions differ | engine registry with mixed installed/latest pairs | call `updateAll()` | only stale installed engines are selected |
+| U-DL-UPD-10 | `downloader_update_service.dart` | `updateAll` `defaultOnly` | skip optional engines when `defaultOnly=true` | stale optional and required engines present | call `updateAll(defaultOnly:true)` | optional engine is excluded |
+| U-DL-UPD-11 | `downloader_update_service.dart` | `updateAll` no-op path | end cleanly when nothing needs updating | no engine qualifies | call method | `isUpdating` toggles back to false and no downloads/install processes run |
+| U-DL-UPD-12 | `downloader_update_service.dart` | `updateAll` binary engine path | create bin dir and download release-backed engines | missing `~/.local/share/onyxcore/bin`, binary engine with `updateInfo` | call method | directory is created and `_downloadLatestRelease` is invoked with weighted progress arguments |
+| U-DL-UPD-13 | `downloader_update_service.dart` | `updateAll` python engine path | run python-engine installer and surface stderr on failure | python engine returns process future with exit `0` and non-zero variants | call method | stdout is drained; non-zero exit throws `"displayName installation failed: ..."` |
+| U-DL-UPD-14 | `downloader_update_service.dart` | `updateAll` finally block | clear per-engine progress, stop updating, and refresh versions even after errors | first engine throws | await method | `error` is prefixed with `Global update failed:`, `engineProgress={}`, `isUpdating=false`, `checkForUpdates(clearError:false)` still runs |
+| U-DL-UPD-15 | `downloader_update_service.dart` | `updateBinaries` entry guard | refuse concurrent binary installs | `isUpdating=true` | call method | no additional work is launched |
+| U-DL-UPD-16 | `downloader_update_service.dart` | `updateBinaries` engine selection | install only missing required engines that support binary or python installation | `EngineRegistry.missingRequired` includes unsupported and supported engines | call method | unsupported engines are skipped |
+| U-DL-UPD-17 | `downloader_update_service.dart` | `updateBinaries` empty path | finish immediately with progress `1` when nothing is installable | filtered missing-engine list empty | call method | state becomes `const DownloaderUpdateState(progress:1)` |
+| U-DL-UPD-18 | `downloader_update_service.dart` | `updateBinaries` success path | weight progress evenly across engines and finish at `1.0` | multiple installable engines | await method | progress advances per engine and final state is `isUpdating=false, progress=1` |
+| U-DL-UPD-19 | `downloader_update_service.dart` | `updateBinaries` error path | collapse into error-only state on failure | download/install throws | await method | new state contains error text and preserves any current `engineProgress` snapshot |
+| U-DL-UPD-20 | `downloader_update_service.dart` | `updateEngine` skip path | return immediately for unsupported engines | engine has no `updateInfo` and is not python | call method | state remains unchanged |
+| U-DL-UPD-21 | `downloader_update_service.dart` | `updateEngine` binary path | initialize engine progress at `0`, perform release download, then remove entry | binary engine with `engineId` | await method | progress map contains id during work and removes it on success |
+| U-DL-UPD-22 | `downloader_update_service.dart` | `updateEngine` python path | initialize indeterminate progress as `-1`, run install, then refresh versions | python engine returns successful process | await method | `engineProgress[id]=-1` during install, entry removed after success, `checkForUpdates(clearError:false)` called |
+| U-DL-UPD-23 | `downloader_update_service.dart` | `updateEngine` error path | remove per-engine progress and prefix error with engine id | binary or python update throws/fails | await method | error matches `${engine.id}:...` and progress map no longer contains that id |
+| U-DL-UPD-24 | `downloader_update_service.dart` | `installProcessEngine` null path | no-op when no process future is provided | `processFuture=null` | call method | state is unchanged |
+| U-DL-UPD-25 | `downloader_update_service.dart` | `installProcessEngine` success path | track indeterminate progress, clear it, and refresh versions on success | fake process exits `0` with stderr payload | await method | `engineProgress[id]` is added then removed; versions are refreshed; stderr does not become an error |
+| U-DL-UPD-26 | `downloader_update_service.dart` | `installProcessEngine` non-zero exit | keep notifier alive and surface engine-specific stderr | fake process exits `1` with stderr text | await method | error equals `${engine.id}:stderr`, progress entry removed |
+| U-DL-UPD-27 | `downloader_update_service.dart` | `installProcessEngine` thrown exception | convert thrown failures into display-name-prefixed error | process future throws | await method | error equals `${engine.displayName} installation failed: ...`, progress entry removed |
+| U-DL-UPD-28 | `downloader_update_service.dart` | `_downloadLatestRelease` release parsing | reject non-200 release responses, missing assets, or empty asset lists | mocked `HttpClient` responses | invoke via public update flows | each invalid release shape throws the matching exception message |
+| U-DL-UPD-29 | `downloader_update_service.dart` | `_downloadLatestRelease` chunked download | stream asset bytes to disk and update global plus per-engine progress | asset response delivers multiple chunks with known content length | run release download | output file is written and progress increments within the weighted range |
+| U-DL-UPD-30 | `downloader_update_service.dart` | `_downloadLatestRelease` archive extraction | extract `.tar.gz`, delete archive, and chmod the final binary | tarball asset, successful `tar` and `chmod` processes | run release download | archive is extracted into parent dir, temp tarball removed, executable bit applied |
+| U-DL-UPD-31 | `downloader_update_service.dart` | `_downloadLatestRelease` extraction failure | throw when `tar -xzf` fails | tar process returns non-zero | run release download | exception contains tar stderr |
+| U-DL-UPD-32 | `downloader_update_service.dart` | `_downloadLatestRelease` checksum success | verify checksum asset when available and keep file on hash match | checksum asset exists and `sha256sum` matches | run release download | binary remains on disk and no exception is thrown |
+| U-DL-UPD-33 | `downloader_update_service.dart` | `_downloadLatestRelease` checksum mismatch | delete corrupted file and throw integrity error on hash mismatch | checksum asset exists but computed hash differs | run release download | target file is deleted and error message includes expected vs actual hash |
+| U-DL-UPD-34 | `downloader_update_service.dart` | `_downloadLatestRelease` trailing chmod | throw if final chmod fails even after a successful download | non-Windows platform and final `chmod` returns non-zero | run release download | exception equals `Failed to set executable permissions for <path>` |
+| U-DL-UPD-35 | `downloader_update_service.dart` | `_downloadLatestRelease` cleanup | always close the HTTP client in `finally` | success and failure cases | run method | `client.close(force:true)` executes in both branches |
 
-## 3. Global Update (`updateAll`)
-
-| Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
-|---|---|---|---|---|---|---|
-| U-DL-UPD-09 | `downloader_update_service.dart` | `updateAll` | Filter and update only engines with version mismatches | State where Engine A needs update, Engine B does not | Call `updateAll` | Only downloads Engine A |
-| U-DL-UPD-10 | `downloader_update_service.dart` | `updateAll` | Handle `defaultOnly` flag — skip optional engines | Flag `defaultOnly = true`, Engine C is optional | Call `updateAll` | Skips Engine C even if update available |
-| U-DL-UPD-11 | `downloader_update_service.dart` | `updateAll` | Prevent concurrent updates | `isUpdating` is already `true` | Call `updateAll` | Exits early |
-| U-DL-UPD-12 | `downloader_update_service.dart` | `updateAll` | No-op when no engines need update | All versions match | Call `updateAll` | `isUpdating` set to false, no downloads triggered |
-| U-DL-UPD-13 | `downloader_update_service.dart` | `updateAll` | Call `checkForUpdates` after completion | Update succeeds | Call `updateAll`, wait | `checkForUpdates` invoked in `finally` |
-| U-DL-UPD-14 | `downloader_update_service.dart` | `updateAll` | **[EDGE]** Handle error during update | Download throws exception | Call `updateAll` | State has `error` set, `isUpdating=false` |
-
-## 4. Binary Update (`updateBinaries`)
-
-| Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
-|---|---|---|---|---|---|---|
-| U-DL-UPD-15 | `downloader_update_service.dart` | `updateBinaries` | Download all engines with `updateInfo` | 3 engines with updateInfo | Call `updateBinaries` | Downloads all 3, progress reaches 1.0 |
-| U-DL-UPD-16 | `downloader_update_service.dart` | `updateBinaries` | Skip engines without `updateInfo` | 2 engines, only 1 has updateInfo | Call `updateBinaries` | Only 1 download triggered |
-| U-DL-UPD-17 | `downloader_update_service.dart` | `updateBinaries` | Handle empty engines list | No engines have updateInfo | Call `updateBinaries` | `progress` set to 1.0 immediately |
-| U-DL-UPD-18 | `downloader_update_service.dart` | `updateBinaries` | Create bin directory if missing | `~/.local/share/onyxcore/bin` doesn't exist | Call `updateBinaries` | Directory created recursively |
-| U-DL-UPD-19 | `downloader_update_service.dart` | `updateBinaries` | **[EDGE]** Download failure sets error state | Network error during download | Call `updateBinaries` | `error` contains error message, `isUpdating=false` |
-
-## 5. Single Engine Update (`updateEngine`)
-
-| Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
-|---|---|---|---|---|---|---|
-| U-DL-UPD-20 | `downloader_update_service.dart` | `updateEngine` | Download binary for engine with `updateInfo` | Engine with `updateInfo` and `binaryPath` | Call `updateEngine` | Binary downloaded, `engineProgress` updated then cleaned up |
-| U-DL-UPD-21 | `downloader_update_service.dart` | `updateEngine` | Initiate Python PIP install if engine type is Python | Mock `PythonEngine` with `engineType=python` | Call `updateEngine` | Calls `engine.install()`, tracks via progress |
-| U-DL-UPD-22 | `downloader_update_service.dart` | `updateEngine` | Skip if no `updateInfo` and not Python engine | Engine with `updateInfo=null`, `engineType=cli` | Call `updateEngine` | Returns immediately, no state change |
-| U-DL-UPD-23 | `downloader_update_service.dart` | `updateEngine` | Clean up `engineProgress` after successful update | - | Call `updateEngine`, wait | `engineProgress` map no longer contains engine ID |
-| U-DL-UPD-24 | `downloader_update_service.dart` | `updateEngine` | **[EDGE]** Error sets error state with engine prefix | Download throws | Call `updateEngine` | `error` is `'engine-id:error message'` |
-
-## 6. Process Engine Installation Tracking (`installProcessEngine`)
-
-| Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
-|---|---|---|---|---|---|---|
-| U-DL-UPD-25 | `downloader_update_service.dart` | `installProcessEngine` | Track indeterminate progress (-1.0) while running | Mock process that completes | Call `installProcessEngine` | `engineProgress[id]` is `-1.0` during execution |
-| U-DL-UPD-26 | `downloader_update_service.dart` | `installProcessEngine` | Handle exit code > 0 | Mock process exits with code 1 and stderr | Call `installProcessEngine` | `error` contains engine ID and stderr content |
-| U-DL-UPD-27 | `downloader_update_service.dart` | `installProcessEngine` | Clean up progress after success | Mock process exits with code 0 | Call `installProcessEngine` | `engineProgress` no longer contains engine ID, `checkForUpdates` called |
-| U-DL-UPD-28 | `downloader_update_service.dart` | `installProcessEngine` | No-op for null process future | `processFuture = null` | Call `installProcessEngine` | Returns immediately, no state change |
-| U-DL-UPD-29 | `downloader_update_service.dart` | `installProcessEngine` | **[EDGE]** Process throws exception | Process future throws | Call `installProcessEngine` | `error` set with display name, progress cleaned up |
-
-## 7. Release Download Logic (`_downloadLatestRelease`)
-
-| Test ID | File(s) Under Test | Target Method / Block | Scenario (It should...) | Setup & Mocks (Given) | Action (When) | Assertions (Then) |
-|---|---|---|---|---|---|---|
-| U-DL-UPD-30 | `downloader_update_service.dart` | `_downloadLatestRelease` | Extract `.tar.gz` after downloading | Asset name ends in `.tar.gz` | Internal execution | Calls `tar -xzf`, deletes archive, sets `chmod +x` |
-| U-DL-UPD-31 | `downloader_update_service.dart` | `_downloadLatestRelease` | Download plain binary (non-tar.gz) | Asset name ends in `.exe` or no extension | Internal execution | Writes directly to `savePath`, sets `chmod +x` |
-| U-DL-UPD-32 | `downloader_update_service.dart` | `_downloadLatestRelease` | Verify SHA256 checksums if provided | Mock `checksumAssetName` with matching hash | Internal execution | Checksum passes, file preserved |
-| U-DL-UPD-33 | `downloader_update_service.dart` | `_downloadLatestRelease` | **[EDGE]** Abort and delete file if checksum mismatch | Mock checksum file with different hash | Internal execution | File deleted, exception thrown with hash details |
-| U-DL-UPD-34 | `downloader_update_service.dart` | `_downloadLatestRelease` | **[EDGE]** Asset not found in release | Release JSON contains no matching asset name | Internal execution | Throws `'Asset X not found in release'` |
-| U-DL-UPD-35 | `downloader_update_service.dart` | `_downloadLatestRelease` | **[EDGE]** API returns non-200 status | Mock HTTP returning 404 | Internal execution | Throws `'Failed to fetch release info: 404'` |
-| U-DL-UPD-36 | `downloader_update_service.dart` | `_downloadLatestRelease` | **[EDGE]** No assets in release | Release JSON has `assets: []` | Internal execution | Throws `'No assets found in the release'` |
-| U-DL-UPD-37 | `downloader_update_service.dart` | `_downloadLatestRelease` | **[EDGE]** tar extraction failure | `tar` exits with non-zero code | Internal execution | Throws exception with tar stderr |
-| U-DL-UPD-38 | `downloader_update_service.dart` | `_downloadLatestRelease` | Update progress during chunked download | Mock multi-chunk response | Internal execution | `state.progress` updates incrementally per chunk |

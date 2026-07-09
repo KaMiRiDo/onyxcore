@@ -25,6 +25,7 @@ class DownloadsSharedController extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_isDisposed) return;
     _isDisposed = true;
     super.dispose();
   }

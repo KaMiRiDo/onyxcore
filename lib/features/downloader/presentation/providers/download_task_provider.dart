@@ -274,6 +274,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     String? directUrl,
     int expectedBytes = 0,
   }) {
+    if (!_mounted) return;
     final id = _uuid.v4();
     final newTask = DownloadTask(
       id: id,
@@ -463,6 +464,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     if (_removalTimers.containsKey(id)) return;
 
     _removalTimers[id] = Timer(const Duration(seconds: 3), () {
+      if (!_mounted) return;
       final task = state.where((t) => t.id == id).firstOrNull;
       if (task != null &&
           (task.status == DownloadStatus.completed ||

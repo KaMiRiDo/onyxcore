@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1808,8 +1809,8 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
     ref.listen<int>(downloadUrlFocusRequestProvider, (_, __) {
       if (mounted && _urlFocusNode.canRequestFocus) {
         if (ref.read(downloadsPanelViewProvider) == DownloadsPanelView.tasks) {
-          Future.microtask(() {
-            if (mounted && _urlFocusNode.canRequestFocus) {
+          Future.delayed(const Duration(milliseconds: 50), () {
+            if (mounted) {
               _urlFocusNode.requestFocus();
             }
           });
@@ -1819,9 +1820,9 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
 
     ref.listen<DownloadsPanelView>(downloadsPanelViewProvider, (_, next) {
       if (next == DownloadsPanelView.tasks) {
-        if (mounted && _urlFocusNode.canRequestFocus) {
-          Future.microtask(() {
-            if (mounted && _urlFocusNode.canRequestFocus) {
+        if (mounted) {
+          Future.delayed(const Duration(milliseconds: 50), () {
+            if (mounted) {
               _urlFocusNode.requestFocus();
             }
           });
@@ -2074,12 +2075,14 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
   }
 }
 
+
 class _JugglingBallsLoader extends StatefulWidget {
   const _JugglingBallsLoader();
 
   @override
   State<_JugglingBallsLoader> createState() => _JugglingBallsLoaderState();
 }
+
 
 class _JugglingBallsLoaderState extends State<_JugglingBallsLoader>
     with SingleTickerProviderStateMixin {
@@ -2171,4 +2174,5 @@ class _GradientBorderPainter extends CustomPainter {
       old.colors != colors ||
       old.radius != radius ||
       old.strokeWidth != strokeWidth;
+
 }
