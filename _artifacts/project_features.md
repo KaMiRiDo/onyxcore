@@ -68,6 +68,7 @@ graph TB
         Main["main.dart"] --> |"Multi-View Dispatcher"| App["OnyxCoreMultiViewApp"]
         App --> |"View 0"| MainView["OnyxCoreApp"]
         App --> |"View > 0"| SecWin["PersistentViewerManager.buildView"]
+        App --> |"View > 0 (Downloader)"| DlWin["StandaloneDownloaderWindow"]
     end
 
     subgraph Core["core/"]
@@ -123,10 +124,12 @@ graph TB
             DlEngines["EngineRegistry / YtDlpEngine / GalleryDlEngine / PlaywrightEngine / YouGetEngine / StreamlinkEngine / LuxEngine"]
             DlServices["DownloaderProcessWrapper / Aria2Accelerator / CookieHelper / DownloadHistoryDatabase"]
             DlUpdate["DownloaderUpdateService (GitHub API)"]
-            DlProviders["DownloadTaskProvider / DownloadHistoryProvider / DownloadsPanelProvider"]
+            DlProviders["DownloadTaskProvider / DownloadHistoryProvider / DownloadsPanelProvider / DownloadsSharedController"]
             DlPanel["DownloadsPanel (StatefulWidget + part files)"]
             DlHistory["DownloadHistoryView / DownloadHistoryDetailView"]
             DlTaskTile["DownloadTaskTile"]
+            DlStandalone["StandaloneDownloaderWindow (pages/)"]
+            DlStandaloneWidgets["StandaloneWindowHeader / StandaloneWindowMediaList / StandaloneWindowMediaGrid / StandaloneWindowActionBar / StandaloneWindowLocationBar / StandaloneWindowActiveDownloads"]
         end
     end
 
@@ -313,10 +316,13 @@ onyxcore/
 │   │   │   │       ├── download_config.dart
 │   │   │   │       └── media_info.dart
 │   │   │   ├── presentation/
+│   │   │   │   ├── pages/
+│   │   │   │   │   └── standalone_downloader_window.dart
 │   │   │   │   ├── providers/
 │   │   │   │   │   ├── download_history_provider.dart
 │   │   │   │   │   ├── download_task_provider.dart
-│   │   │   │   │   └── downloads_panel_provider.dart
+│   │   │   │   │   ├── downloads_panel_provider.dart
+│   │   │   │   │   └── downloads_shared_controller.dart
 │   │   │   │   └── widgets/
 │   │   │   │       ├── components/
 │   │   │   │       │   ├── downloads_empty_state.dart
@@ -327,7 +333,15 @@ onyxcore/
 │   │   │   │       │   ├── downloads_panel_preview.dart
 │   │   │   │       │   ├── downloads_panel_results_view.dart
 │   │   │   │       │   ├── downloads_panel_tiles.dart
-│   │   │   │       │   └── downloads_shared_components.dart
+│   │   │   │       │   ├── downloads_shared_components.dart
+│   │   │   │       │   └── downloads_shared_dropdowns.dart
+│   │   │   │       ├── standalone_window/
+│   │   │   │       │   ├── standalone_window_action_bar.dart
+│   │   │   │       │   ├── standalone_window_active_downloads.dart
+│   │   │   │       │   ├── standalone_window_header.dart
+│   │   │   │       │   ├── standalone_window_location_bar.dart
+│   │   │   │       │   ├── standalone_window_media_grid.dart
+│   │   │   │       │   └── standalone_window_media_list.dart
 │   │   │   │       ├── download_history_detail_view.dart
 │   │   │   │       ├── download_history_view.dart
 │   │   │   │       ├── download_task_tile.dart
@@ -411,7 +425,7 @@ onyxcore/
 │       └── file_system_service.dart
 ```
 
-**Total: 179 Dart source files across 9 feature modules, core infrastructure, and services layer.**
+**Total: 191 Dart source files across 9 feature modules, core infrastructure, and services layer.**
 
 ---
 
@@ -1530,4 +1544,81 @@ onyxcore/
   - Invokes `exit(0)` to forcefully kill the entire process tree, cleaning up all views spawned via the Multi-View API.
 - **Asynchronous Auto-Updates**: Initiates `DownloaderUpdateService`'s `checkForUpdates()` on `OnyxCoreApp.initState` using a non-blocking `Future.microtask` to keep download manager engines (yt-dlp, etc.) silently up-to-date in the background.
 
-*Generated: 2026-06-05 | Comprehensive audit of 159 Dart source files + 5 test files across 9 feature modules, core infrastructure, and services layer.*
+---
+
+#### 10.19 Standalone Downloader Window (`StandaloneDownloaderWindow`)
+
+- **Architecture**: A dedicated full-screen `ConsumerStatefulWidget` launched as a separate OS window via `PersistentViewerManager.openMedia()`. It is completely decoupled from the side-panel `DownloadsPanel` widget and provides a focused, immersive download management experience.
+- **Layout**: Two-column split layout:
+  - **Left sidebar** (380px fixed): Vertically split between `StandaloneWindowMediaList` (upper half — list management) and `StandaloneWindowActiveDownloads` (lower half — live download progress).
+  - **Right main content** (flexible): Vertically composed of `StandaloneWindowHeader` (URL input + engine selector), `StandaloneWindowActionBar` (contextual breadcrumb/filters), `StandaloneWindowMediaGrid` (media card grid), and `StandaloneWindowLocationBar` (download path + stats footer).
+- **Shared State via `DownloadsSharedController`**: All URL fetching, hydration, cache management, and statistics calculation are delegated to a singleton `ChangeNotifierProvider` (`downloadsSharedControllerProvider`), keeping the page widget as a thin orchestrator only responsible for rendering.
+
+##### 10.19.1 `DownloadsSharedController` (Shared State Bridge)
+- **`ChangeNotifierProvider`** that bridges state between the embedded `DownloadsPanel` and the `StandaloneDownloaderWindow`, ensuring both surfaces share identical download data without duplication.
+- **`analyzeUrls(text)`**: Parses a newline-delimited list of URLs, adds placeholder cards instantly, deduplicates against existing items, and fires async `MediaDownloaderBackend.analyzeUrls()` calls per URL with live PID tracking via `activeHydrationPids`.
+- **`hydrateProfile(url)`**: Deep-fetches all items within a profile/playlist URL. Streams incremental `MediaInfo` updates via `onProgress` callback, maintaining a live hydration counter (`hydrationNotifier: ValueNotifier<int>`) so the media grid refreshes in real-time without full state rebuilds.
+- **Granular Statistics (`recalculateFilteredStatistics()`)**: Computes `totalListVideos`, `totalListImages`, `totalListSize` by iterating groups and applying active `DownloadConfig` filter (images/videos/all) — respects per-item format overrides (`config.itemFormats`) for byte-accurate size estimates.
+- **`importListFromFile(path, fileName)`**: Loads a `.json` or `.txt` URL list from disk. JSON lists are deserialized via `MediaGroup.fromMap()`; plain-text files fall back to `analyzeUrls()`. Uses `DownloadsListCache.hasCache()` to avoid redundant re-parses when toggling between imported lists.
+- **`exportListToFile(path)`**: Serializes the active `parsedItems` to JSON (with statistics envelope `{items, statistics}`) or plain-text URL list based on file extension.
+
+##### 10.19.2 `StandaloneWindowHeader`
+- **Multi-line URL input**: Expandable `TextField` (84px height, `maxLines: null`, `expands: true`) accepting newline-separated URLs, styled with `FiraCode` monospace font and `white.withOpacity(0.05)` background.
+- **Animated gradient border**: When URL field is focused, a `_GradientBorderPainter` (custom `CustomPainter`) draws a sweeping magenta→violet→indigo gradient border animated by an `AnimationController` looping at 3-second intervals (via `SweepGradient` with `GradientRotation`).
+- **`Ctrl+Enter` shortcut**: `CallbackShortcuts` binding triggers the fetch without requiring mouse interaction.
+- **Engine selector dropdown**: `EngineSelectorDropdown` (`downloads_shared_dropdowns.dart`) for selecting the preferred download engine (`auto`, `yt-dlp`, `gallery-dl`, etc.) per-fetch.
+- **Settings quick-access**: Gear icon button directly opens the `SettingsDialog` pre-scrolled to the "Download Manager" section.
+
+##### 10.19.3 `StandaloneWindowMediaList` (Left sidebar — upper half)
+- **Dual list switching**: "Default List" (session-only, in-memory) and up to one "Custom List" (imported from `.json`/`.txt` file) displayed as gradient-accented sidebar tiles with active gradient left border (3px, magenta→violet) and `ShaderMask` gradient text.
+- **Trash button**: Red-accented toggle switching the main grid to `_isTrashView` mode (shows soft-deleted items pending permanent removal or restoration).
+- **Import button**: Opens `CustomFilePickerDialog` filtered to `.txt` and `.json` extensions; delegates to `DownloadsSharedController.importListFromFile()`.
+- **Unsaved-changes guard**: Closing a custom list with pending `isListChanged` triggers a 3-action dialog: "Cancel" / "Discard" / "Save".
+- **Cache metadata**: Persists last-seen video count, image count, and total size for the custom list tab as `lastCustomListVideos/Images/Size` — displayed as subtitles on the inactive tile.
+
+##### 10.19.4 `StandaloneWindowMediaGrid` (Main content — central area)
+- **`AlignedGridView.extent`** layout (`flutter_staggered_grid_view`): `maxCrossAxisExtent: 220`, 16px spacing, cards maintain native aspect ratios via `AspectRatio` driven by `MediaInfo.width/height`; defaults to `1:1` for images and `16:9` for videos.
+- **Thumbnail display**: `Image.network` with `errorBuilder` fallback; type icon badge (top-left dark pill: profile = account, playlist = library, multi-item = stacked pages, video = camera, image = picture) and size/duration/resolution badge (top-right).
+- **Selection system**: Click (single), `Ctrl+Click` (additive), `Shift+Click` (range), background tap (clear). State is managed as `Set<int> _selectedIndices` with `_lastSelectedIndex` for range anchor.
+- **Loading overlay**: `BubbleLoader` displayed over a `Colors.black54` scrim when `isHydratingItem(url)` is true or item has placeholder ID `fetch_loading`/`hydration_loading`.
+- **Double-tap drill-down**: For multi-item groups (profiles/playlists), double-tapping navigates into the group, pushing the group to `_navigationHistory` with `_historyIndex` increment for Alt+← back navigation.
+- **Per-card controls below thumbnail**: `FormatSelectionDropdown` for single videos; `GroupFilterDropdown` (All/Images/Videos) for multi-item groups or profiles. Compact `download_rounded` icon button triggers per-item `_startDownload(index)`.
+- **Trash view**: Cards show "Restore" button (`AppColors.violet`) instead of format/filter controls; grid-level restore and per-item restore both invoke `_restoreTrash()` logic.
+- **Empty states**: Centered hourglass icon + "List is empty" text (default); centered delete icon + "Trash is empty" text (trash view).
+
+##### 10.19.5 `StandaloneWindowActionBar` (Breadcrumb/filter toolbar)
+- **Root view**: Displays list name (`importedListName ?? 'Default List'`) as a large title; shows "Clear" button when items exist.
+- **Group drill-down view**: Renders `Icon(Icons.arrow_back)` + clickable parent list name + chevron + active group title as an inline breadcrumb. Group controls (format or filter dropdown, 140px width) appear to the right.
+- **Trash view**: Shows "Trash" title + "Restore All" (`violet`) and "Empty" (`error`) action buttons when `_trash.isNotEmpty`.
+
+##### 10.19.6 `StandaloneWindowLocationBar` (Bottom status bar)
+- **Current path display**: Shows `currentPath` as `ShaderMask` gradient text (magenta→violet→indigo) or "Select a folder" placeholder; "Change" button opens `CustomFilePickerDialog` in `pickDirectory` mode.
+- **Statistics pill**: Compact rounded badge displaying "N Videos • N Images • X.X MB" computed from live controller statistics.
+- **Export/Update button**: Gradient button labeled "Export" for default list or "Update" for custom lists with pending changes; disabled (muted style) when in trash view or custom list is unchanged.
+- **"Download All" button**: Gradient primary CTA that sequentially calls `_startDownload(0)` while the items list is non-empty.
+
+##### 10.19.7 `StandaloneWindowActiveDownloads` (Left sidebar — lower half)
+- Renders the live `downloadTaskProvider` list using `DownloadTaskTile` widgets.
+- **Empty state**: Centered `cloud_done_rounded` icon + "No active downloads" muted text.
+- **"Cancel All" button**: Full-width muted button visible only when tasks are non-empty; iterates all task IDs and calls `cancelDownload(id)` on the `DownloadTaskNotifier`.
+
+##### 10.19.8 Session-Level Trash System
+- `_TrashItem` model: Holds a deleted `item` (either `MediaGroup` or `MediaInfo`), the `listPath` key of the originating list, optionally a `parentGroup` reference, and the original `DownloadConfig`.
+- **Soft delete**: `Delete` key moves items to `_trash` without writing to disk; `Shift+Delete` shows a confirmation dialog before permanent discard.
+- **`_restoreTrash()`**: Groups trash items by their `listPath`. Items from the currently active list are restored in-memory; items from inactive lists trigger a file read→modify→write cycle to the originating `.json` file on disk.
+- **Config re-indexing**: After deletion from `parsedItems`, all `configs` entries with index `> deletedIndex` are decremented by 1 to maintain `O(n)` index parity without gaps.
+
+##### 10.19.9 Navigation History
+- `_navigationHistory: List<MediaGroup?>` stack + `_historyIndex: int` pointer tracks group drill-down state.
+- `Alt+←`: Decrements index, restores previous `_currentGroup`.
+- `Alt+→`: Increments index (forward navigation after back).
+- `Ctrl+D`: Focus keyboard shortcut — moves input focus to the URL `TextField` for instant pasting without mouse interaction.
+
+##### 10.19.10 `DownloadsSharedDropdowns` (Shared Component)
+- **`EngineSelectorDropdown`**: Compact `PopupMenuButton` listing all registered engines (auto, yt-dlp, gallery-dl, playwright, you-get, streamlink, lux) with their colored icons; updates `selectedEngine` on the `DownloadsSharedController`.
+- **`FormatSelectionDropdown`**: Renders a grouped quality picker for a single `MediaInfo`. Groups formats by resolution label, resolves display strings (e.g., "1080p" / "720p" / "Audio"), and calls `onChanged` with the selected `MediaFormat`. Uses `matchTargetFormat()` to persist the current format when switching items.
+- **`GroupFilterDropdown`**: Simple three-option picker (All / Images only / Videos only) for profile/playlist groups. Conditionally disables options when the group has no items of that type.
+
+---
+
+*Generated: 2026-07-10 | Comprehensive audit of 191 Dart source files across 9 feature modules, core infrastructure, and services layer.*

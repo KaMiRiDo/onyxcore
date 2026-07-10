@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
@@ -40,22 +42,37 @@ class Sidebar extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Brand Logo — "ONYXCORE" all caps, gradient, no icon
+          // Brand Logo — icon + "ONYXCORE" all caps, gradient
           DragToMoveArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ShaderMask(
-                shaderCallback: (bounds) =>
-                    AppTheme.primaryGradient.createShader(bounds),
-                child: Text(
-                  'ONYXCORE',
-                  style: GoogleFonts.manrope(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: 1.5,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // App icon — fixed 28×28, never stretches
+                  SvgPicture.asset(
+                    'assets/app_icon/app_icon.svg',
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.contain,
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  // Gradient brand text
+                  ShaderMask(
+                    shaderCallback: (bounds) =>
+                        AppTheme.primaryGradient.createShader(bounds),
+                    child: Text(
+                      'ONYXCORE',
+                      style: GoogleFonts.manrope(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -63,6 +80,7 @@ class Sidebar extends ConsumerWidget {
 
           // Navigation Items
           const SizedBox(height: 24),
+
 
           // Scrollable Navigation Area
           Expanded(

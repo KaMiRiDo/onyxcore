@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OnyxCore
+Comment=Linux-native multimedia file manager
+Exec=onyxcore
+Icon=onyxcore
+Terminal=false
+Type=Application
+Categories=Utility;FileManager;
+Keywords=file;manager;media;multimedia;
+StartupWMClass=onyxcore

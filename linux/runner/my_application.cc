@@ -244,6 +244,33 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1280, 720);
 
+  // Set the application window icon from the bundled PNG.
+  // This icon appears in taskbars, alt-tab switchers, and window decorations.
+  {
+    g_autofree gchar* exec_path = g_file_read_link("/proc/self/exe", nullptr);
+    if (exec_path) {
+      g_autofree gchar* exec_dir = g_path_get_dirname(exec_path);
+      g_autofree gchar* icon_path = g_build_filename(exec_dir, "data", "flutter_assets", "assets", "app_icon", "app_icon.svg", nullptr);
+      // Try SVG path first; fall back to the PNG placed next to the binary
+      g_autofree gchar* png_path = g_build_filename(exec_dir, "app_icon.png", nullptr);
+      GError* icon_error = nullptr;
+      if (!gtk_window_set_icon_from_file(window, icon_path, &icon_error)) {
+        g_clear_error(&icon_error);
+        // Fallback: load the PNG bundled alongside the binary
+        GdkPixbuf* icon_buf = gdk_pixbuf_new_from_file(png_path, &icon_error);
+        if (icon_buf) {
+          gtk_window_set_icon(window, icon_buf);
+          g_object_unref(icon_buf);
+        } else {
+          g_clear_error(&icon_error);
+        }
+      }
+    }
+  }
+
+  // Also set the default icon list so all windows (including secondary) inherit it
+  gtk_window_set_default_icon_name("onyxcore");
+
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
