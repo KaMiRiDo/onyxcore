@@ -185,5 +185,86 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
       await tester.pump(const Duration(milliseconds: 500));
     });
+
+    testWidgets('9. Extracted widgets callbacks coverage (Trash, Default List, Custom List)', (tester) async {
+      setScreenSize(tester);
+      final controller = container.read(downloadsSharedControllerProvider);
+      controller.cache.parsedItems = [
+        MediaGroup(originalUrl: 'test_group', items: [
+          MediaInfo(id: '1', title: 'Video 1', isVideo: true, originalUrl: 'test'),
+          MediaInfo(id: '2', title: 'Video 2', isVideo: true, originalUrl: 'test'),
+        ]),
+      ];
+      controller.cache.configs[0] = DownloadConfig(engine: 'auto');
+
+      await tester.pumpWidget(createWidgetUnderTest(container));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      final trashButton = find.text('Trash');
+      if (trashButton.evaluate().isNotEmpty) {
+        await tester.tap(trashButton.first);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      final defaultListButton = find.text('Default List');
+      if (defaultListButton.evaluate().isNotEmpty) {
+        await tester.tap(defaultListButton.first);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      final firstItem = find.text('test_group');
+      if (firstItem.evaluate().isNotEmpty) {
+        await tester.tap(firstItem.first);
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.delete);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.delete);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      if (trashButton.evaluate().isNotEmpty) {
+        await tester.tap(trashButton.first);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      
+      final emptyButton = find.text('Empty');
+      if (emptyButton.evaluate().isNotEmpty) {
+        await tester.tap(emptyButton.first);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      
+      final clearButton = find.text('Clear');
+      if (clearButton.evaluate().isNotEmpty) {
+        await tester.tap(clearButton.first);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+    });
+
+    testWidgets('10. Grid interactions, Double Tap, and Select', (tester) async {
+      setScreenSize(tester);
+      final controller = container.read(downloadsSharedControllerProvider);
+      controller.cache.parsedItems = [
+        MediaGroup(originalUrl: 'root_group', items: [
+          MediaInfo(id: 'group_vid', title: 'Group Vid', isVideo: true, originalUrl: 'test'),
+        ]),
+      ];
+      controller.cache.configs[0] = DownloadConfig(engine: 'auto');
+
+      await tester.pumpWidget(createWidgetUnderTest(container));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      final rootGroup = find.text('root_group');
+      if (rootGroup.evaluate().isNotEmpty) {
+        await tester.tap(rootGroup.first);
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(rootGroup.first);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      
+      final backButton = find.byIcon(Icons.arrow_back);
+      if (backButton.evaluate().isNotEmpty) {
+        await tester.tap(backButton.first);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+    });
   });
 }

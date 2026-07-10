@@ -236,7 +236,9 @@ class ThumbnailCacheEntries extends Table {
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
-  AppDatabase.forTesting(super.e);
+  AppDatabase.forTesting(super.e) {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  }
 
   @override
   int get schemaVersion => 2;
