@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
 
 void main() {
@@ -13,7 +12,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    bool clearTapped = false;
+    var clearTapped = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -58,8 +57,8 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    bool restoreAllTapped = false;
-    bool emptyTrashTapped = false;
+    var restoreAllTapped = false;
+    var emptyTrashTapped = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -137,7 +136,7 @@ void main() {
   });
 
   testWidgets('StandaloneWindowActionBar renders breadcrumbs for currentGroup', (tester) async {
-    bool backToRootTapped = false;
+    var backToRootTapped = false;
 
     await tester.pumpWidget(
       MaterialApp(

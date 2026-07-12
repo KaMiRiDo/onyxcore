@@ -11,7 +11,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    bool downloadAllTapped = false;
+    var downloadAllTapped = false;
 
     await tester.pumpWidget(
       MaterialApp(

@@ -1,14 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/core/database/database_provider.dart';
-import 'package:onyxcore/core/database/app_database.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/download_history_view.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/download_history_view.dart';
 
 void main() {
   Widget createWidgetUnderTest(ProviderContainer container) {

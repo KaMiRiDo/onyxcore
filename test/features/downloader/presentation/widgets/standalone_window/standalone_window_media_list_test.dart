@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_list.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_list.dart';
 
 void main() {
   testWidgets('StandaloneWindowMediaList renders basic components and interactions', (tester) async {
-    bool trashTapped = false;
-    bool importTapped = false;
-    bool defaultListTapped = false;
+    var trashTapped = false;
+    var importTapped = false;
+    var defaultListTapped = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -44,8 +44,8 @@ void main() {
   });
 
   testWidgets('StandaloneWindowMediaList renders custom list and handles close without changes', (tester) async {
-    bool customListTapped = false;
-    bool customListClosed = false;
+    var customListTapped = false;
+    var customListClosed = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -83,8 +83,8 @@ void main() {
   });
 
   testWidgets('StandaloneWindowMediaList handles close with unsaved changes', (tester) async {
-    bool customListClosed = false;
-    bool customListSaved = false;
+    var customListClosed = false;
+    var customListSaved = false;
 
     await tester.pumpWidget(
       MaterialApp(

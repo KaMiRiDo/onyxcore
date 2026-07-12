@@ -14,8 +14,8 @@ void main() {
     final urlController = TextEditingController();
     final urlFocusNode = FocusNode();
     final gradientController = AnimationController(vsync: const TestVSync());
-    bool fetchCalled = false;
-    String selectedEngine = 'auto';
+    var fetchCalled = false;
+    var selectedEngine = 'auto';
 
     await tester.pumpWidget(
       MaterialApp(

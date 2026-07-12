@@ -1,3 +1,4 @@
+// ignore_for_file: inference_failure_on_collection_literal, inference_failure_on_function_return_type, inference_failure_on_instance_creation, override_on_non_overriding_member, strict_raw_type
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -46,14 +47,16 @@ class MockHttpHeaders implements HttpHeaders {
 }
 
 class MockHttpClientResponse extends Stream<List<int>> implements HttpClientResponse {
+  MockHttpClientResponse(this._statusCode, this._data) {
+    var len = 0;
+    for(final chunk in _data) {
+      len += chunk.length;
+    }
+    _headers.set('content-length', len.toString());
+  }
   final int _statusCode;
   final List<List<int>> _data;
   final MockHttpHeaders _headers = MockHttpHeaders();
-  MockHttpClientResponse(this._statusCode, this._data) {
-    int len = 0;
-    for(var chunk in _data) len += chunk.length;
-    _headers.set('content-length', len.toString());
-  }
   @override int get statusCode => _statusCode;
   @override HttpHeaders get headers => _headers;
   @override StreamSubscription<List<int>> listen(
@@ -78,8 +81,8 @@ class MockHttpClientResponse extends Stream<List<int>> implements HttpClientResp
 }
 
 class MockHttpClientRequest implements HttpClientRequest {
-  final MockHttpClientResponse _response;
   MockHttpClientRequest(this._response);
+  final MockHttpClientResponse _response;
   @override Future<HttpClientResponse> close() async => _response;
   @override HttpHeaders get headers => MockHttpHeaders();
   @override List<Cookie> get cookies => [];
@@ -103,17 +106,17 @@ class MockHttpClientRequest implements HttpClientRequest {
   @override Future<HttpClientResponse> get done async => _response;
   @override Future flush() async {}
   @override void write(Object? object) {}
-  @override void writeAll(Iterable objects, [String separator = ""]) {}
+  @override void writeAll(Iterable objects, [String separator = '']) {}
   @override void writeCharCode(int charCode) {}
-  @override void writeln([Object? object = ""]) {}
+  @override void writeln([Object? object = '']) {}
   @override HttpConnectionInfo? get connectionInfo => null;
   @override Future<HttpClientResponse> get response => Future.value(_response);
   @override void abort([Object? exception, StackTrace? stackTrace]) {}
 }
 
 class MockHttpClient implements HttpClient {
-  final Future<HttpClientRequest> Function(Uri url) requestHandler;
   MockHttpClient(this.requestHandler);
+  final Future<HttpClientRequest> Function(Uri url) requestHandler;
   @override Future<HttpClientRequest> getUrl(Uri url) => requestHandler(url);
   @override void close({bool force = false}) {}
   @override bool autoUncompress = true;
@@ -145,8 +148,8 @@ class MockHttpClient implements HttpClient {
 }
 
 class MockHttpOverrides extends HttpOverrides {
-  final Future<HttpClientRequest> Function(Uri url) requestHandler;
   MockHttpOverrides(this.requestHandler);
+  final Future<HttpClientRequest> Function(Uri url) requestHandler;
   @override HttpClient createHttpClient(SecurityContext? context) {
     return MockHttpClient(requestHandler);
   }
@@ -367,7 +370,7 @@ void main() {
         expect(notifier.state.progress, 1.0);
       });
       test('U-DL-UPD-16: Skips unsupported engines', () async {
-        final e1 = MockEngine(id: 'e1', mockIsInstalled: false, engineType: EngineType.cli);
+        final e1 = MockEngine(id: 'e1', mockIsInstalled: false);
         EngineRegistry.register(e1);
         await notifier.updateBinaries();
         expect(notifier.state.progress, 1.0);
@@ -542,7 +545,7 @@ void main() {
           id: 'bin1', binaryPathOverride: p.join(tempDir.path, 'bin32.exe'),
           updateInfo: EngineUpdateInfo(apiUrl: 'http://test.com/api', assetName: 'bin.exe')
         );
-        final hashStr = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  bin.exe';
+        const hashStr = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  bin.exe';
         mockRequestHandler = (url) async {
           if (url.toString().contains('api')) {
             return MockHttpClientRequest(MockHttpClientResponse(200, [utf8.encode(jsonEncode({

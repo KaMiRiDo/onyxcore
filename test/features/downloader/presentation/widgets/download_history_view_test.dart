@@ -1,13 +1,10 @@
-import 'dart:async';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:intl/intl.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
-import 'package:flutter/gestures.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/download_history_view.dart';
@@ -165,7 +162,7 @@ void main() {
   });
 
   testWidgets('W-DL-HIS-07: filter-clear icon -> clear active filter and reset temp filter state', (tester) async {
-    final filter = const DownloadHistoryFilter(status: 'Error');
+    const filter = DownloadHistoryFilter(status: 'Error');
     await tester.pumpWidget(createWidget(filter: filter));
     await tester.pumpAndSettle();
 
@@ -272,10 +269,10 @@ void main() {
 
   testWidgets('W-DL-HIS-16: grouped list headings -> insert date headers for the first item of each day bucket', (tester) async {
     final entry1 = DownloadHistoryEntry(
-      id: '1', title: 'T1', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10, 1),
+      id: '1', title: 'T1', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10),
     );
     final entry2 = DownloadHistoryEntry(
-      id: '2', title: 'T2', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10, 1),
+      id: '2', title: 'T2', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10),
     );
     final entry3 = DownloadHistoryEntry(
       id: '3', title: 'T3', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10, 2),
@@ -293,7 +290,7 @@ void main() {
 
   testWidgets('W-DL-HIS-17: history item styling -> render title, subtitle, time, type icon, and status pill according to entry metadata', (tester) async {
     final entry = DownloadHistoryEntry(
-      id: '1', title: 'My Video', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10, 1),
+      id: '1', title: 'My Video', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10),
       downloadType: 'video',
     );
     await tester.pumpWidget(createWidget(history: [entry]));
@@ -306,7 +303,7 @@ void main() {
 
   testWidgets('W-DL-HIS-18: history item item-count pill -> count processed file-path logs while skipping .json paths', (tester) async {
     final entry = DownloadHistoryEntry(
-      id: '1', title: 'My Video', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10, 1),
+      id: '1', title: 'My Video', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime(2023, 10),
       downloadType: 'playlist',
       logs: ['/path/to/vid1.mp4', '/path/to/vid2.mp4', '/path/to/info.json'],
     );

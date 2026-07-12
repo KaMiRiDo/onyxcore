@@ -1,10 +1,11 @@
+// ignore_for_file: avoid_dynamic_calls
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_header.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_header.dart';
 
 class MockCurrentPathNotifier extends CurrentPathNotifier {
   @override
@@ -15,11 +16,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('DownloadsHeader Tests', () {
-    final List<MethodCall> log = [];
+    final log = <MethodCall>[];
 
-    setUp(() {
-      log.clear();
-    });
+    setUp(log.clear);
 
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -38,7 +37,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            currentPathProvider.overrideWith(() => MockCurrentPathNotifier()),
+            currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
             downloadsPanelViewProvider.overrideWith((ref) => DownloadsPanelView.tasks),
           ],
           child: const MaterialApp(home: Scaffold(body: DownloadsHeader())),

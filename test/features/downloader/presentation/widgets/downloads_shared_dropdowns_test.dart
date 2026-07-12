@@ -1,8 +1,9 @@
+// ignore_for_file: cascade_invocations, unused_local_variable
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
 
 void main() {
   group('DownloadsSharedDropdowns Tests', () {
@@ -74,7 +75,7 @@ void main() {
     });
 
     testWidgets('W-DD-15 to W-DD-24: FormatSelectionDropdown', (WidgetTester tester) async {
-      final item = MediaInfo(id: '1', title: 'Test', originalUrl: 'test', isVideo: true);
+      final item = MediaInfo(id: '1', title: 'Test', originalUrl: 'test');
       final format = MediaFormat(formatId: 'fmt', extension: 'mp4', resolution: '1080p', filesize: 1024 * 1024 * 10, formatString: ''); // 10MB
       final itemWithFormat = item.copyWith(formats: [format]);
       

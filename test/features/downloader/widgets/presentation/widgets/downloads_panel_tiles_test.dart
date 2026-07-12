@@ -1,3 +1,4 @@
+// ignore_for_file: cascade_invocations, comment_references, unused_local_variable
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';

@@ -1,3 +1,4 @@
+// ignore_for_file: cascade_invocations
 import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -174,7 +175,7 @@ void main() {
 
       test('U-DL-PNL-17: switchList triggers notifyListeners', () {
         final cache = DownloadsListCache();
-        int notifyCount = 0;
+        var notifyCount = 0;
         cache.addListener(() => notifyCount++);
         
         cache.switchList('/new');
@@ -234,7 +235,7 @@ void main() {
         cache.switchList('/a');
         cache.switchList('default');
         
-        int notifyCount = 0;
+        var notifyCount = 0;
         cache.addListener(() => notifyCount++);
         
         cache.invalidateCache('/a'); // not active, shouldn't notify
@@ -259,7 +260,7 @@ void main() {
 
       test('U-DL-PNL-26: notify() triggers ChangeNotifier listeners', () {
         final cache = DownloadsListCache();
-        int notifyCount = 0;
+        var notifyCount = 0;
         cache.addListener(() => notifyCount++);
         
         cache.notify();
@@ -293,7 +294,7 @@ void main() {
 
       test('U-DL-PNL-29: Setting parsedItems, importedListName, importedListPath, isListChanged triggers notifyListeners', () {
         final cache = DownloadsListCache();
-        int notifyCount = 0;
+        var notifyCount = 0;
         cache.addListener(() => notifyCount++);
         
         cache.parsedItems = [];

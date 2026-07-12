@@ -1,3 +1,4 @@
+// ignore_for_file: cascade_invocations, undefined_hidden_name, unused_local_variable
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide Column, isFalse, isNotNull, isNull, isTrue;

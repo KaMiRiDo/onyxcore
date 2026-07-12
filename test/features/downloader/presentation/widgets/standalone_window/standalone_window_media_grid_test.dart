@@ -1,9 +1,10 @@
+// ignore_for_file: unused_local_variable
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_grid.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_grid.dart';
 
 void main() {
   testWidgets('StandaloneWindowMediaGrid renders empty state', (tester) async {
@@ -35,7 +36,6 @@ void main() {
             mainFocusNode: FocusNode(),
             matchTargetFormat: (info, format) => format,
             getHeight: (res) => 1080,
-            trash: const [],
           ),
         ),
       ),
@@ -52,11 +52,11 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    bool doubleTapped = false;
-    bool tapItem = false;
-    bool startDownload = false;
+    var doubleTapped = false;
+    var tapItem = false;
+    var startDownload = false;
 
-    final info = MediaInfo(id: '1', title: 'Test Video', originalUrl: 'test', isVideo: true, filesize: 1000);
+    final info = MediaInfo(id: '1', title: 'Test Video', originalUrl: 'test', filesize: 1000);
     final group = MediaGroup(originalUrl: 'test', items: [info]);
     
     await tester.pumpWidget(
@@ -69,7 +69,7 @@ void main() {
             currentGroup: null,
             selectedIndices: {0},
             downloadingImageIndices: const {},
-            configs: {0: DownloadConfig(engine: 'auto')},
+            configs: {0: DownloadConfig()},
             isHydratingItem: (id) => false,
             onTapItem: (i, c, s) => tapItem = true,
             onDoubleTapItem: (i, g) => doubleTapped = true,
@@ -80,7 +80,6 @@ void main() {
             mainFocusNode: FocusNode(),
             matchTargetFormat: (info, format) => format,
             getHeight: (res) => 1080,
-            trash: const [],
           ),
         ),
       ),
@@ -114,7 +113,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    bool restored = false;
+    var restored = false;
 
     final info = MediaInfo(id: '1', title: 'Trash Video', originalUrl: 'test');
     final trashGroup = MediaGroup(originalUrl: 'test', items: [info]);
@@ -140,7 +139,6 @@ void main() {
             mainFocusNode: FocusNode(),
             matchTargetFormat: (info, format) => format,
             getHeight: (res) => 1080,
-            trash: const [], // Not used for rendering
           ),
         ),
       ),
@@ -159,7 +157,7 @@ void main() {
   });
 
   testWidgets('StandaloneWindowMediaGrid hydration indicator', (tester) async {
-    final info = MediaInfo(id: '1', title: 'Test Video', originalUrl: 'test', isVideo: true);
+    final info = MediaInfo(id: '1', title: 'Test Video', originalUrl: 'test');
     final group = MediaGroup(originalUrl: 'test', items: [info]);
     
     await tester.pumpWidget(
@@ -183,7 +181,6 @@ void main() {
             mainFocusNode: FocusNode(),
             matchTargetFormat: (info, format) => format,
             getHeight: (res) => 1080,
-            trash: const [],
           ),
         ),
       ),

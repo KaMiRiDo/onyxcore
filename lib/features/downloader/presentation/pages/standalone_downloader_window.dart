@@ -1410,7 +1410,8 @@ class _StandaloneDownloaderWindowState
       );
 
       await PersistentViewerManager.openMedia(windowParams);
-    } catch (e) {
+    } catch (e, st) {
+      print('EXCEPTION IN START DOWNLOAD: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1448,6 +1449,9 @@ class _StandaloneDownloaderWindowState
 
   @visibleForTesting
   Set<int> get selectedIndicesForTesting => _selectedIndices;
+
+  @visibleForTesting
+  bool get isTrashViewForTesting => _isTrashView;
 
   @visibleForTesting
   void saveCurrentTabStateForTesting(String path) => _saveCurrentTabState(path);

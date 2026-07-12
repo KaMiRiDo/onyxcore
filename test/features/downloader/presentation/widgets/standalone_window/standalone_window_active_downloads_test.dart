@@ -1,3 +1,4 @@
+// ignore_for_file: unused_element, unused_local_variable
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_active_downloads.dart';
@@ -11,7 +12,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    bool cancelAllTapped = false;
+    var cancelAllTapped = false;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(

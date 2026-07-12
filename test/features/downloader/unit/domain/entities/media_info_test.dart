@@ -1,3 +1,4 @@
+// ignore_for_file: inference_failure_on_collection_literal
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 

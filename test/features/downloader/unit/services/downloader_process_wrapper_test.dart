@@ -1,3 +1,4 @@
+// ignore_for_file: override_on_non_overriding_member, prefer_null_aware_method_calls
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

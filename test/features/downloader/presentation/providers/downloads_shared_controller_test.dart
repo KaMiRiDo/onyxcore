@@ -1,5 +1,5 @@
+// ignore_for_file: cascade_invocations
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,8 +27,8 @@ class MockDownloadTaskNotifier extends Notifier<List<DownloadTask>>
 class MockSettingsNotifier extends AsyncNotifier<AppSettings>
     with Mock
     implements SettingsNotifier {
-  final AppSettings _settings;
   MockSettingsNotifier(this._settings);
+  final AppSettings _settings;
   @override
   Future<AppSettings> build() async => _settings;
 }
@@ -48,15 +48,13 @@ void main() {
     when(() => mockEngine.id).thenReturn('mock-engine');
     when(() => mockEngine.isInstalled).thenReturn(true);
     when(() => mockEngine.priority).thenReturn(100);
-    when(() => mockEngine.urlPatterns).thenReturn([RegExp(r'.*')]);
+    when(() => mockEngine.urlPatterns).thenReturn([RegExp('.*')]);
 
     EngineRegistry.clearAllEnginesForTesting();
     EngineRegistry.register(mockEngine);
   });
 
-  tearDown(() {
-    EngineRegistry.clearRegisteredEngines();
-  });
+  tearDown(EngineRegistry.clearRegisteredEngines);
 
   Future<ProviderContainer> createContainer({
     AppSettings settings = const AppSettings(),
@@ -130,14 +128,14 @@ void main() {
       final group = MediaGroup(
         originalUrl: 'url',
         items: [
-          MediaInfo(id: '1', title: 'v1', isVideo: true, originalUrl: 'url', filesize: 100),
+          MediaInfo(id: '1', title: 'v1', originalUrl: 'url', filesize: 100),
           MediaInfo(id: '2', title: 'i1', isVideo: false, originalUrl: 'url', filesize: 50),
-          MediaInfo(id: '3', title: 'err', isVideo: true, originalUrl: 'url', filesize: 200, isError: true),
+          MediaInfo(id: '3', title: 'err', originalUrl: 'url', filesize: 200, isError: true),
         ],
       );
       
       controller.cache.parsedItems = [group];
-      controller.cache.configs[0] = DownloadConfig(mode: DownloadMode.normal, groupFilter: GroupDownloadType.all);
+      controller.cache.configs[0] = DownloadConfig();
       
       controller.recalculateFilteredStatistics();
       
@@ -168,19 +166,19 @@ void main() {
       final group = MediaGroup(
         originalUrl: 'url',
         items: [
-          MediaInfo(id: '1', title: 'v1', isVideo: true, originalUrl: 'url', filesize: 100),
+          MediaInfo(id: '1', title: 'v1', originalUrl: 'url', filesize: 100),
           MediaInfo(id: '2', title: 'i1', isVideo: false, originalUrl: 'url', filesize: 50),
         ],
       );
       controller.cache.parsedItems = [group];
       
       // Video only
-      controller.cache.configs[0] = DownloadConfig(mode: DownloadMode.normal, groupFilter: GroupDownloadType.videos);
+      controller.cache.configs[0] = DownloadConfig(groupFilter: GroupDownloadType.videos);
       controller.recalculateFilteredStatistics();
       expect(controller.totalListSize, 100);
       
       // Image only
-      controller.cache.configs[0] = DownloadConfig(mode: DownloadMode.normal, groupFilter: GroupDownloadType.images);
+      controller.cache.configs[0] = DownloadConfig(groupFilter: GroupDownloadType.images);
       controller.recalculateFilteredStatistics();
       expect(controller.totalListSize, 50);
     });
@@ -190,7 +188,7 @@ void main() {
       final controller = container.read(downloadsSharedControllerProvider);
       
       final group = MediaGroup(originalUrl: 'url', items: [
-        MediaInfo(id: '1', title: 'v1', isVideo: true, originalUrl: 'url')
+        MediaInfo(id: '1', title: 'v1', originalUrl: 'url')
       ]);
       controller.cache.parsedItems = [group];
       
@@ -222,7 +220,6 @@ void main() {
           id: 'v1',
           title: 'vid',
           originalUrl: 'url',
-          isVideo: true,
           formats: [
             MediaFormat(formatId: 'f1', extension: 'mp4', formatString: 'f1', resolution: '720p', filesize: 100),
             MediaFormat(formatId: 'f2', extension: 'mp4', formatString: 'f2', resolution: '1080p', filesize: 200),
@@ -372,7 +369,7 @@ void main() {
       )).thenAnswer((invocation) async {
         if (invocation.namedArguments[#fetchDeep] == true) {
           fetchDeepCalled = true;
-          return [MediaInfo(id: 'p1', title: 'p', originalUrl: 'url', isVideo: true)];
+          return [MediaInfo(id: 'p1', title: 'p', originalUrl: 'url')];
         }
         return [MediaInfo(id: 'playlist', title: 'list', originalUrl: 'url', isVideo: false, isPlaylist: true)];
       });
@@ -450,7 +447,7 @@ void main() {
         onProcessStarted: any(named: 'onProcessStarted'),
       )).thenAnswer((invocation) async {
         final onProgress = invocation.namedArguments[#onProgress] as void Function(MediaInfo)?;
-        onProgress?.call(MediaInfo(id: 'i1', title: 'i1', originalUrl: 'url', isVideo: true, fetchLogs: 'logs'));
+        onProgress?.call(MediaInfo(id: 'i1', title: 'i1', originalUrl: 'url', fetchLogs: 'logs'));
         
         // At this point, group.items should be: header, i1, hydration_loading
         var group = controller.cache.parsedItems!.first;
@@ -458,14 +455,14 @@ void main() {
         expect(group.items[1].id, 'i1');
         expect(group.items[2].id, 'hydration_loading');
 
-        onProgress?.call(MediaInfo(id: 'i1', title: 'i1_updated', originalUrl: 'url', isVideo: true));
+        onProgress?.call(MediaInfo(id: 'i1', title: 'i1_updated', originalUrl: 'url'));
         
         // Still 3 items, i1 is replaced
         group = controller.cache.parsedItems!.first;
         expect(group.items.length, 3);
         expect(group.items[1].title, 'i1_updated');
 
-        return [MediaInfo(id: 'final', title: 'final', originalUrl: 'url', isVideo: true)];
+        return [MediaInfo(id: 'final', title: 'final', originalUrl: 'url')];
       });
       
       await controller.hydrateProfile('url');
@@ -521,7 +518,7 @@ void main() {
       )).thenAnswer((invocation) async {
         final onProgress = invocation.namedArguments[#onProgress] as void Function(MediaInfo)?;
         for (var i = 0; i < 6; i++) {
-          onProgress?.call(MediaInfo(id: 'i$i', title: 'i', originalUrl: 'url', isVideo: true));
+          onProgress?.call(MediaInfo(id: 'i$i', title: 'i', originalUrl: 'url'));
         }
         return [];
       });
@@ -548,7 +545,7 @@ void main() {
         onProgress: any(named: 'onProgress'),
         onProcessStarted: any(named: 'onProcessStarted'),
       )).thenAnswer((_) async => [
-        MediaInfo(id: 'i1', title: 'i', originalUrl: 'url', isVideo: true, errorMessage: 'err', fetchLogs: 'logs')
+        MediaInfo(id: 'i1', title: 'i', originalUrl: 'url', errorMessage: 'err', fetchLogs: 'logs')
       ]);
       
       await controller.hydrateProfile('url');
@@ -579,9 +576,9 @@ void main() {
         onProgress: any(named: 'onProgress'),
         onProcessStarted: any(named: 'onProcessStarted'),
       )).thenAnswer((_) async => [
-        MediaInfo(id: 'i1', title: 'i1', originalUrl: 'url', isVideo: true, filesize: 100, duration: 10),
-        MediaInfo(id: 'i2', title: 'i2', originalUrl: 'url', isVideo: true, filesize: 200, duration: 10),
-        MediaInfo(id: 'i3', title: 'i3', originalUrl: 'url', isVideo: true, filesize: 50, duration: 20),
+        MediaInfo(id: 'i1', title: 'i1', originalUrl: 'url', filesize: 100, duration: 10),
+        MediaInfo(id: 'i2', title: 'i2', originalUrl: 'url', filesize: 200, duration: 10),
+        MediaInfo(id: 'i3', title: 'i3', originalUrl: 'url', filesize: 50, duration: 20),
       ]);
       
       await controller.hydrateProfile('url');
@@ -612,7 +609,7 @@ void main() {
         onProgress: any(named: 'onProgress'),
         onProcessStarted: any(named: 'onProcessStarted'),
       )).thenAnswer((_) async => [
-        MediaInfo(id: 'i1', title: 'i1', originalUrl: 'url', isVideo: true, formats: [
+        MediaInfo(id: 'i1', title: 'i1', originalUrl: 'url', formats: [
           MediaFormat(formatId: '4k', extension: 'mp4', formatString: '4k', resolution: '4K', filesize: 5000),
           MediaFormat(formatId: '1080', extension: 'mp4', formatString: '1080', resolution: '1080p', filesize: 2000),
         ]),
@@ -631,7 +628,7 @@ void main() {
       
       controller.cache.parsedItems = [MediaGroup(originalUrl: 'url', items: [])];
       
-      final items = [MediaInfo(id: '1', title: '1', originalUrl: 'url', isVideo: true)];
+      final items = [MediaInfo(id: '1', title: '1', originalUrl: 'url')];
       when(() => mockEngine.fetchMetadata(
         url: any(named: 'url'),
         browser: any(named: 'browser'),

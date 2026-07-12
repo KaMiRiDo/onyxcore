@@ -1,3 +1,4 @@
+// ignore_for_file: cascade_invocations
 import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
 import 'package:drift/drift.dart' hide Column;
 import 'package:drift/native.dart';

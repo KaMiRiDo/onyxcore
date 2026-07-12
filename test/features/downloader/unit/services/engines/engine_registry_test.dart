@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_positional_boolean_parameters, avoid_print, cascade_invocations
 import 'dart:io';
 
 import 'package:flutter/material.dart';

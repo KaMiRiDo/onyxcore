@@ -1,17 +1,17 @@
+// ignore_for_file: undefined_getter, use_named_constants
 import 'dart:async';
-import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/download_history_detail_view.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/navigation_state.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/navigation_state.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/download_history_detail_view.dart';
 
 class MockDownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> with Mock implements DownloadHistoryNotifier {
   @override
@@ -25,7 +25,7 @@ class MockNavigationNotifier extends Notifier<NavigationState> with Mock impleme
 
 class MockSelectionNotifier extends Notifier<SelectionState> with Mock implements SelectionNotifier {
   @override
-  SelectionState build() => const SelectionState(selectedPaths: {}, isSelectionMode: false);
+  SelectionState build() => const SelectionState();
 }
 
 void main() {
@@ -66,7 +66,7 @@ void main() {
   }
 
   testWidgets('W-DL-HDT-01: render an empty box when no history id is selected', (tester) async {
-    await tester.pumpWidget(createWidget(selectedId: null));
+    await tester.pumpWidget(createWidget());
     
     expect(find.byType(SizedBox), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -94,7 +94,7 @@ void main() {
   });
 
   testWidgets('W-DL-HDT-03a: show History not found for null entries', (tester) async {
-    await tester.pumpWidget(createWidget(selectedId: 'id1', entryToReturn: null));
+    await tester.pumpWidget(createWidget(selectedId: 'id1'));
     await tester.pumpAndSettle();
     expect(find.text('History not found'), findsOneWidget);
   });
@@ -264,7 +264,6 @@ void main() {
   testWidgets('W-DL-HDT-08b: error banner hidden', (tester) async {
     final entryWithoutError = DownloadHistoryEntry(
       id: '2', title: 'T', url: 'u', destination: 'd', statusName: 'Completed', createdAt: DateTime.now(),
-      errorMessage: null,
     );
 
     await tester.pumpWidget(createWidget(selectedId: '2', entryToReturn: entryWithoutError));
@@ -290,7 +289,7 @@ void main() {
       of: find.widgetWithText(Row, 'Source URL'),
       matching: find.byType(Text),
     );
-    final Text urlTextWidget = tester.widget(urlTextFinder.last);
+    final urlTextWidget = tester.widget<Text>(urlTextFinder.last);
     expect(urlTextWidget.data, contains('...'));
   });
 
@@ -364,7 +363,7 @@ void main() {
   });
 
   testWidgets('W-DL-HDT-16: timeline', (tester) async {
-    final createdAt = DateTime(2023, 1, 1, 12, 0);
+    final createdAt = DateTime(2023, 1, 1, 12);
     final completedAt = DateTime(2023, 1, 1, 12, 5);
     final entry = DownloadHistoryEntry(
       id: '1', title: 'T', url: 'u', destination: 'd', statusName: 'Completed', 

@@ -1,3 +1,4 @@
+// ignore_for_file: cascade_invocations, inference_failure_on_instance_creation, unused_element
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -5,7 +6,6 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
@@ -13,7 +13,6 @@ import 'package:onyxcore/features/downloader/services/engines/download_engine.da
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:window_manager/window_manager.dart';
 
 class MockProcess extends Mock implements Process {}
 
@@ -27,8 +26,8 @@ class MockDownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>>
 class MockSettingsNotifier extends AsyncNotifier<AppSettings>
     with Mock
     implements SettingsNotifier {
-  final AppSettings _settings;
   MockSettingsNotifier(this._settings);
+  final AppSettings _settings;
   @override
   Future<AppSettings> build() async => _settings;
 }
@@ -62,18 +61,16 @@ void main() {
     when(() => mockEngine.id).thenReturn('mock-engine');
     when(() => mockEngine.isInstalled).thenReturn(true);
     when(() => mockEngine.priority).thenReturn(100);
-    when(() => mockEngine.urlPatterns).thenReturn([RegExp(r'.*')]);
+    when(() => mockEngine.urlPatterns).thenReturn([RegExp('.*')]);
 
     EngineRegistry.clearAllEnginesForTesting();
     EngineRegistry.register(mockEngine);
   });
 
-  tearDown(() {
-    EngineRegistry.clearRegisteredEngines();
-  });
+  tearDown(EngineRegistry.clearRegisteredEngines);
 
   Future<ProviderContainer> createContainer({
-    AppSettings settings = const AppSettings(maxConcurrentDownloads: 3),
+    AppSettings settings = const AppSettings(),
   }) async {
     final container = ProviderContainer(
       overrides: [
@@ -161,7 +158,7 @@ void main() {
     });
 
     test('U-DL-TSK-03: DownloadStatus exposes complete enum contract', () {
-      final values = DownloadStatus.values;
+      const values = DownloadStatus.values;
       expect(values.length, 6);
       expect(values[0], DownloadStatus.pending);
       expect(values[1], DownloadStatus.running);
@@ -684,8 +681,8 @@ void main() {
       notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
       
       notifier.onHydrationFinished('url', [
-        MediaInfo(id: '1', title: '1', isVideo: true, originalUrl: 'url', fetchLogs: ''),
-        MediaInfo(id: '2', title: '2', isVideo: true, originalUrl: 'url', fetchLogs: ''),
+        MediaInfo(id: '1', title: '1', originalUrl: 'url', fetchLogs: ''),
+        MediaInfo(id: '2', title: '2', originalUrl: 'url', fetchLogs: ''),
       ]);
       
       final task = container.read(downloadTaskProvider).first;

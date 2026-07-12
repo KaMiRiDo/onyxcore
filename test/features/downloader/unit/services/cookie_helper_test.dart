@@ -1,3 +1,4 @@
+// ignore_for_file: cascade_invocations, deprecated_member_use
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/services/cookie_helper.dart';

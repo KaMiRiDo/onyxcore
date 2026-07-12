@@ -1,3 +1,4 @@
+// ignore_for_file: leading_newlines_in_multiline_strings
 import 'dart:convert';
 import 'dart:io';
 
