@@ -14,6 +14,7 @@ class StandaloneWindowLocationBar extends StatelessWidget {
     required this.onChangeLocation,
     required this.onExport,
     required this.onDownloadAll,
+    this.selectionCount = 0,
     super.key,
   });
 
@@ -28,11 +29,13 @@ class StandaloneWindowLocationBar extends StatelessWidget {
   final VoidCallback onChangeLocation;
   final VoidCallback onExport;
   final VoidCallback onDownloadAll;
+  final int selectionCount;
 
   @override
   Widget build(BuildContext context) {
     final sizeStr = '${(totalSize / 1024 / 1024).toStringAsFixed(1)} MB';
-    final statsText = '$totalVideos Videos • $totalImages Images • $sizeStr';
+    final statsTextBase = '$totalVideos Videos • $totalImages Images • ';
+    final isExportDisabled = isTrashView || (isCustom && !isChanged) || (!isCustom && totalVideos == 0 && totalImages == 0);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -58,71 +61,76 @@ class StandaloneWindowLocationBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: Colors.white10),
               ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: currentPath.isEmpty
-                        ? Text(
-                            'Select a folder',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white70,
-                              fontSize: 13,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Row(
+                    children: [
+                      if (constraints.maxWidth > 30) const SizedBox(width: 12),
+                      Expanded(
+                        child: currentPath.isEmpty
+                            ? Text(
+                                'Select a folder',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : ShaderMask(
+                                blendMode: BlendMode.srcIn,
+                                shaderCallback: (bounds) => const LinearGradient(
+                                  colors: [
+                                    AppColors.magenta,
+                                    AppColors.violet,
+                                    AppColors.indigo,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ).createShader(bounds),
+                                child: Text(
+                                  currentPath,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                      ),
+                      if (constraints.maxWidth > 120)
+                        SizedBox(
+                          height: 36,
+                          child: ElevatedButton(
+                            onPressed: onChangeLocation,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E1E1E),
+                              elevation: 0,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(4),
+                                  bottomRight: Radius.circular(4),
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              minimumSize: Size.zero,
+                              side: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.1),
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          )
-                        : ShaderMask(
-                            blendMode: BlendMode.srcIn,
-                            shaderCallback: (bounds) => const LinearGradient(
-                              colors: [
-                                AppColors.magenta,
-                                AppColors.violet,
-                                AppColors.indigo,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ).createShader(bounds),
                             child: Text(
-                              currentPath,
+                              'Change',
                               style: GoogleFonts.outfit(
                                 color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                  ),
-                  SizedBox(
-                    height: 36,
-                    child: ElevatedButton(
-                      onPressed: onChangeLocation,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E1E1E),
-                        elevation: 0,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.only(
-                            topRight: Radius.circular(4),
-                            bottomRight: Radius.circular(4),
-                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        minimumSize: Size.zero,
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                      ),
-                      child: Text(
-                        'Change',
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -133,25 +141,26 @@ class StandaloneWindowLocationBar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Text(
-                      statsText,
+                  child: Text.rich(
+                    TextSpan(
+                      text: statsTextBase,
                       style: GoogleFonts.outfit(
                         color: Colors.white70,
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      children: [
+                        TextSpan(
+                          text: sizeStr,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -161,7 +170,7 @@ class StandaloneWindowLocationBar extends StatelessWidget {
           Container(
             height: 36,
             decoration: BoxDecoration(
-              gradient: (isTrashView || (isCustom && !isChanged))
+              gradient: isExportDisabled
                   ? null
                   : const LinearGradient(
                       colors: [
@@ -172,31 +181,31 @@ class StandaloneWindowLocationBar extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-              color: (isTrashView || (isCustom && !isChanged))
+              color: isExportDisabled
                   ? const Color(0xFF1E1E1E).withValues(alpha: 0.5)
                   : null,
               borderRadius: BorderRadius.circular(5),
               border: Border.all(
-                color: (isTrashView || (isCustom && !isChanged))
+                color: isExportDisabled
                     ? Colors.white.withValues(alpha: 0.02)
                     : Colors.transparent,
               ),
             ),
             child: ElevatedButton.icon(
-              onPressed: (isTrashView || (isCustom && !isChanged))
+              onPressed: isExportDisabled
                   ? null
                   : onExport,
               icon: Icon(
-                Icons.file_download_outlined,
+                Icons.file_upload_outlined,
                 size: 16,
-                color: (isTrashView || (isCustom && !isChanged))
+                color: isExportDisabled
                     ? Colors.white30
                     : Colors.white,
               ),
               label: Text(
                 isCustom ? 'Update' : 'Export',
                 style: GoogleFonts.outfit(
-                  color: (isTrashView || (isCustom && !isChanged))
+                  color: isExportDisabled
                       ? Colors.white30
                       : Colors.white,
                   fontWeight: FontWeight.bold,
@@ -239,7 +248,7 @@ class StandaloneWindowLocationBar extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
               child: Text(
-                'Download All',
+                selectionCount > 0 ? 'Download $selectionCount' : 'Download All',
                 style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,

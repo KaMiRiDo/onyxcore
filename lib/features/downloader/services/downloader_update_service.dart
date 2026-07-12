@@ -127,7 +127,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           final processFuture = engine.install();
           if (processFuture != null) {
             final process = await processFuture;
-            process.stdout.drain(); // Consume stdout to prevent pipe deadlock
+            process.stdout.drain<void>(); // Consume stdout to prevent pipe deadlock
             final stderrFuture = process.stderr.transform(utf8.decoder).join();
             final exitCode = await process.exitCode;
             if (exitCode != 0) {
@@ -188,7 +188,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           final processFuture = engine.install();
           if (processFuture != null) {
             final process = await processFuture;
-            process.stdout.drain(); // Consume stdout to prevent pipe deadlock
+            process.stdout.drain<void>(); // Consume stdout to prevent pipe deadlock
             final stderrFuture = process.stderr.transform(utf8.decoder).join();
             final exitCode = await process.exitCode;
             if (exitCode != 0) {
@@ -244,7 +244,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         final processFuture = engine.install();
         if (processFuture != null) {
           final process = await processFuture;
-          process.stdout.drain(); // Consume stdout to prevent pipe deadlock
+          process.stdout.drain<void>(); // Consume stdout to prevent pipe deadlock
           final stderrFuture = process.stderr.transform(utf8.decoder).join();
           final exitCode = await process.exitCode;
           if (exitCode != 0) {
@@ -283,7 +283,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
     try {
       final process = await processFuture;
-      process.stdout.drain(); // Consume stdout to prevent pipe deadlock
+      process.stdout.drain<void>(); // Consume stdout to prevent pipe deadlock
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode;
       final stderr = await stderrFuture;

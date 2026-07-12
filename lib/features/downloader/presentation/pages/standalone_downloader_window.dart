@@ -1,5 +1,6 @@
 import "dart:math" as math;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -48,6 +49,18 @@ class StandaloneDownloaderWindow extends ConsumerStatefulWidget {
       _StandaloneDownloaderWindowState();
 }
 
+class _StandaloneTabState {
+  MediaGroup? currentGroup;
+  Set<int> selectedIndices = {};
+  int lastSelectedIndex = -1;
+  List<MediaGroup?> navigationHistory = [null];
+  int historyIndex = 0;
+  bool isTrashView = false;
+  String searchQuery = '';
+  bool isSearchVisible = false;
+  String listFilter = 'added_desc';
+}
+
 class _StandaloneDownloaderWindowState
     extends ConsumerState<StandaloneDownloaderWindow>
     with SingleTickerProviderStateMixin, DownloadsPanelHelpersMixin {
@@ -56,15 +69,13 @@ class _StandaloneDownloaderWindowState
 
   final TextEditingController _urlController = TextEditingController();
   final FocusNode _urlFocusNode = FocusNode();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final FocusNode _mainFocusNode = FocusNode();
+  Timer? _searchDebounce;
   late AnimationController _gradientController;
   String _currentPath = '';
   MediaGroup? _currentGroup;
-  String? _lastCustomListPath;
-  String? _lastCustomListName;
-  int _lastCustomListVideos = 0;
-  int _lastCustomListImages = 0;
-  int _lastCustomListSize = 0;
 
   final Set<int> _selectedIndices = {};
   int _lastSelectedIndex = -1;
@@ -72,6 +83,71 @@ class _StandaloneDownloaderWindowState
   int _historyIndex = 0;
   final List<_TrashItem> _trash = [];
   bool _isTrashView = false;
+  bool _isSearchVisible = false;
+  String _listFilter = 'added_desc';
+  
+  final Map<String, _StandaloneTabState> _tabStates = {};
+
+  void _saveCurrentTabState(String path) {
+    _tabStates[path] = _StandaloneTabState()
+      ..currentGroup = _currentGroup
+      ..selectedIndices = Set.from(_selectedIndices)
+      ..lastSelectedIndex = _lastSelectedIndex
+      ..navigationHistory = List.from(_navigationHistory)
+      ..historyIndex = _historyIndex
+      ..isTrashView = _isTrashView
+      ..searchQuery = _searchController.text
+      ..isSearchVisible = _isSearchVisible
+      ..listFilter = _listFilter;
+  }
+
+  KeyEventResult _handleGlobalKeys(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (HardwareKeyboard.instance.isControlPressed &&
+          (event.logicalKey == LogicalKeyboardKey.keyF)) {
+        setState(() {
+          if (_searchFocusNode.hasFocus) {
+            _searchController.clear();
+            _searchFocusNode.unfocus();
+            _isSearchVisible = false;
+            if (mounted && _mainFocusNode.canRequestFocus) {
+              FocusScope.of(node.context!).requestFocus(_mainFocusNode);
+            }
+          } else {
+            _isSearchVisible = true;
+            if (mounted && _searchFocusNode.canRequestFocus) {
+              FocusScope.of(node.context!).requestFocus(_searchFocusNode);
+            }
+          }
+        });
+        return KeyEventResult.handled;
+      }
+
+      if (HardwareKeyboard.instance.isControlPressed &&
+          (event.logicalKey == LogicalKeyboardKey.keyD)) {
+        if (mounted && _urlFocusNode.canRequestFocus) {
+          FocusScope.of(node.context!).requestFocus(_urlFocusNode);
+        }
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _restoreTabState(String path) {
+    final state = _tabStates[path] ?? _StandaloneTabState();
+    _currentGroup = state.currentGroup;
+    _selectedIndices.clear();
+    _selectedIndices.addAll(state.selectedIndices);
+    _lastSelectedIndex = state.lastSelectedIndex;
+    _navigationHistory.clear();
+    _navigationHistory.addAll(state.navigationHistory);
+    _historyIndex = state.historyIndex;
+    _isTrashView = state.isTrashView;
+    _searchController.text = state.searchQuery;
+    _isSearchVisible = state.isSearchVisible;
+    _listFilter = state.listFilter;
+  }
 
   void _handleDelete(bool isShiftPressed) {
     if (_selectedIndices.isEmpty) return;
@@ -201,13 +277,9 @@ class _StandaloneDownloaderWindowState
 
   int _getGroupBytes(MediaGroup group, DownloadConfig config) => 0;
 
-  Future<void> _startDownload(int index) async {
-    final parsedItems = _controller.cache.parsedItems;
-    if (parsedItems == null || index >= parsedItems.length) return;
-
+  Future<void> _startDownload(MediaGroup group, int configIndex) async {
     try {
-      final group = parsedItems[index];
-      final config = _controller.cache.configs[index]!;
+      final config = _controller.cache.configs[configIndex] ?? DownloadConfig(engine: 'auto');
 
       final downloadToCurrent =
           ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
@@ -300,11 +372,6 @@ class _StandaloneDownloaderWindowState
               expectedBytes: expectedBytes,
             );
 
-        setState(() {
-          parsedItems.removeAt(index);
-          _controller.cache.isListChanged = true;
-          _controller.cache.notify();
-        });
         return;
       }
 
@@ -402,13 +469,8 @@ class _StandaloneDownloaderWindowState
             );
       }
 
-      setState(() {
-        parsedItems.removeAt(index);
-        _controller.cache.isListChanged = true;
-        _controller.cache.notify();
-      });
-    } finally {
-      ref.read(conflictProvider.notifier).clearGlobalResolution();
+    } catch (e) {
+      debugPrint('Error starting download: $e');
     }
   }
 
@@ -416,14 +478,62 @@ class _StandaloneDownloaderWindowState
     final parsedItems = _controller.cache.parsedItems;
     if (parsedItems == null || parsedItems.isEmpty) return;
 
-    while (parsedItems.isNotEmpty) {
-      await _startDownload(0);
+    try {
+      if (_selectedIndices.isNotEmpty) {
+        // Selection scenario: Download only selected items
+        // We iterate backwards to safely remove from the list.
+        final sortedIndices = _selectedIndices.toList()..sort((a, b) => b.compareTo(a));
+        if (_currentGroup == null) {
+          for (final i in sortedIndices) {
+            await _startDownload(parsedItems[i], i);
+            parsedItems.removeAt(i);
+          }
+        } else {
+          final rootIndex = parsedItems.indexOf(_currentGroup!);
+          for (final i in sortedIndices) {
+            final item = _currentGroup!.items[i];
+            await _startDownload(MediaGroup(originalUrl: item.originalUrl, items: [item]), rootIndex);
+            _currentGroup!.items.removeAt(i);
+          }
+        }
+        setState(() {
+          _selectedIndices.clear();
+          _lastSelectedIndex = -1;
+        });
+      } else if (_currentGroup != null) {
+        // Sub-item scenario: Download all items in current group
+        final rootIndex = parsedItems.indexOf(_currentGroup!);
+        await _startDownload(_currentGroup!, rootIndex);
+        setState(() {
+          parsedItems.remove(_currentGroup!);
+          _currentGroup = null;
+          _historyIndex = 0;
+          _navigationHistory.clear();
+          _navigationHistory.add(null);
+        });
+      } else {
+        // Main list scenario
+        final itemsToDownload = List<MediaGroup>.from(parsedItems);
+        for (var i = 0; i < itemsToDownload.length; i++) {
+          await _startDownload(itemsToDownload[i], i);
+        }
+        setState(() {
+          parsedItems.clear();
+        });
+      }
+      
+      _controller.cache.isListChanged = true;
+      _controller.cache.notify();
+    } finally {
+      ref.read(conflictProvider.notifier).clearGlobalResolution();
     }
   }
 
   @override
   void initState() {
     super.initState();
+    _searchFocusNode.onKeyEvent = _handleGlobalKeys;
+    _urlFocusNode.onKeyEvent = _handleGlobalKeys;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -437,6 +547,8 @@ class _StandaloneDownloaderWindowState
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat();
+
+    _searchController.addListener(_onSearchChanged);
 
     PersistentViewerManager.presentWindow(widget.windowId);
   }
@@ -454,11 +566,24 @@ class _StandaloneDownloaderWindowState
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _gradientController.dispose();
     _mainFocusNode.dispose();
     _urlController.dispose();
     _urlFocusNode.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {}); // Rebuild to filter media grid
+      }
+    });
   }
 
   void _fetchUrl() {
@@ -492,8 +617,64 @@ class _StandaloneDownloaderWindowState
 
               if (HardwareKeyboard.instance.isControlPressed &&
                   (event.logicalKey == LogicalKeyboardKey.keyD)) {
-                if (mounted && _urlFocusNode.canRequestFocus) {
-                  FocusScope.of(node.context!).requestFocus(_urlFocusNode);
+                return _handleGlobalKeys(node, event);
+              }
+
+              if (HardwareKeyboard.instance.isControlPressed &&
+                  (event.logicalKey == LogicalKeyboardKey.keyF)) {
+                return _handleGlobalKeys(node, event);
+              }
+
+              if (HardwareKeyboard.instance.isControlPressed &&
+                  (event.logicalKey == LogicalKeyboardKey.keyW)) {
+                final path = _controller.cache.importedListPath;
+                if (path != null && path != 'default') {
+                  final index = _controller.cache.customLists.indexWhere((l) => l.path == path);
+                  _controller.cache.invalidateCache(path);
+                  _tabStates.remove(path);
+                  
+                  String newPath = 'default';
+                  if (_controller.cache.customLists.isNotEmpty) {
+                    final nextIndex = index < _controller.cache.customLists.length ? index : _controller.cache.customLists.length - 1;
+                    newPath = _controller.cache.customLists[nextIndex].path;
+                  }
+                  
+                  setState(() {
+                    _controller.cache.switchList(newPath);
+                    _restoreTabState(newPath);
+                  });
+                }
+                return KeyEventResult.handled;
+              }
+
+              if (HardwareKeyboard.instance.isControlPressed &&
+                  (event.logicalKey == LogicalKeyboardKey.tab)) {
+                final lists = _controller.cache.customLists;
+                final allPaths = ['default', ...lists.map((l) => l.path)];
+                final currentPath = _controller.cache.importedListPath ?? 'default';
+                final currentIndex = allPaths.indexOf(currentPath);
+                
+                final nextIndex = (currentIndex + 1) % allPaths.length;
+                final nextPath = allPaths[nextIndex];
+                
+                _saveCurrentTabState(currentPath);
+                
+                setState(() {
+                  _controller.cache.switchList(nextPath);
+                  _restoreTabState(nextPath);
+                });
+                return KeyEventResult.handled;
+              }
+
+              if (HardwareKeyboard.instance.isControlPressed &&
+                  (event.logicalKey == LogicalKeyboardKey.keyS)) {
+                final path = _controller.cache.importedListPath;
+                if (path == null || path == 'default') {
+                   // trigger export for default
+                   _exportCurrentList();
+                } else if (_controller.cache.isListChanged) {
+                   // trigger save for custom
+                   _saveCustomList(path);
                 }
                 return KeyEventResult.handled;
               }
@@ -588,110 +769,141 @@ class _StandaloneDownloaderWindowState
     );
   }
 
+  Future<void> _saveCustomList(String path) async {
+    final stateItems = _controller.cache.getItemsForPath(path);
+    if (stateItems != null) {
+      final file = File(path);
+      final data = {
+        'items': stateItems.map((e) => e.toMap()).toList(),
+      };
+      await file.writeAsString(jsonEncode(data));
+      setState(() {
+        if (_controller.cache.importedListPath == path || (_controller.cache.importedListPath == null && path == 'default')) {
+           _controller.cache.isListChanged = false;
+        } else {
+           _controller.cache.setCacheChanged(path, false);
+        }
+      });
+    }
+  }
+
+  Future<void> _exportCurrentList() async {
+    final saveLocation = await CustomFilePickerDialog.show(
+      context,
+      title: 'EXPORT LIST',
+      saveMode: true,
+      initialFileName: '${_controller.cache.importedListName ?? "export"}.json',
+      allowedExtensions: ['json', 'txt'],
+    );
+    if (saveLocation != null && saveLocation.isNotEmpty) {
+      final exportedPath = saveLocation.first;
+      final isDefaultList = _controller.cache.importedListPath == null || _controller.cache.importedListPath == 'default';
+      
+      await _controller.exportListToFile(exportedPath);
+      
+      if (isDefaultList) {
+        _controller.cache.clear();
+      }
+      
+      await _controller.importListFromFile(
+        exportedPath,
+        p.basenameWithoutExtension(exportedPath),
+      );
+      
+      
+      setState(() {
+        _controller.cache.switchList('default');
+        _restoreTabState('default');
+      });
+    }
+  }
+
   Widget _buildMediaListSection() {
     return StandaloneWindowMediaList(
       isTrashView: _isTrashView,
-      importedListName: _controller.cache.importedListName,
-      isListChanged: _controller.cache.isListChanged,
-      lastCustomListName: _lastCustomListName,
-      lastCustomListVideos: _lastCustomListVideos,
-      lastCustomListImages: _lastCustomListImages,
-      lastCustomListSize: _lastCustomListSize,
-      onDefaultListTap: () {
+      trashCount: _trash.length,
+      activeListPath: _controller.cache.importedListPath ?? 'default',
+      customLists: _controller.cache.customLists,
+      isListChanged: (path) => _controller.cache.isCacheChanged(path),
+      onListTap: (path) {
+        final currentPath = _controller.cache.importedListPath ?? 'default';
+        _saveCurrentTabState(currentPath);
+        
         setState(() {
-          _isTrashView = false;
-          if (_controller.cache.importedListName != null) {
-            _lastCustomListVideos = _controller.totalListVideos;
-            _lastCustomListImages = _controller.totalListImages;
-            _lastCustomListSize = _controller.totalListSize;
-          }
-
-          _navigationHistory.clear();
-          _navigationHistory.add(null);
-          _historyIndex = 0;
-          _currentGroup = null;
-          _selectedIndices.clear();
-          _lastSelectedIndex = -1;
+          _controller.cache.switchList(path);
+          _restoreTabState(path);
         });
-        if (_controller.cache.importedListName != null) {
-          _controller.cache.switchList('default');
-          _controller.recalculateFilteredStatistics();
-        }
       },
       onTrashTap: () {
         setState(() {
           _isTrashView = true;
+          _currentGroup = null;
+          _historyIndex = 0;
           _navigationHistory.clear();
           _navigationHistory.add(null);
-          _historyIndex = 0;
-          _currentGroup = null;
           _selectedIndices.clear();
           _lastSelectedIndex = -1;
         });
       },
       onImportTap: () async {
-        final files = await CustomFilePickerDialog.show(
+        final path = await CustomFilePickerDialog.show(
           context,
           title: 'IMPORT LIST',
-          allowedExtensions: ['txt', 'json'],
-          initialDirectory: _currentPath,
+          allowedExtensions: ['json'],
         );
-        if (files != null && files.isNotEmpty) {
-          final file = File(files.first);
-          if (await file.exists()) {
-            final name = p.basename(file.path);
-            setState(() {
-              _lastCustomListPath = file.path;
-              _lastCustomListName = name;
-            });
-            await _controller.importListFromFile(file.path, name);
-          }
-        }
-      },
-      onCustomListTap: () async {
-        setState(() {
-          _isTrashView = false;
-        });
-        if (_controller.cache.importedListName == null &&
-            _lastCustomListPath != null) {
-          setState(() {
-            _navigationHistory.clear();
-            _navigationHistory.add(null);
-            _historyIndex = 0;
-            _currentGroup = null;
-            _selectedIndices.clear();
-            _lastSelectedIndex = -1;
-          });
-          await _controller.importListFromFile(
-            _lastCustomListPath!,
-            _lastCustomListName!,
-          );
-        }
-      },
-      onCustomListClose: () {
-        setState(() {
-          _lastCustomListName = null;
-          _lastCustomListPath = null;
-        });
-        if (_controller.cache.importedListName != null) {
-          _controller.cache.switchList('default');
-          _controller.recalculateFilteredStatistics();
-        }
-      },
-      onCustomListSave: () async {
-        if (_lastCustomListPath != null) {
-          await _controller.exportListToFile(_lastCustomListPath!);
-          _controller.cache.isListChanged = false;
-          _controller.recalculateFilteredStatistics();
+        if (path != null && path.isNotEmpty) {
+          final file = File(path.first);
+          if (file.existsSync()) {
+            final content = await file.readAsString();
+            final Map<String, dynamic> data = jsonDecode(content) as Map<String, dynamic>;
+            final items = (data['items'] as List)
+                .map((e) => MediaGroup.fromMap(e as Map<String, dynamic>))
+                .toList();
 
-          setState(() {
-            _lastCustomListName = null;
-            _lastCustomListPath = null;
-          });
-          if (_controller.cache.importedListName != null) {
-            _controller.cache.switchList('default');
+            final name = p.basenameWithoutExtension(path.first);
+            final currentPath = _controller.cache.importedListPath ?? 'default';
+            _saveCurrentTabState(currentPath);
+            
+            setState(() {
+              _controller.cache.switchList(path.first);
+              _controller.cache.parsedItems = items;
+              _controller.cache.importedListPath = path.first;
+              _controller.cache.importedListName = name;
+              _controller.cache.isListChanged = false;
+              _restoreTabState(path.first);
+            });
             _controller.recalculateFilteredStatistics();
           }
+        }
+      },
+      onCustomListClose: (path) {
+        setState(() {
+          _controller.cache.invalidateCache(path);
+          _tabStates.remove(path);
+          
+          if (_controller.cache.importedListPath == path) {
+            _controller.cache.switchList('default');
+            _restoreTabState('default');
+          }
+        });
+      },
+      onCustomListSave: (path) async {
+        // Save the list from the cache state
+        final itemsToSave = _controller.cache.getItemsForPath(path);
+        if (itemsToSave != null) {
+          final file = File(path);
+          final data = {
+            'items': itemsToSave.map((e) => e.toMap()).toList(),
+          };
+          await file.writeAsString(jsonEncode(data));
+          
+          setState(() {
+             if (_controller.cache.importedListPath == path || (_controller.cache.importedListPath == null && path == 'default')) {
+                _controller.cache.isListChanged = false;
+             } else {
+                _controller.cache.setCacheChanged(path, false);
+             }
+          });
         }
       },
     );
@@ -788,41 +1000,61 @@ class _StandaloneDownloaderWindowState
   }
 
   Widget _buildActionBar() {
+    bool hasImages = false;
+    bool hasVideos = false;
+    bool hasPlaylists = false;
+    bool hasProfiles = false;
+    bool hasGroups = false;
+
+    if (_controller.cache.parsedItems != null) {
+      for (final group in _controller.cache.parsedItems!) {
+        final first = group.first;
+        if (first.isProfile) {
+          hasProfiles = true;
+        } else if (first.isPlaylist) {
+          hasPlaylists = true;
+        } else if (group.items.length > 1) {
+          hasGroups = true;
+          if (group.items.any((i) => !i.isVideo)) hasImages = true;
+          if (group.items.any((i) => i.isVideo)) hasVideos = true;
+        } else {
+          if (first.isVideo) hasVideos = true;
+          else hasImages = true;
+        }
+      }
+    }
+
+    int rootIndex = -1;
+    if (_currentGroup != null && _controller.cache.parsedItems?.isNotEmpty == true) {
+      rootIndex = _controller.cache.parsedItems!.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl);
+    }
+
     return StandaloneWindowActionBar(
       isTrashView: _isTrashView,
       trashNotEmpty: _trash.isNotEmpty,
       hasItems: _controller.cache.parsedItems?.isNotEmpty ?? false,
       currentGroup: _currentGroup,
       importedListName: _controller.cache.importedListName,
-      rootIndex:
-          _currentGroup != null && _controller.cache.parsedItems!.isNotEmpty
-          ? _controller.cache.parsedItems!.indexOf(_currentGroup!)
-          : null,
-      config:
-          _currentGroup != null &&
-              _controller.cache.parsedItems!.isNotEmpty &&
-              _controller.cache.parsedItems!.indexOf(_currentGroup!) != -1
-          ? _controller.cache.configs[_controller.cache.parsedItems!.indexOf(
-              _currentGroup!,
-            )]
-          : null,
+      rootIndex: rootIndex != -1 ? rootIndex : null,
+      config: rootIndex != -1 ? _controller.cache.configs[rootIndex] : null,
       onRestoreAll: _restoreTrash,
       onEmptyTrash: () => setState(_trash.clear),
       onBackToRoot: () => setState(() => _currentGroup = null),
       onFormatChanged: (val) {
-        final rootIdx = _controller.cache.parsedItems!.indexOf(_currentGroup!);
-        if (rootIdx != -1) {
+        if (rootIndex != -1) {
           setState(() {
-            _controller.cache.configs[rootIdx]!.format = val;
+            _controller.cache.configs[rootIndex]!.format = val;
           });
           _controller.recalculateFilteredStatistics();
         }
       },
       onFilterChanged: (val) {
-        final rootIdx = _controller.cache.parsedItems!.indexOf(_currentGroup!);
-        if (rootIdx != -1) {
+        if (rootIndex != -1) {
           setState(() {
-            _controller.cache.configs[rootIdx]!.groupFilter = val;
+            if (_controller.cache.configs[rootIndex] == null) {
+              _controller.cache.configs[rootIndex] = DownloadConfig();
+            }
+            _controller.cache.configs[rootIndex]!.groupFilter = val;
           });
           _controller.recalculateFilteredStatistics();
         }
@@ -835,6 +1067,20 @@ class _StandaloneDownloaderWindowState
       },
       getHeight: _getHeight,
       matchTargetFormat: matchTargetFormat,
+      searchController: _searchController,
+      searchFocusNode: _searchFocusNode,
+      isSearchVisible: _isSearchVisible,
+      listFilter: _listFilter,
+      hasImages: hasImages,
+      hasVideos: hasVideos,
+      hasPlaylists: hasPlaylists,
+      hasProfiles: hasProfiles,
+      hasGroups: hasGroups,
+      onListFilterChanged: (val) {
+        setState(() {
+          _listFilter = val;
+        });
+      },
     );
   }
 
@@ -871,19 +1117,81 @@ class _StandaloneDownloaderWindowState
 
   Widget _buildMediaGrid() {
     List<MediaGroup> mappedGroups = [];
-    if (_currentGroup == null) {
-      mappedGroups = _controller.cache.parsedItems ?? [];
+    final searchTerm = _searchController.text.trim().toLowerCase();
+    
+    if (_isTrashView) {
+      final currentListPath = _controller.cache.importedListPath ?? 'default';
+      final currentTrash = _trash.where((t) => t.listPath == currentListPath).toList();
+      mappedGroups = currentTrash.map((t) {
+        if (t.item is MediaGroup) {
+          return t.item as MediaGroup;
+        } else {
+          var info = t.item as MediaInfo;
+          if (info.isProfile || info.isPlaylist) {
+            info = info.copyWith(isProfile: false);
+          }
+          return MediaGroup(
+            items: [info],
+            originalUrl: info.originalUrl,
+          );
+        }
+      }).toList();
+      if (searchTerm.isNotEmpty) {
+         mappedGroups = mappedGroups.where((group) {
+             final titleMatch = group.items.isNotEmpty 
+                 ? group.items.first.title.toLowerCase().contains(searchTerm)
+                 : false;
+             final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
+             return titleMatch || urlMatch;
+         }).toList();
+      }
+    } else if (_currentGroup == null) {
+      var entries = _controller.cache.parsedItems?.toList() ?? [];
+
+      if (_listFilter == 'image') {
+        entries = entries.where((e) => !e.first.isVideo && !e.first.isPlaylist && !e.first.isProfile).toList();
+      } else if (_listFilter == 'video') {
+        entries = entries.where((e) => e.first.isVideo && !e.first.isPlaylist && !e.first.isProfile).toList();
+      } else if (_listFilter == 'playlist') {
+        entries = entries.where((e) => e.first.isPlaylist && !e.first.isProfile).toList();
+      } else if (_listFilter == 'profile') {
+        entries = entries.where((e) => e.first.isProfile).toList();
+      }
+
+      if (_listFilter == 'added_asc') {
+        entries = entries.reversed.toList();
+      } else if (_listFilter == 'size_asc' || _listFilter == 'size_desc') {
+        entries.sort((a, b) {
+          final aSize = a.totalFilesize;
+          final bSize = b.totalFilesize;
+          return _listFilter == 'size_asc' ? aSize.compareTo(bSize) : bSize.compareTo(aSize);
+        });
+      }
+      mappedGroups = entries;
+
+      if (searchTerm.isNotEmpty) {
+         mappedGroups = mappedGroups.where((group) {
+             final titleMatch = group.items.isNotEmpty 
+                 ? group.items.first.title.toLowerCase().contains(searchTerm)
+                 : false;
+             final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
+             return titleMatch || urlMatch;
+         }).toList();
+      }
     } else {
-      final rootIndex =
-          _controller.cache.parsedItems?.indexOf(_currentGroup!) ?? -1;
+      final rootIndex = _controller.cache.parsedItems?.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl) ?? -1;
       if (rootIndex != -1) {
         final config = _controller.cache.configs[rootIndex];
         final filteredItems = _currentGroup!.items.where((item) {
           if (item.isError) return false;
+          if (_currentGroup!.first.isProfile && item == _currentGroup!.items.first) return false;
           if (config?.groupFilter == GroupDownloadType.images && item.isVideo)
             return false;
           if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo)
             return false;
+          if (searchTerm.isNotEmpty && !item.title.toLowerCase().contains(searchTerm)) {
+             return false;
+          }
           return true;
         }).toList();
 
@@ -893,8 +1201,11 @@ class _StandaloneDownloaderWindowState
       }
     }
 
-    return StandaloneWindowMediaGrid(
-      isTrashView: _isTrashView,
+    final listPath = _controller.cache.importedListPath ?? 'default';
+
+      return StandaloneWindowMediaGrid(
+        listPath: listPath,
+        isTrashView: _isTrashView,
       groups: mappedGroups,
       currentGroup: _currentGroup,
       selectedIndices: _selectedIndices,
@@ -906,7 +1217,10 @@ class _StandaloneDownloaderWindowState
       onDoubleTapItem: (index, group) {
         if (_currentGroup == null && group.items.length > 1) {
           setState(() {
-            _navigationHistory.add(_currentGroup);
+            if (_historyIndex < _navigationHistory.length - 1) {
+              _navigationHistory.removeRange(_historyIndex + 1, _navigationHistory.length);
+            }
+            _navigationHistory.add(group);
             _historyIndex++;
             _currentGroup = group;
           });
@@ -957,13 +1271,25 @@ class _StandaloneDownloaderWindowState
         _controller.recalculateFilteredStatistics();
       },
       onStartDownload: (index) {
-        _startDownload(index);
         if (_currentGroup == null) {
+          final group = _controller.cache.parsedItems![index];
+          _startDownload(group, index);
           setState(() {
             _controller.cache.parsedItems?.removeAt(index);
           });
+        } else {
+          final item = _currentGroup!.items[index];
+          final group = MediaGroup(originalUrl: item.originalUrl, items: [item]);
+          final rootIndex = _controller.cache.parsedItems!.indexOf(_currentGroup!);
+          _startDownload(group, rootIndex);
+          setState(() {
+            _currentGroup!.items.removeAt(index);
+          });
         }
+        _controller.cache.isListChanged = true;
+        _controller.cache.notify();
         _controller.recalculateFilteredStatistics();
+        ref.read(conflictProvider.notifier).clearGlobalResolution();
       },
       mainFocusNode: _mainFocusNode,
       matchTargetFormat: matchTargetFormat,
@@ -993,15 +1319,9 @@ class _StandaloneDownloaderWindowState
         }
       }
     } else {
-      videos = _controller.cache.importedListName != null
-          ? _lastCustomListVideos
-          : _controller.totalListVideos;
-      images = _controller.cache.importedListName != null
-          ? _lastCustomListImages
-          : _controller.totalListImages;
-      size = _controller.cache.importedListName != null
-          ? _lastCustomListSize
-          : _controller.totalListSize;
+      videos = _controller.totalListVideos;
+      images = _controller.totalListImages;
+      size = _controller.totalListSize;
     }
 
     return StandaloneWindowLocationBar(
@@ -1036,14 +1356,29 @@ class _StandaloneDownloaderWindowState
           final saveLocation = await CustomFilePickerDialog.show(
             context,
             title: 'EXPORT LIST',
+            saveMode: true,
+            initialFileName: '${_controller.cache.importedListName ?? "export"}.json',
             allowedExtensions: ['json', 'txt'],
           );
           if (saveLocation != null && saveLocation.isNotEmpty) {
-            await _controller.exportListToFile(saveLocation.first);
+            final exportedPath = saveLocation.first;
+            final isDefaultList = _controller.cache.importedListName == null;
+            
+            await _controller.exportListToFile(exportedPath);
+            
+            if (isDefaultList) {
+              _controller.cache.clear();
+            }
+            
+            await _controller.importListFromFile(
+              exportedPath, 
+              p.basename(exportedPath),
+            );
           }
         }
       },
       onDownloadAll: _downloadAll,
+      selectionCount: _selectedIndices.length,
     );
   }
 
@@ -1056,34 +1391,10 @@ class _StandaloneDownloaderWindowState
     });
 
     try {
-      final ext = url.contains('.png') ? '.png' : '.jpg';
-      final cacheDir = Directory(
-        p.join(
-          Platform.environment['HOME'] ?? '',
-          '.cache',
-          'onyxcore',
-          'viewer_cache',
-        ),
-      );
-      if (!cacheDir.existsSync()) {
-        cacheDir.createSync(recursive: true);
-      }
-
-      final tempFile = File(
-        p.join(
-          cacheDir.path,
-          '${item.id}_${DateTime.now().millisecondsSinceEpoch}$ext',
-        ),
-      );
-
-      final request = await HttpClient().getUrl(Uri.parse(url));
-      final response = await request.close();
-      await response.pipe(tempFile.openWrite());
-
       final fileItem = FileItem(
-        name: item.title.isNotEmpty ? item.title : p.basename(tempFile.path),
-        path: tempFile.path,
-        sizeBytes: tempFile.lengthSync(),
+        name: item.title.isNotEmpty ? item.title : p.basename(url),
+        path: url,
+        sizeBytes: item.filesize,
         modified: DateTime.now(),
         type: FileItemType.image,
       );
@@ -1113,6 +1424,39 @@ class _StandaloneDownloaderWindowState
       }
     }
   }
+
+  @visibleForTesting
+  int getHeightForTesting(String res) => _getHeight(res);
+
+  @visibleForTesting
+  String get currentPathForTesting => _currentPath;
+
+  @visibleForTesting
+  TextEditingController get searchControllerForTesting => _searchController;
+
+  @visibleForTesting
+  void onSearchChangedForTesting() => _onSearchChanged();
+
+  @visibleForTesting
+  Timer? get searchDebounceForTesting => _searchDebounce;
+
+  @visibleForTesting
+  bool get isSearchVisibleForTesting => _isSearchVisible;
+
+  @visibleForTesting
+  set isSearchVisibleForTesting(bool v) => _isSearchVisible = v;
+
+  @visibleForTesting
+  Set<int> get selectedIndicesForTesting => _selectedIndices;
+
+  @visibleForTesting
+  void saveCurrentTabStateForTesting(String path) => _saveCurrentTabState(path);
+
+  @visibleForTesting
+  void restoreTabStateForTesting(String path) => _restoreTabState(path);
+
+  @visibleForTesting
+  void handleDeleteForTesting(bool isShiftPressed) => _handleDelete(isShiftPressed);
 }
 
 class _TrashItem {

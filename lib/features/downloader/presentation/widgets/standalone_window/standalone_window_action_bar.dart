@@ -23,6 +23,16 @@ class StandaloneWindowActionBar extends StatelessWidget {
     required this.onFilterChanged,
     required this.matchTargetFormat,
     required this.getHeight,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.isSearchVisible,
+    required this.listFilter,
+    required this.onListFilterChanged,
+    this.hasImages = true,
+    this.hasVideos = true,
+    this.hasPlaylists = true,
+    this.hasProfiles = true,
+    this.hasGroups = true,
   });
 
   final bool isTrashView;
@@ -41,6 +51,16 @@ class StandaloneWindowActionBar extends StatelessWidget {
   final ValueChanged<GroupDownloadType> onFilterChanged;
   final MediaFormat? Function(MediaInfo, MediaFormat?) matchTargetFormat;
   final int Function(String) getHeight;
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final bool isSearchVisible;
+  final String listFilter;
+  final ValueChanged<String> onListFilterChanged;
+  final bool hasImages;
+  final bool hasVideos;
+  final bool hasPlaylists;
+  final bool hasProfiles;
+  final bool hasGroups;
 
   @override
   Widget build(BuildContext context) {
@@ -97,126 +117,207 @@ class StandaloneWindowActionBar extends StatelessWidget {
         color: AppColors.background,
         border: Border(bottom: BorderSide(color: AppColors.borderColor)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                if (currentGroup != null) ...[
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: onBackToRoot,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: InkWell(
-                      onTap: onBackToRoot,
-                      borderRadius: BorderRadius.circular(4),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Row(
+            children: [
+              SizedBox(
+                width: constraints.maxWidth / 3,
+                child: Row(
+                  children: [
+                    if (currentGroup != null) ...[
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: onBackToRoot,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: InkWell(
+                          onTap: onBackToRoot,
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            child: Text(
+                              importedListName ?? 'Default List',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white54,
+                                fontSize: 16,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
                         ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(Icons.chevron_right, color: Colors.white54),
+                      ),
+                      Expanded(
+                        child: Text(
+                          currentGroup!.first.title.isNotEmpty
+                              ? currentGroup!.first.title
+                              : 'Group',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ] else
+                      Expanded(
                         child: Text(
                           importedListName ?? 'Default List',
                           style: GoogleFonts.outfit(
-                            color: Colors.white54,
-                            fontSize: 16,
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
                           ),
                           overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
                         ),
                       ),
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(Icons.chevron_right, color: Colors.white54),
-                  ),
-                  Expanded(
-                    child: Text(
-                      currentGroup!.first.title.isNotEmpty
-                          ? currentGroup!.first.title
-                          : 'Group',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ] else
-                  Expanded(
-                    child: Text(
-                      importedListName ?? 'Default List',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (hasItems) ...[
-            if (currentGroup != null &&
-                config != null &&
-                rootIndex != null &&
-                rootIndex != -1) ...[
-              if (currentGroup!.first.isPlaylist)
-                SizedBox(
-                  width: 140,
-                  height: 36,
-                  child: FormatSelectionDropdown(
-                    item: currentGroup!.first,
-                    config: config!,
-                    index: rootIndex!,
-                    group: currentGroup,
-                    getHeight: getHeight,
-                    matchTargetFormat: matchTargetFormat,
-                    onChanged: onFormatChanged,
-                  ),
-                )
-              else
-                SizedBox(
-                  width: 140,
-                  height: 36,
-                  child: GroupFilterDropdown(
-                    selectedFilter: config!.groupFilter,
-                    isEnabled:
-                        currentGroup!.first.isProfile ||
-                        (currentGroup!.items.any((i) => !i.isVideo) &&
-                            currentGroup!.items.any((i) => i.isVideo)),
-                    onChanged: onFilterChanged,
-                  ),
-                ),
-              const SizedBox(width: 16),
-            ],
-            SizedBox(
-              height: 36,
-              child: TextButton(
-                onPressed: onClear,
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white12,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(
-                  'Clear',
-                  style: GoogleFonts.outfit(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  ],
                 ),
               ),
-            ),
-          ],
-        ],
+              const SizedBox(width: 20),
+              // Search Box
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 300),
+                child: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: searchController,
+                  builder: (context, value, child) {
+                    final isActive = value.text.isNotEmpty;
+                    final isFocused = searchFocusNode.hasFocus;
+                    return Container(
+                      height: 36,
+                      padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: isActive || isFocused
+                            ? AppColors.magenta.withValues(alpha: 0.1)
+                            : Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isActive || isFocused ? AppColors.magenta : Colors.white10,
+                          width: isActive || isFocused ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: searchController,
+                        focusNode: searchFocusNode,
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Search...',
+                          hintStyle: GoogleFonts.outfit(
+                            color: Colors.white30,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: isActive || isFocused ? AppColors.magenta : Colors.white30,
+                            size: 16,
+                          ),
+                          suffixIcon: isActive
+                              ? IconButton(
+                                  icon: const Icon(Icons.close, size: 16, color: Colors.white54),
+                                  onPressed: () {
+                                    searchController.clear();
+                                    searchFocusNode.unfocus();
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                )
+                              : null,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                        onChanged: (_) {},
+                      ),
+                    );
+                  },
+                ),
+              ),
+              ),
+              const Spacer(),
+              if (hasItems) ...[
+                if (currentGroup != null) ...[
+                  if (currentGroup!.first.isPlaylist && config != null && rootIndex != null)
+                    SizedBox(
+                      width: 140,
+                      height: 36,
+                      child: FormatSelectionDropdown(
+                        item: currentGroup!.first,
+                        config: config!,
+                        index: rootIndex!,
+                        group: currentGroup,
+                        getHeight: getHeight,
+                        matchTargetFormat: matchTargetFormat,
+                        onChanged: onFormatChanged,
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: 140,
+                      height: 36,
+                      child: GroupFilterDropdown(
+                        selectedFilter: config?.groupFilter ?? GroupDownloadType.all,
+                        isEnabled: currentGroup!.items.where((i) => !i.isProfile).any((i) => !i.isVideo) &&
+                                   currentGroup!.items.where((i) => !i.isProfile).any((i) => i.isVideo),
+                        hasVideos: currentGroup!.items.where((i) => !i.isProfile).any((i) => i.isVideo),
+                        hasImages: currentGroup!.items.where((i) => !i.isProfile).any((i) => !i.isVideo),
+                        onChanged: onFilterChanged,
+                      ),
+                    ),
+                  const SizedBox(width: 16),
+                ] else ...[
+                  SizedBox(
+                    width: 140,
+                    height: 36,
+                    child: ListSortFilterDropdown(
+                      selectedFilter: listFilter,
+                      onChanged: onListFilterChanged,
+                      hasImages: hasImages,
+                      hasVideos: hasVideos,
+                      hasPlaylists: hasPlaylists,
+                      hasProfiles: hasProfiles,
+                      hasGroups: hasGroups,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                SizedBox(
+                  height: 36,
+                  child: TextButton(
+                    onPressed: onClear,
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white12,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Clear List',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

@@ -265,6 +265,156 @@ class GroupFilterDropdown extends StatelessWidget {
   }
 }
 
+class ListSortFilterDropdown extends StatelessWidget {
+  const ListSortFilterDropdown({
+    required this.selectedFilter,
+    required this.onChanged,
+    this.hasImages = true,
+    this.hasVideos = true,
+    this.hasPlaylists = true,
+    this.hasProfiles = true,
+    this.hasGroups = true,
+    super.key,
+  });
+
+  final String selectedFilter;
+  final ValueChanged<String> onChanged;
+  final bool hasImages;
+  final bool hasVideos;
+  final bool hasPlaylists;
+  final bool hasProfiles;
+  final bool hasGroups;
+
+  @override
+  Widget build(BuildContext context) {
+    final sortOptions = <Map<String, dynamic>>[
+      {
+        'value': 'added_desc',
+        'label': 'Added',
+        'icon': Icons.arrow_upward_rounded,
+      },
+      {
+        'value': 'added_asc',
+        'label': 'Added',
+        'icon': Icons.arrow_downward_rounded,
+      },
+      {
+        'value': 'size_desc',
+        'label': 'Size',
+        'icon': Icons.arrow_upward_rounded,
+      },
+      {
+        'value': 'size_asc',
+        'label': 'Size',
+        'icon': Icons.arrow_downward_rounded,
+      },
+    ];
+
+    if (hasImages) sortOptions.add({'value': 'image', 'label': 'Images', 'icon': Icons.image_outlined});
+    if (hasVideos) sortOptions.add({'value': 'video', 'label': 'Videos', 'icon': Icons.videocam_outlined});
+    if (hasPlaylists) sortOptions.add({'value': 'playlist', 'label': 'Playlists', 'icon': Icons.queue_music_rounded});
+    if (hasProfiles) sortOptions.add({'value': 'profile', 'label': 'Profiles', 'icon': Icons.person_outline_rounded});
+
+    final activeSortOpt = sortOptions.firstWhere(
+      (opt) => opt['value'] == selectedFilter,
+      orElse: () => sortOptions.first,
+    );
+
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: selectedFilter != 'added_desc'
+            ? AppColors.violet.withValues(alpha: 0.1)
+            : Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: selectedFilter != 'added_desc'
+              ? AppColors.violet.withValues(alpha: 0.5)
+              : Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        offset: const Offset(0, 40),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        color: const Color(0xFF2A2A35),
+        elevation: 24,
+        tooltip: '',
+        padding: EdgeInsets.zero,
+        onSelected: onChanged,
+        itemBuilder: (context) {
+          return sortOptions.map((opt) {
+            final isSelected = selectedFilter == opt['value'];
+            return PopupMenuItem<String>(
+              value: opt['value']! as String,
+              height: 40,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    opt['icon']! as IconData,
+                    size: 16,
+                    color: isSelected ? AppColors.violet : Colors.white70,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    opt['label']! as String,
+                    style: GoogleFonts.manrope(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList();
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              activeSortOpt['icon']! as IconData,
+              size: 16,
+              color: selectedFilter != 'added_desc' ? AppColors.violet : Colors.white70,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              activeSortOpt['label']! as String,
+              style: GoogleFonts.manrope(
+                color: selectedFilter != 'added_desc' ? AppColors.violet : Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 4),
+            if (selectedFilter != 'added_desc')
+              GestureDetector(
+                onTap: () {
+                  onChanged('added_desc');
+                },
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: Colors.white70,
+                ),
+              )
+            else
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16,
+                color: Colors.white54,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class FormatSelectionDropdown extends StatelessWidget {
 
   const FormatSelectionDropdown({

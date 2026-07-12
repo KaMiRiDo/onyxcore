@@ -65,8 +65,7 @@ class StreamlinkEngine extends DownloadEngine {
     try {
       final res = Process.runSync('which', ['streamlink']);
       if (res.exitCode == 0) {
-        _cachedBinaryPath = (res.stdout as String).trim();
-        return _cachedBinaryPath;
+        return _cachedBinaryPath = (res.stdout as String).trim();
       }
     } catch (_) {}
     return null;
@@ -127,8 +126,8 @@ class StreamlinkEngine extends DownloadEngine {
         'https://pypi.org/pypi/streamlink/json',
       ]);
       if (res.exitCode == 0) {
-        final json = jsonDecode(res.stdout as String);
-        return json['info']?['version']?.toString();
+        final json = jsonDecode(res.stdout as String) as Map<String, dynamic>;
+        return (json['info'] as Map<String, dynamic>?)?['version']?.toString();
       }
     } catch (_) {}
     return null;
@@ -333,7 +332,7 @@ class StreamlinkEngine extends DownloadEngine {
   /// waits 3 seconds, then force-kills if still running.
   static Future<void> stopGracefully(Process process) async {
     process.kill(ProcessSignal.sigint);
-    await Future.delayed(const Duration(seconds: 3));
+    await Future<void>.delayed(const Duration(seconds: 3));
     // Check if process exited
     try {
       final exitCode = await process.exitCode.timeout(

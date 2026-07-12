@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_list.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 
 void main() {
   testWidgets('StandaloneWindowMediaList renders basic components and interactions', (tester) async {
@@ -13,18 +14,15 @@ void main() {
         home: Scaffold(
           body: StandaloneWindowMediaList(
             isTrashView: false,
-            importedListName: null,
-            isListChanged: false,
-            lastCustomListName: null,
-            lastCustomListVideos: 0,
-            lastCustomListImages: 0,
-            lastCustomListSize: 0,
+            trashCount: 0,
+            activeListPath: 'default',
+            customLists: [],
+            isListChanged: (path) => false,
             onTrashTap: () => trashTapped = true,
             onImportTap: () => importTapped = true,
-            onDefaultListTap: () => defaultListTapped = true,
-            onCustomListTap: () {},
-            onCustomListClose: () {},
-            onCustomListSave: () {},
+            onListTap: (path) => defaultListTapped = path == 'default',
+            onCustomListClose: (path) {},
+            onCustomListSave: (path) {},
           ),
         ),
       ),
@@ -54,18 +52,17 @@ void main() {
         home: Scaffold(
           body: StandaloneWindowMediaList(
             isTrashView: false,
-            importedListName: 'My List',
-            isListChanged: false,
-            lastCustomListName: null,
-            lastCustomListVideos: 0,
-            lastCustomListImages: 0,
-            lastCustomListSize: 0,
+            trashCount: 0,
+            activeListPath: '/my-list',
+            customLists: [CustomListInfo(path: '/my-list', name: 'My List')],
+            isListChanged: (path) => false,
             onTrashTap: () {},
             onImportTap: () {},
-            onDefaultListTap: () {},
-            onCustomListTap: () => customListTapped = true,
-            onCustomListClose: () => customListClosed = true,
-            onCustomListSave: () {},
+            onListTap: (path) {
+              if (path == '/my-list') customListTapped = true;
+            },
+            onCustomListClose: (path) => customListClosed = true,
+            onCustomListSave: (path) {},
           ),
         ),
       ),
@@ -94,18 +91,15 @@ void main() {
         home: Scaffold(
           body: StandaloneWindowMediaList(
             isTrashView: false,
-            importedListName: 'My Changed List',
-            isListChanged: true,
-            lastCustomListName: null,
-            lastCustomListVideos: 0,
-            lastCustomListImages: 0,
-            lastCustomListSize: 0,
+            trashCount: 0,
+            activeListPath: '/changed-list',
+            customLists: [CustomListInfo(path: '/changed-list', name: 'My Changed List')],
+            isListChanged: (path) => true,
             onTrashTap: () {},
             onImportTap: () {},
-            onDefaultListTap: () {},
-            onCustomListTap: () {},
-            onCustomListClose: () => customListClosed = true,
-            onCustomListSave: () => customListSaved = true,
+            onListTap: (path) {},
+            onCustomListClose: (path) => customListClosed = true,
+            onCustomListSave: (path) => customListSaved = true,
           ),
         ),
       ),

@@ -364,7 +364,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         final isLive = _taskArgs[id]?['isLive'] as bool? ?? false;
         if (isLive) {
           task.process!.kill(ProcessSignal.sigint);
-          await Future.delayed(const Duration(seconds: 3));
+          await Future<void>.delayed(const Duration(seconds: 3));
           // If still running after 3s, force kill
           try {
             await task.process!.exitCode.timeout(const Duration(seconds: 1));

@@ -46,11 +46,12 @@ class EngineRegistry {
 
   @visibleForTesting
   static void clearRegisteredEngines() {
-    _engines.clear();
-    _engines.addAll([
-      ..._requiredEngines,
-      ..._optionalEngines,
-    ]);
+    _engines
+      ..clear()
+      ..addAll([
+        ..._requiredEngines,
+        ..._optionalEngines,
+      ]);
   }
 
   @visibleForTesting
@@ -102,11 +103,11 @@ class EngineRegistry {
 
     final matching = installed
         .where((e) => e.urlPatterns.any((p) => p.hasMatch(url)))
-        .toList();
-    matching.sort((a, b) => b.priority.compareTo(a.priority));
+        .toList()
+      ..sort((a, b) => b.priority.compareTo(a.priority));
 
-    final others = installed.where((e) => !matching.contains(e)).toList();
-    others.sort((a, b) => b.priority.compareTo(a.priority));
+    final others = installed.where((e) => !matching.contains(e)).toList()
+      ..sort((a, b) => b.priority.compareTo(a.priority));
 
     final sequence = [...matching, ...others];
     if (sequence.isEmpty) {
@@ -127,15 +128,15 @@ class EngineRegistry {
 
   /// Required engines only.
   static List<DownloadEngine> get requiredEngines {
-    final required = _engines.where((e) => !e.isOptional).toList();
-    required.sort((a, b) => b.priority.compareTo(a.priority));
+    final required = _engines.where((e) => !e.isOptional).toList()
+      ..sort((a, b) => b.priority.compareTo(a.priority));
     return List.unmodifiable(required);
   }
 
   /// Optional engines only.
   static List<DownloadEngine> get optionalEngines {
-    final optional = _engines.where((e) => e.isOptional).toList();
-    optional.sort((a, b) => b.priority.compareTo(a.priority));
+    final optional = _engines.where((e) => e.isOptional).toList()
+      ..sort((a, b) => b.priority.compareTo(a.priority));
     return List.unmodifiable(optional);
   }
 

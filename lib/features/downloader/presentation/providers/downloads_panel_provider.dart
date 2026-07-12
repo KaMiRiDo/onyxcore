@@ -53,6 +53,12 @@ class _CacheState {
   bool isListChanged = false;
 }
 
+class CustomListInfo {
+  final String path;
+  final String name;
+  CustomListInfo({required this.path, required this.name});
+}
+
 class DownloadsListCache extends ChangeNotifier {
   final Map<String, _CacheState> _states = {};
   String _activePath = 'default';
@@ -108,6 +114,19 @@ class DownloadsListCache extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<CustomListInfo> get customLists {
+    final lists = <CustomListInfo>[];
+    for (final entry in _states.entries) {
+      if (entry.key != 'default' && entry.value.importedListPath != null && entry.value.importedListName != null) {
+        lists.add(CustomListInfo(
+          path: entry.value.importedListPath!,
+          name: entry.value.importedListName!,
+        ));
+      }
+    }
+    return lists;
+  }
+
   void notify() {
     notifyListeners();
   }
@@ -119,6 +138,17 @@ class DownloadsListCache extends ChangeNotifier {
     _activeState.importedListPath = null;
     _activeState.isListChanged = false;
     notifyListeners();
+  }
+
+  List<MediaGroup>? getItemsForPath(String path) {
+    return _states[path]?.parsedItems;
+  }
+
+  void setCacheChanged(String path, bool changed) {
+    if (_states.containsKey(path)) {
+      _states[path]!.isListChanged = changed;
+      notifyListeners();
+    }
   }
 }
 

@@ -18,6 +18,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: StandaloneWindowMediaGrid(
+            listPath: '',
             isTrashView: false,
             groups: const [],
             currentGroup: null,
@@ -62,6 +63,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: StandaloneWindowMediaGrid(
+            listPath: '',
             isTrashView: false,
             groups: [group],
             currentGroup: null,
@@ -121,6 +123,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: StandaloneWindowMediaGrid(
+            listPath: '',
             isTrashView: true,
             groups: [trashGroup], // passing it as groups so it gets rendered!
             currentGroup: null,
@@ -163,6 +166,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: StandaloneWindowMediaGrid(
+            listPath: '',
             isTrashView: false,
             groups: [group],
             currentGroup: null,

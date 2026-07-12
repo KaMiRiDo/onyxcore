@@ -114,11 +114,6 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
     _totalCount = await _db.getTotalCount();
   }
 
-  List<DownloadHistoryEntry> _loadInitial() {
-    _loadedCount = _pageSize;
-    return [];
-  }
-
   Future<void> loadMore() async {
     if (!hasMore) return;
     final additional = await _db.getEntries(offset: _loadedCount);

@@ -86,8 +86,8 @@ class StandaloneWindowHeader extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(width: 24),
-          // Action Column
+          const SizedBox(width: 16),
+          // Fetch Button & Optionslumn
           SizedBox(
             height: 84, // Reduced to match input box exactly
             child: IntrinsicWidth(
@@ -178,21 +178,17 @@ class StandaloneWindowHeader extends StatelessWidget {
 }
 
 class _GradientBorderPainter extends CustomPainter {
-  _GradientBorderPainter(
-    this.animation, {
-    this.radius = 12.0,
-    this.strokeWidth = 1.5,
-    this.colors = const [
-      AppColors.magenta,
-      AppColors.violet,
-      AppColors.indigo,
-      AppColors.magenta,
-    ],
-  });
+  _GradientBorderPainter(this.animation);
+
   final double animation;
-  final List<Color> colors;
-  final double radius;
-  final double strokeWidth;
+  final List<Color> colors = const [
+    AppColors.magenta,
+    AppColors.violet,
+    AppColors.indigo,
+    AppColors.magenta,
+  ];
+  final double radius = 12.0;
+  final double strokeWidth = 1.5;
 
   @override
   void paint(Canvas canvas, Size size) {

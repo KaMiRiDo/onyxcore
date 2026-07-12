@@ -106,7 +106,6 @@ class MediaInfo {
 
     final type = json['_type']?.toString();
     final isPlaylist = type == 'playlist';
-    const isProfile = false; // Will set in backend based on url/extractor
 
     int? itemCount;
     if (isPlaylist && json['playlist_count'] != null) {

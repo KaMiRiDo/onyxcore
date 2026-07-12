@@ -308,6 +308,31 @@ void main() {
         cache.isListChanged = true;
         expect(notifyCount, 4);
       });
+
+      test('U-DL-PNL-30: customLists returns list of custom list names and paths', () {
+        final cache = DownloadsListCache();
+        cache.switchList('default');
+        
+        cache.switchList('/a');
+        cache.importedListPath = '/a';
+        cache.importedListName = 'List A';
+        
+        cache.switchList('/b');
+        cache.importedListPath = '/b';
+        cache.importedListName = 'List B';
+        
+        cache.switchList('default');
+        
+        final lists = cache.customLists;
+        expect(lists.length, 2);
+        
+        // Assert sorting or content
+        final hasA = lists.any((l) => l.path == '/a' && l.name == 'List A');
+        final hasB = lists.any((l) => l.path == '/b' && l.name == 'List B');
+        
+        expect(hasA, isTrue);
+        expect(hasB, isTrue);
+      });
     });
   });
 }

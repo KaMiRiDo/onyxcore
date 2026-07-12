@@ -120,8 +120,8 @@ class PlaywrightEngine extends DownloadEngine {
         'https://pypi.org/pypi/playwright/json',
       ]);
       if (res.exitCode == 0) {
-        final json = jsonDecode(res.stdout as String);
-        return json['info']?['version']?.toString();
+        final json = jsonDecode(res.stdout as String) as Map<String, dynamic>;
+        return (json['info'] as Map<String, dynamic>?)?['version']?.toString();
       }
     } catch (_) {}
     return null;
@@ -130,8 +130,8 @@ class PlaywrightEngine extends DownloadEngine {
   /// Ensure the interception script exists on disk.
   Future<void> _ensureScript() async {
     final scriptFile = File(binaryPath!);
-    if (!await scriptFile.exists()) {
-      await scriptFile.parent.create(recursive: true);
+    if (!scriptFile.existsSync()) {
+      scriptFile.parent.createSync(recursive: true);
     }
     await scriptFile.writeAsString(_interceptScript);
     debugPrint('[PlaywrightEngine] Wrote intercept script at: ${binaryPath!}');
@@ -239,7 +239,6 @@ class PlaywrightEngine extends DownloadEngine {
         final isHls =
             mediaUrl.contains('.m3u8') || contentType.contains('mpegurl');
         final isTs = mediaUrl.contains('.ts');
-        final isMp4 = mediaUrl.contains('.mp4') || contentType.contains('mp4');
 
         var ext = 'mp4';
         if (isHls) ext = 'ts';

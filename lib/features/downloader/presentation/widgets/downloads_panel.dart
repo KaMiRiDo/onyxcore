@@ -511,6 +511,7 @@ class _MediaDownloaderPanelState extends ConsumerState<_MediaDownloaderPanel>
           .toList();
 
       setState(() {
+        _cache.switchList(filePath);
         _parsedItems = importedItems;
         _configs.clear();
         for (var i = 0; i < importedItems.length; i++) {

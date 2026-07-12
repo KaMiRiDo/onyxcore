@@ -1619,14 +1619,17 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
       
       expect(container.read(backgroundPanelOpenProvider), isTrue);
 
-      // Ctrl+D: Downloads panel
+      // Ctrl+D: Downloads panel — opens downloads panel which fires a 50ms
+      // Future.delayed to focus the URL field; pump past it to avoid pending timer.
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
       
       expect(container.read(downloadsPanelOpenProvider), isTrue);
     });

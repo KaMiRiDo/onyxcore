@@ -562,7 +562,7 @@ class GalleryDlEngine extends DownloadEngine {
 
         final output = await res.transform(utf8.decoder).join();
         final data = jsonDecode(output) as Map<String, dynamic>;
-        final user = data['data']?['user'] as Map<String, dynamic>? ?? {};
+        final user = (data['data'] as Map?)?['user'] as Map<String, dynamic>? ?? {};
 
         if (user.isEmpty) {
           return null;
@@ -581,7 +581,7 @@ class GalleryDlEngine extends DownloadEngine {
           extractor: 'instagram',
           isProfile: true,
           itemCount:
-              user['edge_owner_to_timeline_media']?['count'] as int? ?? 0,
+              (user['edge_owner_to_timeline_media'] as Map?)?['count'] as int? ?? 0,
           originalUrl: url,
         );
 
@@ -589,7 +589,7 @@ class GalleryDlEngine extends DownloadEngine {
 
         if (fetchDeep) {
           final edges =
-              user['edge_owner_to_timeline_media']?['edges']
+              (user['edge_owner_to_timeline_media'] as Map?)?['edges']
                   as List<dynamic>? ??
               [];
           for (final edge in edges) {
@@ -604,10 +604,10 @@ class GalleryDlEngine extends DownloadEngine {
 
             var itemTitle = title; // default to profile title
             final captionEdges =
-                node['edge_media_to_caption']?['edges'] as List<dynamic>? ?? [];
+                (node['edge_media_to_caption'] as Map?)?['edges'] as List<dynamic>? ?? [];
             if (captionEdges.isNotEmpty) {
               itemTitle =
-                  captionEdges.first['node']?['text']?.toString() ?? itemTitle;
+                  ((captionEdges.first as Map?)?['node'] as Map?)?['text']?.toString() ?? itemTitle;
             }
 
             results.add(
@@ -623,8 +623,8 @@ class GalleryDlEngine extends DownloadEngine {
                 directUrl:
                     node['video_url']?.toString() ??
                     node['display_url']?.toString(),
-                width: node['dimensions']?['width'] as int?,
-                height: node['dimensions']?['height'] as int?,
+                width: (node['dimensions'] as Map?)?['width'] as int?,
+                height: (node['dimensions'] as Map?)?['height'] as int?,
                 duration: node['video_duration'] != null
                     ? (node['video_duration'] as num).toInt()
                     : null,
@@ -680,7 +680,7 @@ class GalleryDlEngine extends DownloadEngine {
               if (sharedMeta['video_versions'] is List &&
                   (sharedMeta['video_versions'] as List).isNotEmpty) {
                 final versions = List<Map<dynamic, dynamic>>.from(
-                  (sharedMeta['video_versions'] as List).whereType<Map>(),
+                  (sharedMeta['video_versions'] as List).whereType<Map<dynamic, dynamic>>(),
                 );
                 if (versions.isNotEmpty) {
                   versions.sort((a, b) {
@@ -702,25 +702,19 @@ class GalleryDlEngine extends DownloadEngine {
               }
 
               // Try to extract Reddit fallback_url for videos to avoid m3u8/dash playlists
-              if (sharedMeta['media'] is Map &&
-                  sharedMeta['media']['reddit_video'] is Map &&
-                  sharedMeta['media']['reddit_video']['fallback_url'] != null) {
-                fileUrl = sharedMeta['media']['reddit_video']['fallback_url']
-                    .toString();
-              } else if (sharedMeta['secure_media'] is Map &&
-                  sharedMeta['secure_media']['reddit_video'] is Map &&
-                  sharedMeta['secure_media']['reddit_video']['fallback_url'] !=
-                      null) {
-                fileUrl =
-                    sharedMeta['secure_media']['reddit_video']['fallback_url']
-                        .toString();
-              } else if (sharedMeta['preview'] is Map &&
-                  sharedMeta['preview']['reddit_video_preview'] is Map &&
-                  sharedMeta['preview']['reddit_video_preview']['fallback_url'] !=
-                      null) {
-                fileUrl =
-                    sharedMeta['preview']['reddit_video_preview']['fallback_url']
-                        .toString();
+              final mediaMap = sharedMeta['media'] as Map?;
+              final redditVideoMediaMap = mediaMap?['reddit_video'] as Map?;
+              final secureMediaMap = sharedMeta['secure_media'] as Map?;
+              final redditVideoSecureMediaMap = secureMediaMap?['reddit_video'] as Map?;
+              final previewMap = sharedMeta['preview'] as Map?;
+              final redditVideoPreviewMap = previewMap?['reddit_video_preview'] as Map?;
+
+              if (redditVideoMediaMap?['fallback_url'] != null) {
+                fileUrl = redditVideoMediaMap!['fallback_url'].toString();
+              } else if (redditVideoSecureMediaMap?['fallback_url'] != null) {
+                fileUrl = redditVideoSecureMediaMap!['fallback_url'].toString();
+              } else if (redditVideoPreviewMap?['fallback_url'] != null) {
+                fileUrl = redditVideoPreviewMap!['fallback_url'].toString();
               }
 
               if (fileUrl == null &&
@@ -775,10 +769,10 @@ class GalleryDlEngine extends DownloadEngine {
               } else if (sharedMeta['tweet_id'] != null) {
                 final author =
                     (sharedMeta['user'] is Map
-                        ? sharedMeta['user']['screen_name']
+                        ? (sharedMeta['user'] as Map)['screen_name']
                         : null) ??
                     (sharedMeta['author'] is Map
-                        ? sharedMeta['author']['name']
+                        ? (sharedMeta['author'] as Map)['name']
                         : null) ??
                     sharedMeta['author']?.toString() ??
                     'i';
@@ -798,9 +792,9 @@ class GalleryDlEngine extends DownloadEngine {
               }
               if (thumb == null && sharedMeta['preview'] is Map) {
                 try {
-                  final images = sharedMeta['preview']['images'] as List;
+                  final images = (sharedMeta['preview'] as Map)['images'] as List;
                   if (images.isNotEmpty) {
-                    thumb = images.first['source']['url'].toString().replaceAll(
+                    thumb = (images.first as Map)['source']['url'].toString().replaceAll(
                       '&amp;',
                       '&',
                     );
@@ -824,12 +818,9 @@ class GalleryDlEngine extends DownloadEngine {
                   sharedMeta['type'] == 'video' ||
                   sharedMeta['vcodec'] != null ||
                   sharedMeta['video_url'] != null ||
-                  (sharedMeta['media'] is Map &&
-                      sharedMeta['media']['reddit_video'] != null) ||
-                  (sharedMeta['preview'] is Map &&
-                      sharedMeta['preview']['reddit_video_preview'] != null) ||
-                  (sharedMeta['secure_media'] is Map &&
-                      sharedMeta['secure_media']['reddit_video'] != null)) {
+                  ((sharedMeta['media'] as Map?)?['reddit_video'] != null) ||
+                  ((sharedMeta['preview'] as Map?)?['reddit_video_preview'] != null) ||
+                  ((sharedMeta['secure_media'] as Map?)?['reddit_video'] != null)) {
                 isVid = true;
               }
               if (fileUrl != null) {

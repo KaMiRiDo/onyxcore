@@ -190,7 +190,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
     var sourceBadgeName = item.extractor;
     if (sourceBadgeName == null || sourceBadgeName.toLowerCase() == 'generic') {
       try {
-        final urlStr = group.originalUrl ?? item.originalUrl;
+        final urlStr = group.originalUrl;
         final uri = Uri.parse(urlStr);
         sourceBadgeName = uri.host.replaceFirst('www.', '');
       } catch (_) {

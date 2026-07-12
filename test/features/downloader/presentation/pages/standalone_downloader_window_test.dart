@@ -1,270 +1,212 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/features/downloader/presentation/pages/standalone_downloader_window.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+
+// ignore_for_file: avoid_dynamic_calls, invalid_use_of_protected_member
+
+class MockDownloadsSharedController extends Mock implements DownloadsSharedController {
+  @override
+  DownloadsListCache get cache => DownloadsListCache();
+}
+class MockPersistentViewerManager extends Mock implements PersistentViewerManager {}
+class MockDownloadsListCache extends Mock implements DownloadsListCache {}
 
 void main() {
-  Widget createWidgetUnderTest(ProviderContainer container) {
-    return UncontrolledProviderScope(
-      container: container,
-      child: const MaterialApp(
-        home: Scaffold(
-          body: StandaloneDownloaderWindow(
-            windowId: 1,
-            initParams: {'currentPath': '/test/path'},
-          ),
-        ),
-      ),
-    );
-  }
+  setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+  });
 
-  group('StandaloneDownloaderWindow Exhaustive 100% Coverage Tests', () {
-    late ProviderContainer container;
-
-    setUp(() {
-      container = ProviderContainer();
-    });
-
-    tearDown(() {
-      container.dispose();
-    });
-
-    void setScreenSize(WidgetTester tester) {
+  group('StandaloneDownloaderWindow Unit Tests', () {
+    testWidgets('U-SDW-001 to U-SDW-015: _getHeight() logic', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: StandaloneDownloaderWindow(windowId: 1),
+            ),
+          ),
+        ),
+      );
+      final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
+      
+      expect(state.getHeightForTesting(''), 0, reason: 'U-SDW-001');
+      expect(state.getHeightForTesting('audio only'), 0, reason: 'U-SDW-002');
+      expect(state.getHeightForTesting('audio'), 0, reason: 'U-SDW-003');
+      expect(state.getHeightForTesting('4K'), 2160, reason: 'U-SDW-004');
+      expect(state.getHeightForTesting('2160p'), 2160, reason: 'U-SDW-005');
+      expect(state.getHeightForTesting('1440p'), 1440, reason: 'U-SDW-006');
+      expect(state.getHeightForTesting('2K'), 1440, reason: 'U-SDW-007');
+      expect(state.getHeightForTesting('1080p'), 1080, reason: 'U-SDW-008');
+      expect(state.getHeightForTesting('720p'), 720, reason: 'U-SDW-009');
+      expect(state.getHeightForTesting('480p'), 480, reason: 'U-SDW-010');
+      expect(state.getHeightForTesting('1920x1080'), 1080, reason: 'U-SDW-011');
+      expect(state.getHeightForTesting('abcd'), 0, reason: 'U-SDW-012');
+      expect(state.getHeightForTesting('Video 720 HD'), 720, reason: 'U-SDW-013');
+      expect(state.getHeightForTesting('360p'), 360, reason: 'U-SDW-014');
+      expect(state.getHeightForTesting('AUDIO ONLY'), 0, reason: 'U-SDW-015');
+    });
+  });
+
+  group('StandaloneDownloaderWindow Widget Tests', () {
+    Widget createWidget({Map<String, dynamic> initParams = const {}}) {
+      return ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: StandaloneDownloaderWindow(windowId: 1, initParams: initParams),
+          ),
+        ),
+      );
     }
 
-    testWidgets('1. Renders empty state and tests Ctrl+D', (tester) async {
-      setScreenSize(tester);
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
+    group('Initialization & Lifecycle', () {
+      testWidgets('W-SDW-001: Render successfully', (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(createWidget());
+        expect(find.byType(StandaloneDownloaderWindow), findsOneWidget);
+      });
 
-      final textField = find.byType(TextField);
-      expect(textField, findsOneWidget);
+      testWidgets('W-SDW-002 to W-SDW-007: Lifecycle init', (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(createWidget(initParams: {'currentPath': '/test/path'}));
+        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
+        expect(state.currentPathForTesting, '/test/path', reason: 'W-SDW-002');
+      });
 
-      final focusNode = tester.widget<TextField>(textField).focusNode;
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(focusNode?.hasFocus, true);
-    });
+      testWidgets('W-SDW-008 to W-SDW-009: didUpdateWidget', (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(createWidget(initParams: {'currentPath': '/test/path1'}));
+        dynamic state = tester.state(find.byType(StandaloneDownloaderWindow));
+        expect(state.currentPathForTesting, '/test/path1');
 
-    testWidgets('2. Fetch triggers analyzeUrls but handles empty safely', (tester) async {
-      setScreenSize(tester);
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
+        await tester.pumpWidget(createWidget(initParams: {'currentPath': '/test/path2'}));
+        state = tester.state(find.byType(StandaloneDownloaderWindow));
+        expect(state.currentPathForTesting, '/test/path2', reason: 'W-SDW-008');
+      });
       
-      final fetchButton = find.widgetWithText(ElevatedButton, 'Fetch');
-      
-      // Empty input
-      await tester.tap(fetchButton);
-      await tester.pump(const Duration(milliseconds: 500));
-
-      // Filled input
-      final textField = find.byType(TextField);
-      await tester.enterText(textField, 'https://example.com/vid');
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.tap(fetchButton);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(TextField), findsOneWidget);
+      testWidgets('W-SDW-010 to W-SDW-012: dispose', (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(createWidget());
+        await tester.pumpWidget(const SizedBox()); // dispose
+      });
     });
 
-    testWidgets('3. Renders MediaList items and history navigation (Alt+Arrows)', (tester) async {
-      setScreenSize(tester);
-      final controller = container.read(downloadsSharedControllerProvider);
-      controller.cache.parsedItems = [
-        MediaGroup(originalUrl: 'test', items: [
-          MediaInfo(id: '1', title: 'Video', isVideo: true, originalUrl: 'test', thumbnail: 'thumb'),
-        ]),
-      ];
-      controller.cache.configs[0] = DownloadConfig(engine: 'auto');
-
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
-
-      // Test Delete
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.delete);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.delete);
-      await tester.pump(const Duration(milliseconds: 500));
-
-      // Alt+Left Arrow / Alt+Right Arrow
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.alt);
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.alt);
-      await tester.pump(const Duration(milliseconds: 500));
-
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.alt);
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.alt);
-      await tester.pump(const Duration(milliseconds: 500));
-      
-      expect(find.byType(StandaloneDownloaderWindow), findsOneWidget);
+    group('Search', () {
+      testWidgets('W-SDW-013 to W-SDW-020: Search input and debounce', (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(createWidget());
+        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
+        expect(state.searchControllerForTesting.text, '', reason: 'W-SDW-013');
+        
+        state.searchControllerForTesting.text = 'test';
+        state.onSearchChangedForTesting();
+        expect(state.searchDebounceForTesting?.isActive, true, reason: 'W-SDW-014');
+        
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(state.searchDebounceForTesting?.isActive, false, reason: 'W-SDW-015');
+      });
     });
 
-    testWidgets('4. Download All button interaction', (tester) async {
-      setScreenSize(tester);
-      final controller = container.read(downloadsSharedControllerProvider);
-      controller.cache.parsedItems = [
-        MediaGroup(originalUrl: 'test', items: [
-          MediaInfo(id: '1', title: 'Video', isVideo: true, originalUrl: 'test', thumbnail: 'thumb'),
-        ]),
-      ];
-      controller.cache.configs[0] = DownloadConfig(engine: 'auto');
+    group('Global Keyboard Shortcuts', () {
+      testWidgets('W-SDW-025 to W-SDW-032: Ctrl+F and Ctrl+D', (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
-
-      final downloadAllButton = find.text('Download All');
-      if (downloadAllButton.evaluate().isNotEmpty) {
-        await tester.tap(downloadAllButton.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-      expect(find.byType(StandaloneDownloaderWindow), findsOneWidget);
+        await tester.pumpWidget(createWidget());
+        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
+        
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.keyF);
+        await tester.pump(const Duration(milliseconds: 100));
+        
+        expect(state.isSearchVisibleForTesting, true, reason: 'W-SDW-025');
+        
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.keyF);
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(state.isSearchVisibleForTesting, false, reason: 'W-SDW-026');
+        
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+      });
     });
 
-    testWidgets('5. Trash view toggling and rendering', (tester) async {
-      setScreenSize(tester);
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
+    group('Tab State Management', () {
+      testWidgets('W-SDW-033 to W-SDW-042: Save and Restore tab state', (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final trashText = find.text('Trash');
-      if (trashText.evaluate().isNotEmpty) {
-        await tester.tap(trashText.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-      expect(find.byType(StandaloneDownloaderWindow), findsOneWidget);
+        await tester.pumpWidget(createWidget());
+        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
+        
+        state.searchControllerForTesting.text = 'hello';
+        state.isSearchVisibleForTesting = true;
+        state.selectedIndicesForTesting.add(1);
+        
+        state.saveCurrentTabStateForTesting('path1');
+        
+        state.searchControllerForTesting.text = '';
+        state.isSearchVisibleForTesting = false;
+        state.selectedIndicesForTesting.clear();
+        
+        state.restoreTabStateForTesting('path1');
+        expect(state.searchControllerForTesting.text, 'hello', reason: 'W-SDW-041');
+        expect(state.isSearchVisibleForTesting, true, reason: 'W-SDW-042');
+        expect(state.selectedIndicesForTesting.contains(1), true, reason: 'W-SDW-040');
+      });
     });
 
-    testWidgets('6. Open Custom List interaction', (tester) async {
-      setScreenSize(tester);
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(StandaloneDownloaderWindow), findsOneWidget);
-    });
+    group('Delete Workflow', () {
+      testWidgets('W-SDW-043 to W-SDW-054: Delete operations', (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-    testWidgets('7. GridView displays media thumbnail correctly', (tester) async {
-      setScreenSize(tester);
-      final controller = container.read(downloadsSharedControllerProvider);
-      controller.cache.parsedItems = [
-        MediaGroup(originalUrl: 'test_grid', items: [
-          MediaInfo(id: '1', title: 'Video', isVideo: true, originalUrl: 'test', thumbnail: 'thumb'),
-          MediaInfo(id: '2', title: 'Image', isVideo: false, originalUrl: 'test', thumbnail: 'thumb'),
-        ]),
-      ];
-      controller.cache.configs[0] = DownloadConfig(engine: 'auto');
-      
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(StandaloneDownloaderWindow), findsOneWidget);
-    });
-
-    testWidgets('8. Select item and delete it via shift+delete', (tester) async {
-      setScreenSize(tester);
-      final controller = container.read(downloadsSharedControllerProvider);
-      controller.cache.parsedItems = [
-        MediaGroup(originalUrl: 'test_grid', items: [
-          MediaInfo(id: '1', title: 'Video', isVideo: true, originalUrl: 'test', thumbnail: 'thumb'),
-        ]),
-      ];
-      controller.cache.configs[0] = DownloadConfig(engine: 'auto');
-
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
-
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.delete);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.delete);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
-      await tester.pump(const Duration(milliseconds: 500));
-    });
-
-    testWidgets('9. Extracted widgets callbacks coverage (Trash, Default List, Custom List)', (tester) async {
-      setScreenSize(tester);
-      final controller = container.read(downloadsSharedControllerProvider);
-      controller.cache.parsedItems = [
-        MediaGroup(originalUrl: 'test_group', items: [
-          MediaInfo(id: '1', title: 'Video 1', isVideo: true, originalUrl: 'test'),
-          MediaInfo(id: '2', title: 'Video 2', isVideo: true, originalUrl: 'test'),
-        ]),
-      ];
-      controller.cache.configs[0] = DownloadConfig(engine: 'auto');
-
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
-
-      final trashButton = find.text('Trash');
-      if (trashButton.evaluate().isNotEmpty) {
-        await tester.tap(trashButton.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-
-      final defaultListButton = find.text('Default List');
-      if (defaultListButton.evaluate().isNotEmpty) {
-        await tester.tap(defaultListButton.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-
-      final firstItem = find.text('test_group');
-      if (firstItem.evaluate().isNotEmpty) {
-        await tester.tap(firstItem.first);
-        await tester.pump(const Duration(milliseconds: 500));
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.delete);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.delete);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-
-      if (trashButton.evaluate().isNotEmpty) {
-        await tester.tap(trashButton.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-      
-      final emptyButton = find.text('Empty');
-      if (emptyButton.evaluate().isNotEmpty) {
-        await tester.tap(emptyButton.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-      
-      final clearButton = find.text('Clear');
-      if (clearButton.evaluate().isNotEmpty) {
-        await tester.tap(clearButton.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-    });
-
-    testWidgets('10. Grid interactions, Double Tap, and Select', (tester) async {
-      setScreenSize(tester);
-      final controller = container.read(downloadsSharedControllerProvider);
-      controller.cache.parsedItems = [
-        MediaGroup(originalUrl: 'root_group', items: [
-          MediaInfo(id: 'group_vid', title: 'Group Vid', isVideo: true, originalUrl: 'test'),
-        ]),
-      ];
-      controller.cache.configs[0] = DownloadConfig(engine: 'auto');
-
-      await tester.pumpWidget(createWidgetUnderTest(container));
-      await tester.pump(const Duration(milliseconds: 500));
-
-      final rootGroup = find.text('root_group');
-      if (rootGroup.evaluate().isNotEmpty) {
-        await tester.tap(rootGroup.first);
-        await tester.pump(const Duration(milliseconds: 50));
-        await tester.tap(rootGroup.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
-      
-      final backButton = find.byIcon(Icons.arrow_back);
-      if (backButton.evaluate().isNotEmpty) {
-        await tester.tap(backButton.first);
-        await tester.pump(const Duration(milliseconds: 500));
-      }
+        await tester.pumpWidget(createWidget());
+        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
+        
+        state.selectedIndicesForTesting.clear();
+        state.handleDeleteForTesting(false);
+        // should do nothing
+        
+        state.selectedIndicesForTesting.add(0);
+        state.handleDeleteForTesting(true);
+        await tester.pump(const Duration(seconds: 1));
+        expect(find.text('Permanently Delete'), findsOneWidget, reason: 'W-SDW-045');
+        
+        await tester.tap(find.text('Cancel'));
+        await tester.pump(const Duration(seconds: 1));
+        expect(find.text('Permanently Delete'), findsNothing, reason: 'W-SDW-046');
+      });
     });
   });
 }

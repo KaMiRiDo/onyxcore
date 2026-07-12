@@ -46,33 +46,37 @@ class Sidebar extends ConsumerWidget {
           DragToMoveArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // App icon — fixed 28×28, never stretches
-                  SvgPicture.asset(
-                    'assets/app_icon/app_icon.svg',
-                    width: 28,
-                    height: 28,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(width: 10),
-                  // Gradient brand text
-                  ShaderMask(
-                    shaderCallback: (bounds) =>
-                        AppTheme.primaryGradient.createShader(bounds),
-                    child: Text(
-                      'ONYXCORE',
-                      style: GoogleFonts.manrope(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // App icon — fixed 28×28, never stretches
+                    SvgPicture.asset(
+                      'assets/app_icon/app_icon.svg',
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 10),
+                    // Gradient brand text
+                    ShaderMask(
+                      shaderCallback: (bounds) =>
+                          AppTheme.primaryGradient.createShader(bounds),
+                      child: Text(
+                        'ONYXCORE',
+                        style: GoogleFonts.manrope(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 1.5,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -303,6 +303,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   ImageProvider _getImageProvider(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return NetworkImage(path);
+    }
     return FileImage(File(path));
   }
 
@@ -528,11 +531,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
       if (!_firstFrameCompleter.isCompleted) {
         await _firstFrameCompleter.future;
+      } else {
+        await Future.delayed(Duration.zero);
       }
 
       if (!mounted) return;
 
-      final imageProvider = FileImage(File(widget.item.path));
+      final imageProvider = _getImageProvider(widget.item.path);
       final completer = Completer<ImageInfo>();
       final stream = imageProvider.resolve(
         createLocalImageConfiguration(context),
@@ -1130,10 +1135,30 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                               }
                               
                               final imagePath = _convertedHeicPath ?? widget.item.path;
-                              return imagePath.toLowerCase().endsWith('.svg')
-                                  ? SvgPicture.file(
+                              final isNetwork = imagePath.startsWith('http://') || imagePath.startsWith('https://');
+                              
+                              if (imagePath.toLowerCase().endsWith('.svg')) {
+                                return isNetwork 
+                                  ? SvgPicture.network(
+                                      imagePath,
+                                      fit: BoxFit.contain,
+                                    )
+                                  : SvgPicture.file(
                                       File(imagePath),
                                       fit: BoxFit.contain,
+                                    );
+                              } else {
+                                return isNetwork
+                                  ? Image.network(
+                                      imagePath,
+                                      fit: BoxFit.contain,
+                                      filterQuality:
+                                          (_isInteracting ||
+                                              _isPanZoomGesture ||
+                                              _zoomAnimationController
+                                                  .isAnimating)
+                                          ? FilterQuality.low
+                                          : FilterQuality.high,
                                     )
                                   : Image.file(
                                       File(imagePath),
@@ -1146,6 +1171,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                           ? FilterQuality.low
                                           : FilterQuality.high,
                                     );
+                              }
                             }
 
                             return Center(

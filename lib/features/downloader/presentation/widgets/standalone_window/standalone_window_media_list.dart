@@ -2,38 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+
 class StandaloneWindowMediaList extends StatelessWidget {
   const StandaloneWindowMediaList({
     super.key,
     required this.isTrashView,
-    required this.importedListName,
+    required this.trashCount,
+    required this.activeListPath,
+    required this.customLists,
     required this.isListChanged,
-    required this.lastCustomListName,
-    required this.lastCustomListVideos,
-    required this.lastCustomListImages,
-    required this.lastCustomListSize,
     required this.onTrashTap,
     required this.onImportTap,
-    required this.onDefaultListTap,
-    required this.onCustomListTap,
+    required this.onListTap,
     required this.onCustomListClose,
     required this.onCustomListSave,
   });
 
   final bool isTrashView;
-  final String? importedListName;
-  final bool isListChanged;
-  final String? lastCustomListName;
-  final int lastCustomListVideos;
-  final int lastCustomListImages;
-  final int lastCustomListSize;
+  final int trashCount;
+  final String activeListPath;
+  final List<CustomListInfo> customLists;
+  final bool Function(String) isListChanged;
 
   final VoidCallback onTrashTap;
   final VoidCallback onImportTap;
-  final VoidCallback onDefaultListTap;
-  final VoidCallback onCustomListTap;
-  final VoidCallback onCustomListClose;
-  final VoidCallback onCustomListSave;
+  final void Function(String path) onListTap;
+  final void Function(String path) onCustomListClose;
+  final void Function(String path) onCustomListSave;
 
   @override
   Widget build(BuildContext context) {
@@ -59,35 +55,60 @@ class StandaloneWindowMediaList extends StatelessWidget {
                 children: [
                   SizedBox(
                     height: 28,
-                    child: ElevatedButton.icon(
-                      onPressed: onTrashTap,
-                      icon: Icon(
-                        Icons.delete_outline,
-                        size: 14,
-                        color: isTrashView ? Colors.redAccent : Colors.white70,
-                      ),
-                      label: Text(
-                        'Trash',
-                        style: GoogleFonts.outfit(
-                          color: isTrashView ? Colors.redAccent : Colors.white70,
-                          fontSize: 11,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isTrashView
-                            ? Colors.redAccent.withValues(alpha: 0.15)
-                            : const Color(0xFF262626),
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                          side: BorderSide(
-                            color: isTrashView
-                                ? Colors.redAccent.withValues(alpha: 0.3)
-                                : Colors.white.withValues(alpha: 0.05),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: onTrashTap,
+                          icon: Icon(
+                            Icons.delete_outline,
+                            size: 14,
+                            color: isTrashView || trashCount > 0 ? Colors.redAccent : Colors.white70,
+                          ),
+                          label: Text(
+                            'Trash',
+                            style: GoogleFonts.outfit(
+                              color: isTrashView || trashCount > 0 ? Colors.redAccent : Colors.white70,
+                              fontSize: 11,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isTrashView
+                                ? Colors.redAccent.withValues(alpha: 0.15)
+                                : const Color(0xFF262626),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              side: BorderSide(
+                                color: isTrashView
+                                    ? Colors.redAccent.withValues(alpha: 0.3)
+                                    : Colors.white.withValues(alpha: 0.05),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        if (trashCount > 0)
+                          Positioned(
+                            top: -4,
+                            right: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.redAccent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '$trashCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -96,7 +117,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: onImportTap,
                       icon: const Icon(
-                        Icons.file_upload_outlined,
+                        Icons.file_download_outlined,
                         size: 14,
                         color: Colors.white,
                       ),
@@ -131,29 +152,27 @@ class StandaloneWindowMediaList extends StatelessWidget {
                 const SizedBox(height: 4),
                 // Default List Item
                 GestureDetector(
-                  onTap: onDefaultListTap,
+                  onTap: () => onListTap('default'),
                   child: _buildListItem(
                     context,
                     name: 'Default List',
                     isCustom: false,
-                    isActive: importedListName == null && !isTrashView,
+                    path: 'default',
+                    isActive: activeListPath == 'default' && !isTrashView,
                   ),
                 ),
-                if (importedListName != null || lastCustomListName != null) ...[
+                for (final list in customLists)
                   GestureDetector(
-                    onTap: onCustomListTap,
+                    onTap: () => onListTap(list.path),
                     child: _buildListItem(
                       context,
-                      name: importedListName ?? lastCustomListName!,
+                      name: list.name,
                       isCustom: true,
-                      isChanged: isListChanged,
-                      isActive: importedListName != null && !isTrashView,
-                      cachedVideos: lastCustomListVideos,
-                      cachedImages: lastCustomListImages,
-                      cachedSize: lastCustomListSize,
+                      path: list.path,
+                      isChanged: isListChanged(list.path),
+                      isActive: activeListPath == list.path && !isTrashView,
                     ),
                   ),
-                ],
               ],
             ),
           ),
@@ -166,11 +185,9 @@ class StandaloneWindowMediaList extends StatelessWidget {
     BuildContext context, {
     required String name,
     required bool isCustom,
+    required String path,
     bool isChanged = false,
     bool isActive = false,
-    int? cachedVideos,
-    int? cachedImages,
-    int? cachedSize,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -268,7 +285,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
                               TextButton(
                                 onPressed: () {
                                   Navigator.of(context).pop();
-                                  onCustomListClose();
+                                  onCustomListClose(path);
                                 },
                                 child: Text(
                                   'Discard',
@@ -282,7 +299,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
                                 ),
                                 onPressed: () async {
                                   Navigator.of(context).pop();
-                                  onCustomListSave();
+                                  onCustomListSave(path);
                                 },
                                 child: Text(
                                   'Save',
@@ -294,7 +311,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
                           ),
                         );
                       } else {
-                        onCustomListClose();
+                        onCustomListClose(path);
                       }
                     },
                     icon: const Icon(Icons.close,

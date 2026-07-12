@@ -19,6 +19,11 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
+            searchController: TextEditingController(),
+            searchFocusNode: FocusNode(),
+            isSearchVisible: false,
+            listFilter: '',
+            onListFilterChanged: (v) {},
             isTrashView: false,
             trashNotEmpty: false,
             hasItems: true,
@@ -40,8 +45,8 @@ void main() {
     );
 
     expect(find.text('Default List'), findsOneWidget);
-    expect(find.text('Clear'), findsOneWidget);
-    await tester.tap(find.text('Clear'));
+    expect(find.text('Clear List'), findsOneWidget);
+    await tester.tap(find.text('Clear List'));
     expect(clearTapped, isTrue);
   });
 
@@ -60,6 +65,11 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
+            searchController: TextEditingController(),
+            searchFocusNode: FocusNode(),
+            isSearchVisible: false,
+            listFilter: '',
+            onListFilterChanged: (v) {},
             isTrashView: true,
             trashNotEmpty: true,
             hasItems: false,
@@ -96,6 +106,11 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
+            searchController: TextEditingController(),
+            searchFocusNode: FocusNode(),
+            isSearchVisible: false,
+            listFilter: '',
+            onListFilterChanged: (v) {},
             isTrashView: true,
             trashNotEmpty: false,
             hasItems: false,
@@ -128,6 +143,11 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
+            searchController: TextEditingController(),
+            searchFocusNode: FocusNode(),
+            isSearchVisible: false,
+            listFilter: '',
+            onListFilterChanged: (v) {},
             isTrashView: false,
             trashNotEmpty: false,
             hasItems: true,
