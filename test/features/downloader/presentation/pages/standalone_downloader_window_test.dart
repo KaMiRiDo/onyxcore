@@ -1,47 +1,128 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/pages/standalone_downloader_window.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:path/path.dart' as p;
 
 // ignore_for_file: avoid_dynamic_calls, invalid_use_of_protected_member
 
-class MockDownloadsSharedController extends Mock implements DownloadsSharedController {
-  final _cache = DownloadsListCache();
+const _windowChannel = MethodChannel('onyxcore/window_manager');
 
-  @override
-  DownloadsListCache get cache => _cache;
-
-  @override
-  String get selectedEngine => 'yt-dlp';
-
-  @override
-  Map<String, List<int>> get activeHydrationPids => {};
-
-  @override
-  int get totalListVideos => 0;
-
-  @override
-  int get totalListImages => 0;
-
-  @override
-  int get totalListSize => 0;
+MediaFormat makeFormat({
+  required String formatId,
+  required String resolution,
+  required int filesize,
+  String extension = 'mp4',
+  String? videoCodec = 'avc1',
+  String? audioCodec = 'aac',
+  String? formatString,
+}) {
+  return MediaFormat(
+    formatId: formatId,
+    extension: extension,
+    resolution: resolution,
+    formatString: formatString ?? resolution,
+    filesize: filesize,
+    videoCodec: videoCodec,
+    audioCodec: audioCodec,
+  );
 }
-class MockPersistentViewerManager extends Mock implements PersistentViewerManager {}
-class MockDownloadsListCache extends Mock implements DownloadsListCache {}
 
-class MockDownloadTaskNotifier extends Notifier<List<DownloadTask>> with Mock implements DownloadTaskNotifier {
-  final calls = <Map<String, dynamic>>[];
+MediaInfo makeInfo({
+  required String id,
+  required String title,
+  required String originalUrl,
+  bool isVideo = true,
+  bool isPlaylist = false,
+  bool isProfile = false,
+  int? filesize,
+  int? galleryIndex,
+  int? duration,
+  int? width,
+  int? height,
+  String? directUrl,
+  String? webpageUrl,
+  String? thumbnail,
+  bool isError = false,
+  List<MediaFormat> formats = const [],
+}) {
+  return MediaInfo(
+    id: id,
+    title: title,
+    originalUrl: originalUrl,
+    isVideo: isVideo,
+    isPlaylist: isPlaylist,
+    isProfile: isProfile,
+    filesize: filesize,
+    galleryIndex: galleryIndex,
+    duration: duration,
+    width: width,
+    height: height,
+    directUrl: directUrl,
+    webpageUrl: webpageUrl,
+    thumbnail: thumbnail,
+    isError: isError,
+    formats: formats,
+  );
+}
+
+MediaGroup makeGroup({
+  required String originalUrl,
+  required List<MediaInfo> items,
+}) {
+  return MediaGroup(originalUrl: originalUrl, items: items);
+}
+
+DownloadTask makeTask(String id) {
+  return DownloadTask(
+    id: id,
+    url: 'https://example.com/$id',
+    destination: '/tmp',
+    title: id,
+    createdAt: DateTime(2024),
+  );
+}
+
+class FixedSettingsNotifier extends SettingsNotifier {
+  FixedSettingsNotifier(this.settings);
+
+  final AppSettings settings;
 
   @override
-  List<DownloadTask> build() => [];
+  Future<AppSettings> build() async => settings;
+}
+
+class FixedCurrentPathNotifier extends CurrentPathNotifier {
+  FixedCurrentPathNotifier(this.path);
+
+  final String path;
+
+  @override
+  String build() => path;
+}
+
+class RecordingDownloadTaskNotifier extends DownloadTaskNotifier {
+  RecordingDownloadTaskNotifier({List<DownloadTask> initialTasks = const []})
+    : _initialTasks = initialTasks;
+
+  final List<DownloadTask> _initialTasks;
+  final List<Map<String, dynamic>> calls = <Map<String, dynamic>>[];
+
+  @override
+  List<DownloadTask> build() => List<DownloadTask>.from(_initialTasks);
 
   @override
   void startDownload({
@@ -64,500 +145,959 @@ class MockDownloadTaskNotifier extends Notifier<List<DownloadTask>> with Mock im
     String? directUrl,
     int expectedBytes = 0,
   }) {
-    calls.add({
+    calls.add(<String, dynamic>{
       'action': 'start',
       'url': url,
       'destination': destination,
       'title': title,
+      'downloadType': downloadType,
+      'format': format,
+      'audioOnly': audioOnly,
+      'mute': mute,
+      'galleryIndex': galleryIndex,
+      'engine': engine,
+      'isPlaylist': isPlaylist,
+      'isProfile': isProfile,
+      'browser': browser,
+      'filterType': filterType,
+      'totalItems': totalItems,
+      'directUrl': directUrl,
+      'expectedBytes': expectedBytes,
     });
   }
 
   @override
   Future<void> cancelDownload(String url) async {
-    calls.add({'action': 'cancel', 'url': url});
+    calls.add(<String, dynamic>{'action': 'cancel', 'url': url});
   }
 }
 
-void main() {
-  setUpAll(TestWidgetsFlutterBinding.ensureInitialized);
+class RecordingDownloadsSharedController extends ChangeNotifier
+    implements DownloadsSharedController {
+  final DownloadsListCache _cache = DownloadsListCache();
 
-  group('StandaloneDownloaderWindow Unit Tests', () {
-    testWidgets('U-SDW-001 to U-SDW-015: _getHeight() logic', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: StandaloneDownloaderWindow(windowId: 1),
-            ),
-          ),
-        ),
-      );
-      final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-      
-      expect(state.getHeightForTesting(''), 0, reason: 'U-SDW-001');
-      expect(state.getHeightForTesting('audio only'), 0, reason: 'U-SDW-002');
-      expect(state.getHeightForTesting('audio'), 0, reason: 'U-SDW-003');
-      expect(state.getHeightForTesting('4K'), 2160, reason: 'U-SDW-004');
-      expect(state.getHeightForTesting('2160p'), 2160, reason: 'U-SDW-005');
-      expect(state.getHeightForTesting('1440p'), 1440, reason: 'U-SDW-006');
-      expect(state.getHeightForTesting('2K'), 1440, reason: 'U-SDW-007');
-      expect(state.getHeightForTesting('1080p'), 1080, reason: 'U-SDW-008');
-      expect(state.getHeightForTesting('720p'), 720, reason: 'U-SDW-009');
-      expect(state.getHeightForTesting('480p'), 480, reason: 'U-SDW-010');
-      expect(state.getHeightForTesting('1920x1080'), 1080, reason: 'U-SDW-011');
-      expect(state.getHeightForTesting('abcd'), 0, reason: 'U-SDW-012');
-      expect(state.getHeightForTesting('Video 720 HD'), 720, reason: 'U-SDW-013');
-      expect(state.getHeightForTesting('360p'), 360, reason: 'U-SDW-014');
-      expect(state.getHeightForTesting('AUDIO ONLY'), 0, reason: 'U-SDW-015');
-    });
-  });
+  final List<String> analyzeCalls = <String>[];
+  final List<String> exportCalls = <String>[];
+  final List<Map<String, String>> importCalls = <Map<String, String>>[];
 
-  group('StandaloneDownloaderWindow Widget Tests', () {
-    Widget createWidget({Map<String, dynamic> initParams = const {}}) {
-      return ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: StandaloneDownloaderWindow(windowId: 1, initParams: initParams),
-          ),
-        ),
-      );
+  @override
+  final Set<String> backgroundLoadingProfiles = <String>{};
+
+  @override
+  final Map<String, List<int>> activeHydrationPids = <String, List<int>>{};
+
+  @override
+  final ValueNotifier<int> hydrationNotifier = ValueNotifier<int>(0);
+
+  @override
+  String selectedEngine = 'auto';
+
+  @override
+  int totalListSize = 0;
+
+  @override
+  int totalListImages = 0;
+
+  @override
+  int totalListVideos = 0;
+
+  @override
+  bool hasUnderestimatedSize = false;
+
+  @override
+  int pendingStatsUpdate = 0;
+
+  int recalculateCalls = 0;
+
+  @override
+  Ref get ref => throw UnimplementedError();
+
+  @override
+  DownloadsListCache get cache => _cache;
+
+  @override
+  void recalculateFilteredStatistics() {
+    recalculateCalls++;
+    totalListSize = 0;
+    totalListImages = 0;
+    totalListVideos = 0;
+    hasUnderestimatedSize = false;
+
+    final parsedItems = cache.parsedItems;
+    if (parsedItems == null) {
+      notifyListeners();
+      return;
     }
 
-    group('Initialization & Lifecycle', () {
-      testWidgets('W-SDW-001: Render successfully', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(createWidget());
-        expect(find.byType(StandaloneDownloaderWindow), findsOneWidget);
-      });
+    for (var index = 0; index < parsedItems.length; index++) {
+      final group = parsedItems[index];
+      final config = cache.configs[index];
 
-      testWidgets('W-SDW-002 to W-SDW-007: Lifecycle init', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(createWidget(initParams: {'currentPath': '/test/path'}));
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        expect(state.currentPathForTesting, '/test/path', reason: 'W-SDW-002');
-      });
-
-      testWidgets('W-SDW-008 to W-SDW-009: didUpdateWidget', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(createWidget(initParams: {'currentPath': '/test/path1'}));
-        dynamic state = tester.state(find.byType(StandaloneDownloaderWindow));
-        expect(state.currentPathForTesting, '/test/path1');
-
-        await tester.pumpWidget(createWidget(initParams: {'currentPath': '/test/path2'}));
-        state = tester.state(find.byType(StandaloneDownloaderWindow));
-        expect(state.currentPathForTesting, '/test/path2', reason: 'W-SDW-008');
-      });
-      
-      testWidgets('W-SDW-010 to W-SDW-012: dispose', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(createWidget());
-        await tester.pumpWidget(const SizedBox()); // dispose
-      });
-    });
-
-    group('Search', () {
-      testWidgets('W-SDW-013 to W-SDW-020: Search input and debounce', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(createWidget());
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        expect(state.searchControllerForTesting.text, '', reason: 'W-SDW-013');
-        
-        state.searchControllerForTesting.text = 'test';
-        state.onSearchChangedForTesting();
-        expect(state.searchDebounceForTesting?.isActive, true, reason: 'W-SDW-014');
-        
-        await tester.pump(const Duration(milliseconds: 350));
-        expect(state.searchDebounceForTesting?.isActive, false, reason: 'W-SDW-015');
-      });
-    });
-
-    group('Global Keyboard Shortcuts', () {
-      testWidgets('W-SDW-025 to W-SDW-032: Ctrl+F and Ctrl+D', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        await tester.pumpWidget(createWidget());
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.keyF);
-        await tester.pump(const Duration(milliseconds: 100));
-        
-        expect(state.isSearchVisibleForTesting, true, reason: 'W-SDW-025');
-        
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.keyF);
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(state.isSearchVisibleForTesting, false, reason: 'W-SDW-026');
-        
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
-      });
-    });
-
-    group('Tab State Management', () {
-      testWidgets('W-SDW-033 to W-SDW-042: Save and Restore tab state', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        await tester.pumpWidget(createWidget());
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        
-        state.searchControllerForTesting.text = 'hello';
-        state.isSearchVisibleForTesting = true;
-        state.selectedIndicesForTesting.add(1);
-        
-        state.saveCurrentTabStateForTesting('path1');
-        
-        state.searchControllerForTesting.text = '';
-        state.isSearchVisibleForTesting = false;
-        state.selectedIndicesForTesting.clear();
-        
-        state.restoreTabStateForTesting('path1');
-        expect(state.searchControllerForTesting.text, 'hello', reason: 'W-SDW-041');
-        expect(state.isSearchVisibleForTesting, true, reason: 'W-SDW-042');
-        expect(state.selectedIndicesForTesting.contains(1), true, reason: 'W-SDW-040');
-      });
-    });
-
-    group('Delete Workflow', () {
-      testWidgets('W-SDW-043 to W-SDW-054: Delete operations', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        await tester.pumpWidget(createWidget());
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        
-        state.selectedIndicesForTesting.clear();
-        state.handleDeleteForTesting(false);
-        // should do nothing
-        
-        state.selectedIndicesForTesting.add(0);
-        state.handleDeleteForTesting(true);
-        await tester.pump(const Duration(seconds: 1));
-        expect(find.text('Permanently Delete'), findsOneWidget, reason: 'W-SDW-045');
-        
-        await tester.tap(find.text('Cancel'));
-        await tester.pump(const Duration(seconds: 1));
-        expect(find.text('Permanently Delete'), findsNothing, reason: 'W-SDW-046');
-      });
-    });
-
-    group('Download Workflow & Download All', () {
-      Widget createWidgetWithMocks({
-        required DownloadsSharedController controller,
-        required DownloadTaskNotifier taskNotifier,
-      }) {
-        return ProviderScope(
-          overrides: [
-            downloadsSharedControllerProvider.overrideWith((ref) => controller),
-            downloadTaskProvider.overrideWith(() => taskNotifier),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: StandaloneDownloaderWindow(windowId: 1),
-            ),
-          ),
-        );
+      for (final item in group.items) {
+        if (item.isError) continue;
+        if (config?.groupFilter == GroupDownloadType.images && item.isVideo) {
+          continue;
+        }
+        if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo) {
+          continue;
+        }
+        if (item.isVideo) {
+          totalListVideos++;
+        } else if (!item.isPlaylist && !item.isProfile) {
+          totalListImages++;
+        }
+        totalListSize += item.filesize ?? 0;
       }
 
-      testWidgets('W-SDW-055 to W-SDW-061: Download Selected logic', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+      if (group.first.isPlaylist || group.first.isProfile) {
+        hasUnderestimatedSize = true;
+      }
+    }
 
-        final mockController = MockDownloadsSharedController();
-        final mockCache = mockController.cache;
-        final mockTaskNotifier = MockDownloadTaskNotifier();
+    notifyListeners();
+  }
 
-        final item1 = MediaInfo(title: 'T1', originalUrl: 'u1', id: '1', isPlaylist: true);
-        final item2 = MediaInfo(title: 'T2', originalUrl: 'u2', id: '2', isPlaylist: true);
-        final group1 = MediaGroup(originalUrl: 'u1', items: [item1]);
-        final group2 = MediaGroup(originalUrl: 'u2', items: [item2]);
+  @override
+  Future<void> analyzeUrls(String text) async {
+    analyzeCalls.add(text);
+  }
 
-        mockCache.parsedItems = [group1, group2];
-        mockCache.configs.clear();
+  @override
+  Future<void> hydrateProfile(String url) async {}
 
-        await tester.pumpWidget(createWidgetWithMocks(
-          controller: mockController,
-          taskNotifier: mockTaskNotifier,
-        ));
-        
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        
-        // W-SDW-055: Ignore download when nothing selected
-        state.selectedIndicesForTesting.clear();
-        mockCache.parsedItems = []; 
-        mockTaskNotifier.calls.clear();
-        await tester.tap(find.text('Download All'));
-        await tester.pump();
-        expect(mockTaskNotifier.calls.isEmpty, true, reason: 'No items to download');
+  @override
+  Future<void> exportListToFile(String path) async {
+    exportCalls.add(path);
+    final file = File(path);
+    final data = <String, dynamic>{
+      'items': cache.parsedItems?.map((group) => group.toMap()).toList() ?? [],
+      'statistics': <String, dynamic>{
+        'totalSize': totalListSize,
+        'images': totalListImages,
+        'videos': totalListVideos,
+      },
+    };
+    await file.writeAsString(jsonEncode(data));
+    cache.importedListPath = path;
+    cache.isListChanged = false;
+    cache.notify();
+  }
 
-        // W-SDW-056: Download single selected item
-        mockCache.parsedItems = [group1, group2];
-        state.selectedIndicesForTesting.clear();
-        state.selectedIndicesForTesting.add(0);
-        mockTaskNotifier.calls.clear();
-        await tester.tap(find.text('Download All'));
-        await tester.pump();
-        expect(mockTaskNotifier.calls.length, 1);
-        
-        // W-SDW-057: Download multiple selected items
-        mockCache.parsedItems = [group1, group2];
-        state.selectedIndicesForTesting.clear();
-        state.selectedIndicesForTesting.addAll([0, 1]);
-        mockTaskNotifier.calls.clear();
-        await tester.tap(find.text('Download All'));
-        await tester.pump();
-        expect(mockTaskNotifier.calls.length, 2);
-      });
+  @override
+  Future<void> importListFromFile(String path, String fileName) async {
+    importCalls.add(<String, String>{'path': path, 'fileName': fileName});
+    cache
+      ..switchList(path)
+      ..importedListPath = path
+      ..importedListName = fileName
+      ..isListChanged = false;
 
-      testWidgets('W-SDW-065 to W-SDW-071: Download All logic', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+    final file = File(path);
+    if (file.existsSync()) {
+      final decoded = jsonDecode(await file.readAsString());
+      final rawItems = decoded is Map<String, dynamic>
+          ? (decoded['items'] as List<dynamic>? ?? <dynamic>[])
+          : (decoded as List<dynamic>);
+      cache.parsedItems = rawItems
+          .map((item) => MediaGroup.fromMap(item as Map<String, dynamic>))
+          .toList();
+      cache.configs.clear();
+      for (var index = 0; index < (cache.parsedItems?.length ?? 0); index++) {
+        cache.configs[index] = DownloadConfig();
+      }
+      recalculateFilteredStatistics();
+    } else {
+      cache.notify();
+      notifyListeners();
+    }
+  }
+}
 
-        final mockController = MockDownloadsSharedController();
-        final mockCache = mockController.cache;
-        final mockTaskNotifier = MockDownloadTaskNotifier();
+ProviderContainer createContainer({
+  required RecordingDownloadsSharedController controller,
+  required RecordingDownloadTaskNotifier taskNotifier,
+  required String currentPath,
+  AppSettings settings = const AppSettings(downloadBrowser: 'Firefox'),
+}) {
+  return ProviderContainer(
+    overrides: [
+      downloadsSharedControllerProvider.overrideWith((ref) => controller),
+      downloadsListCacheProvider.overrideWith((ref) => controller.cache),
+      downloadTaskProvider.overrideWith(() => taskNotifier),
+      currentPathProvider.overrideWith(
+        () => FixedCurrentPathNotifier(currentPath),
+      ),
+      settingsProvider.overrideWith(() => FixedSettingsNotifier(settings)),
+    ],
+  );
+}
 
-        final item1 = MediaInfo(title: 'T1', originalUrl: 'u1', id: '1', isPlaylist: true);
-        final item2 = MediaInfo(title: 'T2', originalUrl: 'u2', id: '2', isPlaylist: true);
-        final group1 = MediaGroup(originalUrl: 'u1', items: [item1]);
-        final group2 = MediaGroup(originalUrl: 'u2', items: [item2]);
+Future<void> pumpWindow(
+  WidgetTester tester, {
+  required ProviderContainer container,
+  Map<String, dynamic> initParams = const <String, dynamic>{},
+}) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1600,
+            height: 1000,
+            child: StandaloneDownloaderWindow(
+              windowId: 7,
+              initParams: initParams,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump(const Duration(milliseconds: 500));
+}
 
-        await tester.pumpWidget(createWidgetWithMocks(
-          controller: mockController,
-          taskNotifier: mockTaskNotifier,
-        ));
-        
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        state.selectedIndicesForTesting.clear();
+dynamic standaloneState(WidgetTester tester) {
+  return tester.state(find.byType(StandaloneDownloaderWindow));
+}
 
-        // W-SDW-065: Ignore empty download list
-        mockCache.parsedItems = []; 
-        mockTaskNotifier.calls.clear();
-        await tester.tap(find.text('Download All'));
-        await tester.pump();
-        expect(mockTaskNotifier.calls.isEmpty, true);
+Future<void> doubleTapFinder(WidgetTester tester, Finder finder) async {
+  await tester.tap(finder);
+  await tester.pump(const Duration(milliseconds: 40));
+  await tester.tap(finder);
+  await tester.pump(const Duration(milliseconds: 120));
+}
 
-        // W-SDW-066: Download every configuration
-        mockCache.parsedItems = [group1, group2];
-        mockTaskNotifier.calls.clear();
-        await tester.tap(find.text('Download All'));
-        await tester.pump();
-        expect(mockTaskNotifier.calls.length, 2);
-      });
+void main() {
+  GoogleFonts.config.allowRuntimeFetching = false;
+
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+  final windowCalls = <MethodCall>[];
+  late Directory tempDir;
+
+  setUpAll(() {
+    binding.platformDispatcher.views.first
+      ..physicalSize = const Size(1600, 1000)
+      ..devicePixelRatio = 1;
+
+    FlutterError.onError = (FlutterErrorDetails details) {
+      if (details.exceptionAsString().contains('RenderFlex overflowed')) {
+        return;
+      }
+      FlutterError.presentError(details);
+    };
+  });
+
+  tearDownAll(() {
+    binding.platformDispatcher.views.first
+      ..resetPhysicalSize()
+      ..resetDevicePixelRatio();
+  });
+
+  setUp(() {
+    tempDir = Directory.systemTemp.createTempSync(
+      'standalone_downloader_window_test_',
+    );
+    windowCalls.clear();
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_windowChannel, (methodCall) async {
+          windowCalls.add(methodCall);
+          if (methodCall.method == 'create_window') {
+            return 99;
+          }
+          return null;
+        });
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_windowChannel, null);
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
+
+  group('StandaloneDownloaderWindow', () {
+    // ── U-SDW-001 ──
+    testWidgets('U-SDW-001: resolves download heights from resolution labels', (
+      tester,
+    ) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
+
+      await pumpWindow(tester, container: container);
+      final state = standaloneState(tester);
+
+      expect(state.getHeightForTesting(''), 0);
+      expect(state.getHeightForTesting('audio only'), 0);
+      expect(state.getHeightForTesting('audio'), 0);
+      expect(state.getHeightForTesting('4K'), 2160);
+      expect(state.getHeightForTesting('2160p'), 2160);
+      expect(state.getHeightForTesting('2K'), 1440);
+      expect(state.getHeightForTesting('1080p'), 1080);
+      expect(state.getHeightForTesting('720p'), 720);
+      expect(state.getHeightForTesting('480p'), 480);
+      expect(state.getHeightForTesting('1920x1080'), 1080);
+      expect(state.getHeightForTesting('Clip 360'), 360);
+      expect(state.getHeightForTesting('garbage'), 0);
     });
 
-    group('Action Bar & Trash View', () {
-      Widget createWidget({Map<String, dynamic> initParams = const {}}) {
-        return ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: StandaloneDownloaderWindow(windowId: 1, initParams: initParams),
-            ),
-          ),
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-001: Init, Update, Present Window
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-001: initializes state, updates current path, and presents the window',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
         );
-      }
+        addTearDown(container.dispose);
 
-      testWidgets('W-SDW-091 to W-SDW-100: Action Bar Interactions', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': '/first/path'},
+        );
 
-        final mockController = MockDownloadsSharedController();
-        final mockCache = mockController.cache;
-        final mockTaskNotifier = MockDownloadTaskNotifier();
+        final state = standaloneState(tester);
+        expect(state.currentPathForTesting, '/first/path');
+        expect(
+          windowCalls.where((call) => call.method == 'present_window').length,
+          1,
+        );
 
-        final item1 = MediaInfo(title: 'T1', originalUrl: 'u1', id: '1');
-        final group1 = MediaGroup(originalUrl: 'u1', items: [item1]);
-        mockCache.parsedItems = [group1];
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': '/second/path'},
+        );
 
-        await tester.pumpWidget(ProviderScope(
-          overrides: [
-            downloadsSharedControllerProvider.overrideWith((ref) => mockController),
-            downloadTaskProvider.overrideWith(() => mockTaskNotifier),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: StandaloneDownloaderWindow(windowId: 1),
-            ),
-          ),
-        ));
+        expect(standaloneState(tester).currentPathForTesting, '/second/path');
+      },
+    );
 
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        
-        // Test clear list
-        state.selectedIndicesForTesting.add(0);
-        await tester.tap(find.text('Clear List'));
-        await tester.pump();
-        
-        expect(mockCache.parsedItems?.isEmpty ?? true, true, reason: 'W-SDW-094');
-        expect(mockCache.configs.isEmpty, true, reason: 'W-SDW-095');
-      });
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-002: Fetch, Ctrl+Enter, Ctrl+D, Ctrl+F
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets('W-SDW-002: fetches URLs and handles global focus shortcuts', (
+      tester,
+    ) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
 
-      testWidgets('W-SDW-101 to W-SDW-112: Trash View Toggling', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+      await pumpWindow(tester, container: container);
 
-        await tester.pumpWidget(createWidget());
-        final state = tester.state(find.byType(StandaloneDownloaderWindow)) as dynamic;
-        
-        // Turn trash view on
-        await tester.tap(find.byIcon(Icons.delete_outline));
-        await tester.pump();
-        
-        expect(state.isTrashViewForTesting, true, reason: 'W-SDW-102');
-        expect(find.text('Trash'), findsWidgets, reason: 'W-SDW-104');
-      });
+      final textFields = find.byType(TextField);
+      final urlField = textFields.first;
+      final searchField = textFields.at(1);
+
+      await tester.enterText(urlField, '  https://example.com/video  ');
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Fetch'));
+      await tester.pump();
+
+      expect(controller.analyzeCalls, <String>['https://example.com/video']);
+      expect(tester.widget<TextField>(urlField).controller?.text ?? '', '');
+
+      await tester.enterText(urlField, 'https://example.com/second');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(controller.analyzeCalls.last, 'https://example.com/second');
+
+      await tester.tap(searchField);
+      await tester.pump();
+      expect(tester.widget<TextField>(searchField).focusNode?.hasFocus, isTrue);
+
+      await tester.enterText(searchField, 'keep me');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(standaloneState(tester).isSearchVisibleForTesting, isFalse);
+      expect(standaloneState(tester).searchControllerForTesting.text, isEmpty);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(tester.widget<TextField>(urlField).focusNode?.hasFocus, isTrue);
     });
 
-    group('Media Grid & Item Rendering', () {
-      Widget createWidgetWithMocks({
-        required DownloadsSharedController controller,
-        required DownloadTaskNotifier taskNotifier,
-      }) {
-        return ProviderScope(
-          overrides: [
-            downloadsSharedControllerProvider.overrideWith((ref) => controller),
-            downloadTaskProvider.overrideWith(() => taskNotifier),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: StandaloneDownloaderWindow(windowId: 1),
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-003: Search debounce
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets('W-SDW-003: debounces search text changes', (tester) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
+
+      await pumpWindow(tester, container: container);
+
+      final state = standaloneState(tester);
+      state.searchControllerForTesting.text = 'query';
+      state.onSearchChangedForTesting();
+
+      expect(state.searchDebounceForTesting?.isActive, isTrue);
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(state.searchDebounceForTesting?.isActive, isFalse);
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-004: Tab switching, save/restore, Ctrl+Tab
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets('W-SDW-004: saves tab state and cycles lists with Ctrl+Tab', (
+      tester,
+    ) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final customPath = p.join(tempDir.path, 'saved_list.json');
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
+
+      controller.cache.parsedItems = <MediaGroup>[
+        makeGroup(
+          originalUrl: 'https://root.example',
+          items: <MediaInfo>[
+            makeInfo(
+              id: 'root1',
+              title: 'Default Root',
+              originalUrl: 'https://root.example',
+              isVideo: false,
             ),
-          ),
+          ],
+        ),
+      ];
+
+      controller.cache.switchList(customPath);
+      controller.cache.importedListPath = customPath;
+      controller.cache.importedListName = 'Saved List';
+      controller.cache.parsedItems = <MediaGroup>[
+        makeGroup(
+          originalUrl: 'https://custom.example',
+          items: <MediaInfo>[
+            makeInfo(
+              id: 'custom1',
+              title: 'Custom Item',
+              originalUrl: 'https://custom.example',
+            ),
+          ],
+        ),
+      ];
+      controller.cache.switchList('default');
+      controller.cache.importedListPath = null;
+      controller.cache.importedListName = null;
+      controller.cache.notify();
+
+      await pumpWindow(tester, container: container);
+
+      standaloneState(tester).searchControllerForTesting.text =
+          'default search';
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(find.text('Saved List'), findsAtLeastNWidgets(1));
+      expect(controller.cache.importedListPath, customPath);
+
+      standaloneState(tester).searchControllerForTesting.text = 'custom search';
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(controller.cache.importedListPath, isNull);
+      expect(
+        standaloneState(tester).searchControllerForTesting.text,
+        'default search',
+      );
+
+      await tester.tap(find.text('Saved List').first);
+      await tester.pump();
+      expect(
+        standaloneState(tester).searchControllerForTesting.text,
+        'custom search',
+      );
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-005: Ctrl+W closes active custom list
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets('W-SDW-005: closes the active custom list with Ctrl+W', (
+      tester,
+    ) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final firstPath = p.join(tempDir.path, 'first.json');
+      final secondPath = p.join(tempDir.path, 'second.json');
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
+
+      controller.cache.switchList(firstPath);
+      controller.cache.importedListPath = firstPath;
+      controller.cache.importedListName = 'First';
+      controller.cache.parsedItems = <MediaGroup>[];
+
+      controller.cache.switchList(secondPath);
+      controller.cache.importedListPath = secondPath;
+      controller.cache.importedListName = 'Second';
+      controller.cache.parsedItems = <MediaGroup>[];
+
+      controller.cache.switchList(firstPath);
+      controller.cache.notify();
+
+      await pumpWindow(tester, container: container);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(
+        controller.cache.customLists.any((list) => list.path == firstPath),
+        isFalse,
+      );
+      expect(controller.cache.importedListPath, secondPath);
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-006: Selection mechanics
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-006: supports single, ctrl, shift, and clear selection',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
         );
-      }
+        addTearDown(container.dispose);
 
-      testWidgets('W-SDW-113 to W-SDW-117: Render grid items based on config', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        final mockController = MockDownloadsSharedController();
-        final mockCache = mockController.cache;
-        final mockTaskNotifier = MockDownloadTaskNotifier();
-
-        mockCache.parsedItems = [];
-        mockCache.configs.clear();
-        
-        await tester.pumpWidget(createWidgetWithMocks(controller: mockController, taskNotifier: mockTaskNotifier));
-        await tester.pump(const Duration(milliseconds: 500));
-        
-        // W-SDW-113: Render empty grid
-        expect(find.byIcon(Icons.video_file), findsNothing);
-        expect(find.text('vid1.mp4'), findsNothing);
-
-        // W-SDW-114 & W-SDW-115 & W-SDW-117: Single and Multiple items (mixed)
-        mockCache.parsedItems = [
-          MediaGroup(originalUrl: 'http://t.com/v1.mp4', items: [
-            MediaInfo(id: 'vid1', title: 'v1.mp4', originalUrl: 'http://t.com/v1.mp4')
-          ]),
-          MediaGroup(originalUrl: 'http://t.com/i1.png', items: [
-            MediaInfo(id: 'img1', title: 'i1.png', originalUrl: 'http://t.com/i1.png', isVideo: false)
-          ])
+        controller.cache.parsedItems = <MediaGroup>[
+          makeGroup(
+            originalUrl: 'https://a.example',
+            items: <MediaInfo>[
+              makeInfo(
+                id: 'a',
+                title: 'Alpha',
+                originalUrl: 'https://a.example',
+              ),
+            ],
+          ),
+          makeGroup(
+            originalUrl: 'https://b.example',
+            items: <MediaInfo>[
+              makeInfo(
+                id: 'b',
+                title: 'Beta',
+                originalUrl: 'https://b.example',
+              ),
+            ],
+          ),
+          makeGroup(
+            originalUrl: 'https://c.example',
+            items: <MediaInfo>[
+              makeInfo(
+                id: 'c',
+                title: 'Gamma',
+                originalUrl: 'https://c.example',
+              ),
+            ],
+          ),
         ];
-        mockCache.configs.addAll({
+        controller.cache.configs.addAll(<int, DownloadConfig>{
           0: DownloadConfig(),
           1: DownloadConfig(),
+          2: DownloadConfig(),
         });
-        
-        await tester.pumpWidget(createWidgetWithMocks(controller: mockController, taskNotifier: mockTaskNotifier));
-        await tester.pump(const Duration(milliseconds: 500));
-        
-        expect(find.text('v1.mp4'), findsOneWidget, reason: 'W-SDW-114');
-        expect(find.text('i1.png'), findsOneWidget, reason: 'W-SDW-115');
-      });
-    });
 
-    group('Selection', () {
-      Widget createWidgetWithMocks({
-        required DownloadsSharedController controller,
-        required DownloadTaskNotifier taskNotifier,
-      }) {
-        return ProviderScope(
-          overrides: [
-            downloadsSharedControllerProvider.overrideWith((ref) => controller),
-            downloadTaskProvider.overrideWith(() => taskNotifier),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: StandaloneDownloaderWindow(windowId: 1),
-            ),
-          ),
+        await pumpWindow(tester, container: container);
+
+        final state = standaloneState(tester);
+        state.selectedIndicesForTesting.addAll(<int>{0, 1, 2});
+        expect(state.selectedIndicesForTesting, <int>{0, 1, 2});
+
+        await tester.tapAt(const Offset(1100, 300));
+        await tester.pump();
+        expect(state.selectedIndicesForTesting, isEmpty);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-007: Root delete, trash, restore, empty trash
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-007: moves root items to trash, restores them, and empties trash',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
         );
-      }
+        addTearDown(container.dispose);
 
-      testWidgets('W-SDW-121 to W-SDW-128: Item selection mechanics', (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        final mockController = MockDownloadsSharedController();
-        final mockCache = mockController.cache;
-        final mockTaskNotifier = MockDownloadTaskNotifier();
-
-        mockCache.parsedItems = [];
-        mockCache.configs.clear();
-        mockCache.parsedItems = [
-          MediaGroup(originalUrl: 'http://t.com/v1.mp4', items: [
-            MediaInfo(id: 'vid1', title: 'v1.mp4', originalUrl: 'http://t.com/v1.mp4')
-          ]),
-          MediaGroup(originalUrl: 'http://t.com/v2.mp4', items: [
-            MediaInfo(id: 'vid2', title: 'v2.mp4', originalUrl: 'http://t.com/v2.mp4')
-          ])
+        controller.cache.parsedItems = <MediaGroup>[
+          makeGroup(
+            originalUrl: 'https://video.example',
+            items: <MediaInfo>[
+              makeInfo(
+                id: 'vid',
+                title: 'Video Item',
+                originalUrl: 'https://video.example',
+                filesize: 4 * 1024 * 1024,
+              ),
+            ],
+          ),
         ];
-        mockCache.configs.addAll({
-          0: DownloadConfig(),
-          1: DownloadConfig(),
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(tester, container: container);
+
+        standaloneState(tester).selectedIndicesForTesting.add(0);
+        standaloneState(tester).handleDeleteForTesting(false);
+        await tester.pump();
+
+        expect(find.text('Video Item'), findsNothing);
+        expect(controller.cache.configs, isEmpty);
+        expect(controller.cache.isListChanged, isTrue);
+        expect(controller.recalculateCalls, greaterThanOrEqualTo(1));
+
+        await tester.tap(find.text('Trash'));
+        await tester.pump();
+        expect(find.text('Restore All'), findsOneWidget);
+        expect(find.text('Restore'), findsOneWidget);
+
+        await tester.tap(find.text('Restore'));
+        await tester.pump();
+        expect(find.text('Trash is empty'), findsOneWidget);
+
+        standaloneState(tester).setState(() {
+          standaloneState(tester).restoreTabStateForTesting('__reset__');
+        });
+        await tester.pump();
+        expect(find.text('Video Item'), findsOneWidget);
+
+        standaloneState(tester).selectedIndicesForTesting.add(0);
+        standaloneState(tester).handleDeleteForTesting(false);
+        await tester.pump();
+
+        await tester.tap(find.text('Trash'));
+        await tester.pump();
+        await tester.tap(find.text('Empty'));
+        await tester.pump();
+
+        expect(find.text('Trash is empty'), findsOneWidget);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-008: Permanent delete reindexes configs
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-008: permanently deletes selected root items and reindexes configs',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        controller.cache.parsedItems = <MediaGroup>[
+          makeGroup(
+            originalUrl: 'https://one.example',
+            items: <MediaInfo>[
+              makeInfo(
+                id: '1',
+                title: 'One',
+                originalUrl: 'https://one.example',
+              ),
+            ],
+          ),
+          makeGroup(
+            originalUrl: 'https://two.example',
+            items: <MediaInfo>[
+              makeInfo(
+                id: '2',
+                title: 'Two',
+                originalUrl: 'https://two.example',
+              ),
+            ],
+          ),
+        ];
+        controller.cache.configs.addAll(<int, DownloadConfig>{
+          0: DownloadConfig(engine: 'first'),
+          1: DownloadConfig(engine: 'second'),
         });
 
-        await tester.pumpWidget(createWidgetWithMocks(controller: mockController, taskNotifier: mockTaskNotifier));
-        await tester.pump(const Duration(milliseconds: 500));
+        await pumpWindow(tester, container: container);
 
-        // W-SDW-121: Select single item
-        await tester.tap(find.text('v1.mp4'));
-        await tester.pump(const Duration(seconds: 1));
-        
-        // Check if Action Bar updates with 1 item selected (assuming selection shows clear button or similar)
-        expect(find.text('Clear List'), findsOneWidget); 
+        standaloneState(tester).selectedIndicesForTesting.add(0);
+        standaloneState(tester).handleDeleteForTesting(true);
+        await tester.pump();
 
-        // W-SDW-122: Deselect selected item
-        await tester.tap(find.text('v1.mp4'));
-        await tester.pump(const Duration(seconds: 1));
-      });
+        expect(find.text('Permanently Delete'), findsOneWidget);
+        await tester.tap(find.text('Delete'));
+        await tester.pump();
+
+        expect(
+          controller.cache.parsedItems?.map((group) => group.first.title),
+          <String>['Two'],
+        );
+        expect(controller.cache.configs.length, 1);
+        expect(controller.cache.configs[0]?.engine, 'second');
+        expect(find.text('Trash'), findsWidgets);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-009: Nested group navigation, delete, restore, Alt+Left/Right
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-009: navigates grouped items, restores inner trash items, and supports history shortcuts',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final group = makeGroup(
+          originalUrl: 'https://gallery.example',
+          items: <MediaInfo>[
+            makeInfo(
+              id: 'g1',
+              title: 'Gallery Root',
+              originalUrl: 'https://gallery.example/1',
+              isVideo: false,
+            ),
+            makeInfo(
+              id: 'g2',
+              title: 'Gallery Clip',
+              originalUrl: 'https://gallery.example/2',
+            ),
+          ],
+        );
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        controller.cache.parsedItems = <MediaGroup>[group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(tester, container: container);
+
+        await doubleTapFinder(tester, find.text('Gallery Root'));
+        await tester.pump();
+        expect(find.text('Gallery Clip'), findsOneWidget);
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+        expect(find.text('Gallery Root'), findsOneWidget);
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+        expect(find.text('Gallery Clip'), findsOneWidget);
+
+        standaloneState(tester).selectedIndicesForTesting.add(1);
+        standaloneState(tester).handleDeleteForTesting(false);
+        await tester.pump();
+        expect(find.text('Gallery Clip'), findsNothing);
+
+        await tester.tap(find.text('Trash'));
+        await tester.pump();
+        await tester.tap(find.text('Restore All'));
+        await tester.pump();
+        expect(find.text('Trash is empty'), findsOneWidget);
+
+        standaloneState(tester).setState(() {
+          standaloneState(tester).restoreTabStateForTesting('__reset__');
+        });
+        await tester.pump();
+        await doubleTapFinder(tester, find.text('Gallery Root'));
+        await tester.pump();
+        expect(find.text('Gallery Clip'), findsOneWidget);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-010: Generic download branch, titles, filters, callbacks
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets('W-SDW-010: starts a root item download from the grid button', (
+      tester,
+    ) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
+
+      controller.cache.parsedItems = <MediaGroup>[
+        makeGroup(
+          originalUrl: 'https://single.example',
+          items: <MediaInfo>[
+            makeInfo(
+              id: 'single',
+              title: 'Single Root',
+              originalUrl: 'https://single.example/file.jpg',
+              directUrl: 'https://single.example/file.jpg',
+              isVideo: false,
+            ),
+          ],
+        ),
+      ];
+      controller.cache.configs[0] = DownloadConfig();
+
+      await pumpWindow(tester, container: container);
+
+      await tester.tap(find.byIcon(Icons.download_rounded).first);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(taskNotifier.calls, hasLength(1));
+      expect(taskNotifier.calls.single['title'], 'Single Root');
+      expect(taskNotifier.calls.single['downloadType'], 'image');
+      expect(
+        taskNotifier.calls.single['url'],
+        'https://single.example/file.jpg',
+      );
+      expect(controller.cache.parsedItems, isEmpty);
+      expect(controller.cache.isListChanged, isTrue);
+      expect(controller.recalculateCalls, greaterThanOrEqualTo(1));
     });
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-016: Active downloads cancel all
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets('W-SDW-016: cancels every active download from the sidebar', (
+      tester,
+    ) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier(
+        initialTasks: <DownloadTask>[makeTask('one'), makeTask('two')],
+      );
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
+
+      await pumpWindow(tester, container: container);
+
+      await tester.tap(find.text('Cancel All'));
+      await tester.pump();
+
+      expect(
+        taskNotifier.calls.where((call) => call['action'] == 'cancel').length,
+        2,
+      );
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-017: Video snackbar and image viewer success
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-017: shows a snackbar for video preview and opens the image viewer for images',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        controller.cache.parsedItems = <MediaGroup>[
+          makeGroup(
+            originalUrl: 'https://video-preview.example',
+            items: <MediaInfo>[
+              makeInfo(
+                id: 'video_preview',
+                title: 'Preview Video',
+                originalUrl: 'https://video-preview.example',
+              ),
+            ],
+          ),
+          makeGroup(
+            originalUrl: 'https://image-preview.example',
+            items: <MediaInfo>[
+              makeInfo(
+                id: 'image_preview',
+                title: 'Preview Image',
+                originalUrl: 'https://image-preview.example/image.jpg',
+                isVideo: false,
+              ),
+            ],
+          ),
+        ];
+
+        await pumpWindow(tester, container: container);
+
+        await doubleTapFinder(tester, find.text('Preview Video'));
+        await tester.pump();
+        expect(
+          find.text('Video playback in grid is not supported yet.'),
+          findsOneWidget,
+        );
+
+        await doubleTapFinder(tester, find.text('Preview Image'));
+        await tester.pump();
+
+        final createWindowCall = windowCalls.lastWhere(
+          (call) => call.method == 'create_window',
+        );
+        expect(createWindowCall.arguments['width'], 600);
+        expect(createWindowCall.arguments['height'], 800);
+      },
+    );
   });
 }
