@@ -52,6 +52,14 @@ class MediaUriHelper {
   }
 
   static String getSafeMediaUri(String path) {
+    // Pass network URLs through unchanged — libmpv/media_kit handles them natively.
+    // Uri.file() would corrupt https:// into file:///https%3A//...
+    if (path.startsWith('http://') ||
+        path.startsWith('https://') ||
+        path.startsWith('rtmp://') ||
+        path.startsWith('rtsp://')) {
+      return path;
+    }
     if (!path.contains('\\')) {
       return Uri.file(path).toString();
     }

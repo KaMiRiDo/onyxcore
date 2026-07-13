@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1229,12 +1230,7 @@ class _StandaloneDownloaderWindowState
           if (firstItem == null) return;
 
           if (firstItem.isVideo) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Video playback in grid is not supported yet.'),
-                duration: Duration(seconds: 2),
-              ),
-            );
+            _openVideoPreview(firstItem, index);
           } else {
             _openImageInViewer(firstItem, index);
           }
@@ -1390,6 +1386,11 @@ class _StandaloneDownloaderWindowState
       _downloadingImageIndices.add(index);
     });
 
+    // Yield control to the Flutter event loop to render the loader UI immediately.
+    // Without this, the synchronous method channel call to open the window blocks
+    // the platform thread, dropping frames and causing a perceived visual delay.
+    await Future.delayed(const Duration(milliseconds: 16));
+
     try {
       final fileItem = FileItem(
         name: item.title.isNotEmpty ? item.title : p.basename(url),
@@ -1406,10 +1407,17 @@ class _StandaloneDownloaderWindowState
           'width': 600,
           'height': 800,
           'is_minimal': true,
+          'is_network_stream': true,
         },
       );
 
-      await PersistentViewerManager.openMedia(windowParams);
+      PersistentViewerManager.openMedia(windowParams).whenComplete(() {
+        if (mounted) {
+          setState(() {
+            _downloadingImageIndices.remove(index);
+          });
+        }
+      });
     } catch (e, st) {
       print('EXCEPTION IN START DOWNLOAD: $e\n$st');
       if (mounted) {
@@ -1417,13 +1425,234 @@ class _StandaloneDownloaderWindowState
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to load image: $e')));
       }
-    } finally {
       if (mounted) {
         setState(() {
           _downloadingImageIndices.remove(index);
         });
       }
     }
+  }
+
+  /// Opens the video stream preview in the existing video player window.
+  ///
+  /// Resolves the best streamable URL from [item], passes it to
+  /// [PersistentViewerManager] as a [ViewerType.video], and handles errors
+  /// with a styled dialog matching the downloader error tile UX.
+  Future<void> _openVideoPreview(MediaInfo item, int index) async {
+    final streamUrl = resolveStreamUrl(item);
+    if (streamUrl == null) {
+      if (mounted) {
+        _showVideoPreviewErrorDialog(
+          context: context,
+          title: item.title.isNotEmpty ? item.title : item.originalUrl,
+          errorMessage: 'No streamable URL found for this item.',
+          details: 'Tried directUrl, format urls, webpageUrl, and originalUrl — all were empty.',
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _downloadingImageIndices.add(index);
+    });
+
+    // Yield control to the Flutter event loop to render the loader UI immediately.
+    // Without this, the synchronous method channel call to open the window blocks
+    // the platform thread, dropping frames and causing a perceived visual delay.
+    await Future.delayed(const Duration(milliseconds: 16));
+
+    try {
+      final fileItem = FileItem(
+        name: item.title.isNotEmpty ? item.title : p.basename(streamUrl),
+        path: streamUrl,
+        sizeBytes: item.filesize,
+        modified: DateTime.now(),
+        type: FileItemType.video,
+        thumbnailPath: item.thumbnail,
+      );
+
+      final windowParams = WindowParams(
+        viewerType: ViewerType.video,
+        file: fileItem,
+        initParams: const {
+          'width': 1280,
+          'height': 720,
+          'is_network_stream': true,
+        },
+      );
+
+      PersistentViewerManager.openMedia(windowParams).whenComplete(() {
+        if (mounted) {
+          setState(() {
+            _downloadingImageIndices.remove(index);
+          });
+        }
+      });
+    } catch (e, st) {
+      debugPrint('Stream preview error: $e\n$st');
+      if (mounted) {
+        _showVideoPreviewErrorDialog(
+          context: context,
+          title: item.title.isNotEmpty ? item.title : item.originalUrl,
+          errorMessage: e.toString(),
+          details: st.toString(),
+        );
+      }
+      if (mounted) {
+        setState(() {
+          _downloadingImageIndices.remove(index);
+        });
+      }
+    }
+  }
+
+  /// Shows the styled video preview error dialog.
+  ///
+  /// Matches the downloader error tile UX: dark red background,
+  /// error icon, message body, and an expandable logs section.
+  void _showVideoPreviewErrorDialog({
+    required BuildContext context,
+    required String title,
+    required String errorMessage,
+    String? details,
+  }) {
+    bool logsExpanded = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF2A1515),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: Colors.redAccent.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Stream Preview Failed',
+                  style: GoogleFonts.manrope(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.manrope(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                errorMessage,
+                style: GoogleFonts.manrope(
+                  color: Colors.redAccent.withValues(alpha: 0.85),
+                  fontSize: 12,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (details != null && details.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () => setDialogState(() => logsExpanded = !logsExpanded),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 16,
+                          color: logsExpanded ? Colors.redAccent : AppColors.violet,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          logsExpanded ? 'Hide logs' : 'View logs',
+                          style: GoogleFonts.manrope(
+                            color: logsExpanded ? Colors.redAccent : AppColors.violet,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (logsExpanded) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.redAccent.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(10),
+                      child: SelectableText(
+                        details,
+                        style: GoogleFonts.jetBrainsMono(
+                          color: Colors.white54,
+                          fontSize: 10,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                'Close',
+                style: GoogleFonts.manrope(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @visibleForTesting
@@ -1461,6 +1690,80 @@ class _StandaloneDownloaderWindowState
 
   @visibleForTesting
   void handleDeleteForTesting(bool isShiftPressed) => _handleDelete(isShiftPressed);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Top-level helpers — kept outside the widget class so they are easily testable
+// without a Flutter widget pump.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Resolves the best direct streamable URL from a [MediaInfo] object.
+///
+/// Priority order:
+///   1. [MediaInfo.directUrl]        — yt-dlp resolved direct CDN stream URL
+///   2. Best format url              — highest-resolution [MediaFormat] with non-null url
+///   3. [MediaInfo.webpageUrl]       — fallback (libmpv may re-fetch via demuxer)
+///   4. [MediaInfo.originalUrl]      — last resort
+///   5. null                         — no usable URL found
+@visibleForTesting
+String? resolveStreamUrl(MediaInfo item) {
+  // 1. directUrl is best
+  if (item.directUrl != null && item.directUrl!.isNotEmpty) {
+    return item.directUrl;
+  }
+
+  // 2. Best format URL — pick the highest-resolution format that has a url.
+  // Also checks formatString as a fallback because gallery-dl stores the CDN
+  // URL there (formatId='original', formatString=<direct cdn url>, url=null).
+  if (item.formats.isNotEmpty) {
+    final formatsWithUrl = item.formats.where((f) {
+      if (f.url != null && f.url!.isNotEmpty) return true;
+      // gallery-dl pattern: CDN URL stored in formatString
+      return f.formatString.startsWith('http://') ||
+          f.formatString.startsWith('https://');
+    }).toList();
+    if (formatsWithUrl.isNotEmpty) {
+      formatsWithUrl.sort((a, b) {
+        final hA = _parseResolutionHeight(a.resolution);
+        final hB = _parseResolutionHeight(b.resolution);
+        return hB.compareTo(hA);
+      });
+      final best = formatsWithUrl.first;
+      // Prefer the explicit url field; fall back to formatString
+      return (best.url != null && best.url!.isNotEmpty)
+          ? best.url
+          : best.formatString;
+    }
+  }
+
+  // 3. webpageUrl fallback
+  if (item.webpageUrl != null && item.webpageUrl!.isNotEmpty) {
+    return item.webpageUrl;
+  }
+
+  // 4. originalUrl last resort
+  if (item.originalUrl.isNotEmpty) {
+    return item.originalUrl;
+  }
+
+  return null;
+}
+
+/// Parses a resolution string (e.g. "1920x1080", "1080p", "4k") to its height
+/// in pixels for comparison purposes. Returns 0 for audio-only or unparseable.
+int _parseResolutionHeight(String resolution) {
+  if (resolution.isEmpty || resolution == 'audio only') return 0;
+  final lower = resolution.toLowerCase();
+  if (lower.contains('2160') || lower.contains('4k')) return 2160;
+  if (lower.contains('1440') || lower.contains('2k')) return 1440;
+  if (lower.contains('1080')) return 1080;
+  if (lower.contains('720')) return 720;
+  if (lower.contains('480')) return 480;
+  if (lower.contains('360')) return 360;
+  if (lower.contains('240')) return 240;
+  final parts = lower.split('x');
+  if (parts.length == 2) return int.tryParse(parts[1]) ?? 0;
+  return int.tryParse(lower.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 }
 
 class _TrashItem {

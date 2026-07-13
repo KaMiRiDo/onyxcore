@@ -1042,10 +1042,10 @@ void main() {
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // W-SDW-017: Video snackbar and image viewer success
+    // W-SDW-017: Video preview window and image viewer success
     // ═══════════════════════════════════════════════════════════════
     testWidgets(
-      'W-SDW-017: shows a snackbar for video preview and opens the image viewer for images',
+      'W-SDW-017: opens a video preview window for videos and image viewer for images',
       (tester) async {
         final controller = RecordingDownloadsSharedController();
         final taskNotifier = RecordingDownloadTaskNotifier();
@@ -1083,20 +1083,23 @@ void main() {
         await pumpWindow(tester, container: container);
 
         await doubleTapFinder(tester, find.text('Preview Video'));
-        await tester.pump();
-        expect(
-          find.text('Video playback in grid is not supported yet.'),
-          findsOneWidget,
-        );
+        // wait for Future.delayed(16ms) in openVideoPreview
+        await tester.pump(const Duration(milliseconds: 50));
 
-        await doubleTapFinder(tester, find.text('Preview Image'));
-        await tester.pump();
-
-        final createWindowCall = windowCalls.lastWhere(
+        final createVideoWindowCall = windowCalls.lastWhere(
           (call) => call.method == 'create_window',
         );
-        expect(createWindowCall.arguments['width'], 600);
-        expect(createWindowCall.arguments['height'], 800);
+        expect(createVideoWindowCall.arguments['width'], 1280);
+        expect(createVideoWindowCall.arguments['height'], 720);
+
+        await doubleTapFinder(tester, find.text('Preview Image'));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final createImageWindowCall = windowCalls.lastWhere(
+          (call) => call.method == 'create_window',
+        );
+        expect(createImageWindowCall.arguments['width'], 600);
+        expect(createImageWindowCall.arguments['height'], 800);
       },
     );
   });

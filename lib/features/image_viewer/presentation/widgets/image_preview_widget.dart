@@ -69,6 +69,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   bool _isClosing = false;
   bool _isEmpty = false;
   bool _isEmptyAtEnd = true;
+
+  bool get _isNetworkStream => widget.initParams?['is_network_stream'] == true;
+
   String? _metadata;
   String? _indexString;
   bool _isControlsVisible = true;
@@ -1240,31 +1243,35 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                           ref.read(previewFileProvider.notifier).state = null,
                       extraActions: [
                         if (!_isEmpty) ...[
-                          Consumer(
-                          builder: (context, ref, _) {
-                            final favorites = ref.watch(imageFavoritesProvider);
-                            final isFavorite = favorites.contains(widget.item.path);
-                            return _buildTopBarButton(
-                              icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                              onPressed: () {
-                                ref.read(imageFavoritesProvider.notifier).toggleFavorite(widget.item.path);
+                          if (!_isNetworkStream)
+                            Consumer(
+                              builder: (context, ref, _) {
+                                final favorites = ref.watch(imageFavoritesProvider);
+                                final isFavorite = favorites.contains(widget.item.path);
+                                return _buildTopBarButton(
+                                  icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                  onPressed: () {
+                                    ref.read(imageFavoritesProvider.notifier).toggleFavorite(widget.item.path);
+                                  },
+                                  tooltip: 'Toggle Favorite',
+                                  active: isFavorite,
+                                );
                               },
-                              tooltip: 'Toggle Favorite',
-                              active: isFavorite,
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        _buildTopBarButton(
-                          icon: _isEditing
-                              ? Icons.edit_rounded
-                              : Icons.edit_outlined,
-                          onPressed: () =>
-                              setState(() => _isEditing = !_isEditing),
-                          tooltip: 'Edit Image',
-                          active: _isEditing,
-                        ),
-                        const SizedBox(width: 8),
+                            ),
+                          if (!_isNetworkStream)
+                            const SizedBox(width: 8),
+                          if (!_isNetworkStream)
+                            _buildTopBarButton(
+                              icon: _isEditing
+                                  ? Icons.edit_rounded
+                                  : Icons.edit_outlined,
+                              onPressed: () =>
+                                  setState(() => _isEditing = !_isEditing),
+                              tooltip: 'Edit Image',
+                              active: _isEditing,
+                            ),
+                          if (!_isNetworkStream)
+                            const SizedBox(width: 8),
                         _buildTopBarButton(
                           icon: Icons.settings_rounded,
                           onPressed: () => SettingsDialog.show(
@@ -1304,8 +1311,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 Icons.playlist_play,
                                 size: 24,
                               ),
-                              color: isSidebarOpen ? AppColors.magenta : Colors.white,
-                              onPressed: () {
+                              color: _isNetworkStream ? Colors.white30 : (isSidebarOpen ? AppColors.magenta : Colors.white),
+                              onPressed: _isNetworkStream ? null : () {
                                 sidebarRef.read(imagePlaylistSidebarVisibleProvider.notifier).state = !isSidebarOpen;
                               },
                               tooltip: 'Playlist',

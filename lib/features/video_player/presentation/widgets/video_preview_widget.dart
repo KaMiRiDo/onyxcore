@@ -24,6 +24,7 @@ import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
 import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
@@ -198,6 +199,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   final GlobalKey<MarkerEditorOverlayState> _markerEditorKey =
       GlobalKey<MarkerEditorOverlayState>();
   final LayerLink _sliderLink = LayerLink();
+
+  bool get _isNetworkStream => widget.initParams?['is_network_stream'] == true;
   final ValueNotifier<bool> _isPlayingNotifier = ValueNotifier<bool>(false);
   StreamSubscription<dynamic>? _playingSubscription;
 
@@ -334,27 +337,49 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     });
   }
 
-  void _initPlayerAsync() {
+  Future<void> _initPlayerAsync() async {
     player = Player();
 
     // BUG-001: Sliding Window buffer configuration
-    // 400MiB forward + 200MiB backward for zero-latency arrow-key seeks
     if (player.platform != null) {
       final dynamic platform = player.platform;
-      platform.setProperty('demuxer-readahead-secs', '60');
-      platform.setProperty('demuxer-max-bytes', '419430400'); // 400 MiB forward
-      platform.setProperty(
-        'demuxer-max-back-bytes',
-        '209715200',
-      ); // 200 MiB backward
-      platform.setProperty('buffer-size', '134217728'); // 128MB internal
-      platform.setProperty('cache', 'yes');
-      platform.setProperty('cache-secs', '60');
-      platform.setProperty('cache-pause', 'no');
-      platform.setProperty(
-        'hr-seek',
-        'yes',
-      ); // Exact seeking (prevents keyframe quantization)
+
+      if (_isNetworkStream) {
+        // Setup cache directory
+        try {
+          final tempDir = await getTemporaryDirectory();
+          final cacheDir = Directory(p.join(tempDir.path, 'onyx_stream_cache'));
+          if (!cacheDir.existsSync()) {
+            cacheDir.createSync(recursive: true);
+          }
+          platform.setProperty('cache-dir', cacheDir.path);
+          platform.setProperty('cache-on-disk', 'yes');
+        } catch (e) {
+          debugPrint('Failed to set up stream cache directory: $e');
+        }
+
+        // Network Streaming Buffer Configuration
+        platform.setProperty('demuxer-readahead-secs', '120'); // 2 minutes read-ahead
+        platform.setProperty('demuxer-max-bytes', '524288000'); // 500 MB forward buffer
+        platform.setProperty('demuxer-max-back-bytes', '134217728'); // 128 MB backward
+        platform.setProperty('buffer-size', '134217728'); // 128 MB internal
+        platform.setProperty('cache', 'yes');
+        platform.setProperty('cache-secs', '120');
+        platform.setProperty('cache-pause', 'yes'); // Pause to build cache
+        platform.setProperty('cache-pause-wait', '2'); // Wait for 2 secs buffer before unpausing
+      } else {
+        // Local File Sliding Window Buffer Configuration
+        // 400MiB forward + 200MiB backward for zero-latency arrow-key seeks
+        platform.setProperty('demuxer-readahead-secs', '60');
+        platform.setProperty('demuxer-max-bytes', '419430400'); // 400 MiB forward
+        platform.setProperty('demuxer-max-back-bytes', '209715200'); // 200 MiB backward
+        platform.setProperty('buffer-size', '134217728'); // 128MB internal
+        platform.setProperty('cache', 'yes');
+        platform.setProperty('cache-secs', '60');
+        platform.setProperty('cache-pause', 'no');
+      }
+
+      platform.setProperty('hr-seek', 'yes'); // Exact seeking
       platform.setProperty('hr-seek-framedrop', 'yes');
       platform.setProperty('vd-lavc-fast', 'yes');
 
@@ -823,6 +848,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   void didUpdateWidget(VideoPreviewWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.path != widget.item.path) {
+      if (_isNetworkStream) {
+        _clearNetworkCache();
+      }
       _loadMedia(widget.item);
     }
   }
@@ -844,10 +872,29 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
   }
 
+  Future<void> _clearNetworkCache() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final cacheDir = Directory(p.join(tempDir.path, 'onyx_stream_cache'));
+      if (cacheDir.existsSync()) {
+        final contents = cacheDir.listSync();
+        for (var file in contents) {
+          try {
+            file.deleteSync(recursive: true);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     // 1. Mark as closing immediately to block incoming callbacks/state updates
     _isClosing = true;
+
+    if (_isNetworkStream) {
+      _clearNetworkCache();
+    }
 
     // 2. Unregister from all global observers
     WidgetsBinding.instance.removeObserver(this);
@@ -2481,13 +2528,14 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                         null,
                                 extraActions: [
                                   if (!_isEmpty) ...[
+                                    if (!_isNetworkStream)
                                     _buildTopBarButton(
-                                    icon: Icons.edit_outlined,
-                                    onPressed: () {
-                                      // TODO: Implement video editing
-                                    },
-                                    tooltip: 'Edit Video',
-                                  ),
+                                      icon: Icons.edit_outlined,
+                                      onPressed: () {
+                                        // TODO: Implement video editing
+                                      },
+                                      tooltip: 'Edit Video',
+                                    ),
                                   const SizedBox(width: 8),
                                   _buildTopBarButton(
                                     icon: Icons.settings_rounded,
@@ -2634,14 +2682,22 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                             right: 0,
                                                             bottom:
                                                                 20, // Move slider up slightly
-                                                            child: SliderTheme(
-                                                              data: SliderTheme.of(context).copyWith(
-                                                                trackShape:
-                                                                    GradientRectSliderTrackShape(
-                                                                      gradient:
-                                                                          AppTheme
-                                                                              .primaryGradient,
-                                                                    ),
+                                                            child: StreamBuilder<Duration>(
+                                                              stream: player.stream.buffer,
+                                                              builder: (context, bufferSnapshot) {
+                                                                final bufferDuration = bufferSnapshot.data ?? player.state.buffer;
+                                                                final bufferProgress = duration.inMilliseconds > 0 
+                                                                    ? bufferDuration.inMilliseconds / duration.inMilliseconds 
+                                                                    : 0.0;
+                                                                return SliderTheme(
+                                                                  data: SliderTheme.of(context).copyWith(
+                                                                    trackShape:
+                                                                        GradientRectSliderTrackShape(
+                                                                          gradient:
+                                                                              AppTheme
+                                                                                  .primaryGradient,
+                                                                          bufferProgress: bufferProgress.clamp(0.0, 1.0),
+                                                                        ),
                                                                 activeTrackColor:
                                                                     Colors
                                                                         .white,
@@ -2715,18 +2771,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                       _pendingScrubPosition!,
                                                                     );
                                                                     _scrubThrottleTimer = Timer(
-                                                                      const Duration(
-                                                                        milliseconds:
-                                                                            100,
-                                                                      ),
+                                                                      const Duration(milliseconds: 100),
                                                                       () {
-                                                                        if (_pendingScrubPosition !=
-                                                                                null &&
-                                                                            mounted &&
-                                                                            _isScrubbing) {
-                                                                          player.seek(
-                                                                            _pendingScrubPosition!,
-                                                                          );
+                                                                        if (_pendingScrubPosition != null && mounted && _isScrubbing) {
+                                                                          player.seek(_pendingScrubPosition!);
                                                                         }
                                                                       },
                                                                     );
@@ -2769,8 +2817,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                   );
                                                                 },
                                                               ),
-                                                            ),
-                                                          ),
+                                                            );
+                                                          },
+                                                        ),
+                                                      ),
 
                                                           // EPX-009: Timeline Markers
                                                           if (ref
@@ -2954,57 +3004,63 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                               Icons.playlist_play,
                                               size: 24,
                                             ),
-                                            color: isOpen
-                                                ? AppColors.magenta
-                                                : Colors.white,
-                                            onPressed: () {
-                                              sidebarRef
-                                                      .read(
-                                                        videoPlaylistSidebarVisibleProvider
-                                                            .notifier,
-                                                      )
-                                                      .state =
-                                                  !isOpen;
-                                            },
+                                            color: _isNetworkStream
+                                                ? Colors.white30
+                                                : (isOpen ? AppColors.magenta : Colors.white),
+                                            onPressed: _isNetworkStream
+                                                ? null
+                                                : () {
+                                                    sidebarRef
+                                                            .read(
+                                                              videoPlaylistSidebarVisibleProvider
+                                                                  .notifier,
+                                                            )
+                                                            .state =
+                                                        !isOpen;
+                                                  },
                                             tooltip: 'Playlist',
                                           );
                                       },
                                     ),
                                     const SizedBox(width: 4),
-                                    Consumer(
-                                      builder: (context, ref, _) {
-                                        final isFavorite = ref.watch(videoFavoritesProvider).contains(_currentItem.path);
-                                        return IconButton(
-                                          icon: Icon(
-                                            isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                            size: 22,
-                                          ),
-                                          color: isFavorite ? AppColors.magenta : Colors.white70,
-                                          onPressed: () {
-                                            ref.read(videoFavoritesProvider.notifier).toggleFavorite(_currentItem.path);
-                                          },
-                                          tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Consumer(
-                                      builder: (context, ref, _) {
-                                        final isAutoPlay = ref.watch(videoAutoPlaySessionProvider);
-                                        return IconButton(
-                                          icon: Icon(
-                                            isAutoPlay ? Icons.autorenew_rounded : Icons.sync_disabled_rounded,
-                                            size: 22,
-                                          ),
-                                          color: isAutoPlay ? AppColors.magenta : Colors.white70,
-                                          onPressed: () {
-                                            ref.read(videoAutoPlaySessionProvider.notifier).state = !isAutoPlay;
-                                          },
-                                          tooltip: isAutoPlay ? 'Autoplay Next: ON' : 'Autoplay Next: OFF',
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(width: 4),
+                                    if (!_isNetworkStream)
+                                      Consumer(
+                                        builder: (context, ref, _) {
+                                          final isFavorite = ref.watch(videoFavoritesProvider).contains(_currentItem.path);
+                                          return IconButton(
+                                            icon: Icon(
+                                              isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                              size: 22,
+                                            ),
+                                            color: isFavorite ? AppColors.magenta : Colors.white70,
+                                            onPressed: () {
+                                              ref.read(videoFavoritesProvider.notifier).toggleFavorite(_currentItem.path);
+                                            },
+                                            tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                                          );
+                                        },
+                                      ),
+                                    if (!_isNetworkStream)
+                                      const SizedBox(width: 4),
+                                    if (!_isNetworkStream)
+                                      Consumer(
+                                        builder: (context, ref, _) {
+                                          final isAutoPlay = ref.watch(videoAutoPlaySessionProvider);
+                                          return IconButton(
+                                            icon: Icon(
+                                              isAutoPlay ? Icons.autorenew_rounded : Icons.sync_disabled_rounded,
+                                              size: 22,
+                                            ),
+                                            color: isAutoPlay ? AppColors.magenta : Colors.white70,
+                                            onPressed: () {
+                                              ref.read(videoAutoPlaySessionProvider.notifier).state = !isAutoPlay;
+                                            },
+                                            tooltip: isAutoPlay ? 'Autoplay Next: ON' : 'Autoplay Next: OFF',
+                                          );
+                                        },
+                                      ),
+                                    if (!_isNetworkStream)
+                                      const SizedBox(width: 4),
                                       IconButton(
                                         key: _subtitleKey,
                                         onPressed: () {
