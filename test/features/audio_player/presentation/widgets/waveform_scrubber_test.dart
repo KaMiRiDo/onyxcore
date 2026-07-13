@@ -1,11 +1,23 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/waveform_scrubber.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:flutter/services.dart';
 
 void main() {
+  setUpAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('onyxcore/window_manager'),
+      (MethodCall methodCall) async {
+        return null;
+      },
+    );
+    MediaKit.ensureInitialized();
+  });
+
   group('WaveformPainter Unit Tests', () {
     test('shouldRepaint returns true when progress changes (U-AUD-WAVE-01)', () {
       final p1 = WaveformPainter(progress: 0.1, barCount: 10, seed: 1, barWidth: 3, gap: 2);
@@ -33,9 +45,22 @@ void main() {
   });
 
   group('WaveformScrubber Widget Tests', () {
+    late Player player;
+
+    setUp(() {
+      player = Player();
+    });
+
+    tearDown(() async {
+      await player.dispose();
+    });
+
     Widget buildTestWidget({List<dynamic> overrides = const []}) {
       return ProviderScope(
-        overrides: [...overrides.cast()],
+        overrides: [
+          audioPlayerProvider.overrideWith((ref) => player),
+          ...overrides.cast()
+        ],
         child: const MaterialApp(
           home: Scaffold(
             body: Center(
@@ -83,10 +108,10 @@ void main() {
 
       final customPaintFinder = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is WaveformPainter);
       expect(customPaintFinder, findsOneWidget);
-      
+
       final customPaint = tester.widget<CustomPaint>(customPaintFinder);
       final painter = customPaint.painter! as WaveformPainter;
-      
+
       expect(painter.progress, 0.0);
     });
 
@@ -101,7 +126,7 @@ void main() {
       final customPaintFinder = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is WaveformPainter);
       final customPaint = tester.widget<CustomPaint>(customPaintFinder);
       final painter = customPaint.painter! as WaveformPainter;
-      
+
       expect(painter.barCount, 50);
     });
 
@@ -110,7 +135,7 @@ void main() {
 
       final customPaintFinder = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is WaveformPainter);
       final sizedBoxFinder = find.ancestor(of: customPaintFinder, matching: find.byType(SizedBox)).first;
-      
+
       final sizedBox = tester.widget<SizedBox>(sizedBoxFinder);
       expect(sizedBox.height, 60);
     });
@@ -141,7 +166,7 @@ void main() {
       final customPaintFinder = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is WaveformPainter);
       final customPaint = tester.widget<CustomPaint>(customPaintFinder);
       final painter = customPaint.painter! as WaveformPainter;
-      
+
       expect(painter.seed, 'test.mp3'.hashCode);
     });
 
@@ -156,25 +181,30 @@ void main() {
     });
 
     testWidgets('scrubbing updates position correctly', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioDurationProvider.overrideWith((ref) => Stream.value(const Duration(seconds: 100))),
-      ]));
-      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.pumpWidget(buildTestWidget(overrides: [
+          audioDurationProvider.overrideWith((ref) => Stream.value(const Duration(seconds: 100))),
+        ]));
+        await tester.pumpAndSettle();
 
-      final customPaintFinder = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is WaveformPainter);
-      expect(customPaintFinder, findsOneWidget);
+        final customPaintFinder = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is WaveformPainter);
+        expect(customPaintFinder, findsOneWidget);
 
-      // Perform a drag on the waveform
-      await tester.drag(customPaintFinder, const Offset(50, 0));
-      await tester.pumpAndSettle();
+        // Perform a drag on the waveform
+        final gesture = await tester.startGesture(tester.getCenter(customPaintFinder));
+        await tester.pump();
+        await gesture.moveBy(const Offset(50, 0));
+        await tester.pump();
+        await gesture.moveBy(const Offset(50, 0));
+        await tester.pump();
+        await gesture.up();
+        await tester.pumpAndSettle();
 
-      // Perform a tap down
-      final box = tester.renderObject(customPaintFinder) as RenderBox;
-      await tester.tapAt(box.localToGlobal(const Offset(50, 10)));
-      await tester.pumpAndSettle();
-
-      // We don't have a way to assert audioPlayerProvider.seek called directly since we didn't mock the player here,
-      // but triggering the gestures provides the coverage and proves they don't crash.
+        // Perform a tap down
+        final box = tester.renderObject(customPaintFinder) as RenderBox;
+        await tester.tapAt(box.localToGlobal(const Offset(50, 10)));
+        await tester.pumpAndSettle();
+      });
     });
   });
 }

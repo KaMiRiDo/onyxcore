@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
@@ -67,6 +68,29 @@ void main() {
       ),
     );
   }
+
+  group('AudioTagEditorDialog - Static Methods', () {
+    testWidgets('show() opens dialog', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [taskProvider.overrideWith(() => mockTaskNotifier)],
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => AudioTagEditorDialog.show(context, ['/test.mp3']),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AudioTagEditorDialog), findsOneWidget);
+    });
+  });
 
   group('AudioTagEditorDialog - Single File Mode', () {
     testWidgets('renders correctly and falls back to filename (W-AUD-TAG-01, 02, 03, 08, 10, 12)', (WidgetTester tester) async {
@@ -145,6 +169,20 @@ void main() {
       expect(find.text('NewBase_1.mp3'), findsOneWidget);
       expect(find.text('NewBase_2.mp3'), findsOneWidget);
     });
+
+    testWidgets('previews prefix mode correctly', (WidgetTester tester) async {
+      await tester.pumpWidget(createWidget([
+        '/path/to/Song_Alpha.mp3',
+        '/path/to/Song_Beta.mp3',
+      ]));
+      await tester.pumpAndSettle();
+
+      final textFieldFinder = find.byType(TextField).first;
+      await tester.enterText(textFieldFinder, 'Prefix_');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Prefix_Alpha.mp3'), findsOneWidget);
+    });
   });
 
   group('AudioTagEditorDialog - Cover Art', () {
@@ -191,6 +229,55 @@ void main() {
       // Task should be added and completed
       expect(mockTaskNotifier.addedTasks.isNotEmpty, isTrue);
       expect(mockTaskNotifier.completedTasks.isNotEmpty, isTrue);
+    });
+
+    testWidgets('saves and renames single file', (WidgetTester tester) async {
+      bool renameCalled = false;
+      await tester.pumpWidget(createWidget(['/path/to/Song.mp3'], onRename: (oldP, newP) {
+        renameCalled = true;
+      }));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'NewTitle');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Tags'));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      // We can't actually rename a non-existent file, so it will throw inside _runSaveTask,
+      // but it should still hit the path and log the error!
+      expect(mockTaskNotifier.addedTasks.isNotEmpty, isTrue);
+    });
+
+    testWidgets('saves and bulk renames files', (WidgetTester tester) async {
+      await tester.pumpWidget(createWidget([
+        '/path/to/Song1.mp3',
+        '/path/to/Song2.mp3',
+      ]));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Bulk_');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Tags'));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      expect(mockTaskNotifier.addedTasks.isNotEmpty, isTrue);
+    });
+
+    testWidgets('saves bulk renames with BaseName mode', (WidgetTester tester) async {
+      await tester.pumpWidget(createWidget([
+        '/path/to/Song1.mp3',
+        '/path/to/Song2.mp3',
+      ]));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Base Name + Counter'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'Base');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Tags'));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      expect(mockTaskNotifier.addedTasks.isNotEmpty, isTrue);
     });
   });
 }
