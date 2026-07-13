@@ -183,5 +183,51 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 1000));
     });
+
+    testWidgets('AudioPlayerView hides favorite and playlist buttons when is_audio_play_only is true', (tester) async {
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              databaseProvider.overrideWithValue(db),
+              currentTrackProvider.overrideWith((ref) => dummyFile),
+              audioQueueProvider.overrideWith((ref) => [dummyFile]),
+              audioPlayingProvider.overrideWith((ref) => Stream.value(false)),
+              audioRootPathProvider.overrideWith((ref) => '/'),
+              audioCurrentPathProvider.overrideWith((ref) => '/'),
+              audioPlaylistSidebarVisibleProvider.overrideWith((ref) => true),
+              settingsProvider.overrideWith(() => MockSettingsNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: AudioPlayerView(
+                  item: dummyFile, 
+                  isStandalone: true, 
+                  windowId: '101',
+                  initParams: const {'is_audio_play_only': true},
+                ),
+              ),
+            ),
+          ),
+        );
+        
+        await Future.delayed(const Duration(seconds: 1));
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Wait for render
+        expect(find.byType(HeroAudioPlayer), findsOneWidget);
+
+        // Verify Favorite icon is missing
+        expect(find.byIcon(Icons.favorite_border), findsNothing);
+        expect(find.byIcon(Icons.favorite), findsNothing);
+
+        // Verify Playlist toggle icon is missing
+        expect(find.byIcon(Icons.playlist_play), findsNothing);
+      });
+
+      // Clean up the widget tree to kill timers
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 1000));
+    });
   });
 }

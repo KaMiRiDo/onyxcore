@@ -86,7 +86,7 @@ class _StandaloneDownloaderWindowState
   bool _isTrashView = false;
   bool _isSearchVisible = false;
   String _listFilter = 'added_desc';
-  
+
   final Map<String, _StandaloneTabState> _tabStates = {};
 
   void _saveCurrentTabState(String path) {
@@ -280,7 +280,9 @@ class _StandaloneDownloaderWindowState
 
   Future<void> _startDownload(MediaGroup group, int configIndex) async {
     try {
-      final config = _controller.cache.configs[configIndex] ?? DownloadConfig(engine: 'auto');
+      final config =
+          _controller.cache.configs[configIndex] ??
+          DownloadConfig(engine: 'auto');
 
       final downloadToCurrent =
           ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
@@ -469,7 +471,6 @@ class _StandaloneDownloaderWindowState
               directUrl: info.directUrl,
             );
       }
-
     } catch (e) {
       debugPrint('Error starting download: $e');
     }
@@ -483,7 +484,8 @@ class _StandaloneDownloaderWindowState
       if (_selectedIndices.isNotEmpty) {
         // Selection scenario: Download only selected items
         // We iterate backwards to safely remove from the list.
-        final sortedIndices = _selectedIndices.toList()..sort((a, b) => b.compareTo(a));
+        final sortedIndices = _selectedIndices.toList()
+          ..sort((a, b) => b.compareTo(a));
         if (_currentGroup == null) {
           for (final i in sortedIndices) {
             await _startDownload(parsedItems[i], i);
@@ -493,7 +495,10 @@ class _StandaloneDownloaderWindowState
           final rootIndex = parsedItems.indexOf(_currentGroup!);
           for (final i in sortedIndices) {
             final item = _currentGroup!.items[i];
-            await _startDownload(MediaGroup(originalUrl: item.originalUrl, items: [item]), rootIndex);
+            await _startDownload(
+              MediaGroup(originalUrl: item.originalUrl, items: [item]),
+              rootIndex,
+            );
             _currentGroup!.items.removeAt(i);
           }
         }
@@ -522,7 +527,7 @@ class _StandaloneDownloaderWindowState
           parsedItems.clear();
         });
       }
-      
+
       _controller.cache.isListChanged = true;
       _controller.cache.notify();
     } finally {
@@ -630,16 +635,21 @@ class _StandaloneDownloaderWindowState
                   (event.logicalKey == LogicalKeyboardKey.keyW)) {
                 final path = _controller.cache.importedListPath;
                 if (path != null && path != 'default') {
-                  final index = _controller.cache.customLists.indexWhere((l) => l.path == path);
+                  final index = _controller.cache.customLists.indexWhere(
+                    (l) => l.path == path,
+                  );
                   _controller.cache.invalidateCache(path);
                   _tabStates.remove(path);
-                  
+
                   String newPath = 'default';
                   if (_controller.cache.customLists.isNotEmpty) {
-                    final nextIndex = index < _controller.cache.customLists.length ? index : _controller.cache.customLists.length - 1;
+                    final nextIndex =
+                        index < _controller.cache.customLists.length
+                        ? index
+                        : _controller.cache.customLists.length - 1;
                     newPath = _controller.cache.customLists[nextIndex].path;
                   }
-                  
+
                   setState(() {
                     _controller.cache.switchList(newPath);
                     _restoreTabState(newPath);
@@ -652,14 +662,15 @@ class _StandaloneDownloaderWindowState
                   (event.logicalKey == LogicalKeyboardKey.tab)) {
                 final lists = _controller.cache.customLists;
                 final allPaths = ['default', ...lists.map((l) => l.path)];
-                final currentPath = _controller.cache.importedListPath ?? 'default';
+                final currentPath =
+                    _controller.cache.importedListPath ?? 'default';
                 final currentIndex = allPaths.indexOf(currentPath);
-                
+
                 final nextIndex = (currentIndex + 1) % allPaths.length;
                 final nextPath = allPaths[nextIndex];
-                
+
                 _saveCurrentTabState(currentPath);
-                
+
                 setState(() {
                   _controller.cache.switchList(nextPath);
                   _restoreTabState(nextPath);
@@ -671,11 +682,11 @@ class _StandaloneDownloaderWindowState
                   (event.logicalKey == LogicalKeyboardKey.keyS)) {
                 final path = _controller.cache.importedListPath;
                 if (path == null || path == 'default') {
-                   // trigger export for default
-                   _exportCurrentList();
+                  // trigger export for default
+                  _exportCurrentList();
                 } else if (_controller.cache.isListChanged) {
-                   // trigger save for custom
-                   _saveCustomList(path);
+                  // trigger save for custom
+                  _saveCustomList(path);
                 }
                 return KeyEventResult.handled;
               }
@@ -774,15 +785,14 @@ class _StandaloneDownloaderWindowState
     final stateItems = _controller.cache.getItemsForPath(path);
     if (stateItems != null) {
       final file = File(path);
-      final data = {
-        'items': stateItems.map((e) => e.toMap()).toList(),
-      };
+      final data = {'items': stateItems.map((e) => e.toMap()).toList()};
       await file.writeAsString(jsonEncode(data));
       setState(() {
-        if (_controller.cache.importedListPath == path || (_controller.cache.importedListPath == null && path == 'default')) {
-           _controller.cache.isListChanged = false;
+        if (_controller.cache.importedListPath == path ||
+            (_controller.cache.importedListPath == null && path == 'default')) {
+          _controller.cache.isListChanged = false;
         } else {
-           _controller.cache.setCacheChanged(path, false);
+          _controller.cache.setCacheChanged(path, false);
         }
       });
     }
@@ -798,20 +808,21 @@ class _StandaloneDownloaderWindowState
     );
     if (saveLocation != null && saveLocation.isNotEmpty) {
       final exportedPath = saveLocation.first;
-      final isDefaultList = _controller.cache.importedListPath == null || _controller.cache.importedListPath == 'default';
-      
+      final isDefaultList =
+          _controller.cache.importedListPath == null ||
+          _controller.cache.importedListPath == 'default';
+
       await _controller.exportListToFile(exportedPath);
-      
+
       if (isDefaultList) {
         _controller.cache.clear();
       }
-      
+
       await _controller.importListFromFile(
         exportedPath,
         p.basenameWithoutExtension(exportedPath),
       );
-      
-      
+
       setState(() {
         _controller.cache.switchList('default');
         _restoreTabState('default');
@@ -829,7 +840,7 @@ class _StandaloneDownloaderWindowState
       onListTap: (path) {
         final currentPath = _controller.cache.importedListPath ?? 'default';
         _saveCurrentTabState(currentPath);
-        
+
         setState(() {
           _controller.cache.switchList(path);
           _restoreTabState(path);
@@ -856,7 +867,8 @@ class _StandaloneDownloaderWindowState
           final file = File(path.first);
           if (file.existsSync()) {
             final content = await file.readAsString();
-            final Map<String, dynamic> data = jsonDecode(content) as Map<String, dynamic>;
+            final Map<String, dynamic> data =
+                jsonDecode(content) as Map<String, dynamic>;
             final items = (data['items'] as List)
                 .map((e) => MediaGroup.fromMap(e as Map<String, dynamic>))
                 .toList();
@@ -864,7 +876,7 @@ class _StandaloneDownloaderWindowState
             final name = p.basenameWithoutExtension(path.first);
             final currentPath = _controller.cache.importedListPath ?? 'default';
             _saveCurrentTabState(currentPath);
-            
+
             setState(() {
               _controller.cache.switchList(path.first);
               _controller.cache.parsedItems = items;
@@ -881,7 +893,7 @@ class _StandaloneDownloaderWindowState
         setState(() {
           _controller.cache.invalidateCache(path);
           _tabStates.remove(path);
-          
+
           if (_controller.cache.importedListPath == path) {
             _controller.cache.switchList('default');
             _restoreTabState('default');
@@ -893,17 +905,17 @@ class _StandaloneDownloaderWindowState
         final itemsToSave = _controller.cache.getItemsForPath(path);
         if (itemsToSave != null) {
           final file = File(path);
-          final data = {
-            'items': itemsToSave.map((e) => e.toMap()).toList(),
-          };
+          final data = {'items': itemsToSave.map((e) => e.toMap()).toList()};
           await file.writeAsString(jsonEncode(data));
-          
+
           setState(() {
-             if (_controller.cache.importedListPath == path || (_controller.cache.importedListPath == null && path == 'default')) {
-                _controller.cache.isListChanged = false;
-             } else {
-                _controller.cache.setCacheChanged(path, false);
-             }
+            if (_controller.cache.importedListPath == path ||
+                (_controller.cache.importedListPath == null &&
+                    path == 'default')) {
+              _controller.cache.isListChanged = false;
+            } else {
+              _controller.cache.setCacheChanged(path, false);
+            }
           });
         }
       },
@@ -1019,15 +1031,20 @@ class _StandaloneDownloaderWindowState
           if (group.items.any((i) => !i.isVideo)) hasImages = true;
           if (group.items.any((i) => i.isVideo)) hasVideos = true;
         } else {
-          if (first.isVideo) hasVideos = true;
-          else hasImages = true;
+          if (first.isVideo)
+            hasVideos = true;
+          else
+            hasImages = true;
         }
       }
     }
 
     int rootIndex = -1;
-    if (_currentGroup != null && _controller.cache.parsedItems?.isNotEmpty == true) {
-      rootIndex = _controller.cache.parsedItems!.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl);
+    if (_currentGroup != null &&
+        _controller.cache.parsedItems?.isNotEmpty == true) {
+      rootIndex = _controller.cache.parsedItems!.indexWhere(
+        (g) => g.originalUrl == _currentGroup!.originalUrl,
+      );
     }
 
     return StandaloneWindowActionBar(
@@ -1045,6 +1062,7 @@ class _StandaloneDownloaderWindowState
         if (rootIndex != -1) {
           setState(() {
             _controller.cache.configs[rootIndex]!.format = val;
+            _controller.cache.configs[rootIndex]!.itemFormats.clear();
           });
           _controller.recalculateFilteredStatistics();
         }
@@ -1119,10 +1137,12 @@ class _StandaloneDownloaderWindowState
   Widget _buildMediaGrid() {
     List<MediaGroup> mappedGroups = [];
     final searchTerm = _searchController.text.trim().toLowerCase();
-    
+
     if (_isTrashView) {
       final currentListPath = _controller.cache.importedListPath ?? 'default';
-      final currentTrash = _trash.where((t) => t.listPath == currentListPath).toList();
+      final currentTrash = _trash
+          .where((t) => t.listPath == currentListPath)
+          .toList();
       mappedGroups = currentTrash.map((t) {
         if (t.item is MediaGroup) {
           return t.item as MediaGroup;
@@ -1131,30 +1151,39 @@ class _StandaloneDownloaderWindowState
           if (info.isProfile || info.isPlaylist) {
             info = info.copyWith(isProfile: false);
           }
-          return MediaGroup(
-            items: [info],
-            originalUrl: info.originalUrl,
-          );
+          return MediaGroup(items: [info], originalUrl: info.originalUrl);
         }
       }).toList();
       if (searchTerm.isNotEmpty) {
-         mappedGroups = mappedGroups.where((group) {
-             final titleMatch = group.items.isNotEmpty 
-                 ? group.items.first.title.toLowerCase().contains(searchTerm)
-                 : false;
-             final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
-             return titleMatch || urlMatch;
-         }).toList();
+        mappedGroups = mappedGroups.where((group) {
+          final titleMatch = group.items.isNotEmpty
+              ? group.items.first.title.toLowerCase().contains(searchTerm)
+              : false;
+          final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
+          return titleMatch || urlMatch;
+        }).toList();
       }
     } else if (_currentGroup == null) {
       var entries = _controller.cache.parsedItems?.toList() ?? [];
 
       if (_listFilter == 'image') {
-        entries = entries.where((e) => !e.first.isVideo && !e.first.isPlaylist && !e.first.isProfile).toList();
+        entries = entries
+            .where(
+              (e) =>
+                  !e.first.isVideo && !e.first.isPlaylist && !e.first.isProfile,
+            )
+            .toList();
       } else if (_listFilter == 'video') {
-        entries = entries.where((e) => e.first.isVideo && !e.first.isPlaylist && !e.first.isProfile).toList();
+        entries = entries
+            .where(
+              (e) =>
+                  e.first.isVideo && !e.first.isPlaylist && !e.first.isProfile,
+            )
+            .toList();
       } else if (_listFilter == 'playlist') {
-        entries = entries.where((e) => e.first.isPlaylist && !e.first.isProfile).toList();
+        entries = entries
+            .where((e) => e.first.isPlaylist && !e.first.isProfile)
+            .toList();
       } else if (_listFilter == 'profile') {
         entries = entries.where((e) => e.first.isProfile).toList();
       }
@@ -1165,33 +1194,42 @@ class _StandaloneDownloaderWindowState
         entries.sort((a, b) {
           final aSize = a.totalFilesize;
           final bSize = b.totalFilesize;
-          return _listFilter == 'size_asc' ? aSize.compareTo(bSize) : bSize.compareTo(aSize);
+          return _listFilter == 'size_asc'
+              ? aSize.compareTo(bSize)
+              : bSize.compareTo(aSize);
         });
       }
       mappedGroups = entries;
 
       if (searchTerm.isNotEmpty) {
-         mappedGroups = mappedGroups.where((group) {
-             final titleMatch = group.items.isNotEmpty 
-                 ? group.items.first.title.toLowerCase().contains(searchTerm)
-                 : false;
-             final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
-             return titleMatch || urlMatch;
-         }).toList();
+        mappedGroups = mappedGroups.where((group) {
+          final titleMatch = group.items.isNotEmpty
+              ? group.items.first.title.toLowerCase().contains(searchTerm)
+              : false;
+          final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
+          return titleMatch || urlMatch;
+        }).toList();
       }
     } else {
-      final rootIndex = _controller.cache.parsedItems?.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl) ?? -1;
+      final rootIndex =
+          _controller.cache.parsedItems?.indexWhere(
+            (g) => g.originalUrl == _currentGroup!.originalUrl,
+          ) ??
+          -1;
       if (rootIndex != -1) {
         final config = _controller.cache.configs[rootIndex];
         final filteredItems = _currentGroup!.items.where((item) {
           if (item.isError) return false;
-          if (_currentGroup!.first.isProfile && item == _currentGroup!.items.first) return false;
+          if (_currentGroup!.first.isProfile &&
+              item == _currentGroup!.items.first)
+            return false;
           if (config?.groupFilter == GroupDownloadType.images && item.isVideo)
             return false;
           if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo)
             return false;
-          if (searchTerm.isNotEmpty && !item.title.toLowerCase().contains(searchTerm)) {
-             return false;
+          if (searchTerm.isNotEmpty &&
+              !item.title.toLowerCase().contains(searchTerm)) {
+            return false;
           }
           return true;
         }).toList();
@@ -1204,11 +1242,20 @@ class _StandaloneDownloaderWindowState
 
     final listPath = _controller.cache.importedListPath ?? 'default';
 
-      return StandaloneWindowMediaGrid(
-        listPath: listPath,
-        isTrashView: _isTrashView,
+    int? currentGroupRootIndex;
+    if (_currentGroup != null && _controller.cache.parsedItems != null) {
+      currentGroupRootIndex = _controller.cache.parsedItems!.indexWhere(
+        (g) => g.originalUrl == _currentGroup!.originalUrl,
+      );
+      if (currentGroupRootIndex == -1) currentGroupRootIndex = null;
+    }
+
+    return StandaloneWindowMediaGrid(
+      listPath: listPath,
+      isTrashView: _isTrashView,
       groups: mappedGroups,
       currentGroup: _currentGroup,
+      currentGroupRootIndex: currentGroupRootIndex,
       selectedIndices: _selectedIndices,
       downloadingImageIndices: _downloadingImageIndices,
       configs: _controller.cache.configs,
@@ -1219,7 +1266,10 @@ class _StandaloneDownloaderWindowState
         if (_currentGroup == null && group.items.length > 1) {
           setState(() {
             if (_historyIndex < _navigationHistory.length - 1) {
-              _navigationHistory.removeRange(_historyIndex + 1, _navigationHistory.length);
+              _navigationHistory.removeRange(
+                _historyIndex + 1,
+                _navigationHistory.length,
+              );
             }
             _navigationHistory.add(group);
             _historyIndex++;
@@ -1229,8 +1279,28 @@ class _StandaloneDownloaderWindowState
           final firstItem = group.items.isNotEmpty ? group.items.first : null;
           if (firstItem == null) return;
 
-          if (firstItem.isVideo) {
-            _openVideoPreview(firstItem, index);
+          int? rootIndex;
+          if (_currentGroup == null) {
+            rootIndex = index;
+          } else if (_controller.cache.parsedItems != null) {
+            rootIndex = _controller.cache.parsedItems!.indexWhere(
+              (g) => g.originalUrl == _currentGroup!.originalUrl,
+            );
+            if (rootIndex == -1) rootIndex = null;
+          }
+          final config = rootIndex != null
+              ? _controller.cache.configs[rootIndex]
+              : null;
+          final isAudioOnly =
+              config != null &&
+              config.itemFormats[firstItem.id]?.isAudioOnly == true;
+          final selectedFormat =
+              config?.itemFormats[firstItem.id] ?? config?.format;
+
+          if (isAudioOnly) {
+            _openAudioPlayer(firstItem, index);
+          } else if (firstItem.isVideo) {
+            _openVideoPreview(firstItem, index, selectedFormat: selectedFormat);
           } else {
             _openImageInViewer(firstItem, index);
           }
@@ -1275,8 +1345,13 @@ class _StandaloneDownloaderWindowState
           });
         } else {
           final item = _currentGroup!.items[index];
-          final group = MediaGroup(originalUrl: item.originalUrl, items: [item]);
-          final rootIndex = _controller.cache.parsedItems!.indexOf(_currentGroup!);
+          final group = MediaGroup(
+            originalUrl: item.originalUrl,
+            items: [item],
+          );
+          final rootIndex = _controller.cache.parsedItems!.indexOf(
+            _currentGroup!,
+          );
           _startDownload(group, rootIndex);
           setState(() {
             _currentGroup!.items.removeAt(index);
@@ -1353,21 +1428,22 @@ class _StandaloneDownloaderWindowState
             context,
             title: 'EXPORT LIST',
             saveMode: true,
-            initialFileName: '${_controller.cache.importedListName ?? "export"}.json',
+            initialFileName:
+                '${_controller.cache.importedListName ?? "export"}.json',
             allowedExtensions: ['json', 'txt'],
           );
           if (saveLocation != null && saveLocation.isNotEmpty) {
             final exportedPath = saveLocation.first;
             final isDefaultList = _controller.cache.importedListName == null;
-            
+
             await _controller.exportListToFile(exportedPath);
-            
+
             if (isDefaultList) {
               _controller.cache.clear();
             }
-            
+
             await _controller.importListFromFile(
-              exportedPath, 
+              exportedPath,
               p.basename(exportedPath),
             );
           }
@@ -1438,15 +1514,37 @@ class _StandaloneDownloaderWindowState
   /// Resolves the best streamable URL from [item], passes it to
   /// [PersistentViewerManager] as a [ViewerType.video], and handles errors
   /// with a styled dialog matching the downloader error tile UX.
-  Future<void> _openVideoPreview(MediaInfo item, int index) async {
-    final streamUrl = resolveStreamUrl(item);
+  void _openAudioPlayer(MediaInfo item, int index) {
+    final file = FileItem(
+      path: item.originalUrl,
+      name: item.title,
+      type: FileItemType.audio,
+      modified: DateTime.now(),
+      sizeBytes: 0,
+    );
+    PersistentViewerManager.openMedia(
+      WindowParams(
+        viewerType: ViewerType.audio,
+        file: file,
+        initParams: const {'is_audio_play_only': true},
+      ),
+    );
+  }
+
+  Future<void> _openVideoPreview(
+    MediaInfo item,
+    int index, {
+    MediaFormat? selectedFormat,
+  }) async {
+    final streamUrl = resolveStreamUrl(item, selectedFormat: selectedFormat);
     if (streamUrl == null) {
       if (mounted) {
         _showVideoPreviewErrorDialog(
           context: context,
           title: item.title.isNotEmpty ? item.title : item.originalUrl,
           errorMessage: 'No streamable URL found for this item.',
-          details: 'Tried directUrl, format urls, webpageUrl, and originalUrl — all were empty.',
+          details:
+              'Tried directUrl, format urls, webpageUrl, and originalUrl — all were empty.',
         );
       }
       return;
@@ -1474,10 +1572,12 @@ class _StandaloneDownloaderWindowState
       final windowParams = WindowParams(
         viewerType: ViewerType.video,
         file: fileItem,
-        initParams: const {
+        initParams: {
           'width': 1280,
           'height': 720,
           'is_network_stream': true,
+          'formats': item.formats.map((f) => f.toJson()).toList(),
+          'selectedFormatId': selectedFormat?.formatId,
         },
       );
 
@@ -1585,23 +1685,31 @@ class _StandaloneDownloaderWindowState
               if (details != null && details.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 InkWell(
-                  onTap: () => setDialogState(() => logsExpanded = !logsExpanded),
+                  onTap: () =>
+                      setDialogState(() => logsExpanded = !logsExpanded),
                   borderRadius: BorderRadius.circular(4),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.info_outline_rounded,
                           size: 16,
-                          color: logsExpanded ? Colors.redAccent : AppColors.violet,
+                          color: logsExpanded
+                              ? Colors.redAccent
+                              : AppColors.violet,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           logsExpanded ? 'Hide logs' : 'View logs',
                           style: GoogleFonts.manrope(
-                            color: logsExpanded ? Colors.redAccent : AppColors.violet,
+                            color: logsExpanded
+                                ? Colors.redAccent
+                                : AppColors.violet,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1689,7 +1797,51 @@ class _StandaloneDownloaderWindowState
   void restoreTabStateForTesting(String path) => _restoreTabState(path);
 
   @visibleForTesting
-  void handleDeleteForTesting(bool isShiftPressed) => _handleDelete(isShiftPressed);
+  void handleDeleteForTesting(bool isShiftPressed) =>
+      _handleDelete(isShiftPressed);
+
+  @visibleForTesting
+  void onDoubleTapItemForTesting(int index, MediaGroup group) {
+    if (_currentGroup == null && group.items.length > 1) {
+      setState(() {
+        if (_historyIndex < _navigationHistory.length - 1) {
+          _navigationHistory.removeRange(
+            _historyIndex + 1,
+            _navigationHistory.length,
+          );
+        }
+        _navigationHistory.add(group);
+        _historyIndex++;
+        _currentGroup = group;
+      });
+    } else {
+      final firstItem = group.items.isNotEmpty ? group.items.first : null;
+      if (firstItem == null) return;
+      if (firstItem.isVideo) {
+        _openVideoPreview(firstItem, index);
+      } else {
+        _openImageInViewer(firstItem, index);
+      }
+    }
+  }
+
+  @visibleForTesting
+  void onFormatChangedForTesting(MediaFormat val) {
+    int rootIndex = -1;
+    if (_currentGroup != null &&
+        _controller.cache.parsedItems?.isNotEmpty == true) {
+      rootIndex = _controller.cache.parsedItems!.indexWhere(
+        (g) => g.originalUrl == _currentGroup!.originalUrl,
+      );
+    }
+    if (rootIndex != -1) {
+      setState(() {
+        _controller.cache.configs[rootIndex]!.format = val;
+        _controller.cache.configs[rootIndex]!.itemFormats.clear();
+      });
+      _controller.recalculateFilteredStatistics();
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1706,7 +1858,18 @@ class _StandaloneDownloaderWindowState
 ///   4. [MediaInfo.originalUrl]      — last resort
 ///   5. null                         — no usable URL found
 @visibleForTesting
-String? resolveStreamUrl(MediaInfo item) {
+String? resolveStreamUrl(MediaInfo item, {MediaFormat? selectedFormat}) {
+  // 0. Use selected format if provided and has a URL
+  if (selectedFormat != null) {
+    if (selectedFormat.url != null && selectedFormat.url!.isNotEmpty) {
+      return selectedFormat.url;
+    }
+    if (selectedFormat.formatString.startsWith('http://') ||
+        selectedFormat.formatString.startsWith('https://')) {
+      return selectedFormat.formatString;
+    }
+  }
+
   // 1. directUrl is best
   if (item.directUrl != null && item.directUrl!.isNotEmpty) {
     return item.directUrl;

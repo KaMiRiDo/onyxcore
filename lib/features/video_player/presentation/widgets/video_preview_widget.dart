@@ -22,6 +22,7 @@ import 'package:onyxcore/features/video_player/presentation/providers/video_play
 import 'package:onyxcore/features/video_player/presentation/widgets/hover_preview.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
@@ -164,6 +165,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   late final GlobalKey _audioKey;
   late final GlobalKey _subtitleKey;
   late final GlobalKey _speedKey;
+  late final GlobalKey _resolutionKey;
 
   final FocusNode _focusNode = FocusNode();
   OverlayEntry? _activeMenuEntry;
@@ -210,6 +212,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isEmpty = false;
   late final PlaybackMemoryRepository _playbackRepo;
 
+  List<MediaFormat> _availableFormats = [];
+  String? _selectedFormatId;
+
   void _onWindowFocus() {
     if (mounted) _focusNode.requestFocus();
   }
@@ -217,20 +222,50 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   @override
   void initState() {
     super.initState();
+    _resolutionKey = GlobalKey();
     _currentItem = widget.item;
     _playbackRepo = PlaybackMemoryRepository(ref.read(databaseProvider));
     if (widget.isStandalone && widget.windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(widget.windowId!),
+      ).addListener(_onWindowFocus);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(videoIsEmptyProvider.notifier).state = false;
     });
+
+    if (_isNetworkStream) {
+      final formatsJson = widget.initParams?['formats'] as List?;
+      if (formatsJson != null) {
+        _availableFormats = formatsJson
+            .map((e) => MediaFormat.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+        _availableFormats = _availableFormats
+            .where((f) => !f.isAudioOnly)
+            .toList();
+
+        final uniqueRes = <String>{};
+        _availableFormats.retainWhere((f) => uniqueRes.add(f.resolution));
+
+        _availableFormats.sort((a, b) {
+          final hA =
+              int.tryParse(a.resolution.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          final hB =
+              int.tryParse(b.resolution.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          return hB.compareTo(hA);
+        });
+      }
+      _selectedFormatId = widget.initParams?['selectedFormatId']?.toString();
+    }
+
     // On Linux/GTK, newly spawned windows may take a moment to be mapped by the OS.
     // A delayed focus request ensures the widget grabs focus after the window is fully active.
     Future.delayed(const Duration(milliseconds: 300), () async {
       if (mounted) {
         if (widget.isStandalone && widget.windowId != null) {
-          await PersistentViewerManager.presentWindow(int.parse(widget.windowId!));
+          await PersistentViewerManager.presentWindow(
+            int.parse(widget.windowId!),
+          );
         }
         if (mounted) _focusNode.requestFocus();
       }
@@ -239,10 +274,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _focusNode.requestFocus();
-        
+
         final parentPath = p.dirname(widget.item.path);
         final currentRoot = ref.read(videoRootPathProvider);
-        
+
         // Only update root if it's empty or we navigated outside of it.
         // This prevents the breadcrumb root from resetting when playing a video from a subfolder.
         if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
@@ -255,7 +290,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         ref.read(videoViewModeProvider.notifier).state = VideoViewMode.home;
         ref.read(videoSelectionProvider.notifier).state = {};
         ref.read(videoSelectionAnchorProvider.notifier).state = null;
-        
 
         if (!widget.isStandalone && widget.windowId == null) {
           try {
@@ -268,7 +302,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       }
     });
     _currentItem = widget.item;
-    
+
     // Ensure the provider knows the current item for the sidebar highlighting
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.isStandalone) {
@@ -286,12 +320,14 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       // Initialize playlist from passed arguments if available
       if (widget.initParams?.containsKey('playlistJson') == true) {
         try {
-          final List<dynamic> list = jsonDecode(
-            widget.initParams!['playlistJson'] as String,
-          ) as List<dynamic>;
+          final List<dynamic> list =
+              jsonDecode(widget.initParams!['playlistJson'] as String)
+                  as List<dynamic>;
           final currentPath = widget.initParams?['playlistPath'] as String?;
-          _standalonePlaylist = list.map((e) => FileItem.fromJson(e as Map<String, dynamic>)).toList();
-          
+          _standalonePlaylist = list
+              .map((e) => FileItem.fromJson(e as Map<String, dynamic>))
+              .toList();
+
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(videoQueueProvider.notifier).state = _standalonePlaylist;
           });
@@ -308,9 +344,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       } else {
         _initStandalonePlaylist();
       }
-      
     }
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(videoIsEmptyProvider.notifier).state = false;
@@ -323,7 +358,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         ref.read(videoRootPathProvider.notifier).state = initialPath;
       }
     });
-    
+
     WidgetsBinding.instance.addObserver(this);
 
     _currentItem = widget.item;
@@ -359,20 +394,38 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         }
 
         // Network Streaming Buffer Configuration
-        platform.setProperty('demuxer-readahead-secs', '120'); // 2 minutes read-ahead
-        platform.setProperty('demuxer-max-bytes', '524288000'); // 500 MB forward buffer
-        platform.setProperty('demuxer-max-back-bytes', '134217728'); // 128 MB backward
+        platform.setProperty(
+          'demuxer-readahead-secs',
+          '120',
+        ); // 2 minutes read-ahead
+        platform.setProperty(
+          'demuxer-max-bytes',
+          '524288000',
+        ); // 500 MB forward buffer
+        platform.setProperty(
+          'demuxer-max-back-bytes',
+          '134217728',
+        ); // 128 MB backward
         platform.setProperty('buffer-size', '134217728'); // 128 MB internal
         platform.setProperty('cache', 'yes');
         platform.setProperty('cache-secs', '120');
         platform.setProperty('cache-pause', 'yes'); // Pause to build cache
-        platform.setProperty('cache-pause-wait', '2'); // Wait for 2 secs buffer before unpausing
+        platform.setProperty(
+          'cache-pause-wait',
+          '2',
+        ); // Wait for 2 secs buffer before unpausing
       } else {
         // Local File Sliding Window Buffer Configuration
         // 400MiB forward + 200MiB backward for zero-latency arrow-key seeks
         platform.setProperty('demuxer-readahead-secs', '60');
-        platform.setProperty('demuxer-max-bytes', '419430400'); // 400 MiB forward
-        platform.setProperty('demuxer-max-back-bytes', '209715200'); // 200 MiB backward
+        platform.setProperty(
+          'demuxer-max-bytes',
+          '419430400',
+        ); // 400 MiB forward
+        platform.setProperty(
+          'demuxer-max-back-bytes',
+          '209715200',
+        ); // 200 MiB backward
         platform.setProperty('buffer-size', '134217728'); // 128MB internal
         platform.setProperty('cache', 'yes');
         platform.setProperty('cache-secs', '60');
@@ -405,7 +458,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       } else {
         platform.setProperty('hwdec', 'auto-safe');
       }
-      
+
       // Volume persistence
       if (settings != null) {
         player.setVolume(settings.videoPlayerVolume);
@@ -427,9 +480,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     final display = PlatformDispatcher.instance.displays.isNotEmpty
         ? PlatformDispatcher.instance.displays.first
         : null;
-    final int safeWidth = (display?.size.width ?? 1920.0).round().clamp(1, 3840);
-    final int safeHeight = (display?.size.height ?? 1080.0).round().clamp(1, 2160);
-    debugPrint('[VideoPlayer] Initial render buffer size: ${safeWidth}x$safeHeight');
+    final int safeWidth = (display?.size.width ?? 1920.0).round().clamp(
+      1,
+      3840,
+    );
+    final int safeHeight = (display?.size.height ?? 1080.0).round().clamp(
+      1,
+      2160,
+    );
+    debugPrint(
+      '[VideoPlayer] Initial render buffer size: ${safeWidth}x$safeHeight',
+    );
     controller = VideoController(
       player,
       configuration: VideoControllerConfiguration(
@@ -451,9 +512,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           if (_isClosing || !mounted) return;
           try {
             final dynamic platform = player.platform;
-            final String? currentHwDec = await platform.getProperty(
-              'hwdec-current',
-            ) as String?;
+            final String? currentHwDec =
+                await platform.getProperty('hwdec-current') as String?;
 
             if (currentHwDec != null &&
                 currentHwDec != 'no' &&
@@ -483,9 +543,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       if (!mounted) return;
       final settings = ref.read(settingsProvider).value;
       if (settings != null && settings.videoPlayerVolume != vol) {
-        ref.read(settingsProvider.notifier).saveSettings(
-          settings.copyWith(videoPlayerVolume: vol),
-        );
+        ref
+            .read(settingsProvider.notifier)
+            .saveSettings(settings.copyWith(videoPlayerVolume: vol));
       }
     });
 
@@ -707,7 +767,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             play: shouldPlay,
           );
           if (mounted) setState(() => _isOpening = false);
-          
+
           // 4. Initialize new media (subs, memory) after open completes
           _initMedia();
         }
@@ -728,7 +788,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     if (settings?.resumePlayback ?? true) {
       int? savedPos;
       savedPos = await _playbackRepo.getPosition(currentPath);
-      debugPrint('[VideoPlayer] getPosition for $currentPath returned: $savedPos');
+      debugPrint(
+        '[VideoPlayer] getPosition for $currentPath returned: $savedPos',
+      );
 
       if (savedPos != null && savedPos > 0 && widget.initialPosition == null) {
         debugPrint('[VideoPlayer] Resuming from saved position: $savedPos');
@@ -773,6 +835,37 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
   }
 
+  Future<void> _onResolutionChanged(MediaFormat format) async {
+    if (_selectedFormatId == format.formatId) return;
+
+    final currentPosition = player.state.position;
+
+    setState(() {
+      _selectedFormatId = format.formatId;
+      _isBuffering = true;
+    });
+
+    final streamUrl = format.url ?? format.formatString;
+
+    try {
+      await player.open(Media(streamUrl), play: true);
+
+      // Wait for player to be ready
+      await player.stream.duration
+          .firstWhere((d) => d > Duration.zero)
+          .timeout(const Duration(seconds: 10), onTimeout: () => Duration.zero);
+      await player.seek(currentPosition);
+    } catch (e) {
+      debugPrint("Error switching resolution: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBuffering = false;
+        });
+      }
+    }
+  }
+
   Future<void> _savePlaybackPosition({bool force = false}) async {
     // Capture state synchronously before any async operations or disposal
     if (!force && (_isClosing || !mounted)) return;
@@ -785,12 +878,14 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     // Don't save if near the end (95%)
     final targetPosition = (position < (duration * 0.95)) ? position : 0;
-        
-    debugPrint('[VideoPlayer] _savePlaybackPosition called for: $path, position: $position, duration: $duration, target: $targetPosition');
+
+    debugPrint(
+      '[VideoPlayer] _savePlaybackPosition called for: $path, position: $position, duration: $duration, target: $targetPosition',
+    );
 
     if (widget.isStandalone) {
-        await _playbackRepo.savePosition(path, targetPosition);
-        debugPrint('[VideoPlayer] _savePlaybackPosition saved standalone');
+      await _playbackRepo.savePosition(path, targetPosition);
+      debugPrint('[VideoPlayer] _savePlaybackPosition saved standalone');
     } else {
       await _playbackRepo.savePosition(path, targetPosition);
       debugPrint('[VideoPlayer] _savePlaybackPosition saved normal');
@@ -803,7 +898,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     if (widget.isStandalone && widget.windowId != null) {
       final willBeFullScreen = !_isStandaloneFullscreen;
       _isStandaloneFullscreen = willBeFullScreen;
-      await PersistentViewerManager.setFullScreen(int.parse(widget.windowId!), willBeFullScreen);
+      await PersistentViewerManager.setFullScreen(
+        int.parse(widget.windowId!),
+        willBeFullScreen,
+      );
       if (willBeFullScreen) {
         setState(() {
           _isControlsVisible = false;
@@ -936,7 +1034,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _hoverXNotifier.dispose();
     _focusNode.dispose();
     if (widget.isStandalone && widget.windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).removeListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(widget.windowId!),
+      ).removeListener(_onWindowFocus);
     }
     try {
       final emptyNotifier = ref.read(videoIsEmptyProvider.notifier);
@@ -1075,7 +1175,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         _isAudioMenuVisible = false;
         _isSubtitleMenuVisible = false;
         _isSpeedMenuVisible = false;
-
       });
     }
     _startHideTimer();
@@ -1096,7 +1195,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       _isAudioMenuVisible = type == 'audio';
       _isSubtitleMenuVisible = type == 'subtitle';
       _isSpeedMenuVisible = type == 'speed';
-
     });
 
     final RenderBox? renderBox =
@@ -1130,10 +1228,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                 0,
                 -1,
               ), // Move entire menu above the button
-              child: Material(
-                color: Colors.transparent,
-                child: child,
-              ),
+              child: Material(color: Colors.transparent, child: child),
             ),
           ),
         ],
@@ -1483,7 +1578,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           HardwareKeyboard.instance.isShiftPressed) {
         if (event is KeyDownEvent) {
           final isOpen = ref.read(videoPlaylistSidebarVisibleProvider);
-          ref.read(videoPlaylistSidebarVisibleProvider.notifier).state = !isOpen;
+          ref.read(videoPlaylistSidebarVisibleProvider.notifier).state =
+              !isOpen;
         }
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyT) {
@@ -1842,14 +1938,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
       if (_scrubThrottleTimer?.isActive != true) {
         player.seek(_pendingScrubPosition!);
-        _scrubThrottleTimer = Timer(
-          const Duration(milliseconds: 100),
-          () {
-            if (_pendingScrubPosition != null && mounted && _isScrubbing) {
-              player.seek(_pendingScrubPosition!);
-            }
-          },
-        );
+        _scrubThrottleTimer = Timer(const Duration(milliseconds: 100), () {
+          if (_pendingScrubPosition != null && mounted && _isScrubbing) {
+            player.seek(_pendingScrubPosition!);
+          }
+        });
       }
     }
   }
@@ -1918,12 +2011,15 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       // Handled natively via shared isolate state or just fallback to inline logic
     } else {
       // 2. Inline Mode: Local Riverpod state update
-      List<FileItem> mediaItems = ref.read(filteredAndSortedVideoQueueProvider).where((i) => i.type == FileItemType.video).toList();
+      List<FileItem> mediaItems = ref
+          .read(filteredAndSortedVideoQueueProvider)
+          .where((i) => i.type == FileItemType.video)
+          .toList();
       if (mediaItems.isEmpty) {
         final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
         mediaItems = items.where((i) => i.type == FileItemType.video).toList();
       }
-      
+
       if (mediaItems.isEmpty) return;
 
       final currentIndex = mediaItems.indexWhere(
@@ -2008,7 +2104,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             );
           } else {
             return ViewerDeleteDialog(
-              fileName: paths?.length == 1 ? p.basename(paths!.first) : widget.item.name,
+              fileName: paths?.length == 1
+                  ? p.basename(paths!.first)
+                  : widget.item.name,
               permanent: permanent,
               onDontAskAgainChanged: (val) {
                 _sessionSkipConfirm = val;
@@ -2018,7 +2116,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         },
       );
       if (shouldDelete != true) return;
-      
+
       // Allow the delete dialog's closing animation to finish smoothly
       await Future<void>.delayed(const Duration(milliseconds: 300));
     }
@@ -2027,8 +2125,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     if (!isMove) {
       final repo = ref.read(directoryRepositoryProvider);
-      final taskId = ref.read(taskProvider.notifier).addTask(
-            title: permanent ? 'Deleting video permanently' : 'Moving video to Trash',
+      final taskId = ref
+          .read(taskProvider.notifier)
+          .addTask(
+            title: permanent
+                ? 'Deleting video permanently'
+                : 'Moving video to Trash',
             subtitle: targetPaths.length == 1
                 ? p.basename(targetPaths.first)
                 : '${targetPaths.length} items',
@@ -2047,9 +2149,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       } catch (e) {
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Deletion failed: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Deletion failed: $e')));
         }
       }
     }
@@ -2096,11 +2198,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     if (!_isPlayerInitialized) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: BubbleLoader(
-            size: 40,
-          ),
-        ),
+        child: const Center(child: BubbleLoader(size: 40)),
       );
     }
 
@@ -2113,8 +2211,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         _scrollLockAxis == null &&
         (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
 
-
-
     return PopScope(
       canPop: widget.windowId != null || widget.isStandalone,
       onPopInvokedWithResult: (didPop, result) {
@@ -2126,1294 +2222,1696 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           final isSidebarOpen = sidebarRef.watch(
             videoPlaylistSidebarVisibleProvider,
           );
-          
+
           final screenWidth = MediaQuery.of(context).size.width;
           final minWidth = 240.0;
           final maxWidth = screenWidth * 0.40;
-          double? savedWidth = sidebarRef.watch(videoPlaylistSidebarWidthProvider);
+          double? savedWidth = sidebarRef.watch(
+            videoPlaylistSidebarWidthProvider,
+          );
           double panelWidth = savedWidth ?? (screenWidth * 0.25);
           panelWidth = panelWidth.clamp(minWidth, maxWidth);
 
-          final sidebarWidth =
-              isSidebarOpen ? panelWidth : 0.0;
+          final sidebarWidth = isSidebarOpen ? panelWidth : 0.0;
 
           return MouseRegion(
-            cursor: (_isSidebarDragging && !_isSidebarDragOutOfBounds) 
-                ? SystemMouseCursors.resizeLeftRight 
+            cursor: (_isSidebarDragging && !_isSidebarDragOutOfBounds)
+                ? SystemMouseCursors.resizeLeftRight
                 : MouseCursor.defer,
             child: Row(
               children: [
-              // ── Sidebar Panel ───────────────────────────────────────
-              SizedBox(
-                width: sidebarWidth,
-                child: isSidebarOpen
-                    ? VideoPlaylistSidebar(
-                        onVideoSelected: (video) {
-                          if (widget.isStandalone) {
-                            _loadMedia(video);
-                          } else {
-                            ref.read(previewFileProvider.notifier).state =
-                                video;
-                          }
-                        },
-                        onDelete: (paths) =>
-                            _handleDelete(permanent: false, paths: paths),
-                        onMove: _handleItemsMoved,
-                        onReload: () => ref
-                            .read(directoryItemsProvider.notifier)
-                            .refresh(),
+                // ── Sidebar Panel ───────────────────────────────────────
+                SizedBox(
+                  width: sidebarWidth,
+                  child: isSidebarOpen
+                      ? VideoPlaylistSidebar(
+                          onVideoSelected: (video) {
+                            if (widget.isStandalone) {
+                              _loadMedia(video);
+                            } else {
+                              ref.read(previewFileProvider.notifier).state =
+                                  video;
+                            }
+                          },
+                          onDelete: (paths) =>
+                              _handleDelete(permanent: false, paths: paths),
+                          onMove: _handleItemsMoved,
+                          onReload: () => ref
+                              .read(directoryItemsProvider.notifier)
+                              .refresh(),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                // ── Resize Handle ───────────────────────────────────────
+                isSidebarOpen
+                    ? MouseRegion(
+                        cursor: SystemMouseCursors.resizeLeftRight,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onPanStart: (details) {
+                            setState(() {
+                              _isSidebarDragging = true;
+                              _isSidebarDragOutOfBounds = false;
+                              _sidebarDragStartWidth = panelWidth;
+                              _sidebarDragStartX = details.globalPosition.dx;
+                            });
+                          },
+                          onPanUpdate: (details) {
+                            final dx =
+                                details.globalPosition.dx - _sidebarDragStartX;
+                            double intendedWidth = _sidebarDragStartWidth + dx;
+                            setState(() {
+                              _isSidebarDragOutOfBounds =
+                                  intendedWidth < minWidth ||
+                                  intendedWidth > maxWidth;
+                            });
+                            double newWidth = intendedWidth.clamp(
+                              minWidth,
+                              maxWidth,
+                            );
+                            ref
+                                    .read(
+                                      videoPlaylistSidebarWidthProvider
+                                          .notifier,
+                                    )
+                                    .state =
+                                newWidth;
+                          },
+                          onPanEnd: (_) {
+                            setState(() {
+                              _isSidebarDragging = false;
+                              _isSidebarDragOutOfBounds = false;
+                            });
+                          },
+                          child: Container(
+                            width: 6,
+                            color: _isSidebarDragging
+                                ? Colors.white.withOpacity(0.1)
+                                : Colors.transparent,
+                          ),
+                        ),
                       )
                     : const SizedBox.shrink(),
-              ),
-              // ── Resize Handle ───────────────────────────────────────
-              isSidebarOpen ?
-                MouseRegion(
-                  cursor: SystemMouseCursors.resizeLeftRight,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onPanStart: (details) {
-                      setState(() {
-                        _isSidebarDragging = true;
-                        _isSidebarDragOutOfBounds = false;
-                        _sidebarDragStartWidth = panelWidth;
-                        _sidebarDragStartX = details.globalPosition.dx;
-                      });
-                    },
-                    onPanUpdate: (details) {
-                      final dx = details.globalPosition.dx - _sidebarDragStartX;
-                      double intendedWidth = _sidebarDragStartWidth + dx;
-                      setState(() {
-                        _isSidebarDragOutOfBounds = intendedWidth < minWidth || intendedWidth > maxWidth;
-                      });
-                      double newWidth = intendedWidth.clamp(minWidth, maxWidth);
-                      ref.read(videoPlaylistSidebarWidthProvider.notifier).state = newWidth;
-                    },
-                    onPanEnd: (_) {
-                      setState(() {
-                        _isSidebarDragging = false;
-                        _isSidebarDragOutOfBounds = false;
-                      });
-                    },
-                    child: Container(
-                      width: 6,
-                      color: _isSidebarDragging
-                          ? Colors.white.withOpacity(0.1)
-                          : Colors.transparent,
-                    ),
-                  ),
-                )
-              : const SizedBox.shrink(),
-              // ── Video Player ─────────────────────────────────────
-              Expanded(
-                child: Focus(
-                  focusNode: _focusNode,
-                  autofocus: true,
-                  onFocusChange: (hasFocus) {
-                    if (!hasFocus) {
-                      _stopFastSeek();
-                      _stopVolumeAdjustment();
-                    }
-                  },
-                  onKeyEvent: (node, event) => _handleKeyEvent(event),
-                  child: Listener(
-                    onPointerSignal: (event) {
-                      if (_isMarkerEditorActive) {
-                        final RenderBox? box =
-                            _markerEditorKey.currentContext?.findRenderObject()
-                                as RenderBox?;
-                        if (box != null) {
-                          final Offset local = box.globalToLocal(event.position);
-                          if (box.paintBounds.contains(local))
-                            return;
-                        }
-                        _markerEditorKey.currentState?.shake();
-                        return;
+                // ── Video Player ─────────────────────────────────────
+                Expanded(
+                  child: Focus(
+                    focusNode: _focusNode,
+                    autofocus: true,
+                    onFocusChange: (hasFocus) {
+                      if (!hasFocus) {
+                        _stopFastSeek();
+                        _stopVolumeAdjustment();
                       }
-                      _handlePointerScroll(event);
                     },
-                    onPointerPanZoomUpdate: (event) {
-                      if (_isMarkerEditorActive) {
-                        final RenderBox? box =
-                            _markerEditorKey.currentContext?.findRenderObject()
-                                as RenderBox?;
-                        if (box != null) {
-                          final Offset local = box.globalToLocal(event.position);
-                          if (box.paintBounds.contains(local))
-                            return;
-                        }
-                        _markerEditorKey.currentState?.shake();
-                        return;
-                      }
-                      _handlePointerPanZoomUpdate(event);
-                    },
-                    onPointerPanZoomEnd: (event) {
-                      if (_isMarkerEditorActive) return;
-                      _handlePointerPanZoomEnd(event);
-                    },
-                    behavior: HitTestBehavior.translucent,
-                    child: GestureDetector(
-                      onTap: () {
-                        _focusNode.requestFocus();
-                        _onInteraction();
-                      },
-                      onDoubleTapDown: (details) {
-                        _doubleTapPosition = details.localPosition;
-                      },
-                      onDoubleTap: () {
-                        if (widget.windowId == null && !widget.isStandalone) {
-                          _openInNewWindow();
+                    onKeyEvent: (node, event) => _handleKeyEvent(event),
+                    child: Listener(
+                      onPointerSignal: (event) {
+                        if (_isMarkerEditorActive) {
+                          final RenderBox? box =
+                              _markerEditorKey.currentContext
+                                      ?.findRenderObject()
+                                  as RenderBox?;
+                          if (box != null) {
+                            final Offset local = box.globalToLocal(
+                              event.position,
+                            );
+                            if (box.paintBounds.contains(local)) return;
+                          }
+                          _markerEditorKey.currentState?.shake();
                           return;
                         }
-
-                        if (_doubleTapPosition == null) return;
-                        final width =
-                            context.size?.width ?? MediaQuery.of(context).size.width;
-                        final isForward = _doubleTapPosition!.dx > width / 2;
-
-                        _performStepSeek(isForward: isForward);
+                        _handlePointerScroll(event);
                       },
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          _playerWidth = constraints.maxWidth;
-                          _playerHeight = constraints.maxHeight;
-
-                          return Container(
-                  key: _playerKey,
-                  color: Colors.black,
-                  child: Stack(
-                    children: [
-                      // Interaction Trigger Zone (Full Viewport)
-                      Positioned.fill(
-                        child: MouseRegion(
-                          cursor: isVisible
-                              ? MouseCursor.defer
-                              : SystemMouseCursors.none,
-                          onEnter: (_) => _onInteraction(),
-                          onHover: (_) => _onInteraction(),
-                          child: Stack(
-                            children: [
-                                // Video Player (isolated render pipeline)
-                              if (_isEmpty)
-                                Positioned.fill(child: _buildEmptyState())
-                              else if (_isPlayerInitialized)
-                                RepaintBoundary(
-                                  child: Center(
-                                    child: Video(
-                                    controller: controller,
-                                    controls: (state) =>
-                                        const SizedBox.shrink(),
-                                  ),
-                                ),
-                              ),
-
-                              // BUG-001: Unified BubbleLoader
-                              // Completely hidden during fast seeks AND scrubbing.
-                              // Only visible during initial open or initial position seek.
-                              IgnorePointer(
-                                child: Center(
-                                  child: AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 300),
-                                    opacity:
-                                        (_isOpening ||
-                                            _isSeekingToInitial ||
-                                            (!_isFastSeeking &&
-                                                !_isScrubbing &&
-                                                (_isSmartBuffering ||
-                                                    _isBuffering)))
-                                        ? 1.0
-                                        : 0.0,
-                                    child: const RepaintBoundary(
-                                      child: BubbleLoader(size: 100),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // Snapshot Flash Effect (Subtle Fade)
-                              Positioned.fill(
-                                child: IgnorePointer(
-                                  child: AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 500),
-                                    opacity: _showFlash ? 0.3 : 0.0,
-                                    curve: Curves.easeOut,
-                                    child: Container(
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Snapshot Glass Toast (Higher Z-order)
-                      if (_showSnapshotToast)
-                        Positioned(
-                          bottom: 120,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: _buildSnapshotToast(),
-                          ),
-                        ),
-
-                      // Volume Overlay (Right side)
-                      Positioned(
-                        right: 32,
-                        top: 0,
-                        bottom: 0,
-                        child: Center(
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 300),
-                            opacity: _isVolumeOverlayVisible ? 1.0 : 0.0,
-                            child: StreamBuilder<double>(
-                              stream: player.stream.volume,
-                              builder: (context, snapshot) {
-                                final vol =
-                                    snapshot.data ?? player.state.volume;
-                                return VideoVolumeOverlay(
-                                  volume: vol,
-                                  onVolumeChanged: (v) => player.setVolume(v),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Speed Overlay (Left side)
-                      Positioned(
-                        left: 32,
-                        top: 0,
-                        bottom: 0,
-                        child: Center(
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 300),
-                            opacity: _showSpeedOverlayVisible ? 1.0 : 0.0,
-                            child: StreamBuilder<double>(
-                              stream: player.stream.rate,
-                              builder: (context, snapshot) {
-                                final rate = snapshot.data ?? player.state.rate;
-                                return VideoSpeedOverlay(
-                                  speed: rate,
-                                  onSpeedChanged: (r) => player.setRate(r),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Persistent Speed Indicator Text (Bottom Left)
-                      Positioned(
-                        bottom: 24,
-                        left: 24,
-                        child: StreamBuilder<double>(
-                          stream: player.stream.rate,
-                          builder: (context, snapshot) {
-                            final rate = snapshot.data ?? player.state.rate;
-                            if ((rate - 1.0).abs() < 0.01)
-                              return const SizedBox.shrink();
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.1),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.speed,
-                                    color: AppColors.violet,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '${rate.toStringAsFixed(2)}x',
-                                    style: GoogleFonts.manrope(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                      onPointerPanZoomUpdate: (event) {
+                        if (_isMarkerEditorActive) {
+                          final RenderBox? box =
+                              _markerEditorKey.currentContext
+                                      ?.findRenderObject()
+                                  as RenderBox?;
+                          if (box != null) {
+                            final Offset local = box.globalToLocal(
+                              event.position,
                             );
-                          },
-                        ),
-                      ),
+                            if (box.paintBounds.contains(local)) return;
+                          }
+                          _markerEditorKey.currentState?.shake();
+                          return;
+                        }
+                        _handlePointerPanZoomUpdate(event);
+                      },
+                      onPointerPanZoomEnd: (event) {
+                        if (_isMarkerEditorActive) return;
+                        _handlePointerPanZoomEnd(event);
+                      },
+                      behavior: HitTestBehavior.translucent,
+                      child: GestureDetector(
+                        onTap: () {
+                          _focusNode.requestFocus();
+                          _onInteraction();
+                        },
+                        onDoubleTapDown: (details) {
+                          _doubleTapPosition = details.localPosition;
+                        },
+                        onDoubleTap: () {
+                          if (widget.windowId == null && !widget.isStandalone) {
+                            _openInNewWindow();
+                            return;
+                          }
 
-                      // Seek Indicator Overlay (Top Right)
-                      Positioned(
-                        top: 100,
-                        right: 64,
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 300),
-                          opacity: _isSeekIndicatorVisible ? 1.0 : 0.0,
-                          child: StreamBuilder<Duration>(
-                            stream: player.stream.position,
-                            builder: (context, snapshot) {
-                              final position = displayPosition;
-                              final duration = player.state.duration;
-                              return Text(
-                                '${_formatDuration(position)} / ${_formatDuration(duration)}',
-                                style: GoogleFonts.outfit(
-                                  color: Colors.white,
-                                  fontSize: 54,
-                                  fontWeight: FontWeight.w400,
-                                  letterSpacing: 1.5,
-                                  shadows: [
-                                    Shadow(
-                                      offset: const Offset(2, 2),
-                                      blurRadius: 4.0,
-                                      color: Colors.black.withOpacity(0.8),
-                                    ),
-                                    Shadow(
-                                      offset: const Offset(-1, -1),
-                                      blurRadius: 2.0,
-                                      color: Colors.black.withOpacity(0.5),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
+                          if (_doubleTapPosition == null) return;
+                          final width =
+                              context.size?.width ??
+                              MediaQuery.of(context).size.width;
+                          final isForward = _doubleTapPosition!.dx > width / 2;
 
-                      // Top HUD (Standardized)
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 300),
-                          opacity: isVisible ? 1.0 : 0.0,
-                          child: StreamBuilder<int?>(
-                            stream: player.stream.width,
-                            builder: (context, _) {
-                              final state = player.state;
-                              final res = (state.height ?? 0) > 0
-                                  ? '${state.height}p'
-                                  : 'Loading...';
-                              final fpsString = _fps != null
-                                  ? ' • ${_fps!.toInt()} FPS'
-                                  : '';
+                          _performStepSeek(isForward: isForward);
+                        },
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            _playerWidth = constraints.maxWidth;
+                            _playerHeight = constraints.maxHeight;
 
-                              var q = ref.watch(filteredAndSortedVideoQueueProvider).where((i) => i.type == FileItemType.video).toList();
-                              if (q.isEmpty) {
-                                final items = ref.watch(sortedDirectoryItemsProvider).value ?? [];
-                                q = items.where((i) => i.type == FileItemType.video).toList();
-                              }
-                              final index = q.indexWhere((i) => i.path == _currentItem.path);
-                              final indexString = index != -1 ? ' • ${index + 1} / ${q.length}' : '';
-
-                              return ViewerTopBar(
-                                title: _currentItem.name,
-                                metadata: '$res$fpsString$indexString',
-                                isStandalone: widget.isStandalone,
-                                onPopOut: _openInNewWindow,
-                                onClose: () =>
-                                    ref
-                                            .read(previewFileProvider.notifier)
-                                            .state =
-                                        null,
-                                extraActions: [
-                                  if (!_isEmpty) ...[
-                                    if (!_isNetworkStream)
-                                    _buildTopBarButton(
-                                      icon: Icons.edit_outlined,
-                                      onPressed: () {
-                                        // TODO: Implement video editing
-                                      },
-                                      tooltip: 'Edit Video',
-                                    ),
-                                  const SizedBox(width: 8),
-                                  _buildTopBarButton(
-                                    icon: Icons.settings_rounded,
-                                    onPressed: () => SettingsDialog.show(
-                                      context,
-                                      initialTab: 1,
-                                      section: 'Video',
-                                    ),
-                                    tooltip: 'Video Settings',
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ],
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-
-                      // Custom Bottom Controls
-                      if (!_isEmpty)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 300),
-                          opacity: isVisible ? 1.0 : 0.0,
-                          child: IgnorePointer(
-                            ignoring: !isVisible,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 16,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                  colors: [
-                                    Colors.black.withOpacity(0.8),
-                                    Colors.black.withOpacity(0.4),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
+                            return Container(
+                              key: _playerKey,
+                              color: Colors.black,
+                              child: Stack(
                                 children: [
-                                  // Progress Slider & Timers Row
-                                  StreamBuilder<Duration>(
-                                    stream: player.stream.position,
-                                    builder: (context, snapshot) {
-                                      final position = displayPosition;
-                                      final duration = player.state.duration;
-                                      final remaining = duration - position;
-                                      final progress =
-                                          duration.inMilliseconds > 0
-                                          ? position.inMilliseconds /
-                                                duration.inMilliseconds
-                                          : 0.0;
-
-                                      return Row(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                  // Interaction Trigger Zone (Full Viewport)
+                                  Positioned.fill(
+                                    child: MouseRegion(
+                                      cursor: isVisible
+                                          ? MouseCursor.defer
+                                          : SystemMouseCursors.none,
+                                      onEnter: (_) => _onInteraction(),
+                                      onHover: (_) => _onInteraction(),
+                                      child: Stack(
                                         children: [
-                                          Padding(
-                                            padding: const EdgeInsets.only(bottom: 17),
-                                            child: Text(
-                                              _formatDuration(position),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
+                                          // Video Player (isolated render pipeline)
+                                          if (_isEmpty)
+                                            Positioned.fill(
+                                              child: _buildEmptyState(),
+                                            )
+                                          else if (_isPlayerInitialized)
+                                            RepaintBoundary(
+                                              child: Center(
+                                                child: Video(
+                                                  controller: controller,
+                                                  controls: (state) =>
+                                                      const SizedBox.shrink(),
+                                                ),
+                                              ),
+                                            ),
+
+                                          // BUG-001: Unified BubbleLoader
+                                          // Completely hidden during fast seeks AND scrubbing.
+                                          // Only visible during initial open or initial position seek.
+                                          IgnorePointer(
+                                            child: Center(
+                                              child: AnimatedOpacity(
+                                                duration: const Duration(
+                                                  milliseconds: 300,
+                                                ),
+                                                opacity:
+                                                    (_isOpening ||
+                                                        _isSeekingToInitial ||
+                                                        (!_isFastSeeking &&
+                                                            !_isScrubbing &&
+                                                            (_isSmartBuffering ||
+                                                                _isBuffering)))
+                                                    ? 1.0
+                                                    : 0.0,
+                                                child: const RepaintBoundary(
+                                                  child: BubbleLoader(
+                                                    size: 100,
+                                                  ),
+                                                ),
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: LayoutBuilder(
-                                              builder: (context, constraints) {
-                                                _sliderWidth =
-                                                    constraints.maxWidth;
-                                                return MouseRegion(
-                                                  onEnter: (_) {
-                                                    _hoverExitTimer?.cancel();
-                                                    if (mounted &&
-                                                        !_isSliderHovered) {
-                                                      setState(
-                                                        () => _isSliderHovered =
-                                                            true,
-                                                      );
-                                                    }
-                                                  },
-                                                  onExit: (_) {
-                                                    _hoverExitTimer?.cancel();
-                                                    _hoverExitTimer = Timer(
-                                                      const Duration(
-                                                        milliseconds: 300,
+
+                                          // Snapshot Flash Effect (Subtle Fade)
+                                          Positioned.fill(
+                                            child: IgnorePointer(
+                                              child: AnimatedOpacity(
+                                                duration: const Duration(
+                                                  milliseconds: 500,
+                                                ),
+                                                opacity: _showFlash ? 0.3 : 0.0,
+                                                curve: Curves.easeOut,
+                                                child: Container(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Snapshot Glass Toast (Higher Z-order)
+                                  if (_showSnapshotToast)
+                                    Positioned(
+                                      bottom: 120,
+                                      left: 0,
+                                      right: 0,
+                                      child: Center(
+                                        child: _buildSnapshotToast(),
+                                      ),
+                                    ),
+
+                                  // Volume Overlay (Right side)
+                                  Positioned(
+                                    right: 32,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        opacity: _isVolumeOverlayVisible
+                                            ? 1.0
+                                            : 0.0,
+                                        child: StreamBuilder<double>(
+                                          stream: player.stream.volume,
+                                          builder: (context, snapshot) {
+                                            final vol =
+                                                snapshot.data ??
+                                                player.state.volume;
+                                            return VideoVolumeOverlay(
+                                              volume: vol,
+                                              onVolumeChanged: (v) =>
+                                                  player.setVolume(v),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Speed Overlay (Left side)
+                                  Positioned(
+                                    left: 32,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        opacity: _showSpeedOverlayVisible
+                                            ? 1.0
+                                            : 0.0,
+                                        child: StreamBuilder<double>(
+                                          stream: player.stream.rate,
+                                          builder: (context, snapshot) {
+                                            final rate =
+                                                snapshot.data ??
+                                                player.state.rate;
+                                            return VideoSpeedOverlay(
+                                              speed: rate,
+                                              onSpeedChanged: (r) =>
+                                                  player.setRate(r),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Persistent Speed Indicator Text (Bottom Left)
+                                  Positioned(
+                                    bottom: 24,
+                                    left: 24,
+                                    child: StreamBuilder<double>(
+                                      stream: player.stream.rate,
+                                      builder: (context, snapshot) {
+                                        final rate =
+                                            snapshot.data ?? player.state.rate;
+                                        if ((rate - 1.0).abs() < 0.01)
+                                          return const SizedBox.shrink();
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(
+                                              0.6,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(
+                                                0.1,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                Icons.speed,
+                                                color: AppColors.violet,
+                                                size: 14,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                '${rate.toStringAsFixed(2)}x',
+                                                style: GoogleFonts.manrope(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+
+                                  // Seek Indicator Overlay (Top Right)
+                                  Positioned(
+                                    top: 100,
+                                    right: 64,
+                                    child: AnimatedOpacity(
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      opacity: _isSeekIndicatorVisible
+                                          ? 1.0
+                                          : 0.0,
+                                      child: StreamBuilder<Duration>(
+                                        stream: player.stream.position,
+                                        builder: (context, snapshot) {
+                                          final position = displayPosition;
+                                          final duration =
+                                              player.state.duration;
+                                          return Text(
+                                            '${_formatDuration(position)} / ${_formatDuration(duration)}',
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontSize: 54,
+                                              fontWeight: FontWeight.w400,
+                                              letterSpacing: 1.5,
+                                              shadows: [
+                                                Shadow(
+                                                  offset: const Offset(2, 2),
+                                                  blurRadius: 4.0,
+                                                  color: Colors.black
+                                                      .withOpacity(0.8),
+                                                ),
+                                                Shadow(
+                                                  offset: const Offset(-1, -1),
+                                                  blurRadius: 2.0,
+                                                  color: Colors.black
+                                                      .withOpacity(0.5),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Top HUD (Standardized)
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: AnimatedOpacity(
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      opacity: isVisible ? 1.0 : 0.0,
+                                      child: StreamBuilder<int?>(
+                                        stream: player.stream.width,
+                                        builder: (context, _) {
+                                          final state = player.state;
+                                          final res = (state.height ?? 0) > 0
+                                              ? '${state.height}p'
+                                              : 'Loading...';
+                                          final fpsString = _fps != null
+                                              ? ' • ${_fps!.toInt()} FPS'
+                                              : '';
+
+                                          var q = ref
+                                              .watch(
+                                                filteredAndSortedVideoQueueProvider,
+                                              )
+                                              .where(
+                                                (i) =>
+                                                    i.type ==
+                                                    FileItemType.video,
+                                              )
+                                              .toList();
+                                          if (q.isEmpty) {
+                                            final items =
+                                                ref
+                                                    .watch(
+                                                      sortedDirectoryItemsProvider,
+                                                    )
+                                                    .value ??
+                                                [];
+                                            q = items
+                                                .where(
+                                                  (i) =>
+                                                      i.type ==
+                                                      FileItemType.video,
+                                                )
+                                                .toList();
+                                          }
+                                          final index = q.indexWhere(
+                                            (i) => i.path == _currentItem.path,
+                                          );
+                                          final indexString = index != -1
+                                              ? ' • ${index + 1} / ${q.length}'
+                                              : '';
+
+                                          return ViewerTopBar(
+                                            title: _currentItem.name,
+                                            metadata:
+                                                '$res$fpsString$indexString',
+                                            isStandalone: widget.isStandalone,
+                                            onPopOut: _openInNewWindow,
+                                            onClose: () =>
+                                                ref
+                                                        .read(
+                                                          previewFileProvider
+                                                              .notifier,
+                                                        )
+                                                        .state =
+                                                    null,
+                                            extraActions: [
+                                              if (!_isEmpty) ...[
+                                                if (!_isNetworkStream)
+                                                  _buildTopBarButton(
+                                                    icon: Icons.edit_outlined,
+                                                    onPressed: () {
+                                                      // TODO: Implement video editing
+                                                    },
+                                                    tooltip: 'Edit Video',
+                                                  ),
+                                                const SizedBox(width: 8),
+                                                _buildTopBarButton(
+                                                  icon: Icons.settings_rounded,
+                                                  onPressed: () =>
+                                                      SettingsDialog.show(
+                                                        context,
+                                                        initialTab: 1,
+                                                        section: 'Video',
                                                       ),
-                                                      () {
-                                                        if (mounted) {
-                                                          setState(
-                                                            () =>
-                                                                _isSliderHovered =
-                                                                    false,
-                                                          );
-                                                          _hoverXNotifier
-                                                                  .value =
-                                                              null;
-                                                        }
-                                                      },
+                                                  tooltip: 'Video Settings',
+                                                ),
+                                                const SizedBox(width: 8),
+                                              ],
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Custom Bottom Controls
+                                  if (!_isEmpty)
+                                    Positioned(
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        opacity: isVisible ? 1.0 : 0.0,
+                                        child: IgnorePointer(
+                                          ignoring: !isVisible,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 32,
+                                              vertical: 16,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.bottomCenter,
+                                                end: Alignment.topCenter,
+                                                colors: [
+                                                  Colors.black.withOpacity(0.8),
+                                                  Colors.black.withOpacity(0.4),
+                                                  Colors.transparent,
+                                                ],
+                                              ),
+                                            ),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // Progress Slider & Timers Row
+                                                StreamBuilder<Duration>(
+                                                  stream:
+                                                      player.stream.position,
+                                                  builder: (context, snapshot) {
+                                                    final position =
+                                                        displayPosition;
+                                                    final duration =
+                                                        player.state.duration;
+                                                    final remaining =
+                                                        duration - position;
+                                                    final progress =
+                                                        duration.inMilliseconds >
+                                                            0
+                                                        ? position.inMilliseconds /
+                                                              duration
+                                                                  .inMilliseconds
+                                                        : 0.0;
+
+                                                    return Row(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .end,
+                                                      children: [
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets.only(
+                                                                bottom: 17,
+                                                              ),
+                                                          child: Text(
+                                                            _formatDuration(
+                                                              position,
+                                                            ),
+                                                            style:
+                                                                const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize: 13,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 16,
+                                                        ),
+                                                        Expanded(
+                                                          child: LayoutBuilder(
+                                                            builder:
+                                                                (
+                                                                  context,
+                                                                  constraints,
+                                                                ) {
+                                                                  _sliderWidth =
+                                                                      constraints
+                                                                          .maxWidth;
+                                                                  return MouseRegion(
+                                                                    onEnter: (_) {
+                                                                      _hoverExitTimer
+                                                                          ?.cancel();
+                                                                      if (mounted &&
+                                                                          !_isSliderHovered) {
+                                                                        setState(
+                                                                          () => _isSliderHovered =
+                                                                              true,
+                                                                        );
+                                                                      }
+                                                                    },
+                                                                    onExit: (_) {
+                                                                      _hoverExitTimer
+                                                                          ?.cancel();
+                                                                      _hoverExitTimer = Timer(
+                                                                        const Duration(
+                                                                          milliseconds:
+                                                                              300,
+                                                                        ),
+                                                                        () {
+                                                                          if (mounted) {
+                                                                            setState(
+                                                                              () => _isSliderHovered = false,
+                                                                            );
+                                                                            _hoverXNotifier.value =
+                                                                                null;
+                                                                          }
+                                                                        },
+                                                                      );
+                                                                    },
+                                                                    onHover: (event) {
+                                                                      // Strictly show preview only when hovering over the progress bar (bottom area)
+                                                                      // The track is at bottom: 20-30 of the 100px container (dy: 70-80)
+                                                                      final dy = event
+                                                                          .localPosition
+                                                                          .dy;
+                                                                      if (dy >=
+                                                                              65 &&
+                                                                          dy <=
+                                                                              95 &&
+                                                                          !_isHoveringMarker) {
+                                                                        _hoverXNotifier
+                                                                            .value = event
+                                                                            .localPosition
+                                                                            .dx;
+                                                                      } else {
+                                                                        _hoverXNotifier.value =
+                                                                            null;
+                                                                      }
+                                                                    },
+                                                                    child: CompositedTransformTarget(
+                                                                      link:
+                                                                          _sliderLink,
+                                                                      key:
+                                                                          _sliderKey,
+                                                                      child: SizedBox(
+                                                                        height:
+                                                                            100, // Increased height for radial marker menu
+                                                                        child: Stack(
+                                                                          clipBehavior:
+                                                                              Clip.none,
+                                                                          alignment:
+                                                                              Alignment.bottomCenter,
+                                                                          children: [
+                                                                            Positioned(
+                                                                              left: 0,
+                                                                              right: 0,
+                                                                              bottom: 20, // Move slider up slightly
+                                                                              child:
+                                                                                  StreamBuilder<
+                                                                                    Duration
+                                                                                  >(
+                                                                                    stream: player.stream.buffer,
+                                                                                    builder:
+                                                                                        (
+                                                                                          context,
+                                                                                          bufferSnapshot,
+                                                                                        ) {
+                                                                                          final bufferDuration =
+                                                                                              bufferSnapshot.data ??
+                                                                                              player.state.buffer;
+                                                                                          final bufferProgress =
+                                                                                              duration.inMilliseconds >
+                                                                                                  0
+                                                                                              ? bufferDuration.inMilliseconds /
+                                                                                                    duration.inMilliseconds
+                                                                                              : 0.0;
+                                                                                          return SliderTheme(
+                                                                                            data:
+                                                                                                SliderTheme.of(
+                                                                                                  context,
+                                                                                                ).copyWith(
+                                                                                                  trackShape: GradientRectSliderTrackShape(
+                                                                                                    gradient: AppTheme.primaryGradient,
+                                                                                                    bufferProgress: bufferProgress.clamp(
+                                                                                                      0.0,
+                                                                                                      1.0,
+                                                                                                    ),
+                                                                                                  ),
+                                                                                                  activeTrackColor: Colors.white,
+                                                                                                  inactiveTrackColor: Colors.white.withOpacity(
+                                                                                                    0.1,
+                                                                                                  ),
+                                                                                                  thumbShape: SliderComponentShape.noThumb,
+                                                                                                  overlayShape: SliderComponentShape.noOverlay,
+                                                                                                  trackHeight: 10.0,
+                                                                                                ),
+                                                                                            child: Slider(
+                                                                                              value: progress.clamp(
+                                                                                                0.0,
+                                                                                                1.0,
+                                                                                              ),
+                                                                                              onChangeStart:
+                                                                                                  (
+                                                                                                    _,
+                                                                                                  ) {
+                                                                                                    setState(
+                                                                                                      () {
+                                                                                                        // 1. Explicitly kill all step-seek state
+                                                                                                        _virtualSeekPosition = null;
+                                                                                                        _isFastSeeking = false;
+
+                                                                                                        // 2. Kill all pending timers
+                                                                                                        _engineSeekTimer?.cancel();
+                                                                                                        _virtualSeekCleanupTimer?.cancel();
+                                                                                                        _fastSeekTimer?.cancel();
+
+                                                                                                        // 3. Initialize scrub state
+                                                                                                        _isScrubbing = true;
+                                                                                                        _wasPlayingBeforeScrub = player.state.playing;
+                                                                                                      },
+                                                                                                    );
+                                                                                                    player.pause();
+                                                                                                  },
+                                                                                              onChanged:
+                                                                                                  (
+                                                                                                    v,
+                                                                                                  ) {
+                                                                                                    _onInteraction();
+                                                                                                    _showSeekIndicator();
+                                                                                                    final targetMs =
+                                                                                                        (v *
+                                                                                                                duration.inMilliseconds)
+                                                                                                            .toInt();
+                                                                                                    setState(
+                                                                                                      () {
+                                                                                                        _virtualScrubPosition = Duration(
+                                                                                                          milliseconds: targetMs,
+                                                                                                        );
+                                                                                                        _pendingScrubPosition = _virtualScrubPosition;
+                                                                                                      },
+                                                                                                    );
+                                                                                                    if (_scrubThrottleTimer?.isActive !=
+                                                                                                        true) {
+                                                                                                      player.seek(
+                                                                                                        _pendingScrubPosition!,
+                                                                                                      );
+                                                                                                      _scrubThrottleTimer = Timer(
+                                                                                                        const Duration(
+                                                                                                          milliseconds: 100,
+                                                                                                        ),
+                                                                                                        () {
+                                                                                                          if (_pendingScrubPosition !=
+                                                                                                                  null &&
+                                                                                                              mounted &&
+                                                                                                              _isScrubbing) {
+                                                                                                            player.seek(
+                                                                                                              _pendingScrubPosition!,
+                                                                                                            );
+                                                                                                          }
+                                                                                                        },
+                                                                                                      );
+                                                                                                    }
+                                                                                                  },
+                                                                                              onChangeEnd:
+                                                                                                  (
+                                                                                                    v,
+                                                                                                  ) {
+                                                                                                    _scrubThrottleTimer?.cancel();
+                                                                                                    _smartDelayTimer?.cancel();
+
+                                                                                                    // Final seek
+                                                                                                    player.seek(
+                                                                                                      Duration(
+                                                                                                        milliseconds:
+                                                                                                            (v *
+                                                                                                                    duration.inMilliseconds)
+                                                                                                                .toInt(),
+                                                                                                      ),
+                                                                                                    );
+
+                                                                                                    if (_wasPlayingBeforeScrub) {
+                                                                                                      player.play();
+                                                                                                      _wasPlayingBeforeScrub = false;
+                                                                                                    }
+
+                                                                                                    // Reset cleanup timer
+                                                                                                    _virtualSeekCleanupTimer?.cancel();
+                                                                                                    _virtualSeekCleanupTimer = Timer(
+                                                                                                      const Duration(
+                                                                                                        seconds: 1,
+                                                                                                      ),
+                                                                                                      () {
+                                                                                                        _cleanupVirtualSeeking();
+                                                                                                      },
+                                                                                                    );
+                                                                                                  },
+                                                                                            ),
+                                                                                          );
+                                                                                        },
+                                                                                  ),
+                                                                            ),
+
+                                                                            // EPX-009: Timeline Markers
+                                                                            if (ref
+                                                                                    .watch(
+                                                                                      settingsProvider,
+                                                                                    )
+                                                                                    .value
+                                                                                    ?.showMarkersOnTimeline ??
+                                                                                true)
+                                                                              ...ref
+                                                                                  .watch(
+                                                                                    videoMarkersProvider(
+                                                                                      _currentItem.path,
+                                                                                    ),
+                                                                                  )
+                                                                                  .maybeWhen(
+                                                                                    data:
+                                                                                        (
+                                                                                          markers,
+                                                                                        ) => markers.map(
+                                                                                          (
+                                                                                            m,
+                                                                                          ) => TimelineMarker(
+                                                                                            marker: m,
+                                                                                            totalDuration: duration,
+                                                                                            sliderWidth: _sliderWidth,
+                                                                                            videoPath: _currentItem.path,
+                                                                                            hoverXNotifier: _hoverXNotifier,
+                                                                                            isMarkerEditorActive: _isMarkerEditorActive,
+                                                                                            onTap: () {
+                                                                                              if (player.platform !=
+                                                                                                  null) {
+                                                                                                (player.platform
+                                                                                                        as dynamic)
+                                                                                                    .setProperty(
+                                                                                                      'hr-seek',
+                                                                                                      'yes',
+                                                                                                    );
+                                                                                              }
+                                                                                              player.seek(
+                                                                                                m.timestamp,
+                                                                                              );
+                                                                                              player.play();
+                                                                                              // Briefly keep high-precision seek active to ensure the frame is hit accurately
+                                                                                              Future.delayed(
+                                                                                                const Duration(
+                                                                                                  milliseconds: 200,
+                                                                                                ),
+                                                                                                () {
+                                                                                                  if (mounted &&
+                                                                                                      player.platform !=
+                                                                                                          null) {
+                                                                                                    (player.platform
+                                                                                                            as dynamic)
+                                                                                                        .setProperty(
+                                                                                                          'hr-seek',
+                                                                                                          'no',
+                                                                                                        );
+                                                                                                  }
+                                                                                                },
+                                                                                              );
+                                                                                            },
+                                                                                            onEdit: () => _openMarkerEditor(
+                                                                                              marker: m,
+                                                                                            ),
+                                                                                            onHoverChanged:
+                                                                                                (
+                                                                                                  hovering,
+                                                                                                ) {
+                                                                                                  if (mounted) {
+                                                                                                    setState(
+                                                                                                      () => _isHoveringMarker = hovering,
+                                                                                                    );
+                                                                                                    if (hovering) {
+                                                                                                      _hideTimer?.cancel();
+                                                                                                    } else {
+                                                                                                      _onInteraction();
+                                                                                                    }
+                                                                                                  }
+                                                                                                },
+                                                                                            onMenuVisibilityChanged:
+                                                                                                (
+                                                                                                  visible,
+                                                                                                ) {
+                                                                                                  if (mounted) {
+                                                                                                    setState(
+                                                                                                      () => _isMarkerMenuVisible = visible,
+                                                                                                    );
+                                                                                                    if (visible) {
+                                                                                                      _onInteraction(); // Ensure HUD is visible when menu opens
+                                                                                                    } else {
+                                                                                                      _onInteraction(); // Start fade-out timer when menu closes
+                                                                                                    }
+                                                                                                  }
+                                                                                                },
+                                                                                          ),
+                                                                                        ),
+                                                                                    orElse: () => [],
+                                                                                  ),
+
+                                                                            // BUG-001: Hover thumbnail preview
+                                                                            Positioned(
+                                                                              left: 0,
+                                                                              right: 0,
+                                                                              bottom: 24,
+                                                                              child: IgnorePointer(
+                                                                                child: AnimatedOpacity(
+                                                                                  duration: const Duration(
+                                                                                    milliseconds: 150,
+                                                                                  ),
+                                                                                  opacity: _isSliderHovered
+                                                                                      ? 1.0
+                                                                                      : 0.0,
+                                                                                  child: HoverPreview(
+                                                                                    mediaPath: _currentItem.path,
+                                                                                    totalDuration: duration,
+                                                                                    sliderWidth: _sliderWidth,
+                                                                                    hoverXNotifier: _hoverXNotifier,
+                                                                                    isVisible: _isSliderHovered,
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  );
+                                                                },
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 16,
+                                                        ),
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets.only(
+                                                                bottom: 17,
+                                                              ),
+                                                          child: GestureDetector(
+                                                            onTap: () => setState(
+                                                              () => _showRemainingTime =
+                                                                  !_showRemainingTime,
+                                                            ),
+                                                            child: Text(
+                                                              _showRemainingTime
+                                                                  ? '-${_formatDuration(remaining)}'
+                                                                  : _formatDuration(
+                                                                      duration,
+                                                                    ),
+                                                              style: const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 13,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     );
                                                   },
-                                                  onHover: (event) {
-                                                    // Strictly show preview only when hovering over the progress bar (bottom area)
-                                                    // The track is at bottom: 20-30 of the 100px container (dy: 70-80)
-                                                    final dy =
-                                                        event.localPosition.dy;
-                                                    if (dy >= 65 &&
-                                                        dy <= 95 &&
-                                                        !_isHoveringMarker) {
-                                                      _hoverXNotifier.value =
-                                                          event
-                                                              .localPosition
-                                                              .dx;
-                                                    } else {
-                                                      _hoverXNotifier.value =
-                                                          null;
-                                                    }
-                                                  },
-                                                  child: CompositedTransformTarget(
-                                                    link: _sliderLink,
-                                                    key: _sliderKey,
-                                                    child: SizedBox(
-                                                      height:
-                                                          100, // Increased height for radial marker menu
-                                                      child: Stack(
-                                                        clipBehavior: Clip.none,
-                                                        alignment: Alignment
-                                                            .bottomCenter,
-                                                        children: [
-                                                          Positioned(
-                                                            left: 0,
-                                                            right: 0,
-                                                            bottom:
-                                                                20, // Move slider up slightly
-                                                            child: StreamBuilder<Duration>(
-                                                              stream: player.stream.buffer,
-                                                              builder: (context, bufferSnapshot) {
-                                                                final bufferDuration = bufferSnapshot.data ?? player.state.buffer;
-                                                                final bufferProgress = duration.inMilliseconds > 0 
-                                                                    ? bufferDuration.inMilliseconds / duration.inMilliseconds 
-                                                                    : 0.0;
-                                                                return SliderTheme(
-                                                                  data: SliderTheme.of(context).copyWith(
-                                                                    trackShape:
-                                                                        GradientRectSliderTrackShape(
-                                                                          gradient:
-                                                                              AppTheme
-                                                                                  .primaryGradient,
-                                                                          bufferProgress: bufferProgress.clamp(0.0, 1.0),
-                                                                        ),
-                                                                activeTrackColor:
-                                                                    Colors
-                                                                        .white,
-                                                                inactiveTrackColor:
-                                                                    Colors.white
-                                                                        .withOpacity(
-                                                                          0.1,
-                                                                        ),
-                                                                thumbShape:
-                                                                    SliderComponentShape
-                                                                        .noThumb,
-                                                                overlayShape:
-                                                                    SliderComponentShape
-                                                                        .noOverlay,
-                                                                trackHeight:
-                                                                    10.0,
-                                                              ),
-                                                              child: Slider(
-                                                                value: progress
-                                                                    .clamp(
-                                                                      0.0,
-                                                                      1.0,
-                                                                    ),
-                                                                onChangeStart: (_) {
-                                                                  setState(() {
-                                                                    // 1. Explicitly kill all step-seek state
-                                                                    _virtualSeekPosition =
-                                                                        null;
-                                                                    _isFastSeeking =
-                                                                        false;
-
-                                                                    // 2. Kill all pending timers
-                                                                    _engineSeekTimer
-                                                                        ?.cancel();
-                                                                    _virtualSeekCleanupTimer
-                                                                        ?.cancel();
-                                                                    _fastSeekTimer
-                                                                        ?.cancel();
-
-                                                                    // 3. Initialize scrub state
-                                                                    _isScrubbing =
-                                                                        true;
-                                                                    _wasPlayingBeforeScrub =
-                                                                        player
-                                                                            .state
-                                                                            .playing;
-                                                                  });
+                                                ),
+                                                const SizedBox(height: 12),
+                                                // Control Buttons
+                                                Row(
+                                                  children: [
+                                                    // Left: Playlist & Subtitles
+                                                    Consumer(
+                                                      builder: (context, sidebarRef, _) {
+                                                        final isOpen =
+                                                            sidebarRef.watch(
+                                                              videoPlaylistSidebarVisibleProvider,
+                                                            );
+                                                        return IconButton(
+                                                          icon: const Icon(
+                                                            Icons.playlist_play,
+                                                            size: 24,
+                                                          ),
+                                                          color:
+                                                              _isNetworkStream
+                                                              ? Colors.white30
+                                                              : (isOpen
+                                                                    ? AppColors
+                                                                          .magenta
+                                                                    : Colors
+                                                                          .white),
+                                                          onPressed:
+                                                              _isNetworkStream
+                                                              ? null
+                                                              : () {
+                                                                  sidebarRef
+                                                                          .read(
+                                                                            videoPlaylistSidebarVisibleProvider.notifier,
+                                                                          )
+                                                                          .state =
+                                                                      !isOpen;
+                                                                },
+                                                          tooltip: 'Playlist',
+                                                        );
+                                                      },
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    if (!_isNetworkStream)
+                                                      Consumer(
+                                                        builder: (context, ref, _) {
+                                                          final isFavorite = ref
+                                                              .watch(
+                                                                videoFavoritesProvider,
+                                                              )
+                                                              .contains(
+                                                                _currentItem
+                                                                    .path,
+                                                              );
+                                                          return IconButton(
+                                                            icon: Icon(
+                                                              isFavorite
+                                                                  ? Icons
+                                                                        .favorite_rounded
+                                                                  : Icons
+                                                                        .favorite_border_rounded,
+                                                              size: 22,
+                                                            ),
+                                                            color: isFavorite
+                                                                ? AppColors
+                                                                      .magenta
+                                                                : Colors
+                                                                      .white70,
+                                                            onPressed: () {
+                                                              ref
+                                                                  .read(
+                                                                    videoFavoritesProvider
+                                                                        .notifier,
+                                                                  )
+                                                                  .toggleFavorite(
+                                                                    _currentItem
+                                                                        .path,
+                                                                  );
+                                                            },
+                                                            tooltip: isFavorite
+                                                                ? 'Remove from Favorites'
+                                                                : 'Add to Favorites',
+                                                          );
+                                                        },
+                                                      ),
+                                                    if (!_isNetworkStream)
+                                                      const SizedBox(width: 4),
+                                                    if (!_isNetworkStream)
+                                                      Consumer(
+                                                        builder: (context, ref, _) {
+                                                          final isAutoPlay = ref
+                                                              .watch(
+                                                                videoAutoPlaySessionProvider,
+                                                              );
+                                                          return IconButton(
+                                                            icon: Icon(
+                                                              isAutoPlay
+                                                                  ? Icons
+                                                                        .autorenew_rounded
+                                                                  : Icons
+                                                                        .sync_disabled_rounded,
+                                                              size: 22,
+                                                            ),
+                                                            color: isAutoPlay
+                                                                ? AppColors
+                                                                      .magenta
+                                                                : Colors
+                                                                      .white70,
+                                                            onPressed: () {
+                                                              ref
+                                                                      .read(
+                                                                        videoAutoPlaySessionProvider
+                                                                            .notifier,
+                                                                      )
+                                                                      .state =
+                                                                  !isAutoPlay;
+                                                            },
+                                                            tooltip: isAutoPlay
+                                                                ? 'Autoplay Next: ON'
+                                                                : 'Autoplay Next: OFF',
+                                                          );
+                                                        },
+                                                      ),
+                                                    if (!_isNetworkStream)
+                                                      const SizedBox(width: 4),
+                                                    IconButton(
+                                                      key: _subtitleKey,
+                                                      onPressed: () {
+                                                        _onInteraction();
+                                                        _showMenu(
+                                                          key: _subtitleKey,
+                                                          type: 'subtitle',
+                                                          child: StreamBuilder<dynamic>(
+                                                            stream: player
+                                                                .stream
+                                                                .track,
+                                                            builder: (context, snapshot) {
+                                                              final state =
+                                                                  snapshot
+                                                                      .data ??
                                                                   player
-                                                                      .pause();
-                                                                },
-                                                                onChanged: (v) {
-                                                                  _onInteraction();
-                                                                  _showSeekIndicator();
-                                                                  final targetMs =
-                                                                      (v *
-                                                                              duration.inMilliseconds)
-                                                                          .toInt();
-                                                                  setState(() {
-                                                                    _virtualScrubPosition =
-                                                                        Duration(
-                                                                          milliseconds:
-                                                                              targetMs,
-                                                                        );
-                                                                    _pendingScrubPosition =
-                                                                        _virtualScrubPosition;
-                                                                  });
-                                                                  if (_scrubThrottleTimer
-                                                                          ?.isActive !=
-                                                                      true) {
-                                                                    player.seek(
-                                                                      _pendingScrubPosition!,
-                                                                    );
-                                                                    _scrubThrottleTimer = Timer(
-                                                                      const Duration(milliseconds: 100),
-                                                                      () {
-                                                                        if (_pendingScrubPosition != null && mounted && _isScrubbing) {
-                                                                          player.seek(_pendingScrubPosition!);
-                                                                        }
-                                                                      },
-                                                                    );
-                                                                  }
-                                                                },
-                                                                onChangeEnd: (v) {
-                                                                  _scrubThrottleTimer
-                                                                      ?.cancel();
-                                                                  _smartDelayTimer
-                                                                      ?.cancel();
-
-                                                                  // Final seek
-                                                                  player.seek(
-                                                                    Duration(
-                                                                      milliseconds:
-                                                                          (v *
-                                                                                  duration.inMilliseconds)
-                                                                              .toInt(),
-                                                                    ),
-                                                                  );
-
-                                                                  if (_wasPlayingBeforeScrub) {
+                                                                      .state
+                                                                      .track;
+                                                              return TrackSelectorMenu(
+                                                                title:
+                                                                    'Subtitles',
+                                                                subtitleTracks:
                                                                     player
-                                                                        .play();
-                                                                    _wasPlayingBeforeScrub =
-                                                                        false;
-                                                                  }
-
-                                                                  // Reset cleanup timer
-                                                                  _virtualSeekCleanupTimer
-                                                                      ?.cancel();
-                                                                  _virtualSeekCleanupTimer = Timer(
-                                                                    const Duration(
-                                                                      seconds:
-                                                                          1,
-                                                                    ),
-                                                                    () {
-                                                                      _cleanupVirtualSeeking();
-                                                                    },
+                                                                        .state
+                                                                        .tracks
+                                                                        .subtitle,
+                                                                selectedTrack:
+                                                                    state
+                                                                        .subtitle,
+                                                                onTrackSelected: (t) {
+                                                                  player.setSubtitleTrack(
+                                                                    t
+                                                                        as SubtitleTrack,
                                                                   );
+                                                                },
+                                                                onLoadExternal: () async {
+                                                                  final result =
+                                                                      await CustomFilePickerDialog.show(
+                                                                        context,
+                                                                        title:
+                                                                            'SELECT SUBTITLE',
+                                                                        allowedExtensions: [
+                                                                          'srt',
+                                                                          'vtt',
+                                                                          'ass',
+                                                                        ],
+                                                                      );
+                                                                  if (result !=
+                                                                          null &&
+                                                                      result
+                                                                          .isNotEmpty) {
+                                                                    player.setSubtitleTrack(
+                                                                      SubtitleTrack.uri(
+                                                                        result
+                                                                            .first,
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                },
+                                                              );
+                                                            },
+                                                          ),
+                                                        );
+                                                      },
+                                                      icon: Icon(
+                                                        Icons
+                                                            .subtitles_outlined,
+                                                        color:
+                                                            _isSubtitleMenuVisible
+                                                            ? AppColors.violet
+                                                            : Colors.white70,
+                                                        size: 20,
+                                                      ),
+                                                      tooltip: 'Subtitles',
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    IconButton(
+                                                      key: _audioKey,
+                                                      onPressed: () {
+                                                        _onInteraction();
+                                                        _showMenu(
+                                                          key: _audioKey,
+                                                          type: 'audio',
+                                                          child: StreamBuilder<dynamic>(
+                                                            stream: player
+                                                                .stream
+                                                                .track,
+                                                            builder: (context, snapshot) {
+                                                              final state =
+                                                                  snapshot
+                                                                      .data ??
+                                                                  player
+                                                                      .state
+                                                                      .track;
+                                                              return TrackSelectorMenu(
+                                                                title:
+                                                                    'Audio Tracks',
+                                                                audioTracks:
+                                                                    player
+                                                                        .state
+                                                                        .tracks
+                                                                        .audio,
+                                                                selectedTrack:
+                                                                    state.audio,
+                                                                onTrackSelected: (t) {
+                                                                  player.setAudioTrack(
+                                                                    t
+                                                                        as AudioTrack,
+                                                                  );
+                                                                },
+                                                              );
+                                                            },
+                                                          ),
+                                                        );
+                                                      },
+                                                      icon: Icon(
+                                                        Icons
+                                                            .audiotrack_rounded,
+                                                        color:
+                                                            _isAudioMenuVisible
+                                                            ? AppColors.violet
+                                                            : Colors.white70,
+                                                        size: 20,
+                                                      ),
+                                                      tooltip: 'Audio Tracks',
+                                                    ),
+
+                                                    const Spacer(),
+
+                                                    // Center cluster
+                                                    IconButton(
+                                                      onPressed: () =>
+                                                          _navigateMedia(false),
+                                                      icon: const Icon(
+                                                        Icons.skip_previous,
+                                                        color: Colors.white,
+                                                        size: 24,
+                                                      ),
+                                                      tooltip: 'Previous Video',
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    _buildSeekButton(
+                                                      isForward: false,
+                                                      onPressed: () =>
+                                                          _performStepSeek(
+                                                            isForward: false,
+                                                          ),
+                                                    ),
+                                                    const SizedBox(width: 16),
+                                                    ValueListenableBuilder<
+                                                      bool
+                                                    >(
+                                                      valueListenable:
+                                                          _isPlayingNotifier,
+                                                      builder: (context, playing, _) {
+                                                        return GestureDetector(
+                                                          onTap: () {
+                                                            _onInteraction();
+                                                            player
+                                                                .playOrPause();
+                                                          },
+                                                          child: Container(
+                                                            width: 48,
+                                                            height: 48,
+                                                            decoration: BoxDecoration(
+                                                              color:
+                                                                  Colors.white,
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    12,
+                                                                  ),
+                                                              boxShadow: [
+                                                                BoxShadow(
+                                                                  color: Colors
+                                                                      .white
+                                                                      .withOpacity(
+                                                                        0.2,
+                                                                      ),
+                                                                  blurRadius:
+                                                                      12,
+                                                                  spreadRadius:
+                                                                      2,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            child: Icon(
+                                                              playing
+                                                                  ? Icons.pause
+                                                                  : Icons
+                                                                        .play_arrow,
+                                                              color:
+                                                                  Colors.black,
+                                                              size: 28,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                                    const SizedBox(width: 16),
+                                                    _buildSeekButton(
+                                                      isForward: true,
+                                                      onPressed: () =>
+                                                          _performStepSeek(
+                                                            isForward: true,
+                                                          ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    IconButton(
+                                                      onPressed: () =>
+                                                          _navigateMedia(true),
+                                                      icon: const Icon(
+                                                        Icons.skip_next,
+                                                        color: Colors.white,
+                                                        size: 24,
+                                                      ),
+                                                      tooltip: 'Next Video',
+                                                    ),
+
+                                                    const Spacer(),
+
+                                                    // Right: Speed, Volume, Fullscreen
+                                                    Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        if (_isNetworkStream &&
+                                                            _availableFormats
+                                                                .isNotEmpty) ...[
+                                                          PopupMenuButton<
+                                                            MediaFormat
+                                                          >(
+                                                            key: _resolutionKey,
+                                                            initialValue: _availableFormats.firstWhere(
+                                                              (f) =>
+                                                                  f.formatId ==
+                                                                  _selectedFormatId,
+                                                              orElse: () =>
+                                                                  _availableFormats
+                                                                      .first,
+                                                            ),
+                                                            onSelected:
+                                                                _onResolutionChanged,
+                                                            tooltip:
+                                                                'Video Resolution',
+                                                            color: const Color(
+                                                              0xFF2A2A35,
+                                                            ),
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    12,
+                                                                  ),
+                                                              side: BorderSide(
+                                                                color: Colors
+                                                                    .white
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.1,
+                                                                    ),
+                                                              ),
+                                                            ),
+                                                            offset:
+                                                                const Offset(
+                                                                  0,
+                                                                  -10,
+                                                                ),
+                                                            itemBuilder: (context) {
+                                                              return _availableFormats.map((
+                                                                f,
+                                                              ) {
+                                                                final isSelected =
+                                                                    f.formatId ==
+                                                                    _selectedFormatId;
+                                                                return PopupMenuItem<
+                                                                  MediaFormat
+                                                                >(
+                                                                  value: f,
+                                                                  height: 38,
+                                                                  padding:
+                                                                      const EdgeInsets.symmetric(
+                                                                        horizontal:
+                                                                            12,
+                                                                      ),
+                                                                  child: Row(
+                                                                    children: [
+                                                                      Icon(
+                                                                        isSelected
+                                                                            ? Icons.check
+                                                                            : Icons.circle,
+                                                                        color:
+                                                                            isSelected
+                                                                            ? AppColors.violet
+                                                                            : Colors.transparent,
+                                                                        size:
+                                                                            16,
+                                                                      ),
+                                                                      const SizedBox(
+                                                                        width:
+                                                                            8,
+                                                                      ),
+                                                                      Text(
+                                                                        f.resolution,
+                                                                        style: GoogleFonts.manrope(
+                                                                          fontSize:
+                                                                              13,
+                                                                          fontWeight:
+                                                                              isSelected
+                                                                              ? FontWeight.bold
+                                                                              : FontWeight.w500,
+                                                                          color:
+                                                                              isSelected
+                                                                              ? Colors.white
+                                                                              : Colors.white70,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                );
+                                                              }).toList();
+                                                            },
+                                                            child: Row(
+                                                              mainAxisSize:
+                                                                  MainAxisSize
+                                                                      .min,
+                                                              children: [
+                                                                Text(
+                                                                  _availableFormats
+                                                                      .firstWhere(
+                                                                        (f) =>
+                                                                            f.formatId ==
+                                                                            _selectedFormatId,
+                                                                        orElse: () =>
+                                                                            _availableFormats.first,
+                                                                      )
+                                                                      .resolution,
+                                                                  style: GoogleFonts.manrope(
+                                                                    color: Colors
+                                                                        .white70,
+                                                                    fontSize:
+                                                                        12,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  width: 2,
+                                                                ),
+                                                                const Icon(
+                                                                  Icons
+                                                                      .arrow_drop_down,
+                                                                  color: Colors
+                                                                      .white70,
+                                                                  size: 16,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 16,
+                                                          ),
+                                                        ],
+                                                        TextButton(
+                                                          key: _speedKey,
+                                                          onPressed: () {
+                                                            _onInteraction();
+                                                            _showMenu(
+                                                              key: _speedKey,
+                                                              type: 'speed',
+                                                              child: PlaybackSpeedControl(
+                                                                currentSpeed:
+                                                                    _playbackSpeed,
+                                                                onSpeedSelected: (speed) {
+                                                                  setState(
+                                                                    () => _playbackSpeed =
+                                                                        speed,
+                                                                  );
+                                                                  player
+                                                                      .setRate(
+                                                                        speed,
+                                                                      );
                                                                 },
                                                               ),
                                                             );
                                                           },
-                                                        ),
-                                                      ),
-
-                                                          // EPX-009: Timeline Markers
-                                                          if (ref
-                                                                  .watch(
-                                                                    settingsProvider,
-                                                                  )
-                                                                  .value
-                                                                  ?.showMarkersOnTimeline ??
-                                                              true)
-                                                            ...ref
-                                                                .watch(
-                                                                  videoMarkersProvider(
-                                                                    _currentItem
-                                                                        .path,
-                                                                  ),
-                                                                )
-                                                                .maybeWhen(
-                                                                  data: (markers) => markers.map(
-                                                                    (
-                                                                      m,
-                                                                    ) => TimelineMarker(
-                                                                      marker: m,
-                                                                      totalDuration:
-                                                                          duration,
-                                                                      sliderWidth:
-                                                                          _sliderWidth,
-                                                                      videoPath:
-                                                                          _currentItem
-                                                                              .path,
-                                                                      hoverXNotifier:
-                                                                          _hoverXNotifier,
-                                                                      isMarkerEditorActive:
-                                                                          _isMarkerEditorActive,
-                                                                      onTap: () {
-                                                                        if (player.platform != null) {
-                                                                          (player.platform
-                                                                                  as dynamic)
-                                                                              .setProperty(
-                                                                                'hr-seek',
-                                                                                'yes',
-                                                                              );
-                                                                        }
-                                                                        player.seek(
-                                                                          m.timestamp,
-                                                                        );
-                                                                        player
-                                                                            .play();
-                                                                        // Briefly keep high-precision seek active to ensure the frame is hit accurately
-                                                                        Future.delayed(
-                                                                          const Duration(
-                                                                            milliseconds:
-                                                                                200,
-                                                                          ),
-                                                                          () {
-                                                                            if (mounted && player.platform != null) {
-                                                                              (player.platform
-                                                                                      as dynamic)
-                                                                                  .setProperty(
-                                                                                    'hr-seek',
-                                                                                    'no',
-                                                                                  );
-                                                                            }
-                                                                          },
-                                                                        );
-                                                                      },
-                                                                      onEdit: () =>
-                                                                          _openMarkerEditor(
-                                                                            marker:
-                                                                                m,
-                                                                          ),
-                                                                      onHoverChanged:
-                                                                          (
-                                                                            hovering,
-                                                                          ) {
-                                                                            if (mounted) {
-                                                                              setState(
-                                                                                () => _isHoveringMarker = hovering,
-                                                                              );
-                                                                              if (hovering) {
-                                                                                _hideTimer?.cancel();
-                                                                              } else {
-                                                                                _onInteraction();
-                                                                              }
-                                                                            }
-                                                                          },
-                                                                      onMenuVisibilityChanged: (visible) {
-                                                                        if (mounted) {
-                                                                          setState(
-                                                                            () =>
-                                                                                _isMarkerMenuVisible = visible,
-                                                                          );
-                                                                          if (visible) {
-                                                                            _onInteraction(); // Ensure HUD is visible when menu opens
-                                                                          } else {
-                                                                            _onInteraction(); // Start fade-out timer when menu closes
-                                                                          }
-                                                                        }
-                                                                      },
-                                                                    ),
-                                                                  ),
-                                                                  orElse: () =>
-                                                                      [],
-                                                                ),
-
-                                                          // BUG-001: Hover thumbnail preview
-                                                          Positioned(
-                                                            left: 0,
-                                                            right: 0,
-                                                            bottom: 24,
-                                                            child: IgnorePointer(
-                                                              child: AnimatedOpacity(
-                                                                duration:
-                                                                    const Duration(
-                                                                      milliseconds:
-                                                                          150,
-                                                                    ),
-                                                                opacity:
-                                                                    _isSliderHovered
-                                                                    ? 1.0
-                                                                    : 0.0,
-                                                                child: HoverPreview(
-                                                                  mediaPath:
-                                                                      _currentItem
-                                                                          .path,
-                                                                  totalDuration:
-                                                                      duration,
-                                                                  sliderWidth:
-                                                                      _sliderWidth,
-                                                                  hoverXNotifier:
-                                                                      _hoverXNotifier,
-                                                                  isVisible:
-                                                                      _isSliderHovered,
-                                                                ),
-                                                              ),
+                                                          child: Text(
+                                                            '${_playbackSpeed.toString().replaceAll(RegExp(r'\.0$'), '')}x',
+                                                            style: GoogleFonts.manrope(
+                                                              color:
+                                                                  _isSpeedMenuVisible
+                                                                  ? AppColors
+                                                                        .violet
+                                                                  : Colors
+                                                                        .white70,
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
                                                             ),
                                                           ),
-                                                        ],
-                                                      ),
+                                                        ),
+                                                        IconButton(
+                                                          onPressed:
+                                                              _toggleMute,
+                                                          icon: Icon(
+                                                            _isMuted
+                                                                ? Icons
+                                                                      .volume_off
+                                                                : Icons
+                                                                      .volume_up,
+                                                            color:
+                                                                Colors.white70,
+                                                            size: 24,
+                                                          ),
+                                                        ),
+                                                        SizedBox(
+                                                          width: 80,
+                                                          child: StreamBuilder<double>(
+                                                            stream: player
+                                                                .stream
+                                                                .volume,
+                                                            builder: (context, snapshot) {
+                                                              final volume =
+                                                                  snapshot
+                                                                      .data ??
+                                                                  100.0;
+                                                              return SliderTheme(
+                                                                data: SliderTheme.of(context).copyWith(
+                                                                  trackHeight:
+                                                                      2,
+                                                                  activeTrackColor:
+                                                                      volume >
+                                                                          100
+                                                                      ? Colors
+                                                                            .orange
+                                                                      : Colors
+                                                                            .white,
+                                                                  inactiveTrackColor:
+                                                                      Colors
+                                                                          .white
+                                                                          .withOpacity(
+                                                                            0.2,
+                                                                          ),
+                                                                  thumbShape:
+                                                                      const RoundSliderThumbShape(
+                                                                        enabledThumbRadius:
+                                                                            3,
+                                                                      ),
+                                                                  overlayShape:
+                                                                      const RoundSliderOverlayShape(
+                                                                        overlayRadius:
+                                                                            6,
+                                                                      ),
+                                                                ),
+                                                                child: Slider(
+                                                                  value: volume
+                                                                      .clamp(
+                                                                        0.0,
+                                                                        200.0,
+                                                                      ),
+                                                                  min: 0,
+                                                                  max: 200,
+                                                                  onChanged:
+                                                                      (
+                                                                        v,
+                                                                      ) => player
+                                                                          .setVolume(
+                                                                            v,
+                                                                          ),
+                                                                ),
+                                                              );
+                                                            },
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        IconButton(
+                                                          onPressed:
+                                                              _toggleFullscreen,
+                                                          icon: Icon(
+                                                            Icons
+                                                                .fullscreen_rounded,
+                                                            color:
+                                                                Colors.white70,
+                                                            size: 22,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Padding(
-                                            padding: const EdgeInsets.only(bottom: 17),
-                                            child: GestureDetector(
-                                              onTap: () => setState(
-                                                () => _showRemainingTime =
-                                                    !_showRemainingTime,
-                                              ),
-                                              child: Text(
-                                                _showRemainingTime
-                                                    ? '-${_formatDuration(remaining)}'
-                                                    : _formatDuration(duration),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold,
+                                                  ],
                                                 ),
-                                              ),
+                                              ],
                                             ),
                                           ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 12),
-                                  // Control Buttons
-                                  Row(
-                                    children: [
-                                      // Left: Playlist & Subtitles
-                                      Consumer(
-                                        builder: (context, sidebarRef, _) {
-                                          final isOpen = sidebarRef.watch(
-                                            videoPlaylistSidebarVisibleProvider,
-                                          );
-                                          return IconButton(
-                                            icon: const Icon(
-                                              Icons.playlist_play,
-                                              size: 24,
+                                        ),
+                                      ),
+                                    ),
+
+                                  // EPX-009: Marker Editor Overlay with full-screen click-outside dismissal
+                                  if (_isMarkerEditorActive &&
+                                      _markerEditorAnchor != null)
+                                    Builder(
+                                      builder: (context) {
+                                        // We need to calculate the slider's position relative to the player's root stack
+                                        final RenderBox? playerBox =
+                                            _playerKey.currentContext
+                                                    ?.findRenderObject()
+                                                as RenderBox?;
+                                        final RenderBox? sliderBox =
+                                            _sliderKey.currentContext
+                                                    ?.findRenderObject()
+                                                as RenderBox?;
+
+                                        double sliderX = 0;
+                                        if (playerBox != null &&
+                                            sliderBox != null) {
+                                          sliderX = sliderBox
+                                              .localToGlobal(
+                                                Offset.zero,
+                                                ancestor: playerBox,
+                                              )
+                                              .dx;
+                                        }
+
+                                        final anchorX =
+                                            sliderX + _markerEditorAnchor!.dx;
+                                        final idealLeft = anchorX - 210;
+                                        final clampedLeft = idealLeft.clamp(
+                                          16.0,
+                                          _playerWidth - 420 - 16.0,
+                                        );
+                                        final notchOffset =
+                                            anchorX - clampedLeft;
+
+                                        return Positioned.fill(
+                                          child: GestureDetector(
+                                            onTap: () => _closeMarkerEditor(
+                                              resume: true,
                                             ),
-                                            color: _isNetworkStream
-                                                ? Colors.white30
-                                                : (isOpen ? AppColors.magenta : Colors.white),
-                                            onPressed: _isNetworkStream
-                                                ? null
-                                                : () {
-                                                    sidebarRef
-                                                            .read(
-                                                              videoPlaylistSidebarVisibleProvider
-                                                                  .notifier,
-                                                            )
-                                                            .state =
-                                                        !isOpen;
-                                                  },
-                                            tooltip: 'Playlist',
-                                          );
+                                            behavior: HitTestBehavior.opaque,
+                                            onScaleUpdate: (_) =>
+                                                _markerEditorKey.currentState
+                                                    ?.shake(),
+                                            onDoubleTap: () {},
+                                            child: Stack(
+                                              children: [
+                                                Positioned(
+                                                  left: clampedLeft,
+                                                  bottom:
+                                                      104, // Aligned with the track top
+                                                  child: MarkerEditorOverlay(
+                                                    key: _markerEditorKey,
+                                                    initialContent:
+                                                        _editingMarker?.content,
+                                                    initialIcon:
+                                                        _editingMarker?.icon,
+                                                    timestamp:
+                                                        _editingMarker
+                                                            ?.timestamp ??
+                                                        player.state.position,
+                                                    notchOffset: notchOffset,
+                                                    onSave: _saveMarker,
+                                                    onCancel: () =>
+                                                        _closeMarkerEditor(
+                                                          resume: true,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
                                       },
                                     ),
-                                    const SizedBox(width: 4),
-                                    if (!_isNetworkStream)
-                                      Consumer(
-                                        builder: (context, ref, _) {
-                                          final isFavorite = ref.watch(videoFavoritesProvider).contains(_currentItem.path);
-                                          return IconButton(
-                                            icon: Icon(
-                                              isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                              size: 22,
-                                            ),
-                                            color: isFavorite ? AppColors.magenta : Colors.white70,
-                                            onPressed: () {
-                                              ref.read(videoFavoritesProvider.notifier).toggleFavorite(_currentItem.path);
-                                            },
-                                            tooltip: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
-                                          );
-                                        },
-                                      ),
-                                    if (!_isNetworkStream)
-                                      const SizedBox(width: 4),
-                                    if (!_isNetworkStream)
-                                      Consumer(
-                                        builder: (context, ref, _) {
-                                          final isAutoPlay = ref.watch(videoAutoPlaySessionProvider);
-                                          return IconButton(
-                                            icon: Icon(
-                                              isAutoPlay ? Icons.autorenew_rounded : Icons.sync_disabled_rounded,
-                                              size: 22,
-                                            ),
-                                            color: isAutoPlay ? AppColors.magenta : Colors.white70,
-                                            onPressed: () {
-                                              ref.read(videoAutoPlaySessionProvider.notifier).state = !isAutoPlay;
-                                            },
-                                            tooltip: isAutoPlay ? 'Autoplay Next: ON' : 'Autoplay Next: OFF',
-                                          );
-                                        },
-                                      ),
-                                    if (!_isNetworkStream)
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        key: _subtitleKey,
-                                        onPressed: () {
-                                          _onInteraction();
-                                          _showMenu(
-                                            key: _subtitleKey,
-                                            type: 'subtitle',
-                                            child: StreamBuilder<dynamic>(
-                                              stream: player.stream.track,
-                                              builder: (context, snapshot) {
-                                                final state =
-                                                    snapshot.data ??
-                                                    player.state.track;
-                                                return TrackSelectorMenu(
-                                                  title: 'Subtitles',
-                                                  subtitleTracks: player
-                                                      .state
-                                                      .tracks
-                                                      .subtitle,
-                                                  selectedTrack: state.subtitle,
-                                                  onTrackSelected: (t) {
-                                                    player.setSubtitleTrack(
-                                                      t as SubtitleTrack,
-                                                    );
-                                                  },
-                                                  onLoadExternal: () async {
-                                                    final result =
-                                                        await CustomFilePickerDialog.show(
-                                                          context,
-                                                          title:
-                                                              'SELECT SUBTITLE',
-                                                          allowedExtensions: [
-                                                            'srt',
-                                                            'vtt',
-                                                            'ass',
-                                                          ],
-                                                        );
-                                                    if (result != null &&
-                                                        result.isNotEmpty) {
-                                                      player.setSubtitleTrack(
-                                                        SubtitleTrack.uri(
-                                                          result.first,
-                                                        ),
-                                                      );
-                                                    }
-                                                  },
-                                                );
-                                              },
-                                            ),
-                                          );
-                                        },
-                                        icon: Icon(
-                                          Icons.subtitles_outlined,
-                                          color: _isSubtitleMenuVisible
-                                              ? AppColors.violet
-                                              : Colors.white70,
-                                          size: 20,
-                                        ),
-                                        tooltip: 'Subtitles',
-                                      ),
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        key: _audioKey,
-                                        onPressed: () {
-                                          _onInteraction();
-                                          _showMenu(
-                                            key: _audioKey,
-                                            type: 'audio',
-                                            child: StreamBuilder<dynamic>(
-                                              stream: player.stream.track,
-                                              builder: (context, snapshot) {
-                                                final state =
-                                                    snapshot.data ??
-                                                    player.state.track;
-                                                return TrackSelectorMenu(
-                                                  title: 'Audio Tracks',
-                                                  audioTracks:
-                                                      player.state.tracks.audio,
-                                                  selectedTrack: state.audio,
-                                                  onTrackSelected: (t) {
-                                                    player.setAudioTrack(
-                                                      t as AudioTrack,
-                                                    );
-                                                  },
-                                                );
-                                              },
-                                            ),
-                                          );
-                                        },
-                                        icon: Icon(
-                                          Icons.audiotrack_rounded,
-                                          color: _isAudioMenuVisible
-                                              ? AppColors.violet
-                                              : Colors.white70,
-                                          size: 20,
-                                        ),
-                                        tooltip: 'Audio Tracks',
-                                      ),
-
-                                      const Spacer(),
-
-                                      // Center cluster
-                                      IconButton(
-                                        onPressed: () => _navigateMedia(false),
-                                        icon: const Icon(
-                                          Icons.skip_previous,
-                                          color: Colors.white,
-                                          size: 24,
-                                        ),
-                                        tooltip: 'Previous Video',
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _buildSeekButton(
-                                        isForward: false,
-                                        onPressed: () =>
-                                            _performStepSeek(isForward: false),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      ValueListenableBuilder<bool>(
-                                        valueListenable: _isPlayingNotifier,
-                                        builder: (context, playing, _) {
-                                          return GestureDetector(
-                                            onTap: () {
-                                              _onInteraction();
-                                              player.playOrPause();
-                                            },
-                                            child: Container(
-                                              width: 48,
-                                              height: 48,
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      12,
-                                                    ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.white
-                                                        .withOpacity(
-                                                          0.2,
-                                                        ),
-                                                    blurRadius: 12,
-                                                    spreadRadius: 2,
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Icon(
-                                                playing
-                                                    ? Icons.pause
-                                                    : Icons.play_arrow,
-                                                color: Colors.black,
-                                                size: 28,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      const SizedBox(width: 16),
-                                      _buildSeekButton(
-                                        isForward: true,
-                                        onPressed: () =>
-                                            _performStepSeek(isForward: true),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        onPressed: () => _navigateMedia(true),
-                                        icon: const Icon(
-                                          Icons.skip_next,
-                                          color: Colors.white,
-                                          size: 24,
-                                        ),
-                                        tooltip: 'Next Video',
-                                      ),
-
-                                      const Spacer(),
-
-                                      // Right: Speed, Volume, Fullscreen
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          TextButton(
-                                            key: _speedKey,
-                                            onPressed: () {
-                                              _onInteraction();
-                                              _showMenu(
-                                                key: _speedKey,
-                                                type: 'speed',
-                                                child: PlaybackSpeedControl(
-                                                  currentSpeed: _playbackSpeed,
-                                                  onSpeedSelected: (speed) {
-                                                    setState(
-                                                      () => _playbackSpeed =
-                                                          speed,
-                                                    );
-                                                    player.setRate(speed);
-                                                  },
-                                                ),
-                                              );
-                                            },
-                                            child: Text(
-                                              '${_playbackSpeed.toString().replaceAll(RegExp(r'\.0$'), '')}x',
-                                              style: GoogleFonts.manrope(
-                                                color: _isSpeedMenuVisible
-                                                    ? AppColors.violet
-                                                    : Colors.white70,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                          IconButton(
-                                            onPressed: _toggleMute,
-                                            icon: Icon(
-                                              _isMuted
-                                                  ? Icons.volume_off
-                                                  : Icons.volume_up,
-                                              color: Colors.white70,
-                                              size: 24,
-                                            ),
-                                          ),
-                                          SizedBox(
-                                            width: 80,
-                                            child: StreamBuilder<double>(
-                                              stream: player.stream.volume,
-                                              builder: (context, snapshot) {
-                                                final volume =
-                                                    snapshot.data ?? 100.0;
-                                                return SliderTheme(
-                                                  data: SliderTheme.of(context).copyWith(
-                                                    trackHeight: 2,
-                                                    activeTrackColor:
-                                                        volume > 100
-                                                        ? Colors.orange
-                                                        : Colors.white,
-                                                    inactiveTrackColor: Colors
-                                                        .white
-                                                        .withOpacity(0.2),
-                                                    thumbShape:
-                                                        const RoundSliderThumbShape(
-                                                          enabledThumbRadius: 3,
-                                                        ),
-                                                    overlayShape:
-                                                        const RoundSliderOverlayShape(
-                                                          overlayRadius: 6,
-                                                        ),
-                                                  ),
-                                                  child: Slider(
-                                                    value: volume.clamp(
-                                                      0.0,
-                                                      200.0,
-                                                    ),
-                                                    min: 0,
-                                                    max: 200,
-                                                    onChanged: (v) =>
-                                                        player.setVolume(v),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          IconButton(
-                                            onPressed: _toggleFullscreen,
-                                            icon: Icon(
-                                              Icons.fullscreen_rounded,
-                                              color: Colors.white70,
-                                              size: 22,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
                                 ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // EPX-009: Marker Editor Overlay with full-screen click-outside dismissal
-                      if (_isMarkerEditorActive && _markerEditorAnchor != null)
-                        Builder(
-                          builder: (context) {
-                            // We need to calculate the slider's position relative to the player's root stack
-                            final RenderBox? playerBox =
-                                _playerKey.currentContext?.findRenderObject()
-                                    as RenderBox?;
-                            final RenderBox? sliderBox =
-                                _sliderKey.currentContext?.findRenderObject()
-                                    as RenderBox?;
-
-                            double sliderX = 0;
-                            if (playerBox != null && sliderBox != null) {
-                              sliderX = sliderBox
-                                  .localToGlobal(
-                                    Offset.zero,
-                                    ancestor: playerBox,
-                                  )
-                                  .dx;
-                            }
-
-                            final anchorX = sliderX + _markerEditorAnchor!.dx;
-                            final idealLeft = anchorX - 210;
-                            final clampedLeft = idealLeft.clamp(
-                              16.0,
-                              _playerWidth - 420 - 16.0,
-                            );
-                            final notchOffset = anchorX - clampedLeft;
-
-                            return Positioned.fill(
-                              child: GestureDetector(
-                                onTap: () => _closeMarkerEditor(resume: true),
-                                behavior: HitTestBehavior.opaque,
-                                onScaleUpdate: (_) =>
-                                    _markerEditorKey.currentState?.shake(),
-                                onDoubleTap: () {},
-                                child: Stack(
-                                  children: [
-                                    Positioned(
-                                      left: clampedLeft,
-                                      bottom: 104, // Aligned with the track top
-                                      child: MarkerEditorOverlay(
-                                        key: _markerEditorKey,
-                                        initialContent: _editingMarker?.content,
-                                        initialIcon: _editingMarker?.icon,
-                                        timestamp:
-                                            _editingMarker?.timestamp ??
-                                            player.state.position,
-                                        notchOffset: notchOffset,
-                                        onSave: _saveMarker,
-                                        onCancel: () =>
-                                            _closeMarkerEditor(resume: true),
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
                             );
                           },
                         ),
-                    ],
+                      ),
+                    ),
                   ),
-                );
-              },
+                ),
+              ],
             ),
-          ),
-        ),
-      ),
-    ),
-  ],
-  ),
-);
+          );
         },
       ),
     );
@@ -3631,10 +4129,14 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           left: 32,
           child: Consumer(
             builder: (context, sidebarRef, _) {
-              final isSidebarOpen = sidebarRef.watch(videoPlaylistSidebarVisibleProvider);
+              final isSidebarOpen = sidebarRef.watch(
+                videoPlaylistSidebarVisibleProvider,
+              );
               return Container(
                 decoration: BoxDecoration(
-                  color: isSidebarOpen ? AppColors.magenta.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.4),
+                  color: isSidebarOpen
+                      ? AppColors.magenta.withValues(alpha: 0.8)
+                      : Colors.black.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.1),
@@ -3643,10 +4145,15 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                 child: IconButton(
                   icon: Icon(
                     Icons.playlist_play_rounded,
-                    color: isSidebarOpen ? Colors.white : Colors.white.withValues(alpha: 0.9),
+                    color: isSidebarOpen
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.9),
                   ),
                   onPressed: () {
-                    sidebarRef.read(videoPlaylistSidebarVisibleProvider.notifier).state = !isSidebarOpen;
+                    sidebarRef
+                            .read(videoPlaylistSidebarVisibleProvider.notifier)
+                            .state =
+                        !isSidebarOpen;
                   },
                   tooltip: 'Toggle Playlist',
                 ),
@@ -3664,11 +4171,13 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       final newPath = history.last;
       final currentPath = ref.read(videoCurrentPathProvider);
 
-      ref.read(videoPathHistoryProvider.notifier).state =
-          history.sublist(0, history.length - 1);
-      ref.read(videoPathForwardHistoryProvider.notifier).update(
-            (state) => [...state, currentPath],
-          );
+      ref.read(videoPathHistoryProvider.notifier).state = history.sublist(
+        0,
+        history.length - 1,
+      );
+      ref
+          .read(videoPathForwardHistoryProvider.notifier)
+          .update((state) => [...state, currentPath]);
 
       _openPlaylistFolder(ref, newPath);
     }
@@ -3680,11 +4189,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       final newPath = forwardHistory.last;
       final currentPath = ref.read(videoCurrentPathProvider);
 
-      ref.read(videoPathForwardHistoryProvider.notifier).state =
-          forwardHistory.sublist(0, forwardHistory.length - 1);
-      ref.read(videoPathHistoryProvider.notifier).update(
-            (state) => [...state, currentPath],
-          );
+      ref.read(videoPathForwardHistoryProvider.notifier).state = forwardHistory
+          .sublist(0, forwardHistory.length - 1);
+      ref
+          .read(videoPathHistoryProvider.notifier)
+          .update((state) => [...state, currentPath]);
 
       _openPlaylistFolder(ref, newPath);
     }

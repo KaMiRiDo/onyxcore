@@ -35,12 +35,14 @@ class AudioPlayerView extends ConsumerStatefulWidget {
   final bool isStandalone;
   final String? windowId;
   final String? parentWindowId;
+  final Map<String, dynamic>? initParams;
 
   const AudioPlayerView({
     required this.item,
     this.isStandalone = false,
     this.windowId,
     this.parentWindowId,
+    this.initParams,
     super.key,
   });
 
@@ -964,6 +966,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                           child: Stack(
                             children: [
                         HeroAudioPlayer(
+                          isAudioPlayOnly: widget.initParams?['is_audio_play_only'] == true,
                           onNextPressed: () {
                             final currentPlayingQueue =
                                 ref.read(audioPlayingQueueProvider);
@@ -1085,30 +1088,27 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                           ),
                         ),
                         // Sidebar Toggle Button at bottom left
-                        Positioned(
-                          bottom: 24,
-                          left: 24,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.playlist_play,
-                              size: 24,
+                        if (widget.initParams?['is_audio_play_only'] != true)
+                          Positioned(
+                            bottom: 24,
+                            left: 24,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.playlist_play,
+                                size: 24,
+                              ),
+                              color: ref.watch(audioPlaylistSidebarVisibleProvider) ? AppColors.magenta : Colors.white,
+                              onPressed: () {
+                                final isVisible = ref.read(
+                                  audioPlaylistSidebarVisibleProvider,
+                                );
+                                ref
+                                    .read(audioPlaylistSidebarVisibleProvider.notifier)
+                                    .state = !isVisible;
+                              },
+                              tooltip: 'Playlist',
                             ),
-                            color: ref.watch(audioPlaylistSidebarVisibleProvider) ? AppColors.magenta : Colors.white,
-                            onPressed: () {
-                              final isVisible = ref.read(
-                                audioPlaylistSidebarVisibleProvider,
-                              );
-                              ref
-                                      .read(
-                                        audioPlaylistSidebarVisibleProvider
-                                            .notifier,
-                                      )
-                                      .state =
-                                  !isVisible;
-                            },
-                            tooltip: 'Playlist',
                           ),
-                        ),
                       ],
                     ),
                   ),

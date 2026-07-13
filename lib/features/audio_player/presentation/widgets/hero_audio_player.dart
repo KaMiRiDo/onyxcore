@@ -14,11 +14,13 @@ import 'audio_controls_bar.dart';
 class HeroAudioPlayer extends ConsumerWidget {
   final VoidCallback? onNextPressed;
   final VoidCallback? onPreviousPressed;
+  final bool isAudioPlayOnly;
 
   const HeroAudioPlayer({
     super.key,
     this.onNextPressed,
     this.onPreviousPressed,
+    this.isAudioPlayOnly = false,
   });
 
   @override
@@ -198,6 +200,7 @@ class HeroAudioPlayer extends ConsumerWidget {
               AudioControlsBar(
                 onNextPressed: onNextPressed,
                 onPreviousPressed: onPreviousPressed,
+                isAudioPlayOnly: isAudioPlayOnly,
               ),
 
               const Spacer(

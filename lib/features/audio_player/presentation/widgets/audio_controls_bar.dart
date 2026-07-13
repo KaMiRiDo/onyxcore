@@ -6,11 +6,13 @@ import '../providers/audio_player_providers.dart';
 class AudioControlsBar extends ConsumerWidget {
   final VoidCallback? onNextPressed;
   final VoidCallback? onPreviousPressed;
+  final bool isAudioPlayOnly;
 
   const AudioControlsBar({
     super.key,
     this.onNextPressed,
     this.onPreviousPressed,
+    this.isAudioPlayOnly = false,
   });
 
   @override
@@ -29,29 +31,30 @@ class AudioControlsBar extends ConsumerWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Consumer(
-                  builder: (context, ref, child) {
-                    final currentTrack = ref.watch(currentTrackProvider);
-                    if (currentTrack == null) return const SizedBox(width: 48);
-                    final isFavorite = ref
-                        .watch(audioFavoritesProvider)
-                        .contains(currentTrack.path);
+                if (!isAudioPlayOnly)
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final currentTrack = ref.watch(currentTrackProvider);
+                      if (currentTrack == null) return const SizedBox(width: 48);
+                      final isFavorite = ref
+                          .watch(audioFavoritesProvider)
+                          .contains(currentTrack.path);
 
-                    return IconButton(
-                      icon: Icon(
-                        isFavorite
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        color: isFavorite ? AppColors.magenta : Colors.white70,
-                      ),
-                      onPressed: () {
-                        ref
-                            .read(audioFavoritesProvider.notifier)
-                            .toggleFavorite(currentTrack.path);
-                      },
-                    );
-                  },
-                ),
+                      return IconButton(
+                        icon: Icon(
+                          isFavorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: isFavorite ? AppColors.magenta : Colors.white70,
+                        ),
+                        onPressed: () {
+                          ref
+                              .read(audioFavoritesProvider.notifier)
+                              .toggleFavorite(currentTrack.path);
+                        },
+                      );
+                    },
+                  ),
                 Consumer(
                   builder: (context, ref, child) {
                     final isAutoPlay = ref.watch(audioAutoPlaySessionProvider);

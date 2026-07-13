@@ -553,11 +553,19 @@ class FormatSelectionDropdown extends StatelessWidget {
     }
 
     final hasMultiple = formats.length > 1;
+    MediaFormat? fallbackFormat;
+    if (formats.isNotEmpty) {
+      fallbackFormat = formats.firstWhere(
+        (f) => getHeight(f.resolution) <= 1080,
+        orElse: () => formats.first,
+      );
+    }
+    
     final displayFormat = isItemLevel
         ? matchTargetFormat(item, currentFormat)
         : (formats.contains(currentFormat)
               ? currentFormat
-              : (formats.isNotEmpty ? formats.first : null));
+              : fallbackFormat);
 
     var titleText = 'Original';
     if (isMixed) {
@@ -579,6 +587,7 @@ class FormatSelectionDropdown extends StatelessWidget {
       elevation: 24,
       tooltip: '',
       padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(maxHeight: 250),
       onSelected: onChanged,
       itemBuilder: (context) => formats.map<PopupMenuEntry<MediaFormat>>((f) {
         final isSelected = !isMixed && (displayFormat?.resolution == f.resolution &&

@@ -95,6 +95,9 @@ final draggingPathsProvider = StateProvider<Set<String>>((ref) => {});
 /// The currently previewed file (inline preview mode).
 final previewFileProvider = StateProvider<FileItem?>((ref) => null);
 
+/// Init parameters for the currently previewed file.
+final previewFileInitParamsProvider = StateProvider<Map<String, dynamic>?>((ref) => null);
+
 /// Tracks if a marker editor is currently active to suppress conflicting global shortcuts.
 final isMarkerEditorActiveProvider = StateProvider<bool>((ref) => false);
 

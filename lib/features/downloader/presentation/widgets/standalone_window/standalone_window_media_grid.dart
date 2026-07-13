@@ -19,6 +19,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
     required this.selectedIndices,
     required this.downloadingImageIndices,
     required this.configs,
+    this.currentGroupRootIndex,
     required this.isHydratingItem,
     required this.onTapItem,
     required this.onDoubleTapItem,
@@ -39,6 +40,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
   final Set<int> selectedIndices;
   final Set<int> downloadingImageIndices;
   final Map<int, DownloadConfig> configs;
+  final int? currentGroupRootIndex;
   final bool Function(String) isHydratingItem;
 
   final void Function(int index, bool isCtrl, bool isShift) onTapItem;
@@ -111,11 +113,11 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(16),
-            sliver: SliverAlignedGrid.extent(
+            sliver: SliverMasonryGrid.extent(
               maxCrossAxisExtent: 220,
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
-              itemCount: displayIndices.length,
+              childCount: displayIndices.length,
               itemBuilder: (context, gridIndex) {
                 final index = displayIndices[gridIndex];
                 final group = groups[index];
@@ -127,15 +129,17 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
             if (index < configs.length) {
               config = configs[index];
             }
-          } else {
-            // Wait, we can't easily get root index without access to parsedItems list.
-            // Passed in `configs` can be assumed to map correctly to groups or we can just find it.
-            // For now, let's assume `configs` maps `index` -> `config`.
-            config = configs[index]; 
+          } else if (currentGroupRootIndex != null) {
+            config = configs[currentGroupRootIndex];
           }
 
           var typeIcon = Icons.image_rounded;
-          if (group.first.isProfile) {
+          final isAudioFormat = config != null && firstItem != null &&
+              (config.itemFormats[firstItem.id]?.isAudioOnly ?? false);
+
+          if (isAudioFormat) {
+            typeIcon = Icons.audiotrack_rounded;
+          } else if (group.first.isProfile) {
             typeIcon = Icons.account_circle_rounded;
           } else if (group.first.isPlaylist) {
             typeIcon = Icons.video_library_rounded;
@@ -185,7 +189,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                     Builder(
                       builder: (context) {
                         bool showThumbnail = firstItem?.thumbnail != null;
-                        if (showThumbnail && currentGroup != null && currentGroup!.first.isProfile) {
+                        if (showThumbnail && currentGroup != null && (currentGroup!.first.isProfile || currentGroup!.first.isPlaylist)) {
                           if (firstItem!.thumbnail == currentGroup!.first.thumbnail) {
                             showThumbnail = false;
                           }

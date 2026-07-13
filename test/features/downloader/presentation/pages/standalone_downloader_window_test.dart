@@ -449,6 +449,49 @@ void main() {
       expect(state.getHeightForTesting('garbage'), 0);
     });
 
+    testWidgets('W-SDW-015: changing global format clears individual itemFormats', (tester) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
+
+      final group = makeGroup(
+        originalUrl: 'https://playlist.example',
+        items: [
+          makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://playlist.example/v1', isVideo: true, isPlaylist: true, formats: []),
+          makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://playlist.example/v2', isVideo: true, isPlaylist: true, formats: []),
+        ],
+      );
+      
+      controller.cache.parsedItems = [group];
+      final config = DownloadConfig();
+      config.format = makeFormat(formatId: '1080', resolution: '1080p', filesize: 100);
+      config.itemFormats['v1'] = makeFormat(formatId: '720', resolution: '720p', filesize: 50);
+      controller.cache.configs[0] = config;
+
+      await pumpWindow(tester, container: container);
+      
+      final state = standaloneState(tester);
+      // Simulate double tap to enter group
+      state.onDoubleTapItemForTesting(0, group);
+      await tester.pump();
+      
+      // Simulate onFormatChanged from action bar
+      final newFormat = makeFormat(formatId: '4k', resolution: '2160p', filesize: 200);
+      
+      // Find the FormatSelectionDropdown and change value or directly call method if exposed.
+      // We know `rootIndex` is 0 when inside the group
+      state.onFormatChangedForTesting(newFormat);
+      
+      expect(controller.cache.configs[0]?.format?.resolution, '2160p');
+      expect(controller.cache.configs[0]?.itemFormats, isEmpty);
+    });
+
+
     // ═══════════════════════════════════════════════════════════════
     // W-SDW-001: Init, Update, Present Window
     // ═══════════════════════════════════════════════════════════════
@@ -1102,5 +1145,45 @@ void main() {
         expect(createImageWindowCall.arguments['height'], 800);
       },
     );
+    testWidgets('W-SDW-017: audio format shows audio icon and playlist suppresses root thumbnail', (tester) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: '/tmp/test',
+      );
+      addTearDown(container.dispose);
+
+      final group = makeGroup(
+        originalUrl: 'https://playlist.example',
+        items: [
+          makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://playlist.example/v1', isVideo: true, isPlaylist: true, thumbnail: 'https://thumb.example', formats: [
+            makeFormat(formatId: 'a1', resolution: 'audio only', filesize: 100, videoCodec: 'none'),
+          ]),
+          makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://playlist.example/v2', isVideo: true, isPlaylist: true, thumbnail: 'https://thumb.example', formats: []),
+        ],
+      );
+      controller.cache.parsedItems = [group];
+      final config = DownloadConfig();
+      config.format = group.first.formats.first;
+      config.itemFormats['v1'] = group.first.formats.first;
+      controller.cache.configs[0] = config;
+
+      await pumpWindow(tester, container: container);
+
+      final state = standaloneState(tester);
+
+      // Open playlist
+      state.onDoubleTapItemForTesting(0, group);
+      await tester.pump();
+
+      // First item v1 has audio format selected in config.itemFormats
+      expect(find.byIcon(Icons.audiotrack_rounded), findsOneWidget);
+
+      // Thumbnail is the same as root, so it should be suppressed for both items since both have the same thumbnail.
+      expect(find.byIcon(Icons.image), findsWidgets);
+    });
+
   });
 }

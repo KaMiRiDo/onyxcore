@@ -1,10 +1,10 @@
 class MediaFormat {
-
   const MediaFormat({
     required this.formatId,
     required this.extension,
     required this.resolution,
-    required this.formatString, this.videoCodec,
+    required this.formatString,
+    this.videoCodec,
     this.audioCodec,
     this.filesize,
     this.formatNote,
@@ -40,6 +40,10 @@ class MediaFormat {
   final String formatString;
   final String? url;
 
+  bool get isAudioOnly =>
+      videoCodec == 'none' ||
+      (videoCodec == null && resolution == 'audio only');
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -67,11 +71,11 @@ class MediaFormat {
 }
 
 class MediaInfo {
-
   const MediaInfo({
     required this.id,
     required this.title,
-    required this.originalUrl, this.thumbnail,
+    required this.originalUrl,
+    this.thumbnail,
     this.duration,
     this.extractor,
     this.engineId,
@@ -307,11 +311,7 @@ class MediaInfo {
 }
 
 class MediaGroup {
-
-  const MediaGroup({
-    required this.originalUrl,
-    required this.items,
-  });
+  const MediaGroup({required this.originalUrl, required this.items});
 
   factory MediaGroup.fromMap(Map<String, dynamic> map) {
     return MediaGroup(
