@@ -18,7 +18,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
     required this.currentGroup,
     required this.selectedIndices,
     required this.downloadingImageIndices,
-    required this.configs,
+    required this.getConfig,
     this.currentGroupRootIndex,
     required this.isHydratingItem,
     required this.onTapItem,
@@ -30,6 +30,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
     required this.mainFocusNode,
     required this.matchTargetFormat,
     required this.getHeight,
+    required this.getFormatBytes,
     required this.onTagItem,
     this.scrollController,
     this.tagKeys = const {},
@@ -42,19 +43,20 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
   final MediaGroup? currentGroup;
   final Set<int> selectedIndices;
   final Set<int> downloadingImageIndices;
-  final Map<int, DownloadConfig> configs;
+  final DownloadConfig? Function(MediaGroup) getConfig;
   final int? currentGroupRootIndex;
   final bool Function(String) isHydratingItem;
 
   final void Function(int index, bool isCtrl, bool isShift) onTapItem;
   final void Function(int index, MediaGroup group) onDoubleTapItem;
   final void Function(int index) onRestoreTrashItem;
-  final void Function(int index, MediaFormat format) onFormatChanged;
-  final void Function(int index, GroupDownloadType filter) onFilterChanged;
+  final void Function(MediaGroup group, MediaFormat format) onFormatChanged;
+  final void Function(MediaGroup group, GroupDownloadType filter) onFilterChanged;
   final void Function(int index) onStartDownload;
   final FocusNode mainFocusNode;
   final MediaFormat? Function(MediaInfo, MediaFormat?) matchTargetFormat;
   final int Function(String) getHeight;
+  final int? Function(MediaInfo, MediaFormat?, DownloadConfig)? getFormatBytes;
   final void Function(String url, String tag) onTagItem;
   final ScrollController? scrollController;
   final Map<String, GlobalKey> tagKeys;
@@ -133,11 +135,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
 
           DownloadConfig? config;
           if (currentGroup == null) {
-            if (index < configs.length) {
-              config = configs[index];
-            }
+            config = getConfig(group);
           } else if (currentGroupRootIndex != null) {
-            config = configs[currentGroupRootIndex];
+            config = getConfig(currentGroup!);
           }
 
           var typeIcon = Icons.image_rounded;
@@ -309,11 +309,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                               sizeInMB = group.totalFilesize / (1024 * 1024);
                               hasSize = sizeInMB > 0;
                             } else if (firstItem != null) {
-                              if (firstItem.filesize != null &&
-                                  firstItem.filesize! > 0) {
-                                sizeInMB = firstItem.filesize! / (1024 * 1024);
-                                hasSize = true;
-                              } else if (firstItem.formats.isNotEmpty) {
+                              if (firstItem.formats.isNotEmpty) {
                                 MediaFormat? selectedFormat;
                                 if (currentGroup != null) {
                                   selectedFormat =
@@ -322,19 +318,27 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                   selectedFormat = config?.format;
                                 }
                                 selectedFormat ??= firstItem.formats
-                                      .fold<MediaFormat>(
-                                        firstItem.formats.first,
-                                        (a, b) =>
-                                            (a.filesize ?? 0) > (b.filesize ?? 0)
-                                            ? a
-                                            : b,
-                                      );
-                                if (selectedFormat.filesize != null &&
-                                    selectedFormat.filesize! > 0) {
-                                  sizeInMB =
-                                      selectedFormat.filesize! / (1024 * 1024);
+                                      .where((f) {
+                                        final h = getHeight(f.resolution);
+                                        return h > 0 && h <= 1080;
+                                      })
+                                      .fold<MediaFormat?>(
+                                        null,
+                                        (a, b) => a == null ? b : ((a.filesize ?? 0) > (b.filesize ?? 0) ? a : b),
+                                      ) ?? firstItem.formats.first;
+
+                                final bytes = getFormatBytes != null && config != null
+                                    ? getFormatBytes!(firstItem, selectedFormat, config)
+                                    : selectedFormat.filesize;
+                                
+                                if (bytes != null && bytes > 0) {
+                                  sizeInMB = bytes / (1024 * 1024);
                                   hasSize = true;
                                 }
+                              } else if (firstItem.filesize != null &&
+                                  firstItem.filesize! > 0) {
+                                sizeInMB = firstItem.filesize! / (1024 * 1024);
+                                hasSize = true;
                               }
                             }
 
@@ -533,7 +537,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                       isEnabled: true,
                                       hasImages: hasImages,
                                       hasVideos: hasVideos,
-                                      onChanged: (val) => onFilterChanged(index, val),
+                                      onChanged: (val) => onFilterChanged(group, val),
                                     ),
                                   );
                                 } else {
@@ -546,8 +550,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                       group: group,
                                       isItemLevel: currentGroup != null,
                                       getHeight: getHeight,
+                                      getFormatBytes: getFormatBytes,
                                       matchTargetFormat: matchTargetFormat,
-                                      onChanged: (val) => onFormatChanged(index, val),
+                                      onChanged: (val) => onFormatChanged(group, val),
                                     ),
                                   );
                                 }

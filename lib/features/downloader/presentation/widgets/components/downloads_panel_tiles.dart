@@ -712,6 +712,7 @@ extension DownloadsPanelTiles on _MediaDownloaderPanelState {
                                             group: group,
                                             getHeight: _getHeight,
                                             matchTargetFormat: matchTargetFormat,
+                                            getFormatBytes: getFormatBytes,
                                             onChanged: (val) {
                                               setState(() {
                                                 config.format = val;

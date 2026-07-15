@@ -119,6 +119,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   // BUG-001: Sliding Window seek state
   bool _isFastSeeking = false;
   bool _isPlayerInitialized = false;
+  bool _isPlayerDisposed = false;
 
   bool _isSmartBuffering = false;
   bool _isSeekLoading = false;
@@ -248,14 +249,35 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             .where((f) => !f.isAudioOnly)
             .toList();
 
+        final selectedFormatIdStr = widget.initParams?['selectedFormatId']?.toString();
+        
+        // Ensure the selected format is prioritized during deduplication
+        if (selectedFormatIdStr != null) {
+          final selectedIndex = _availableFormats.indexWhere((f) => f.formatId == selectedFormatIdStr);
+          if (selectedIndex > 0) {
+            final selected = _availableFormats.removeAt(selectedIndex);
+            _availableFormats.insert(0, selected);
+          }
+        }
+
         final uniqueRes = <String>{};
         _availableFormats.retainWhere((f) => uniqueRes.add(f.resolution));
 
+        int parseRes(String r) {
+          final lower = r.toLowerCase();
+          if (lower.contains('4k') || lower.contains('2160')) return 2160;
+          if (lower.contains('1440') || lower.contains('2k')) return 1440;
+          if (lower.contains('1080')) return 1080;
+          if (lower.contains('720')) return 720;
+          if (lower.contains('480')) return 480;
+          final parts = lower.split('x');
+          if (parts.length == 2) return int.tryParse(parts[1]) ?? 0;
+          return int.tryParse(lower.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        }
+
         _availableFormats.sort((a, b) {
-          final hA =
-              int.tryParse(a.resolution.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          final hB =
-              int.tryParse(b.resolution.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          final hA = parseRes(a.resolution);
+          final hB = parseRes(b.resolution);
           return hB.compareTo(hA);
         });
       }
@@ -877,8 +899,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       _isBuffering = true;
     });
 
-    final streamUrl = format.url ?? format.formatString;
-
     try {
       if (_isNetworkStream) {
         final platform = player.platform as dynamic;
@@ -987,9 +1007,20 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   @override
   void didUpdateWidget(VideoPreviewWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.item.path != widget.item.path) {
+    final oldFormatId = oldWidget.initParams?['selectedFormatId']?.toString();
+    final newFormatId = widget.initParams?['selectedFormatId']?.toString();
+    
+    final pathChanged = oldWidget.item.path != widget.item.path;
+    final formatChanged = oldFormatId != newFormatId;
+
+    if (pathChanged || formatChanged) {
       if (_isNetworkStream) {
         _clearNetworkCache();
+        if (formatChanged && newFormatId != null) {
+          _selectedFormatId = newFormatId;
+          final platform = player.platform as dynamic;
+          platform.setProperty('ytdl-format', '$newFormatId+bestaudio/best');
+        }
       }
       _loadMedia(widget.item);
     }
@@ -999,18 +1030,32 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   void onWindowClose() async {
     if (_isClosing || !widget.isStandalone) return;
 
-    // Save position before closing
+    // Mark as closing immediately so all MPV stream callbacks bail out
+    _isClosing = true;
+
+    // Save position before any teardown
     await _savePlaybackPosition();
 
-    // In Persistent Viewer architecture, we just pause and hide.
-    // The SecondaryWindowApp handles the actual hide logic via windowManager.
-    debugPrint('[VideoPlayer] standalone hiding triggered.');
+    // Stop the MPV pipeline fully so its render thread stops firing into the FlView.
+    // We then await its disposal so it has time to gracefully detach from the GTK 
+    // OpenGL context *before* the window is actually destroyed.
     try {
-      await player.pause();
+      player.stop();
+      await player.dispose();
+      _isPlayerDisposed = true;
     } catch (e) {
-      debugPrint('[VideoPlayer] Error pausing on hide: $e');
+      debugPrint('[VideoPlayer] Error stopping player on window close: $e');
+    }
+
+    // Now delegate to PersistentViewerManager which will:
+    // 1. Remove the view from the widget tree (unmount Flutter widgets)
+    // 2. Wait 150ms for the engine to fully release its EGL/GL context
+    // 3. Destroy the native GTK window
+    if (widget.windowId != null) {
+      await PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
     }
   }
+
 
   Future<void> _clearNetworkCache() async {
     try {
@@ -1094,8 +1139,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     // 7. Final engine teardown
     // We pause before disposing to ensure the native pipeline is idle
     try {
-      player.pause();
-      player.dispose();
+      if (!_isPlayerDisposed) {
+        player.pause();
+        player.dispose();
+        _isPlayerDisposed = true;
+      }
     } catch (e) {
       debugPrint('[VideoPlayer] Error during engine disposal: $e');
     }

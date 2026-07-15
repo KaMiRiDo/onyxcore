@@ -1,11 +1,9 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 void main() {

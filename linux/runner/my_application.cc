@@ -31,10 +31,16 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
-// Window destroy callback for secondary windows
-static void secondary_first_frame_cb(FlView* view, MyApplication* self) {
+// Callback when first Flutter frame is received for secondary windows
+static void secondary_first_frame_cb(MyApplication* self, FlView* view) {
   GtkWidget* window = gtk_widget_get_toplevel(GTK_WIDGET(view));
   if (GTK_IS_WINDOW(window)) {
+    // If we marked this window to be maximized, do it right before showing
+    gpointer should_maximize = g_object_get_data(G_OBJECT(window), "maximize");
+    if (should_maximize) {
+      gtk_window_maximize(GTK_WINDOW(window));
+    }
+
     gtk_widget_show(window);
     
     // Present the window using the last known user interaction timestamp.
@@ -58,6 +64,20 @@ static void on_secondary_window_destroy(GtkWidget* widget, gpointer data) {
   // We don't need to do anything specific here, GTK handles widget destruction.
   // Dart side will observe the view being removed.
 }
+
+static gboolean on_secondary_window_delete(GtkWidget* widget, GdkEvent* event, gpointer data) {
+  MyApplication* app = MY_APPLICATION(g_application_get_default());
+  if (app && app->window_channel) {
+    int64_t view_id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "view_id"));
+    g_autoptr(FlValue) args = fl_value_new_map();
+    fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
+    fl_method_channel_invoke_method(app->window_channel, "on_window_close", args, nullptr, nullptr, nullptr);
+  }
+  // Return TRUE to prevent GTK from destroying the window immediately.
+  // Dart side will call close_window to cleanly destroy it.
+  return TRUE;
+}
+
 
 static gboolean on_secondary_window_focus_in(GtkWidget* widget, GdkEventFocus* event, gpointer data) {
   GtkWidget* child_view = GTK_WIDGET(data);
@@ -141,15 +161,17 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
     gtk_window_set_default_size(new_window, width, height);
     
     if (maximize) {
-      gtk_window_maximize(new_window);
+      // Delay maximizing until first-frame to prevent OpenGL sizing race conditions
+      g_object_set_data(G_OBJECT(new_window), "maximize", GINT_TO_POINTER(1));
     }
     
-    gtk_container_add(GTK_CONTAINER(new_window), GTK_WIDGET(new_view));
     gtk_widget_show(GTK_WIDGET(new_view));
+    gtk_container_add(GTK_CONTAINER(new_window), GTK_WIDGET(new_view));
     
     g_signal_connect(new_window, "destroy", G_CALLBACK(on_secondary_window_destroy), nullptr);
+    g_signal_connect(new_window, "delete-event", G_CALLBACK(on_secondary_window_delete), nullptr);
     g_signal_connect(new_window, "focus-in-event", G_CALLBACK(on_secondary_window_focus_in), new_view);
-    g_signal_connect(new_view, "first-frame", G_CALLBACK(secondary_first_frame_cb), self);
+    g_signal_connect_swapped(new_view, "first-frame", G_CALLBACK(secondary_first_frame_cb), self);
     gtk_widget_realize(GTK_WIDGET(new_view));
 
     
@@ -197,6 +219,23 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
         if (child && GTK_IS_WIDGET(child)) {
           gtk_widget_grab_focus(child);
         }
+        fl_method_call_respond_success(method_call, nullptr, nullptr);
+      } else {
+        fl_method_call_respond_error(method_call, "ERROR", "Window not found", nullptr, nullptr);
+      }
+    } else {
+      fl_method_call_respond_error(method_call, "ERROR", "Invalid arguments", nullptr, nullptr);
+    }
+  } else if (strcmp(method, "close_window") == 0) {
+    FlValue* args = fl_method_call_get_args(method_call);
+    FlValue* view_id_val = fl_value_lookup_string(args, "view_id");
+    
+    if (view_id_val && fl_value_get_type(view_id_val) == FL_VALUE_TYPE_INT) {
+      int64_t target_id = fl_value_get_int(view_id_val);
+      
+      GtkWindow* target_window = get_window_by_view_id(self, target_id);
+      if (target_window) {
+        gtk_widget_destroy(GTK_WIDGET(target_window));
         fl_method_call_respond_success(method_call, nullptr, nullptr);
       } else {
         fl_method_call_respond_error(method_call, "ERROR", "Window not found", nullptr, nullptr);

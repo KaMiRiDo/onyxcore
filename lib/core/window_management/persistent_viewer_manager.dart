@@ -41,6 +41,11 @@ class PersistentViewerManager {
           // clear the global primary focus so keystrokes don't leak to the secondary window!
           FocusManager.instance.primaryFocus?.unfocus();
         }
+      } else if (call.method == 'on_window_close') {
+        final args = call.arguments as Map;
+        final viewId = args['view_id'] as int;
+        
+        await closeWindow(viewId);
       }
     });
   }
@@ -120,9 +125,17 @@ class PersistentViewerManager {
     }
   }
 
-  /// Closes a specific view ID window
+  /// Closes a specific view ID window safely by unmounting Flutter widgets first
   static Future<void> closeWindow(int viewId) async {
     try {
+      // Remove from tracking so Flutter doesn't try to render it during destruction
+      _viewParams.remove(viewId);
+      _activeWindowsByType.removeWhere((k, v) => v == viewId);
+      updates.value++;
+      
+      // Wait for Flutter to unmount the widget and for media_kit to release GL contexts.
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
       await _channel.invokeMethod('close_window', {'view_id': viewId});
     } catch (e) {
       debugPrint('[PersistentViewerManager] Error closing window: $e');

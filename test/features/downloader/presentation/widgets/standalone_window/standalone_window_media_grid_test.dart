@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_grid.dart';
 
@@ -25,7 +24,7 @@ void main() {
             currentGroup: null,
             selectedIndices: const {},
             downloadingImageIndices: const {},
-            configs: const {},
+            getConfig: (g) => null, // configs: const {},
             isHydratingItem: (id) => false,
             onTagItem: (url, tag) {},
             onTapItem: (i, c, s) {},
@@ -37,6 +36,7 @@ void main() {
             mainFocusNode: FocusNode(),
             matchTargetFormat: (info, format) => format,
             getHeight: (res) => 1080,
+            getFormatBytes: (i, f, c) => null,
           ),
         ),
       ),
@@ -70,7 +70,7 @@ void main() {
             currentGroup: null,
             selectedIndices: {0},
             downloadingImageIndices: const {},
-            configs: {0: DownloadConfig()},
+            getConfig: (g) => null, // configs: {0: DownloadConfig()},
             isHydratingItem: (id) => false,
             onTagItem: (url, tag) {},
             onTapItem: (i, c, s) => tapItem = true,
@@ -82,6 +82,7 @@ void main() {
             mainFocusNode: FocusNode(),
             matchTargetFormat: (info, format) => format,
             getHeight: (res) => 1080,
+            getFormatBytes: (i, f, c) => null,
           ),
         ),
       ),
@@ -130,7 +131,7 @@ void main() {
             currentGroup: null,
             selectedIndices: const {},
             downloadingImageIndices: const {},
-            configs: const {},
+            getConfig: (g) => null, // configs: const {},
             isHydratingItem: (id) => false,
             onTagItem: (url, tag) {},
             onTapItem: (i, c, s) {},
@@ -142,6 +143,7 @@ void main() {
             mainFocusNode: FocusNode(),
             matchTargetFormat: (info, format) => format,
             getHeight: (res) => 1080,
+            getFormatBytes: (i, f, c) => null,
           ),
         ),
       ),
@@ -173,7 +175,7 @@ void main() {
             currentGroup: null,
             selectedIndices: const {},
             downloadingImageIndices: const {},
-            configs: const {},
+            getConfig: (g) => null, // configs: const {},
             isHydratingItem: (id) => true, // Will show hydration loader
             onTagItem: (url, tag) {},
             onTapItem: (i, c, s) {},
@@ -185,6 +187,7 @@ void main() {
             mainFocusNode: FocusNode(),
             matchTargetFormat: (info, format) => format,
             getHeight: (res) => 1080,
+            getFormatBytes: (i, f, c) => null,
           ),
         ),
       ),

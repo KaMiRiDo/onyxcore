@@ -16,8 +16,6 @@ import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-// import removed
-import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
@@ -535,7 +533,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       if (!_firstFrameCompleter.isCompleted) {
         await _firstFrameCompleter.future;
       } else {
-        await Future.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
       }
 
       if (!mounted) return;
@@ -594,7 +592,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   @override
   void onWindowClose() async {
     if (_isClosing) return;
-    await windowManager.hide();
+    _isClosing = true;
+
+    // Delegate to PersistentViewerManager which will:
+    // 1. Remove the view from the widget tree (unmount Flutter widgets)
+    // 2. Wait 150ms for resources to be released
+    // 3. Destroy the native GTK window
+    if (widget.windowId != null) {
+      await PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
+    }
   }
 
   @override

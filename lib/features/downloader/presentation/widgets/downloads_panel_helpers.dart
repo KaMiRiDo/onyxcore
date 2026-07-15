@@ -144,7 +144,7 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
-  int? _getFormatBytes(
+  int? getFormatBytes(
     MediaInfo item,
     MediaFormat? format,
     DownloadConfig config,
@@ -238,7 +238,7 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
       currentFormat = matchTargetFormat(item, currentFormat);
     }
 
-    final bytes = _getFormatBytes(item, currentFormat, config);
+    final bytes = getFormatBytes(item, currentFormat, config);
 
     if (bytes != null && bytes > 0) {
       return StringUtils.formatBytes(bytes);
@@ -270,7 +270,7 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
         currentFormat = matchTargetFormat(item, currentFormat);
       }
 
-      final bytes = _getFormatBytes(item, currentFormat, config);
+      final bytes = getFormatBytes(item, currentFormat, config);
 
       if (item.isVideo) {
         if (bytes != null && bytes > 0) {
@@ -328,7 +328,7 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
     MediaInfo item,
     MediaFormat? format,
     DownloadConfig config,
-  ) => _getFormatBytes(item, format, config);
+  ) => getFormatBytes(item, format, config);
 
   @visibleForTesting
   String? getFileSizeForTesting(MediaInfo item, DownloadConfig config) =>

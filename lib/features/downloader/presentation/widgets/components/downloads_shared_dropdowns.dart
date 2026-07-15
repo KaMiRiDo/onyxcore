@@ -421,6 +421,7 @@ class FormatSelectionDropdown extends StatelessWidget {
     required this.item, required this.config, required this.index, required this.onChanged, required this.getHeight, required this.matchTargetFormat, super.key,
     this.isItemLevel = false,
     this.group,
+    this.getFormatBytes,
   });
   final MediaInfo item;
   final DownloadConfig config;
@@ -430,10 +431,12 @@ class FormatSelectionDropdown extends StatelessWidget {
   final ValueChanged<MediaFormat> onChanged;
   final int Function(String) getHeight;
   final MediaFormat? Function(MediaInfo, MediaFormat?) matchTargetFormat;
+  final int? Function(MediaInfo, MediaFormat?, DownloadConfig)? getFormatBytes;
 
   String getTitle(MediaFormat f) {
-    final sizeText = (f.filesize != null)
-        ? ' (${(f.filesize! / 1024 / 1024).toStringAsFixed(1)}MB)'
+    final bytes = getFormatBytes != null ? getFormatBytes!(item, f, config) : f.filesize;
+    final sizeText = (bytes != null)
+        ? ' (${(bytes / 1024 / 1024).toStringAsFixed(1)}MB)'
         : '';
     var title = f.resolution;
     if (f.resolution.toLowerCase() == 'original' && item.width != null && item.height != null) {
@@ -563,9 +566,22 @@ class FormatSelectionDropdown extends StatelessWidget {
     
     final displayFormat = isItemLevel
         ? matchTargetFormat(item, currentFormat)
-        : (formats.contains(currentFormat)
-              ? currentFormat
-              : fallbackFormat);
+        : (() {
+            // Prefer exact formatId match first, then fall back to any format
+            // at the same resolution. This prevents a mismatch between the
+            // displayed label and the actual selected format.
+            if (currentFormat == null) return fallbackFormat;
+            final exact = formats.cast<MediaFormat?>().firstWhere(
+              (f) => f!.formatId == currentFormat.formatId,
+              orElse: () => null,
+            );
+            if (exact != null) return exact;
+            // Fall back to resolution match
+            return formats.cast<MediaFormat?>().firstWhere(
+              (f) => f!.resolution == currentFormat.resolution,
+              orElse: () => fallbackFormat,
+            );
+          })();
 
     var titleText = 'Original';
     if (isMixed) {
@@ -590,8 +606,9 @@ class FormatSelectionDropdown extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 250),
       onSelected: onChanged,
       itemBuilder: (context) => formats.map<PopupMenuEntry<MediaFormat>>((f) {
-        final isSelected = !isMixed && (displayFormat?.resolution == f.resolution &&
-                displayFormat?.extension == f.extension);
+        final isSelected = !isMixed &&
+            displayFormat != null &&
+            displayFormat.formatId == f.formatId;
 
         return PopupMenuItem<MediaFormat>(
           value: f,

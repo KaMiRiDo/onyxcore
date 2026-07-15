@@ -259,4 +259,68 @@ void main() {
       expect(resolveStreamUrl(item), 'https://cdn.example.com/via-url-field.mp4');
     });
   });
+
+  group('resolvePlaybackUrl', () {
+    test('U-DL-STR-13: returns webpageUrl if present', () {
+      const item = MediaInfo(
+        id: '1',
+        title: 'Video',
+        originalUrl: 'https://example.com/original',
+        webpageUrl: 'https://youtube.com/watch?v=abc',
+      );
+      expect(resolvePlaybackUrl(item), 'https://youtube.com/watch?v=abc');
+    });
+
+    test('U-DL-STR-14: falls back to originalUrl if webpageUrl is missing or empty', () {
+      const item = MediaInfo(
+        id: '1',
+        title: 'Video',
+        originalUrl: 'https://example.com/original',
+        webpageUrl: '',
+      );
+      expect(resolvePlaybackUrl(item), 'https://example.com/original');
+    });
+  });
+
+  group('resolveEffectiveFormat', () {
+    test('U-DL-STR-15: returns selectedFormat if provided', () {
+      final selected = MediaFormat(formatId: '137', resolution: '1080p', extension: 'mp4', formatString: '1080p');
+      const item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: []);
+      expect(resolveEffectiveFormat(item, selectedFormat: selected), selected);
+    });
+
+    test('U-DL-STR-16: returns null if item has no formats', () {
+      const item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: []);
+      expect(resolveEffectiveFormat(item), isNull);
+    });
+
+    test('U-DL-STR-17: picks 1080p if available and no format selected', () {
+      final formats = <MediaFormat>[
+        MediaFormat(formatId: '2160p', resolution: '3840x2160', extension: 'mp4', formatString: '4K'),
+        MediaFormat(formatId: '1080p', resolution: '1920x1080', extension: 'mp4', formatString: 'FHD'),
+        MediaFormat(formatId: '720p', resolution: '1280x720', extension: 'mp4', formatString: 'HD'),
+      ];
+      final item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: formats);
+      expect(resolveEffectiveFormat(item)?.formatId, '1080p');
+    });
+
+    test('U-DL-STR-18: picks best format under 1080p if 1080p not available', () {
+      final formats = <MediaFormat>[
+        MediaFormat(formatId: '2160p', resolution: '3840x2160', extension: 'mp4', formatString: '4K'),
+        MediaFormat(formatId: '720p', resolution: '1280x720', extension: 'mp4', formatString: 'HD'),
+        MediaFormat(formatId: '480p', resolution: '854x480', extension: 'mp4', formatString: 'SD'),
+      ];
+      final item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: formats);
+      expect(resolveEffectiveFormat(item)?.formatId, '720p');
+    });
+
+    test('U-DL-STR-19: picks highest if all formats are > 1080p', () {
+      final formats = <MediaFormat>[
+        MediaFormat(formatId: '4320p', resolution: '7680x4320', extension: 'mp4', formatString: '8K'),
+        MediaFormat(formatId: '2160p', resolution: '3840x2160', extension: 'mp4', formatString: '4K'),
+      ];
+      final item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: formats);
+      expect(resolveEffectiveFormat(item)?.formatId, '4320p');
+    });
+  });
 }

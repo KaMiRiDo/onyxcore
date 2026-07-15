@@ -1652,7 +1652,16 @@ class _StandaloneDownloaderWindowState
       currentGroupRootIndex: currentGroupRootIndex,
       selectedIndices: _selectedIndices,
       downloadingImageIndices: _downloadingImageIndices,
-      configs: _controller.cache.configs,
+      getConfig: (group) {
+        if (_controller.cache.parsedItems == null) return null;
+        final idx = _controller.cache.parsedItems!.indexWhere(
+          (g) => g.originalUrl == group.originalUrl,
+        );
+        return idx != -1 ? _controller.cache.configs[idx] : null;
+      },
+      getFormatBytes: (info, format, config) {
+        return getFormatBytes(info, format, config);
+      },
       scrollController: _mediaGridScrollController,
       tagKeys: _tagKeys,
       onTagItem: _handleTagItem,
@@ -1677,11 +1686,10 @@ class _StandaloneDownloaderWindowState
           if (firstItem == null) return;
 
           int? rootIndex;
-          if (_currentGroup == null) {
-            rootIndex = index;
-          } else if (_controller.cache.parsedItems != null) {
+          if (_controller.cache.parsedItems != null) {
+            final targetGroup = _currentGroup ?? group;
             rootIndex = _controller.cache.parsedItems!.indexWhere(
-              (g) => g.originalUrl == _currentGroup!.originalUrl,
+              (g) => g.originalUrl == targetGroup.originalUrl,
             );
             if (rootIndex == -1) rootIndex = null;
           }
@@ -1721,17 +1729,29 @@ class _StandaloneDownloaderWindowState
         });
         _controller.recalculateFilteredStatistics();
       },
-      onFormatChanged: (index, format) {
-        setState(() {
-          _controller.cache.configs[index]?.format = format;
-        });
-        _controller.recalculateFilteredStatistics();
+      onFormatChanged: (group, format) {
+        if (_controller.cache.parsedItems == null) return;
+        final rootIdx = _controller.cache.parsedItems!.indexWhere(
+          (g) => g.originalUrl == group.originalUrl,
+        );
+        if (rootIdx != -1) {
+          setState(() {
+            _controller.cache.configs[rootIdx]?.format = format;
+          });
+          _controller.recalculateFilteredStatistics();
+        }
       },
-      onFilterChanged: (index, filter) {
-        setState(() {
-          _controller.cache.configs[index]?.groupFilter = filter;
-        });
-        _controller.recalculateFilteredStatistics();
+      onFilterChanged: (group, filter) {
+        if (_controller.cache.parsedItems == null) return;
+        final rootIdx = _controller.cache.parsedItems!.indexWhere(
+          (g) => g.originalUrl == group.originalUrl,
+        );
+        if (rootIdx != -1) {
+          setState(() {
+            _controller.cache.configs[rootIdx]?.groupFilter = filter;
+          });
+          _controller.recalculateFilteredStatistics();
+        }
       },
       onStartDownload: (index) {
         if (_currentGroup == null) {
@@ -1957,35 +1977,15 @@ class _StandaloneDownloaderWindowState
     await Future<void>.delayed(const Duration(milliseconds: 16));
 
     try {
-      final fileItem = FileItem(
-        name: item.title.isNotEmpty ? item.title : p.basename(streamUrl),
-        path: streamUrl,
-        sizeBytes: item.filesize,
-        modified: DateTime.now(),
-        type: FileItemType.video,
-        thumbnailPath: item.thumbnail,
-      );
-
       String? audioUrl;
-      var effectiveFormat = selectedFormat;
-      if (effectiveFormat == null && item.formats.isNotEmpty) {
-        final formatsWithUrl = item.formats.where((f) {
-          if (f.url != null && f.url!.isNotEmpty) return true;
-          return f.formatString.startsWith('http://') ||
-              f.formatString.startsWith('https://');
-        }).toList();
-        if (formatsWithUrl.isNotEmpty) {
-          formatsWithUrl.sort((a, b) {
-            final hA = int.tryParse(a.resolution.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
-            final hB = int.tryParse(b.resolution.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
-            return hB.compareTo(hA);
-          });
-          effectiveFormat = formatsWithUrl.first;
-        }
-      }
+      // If the user explicitly selected a format from the dropdown, honor it.
+      // We keep the selectedFormat's formatId so that the video player can set
+      // ytdl-format to the right stream. We do NOT override it with a "best URL
+      // format" — that would silently ignore the user's resolution choice.
+      var effectiveFormat = resolveEffectiveFormat(item, selectedFormat: selectedFormat);
 
       if (effectiveFormat != null && effectiveFormat.audioCodec == 'none') {
-        final audioFormats = item.formats.where((f) => f.videoCodec == 'none' && (f.url != null || f.formatString.startsWith('http'))).toList();
+        final audioFormats = item.formats.where((f) => f.videoCodec == 'none').toList();
         if (audioFormats.isNotEmpty) {
           audioFormats.sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
           final bestAudio = audioFormats.first;
@@ -1993,9 +1993,20 @@ class _StandaloneDownloaderWindowState
         }
       }
 
+      final playbackUrl = resolvePlaybackUrl(item);
+
+      final fileItemForPlayer = FileItem(
+        name: item.title.isNotEmpty ? item.title : p.basename(playbackUrl),
+        path: playbackUrl,
+        sizeBytes: effectiveFormat?.filesize ?? item.filesize,
+        modified: DateTime.now(),
+        type: FileItemType.video,
+        thumbnailPath: item.thumbnail,
+      );
+
       final windowParams = WindowParams(
         viewerType: ViewerType.video,
-        file: fileItem,
+        file: fileItemForPlayer,
         initParams: {
           'width': 1280,
           'height': 720,
@@ -2282,6 +2293,41 @@ class _StandaloneDownloaderWindowState
 ///   3. [MediaInfo.webpageUrl]       — fallback (libmpv may re-fetch via demuxer)
 ///   4. [MediaInfo.originalUrl]      — last resort
 ///   5. null                         — no usable URL found
+@visibleForTesting
+MediaFormat? resolveEffectiveFormat(MediaInfo item, {MediaFormat? selectedFormat}) {
+  if (selectedFormat != null) return selectedFormat;
+  if (item.formats.isEmpty) return null;
+
+  int getH(String res) {
+    final parts = res.toLowerCase().split('x');
+    if (parts.length == 2) {
+      return int.tryParse(parts[1].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    }
+    return int.tryParse(res.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+  }
+
+  final validFormats = item.formats.toList();
+
+  validFormats.sort((a, b) {
+    return getH(b.resolution).compareTo(getH(a.resolution));
+  });
+
+  return validFormats.firstWhere(
+    (f) {
+      final h = getH(f.resolution);
+      return h > 0 && h <= 1080;
+    },
+    orElse: () => validFormats.first,
+  );
+}
+
+@visibleForTesting
+String resolvePlaybackUrl(MediaInfo item) {
+  return (item.webpageUrl != null && item.webpageUrl!.isNotEmpty)
+      ? item.webpageUrl!
+      : item.originalUrl;
+}
+
 @visibleForTesting
 String? resolveStreamUrl(MediaInfo item, {MediaFormat? selectedFormat}) {
   // Let media_kit's ytdl hook handle DASH audio+video muxing natively

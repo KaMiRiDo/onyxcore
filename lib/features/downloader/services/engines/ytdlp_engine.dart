@@ -141,6 +141,9 @@ class YtDlpEngine extends DownloadEngine {
 
     // Bypass Cloudflare TLS fingerprinting
     args.addAll(['--impersonate', 'chrome']);
+    
+    // Force IPv4 to workaround curl-cffi IPv6 connection timeout bugs (curl 28)
+    args.addAll(['-4']);
 
     if (url.contains('instagram.com')) {
       args.addAll(['--sleep-interval', '3', '--max-sleep-interval', '5']);
@@ -445,6 +448,9 @@ class YtDlpEngine extends DownloadEngine {
 
     // Bypass Cloudflare TLS fingerprinting
     args.addAll(['--impersonate', 'chrome']);
+    
+    // Force IPv4 to workaround curl-cffi IPv6 connection timeout bugs (curl 28)
+    args.addAll(['-4']);
 
     if (url.contains('instagram.com')) {
       args.addAll(['--sleep-interval', '3', '--max-sleep-interval', '5']);

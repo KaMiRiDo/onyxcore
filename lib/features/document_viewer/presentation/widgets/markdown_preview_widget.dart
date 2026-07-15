@@ -133,7 +133,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   void initState() {
     super.initState();
     if (widget.isStandalone && widget.windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(widget.windowId!),
+      ).addListener(_onWindowFocus);
     }
     _isGlobalHudVisible = ref.read(previewHudVisibleProvider);
     if (widget.windowId != null) {
@@ -217,7 +219,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
           return KeyEventResult.handled;
         }
         // Fallback for raw keyboard events, though Shortcuts/Actions usually handles this better
-        if (!isCtrl && event.logicalKey == LogicalKeyboardKey.keyF && !_isEditing) {
+        if (!isCtrl &&
+            event.logicalKey == LogicalKeyboardKey.keyF &&
+            !_isEditing) {
           _toggleFullscreen();
           return KeyEventResult.handled;
         }
@@ -243,7 +247,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
     Future.delayed(const Duration(milliseconds: 300), () async {
       if (mounted) {
         if (widget.isStandalone && widget.windowId != null) {
-          await PersistentViewerManager.presentWindow(int.parse(widget.windowId!));
+          await PersistentViewerManager.presentWindow(
+            int.parse(widget.windowId!),
+          );
         }
         if (mounted) {
           if (_isEditing) {
@@ -428,7 +434,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
     _hideTimer?.cancel();
     _debounceTimer?.cancel();
     if (widget.isStandalone && widget.windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).removeListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(widget.windowId!),
+      ).removeListener(_onWindowFocus);
     }
     _focusNode.dispose();
     _previewFocusNode.dispose();
@@ -445,7 +453,11 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   @override
   void onWindowClose() async {
     if (widget.windowId != null) {
-      await windowManager.hide();
+      // Delegate to PersistentViewerManager which will:
+      // 1. Remove the view from the widget tree (unmount Flutter widgets)
+      // 2. Wait 150ms for resources to be released
+      // 3. Destroy the native GTK window
+      await PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
     }
   }
 
@@ -650,7 +662,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
     if (widget.isStandalone && widget.windowId != null) {
       final willBeFullScreen = !_isStandaloneFullscreen;
       _isStandaloneFullscreen = willBeFullScreen;
-      await PersistentViewerManager.setFullScreen(int.parse(widget.windowId!), willBeFullScreen);
+      await PersistentViewerManager.setFullScreen(
+        int.parse(widget.windowId!),
+        willBeFullScreen,
+      );
       _onInteraction();
       return;
     }
@@ -712,7 +727,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
             const CloseIntent(),
         const SingleActivator(LogicalKeyboardKey.keyW, meta: true):
             const CloseIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyF): 
+        const SingleActivator(LogicalKeyboardKey.keyF):
             const FullscreenIntent(),
         const SingleActivator(LogicalKeyboardKey.escape): const CloseIntent(),
       },
@@ -761,7 +776,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                 _toggleFullscreen();
               }
               return null;
-            }
+            },
           ),
           CloseIntent: CallbackAction<CloseIntent>(
             onInvoke: (intent) {
@@ -978,7 +993,6 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                         top: pos.top,
                         right: pos.right,
                         left: pos.left,
-                        bottom: pos.bottom,
                         child: child!,
                       );
                     },
@@ -1531,7 +1545,6 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
               // 1. Walk the Render Tree to find the RenderParagraph closest to the click Y-coordinate
               // MUST DO THIS BEFORE setState DESTROYS THE PREVIEW WIDGET!
               String? clickedText;
-              double? finalMinDistance;
               if (_htmlKey.currentContext?.findRenderObject() != null) {
                 final rootRenderObject = _htmlKey.currentContext!
                     .findRenderObject()!;
@@ -1542,7 +1555,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                     final dynamic dynObj = object;
                     String textStr = '';
                     try {
-                      textStr = dynObj.text.toPlainText();
+                      textStr = dynObj.text.toPlainText() as String;
                     } catch (_) {
                       try {
                         textStr = dynObj.text.toString();
@@ -1560,7 +1573,6 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                 final htmlBox =
                     _htmlKey.currentContext!.findRenderObject() as RenderBox?;
                 if (htmlBox == null) return;
-                final localPos = htmlBox.globalToLocal(details.position);
 
                 dynamic closestParagraph;
                 double minDistance = double.infinity;
@@ -1574,7 +1586,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
 
                     String textStr = '';
                     try {
-                      textStr = (p as dynamic).text.toPlainText();
+                      textStr = (p as dynamic).text.toPlainText() as String;
                     } catch (_) {
                       try {
                         textStr = (p as dynamic).text.toString();
@@ -1593,8 +1605,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                 if (closestParagraph != null) {
                   try {
                     try {
-                      clickedText = (closestParagraph as dynamic).text
-                          .toPlainText();
+                      clickedText =
+                          (closestParagraph as dynamic).text.toPlainText()
+                              as String;
                     } catch (_) {
                       try {
                         clickedText = (closestParagraph as dynamic).text
@@ -1637,7 +1650,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                   int targetLineIndex = -1;
 
                   if (clickedText!.isNotEmpty) {
-                    final sanitizedTarget = clickedText!.replaceAll(
+                    final sanitizedTarget = clickedText.replaceAll(
                       RegExp(r'[\s\*_#>`~\-\+]'),
                       '',
                     );
@@ -1807,10 +1820,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
         borderRadius: BorderRadius.circular(8),
       ),
       child: Table(
-        columnWidths: const {
-          0: IntrinsicColumnWidth(),
-          1: FlexColumnWidth(),
-        },
+        columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
         border: TableBorder.symmetric(
           inside: BorderSide(color: Colors.white.withOpacity(0.15)),
         ),
@@ -1919,56 +1929,6 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
         ),
       );
     }
-  }
-
-  TextSpan _highlightMermaidSyntax(String code) {
-    final List<TextSpan> spans = [];
-    final regex = RegExp(
-      r'(\b(?:sequenceDiagram|autonumber|actor|participant)\b)|(->>|-->|-->>|-)|(\(.*?\))',
-    );
-
-    code.trim().splitMapJoin(
-      regex,
-      onMatch: (Match match) {
-        if (match.group(1) != null) {
-          spans.add(
-            TextSpan(
-              text: match.group(0),
-              style: GoogleFonts.jetBrainsMono(color: const Color(0xFF64B5F6)),
-            ),
-          );
-        } else if (match.group(2) != null) {
-          spans.add(
-            TextSpan(
-              text: match.group(0),
-              style: GoogleFonts.jetBrainsMono(color: Colors.white70),
-            ),
-          );
-        } else if (match.group(3) != null) {
-          spans.add(
-            TextSpan(
-              text: match.group(0),
-              style: GoogleFonts.jetBrainsMono(color: const Color(0xFFAED581)),
-            ),
-          );
-        }
-        return '';
-      },
-      onNonMatch: (String text) {
-        spans.add(
-          TextSpan(
-            text: text,
-            style: GoogleFonts.jetBrainsMono(color: Colors.white),
-          ),
-        );
-        return '';
-      },
-    );
-
-    return TextSpan(
-      children: spans,
-      style: GoogleFonts.jetBrainsMono(fontSize: 14, height: 1.5),
-    );
   }
 
   Widget _buildMermaidDiagram(String code) {
@@ -2115,12 +2075,8 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
         fontWeight: FontWeight.w600,
         margin: Margins.only(top: 20.0, bottom: 12.0),
       ),
-      "p": Style(
-        margin: Margins.only(bottom: 16.0),
-      ),
-      "li": Style(
-        margin: Margins.only(bottom: 8.0),
-      ),
+      "p": Style(margin: Margins.only(bottom: 16.0)),
+      "li": Style(margin: Margins.only(bottom: 8.0)),
       "table": Style(
         backgroundColor: Colors.transparent,
         margin: Margins.only(bottom: 24.0),
@@ -2254,10 +2210,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                 ),
               },
               padding: const EdgeInsets.all(0),
-              textStyle: GoogleFonts.jetBrainsMono(
-                fontSize: 14,
-                height: 1.5,
-              ),
+              textStyle: GoogleFonts.jetBrainsMono(fontSize: 14, height: 1.5),
             ),
           ),
         ],
@@ -2320,6 +2273,5 @@ class _SearchPosition {
   final double? top;
   final double? right;
   final double? left;
-  final double? bottom;
-  const _SearchPosition({this.top, this.right, this.left, this.bottom});
+  const _SearchPosition({this.top, this.right, this.left});
 }

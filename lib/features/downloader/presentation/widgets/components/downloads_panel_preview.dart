@@ -243,6 +243,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                             index: index,
                                             getHeight: _getHeight,
                                             matchTargetFormat: matchTargetFormat,
+                                            getFormatBytes: getFormatBytes,
                                             onChanged: (val) {
                                               setState(() {
                                                 config.format = val;
@@ -560,6 +561,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                       group: group,
                                                       getHeight: _getHeight,
                                                       matchTargetFormat: matchTargetFormat,
+                                                      getFormatBytes: getFormatBytes,
                                                       onChanged: (val) {
                                                         setState(() {
                                                           config.format = val;
@@ -895,6 +897,7 @@ extension DownloadsPanelPreview on _MediaDownloaderPanelState {
                                                   isItemLevel: true,
                                                   getHeight: _getHeight,
                                                   matchTargetFormat: matchTargetFormat,
+                                                  getFormatBytes: getFormatBytes,
                                                   onChanged: (val) {
                                                     setState(() {
                                                       config.itemFormats[currentItem.id] = val;
