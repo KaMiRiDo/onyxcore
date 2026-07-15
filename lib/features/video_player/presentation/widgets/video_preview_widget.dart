@@ -474,6 +474,18 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       platform.setProperty('hr-seek-framedrop', 'yes');
       platform.setProperty('vd-lavc-fast', 'yes');
 
+      // FIX: Prevent mp_image_crop assertion crash on systems where EGL is
+      // invalid and media_kit falls back to S/W rendering. In that code path,
+      // mpv's direct-rendering mode tries to crop a decoded frame onto a
+      // not-yet-resized texture surface (1×1 or small default), causing:
+      //   Assertion `x1 <= img->w && y1 <= img->h' failed.
+      // Disabling direct rendering (`vd-lavc-dr=no`) forces mpv to copy
+      // decoded frames into a properly sized buffer instead of rendering
+      // directly onto the texture. Also disable early GL flushes to avoid
+      // premature buffer commits during resize transitions.
+      platform.setProperty('vd-lavc-dr', 'no');
+      platform.setProperty('opengl-early-flush', 'no');
+
       // EPX-008: Hardware Decoder Auto-Cache Logic
       final settings = ref.read(settingsProvider).value;
       if (settings != null) {

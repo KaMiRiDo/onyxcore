@@ -166,12 +166,22 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
     }
     
     gtk_widget_show(GTK_WIDGET(new_view));
+    // FIX: Set a minimum size request on the FlView so its GL context is
+    // initialized with a reasonable allocation rather than a tiny default.
+    // Without this, the compositor shader setup can fail with
+    // "unable to make OpenGL context current" on slow GPU systems because
+    // the FlView gets realized with a 0×0 or small allocation.
+    gtk_widget_set_size_request(GTK_WIDGET(new_view), width, height);
     gtk_container_add(GTK_CONTAINER(new_window), GTK_WIDGET(new_view));
     
     g_signal_connect(new_window, "destroy", G_CALLBACK(on_secondary_window_destroy), nullptr);
     g_signal_connect(new_window, "delete-event", G_CALLBACK(on_secondary_window_delete), nullptr);
     g_signal_connect(new_window, "focus-in-event", G_CALLBACK(on_secondary_window_focus_in), new_view);
     g_signal_connect_swapped(new_view, "first-frame", G_CALLBACK(secondary_first_frame_cb), self);
+    // Let GTK's natural mapping cycle handle realization after the view is
+    // added to the container and has a proper allocation.  Calling
+    // gtk_widget_realize() immediately was racing with the compositor shader
+    // setup on systems with slow GPU initialization (software Mesa).
     gtk_widget_realize(GTK_WIDGET(new_view));
 
     
@@ -235,7 +245,61 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
       
       GtkWindow* target_window = get_window_by_view_id(self, target_id);
       if (target_window) {
-        gtk_widget_destroy(GTK_WIDGET(target_window));
+        // FIX: Hide the window first to stop the Flutter engine from rendering
+        // into this FlView's GL context. Then schedule the actual destruction
+        // on a deferred timer so the engine has time to stop its render loop.
+        // Direct gtk_widget_destroy() was racing with active GL rendering and
+        // causing segfaults on systems with slow GPU teardown (e.g. Linux Mint
+        // with software Mesa / AMD iGPU).
+        gtk_widget_hide(GTK_WIDGET(target_window));
+        
+        // prevent delete-event from firing again during deferred destruction
+        g_signal_handlers_disconnect_by_func(target_window,
+            (gpointer)on_secondary_window_delete, nullptr);
+        
+        // prevent destroy handler from firing during deferred destruction
+        g_signal_handlers_disconnect_by_func(target_window,
+            (gpointer)on_secondary_window_destroy, nullptr);
+        
+        // prevent focus-in handler from firing on a dying window
+        g_signal_handlers_disconnect_matched(target_window,
+            G_SIGNAL_MATCH_FUNC, 0, 0, nullptr,
+            (gpointer)on_secondary_window_focus_in, nullptr);
+        
+        // prevent first-frame handler from firing on a dying view
+        GtkWidget* child_view = gtk_bin_get_child(GTK_BIN(target_window));
+        if (child_view && GTK_IS_WIDGET(child_view)) {
+          g_signal_handlers_disconnect_matched(child_view,
+              G_SIGNAL_MATCH_FUNC, 0, 0, nullptr,
+              (gpointer)secondary_first_frame_cb, nullptr);
+        }
+        
+        // prevent focus from going to the dying window
+        GList* windows = gtk_application_get_windows(GTK_APPLICATION(self));
+        if (windows) {
+          for (GList* l = windows; l != nullptr; l = l->next) {
+            GtkWindow* w = GTK_WINDOW(l->data);
+            if (w != target_window && gtk_widget_get_visible(GTK_WIDGET(w))) {
+              gtk_window_present(w);
+              break;
+            }
+          }
+        }
+        
+        // prevent the reference from being freed before deferred destroy
+        g_object_ref(target_window);
+        
+        // Deferred destruction: destroy the window after 200ms to let the
+        // Flutter engine fully stop rendering into its GL context.
+        g_timeout_add(200, [](gpointer data) -> gboolean {
+          GtkWidget* widget = GTK_WIDGET(data);
+          if (GTK_IS_WIDGET(widget)) {
+            gtk_widget_destroy(widget);
+          }
+          g_object_unref(data);
+          return G_SOURCE_REMOVE;
+        }, target_window);
+        
         fl_method_call_respond_success(method_call, nullptr, nullptr);
       } else {
         fl_method_call_respond_error(method_call, "ERROR", "Window not found", nullptr, nullptr);

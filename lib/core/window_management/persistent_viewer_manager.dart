@@ -91,10 +91,6 @@ class PersistentViewerManager {
         }
       }
 
-      if (type == ViewerType.downloader) {
-        maximize = true;
-      }
-
       final viewId =
           (await _channel.invokeMethod<int>('create_window', {
             'width': width,
@@ -134,7 +130,8 @@ class PersistentViewerManager {
       updates.value++;
       
       // Wait for Flutter to unmount the widget and for media_kit to release GL contexts.
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      // Use a longer delay for systems with slow GPU teardown (e.g. Linux Mint with software Mesa).
+      await Future<void>.delayed(const Duration(milliseconds: 300));
 
       await _channel.invokeMethod('close_window', {'view_id': viewId});
     } catch (e) {
