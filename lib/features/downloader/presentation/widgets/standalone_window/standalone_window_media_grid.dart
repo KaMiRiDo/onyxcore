@@ -30,6 +30,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
     required this.mainFocusNode,
     required this.matchTargetFormat,
     required this.getHeight,
+    required this.onTagItem,
+    this.scrollController,
+    this.tagKeys = const {},
     this.trash = const [],
   });
 
@@ -52,6 +55,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
   final FocusNode mainFocusNode;
   final MediaFormat? Function(MediaInfo, MediaFormat?) matchTargetFormat;
   final int Function(String) getHeight;
+  final void Function(String url, String tag) onTagItem;
+  final ScrollController? scrollController;
+  final Map<String, GlobalKey> tagKeys;
   final List<dynamic> trash; // Or a specific type if available
 
   @override
@@ -108,6 +114,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
       },
       behavior: HitTestBehavior.opaque,
       child: CustomScrollView(
+        controller: scrollController,
         key: PageStorageKey<String>(isTrashView ? 'trash_$listPath' : listPath),
         cacheExtent: 1000,
         slivers: [
@@ -150,6 +157,10 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
           }
 
           final isSelected = selectedIndices.contains(index);
+          final String? tag = currentGroup == null ? group.tag : firstItem?.tag;
+          final bool isTagged = tag != null && tag.isNotEmpty;
+          final itemUrl = currentGroup == null ? group.originalUrl : (firstItem?.id ?? '');
+          final globalKey = isTagged ? (tagKeys[itemUrl] ??= GlobalKey()) : null;
 
           double aspectRatio = 1;
           if (firstItem != null) {
@@ -164,7 +175,12 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
           }
 
           final Widget itemCard = RepaintBoundary(
+            key: globalKey,
             child: GestureDetector(
+              onSecondaryTapDown: (details) {
+                final url = currentGroup == null ? group.originalUrl : (group.items.first.id);
+                _showTagInput(context, details.globalPosition, url);
+              },
               onTap: () {
                 mainFocusNode.requestFocus();
                 final isCtrl = HardwareKeyboard.instance.isControlPressed;
@@ -179,8 +195,10 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                   color: AppColors.surfaceBase,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? AppColors.violet : AppColors.borderColor,
-                    width: isSelected ? 2 : 1,
+                    color: isTagged
+                        ? Colors.amber
+                        : (isSelected ? AppColors.violet : AppColors.borderColor),
+                    width: isTagged || isSelected ? 2 : 1,
                   ),
                 ),
                 child: Stack(
@@ -189,7 +207,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                     Builder(
                       builder: (context) {
                         bool showThumbnail = firstItem?.thumbnail != null;
-                        if (showThumbnail && currentGroup != null && (currentGroup!.first.isProfile || currentGroup!.first.isPlaylist)) {
+                        if (showThumbnail && currentGroup != null && currentGroup!.items.isNotEmpty && (currentGroup!.first.isProfile || currentGroup!.first.isPlaylist)) {
                           if (firstItem!.thumbnail == currentGroup!.first.thumbnail) {
                             showThumbnail = false;
                           }
@@ -240,6 +258,33 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                         child: Icon(typeIcon, color: Colors.white, size: 14),
                       ),
                     ),
+                    if (isTagged)
+                      Positioned(
+                        top: 8,
+                        left: 36,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.sell, color: Colors.black, size: 12),
+                              const SizedBox(width: 4),
+                              Text(
+                                tag,
+                                style: GoogleFonts.outfit(
+                                  color: Colors.black,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
 
                     Positioned(
                       top: 8,
@@ -545,5 +590,84 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showTagInput(BuildContext context, Offset position, String url) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    final focusNode = FocusNode();
+    final controller = TextEditingController();
+
+    entry = OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  entry.remove();
+                  focusNode.dispose();
+                  controller.dispose();
+                },
+                behavior: HitTestBehavior.opaque,
+              ),
+            ),
+            Positioned(
+              left: position.dx,
+              top: position.dy,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 150,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.amber, width: 1.5),
+                    boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2))],
+                  ),
+                  child: Row(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(left: 8.0, right: 4.0),
+                        child: Icon(Icons.sell, size: 14, color: Colors.amber),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          maxLength: 15,
+                          textAlignVertical: TextAlignVertical.center,
+                          style: GoogleFonts.outfit(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w600),
+                          decoration: InputDecoration(
+                            hintText: 'Enter tag...',
+                            hintStyle: TextStyle(color: Colors.amber.withValues(alpha: 0.5)),
+                            isDense: true,
+                            counterText: '',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (val) {
+                            if (val.trim().isNotEmpty) {
+                              onTagItem(url, val.trim());
+                            }
+                            entry.remove();
+                            focusNode.dispose();
+                            controller.dispose();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    overlay.insert(entry);
+    focusNode.requestFocus();
   }
 }

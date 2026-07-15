@@ -1,6 +1,6 @@
 # OnyxCore — Project Features Documentation
 
-> **Version:** 1.0.0 | **Platform:** Linux | **Framework:** Flutter 3.x + Dart SDK ^3.10.4
+> **Version:** 1.1.0 | **Platform:** Linux | **Framework:** Flutter 3.44.4 + Dart SDK ^3.10.4
 
 ---
 
@@ -23,6 +23,7 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | **Storage** | `drift` / `drift_flutter` | ^2.26.0 / ^0.3.0 | Single source of truth persistence |
 | | `sqlite3` | ^3.3.2 | Core database engine (used by drift) |
 | **UI** | `google_fonts` | ^6.2.1 | Typography (Manrope, Outfit, JetBrains Mono) |
+| | `flutter_staggered_grid_view` | ^0.7.0 | Masonry/staggered grid for native-aspect-ratio media cards |
 | | `flutter_svg` | ^2.2.4 | SVG icon rendering |
 | | `flutter_markdown` | ^0.7.1 | Basic markdown parsing |
 | | `flutter_html` | ^3.0.0 | Advanced HTML and table rendering |
@@ -45,7 +46,7 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `mocktail` | ^1.0.4 | Mock object generation for tests |
 | | `drift_dev` | ^2.26.0 | Code generation for Drift database |
 | | `build_runner` | ^2.5.4 | Dart code generator runner |
-| **External** | `ffmpeg` (CLI) | system | Image editing (rotate, crop, brightness); hover thumbnail extraction (video preview) |
+| **External** | `ffmpeg` (CLI) | system | Image editing (rotate, crop, brightness); hover thumbnail extraction (video preview); thumbnail generation for video/RAW/AVIF/HEIC formats; network HLS muxing |
 | | `ffprobe` (CLI) | system | Audio properties extraction (duration, bitrate, sample rate) |
 | | `lsblk` / `udisksctl` (CLI) | system | Device detection & mounting |
 | | `gio` (CLI) | system | Trash operations |
@@ -157,7 +158,8 @@ onyxcore/
 │   ├── core/
 │   │   ├── cache/
 │   │   │   ├── directory_cache.dart
-│   │   │   └── metadata_cache.dart
+│   │   │   ├── metadata_cache.dart
+│   │   │   └── thumbnail_cache_service.dart
 │   │   ├── database/
 │   │   │   ├── app_database.dart
 │   │   │   ├── app_database.g.dart
@@ -299,7 +301,7 @@ onyxcore/
 │   │   │           ├── task_tile.dart
 │   │   │           ├── top_bar.dart
 │   │   │           ├── unified_side_panel.dart
-│   │   │           └── video_thumbnail_preview.dart
+│   │   │           └── media_thumbnail_preview.dart
 │   │   ├── document_viewer/
 │   │   │   ├── presentation/
 │   │   │   │   └── widgets/
@@ -425,7 +427,7 @@ onyxcore/
 │       └── file_system_service.dart
 ```
 
-**Total: 191 Dart source files across 9 feature modules, core infrastructure, and services layer.**
+**Total: 210+ Dart source files across 9 feature modules, core infrastructure, and services layer.**
 
 ---
 
@@ -597,8 +599,24 @@ onyxcore/
 - **DirectoryCache**: in-memory with 30-second TTL, keyed by path
 - **MetadataCache**: Drift-backed image aspect ratio cache
 - **ImageCache**: High-capacity 500MB global limit to support instant pre-caching of massive uncompressed DSLR/Pexels images without downscaling or cache thrashing
+- **ThumbnailCacheService**: Global Freedesktop-style thumbnail cache (`~/.cache/onyxcore/thumbnails/`), Drift-backed, replacing per-widget ad-hoc caching:
+  - **Two size tiers**: `normal` (128px) and `large` (256px), keyed by MD5 hash of the file's `file://` URI.
+  - **Staleness validation**: Each lookup compares stored `mtime` and `sizeBytes` against the current file stat — any change triggers a `miss` and forces regeneration.
+  - **Negative caching**: Failed thumbnail attempts are stored with `status: 'failed'` so failed files are not retried until their mtime/size changes.
+  - **In-memory index**: All entries are loaded into a `Map<String, ThumbnailCacheEntry>` on startup for O(1) synchronous lookups without hitting the DB on every paint.
+  - **Atomic upsert**: `storeThumbnail()` copies the generated file to the canonical cache path and upserts the DB entry, preserving the other size tier's path.
 
-#### 1.13 Directory Analysis
+#### 1.13 Media Thumbnail Preview (`MediaThumbnailPreview`)
+- **Unified Widget**: `MediaThumbnailPreview` replaces the former `VideoThumbnailPreview`, now serving as the single thumbnail renderer for **both images and videos** in the directory grid.
+- **Three-stage generation pipeline** (executed in a background isolate or subprocess to keep UI thread free):
+  1. **Dart image package** (`compute(_generateImageThumbnail)`) — fast pure-Dart decode + resize to 320px width for common image formats (JPEG, PNG, WebP, GIF, BMP).
+  2. **ImageMagick / libheif** — fallback for HEIC, HEIF, and AVIF via system `convert` command.
+  3. **FFmpeg** — final fallback for all remaining cases: video frame extraction, RAW images (`.dng`, `.raw`), and any format not handled by stages 1–2.
+- **Global cache integration**: Uses `ThumbnailCacheService` for persistent, staleness-aware caching across sessions. Cache lookups are O(1) from the in-memory index.
+- **Cross-machine stability**: Cache is keyed by file URI hash + mtime/size, so thumbnails are automatically invalidated when files change, even when the app is run on a different machine or filesystem mount point.
+- **Zoom-responsive**: Accepts a `zoom` parameter and scales thumbnail display to match the current grid zoom level.
+
+#### 1.14 Directory Analysis
 - **Background Computation**: Analyzes folder size, item counts, and categorizes files using a `compute` isolate (`directoryAnalysisProvider`).
 - **High-Performance Parsing Pipeline**: 
   - Uses a pure string-operation `_fastDirname` instead of `path.dirname` to eliminate overhead across 500K+ file iterations.
@@ -613,13 +631,13 @@ onyxcore/
 - **Targeted Operations**: Dedicated `_AnalysisDeleteDialog` for custom trash/permanent delete operations directly within the analysis view.
 - **Graceful Cancellation**: Ability to cancel long-running directory traversal via a prominent "Cancel" button or `Alt+←` keyboard shortcut.
 
-#### 1.14 Unified Side Panel
+#### 1.15 Unified Side Panel
 - **Resizability**: Features an interactive resize handler (`MouseRegion` + `OverflowBox`) to dynamically resize side panels.
 - **Orchestration**: Manages visibility state for both the Background Task Panel and Downloads Panel using `Offstage` widgets to preserve widget state without costly remounting.
 - **Focus Scope**: Ensures keyboard and input events correctly route to the active side panel while hiding the others seamlessly.
 
 
-#### 1.15 Empty State
+#### 1.16 Empty State
 - Custom `EmptyStateView` for empty directories
 - **Aesthetic Refinement (Matte Finish)**: Redesigned for a premium, professional appearance with a focus on subtle typography and minimalism.
 - **Large Matte Iconography**: Centered icon increased to **160px** with a very subtle **0.08 opacity**, creating a clean "natural archive" feel without visual clutter.
@@ -630,7 +648,7 @@ onyxcore/
   - Virtual Recent: "No recent files found"; Virtual Starred: "No starred items yet"
   - Trash: delete icon; default: folder-open icon
 
-#### 1.16 Preview Container (Inline Preview Orchestrator)
+#### 1.17 Preview Container (Inline Preview Orchestrator)
 - **Type-routing**: Dispatches to `ImagePreviewWidget`, `VideoPreviewWidget`, `AudioPlayerView`, or `MarkdownPreviewWidget` based on `FileItemType`
 - **PDF placeholder**: Shows a centered icon with "PDF Preview not yet implemented" message and hint to double-tap for external viewer
 - **Double-tap pop-out**: Opens the previewed file in a standalone persistent window via `PersistentViewerManager.openMedia()`, then clears the inline preview
@@ -641,7 +659,7 @@ onyxcore/
 - **F-key HUD toggle**: Toggles `previewHudVisibleProvider` with a 300ms debounce to prevent rapid toggling
 - **Close shortcuts**: `Backspace` / `Alt+←` / `Ctrl+W` all close the preview and reset HUD visibility to true
 
-#### 1.17 Status Bar
+#### 1.18 Status Bar
 - Glassmorphism status notifications across viewers
 - **Open With Dialog**:
   - **Categorized Discovery**: Displays "Default", "Recommended", and "All Apps" using Linux system MIME associations.
@@ -684,6 +702,7 @@ onyxcore/
 - **Zero-Latency Navigation (Precaching)**: `_precacheAdjacentImages()` silently loads the next two and previous two images in the queue into memory ahead of time to eliminate loading delays during rapid key cycling.
 - **Intelligent File Support**: Detects `.svg` files, gracefully bypassing binary metadata extraction and dynamically tagging them as "Vector Graphic • Scalable".
 - **Secure Deletion**: Uses `Delete` (trash) or `Shift+Delete` (permanent) hotkeys integrated with the background Task Manager; upon deletion, it seamlessly auto-navigates to the next image to prevent UI disruption.
+- **RAW & Advanced Format Support**: Full integration with `DNG`, `RAW`, `AVIF`, and `HEIC` files via background `ffmpeg` conversion, rendering high-fidelity previews instantly.
 
 #### 2.2 Standalone Mode (Persistent Window)
 - Dedicated window via `PersistentViewerManager` (window reuse, hide instead of destroy)
@@ -830,6 +849,14 @@ onyxcore/
   - `-an`: Explicitly skip audio stream parsing
   - `-vf scale=160:-1`: Native low-resolution extraction at 160px width (minimizes decode work)
   - `-q:v 8`: Fast JPEG encoding with lightweight quality (reduces encode time and output size)
+
+#### 3.6 Network Streaming & Dynamic Resolution
+- **Direct Stream Decoding**: Natively plays direct CDN streams bypassing local downloads. Features a dedicated memory-cache eviction system (`_clearNetworkCache`) using a temporary `onyx_stream_cache` directory to prevent disk bloat.
+- **Dynamic Resolution Switching**: 
+  - Extracts and displays all available stream formats (e.g., `4k`, `1080p`, `720p`) via a dedicated `_resolutionKey` dropdown in the bottom HUD.
+  - Automatically deduplicates and sorts resolutions strictly by height.
+  - **Stateful Switching**: `_onResolutionChanged()` seamlessly injects the new resolution stream URI into the player while preserving the exact `currentPosition`. The UI maintains a buffering state until the new resolution stream stabilizes.
+- **Responsive Controls**: Disables non-applicable local-file actions (e.g. Snapshot, Delete) specifically when the player detects `_isNetworkStream == true`.
   - `-f image2pipe -vcodec mjpeg`: JPEG bytes streamed directly to stdout via pipe — no temp files
   - Process is captured into a local variable to prevent null-check race conditions during concurrent kills
 - **Why ffmpeg over media_kit screenshot()**: Attempted 4 iterations with `media_kit`'s native `Player.screenshot()` API. On Linux with EGL/Mesa, `screenshot()` consistently returns stale buffer data (the frame from the PREVIOUS seek position, not the current one). This is a fundamental double-buffer issue in the EGL texture pipeline — the position stream updates as metadata immediately upon seek dispatch, but the video output texture isn't updated until the next render callback, which requires the Video widget to be in the active paint tree. `Offstage` prevents painting; `Opacity(0)` with `Positioned(-500)` still produced 1x1 pixel VideoOutput surfaces. ffmpeg subprocess extraction is process-isolated and always returns the exact frame at the requested timestamp.
@@ -1581,7 +1608,10 @@ onyxcore/
 - **Thumbnail display**: `Image.network` with `errorBuilder` fallback; type icon badge (top-left dark pill: profile = account, playlist = library, multi-item = stacked pages, video = camera, image = picture) and size/duration/resolution badge (top-right).
 - **Selection system**: Click (single), `Ctrl+Click` (additive), `Shift+Click` (range), background tap (clear). State is managed as `Set<int> _selectedIndices` with `_lastSelectedIndex` for range anchor.
 - **Loading overlay**: `BubbleLoader` displayed over a `Colors.black54` scrim when `isHydratingItem(url)` is true or item has placeholder ID `fetch_loading`/`hydration_loading`.
-- **Double-tap drill-down**: For multi-item groups (profiles/playlists), double-tapping navigates into the group, pushing the group to `_navigationHistory` with `_historyIndex` increment for Alt+← back navigation.
+- **Double-tap drill-down & Preview**: 
+  - For multi-item groups (profiles/playlists), double-tapping navigates into the group, pushing the group to `_navigationHistory` with `_historyIndex` increment for Alt+← back navigation.
+  - For single media items (or items within a group), double-tapping launches a **live preview window**. Uses `PersistentViewerManager` to spawn the `ViewerType.video` (for network streams and videos), `ViewerType.image` (for direct images), or `ViewerType.audio` instantly.
+  - Video previews automatically extract the highest resolution network stream and propagate format configurations to the spawned `VideoPreviewWidget`.
 - **Per-card controls below thumbnail**: `FormatSelectionDropdown` for single videos; `GroupFilterDropdown` (All/Images/Videos) for multi-item groups or profiles. Compact `download_rounded` icon button triggers per-item `_startDownload(index)`.
 - **Trash view**: Cards show "Restore" button (`AppColors.violet`) instead of format/filter controls; grid-level restore and per-item restore both invoke `_restoreTrash()` logic.
 - **Empty states**: Centered hourglass icon + "List is empty" text (default); centered delete icon + "Trash is empty" text (trash view).
@@ -1621,4 +1651,4 @@ onyxcore/
 
 ---
 
-*Generated: 2026-07-10 | Comprehensive audit of 191 Dart source files across 9 feature modules, core infrastructure, and services layer.*
+*Generated: 2026-07-14 | Comprehensive audit of 210+ Dart source files across 9 feature modules, core infrastructure, and services layer.*

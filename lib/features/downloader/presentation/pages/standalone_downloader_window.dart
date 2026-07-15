@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
 
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 
@@ -73,8 +74,13 @@ class _StandaloneDownloaderWindowState
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final FocusNode _mainFocusNode = FocusNode();
+  ValueNotifier<int>? _focusTrigger;
   Timer? _searchDebounce;
   late AnimationController _gradientController;
+  final ScrollController _mediaGridScrollController = ScrollController();
+  final Map<String, GlobalKey> _tagKeys = {};
+  final ValueNotifier<Map<String, String>?> _activeTagNotifier = ValueNotifier(null);
+  List<MediaGroup> _currentVisibleGroups = [];
   String _currentPath = '';
   MediaGroup? _currentGroup;
 
@@ -102,38 +108,6 @@ class _StandaloneDownloaderWindowState
       ..listFilter = _listFilter;
   }
 
-  KeyEventResult _handleGlobalKeys(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent) {
-      if (HardwareKeyboard.instance.isControlPressed &&
-          (event.logicalKey == LogicalKeyboardKey.keyF)) {
-        setState(() {
-          if (_searchFocusNode.hasFocus) {
-            _searchController.clear();
-            _searchFocusNode.unfocus();
-            _isSearchVisible = false;
-            if (mounted && _mainFocusNode.canRequestFocus) {
-              FocusScope.of(node.context!).requestFocus(_mainFocusNode);
-            }
-          } else {
-            _isSearchVisible = true;
-            if (mounted && _searchFocusNode.canRequestFocus) {
-              FocusScope.of(node.context!).requestFocus(_searchFocusNode);
-            }
-          }
-        });
-        return KeyEventResult.handled;
-      }
-
-      if (HardwareKeyboard.instance.isControlPressed &&
-          (event.logicalKey == LogicalKeyboardKey.keyD)) {
-        if (mounted && _urlFocusNode.canRequestFocus) {
-          FocusScope.of(node.context!).requestFocus(_urlFocusNode);
-        }
-        return KeyEventResult.handled;
-      }
-    }
-    return KeyEventResult.ignored;
-  }
 
   void _restoreTabState(String path) {
     final state = _tabStates[path] ?? _StandaloneTabState();
@@ -535,11 +509,18 @@ class _StandaloneDownloaderWindowState
     }
   }
 
+  void _onWindowFocus() {
+    if (mounted && !_searchFocusNode.hasFocus && !_urlFocusNode.hasFocus) {
+      _mainFocusNode.requestFocus();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _searchFocusNode.onKeyEvent = _handleGlobalKeys;
-    _urlFocusNode.onKeyEvent = _handleGlobalKeys;
+    _searchDebounce = null;
+    _focusTrigger = PersistentViewerManager.getFocusTrigger(widget.windowId);
+    _focusTrigger?.addListener(_onWindowFocus);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -556,7 +537,69 @@ class _StandaloneDownloaderWindowState
 
     _searchController.addListener(_onSearchChanged);
 
+    HardwareKeyboard.instance.addHandler(_handleGlobalRawKey);
+    _mediaGridScrollController.addListener(_handleScroll);
     PersistentViewerManager.presentWindow(widget.windowId);
+  }
+
+  void _handleScroll() {
+    if (!mounted) return;
+    final tag = _calculateNearestTag();
+    if (_activeTagNotifier.value?['url'] != tag?['url']) {
+      _activeTagNotifier.value = tag;
+    }
+  }
+
+  Map<String, String>? _calculateNearestTag() {
+    int currentIndex = 0;
+    int lastVisibleIndex = 0;
+    if (_mediaGridScrollController.hasClients) {
+      final offset = _mediaGridScrollController.offset;
+      final height = MediaQuery.of(context).size.height;
+      final width = MediaQuery.of(context).size.width - 380;
+      final crossAxisCount = (width / 236).floor().clamp(1, 10);
+      final row = (offset / 300).floor();
+      currentIndex = row * crossAxisCount;
+      final visibleRows = (height / 300).ceil();
+      lastVisibleIndex = currentIndex + (visibleRows * crossAxisCount);
+    }
+
+    List<Map<String, dynamic>> allTags = [];
+    for (int i = 0; i < _currentVisibleGroups.length; i++) {
+      final group = _currentVisibleGroups[i];
+      if (_currentGroup == null) {
+        if (group.tag != null && group.tag!.isNotEmpty) {
+           allTags.add({'index': i, 'tag': group.tag!, 'url': group.originalUrl, 'sort': group.tagSortOrder ?? 'added_desc'});
+        }
+      } else {
+        if (group.items.isNotEmpty) {
+          final item = group.items.first;
+          if (item.tag != null && item.tag!.isNotEmpty) {
+             allTags.add({'index': i, 'tag': item.tag!, 'url': item.id, 'sort': item.tagSortOrder ?? 'added_desc'});
+          }
+        }
+      }
+    }
+
+    if (allTags.isEmpty) return null;
+
+    final upcomingTags = allTags.where((t) => (t['index'] as int) >= currentIndex).toList();
+
+    if (upcomingTags.isEmpty) {
+      final last = allTags.last;
+      return {'tag': last['tag'] as String, 'url': last['url'] as String, 'sort': last['sort'] as String};
+    }
+
+    var targetTag = upcomingTags.first;
+    
+    if ((targetTag['index'] as int) <= lastVisibleIndex) {
+      final targetIndexInAll = allTags.indexOf(targetTag);
+      if (targetIndexInAll < allTags.length - 1) {
+        targetTag = allTags[targetIndexInAll + 1];
+      }
+    }
+
+    return {'tag': targetTag['tag'] as String, 'url': targetTag['url'] as String, 'sort': targetTag['sort'] as String};
   }
 
   @override
@@ -570,9 +613,100 @@ class _StandaloneDownloaderWindowState
     }
   }
 
+  bool _handleGlobalRawKey(KeyEvent event) {
+    if (!mounted) return false;
+
+    if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
+      if (event.logicalKey == LogicalKeyboardKey.keyF) {
+        setState(() {
+          if (_searchFocusNode.hasFocus) {
+            _searchController.clear();
+            _searchFocusNode.unfocus();
+            _isSearchVisible = false;
+            if (mounted && _mainFocusNode.canRequestFocus) {
+              FocusScope.of(context).requestFocus(_mainFocusNode);
+            }
+          } else {
+            _isSearchVisible = true;
+            if (mounted && _searchFocusNode.canRequestFocus) {
+              FocusScope.of(context).requestFocus(_searchFocusNode);
+              _searchController.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: _searchController.text.length,
+              );
+            }
+          }
+        });
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyD) {
+        if (mounted && _urlFocusNode.canRequestFocus) {
+          FocusScope.of(context).requestFocus(_urlFocusNode);
+          _urlController.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _urlController.text.length,
+          );
+        }
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyW) {
+        final path = _controller.cache.importedListPath;
+        if (path != null && path != 'default') {
+          final index = _controller.cache.customLists.indexWhere(
+            (l) => l.path == path,
+          );
+          _controller.cache.invalidateCache(path);
+          _tabStates.remove(path);
+
+          String newPath = 'default';
+          if (_controller.cache.customLists.isNotEmpty) {
+            final nextIndex = index < _controller.cache.customLists.length
+                ? index
+                : _controller.cache.customLists.length - 1;
+            newPath = _controller.cache.customLists[nextIndex].path;
+          }
+
+          setState(() {
+            _controller.cache.switchList(newPath);
+            _restoreTabState(newPath);
+          });
+        }
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.tab) {
+        final lists = _controller.cache.customLists;
+        final allPaths = ['default', ...lists.map((l) => l.path)];
+        final currentPath = _controller.cache.importedListPath ?? 'default';
+        final currentIndex = allPaths.indexOf(currentPath);
+
+        final nextIndex = (currentIndex + 1) % allPaths.length;
+        final nextPath = allPaths[nextIndex];
+
+        _saveCurrentTabState(currentPath);
+
+        setState(() {
+          _controller.cache.switchList(nextPath);
+          _restoreTabState(nextPath);
+        });
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyS) {
+        final path = _controller.cache.importedListPath;
+        if (path == null || path == 'default') {
+          _exportCurrentList();
+        } else if (_controller.cache.isListChanged) {
+          _saveCustomList(path);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
   @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
+    _focusTrigger?.removeListener(_onWindowFocus);
     _gradientController.dispose();
     _mainFocusNode.dispose();
     _urlController.dispose();
@@ -580,6 +714,10 @@ class _StandaloneDownloaderWindowState
     _searchController.dispose();
     _searchFocusNode.dispose();
     _searchDebounce?.cancel();
+    _mediaGridScrollController.removeListener(_handleScroll);
+    _mediaGridScrollController.dispose();
+    _activeTagNotifier.dispose();
+    HardwareKeyboard.instance.removeHandler(_handleGlobalRawKey);
     super.dispose();
   }
 
@@ -601,14 +739,22 @@ class _StandaloneDownloaderWindowState
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleScroll();
+    });
+
     _controller = ref.watch(downloadsSharedControllerProvider);
     // Also watch the cache explicitly so UI updates when cache changes
     ref.watch(downloadsListCacheProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: GestureDetector(
-        onTap: _mainFocusNode.requestFocus,
+      body: Listener(
+        onPointerDown: (_) {
+          if (!_searchFocusNode.hasFocus && !_urlFocusNode.hasFocus) {
+            _mainFocusNode.requestFocus();
+          }
+        },
         child: Focus(
           focusNode: _mainFocusNode,
           autofocus: true,
@@ -621,75 +767,6 @@ class _StandaloneDownloaderWindowState
                 }
               }
 
-              if (HardwareKeyboard.instance.isControlPressed &&
-                  (event.logicalKey == LogicalKeyboardKey.keyD)) {
-                return _handleGlobalKeys(node, event);
-              }
-
-              if (HardwareKeyboard.instance.isControlPressed &&
-                  (event.logicalKey == LogicalKeyboardKey.keyF)) {
-                return _handleGlobalKeys(node, event);
-              }
-
-              if (HardwareKeyboard.instance.isControlPressed &&
-                  (event.logicalKey == LogicalKeyboardKey.keyW)) {
-                final path = _controller.cache.importedListPath;
-                if (path != null && path != 'default') {
-                  final index = _controller.cache.customLists.indexWhere(
-                    (l) => l.path == path,
-                  );
-                  _controller.cache.invalidateCache(path);
-                  _tabStates.remove(path);
-
-                  String newPath = 'default';
-                  if (_controller.cache.customLists.isNotEmpty) {
-                    final nextIndex =
-                        index < _controller.cache.customLists.length
-                        ? index
-                        : _controller.cache.customLists.length - 1;
-                    newPath = _controller.cache.customLists[nextIndex].path;
-                  }
-
-                  setState(() {
-                    _controller.cache.switchList(newPath);
-                    _restoreTabState(newPath);
-                  });
-                }
-                return KeyEventResult.handled;
-              }
-
-              if (HardwareKeyboard.instance.isControlPressed &&
-                  (event.logicalKey == LogicalKeyboardKey.tab)) {
-                final lists = _controller.cache.customLists;
-                final allPaths = ['default', ...lists.map((l) => l.path)];
-                final currentPath =
-                    _controller.cache.importedListPath ?? 'default';
-                final currentIndex = allPaths.indexOf(currentPath);
-
-                final nextIndex = (currentIndex + 1) % allPaths.length;
-                final nextPath = allPaths[nextIndex];
-
-                _saveCurrentTabState(currentPath);
-
-                setState(() {
-                  _controller.cache.switchList(nextPath);
-                  _restoreTabState(nextPath);
-                });
-                return KeyEventResult.handled;
-              }
-
-              if (HardwareKeyboard.instance.isControlPressed &&
-                  (event.logicalKey == LogicalKeyboardKey.keyS)) {
-                final path = _controller.cache.importedListPath;
-                if (path == null || path == 'default') {
-                  // trigger export for default
-                  _exportCurrentList();
-                } else if (_controller.cache.isListChanged) {
-                  // trigger save for custom
-                  _saveCustomList(path);
-                }
-                return KeyEventResult.handled;
-              }
 
               if (HardwareKeyboard.instance.isAltPressed) {
                 if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
@@ -1012,6 +1089,145 @@ class _StandaloneDownloaderWindowState
     );
   }
 
+  void _showTagHeaderContextMenu(TapDownDetails details, String url) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+
+    entry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => entry.remove(),
+              behavior: HitTestBehavior.opaque,
+            ),
+          ),
+          Positioned(
+            left: details.globalPosition.dx,
+            top: details.globalPosition.dy,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 120,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        _clearTag(url);
+                        entry.remove();
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, size: 14, color: Colors.white70),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.white, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1, color: Colors.white10),
+                    InkWell(
+                      onTap: () {
+                        _clearAllTags();
+                        entry.remove();
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_sweep, size: 14, color: Colors.redAccent),
+                            SizedBox(width: 8),
+                            Text('Clear All', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    overlay.insert(entry);
+  }
+
+  void _clearTag(String url) {
+    setState(() {
+      final parsedItems = _controller.cache.parsedItems;
+      if (parsedItems == null) return;
+
+      if (_currentGroup == null) {
+        final idx = parsedItems.indexWhere((g) => g.originalUrl == url);
+        if (idx != -1) {
+          parsedItems[idx] = parsedItems[idx].copyWith(clearTag: true);
+        }
+      } else {
+        final idx = _currentGroup!.items.indexWhere((i) => i.id == url);
+        if (idx != -1) {
+          final oldItem = _currentGroup!.items[idx];
+          _currentGroup!.items[idx] = oldItem.copyWith(clearTag: true);
+          
+          final rootIndex = parsedItems.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl);
+          if (rootIndex != -1) {
+            final oldRoot = parsedItems[rootIndex];
+            final items = List<MediaInfo>.from(oldRoot.items);
+            final itemIndex = items.indexWhere((i) => i.id == url);
+            if (itemIndex != -1) {
+              items[itemIndex] = _currentGroup!.items[idx];
+              parsedItems[rootIndex] = oldRoot.copyWith(items: items);
+            }
+          }
+        }
+      }
+      _controller.cache.isListChanged = true;
+      final currentPath = _controller.cache.importedListPath;
+      if (currentPath != null && currentPath != 'default') {
+        _saveCustomList(currentPath);
+      }
+      _handleScroll();
+    });
+  }
+
+  void _clearAllTags() {
+    setState(() {
+      final parsedItems = _controller.cache.parsedItems;
+      if (parsedItems == null) return;
+
+      if (_currentGroup == null) {
+        for (int i = 0; i < parsedItems.length; i++) {
+          parsedItems[i] = parsedItems[i].copyWith(clearTag: true);
+        }
+      } else {
+        final rootIndex = parsedItems.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl);
+        if (rootIndex != -1) {
+          final oldRoot = parsedItems[rootIndex];
+          final items = List<MediaInfo>.from(oldRoot.items);
+          for (int i = 0; i < items.length; i++) {
+            items[i] = items[i].copyWith(clearTag: true);
+          }
+          _currentGroup = _currentGroup!.copyWith(items: items);
+          parsedItems[rootIndex] = oldRoot.copyWith(items: items);
+        }
+      }
+      _controller.cache.isListChanged = true;
+      final currentPath = _controller.cache.importedListPath;
+      if (currentPath != null && currentPath != 'default') {
+        _saveCustomList(currentPath);
+      }
+      _activeTagNotifier.value = null;
+    });
+  }
+
   Widget _buildActionBar() {
     bool hasImages = false;
     bool hasVideos = false;
@@ -1100,7 +1316,183 @@ class _StandaloneDownloaderWindowState
           _listFilter = val;
         });
       },
+      activeTagNotifier: _activeTagNotifier,
+      onTagTap: (url, sort) {
+        _scrollToTag(url, sort);
+      },
+      onTagSecondaryTapDown: _showTagHeaderContextMenu,
     );
+  }
+
+  void _handleTagItem(String url, String tag) {
+    setState(() {
+      final parsedItems = _controller.cache.parsedItems;
+      if (parsedItems == null) return;
+
+      if (_currentGroup == null) {
+        final idx = parsedItems.indexWhere((g) => g.originalUrl == url);
+        if (idx != -1) {
+          final oldGroup = parsedItems[idx];
+          parsedItems[idx] = oldGroup.copyWith(tag: tag, tagSortOrder: _listFilter);
+        }
+      } else {
+        final idx = _currentGroup!.items.indexWhere((i) => i.id == url);
+        if (idx != -1) {
+          final oldItem = _currentGroup!.items[idx];
+          _currentGroup!.items[idx] = oldItem.copyWith(tag: tag, tagSortOrder: _listFilter);
+          
+          final rootIndex = parsedItems.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl);
+          if (rootIndex != -1) {
+            final oldRoot = parsedItems[rootIndex];
+            final items = List<MediaInfo>.from(oldRoot.items);
+            final itemIndex = items.indexWhere((i) => i.id == url);
+            if (itemIndex != -1) {
+              items[itemIndex] = _currentGroup!.items[idx];
+              parsedItems[rootIndex] = oldRoot.copyWith(items: items);
+            }
+          }
+        }
+      }
+      _controller.cache.isListChanged = true;
+      final currentPath = _controller.cache.importedListPath;
+      if (currentPath != null && currentPath != 'default') {
+        _saveCustomList(currentPath);
+      }
+      _handleScroll(); // Trigger update for active tag in header
+    });
+  }
+
+  void _scrollToTag(String url, String sortOrder) {
+    OverlayEntry? scrollLoaderEntry;
+    bool cancelled = false;
+
+    void cancelScroll() {
+      cancelled = true;
+      scrollLoaderEntry?.remove();
+      scrollLoaderEntry = null;
+      if (_mediaGridScrollController.hasClients) {
+        _mediaGridScrollController.jumpTo(_mediaGridScrollController.offset);
+      }
+    }
+
+    scrollLoaderEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: 250,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        child: Container(
+          color: Colors.black54,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const BubbleLoader(color: Colors.amber, size: 60),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: cancelScroll,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    Overlay.of(context).insert(scrollLoaderEntry!);
+
+    void scrollToKey() {
+      if (cancelled) return;
+      final key = _tagKeys[url];
+      if (key != null && key.currentContext != null) {
+        Scrollable.ensureVisible(
+          key.currentContext!,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ).then((_) {
+          if (!cancelled) {
+            scrollLoaderEntry?.remove();
+            scrollLoaderEntry = null;
+          }
+        });
+      } else {
+        if (!cancelled) {
+          scrollLoaderEntry?.remove();
+          scrollLoaderEntry = null;
+        }
+      }
+    }
+
+    void executeScroll() {
+      if (cancelled) return;
+      int itemIndex = -1;
+      if (_currentGroup == null) {
+        itemIndex = _currentVisibleGroups.indexWhere((g) => g.originalUrl == url);
+      } else {
+        itemIndex = _currentVisibleGroups.indexWhere((g) => g.items.isNotEmpty && g.items.first.id == url);
+      }
+
+      if (itemIndex != -1 && _mediaGridScrollController.hasClients) {
+        final width = MediaQuery.of(context).size.width - 380; // approximate grid width
+        final crossAxisCount = (width / 236).floor().clamp(1, 10);
+        final row = itemIndex ~/ crossAxisCount;
+        final estimatedOffset = row * 300.0;
+        
+        _mediaGridScrollController.animateTo(
+          estimatedOffset,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        ).then((_) {
+          if (!cancelled) {
+            Future.delayed(const Duration(milliseconds: 100), scrollToKey);
+          }
+        });
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) => scrollToKey());
+      }
+    }
+
+    // 1. Revert Sort Order
+    if (_listFilter != sortOrder) {
+      setState(() {
+        _listFilter = sortOrder;
+      });
+      // Show Toast
+      final overlay = Overlay.of(context);
+      late OverlayEntry toastEntry;
+      toastEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          top: 130, // Just below the action bar
+          right: 20,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                border: Border.all(color: Colors.amber, width: 1.5),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+              ),
+              child: const Text('Sort order updated to match tag', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13)),
+            ),
+          ),
+        ),
+      );
+      overlay.insert(toastEntry);
+      Future.delayed(const Duration(seconds: 2), () => toastEntry.remove());
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        executeScroll();
+      });
+    } else {
+      executeScroll();
+    }
   }
 
   void _toggleSelection(int index, bool isCtrl, bool isShift) {
@@ -1239,6 +1631,8 @@ class _StandaloneDownloaderWindowState
         }).toList();
       }
     }
+    
+    _currentVisibleGroups = mappedGroups;
 
     final listPath = _controller.cache.importedListPath ?? 'default';
 
@@ -1259,6 +1653,9 @@ class _StandaloneDownloaderWindowState
       selectedIndices: _selectedIndices,
       downloadingImageIndices: _downloadingImageIndices,
       configs: _controller.cache.configs,
+      scrollController: _mediaGridScrollController,
+      tagKeys: _tagKeys,
+      onTagItem: _handleTagItem,
       isHydratingItem: (url) =>
           _controller.activeHydrationPids.containsKey(url),
       onTapItem: _toggleSelection,
@@ -1465,7 +1862,7 @@ class _StandaloneDownloaderWindowState
     // Yield control to the Flutter event loop to render the loader UI immediately.
     // Without this, the synchronous method channel call to open the window blocks
     // the platform thread, dropping frames and causing a perceived visual delay.
-    await Future.delayed(const Duration(milliseconds: 16));
+    await Future<void>.delayed(const Duration(milliseconds: 16));
 
     try {
       final fileItem = FileItem(
@@ -1557,7 +1954,7 @@ class _StandaloneDownloaderWindowState
     // Yield control to the Flutter event loop to render the loader UI immediately.
     // Without this, the synchronous method channel call to open the window blocks
     // the platform thread, dropping frames and causing a perceived visual delay.
-    await Future.delayed(const Duration(milliseconds: 16));
+    await Future<void>.delayed(const Duration(milliseconds: 16));
 
     try {
       final fileItem = FileItem(
@@ -1569,6 +1966,33 @@ class _StandaloneDownloaderWindowState
         thumbnailPath: item.thumbnail,
       );
 
+      String? audioUrl;
+      var effectiveFormat = selectedFormat;
+      if (effectiveFormat == null && item.formats.isNotEmpty) {
+        final formatsWithUrl = item.formats.where((f) {
+          if (f.url != null && f.url!.isNotEmpty) return true;
+          return f.formatString.startsWith('http://') ||
+              f.formatString.startsWith('https://');
+        }).toList();
+        if (formatsWithUrl.isNotEmpty) {
+          formatsWithUrl.sort((a, b) {
+            final hA = int.tryParse(a.resolution.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
+            final hB = int.tryParse(b.resolution.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
+            return hB.compareTo(hA);
+          });
+          effectiveFormat = formatsWithUrl.first;
+        }
+      }
+
+      if (effectiveFormat != null && effectiveFormat.audioCodec == 'none') {
+        final audioFormats = item.formats.where((f) => f.videoCodec == 'none' && (f.url != null || f.formatString.startsWith('http'))).toList();
+        if (audioFormats.isNotEmpty) {
+          audioFormats.sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+          final bestAudio = audioFormats.first;
+          audioUrl = (bestAudio.url != null && bestAudio.url!.isNotEmpty) ? bestAudio.url : bestAudio.formatString;
+        }
+      }
+
       final windowParams = WindowParams(
         viewerType: ViewerType.video,
         file: fileItem,
@@ -1577,7 +2001,8 @@ class _StandaloneDownloaderWindowState
           'height': 720,
           'is_network_stream': true,
           'formats': item.formats.map((f) => f.toJson()).toList(),
-          'selectedFormatId': selectedFormat?.formatId,
+          'selectedFormatId': effectiveFormat?.formatId,
+          if (audioUrl != null) 'audioUrl': audioUrl,
         },
       );
 
@@ -1859,6 +2284,17 @@ class _StandaloneDownloaderWindowState
 ///   5. null                         — no usable URL found
 @visibleForTesting
 String? resolveStreamUrl(MediaInfo item, {MediaFormat? selectedFormat}) {
+  // Let media_kit's ytdl hook handle DASH audio+video muxing natively
+  // for yt-dlp extracted links.
+  if (item.engineId == 'yt-dlp' || item.extractor != null) {
+    if (item.webpageUrl != null && item.webpageUrl!.isNotEmpty) {
+      return item.webpageUrl;
+    }
+    if (item.originalUrl.isNotEmpty) {
+      return item.originalUrl;
+    }
+  }
+
   // 0. Use selected format if provided and has a URL
   if (selectedFormat != null) {
     if (selectedFormat.url != null && selectedFormat.url!.isNotEmpty) {

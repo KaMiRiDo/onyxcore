@@ -4,7 +4,8 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 
 class BubbleLoader extends StatefulWidget {
   final double size;
-  const BubbleLoader({super.key, this.size = 80});
+  final Color? color;
+  const BubbleLoader({super.key, this.size = 80, this.color});
 
   @override
   State<BubbleLoader> createState() => _BubbleLoaderState();
@@ -41,7 +42,7 @@ class _BubbleLoaderState extends State<BubbleLoader>
             return CustomPaint(
               painter: BubblePainter(
                 progress: _controller.value,
-                color: AppColors.magenta,
+                color: widget.color ?? AppColors.magenta,
               ),
             );
           },
@@ -79,8 +80,8 @@ class BubblePainter extends CustomPainter {
         ..sharedGradient(
           Rect.fromCircle(center: bubbleCenter, radius: bubbleRadius),
           [
-            AppColors.magenta.withOpacity(0.8),
-            AppColors.violet.withOpacity(0.4),
+            color.withValues(alpha: 0.8),
+            color.withValues(alpha: 0.4),
           ],
         );
 

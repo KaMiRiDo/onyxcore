@@ -91,7 +91,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isClosing = false;
   bool _isAudioMenuVisible = false;
   // ── Video Playlist Sidebar ──
-  static const double _sidebarDefaultWidth = 280;
   bool _isSidebarDragging = false;
   bool _isSubtitleMenuVisible = false;
   bool _isSpeedMenuVisible = false;
@@ -122,6 +121,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isPlayerInitialized = false;
 
   bool _isSmartBuffering = false;
+  bool _isSeekLoading = false;
+  Timer? _seekLoaderTimer;
+  Duration? _preSeekPosition;
+  DateTime _lastSeekTime = DateTime.now();
+  StreamSubscription<dynamic>? _positionSubscription;
   double _playerWidth = 0;
   double _playerHeight = 0; // ignore: unused_field
   Timer? _smartDelayTimer;
@@ -238,7 +242,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       final formatsJson = widget.initParams?['formats'] as List?;
       if (formatsJson != null) {
         _availableFormats = formatsJson
-            .map((e) => MediaFormat.fromJson(Map<String, dynamic>.from(e)))
+            .map((e) => MediaFormat.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
         _availableFormats = _availableFormats
             .where((f) => !f.isAudioOnly)
@@ -380,6 +384,18 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       final dynamic platform = player.platform;
 
       if (_isNetworkStream) {
+        final selectedFormatId = widget.initParams?['selectedFormatId'] as String?;
+        if (selectedFormatId != null) {
+          platform.setProperty('ytdl-format', '$selectedFormatId+bestaudio/best');
+        } else {
+          platform.setProperty('ytdl-format', 'bestvideo+bestaudio/best');
+        }
+        
+        final audioUrl = widget.initParams?['audioUrl'] as String?;
+        if (audioUrl != null && audioUrl.isNotEmpty) {
+          platform.setProperty('audio-file', audioUrl);
+        }
+
         // Setup cache directory
         try {
           final tempDir = await getTemporaryDirectory();
@@ -610,24 +626,40 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _bufferingSubscription = player.stream.buffering.listen((buffering) {
       if (_isClosing || !mounted) return;
 
-      // BUG-001: Suppress loader during fast (arrow-key) seeks
-      if (_isFastSeeking) return;
-
-      if (buffering && _isScrubbing) {
-        // Smart Delay: only show loader if buffering persists > 200ms
+      if (buffering) {
+        // Smart Delay: only show loader if buffering persists > 150ms
+        // This applies universally to scrubbing, fast seeking, and normal playback
         _smartDelayTimer?.cancel();
-        _smartDelayTimer = Timer(const Duration(milliseconds: 200), () {
+        _smartDelayTimer = Timer(const Duration(milliseconds: 150), () {
           if (mounted && !_isClosing) {
             setState(() => _isSmartBuffering = true);
           }
         });
-      } else if (!buffering) {
+      } else {
         _smartDelayTimer?.cancel();
         if (mounted) setState(() => _isSmartBuffering = false);
       }
 
       if (mounted && _isBuffering != buffering) {
         setState(() => _isBuffering = buffering);
+      }
+    });
+
+    _positionSubscription = player.stream.position.listen((pos) {
+      if (_isClosing || !mounted) return;
+      if (_preSeekPosition != null) {
+        final timeSinceSeek = DateTime.now().difference(_lastSeekTime).inMilliseconds;
+        final posDiff = (pos.inMilliseconds - _preSeekPosition!.inMilliseconds).abs();
+        
+        // If the position has changed significantly or if it has been longer than 500ms
+        // (meaning the player likely resumed natively), consider the seek finished.
+        if (posDiff > 100 || timeSinceSeek > 500) {
+          _preSeekPosition = null;
+          _seekLoaderTimer?.cancel();
+          if (_isSeekLoading) {
+            setState(() => _isSeekLoading = false);
+          }
+        }
       }
     });
 
@@ -848,13 +880,23 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     final streamUrl = format.url ?? format.formatString;
 
     try {
-      await player.open(Media(streamUrl), play: true);
+      if (_isNetworkStream) {
+        final platform = player.platform as dynamic;
+        platform.setProperty('ytdl-format', '${format.formatId}+bestaudio/best');
+        await player.open(
+          Media(MediaUriHelper.getSafeMediaUri(_currentItem.path)),
+          play: true,
+        );
+      } else {
+        final streamUrl = format.url ?? format.formatString;
+        await player.open(Media(streamUrl), play: true);
+      }
 
       // Wait for player to be ready
       await player.stream.duration
           .firstWhere((d) => d > Duration.zero)
           .timeout(const Duration(seconds: 10), onTimeout: () => Duration.zero);
-      await player.seek(currentPosition);
+      _performSeek(currentPosition);
     } catch (e) {
       debugPrint("Error switching resolution: $e");
     } finally {
@@ -1021,6 +1063,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _trackSubscription?.cancel();
     _completedSubscription?.cancel();
     _bufferingSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _seekLoaderTimer?.cancel();
     _errorSubscription?.cancel();
     _playingSubscription?.cancel();
     _audioTrackInitSubscription?.cancel();
@@ -1282,16 +1326,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
   }
 
-  void _toggleControls() {
-    if (_isMarkerEditorActive) return; // Locked during editing
-
-    setState(() {
-      _isControlsVisible = !_isControlsVisible;
-      if (_isControlsVisible) {
-        _startHideTimer();
-      }
-    });
-  }
 
   void _openMarkerEditor({VideoMarker? marker}) {
     _hideTimer?.cancel();
@@ -1656,9 +1690,22 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
   }
 
+  void _performSeek(Duration target) {
+    _preSeekPosition = player.state.position;
+    _lastSeekTime = DateTime.now();
+    _seekLoaderTimer?.cancel();
+    _seekLoaderTimer = Timer(const Duration(milliseconds: 150), () {
+      if (mounted && !_isClosing) {
+        setState(() => _isSeekLoading = true);
+      }
+    });
+
+    player.seek(target);
+  }
+
   void _dispatchToEngine(Duration target) {
     _lastEngineSeekTime = DateTime.now();
-    player.seek(target);
+    _performSeek(target);
     _scheduleVirtualStateCleanup();
   }
 
@@ -2422,22 +2469,18 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                               ),
                                             ),
 
-                                          // BUG-001: Unified BubbleLoader
-                                          // Completely hidden during fast seeks AND scrubbing.
-                                          // Only visible during initial open or initial position seek.
+                                          // Unified BubbleLoader
+                                          // Shown instantly on open/initial seek, and universally after 150ms delay
                                           IgnorePointer(
                                             child: Center(
                                               child: AnimatedOpacity(
                                                 duration: const Duration(
                                                   milliseconds: 300,
                                                 ),
-                                                opacity:
-                                                    (_isOpening ||
+                                                opacity: (_isOpening ||
                                                         _isSeekingToInitial ||
-                                                        (!_isFastSeeking &&
-                                                            !_isScrubbing &&
-                                                            (_isSmartBuffering ||
-                                                                _isBuffering)))
+                                                        _isSmartBuffering ||
+                                                        _isSeekLoading)
                                                     ? 1.0
                                                     : 0.0,
                                                 child: const RepaintBoundary(
@@ -2980,7 +3023,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                                                     );
                                                                                                     if (_scrubThrottleTimer?.isActive !=
                                                                                                         true) {
-                                                                                                      player.seek(
+                                                                                                      _performSeek(
                                                                                                         _pendingScrubPosition!,
                                                                                                       );
                                                                                                       _scrubThrottleTimer = Timer(
@@ -2992,7 +3035,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                                                                   null &&
                                                                                                               mounted &&
                                                                                                               _isScrubbing) {
-                                                                                                            player.seek(
+                                                                                                            _performSeek(
                                                                                                               _pendingScrubPosition!,
                                                                                                             );
                                                                                                           }
@@ -3008,7 +3051,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                                                     _smartDelayTimer?.cancel();
 
                                                                                                     // Final seek
-                                                                                                    player.seek(
+                                                                                                    _performSeek(
                                                                                                       Duration(
                                                                                                         milliseconds:
                                                                                                             (v *

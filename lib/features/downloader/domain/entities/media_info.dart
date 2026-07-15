@@ -94,6 +94,8 @@ class MediaInfo {
     this.errorMessage,
     this.fetchLogs,
     this.isLive = false,
+    this.tag,
+    this.tagSortOrder,
   });
 
   factory MediaInfo.fromJson(
@@ -182,6 +184,8 @@ class MediaInfo {
       directUrl: json['url']?.toString(),
       webpageUrl: json['webpage_url']?.toString(),
       isLive: json['is_live'] == true,
+      tag: json['tag']?.toString(),
+      tagSortOrder: json['tagSortOrder']?.toString(),
     );
   }
 
@@ -213,6 +217,8 @@ class MediaInfo {
       isError: map['isError'] as bool? ?? false,
       errorMessage: map['errorMessage']?.toString(),
       fetchLogs: map['fetchLogs']?.toString(),
+      tag: map['tag']?.toString(),
+      tagSortOrder: map['tagSortOrder']?.toString(),
     );
   }
   final String id;
@@ -237,6 +243,8 @@ class MediaInfo {
   final String? errorMessage;
   final String? fetchLogs;
   final bool isLive;
+  final String? tag;
+  final String? tagSortOrder;
 
   MediaInfo copyWith({
     String? id,
@@ -256,6 +264,9 @@ class MediaInfo {
     List<MediaFormat>? formats,
     int? width,
     int? height,
+    String? tag,
+    String? tagSortOrder,
+    bool clearTag = false,
   }) {
     return MediaInfo(
       id: id ?? this.id,
@@ -279,6 +290,8 @@ class MediaInfo {
       engineId: engineId ?? this.engineId,
       errorMessage: errorMessage ?? this.errorMessage,
       fetchLogs: fetchLogs ?? this.fetchLogs,
+      tag: clearTag ? null : (tag ?? this.tag),
+      tagSortOrder: clearTag ? null : (tagSortOrder ?? this.tagSortOrder),
     );
   }
 
@@ -306,12 +319,19 @@ class MediaInfo {
       'isError': isError,
       if (errorMessage != null) 'errorMessage': errorMessage,
       if (fetchLogs != null) 'fetchLogs': fetchLogs,
+      if (tag != null) 'tag': tag,
+      if (tagSortOrder != null) 'tagSortOrder': tagSortOrder,
     };
   }
 }
 
 class MediaGroup {
-  const MediaGroup({required this.originalUrl, required this.items});
+  const MediaGroup({
+    required this.originalUrl,
+    required this.items,
+    this.tag,
+    this.tagSortOrder,
+  });
 
   factory MediaGroup.fromMap(Map<String, dynamic> map) {
     return MediaGroup(
@@ -321,15 +341,36 @@ class MediaGroup {
               ?.map((e) => MediaInfo.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [],
+      tag: map['tag']?.toString(),
+      tagSortOrder: map['tagSortOrder']?.toString(),
     );
   }
   final String originalUrl;
   final List<MediaInfo> items;
+  final String? tag;
+  final String? tagSortOrder;
+
+  MediaGroup copyWith({
+    String? originalUrl,
+    List<MediaInfo>? items,
+    String? tag,
+    String? tagSortOrder,
+    bool clearTag = false,
+  }) {
+    return MediaGroup(
+      originalUrl: originalUrl ?? this.originalUrl,
+      items: items ?? this.items,
+      tag: clearTag ? null : (tag ?? this.tag),
+      tagSortOrder: clearTag ? null : (tagSortOrder ?? this.tagSortOrder),
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
       'originalUrl': originalUrl,
       'items': items.map((e) => e.toMap()).toList(),
+      if (tag != null) 'tag': tag,
+      if (tagSortOrder != null) 'tagSortOrder': tagSortOrder,
     };
   }
 

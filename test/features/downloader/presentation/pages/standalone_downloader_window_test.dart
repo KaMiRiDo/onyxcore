@@ -15,6 +15,7 @@ import 'package:onyxcore/features/downloader/presentation/providers/downloads_pa
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
 import 'package:path/path.dart' as p;
 
 // ignore_for_file: avoid_dynamic_calls, invalid_use_of_protected_member
@@ -1183,6 +1184,124 @@ void main() {
 
       // Thumbnail is the same as root, so it should be suppressed for both items since both have the same thumbnail.
       expect(find.byIcon(Icons.image), findsWidgets);
+    });
+
+    testWidgets('W-SDW-018: global hotkeys function correctly after tapping on the media grid', (tester) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: '/tmp/test',
+      );
+      addTearDown(container.dispose);
+
+      final group = makeGroup(
+        originalUrl: 'https://video.example',
+        items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video.example/v1', isVideo: true)],
+      );
+      controller.cache.parsedItems = [group];
+      controller.cache.configs[0] = DownloadConfig();
+
+      await pumpWindow(tester, container: container);
+
+      // Tap on the media grid explicitly to transfer focus
+      await tester.tap(find.byType(CustomScrollView));
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final textFields = find.byType(TextField);
+      final urlField = textFields.first;
+      final searchField = textFields.at(1);
+
+      // Trigger Ctrl+F
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Verify search is focused
+      expect(tester.widget<TextField>(searchField).focusNode?.hasFocus, isTrue);
+      expect(standaloneState(tester).isSearchVisibleForTesting, isTrue);
+
+      // Tap on the media grid again
+      await tester.tap(find.byType(CustomScrollView));
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Trigger Ctrl+D
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Verify URL is focused
+      expect(tester.widget<TextField>(urlField).focusNode?.hasFocus, isTrue);
+    });
+
+    testWidgets('W-SDW-019: tagging functionality updates the grid and header', (tester) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: '/tmp/test',
+      );
+      addTearDown(container.dispose);
+
+      final group1 = makeGroup(
+        originalUrl: 'https://video1.example',
+        items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video1.example', isVideo: true)],
+      );
+      final group2 = makeGroup(
+        originalUrl: 'https://video2.example',
+        items: [makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://video2.example', isVideo: true)],
+      );
+      controller.cache.parsedItems = [group1, group2];
+      controller.cache.configs[0] = DownloadConfig();
+      controller.cache.configs[1] = DownloadConfig();
+
+      await pumpWindow(tester, container: container);
+
+      // Verify no tags initially
+      expect(find.text('Tag...'), findsNothing);
+
+      // Simulate right-click on the first item to add a tag
+      final item = find.text('Video 1');
+      final gesture = await tester.startGesture(tester.getCenter(item), buttons: 2);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Find tag input text field in overlay
+      final tagFields = find.byType(TextField);
+      expect(tagFields.evaluate().length, greaterThanOrEqualTo(3)); // URL, Search, Tag
+      final tagField = tagFields.last;
+
+      await tester.enterText(tagField, 'Favorites');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Verify tag is now in the parsed items
+      expect(controller.cache.parsedItems!.first.tag, 'Favorites');
+
+      // The tag should be visible on the grid item (1 widget) but NOT in the header
+      // because it is the only tag and the item is in the viewport (as per new requirements)
+      expect(find.text('Favorites'), findsOneWidget);
+
+      // Trigger right-click on the first item again to clear the tag
+      final gesture2 = await tester.startGesture(tester.getCenter(item), buttons: 2);
+      await gesture2.up();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Find tag input text field in overlay again
+      final tagFields2 = find.byType(TextField);
+      expect(tagFields2.evaluate().length, greaterThanOrEqualTo(3));
+      final tagField2 = tagFields2.last;
+
+      await tester.enterText(tagField2, 'NewTag');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Verify tag is updated
+      expect(controller.cache.parsedItems!.first.tag, 'NewTag');
     });
 
   });

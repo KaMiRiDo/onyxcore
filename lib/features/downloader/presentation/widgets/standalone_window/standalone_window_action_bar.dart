@@ -33,6 +33,9 @@ class StandaloneWindowActionBar extends StatelessWidget {
     this.hasPlaylists = true,
     this.hasProfiles = true,
     this.hasGroups = true,
+    this.activeTagNotifier,
+    this.onTagTap,
+    this.onTagSecondaryTapDown,
   });
 
   final bool isTrashView;
@@ -61,6 +64,9 @@ class StandaloneWindowActionBar extends StatelessWidget {
   final bool hasPlaylists;
   final bool hasProfiles;
   final bool hasGroups;
+  final ValueNotifier<Map<String, String>?>? activeTagNotifier;
+  final void Function(String url, String sort)? onTagTap;
+  final void Function(TapDownDetails details, String url)? onTagSecondaryTapDown;
 
   @override
   Widget build(BuildContext context) {
@@ -121,8 +127,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
         builder: (context, constraints) {
           return Row(
             children: [
-              SizedBox(
-                width: constraints.maxWidth / 3,
+              Expanded(
                 child: Row(
                   children: [
                     if (currentGroup != null) ...[
@@ -181,6 +186,52 @@ class StandaloneWindowActionBar extends StatelessWidget {
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
+                      ),
+                    if (activeTagNotifier != null)
+                      ValueListenableBuilder<Map<String, String>?>(
+                        valueListenable: activeTagNotifier!,
+                        builder: (context, activeTag, child) {
+                          if (activeTag == null) return const SizedBox.shrink();
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                child: Icon(Icons.chevron_right, color: Colors.white54),
+                              ),
+                              GestureDetector(
+                                onTap: () => onTagTap?.call(activeTag['url']!, activeTag['sort']!),
+                                onSecondaryTapDown: (details) => onTagSecondaryTapDown?.call(details, activeTag['url']!),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.sell, color: Colors.amber, size: 10),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          activeTag['tag']!,
+                                          style: GoogleFonts.outfit(
+                                            color: Colors.amber,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                   ],
                 ),
