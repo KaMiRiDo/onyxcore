@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 
 class UnifiedSidePanel extends ConsumerStatefulWidget {
@@ -45,7 +45,7 @@ class _UnifiedSidePanelState extends ConsumerState<UnifiedSidePanel> {
     final maxWidth = mainAreaWidth / 2;
 
     final panelWidthAsync = ref.watch(downloadsPanelWidthProvider);
-    double panelWidth = panelWidthAsync.when(
+    var panelWidth = panelWidthAsync.when(
       data: (v) => v,
       loading: () => 320.0,
       error: (_, __) => 320.0,
@@ -79,15 +79,14 @@ class _UnifiedSidePanelState extends ConsumerState<UnifiedSidePanel> {
         border: isOpen
             ? Border(
                 left: BorderSide(
-                  color: Colors.white.withOpacity(0.12),
-                  width: 1,
+                  color: Colors.white.withValues(alpha: 0.12),
                 ),
               )
             : null,
         boxShadow: isOpen
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   blurRadius: 30,
                   offset: const Offset(-6, 0),
                 ),
@@ -109,7 +108,6 @@ class _UnifiedSidePanelState extends ConsumerState<UnifiedSidePanel> {
               maxWidth: panelWidth,
               child: FocusScope(
                 node: _panelFocusScopeNode,
-                autofocus: false,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
@@ -134,7 +132,7 @@ class _UnifiedSidePanelState extends ConsumerState<UnifiedSidePanel> {
                         true;
                   },
                   onPanUpdate: (details) {
-                    double newWidth = screenWidth - details.globalPosition.dx;
+                    var newWidth = screenWidth - details.globalPosition.dx;
                     newWidth = newWidth.clamp(minWidth, maxWidth);
                     ref
                         .read(downloadsPanelWidthProvider.notifier)

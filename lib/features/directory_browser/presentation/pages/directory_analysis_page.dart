@@ -1,26 +1,24 @@
 import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:path/path.dart' as p;
-
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/directory_size_utils.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
-import 'package:onyxcore/core/utils/directory_size_utils.dart';
-import 'package:intl/intl.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:path/path.dart' as p;
 final analysisCurrentPathProvider = StateProvider.family<String, String>((ref, initialPath) => initialPath);
 
 final sizeFilterProvider = StateProvider<int?>((ref) => null);
@@ -45,21 +43,20 @@ final availableExtensionsProvider = Provider.family<Set<String>, String>((ref, a
 });
 
 class BrowserItem {
-  final String path;
-  final String name;
-  final bool isDirectory;
-  final int size;
-  final FileItemType? type;
-  final DateTime modified;
 
   BrowserItem({
     required this.path,
     required this.name,
     required this.isDirectory,
     required this.size,
-    this.type,
-    required this.modified,
+    required this.modified, this.type,
   });
+  final String path;
+  final String name;
+  final bool isDirectory;
+  final int size;
+  final FileItemType? type;
+  final DateTime modified;
 }
 
 final displayedItemsPageProvider = StateProvider.autoDispose.family<int, String>((ref, path) => 50);
@@ -67,10 +64,6 @@ final displayedItemsPageProvider = StateProvider.autoDispose.family<int, String>
 // Args for the heavy filter-only isolate step (no currentPath — that's cheap)
 @visibleForTesting
 class FilterOnlyArgs {
-  final List<FileStatWithInfo> allFiles;
-  final Set<FileItemType> typeFilter;
-  final Set<String> extFilter;
-  final int? sizeFilter;
 
   FilterOnlyArgs({
     required this.allFiles,
@@ -78,6 +71,10 @@ class FilterOnlyArgs {
     required this.extFilter,
     required this.sizeFilter,
   });
+  final List<FileStatWithInfo> allFiles;
+  final Set<FileItemType> typeFilter;
+  final Set<String> extFilter;
+  final int? sizeFilter;
 }
 
 // Runs in isolate: only applies type/size/ext filters — no path grouping
@@ -167,9 +164,9 @@ List<BrowserItem> groupByCurrentPath(List<FileStatWithInfo> filteredFiles, Strin
 // Args for compute()-based grouping
 @visibleForTesting
 class GroupArgs {
+  GroupArgs(this.filteredFiles, this.currentPath);
   final List<FileStatWithInfo> filteredFiles;
   final String currentPath;
-  GroupArgs(this.filteredFiles, this.currentPath);
 }
 
 @visibleForTesting
@@ -209,9 +206,9 @@ final displayedItemsProvider = FutureProvider.family<List<BrowserItem>, String>(
 });
 
 class DirectoryAnalysisPage extends ConsumerWidget {
-  final String path;
 
-  const DirectoryAnalysisPage({super.key, required this.path});
+  const DirectoryAnalysisPage({required this.path, super.key});
+  final String path;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -238,7 +235,7 @@ class DirectoryAnalysisPage extends ConsumerWidget {
       child: GestureDetector(
         onSecondaryTapUp: (_) {},
         onSecondaryTapDown: (_) {},
-        child: Container(
+        child: ColoredBox(
           color: AppColors.background,
           child: analysisAsync.when(
           data: (result) => _AnalysisView(result: result, path: path),
@@ -251,10 +248,10 @@ class DirectoryAnalysisPage extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E1E), // Match properties dialog overlay color
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       blurRadius: 30,
                       offset: const Offset(0, 10),
                     ),
@@ -262,7 +259,6 @@ class DirectoryAnalysisPage extends ConsumerWidget {
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 16),
                     const CircularBubbleLoader(size: 48),
@@ -298,7 +294,7 @@ class DirectoryAnalysisPage extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    Divider(color: Colors.white.withOpacity(0.1), height: 1),
+                    Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
                     const SizedBox(height: 16),
                     TextButton(
                       onPressed: () {
@@ -336,10 +332,10 @@ class DirectoryAnalysisPage extends ConsumerWidget {
 }
 
 class _AnalysisView extends ConsumerWidget {
-  final DirectoryAnalysisResult result;
-  final String path;
 
   const _AnalysisView({required this.result, required this.path});
+  final DirectoryAnalysisResult result;
+  final String path;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -377,11 +373,10 @@ class _AnalysisView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceBase,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             flex: 2,
@@ -401,7 +396,7 @@ class _AnalysisView extends ConsumerWidget {
                 Text(
                   result.path,
                   style: TextStyle(
-                    color: AppColors.textMuted.withOpacity(0.7),
+                    color: AppColors.textMuted.withValues(alpha: 0.7),
                     fontSize: 12,
                   ),
                 ),
@@ -425,7 +420,7 @@ class _AnalysisView extends ConsumerWidget {
                     Text(
                       'Total Storage',
                       style: TextStyle(
-                        color: AppColors.textMuted.withOpacity(0.8),
+                        color: AppColors.textMuted.withValues(alpha: 0.8),
                         fontSize: 11,
                       ),
                     ),
@@ -442,7 +437,7 @@ class _AnalysisView extends ConsumerWidget {
                     Text(
                       '${result.totalItems} items',
                       style: TextStyle(
-                        color: AppColors.textMuted.withOpacity(0.7),
+                        color: AppColors.textMuted.withValues(alpha: 0.7),
                         fontSize: 12,
                       ),
                     ),
@@ -541,7 +536,7 @@ class _AnalysisView extends ConsumerWidget {
       final widgets = <Widget>[];
       var accumPath = basePath;
 
-      for (int i = 0; i < parts.length; i++) {
+      for (var i = 0; i < parts.length; i++) {
         accumPath = p.join(accumPath, parts[i]);
         final isLast = i == parts.length - 1;
         final currentAccumPath = accumPath; // capture for closure
@@ -676,7 +671,7 @@ class _AnalysisView extends ConsumerWidget {
                             Text(
                               '$selectedCount items selected    ',
                               style: TextStyle(
-                                color: AppColors.textBody.withOpacity(0.4),
+                                color: AppColors.textBody.withValues(alpha: 0.4),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -685,8 +680,6 @@ class _AnalysisView extends ConsumerWidget {
                               blendMode: BlendMode.srcIn,
                               shaderCallback: (bounds) => const LinearGradient(
                                 colors: [Colors.redAccent, Colors.orangeAccent],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
                               ).createShader(bounds),
                               child: RichText(
                                 text: TextSpan(
@@ -695,7 +688,7 @@ class _AnalysisView extends ConsumerWidget {
                                     color: Colors.white,
                                     fontSize: 40,
                                     fontWeight: FontWeight.bold,
-                                    letterSpacing: -1.0,
+                                    letterSpacing: -1,
                                   ),
                                   children: [
                                     TextSpan(
@@ -835,7 +828,7 @@ class _AnalysisView extends ConsumerWidget {
             const SizedBox(height: 24),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.02),
+                color: Colors.white.withValues(alpha: 0.02),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.borderColor),
               ),
@@ -884,15 +877,12 @@ class _AnalysisView extends ConsumerWidget {
                             child: buildColHeader('Name'),
                           ),
                           Expanded(
-                            flex: 1,
                             child: buildColHeader('Type'),
                           ),
                           Expanded(
-                            flex: 1,
                             child: buildColHeader('Size'),
                           ),
                           Expanded(
-                            flex: 1,
                             child: buildColHeader('Last Modified'),
                           ),
                         ],
@@ -949,10 +939,6 @@ class _AnalysisView extends ConsumerWidget {
 }
 
 class _CategoryCard extends ConsumerStatefulWidget {
-  final FileItemType type;
-  final String title;
-  final CategoryStats stats;
-  final int totalBytes;
 
   const _CategoryCard({
     required this.type,
@@ -960,6 +946,10 @@ class _CategoryCard extends ConsumerStatefulWidget {
     required this.stats,
     required this.totalBytes,
   });
+  final FileItemType type;
+  final String title;
+  final CategoryStats stats;
+  final int totalBytes;
 
   @override
   ConsumerState<_CategoryCard> createState() => _CategoryCardState();
@@ -977,43 +967,36 @@ class _CategoryCardState extends ConsumerState<_CategoryCard> {
           const Color(0xFF2E7D32),
           const Color(0xFF69F0AE),
         ]);
-        break;
       case FileItemType.video:
         config = FileIconConfig(Icons.movie_creation_rounded, [
           const Color(0xFFD32F2F),
           const Color(0xFFFF5252),
         ]);
-        break;
       case FileItemType.audio:
         config = FileIconConfig(Icons.music_note_rounded, [
           const Color(0xFF7B1FA2),
           const Color(0xFFE040FB),
         ]);
-        break;
       case FileItemType.document:
         config = FileIconConfig(Icons.picture_as_pdf_rounded, [
           const Color(0xFF1565C0),
           const Color(0xFF448AFF),
         ]);
-        break;
       case FileItemType.archive:
         config = FileIconConfig(Icons.inventory_2_rounded, [
           const Color(0xFFFF6F00),
           const Color(0xFFFFAB40),
         ]);
-        break;
       case FileItemType.other:
         config = FileIconConfig(Icons.insert_drive_file_rounded, [
           const Color(0xFF546E7A),
           const Color(0xFF90A4AE),
         ]);
-        break;
       default:
         config = FileIconConfig(Icons.insert_drive_file_rounded, [
           AppColors.textMuted,
           AppColors.textMuted,
         ]);
-        break;
     }
 
     final percentage = widget.totalBytes > 0 
@@ -1043,19 +1026,19 @@ class _CategoryCardState extends ConsumerState<_CategoryCard> {
         transform: Matrix4.translationValues(0, _isHovered ? -4 : 0, 0),
         decoration: BoxDecoration(
           color: isActive 
-              ? config.colors.first.withOpacity(0.1) 
-              : Colors.white.withOpacity(0.02),
+              ? config.colors.first.withValues(alpha: 0.1) 
+              : Colors.white.withValues(alpha: 0.02),
           border: Border.all(
             color: isActive 
-                ? config.colors.first.withOpacity(0.5) 
+                ? config.colors.first.withValues(alpha: 0.5) 
                 : (_isHovered 
-                    ? config.colors.first.withOpacity(0.3) 
-                    : Colors.white.withOpacity(0.05)),
+                    ? config.colors.first.withValues(alpha: 0.3) 
+                    : Colors.white.withValues(alpha: 0.05)),
           ),
           borderRadius: BorderRadius.circular(12),
           boxShadow: (_isHovered || isActive) ? [
             BoxShadow(
-              color: config.colors.first.withOpacity(0.08),
+              color: config.colors.first.withValues(alpha: 0.08),
               blurRadius: 16,
               offset: const Offset(0, 6),
             )
@@ -1071,7 +1054,7 @@ class _CategoryCardState extends ConsumerState<_CategoryCard> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: config.colors.first.withOpacity(0.15),
+                    color: config.colors.first.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(config.icon, color: config.colors.first, size: 20),
@@ -1099,7 +1082,7 @@ class _CategoryCardState extends ConsumerState<_CategoryCard> {
             Text(
               '${widget.stats.count} items • ${StringUtils.formatBytes(widget.stats.totalBytes)}',
               style: TextStyle(
-                color: AppColors.textMuted.withOpacity(0.8),
+                color: AppColors.textMuted.withValues(alpha: 0.8),
                 fontSize: 10,
               ),
             ),
@@ -1107,8 +1090,8 @@ class _CategoryCardState extends ConsumerState<_CategoryCard> {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: percentage.toDouble(),
-                backgroundColor: Colors.white.withOpacity(0.05),
+                value: percentage,
+                backgroundColor: Colors.white.withValues(alpha: 0.05),
                 valueColor: AlwaysStoppedAnimation<Color>(config.colors.first),
                 minHeight: 4,
               ),
@@ -1122,10 +1105,6 @@ class _CategoryCardState extends ConsumerState<_CategoryCard> {
 }
 
 class _BrowserItemRow extends ConsumerStatefulWidget {
-  final BrowserItem item;
-  final String analysisPath;
-  final List<String> allPaths;
-  final int parentTotalSize;
 
   const _BrowserItemRow({
     required this.item,
@@ -1133,6 +1112,10 @@ class _BrowserItemRow extends ConsumerStatefulWidget {
     required this.allPaths,
     required this.parentTotalSize,
   });
+  final BrowserItem item;
+  final String analysisPath;
+  final List<String> allPaths;
+  final int parentTotalSize;
 
   @override
   ConsumerState<_BrowserItemRow> createState() => _BrowserItemRowState();
@@ -1151,7 +1134,7 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
         HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
     
     // Always true to enable checklist-style toggling
-    final isCtrl = true;
+    const isCtrl = true;
 
     final currentIndex = widget.allPaths.indexOf(widget.item.path);
     if (currentIndex != -1) {
@@ -1173,8 +1156,8 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
     final isSelected = ref.watch(selectionProvider).selectedPaths.contains(widget.item.path);
     final percentage = widget.parentTotalSize > 0 ? widget.item.size / widget.parentTotalSize : 0.0;
 
-    final startColor = AppColors.cyan;
-    final fullEndColor = AppColors.indigo;
+    const startColor = AppColors.cyan;
+    const fullEndColor = AppColors.indigo;
     final endColor = Color.lerp(startColor, fullEndColor, percentage) ?? startColor;
 
     return MouseRegion(
@@ -1221,11 +1204,9 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
                         ),
                         gradient: LinearGradient(
                           colors: [
-                            startColor.withOpacity(0.15),
-                            endColor.withOpacity(0.15),
+                            startColor.withValues(alpha: 0.15),
+                            endColor.withValues(alpha: 0.15),
                           ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
                         ),
                       ),
                     ),
@@ -1233,9 +1214,9 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
                 ),
               Container(
                 color: isSelected
-                    ? Colors.white.withOpacity(0.05)
+                    ? Colors.white.withValues(alpha: 0.05)
                     : _isHovered
-                        ? Colors.white.withOpacity(0.02)
+                        ? Colors.white.withValues(alpha: 0.02)
                         : Colors.transparent,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Row(
@@ -1254,7 +1235,7 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     onChanged: (val) {
-                      if (val == true) {
+                      if (val ?? false) {
                         ref.read(selectionProvider.notifier).select(widget.item.path);
                       } else {
                         ref.read(selectionProvider.notifier).deselect([widget.item.path]);
@@ -1271,13 +1252,13 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: config.colors.first.withOpacity(
-                            _isHovered || isSelected ? 0.25 : 0.15
+                          color: config.colors.first.withValues(
+                            alpha: _isHovered || isSelected ? 0.25 : 0.15
                           ),
                           borderRadius: BorderRadius.circular(8),
                           boxShadow: _isHovered ? [
                             BoxShadow(
-                              color: config.colors.first.withOpacity(0.2),
+                              color: config.colors.first.withValues(alpha: 0.2),
                               blurRadius: 8,
                             )
                           ] : [],
@@ -1305,7 +1286,6 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
                   ),
                 ),
                 Expanded(
-                  flex: 1,
                   child: Text(
                     widget.item.isDirectory ? 'Folder' : '${widget.item.type?.name[0].toUpperCase()}${widget.item.type?.name.substring(1)} File',
                     style: const TextStyle(
@@ -1316,7 +1296,6 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
                   ),
                 ),
                 Expanded(
-                  flex: 1,
                   child: Text(
                     StringUtils.formatBytes(widget.item.size),
                     style: const TextStyle(
@@ -1326,7 +1305,6 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
                   ),
                 ),
                 Expanded(
-                  flex: 1,
                   child: Text(
                     _formatDate(widget.item.modified),
                     style: const TextStyle(
@@ -1347,10 +1325,6 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
 }
 
 class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
 
   const _ActionButton({
     required this.icon,
@@ -1358,6 +1332,10 @@ class _ActionButton extends StatelessWidget {
     required this.color,
     required this.onTap,
   });
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1367,9 +1345,9 @@ class _ActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -1399,8 +1377,8 @@ class _SizeFilterDropdown extends ConsumerWidget {
     final isActive = currentSize != null;
     final label = isActive ? '> $currentSize MB' : 'Size';
 
-    final bgColor = isActive ? AppColors.violet.withOpacity(0.15) : Colors.white.withOpacity(0.05);
-    final borderColor = isActive ? AppColors.violet.withOpacity(0.3) : Colors.white.withOpacity(0.1);
+    final bgColor = isActive ? AppColors.violet.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05);
+    final borderColor = isActive ? AppColors.violet.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1);
     final textColor = isActive ? AppColors.violet : AppColors.textBody;
 
     return MenuAnchor(
@@ -1456,15 +1434,15 @@ class _SizeFilterDropdown extends ConsumerWidget {
 }
 
 class _CustomMenuCheckbox extends StatelessWidget {
-  final bool value;
-  final String label;
-  final VoidCallback onChanged;
 
   const _CustomMenuCheckbox({
     required this.value,
     required this.label,
     required this.onChanged,
   });
+  final bool value;
+  final String label;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1484,7 +1462,7 @@ class _CustomMenuCheckbox extends StatelessWidget {
               color: value ? AppColors.violet : Colors.transparent,
               borderRadius: BorderRadius.circular(4),
               border: Border.all(
-                color: value ? AppColors.violet : Colors.white.withOpacity(0.3),
+                color: value ? AppColors.violet : Colors.white.withValues(alpha: 0.3),
                 width: 1.5,
               ),
             ),
@@ -1508,7 +1486,7 @@ class _TypeFilterDropdown extends ConsumerWidget {
     final currentTypes = ref.watch(typeFilterProvider);
     final isActive = currentTypes.isNotEmpty;
     
-    String label = 'Type';
+    var label = 'Type';
     if (isActive) {
       if (currentTypes.length == 1) {
         label = '${currentTypes.first.name[0].toUpperCase()}${currentTypes.first.name.substring(1)}';
@@ -1517,8 +1495,8 @@ class _TypeFilterDropdown extends ConsumerWidget {
       }
     }
 
-    final bgColor = isActive ? AppColors.violet.withOpacity(0.15) : Colors.white.withOpacity(0.05);
-    final borderColor = isActive ? AppColors.violet.withOpacity(0.3) : Colors.white.withOpacity(0.1);
+    final bgColor = isActive ? AppColors.violet.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05);
+    final borderColor = isActive ? AppColors.violet.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1);
     final textColor = isActive ? AppColors.violet : AppColors.textBody;
 
     return MenuAnchor(
@@ -1586,8 +1564,8 @@ class _TypeFilterDropdown extends ConsumerWidget {
 }
 
 class _ExtensionFilterDropdown extends ConsumerWidget {
-  final String analysisPath;
   const _ExtensionFilterDropdown({required this.analysisPath});
+  final String analysisPath;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1597,7 +1575,7 @@ class _ExtensionFilterDropdown extends ConsumerWidget {
     
     if (available.isEmpty) return const SizedBox.shrink();
 
-    String label = 'Extensions';
+    var label = 'Extensions';
     if (isActive) {
       if (currentExts.length == 1) {
         label = currentExts.first;
@@ -1606,8 +1584,8 @@ class _ExtensionFilterDropdown extends ConsumerWidget {
       }
     }
 
-    final bgColor = isActive ? AppColors.violet.withOpacity(0.15) : Colors.white.withOpacity(0.05);
-    final borderColor = isActive ? AppColors.violet.withOpacity(0.3) : Colors.white.withOpacity(0.1);
+    final bgColor = isActive ? AppColors.violet.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05);
+    final borderColor = isActive ? AppColors.violet.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1);
     final textColor = isActive ? AppColors.violet : AppColors.textBody;
 
     final exts = available.toList()..sort();
@@ -1677,19 +1655,19 @@ class _ExtensionFilterDropdown extends ConsumerWidget {
 }
 
 class _FilterButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
 
   const _FilterButton({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1707,10 +1685,10 @@ class _FilterButton extends StatelessWidget {
 }
 
 class _DonutChartPainter extends CustomPainter {
-  final Map<FileItemType, double> percentages;
-  final double strokeWidth;
 
   _DonutChartPainter({required this.percentages, this.strokeWidth = 12});
+  final Map<FileItemType, double> percentages;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1724,10 +1702,10 @@ class _DonutChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.butt; // The image seems to have flat/butt caps for segments
 
     // Draw background
-    paint.color = Colors.white.withOpacity(0.05);
+    paint.color = Colors.white.withValues(alpha: 0.05);
     canvas.drawArc(rect, 0, 2 * math.pi, false, paint);
 
-    double startAngle = -math.pi / 2;
+    var startAngle = -math.pi / 2;
 
     void drawSegment(FileItemType type, Color color) {
       final percentage = percentages[type] ?? 0.0;
@@ -1745,7 +1723,7 @@ class _DonutChartPainter extends CustomPainter {
     drawSegment(FileItemType.archive, const Color(0xFFFF6F00));
     
     // Calculate 'other' percentage
-    double otherPercentage = 1.0 - (percentages[FileItemType.image] ?? 0) - (percentages[FileItemType.video] ?? 0) - (percentages[FileItemType.audio] ?? 0) - (percentages[FileItemType.document] ?? 0) - (percentages[FileItemType.archive] ?? 0);
+    final otherPercentage = 1.0 - (percentages[FileItemType.image] ?? 0) - (percentages[FileItemType.video] ?? 0) - (percentages[FileItemType.audio] ?? 0) - (percentages[FileItemType.document] ?? 0) - (percentages[FileItemType.archive] ?? 0);
     
     if (otherPercentage > 0.001) { // Floating point safety
       final sweepAngle = otherPercentage * 2 * math.pi;
@@ -1766,8 +1744,8 @@ class _DonutChartPainter extends CustomPainter {
 }
 
 class CircularBubbleLoader extends StatefulWidget {
-  final double size;
   const CircularBubbleLoader({super.key, this.size = 64.0});
+  final double size;
 
   @override
   State<CircularBubbleLoader> createState() => _CircularBubbleLoaderState();
@@ -1817,7 +1795,7 @@ class _CircularBubbleLoaderState extends State<CircularBubbleLoader>
                     width: bubbleSize,
                     height: bubbleSize,
                     decoration: BoxDecoration(
-                      color: AppColors.violet.withOpacity(1.0 - (index * 0.3)),
+                      color: AppColors.violet.withValues(alpha: 1.0 - (index * 0.3)),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -1832,15 +1810,15 @@ class _CircularBubbleLoaderState extends State<CircularBubbleLoader>
 }
 
 class _AnalysisDeleteDialog extends StatefulWidget {
-  final int filesCount;
-  final int foldersCount;
-  final String totalSize;
 
   const _AnalysisDeleteDialog({
     required this.filesCount,
     required this.foldersCount,
     required this.totalSize,
   });
+  final int filesCount;
+  final int foldersCount;
+  final String totalSize;
 
   @override
   State<_AnalysisDeleteDialog> createState() => _AnalysisDeleteDialogState();
@@ -1860,10 +1838,10 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
         decoration: BoxDecoration(
           color: const Color(0xFF111111),
           borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               blurRadius: 50,
               spreadRadius: 10,
               offset: const Offset(0, 20),
@@ -1877,28 +1855,28 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
               width: 84,
               height: 84,
               decoration: BoxDecoration(
-                color: _isPermanent ? AppColors.error.withOpacity(0.05) : AppColors.violet.withOpacity(0.05),
+                color: _isPermanent ? AppColors.error.withValues(alpha: 0.05) : AppColors.violet.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: _isPermanent ? AppColors.error.withOpacity(0.15) : AppColors.violet.withOpacity(0.15),
+                  color: _isPermanent ? AppColors.error.withValues(alpha: 0.15) : AppColors.violet.withValues(alpha: 0.15),
                   width: 1.5,
                 ),
               ),
               child: Center(
                 child: Icon(
                   _isPermanent ? Icons.delete_forever_rounded : Icons.delete_outline_rounded,
-                  color: _isPermanent ? AppColors.error.withOpacity(0.9) : AppColors.violet.withOpacity(0.9),
+                  color: _isPermanent ? AppColors.error.withValues(alpha: 0.9) : AppColors.violet.withValues(alpha: 0.9),
                   size: 44,
                 ),
               ),
             ),
             const SizedBox(height: 28),
             Text(
-              _isPermanent ? "Permanently Delete?" : "Move to Trash?",
+              _isPermanent ? 'Permanently Delete?' : 'Move to Trash?',
               style: GoogleFonts.outfit(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 letterSpacing: -0.5,
               ),
             ),
@@ -1909,19 +1887,19 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildStatItem(
-                    label: "Folders",
+                    label: 'Folders',
                     value: widget.foldersCount.toString(),
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                   _buildStatItem(
-                    label: "Files",
+                    label: 'Files',
                     value: widget.filesCount.toString(),
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                   _buildStatItem(
-                    label: "Total Space",
+                    label: 'Total Space',
                     value: widget.totalSize,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ],
               ),
@@ -1930,10 +1908,10 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: _isPermanent ? AppColors.error.withOpacity(0.04) : AppColors.violet.withOpacity(0.04),
+                color: _isPermanent ? AppColors.error.withValues(alpha: 0.04) : AppColors.violet.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(100),
                 border: Border.all(
-                  color: _isPermanent ? AppColors.error.withOpacity(0.08) : AppColors.violet.withOpacity(0.08),
+                  color: _isPermanent ? AppColors.error.withValues(alpha: 0.08) : AppColors.violet.withValues(alpha: 0.08),
                 ),
               ),
               child: Row(
@@ -1941,15 +1919,15 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
                 children: [
                   Icon(
                     _isPermanent ? Icons.info_outline_rounded : Icons.delete_sweep_outlined,
-                    color: _isPermanent ? AppColors.error.withOpacity(0.6) : AppColors.violet.withOpacity(0.6),
+                    color: _isPermanent ? AppColors.error.withValues(alpha: 0.6) : AppColors.violet.withValues(alpha: 0.6),
                     size: 14,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isPermanent ? "This action cannot be undone" : "You can restore it from system Trash",
+                    _isPermanent ? 'This action cannot be undone' : 'You can restore it from system Trash',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
-                      color: _isPermanent ? AppColors.error.withOpacity(0.6) : AppColors.violet.withOpacity(0.6),
+                      color: _isPermanent ? AppColors.error.withValues(alpha: 0.6) : AppColors.violet.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.1,
                     ),
@@ -1989,7 +1967,7 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    "Permanently delete instead of moving to Trash",
+                    'Permanently delete instead of moving to Trash',
                     style: GoogleFonts.manrope(
                       fontSize: 13,
                       color: Colors.white70,
@@ -2003,17 +1981,17 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, null),
+                    onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white70,
-                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: Text(
-                      "Cancel",
+                      'Cancel',
                       style: GoogleFonts.manrope(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
@@ -2038,7 +2016,7 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
                       ),
                     ),
                     child: Text(
-                      _isPermanent ? "Yes, Delete" : "Yes, Trash",
+                      _isPermanent ? 'Yes, Delete' : 'Yes, Trash',
                       style: GoogleFonts.manrope(
                         fontWeight: FontWeight.w800,
                         fontSize: 15,

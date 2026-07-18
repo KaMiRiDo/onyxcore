@@ -177,6 +177,8 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
     g_signal_connect(new_window, "destroy", G_CALLBACK(on_secondary_window_destroy), nullptr);
     g_signal_connect(new_window, "delete-event", G_CALLBACK(on_secondary_window_delete), nullptr);
     g_signal_connect(new_window, "focus-in-event", G_CALLBACK(on_secondary_window_focus_in), new_view);
+    // Show window immediately so user doesn't perceive a delay while waiting for first-frame
+    gtk_widget_show(GTK_WIDGET(new_window));
     g_signal_connect_swapped(new_view, "first-frame", G_CALLBACK(secondary_first_frame_cb), self);
     // Let GTK's natural mapping cycle handle realization after the view is
     // added to the container and has a proper allocation.  Calling
@@ -272,6 +274,15 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
           g_signal_handlers_disconnect_matched(child_view,
               G_SIGNAL_MATCH_FUNC, 0, 0, nullptr,
               (gpointer)secondary_first_frame_cb, nullptr);
+          
+          // FIX: Remove the FlView from its container IMMEDIATELY so the
+          // Flutter compositor stops referencing it during the deferred
+          // destruction window.  Without this, the compositor's render loop
+          // tries to access the FlView's allocation/scale-factor through
+          // stale pointers, producing:
+          //   GLib-GObject-CRITICAL: invalid unclassed pointer in cast to 'FlView'
+          //   fl_compositor_get_frame_size: assertion 'FL_IS_COMPOSITOR(self)' failed
+          gtk_container_remove(GTK_CONTAINER(target_window), child_view);
         }
         
         // prevent focus from going to the dying window
@@ -289,8 +300,9 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
         // prevent the reference from being freed before deferred destroy
         g_object_ref(target_window);
         
-        // Deferred destruction: destroy the window after 200ms to let the
-        // Flutter engine fully stop rendering into its GL context.
+        // Deferred destruction: destroy the empty window shell after 200ms.
+        // The FlView has already been removed above, so this just cleans up
+        // the GtkWindow itself without touching any GL resources.
         g_timeout_add(200, [](gpointer data) -> gboolean {
           GtkWidget* widget = GTK_WIDGET(data);
           if (GTK_IS_WIDGET(widget)) {

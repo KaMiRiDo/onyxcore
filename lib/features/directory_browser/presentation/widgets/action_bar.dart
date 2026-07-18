@@ -14,7 +14,7 @@ class ActionBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String currentPath = ref.watch(currentPathProvider);
+    final currentPath = ref.watch(currentPathProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
@@ -72,7 +72,7 @@ class ActionBar extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isActive ? Colors.white.withOpacity(0.05) : Colors.transparent,
+        color: isActive ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(

@@ -3,16 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 enum FileOperationType { copy, cut, none }
 
 class ClipboardState {
-  final FileOperationType type;
-  final List<String> paths;
-
-  bool get isCut => type == FileOperationType.cut;
-  bool get isCopy => type == FileOperationType.copy;
 
   const ClipboardState({
     this.type = FileOperationType.none,
     this.paths = const [],
   });
+  final FileOperationType type;
+  final List<String> paths;
+
+  bool get isCut => type == FileOperationType.cut;
+  bool get isCopy => type == FileOperationType.copy;
 
   ClipboardState copyWith({
     FileOperationType? type,

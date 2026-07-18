@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 
 class FilterOverlay {
   static OverlayEntry? _overlayEntry;
@@ -15,7 +16,7 @@ class FilterOverlay {
     required BuildContext context,
     required Offset position,
     required FilterSettings initialSettings,
-    required Function(FilterSettings) onApply,
+    required void Function(FilterSettings) onSelected,
   }) {
     hide();
 
@@ -25,7 +26,7 @@ class FilterOverlay {
         initialSettings: initialSettings,
         onApply: (settings) {
           hide();
-          onApply(settings);
+          onSelected(settings);
         },
         onClose: hide,
       ),
@@ -41,10 +42,6 @@ class FilterOverlay {
 }
 
 class _FilterOverlayWidget extends StatefulWidget {
-  final Offset position;
-  final FilterSettings initialSettings;
-  final Function(FilterSettings) onApply;
-  final VoidCallback onClose;
 
   const _FilterOverlayWidget({
     required this.position,
@@ -52,6 +49,10 @@ class _FilterOverlayWidget extends StatefulWidget {
     required this.onApply,
     required this.onClose,
   });
+  final Offset position;
+  final FilterSettings initialSettings;
+  final void Function(FilterSettings) onApply;
+  final VoidCallback onClose;
 
   @override
   State<_FilterOverlayWidget> createState() => _FilterOverlayWidgetState();
@@ -94,9 +95,6 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
     _hideDropdown();
     setState(() => _expandedSection = sectionId);
 
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final size = renderBox.size;
-
     _dropdownEntry = OverlayEntry(
       builder: (context) => Stack(
         children: [
@@ -119,10 +117,10 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E26),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.12)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -234,12 +232,13 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
     final maxHeight =
         screenSize.height * 0.8; // Allow up to 80% of screen height
 
-    double left = widget.position.dx - width + 40;
-    double top = widget.position.dy + 48;
+    var left = widget.position.dx - width + 40;
+    final top = widget.position.dy + 48;
 
     if (left < 16) left = 16;
-    if (left + width > screenSize.width - 16)
+    if (left + width > screenSize.width - 16) {
       left = screenSize.width - width - 16;
+    }
 
     // If the box might go off-screen at the bottom, we cap its height
     // and potentially shift it up.
@@ -291,12 +290,12 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
             width: width,
             constraints: BoxConstraints(maxHeight: maxHeight),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E26).withOpacity(0.85),
+              color: const Color(0xFF1E1E26).withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 40,
                   offset: const Offset(0, 20),
                 ),
@@ -355,7 +354,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.violet.withOpacity(0.1),
+              color: AppColors.violet.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
@@ -378,7 +377,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
             onPressed: widget.onClose,
             icon: Icon(
               Icons.close_rounded,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               size: 20,
             ),
             padding: EdgeInsets.zero,
@@ -416,9 +415,9 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.2),
+        color: Colors.black.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: FilterCalendar(
         selectedDates: _settings.selectedDates ?? {},
@@ -452,7 +451,6 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
           _settings = _settings.copyWith(
             foldersOnly: newVal,
             clearFoldersOnly: newVal == null,
-            category: null,
             clearCategory: true,
             extensions: {},
           );
@@ -526,12 +524,12 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isExpanded
-                  ? AppColors.violet.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.05),
+                  ? AppColors.violet.withValues(alpha: 0.3)
+                  : Colors.white.withValues(alpha: 0.05),
             ),
           ),
           child: Row(
@@ -652,12 +650,12 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
         ),
         decoration: BoxDecoration(
           gradient: isSelected ? AppTheme.primaryGradient : null,
-          color: isSelected ? null : Colors.white.withOpacity(0.05),
+          color: isSelected ? null : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected
-                ? Colors.white.withOpacity(0.2)
-                : Colors.white.withOpacity(0.05),
+                ? Colors.white.withValues(alpha: 0.2)
+                : Colors.white.withValues(alpha: 0.05),
           ),
         ),
         child: Text(
@@ -681,9 +679,9 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.redAccent.withOpacity(0.1),
+              color: Colors.redAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
@@ -709,9 +707,9 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.05)),
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
             ),
           ),
           child: Row(
@@ -783,7 +781,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.violet.withOpacity(0.3),
+                        color: AppColors.violet.withValues(alpha: 0.3),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -808,20 +806,18 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
 }
 
 class DropdownMenuItemData<T> {
+  DropdownMenuItemData({required this.label, required this.value});
   final String label;
   final T value;
-  DropdownMenuItemData({required this.label, required this.value});
 }
 
 class FilterCalendar extends StatefulWidget {
-  final Set<DateTime> selectedDates;
-  final ValueChanged<Set<DateTime>> onDatesChanged;
 
   const FilterCalendar({
-    super.key,
-    required this.selectedDates,
-    required this.onDatesChanged,
+    required this.selectedDates, required this.onDatesChanged, super.key,
   });
+  final Set<DateTime> selectedDates;
+  final ValueChanged<Set<DateTime>> onDatesChanged;
 
   @override
   State<FilterCalendar> createState() => _FilterCalendarState();
@@ -844,7 +840,7 @@ class _FilterCalendarState extends State<FilterCalendar> {
     final monthDays = _getDaysInMonth(_viewDate);
     final prevMonthDays = _getPrevMonthDays(_viewDate);
     final firstDayOfWeek =
-        DateTime(_viewDate.year, _viewDate.month, 1).weekday % 7;
+        DateTime(_viewDate.year, _viewDate.month).weekday % 7;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final hasSelection = widget.selectedDates.isNotEmpty;
@@ -930,7 +926,7 @@ class _FilterCalendarState extends State<FilterCalendar> {
           itemCount: 42,
           itemBuilder: (context, index) {
             DateTime date;
-            bool currentMonth = true;
+            var currentMonth = true;
             if (index < firstDayOfWeek) {
               date = DateTime(
                 _viewDate.year,
@@ -969,12 +965,12 @@ class _FilterCalendarState extends State<FilterCalendar> {
                 decoration: BoxDecoration(
                   gradient: isSelected ? AppTheme.primaryGradient : null,
                   color: !isSelected && isToday
-                      ? AppColors.violet.withOpacity(0.1)
+                      ? AppColors.violet.withValues(alpha: 0.1)
                       : (isSelected ? null : Colors.transparent),
                   borderRadius: BorderRadius.circular(8),
                   border: isToday && !isSelected
                       ? Border.all(
-                          color: AppColors.violet.withOpacity(0.2),
+                          color: AppColors.violet.withValues(alpha: 0.2),
                           width: 0.5,
                         )
                       : null,
@@ -983,7 +979,7 @@ class _FilterCalendarState extends State<FilterCalendar> {
                   date.day.toString(),
                   style: GoogleFonts.manrope(
                     color: isFuture
-                        ? Colors.white.withOpacity(0.05)
+                        ? Colors.white.withValues(alpha: 0.05)
                         : (isSelected
                               ? Colors.white
                               : (currentMonth
@@ -1012,7 +1008,7 @@ class _FilterCalendarState extends State<FilterCalendar> {
           LogicalKeyboardKey.shiftRight,
         );
 
-    Set<DateTime> newDates = Set.from(widget.selectedDates);
+    final newDates = Set<DateTime>.from(widget.selectedDates);
 
     if (isShift && _anchorDate != null) {
       final start = _anchorDate!.isBefore(date) ? _anchorDate! : date;
@@ -1045,19 +1041,19 @@ class _FilterCalendarState extends State<FilterCalendar> {
       a.year == b.year && a.month == b.month && a.day == b.day;
   String _formatMonthYear(DateTime date) {
     final months = [
-      "JANUARY",
-      "FEBRUARY",
-      "MARCH",
-      "APRIL",
-      "MAY",
-      "JUNE",
-      "JULY",
-      "AUGUST",
-      "SEPTEMBER",
-      "OCTOBER",
-      "NOVEMBER",
-      "DECEMBER",
+      'JANUARY',
+      'FEBRUARY',
+      'MARCH',
+      'APRIL',
+      'MAY',
+      'JUNE',
+      'JULY',
+      'AUGUST',
+      'SEPTEMBER',
+      'OCTOBER',
+      'NOVEMBER',
+      'DECEMBER',
     ];
-    return "${months[date.month - 1]} ${date.year}";
+    return '${months[date.month - 1]} ${date.year}';
   }
 }

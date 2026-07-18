@@ -89,13 +89,13 @@ class StandaloneWindowHeader extends StatelessWidget {
           const SizedBox(width: 16),
           // Fetch Button & Optionslumn
           SizedBox(
+            width: 200,
             height: 84, // Reduced to match input box exactly
-            child: IntrinsicWidth(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Fetch Button
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Fetch Button
                   Container(
                     height: 38,
                     decoration: BoxDecoration(
@@ -170,7 +170,6 @@ class StandaloneWindowHeader extends StatelessWidget {
                 ],
               ),
             ),
-          ),
         ],
       ),
     );

@@ -1,13 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../widgets/conflict_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 
 class ConflictRequest {
-  final String fileName;
-  final String destinationPath;
-  final bool isFolder;
-  final Completer<ConflictResolution> completer;
 
   ConflictRequest({
     required this.fileName,
@@ -15,6 +11,10 @@ class ConflictRequest {
     required this.isFolder,
     required this.completer,
   });
+  final String fileName;
+  final String destinationPath;
+  final bool isFolder;
+  final Completer<ConflictResolution> completer;
 }
 
 class ConflictNotifier extends Notifier<List<ConflictRequest>> {
@@ -45,7 +45,7 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
     return completer.future;
   }
 
-  void _processQueue(BuildContext context) async {
+  Future<void> _processQueue(BuildContext context) async {
     if (_isShowingDialog || state.isEmpty) return;
 
     _isShowingDialog = true;
@@ -74,7 +74,7 @@ class ConflictNotifier extends Notifier<List<ConflictRequest>> {
     // If resolution is null, default to skip.
     final finalResolution = result?.resolution ?? ConflictResolution.skip;
 
-    if (result?.applyToAll == true) {
+    if (result?.applyToAll ?? false) {
       _globalResolution = finalResolution;
     }
 

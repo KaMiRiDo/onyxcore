@@ -38,8 +38,8 @@ class AppSettings extends Equatable {
     this.filePickerHeight = 650.0,
     this.settingsWidth = 760.0,
     this.settingsHeight = 560.0,
-    this.downloaderWidth = 750.0,
-    this.downloaderHeight = 560.0,
+    this.downloaderWidth = 950.0,
+    this.downloaderHeight = 700.0,
     this.confirmDeleteImage = true,
     this.confirmDeleteVideo = true,
     this.confirmDeleteDocument = true,
@@ -52,7 +52,8 @@ class AppSettings extends Equatable {
     this.documentSearchCaseSensitive = false,
     this.documentSearchUseRegex = false,
     this.audioPlayerVolume = 100.0,
-    this.videoPlayerVolume = 100.0,
+    this.videoPlayerVolume = 30.0,
+    this.videoShowRemainingTime = false,
   });
 
   /// Whether to automatically play the next video in the playlist.
@@ -157,6 +158,9 @@ class AppSettings extends Equatable {
   /// The persisted volume for the video player (0.0 to 200.0).
   final double videoPlayerVolume;
 
+  /// Whether the video player should show remaining time instead of total time.
+  final bool videoShowRemainingTime;
+
   AppSettings copyWith({
     bool? autoPlayNext,
     bool? audioAutoPlayNext,
@@ -192,6 +196,7 @@ class AppSettings extends Equatable {
     bool? documentSearchUseRegex,
     double? audioPlayerVolume,
     double? videoPlayerVolume,
+    bool? videoShowRemainingTime,
   }) {
     return AppSettings(
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
@@ -235,6 +240,7 @@ class AppSettings extends Equatable {
           documentSearchUseRegex ?? this.documentSearchUseRegex,
       audioPlayerVolume: audioPlayerVolume ?? this.audioPlayerVolume,
       videoPlayerVolume: videoPlayerVolume ?? this.videoPlayerVolume,
+      videoShowRemainingTime: videoShowRemainingTime ?? this.videoShowRemainingTime,
     );
   }
 
@@ -274,5 +280,6 @@ class AppSettings extends Equatable {
     documentSearchUseRegex,
     audioPlayerVolume,
     videoPlayerVolume,
+    videoShowRemainingTime,
   ];
 }

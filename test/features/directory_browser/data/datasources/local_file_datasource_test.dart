@@ -187,7 +187,34 @@ void main() {
       final items = await datasource.listDirectory('/path/does/not/exist');
       expect(items, isEmpty);
     });
+  });
 
+  group('LocalFileDatasource - Edge Cases & Errors', () {
+    test('renameItem overwrites existing file', () async {
+      final f1 = File(p.join(tempDir.path, 'a.txt'))..writeAsStringSync('new');
+      final f2 = File(p.join(tempDir.path, 'b.txt'))..writeAsStringSync('old');
+
+      await datasource.renameItem(f1.path, 'b.txt');
+      expect(File(f2.path).readAsStringSync(), 'new');
+    });
+
+    test('copyItemTo handles source inside destination', () async {
+      final parentDir = Directory(p.join(tempDir.path, 'parent'))..createSync();
+      final childDir = Directory(p.join(parentDir.path, 'child'));
+
+      await datasource.copyItemTo(parentDir.path, childDir.path);
+
+      expect(childDir.existsSync(), isTrue);
+    });
     
+    test('moveItemTo handles source inside destination', () async {
+      final parentDir = Directory(p.join(tempDir.path, 'parent2'))..createSync();
+      File(p.join(parentDir.path, 'f.txt')).createSync();
+      final childDir = Directory(p.join(parentDir.path, 'child2')); 
+
+      await datasource.moveItemTo(parentDir.path, childDir.path);
+
+      expect(childDir.existsSync(), isTrue);
+    });
   });
 }

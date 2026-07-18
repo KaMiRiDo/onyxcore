@@ -1,17 +1,17 @@
 import 'dart:io' as io;
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
-
 class RenameDialog extends StatefulWidget {
-  final List<String> paths;
 
   const RenameDialog({required this.paths, super.key});
+  final List<String> paths;
 
   @override
   State<RenameDialog> createState() => _RenameDialogState();
@@ -21,7 +21,7 @@ class _RenameDialogState extends State<RenameDialog> {
   late TextEditingController _controller;
   RenameMode _mode = RenameMode.prefix;
   String? _errorMessage;
-  bool _isSubmitting = false;
+  final bool _isSubmitting = false;
 
   bool get _isBulk => widget.paths.length > 1;
 
@@ -29,7 +29,7 @@ class _RenameDialogState extends State<RenameDialog> {
   void initState() {
     super.initState();
     final initialValue = _isBulk
-        ? ""
+        ? ''
         : p.basenameWithoutExtension(widget.paths.first);
     _controller = TextEditingController(text: initialValue);
     _controller.addListener(
@@ -64,7 +64,7 @@ class _RenameDialogState extends State<RenameDialog> {
 
       if (io.File(newPath).existsSync() || io.Directory(newPath).existsSync()) {
         setState(() {
-          _errorMessage = "A file or folder with this name already exists.";
+          _errorMessage = 'A file or folder with this name already exists.';
         });
         return;
       }
@@ -90,9 +90,9 @@ class _RenameDialogState extends State<RenameDialog> {
       if (!_isBulk) {
         newName = value + p.extension(path);
       } else if (_mode == RenameMode.prefix) {
-        newName = "$value$original";
+        newName = '$value$original';
       } else {
-        newName = "${value}_${index + 1}${p.extension(path)}";
+        newName = '${value}_${index + 1}${p.extension(path)}';
       }
 
       return {'original': original, 'new': newName};
@@ -113,12 +113,12 @@ class _RenameDialogState extends State<RenameDialog> {
             decoration: BoxDecoration(
               color: const Color(
                 0xFF1E1E1E,
-              ).withOpacity(0.85), // Matches other dialogs
+              ).withValues(alpha: 0.85), // Matches other dialogs
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 40,
                   offset: const Offset(0, 20),
                 ),
@@ -165,7 +165,7 @@ class _RenameDialogState extends State<RenameDialog> {
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient.withOpacity(0.2),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.violet.withOpacity(0.3)),
+              border: Border.all(color: AppColors.violet.withValues(alpha: 0.3)),
             ),
             child: const Icon(
               Icons.edit_note_rounded,
@@ -192,7 +192,7 @@ class _RenameDialogState extends State<RenameDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "RENAMING MODE",
+          'RENAMING MODE',
           style: GoogleFonts.manrope(
             color: Colors.white24,
             fontSize: 10,
@@ -206,12 +206,12 @@ class _RenameDialogState extends State<RenameDialog> {
           runSpacing: 12,
           children: [
             _buildRadioButton(
-              label: "Add Prefix",
+              label: 'Add Prefix',
               active: _mode == RenameMode.prefix,
               onTap: () => setState(() => _mode = RenameMode.prefix),
             ),
             _buildRadioButton(
-              label: "Constant Name",
+              label: 'Constant Name',
               active: _mode == RenameMode.constant,
               onTap: () => setState(() => _mode = RenameMode.constant),
             ),
@@ -233,11 +233,11 @@ class _RenameDialogState extends State<RenameDialog> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.violet.withOpacity(0.2)
-              : Colors.white.withOpacity(0.03),
+              ? AppColors.violet.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: active ? AppColors.violet : Colors.white.withOpacity(0.05),
+            color: active ? AppColors.violet : Colors.white.withValues(alpha: 0.05),
           ),
         ),
         child: Row(
@@ -266,9 +266,9 @@ class _RenameDialogState extends State<RenameDialog> {
   }
 
   Widget _buildInputLabel() {
-    String label = _isBulk
-        ? (_mode == RenameMode.prefix ? "PREFIX STRING" : "CONSTANT BASE NAME")
-        : "NEW ITEM NAME";
+    final label = _isBulk
+        ? (_mode == RenameMode.prefix ? 'PREFIX STRING' : 'CONSTANT BASE NAME')
+        : 'NEW ITEM NAME';
     return Text(
       label,
       style: GoogleFonts.manrope(
@@ -290,8 +290,8 @@ class _RenameDialogState extends State<RenameDialog> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _errorMessage != null
-                  ? AppColors.error.withOpacity(0.5)
-                  : AppColors.violet.withOpacity(0.2),
+                  ? AppColors.error.withValues(alpha: 0.5)
+                  : AppColors.violet.withValues(alpha: 0.2),
             ),
           ),
           child: TextField(
@@ -305,7 +305,7 @@ class _RenameDialogState extends State<RenameDialog> {
                 vertical: 18,
               ),
               border: InputBorder.none,
-              hintText: _isBulk ? "Enter value..." : "Enter file name",
+              hintText: _isBulk ? 'Enter value...' : 'Enter file name',
               hintStyle: const TextStyle(color: Colors.white12),
             ),
           ),
@@ -317,7 +317,7 @@ class _RenameDialogState extends State<RenameDialog> {
             child: Text(
               _errorMessage!,
               style: GoogleFonts.manrope(
-                color: AppColors.error.withOpacity(0.8),
+                color: AppColors.error.withValues(alpha: 0.8),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -334,7 +334,7 @@ class _RenameDialogState extends State<RenameDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "PREVIEW",
+          'PREVIEW',
           style: GoogleFonts.manrope(
             color: Colors.white24,
             fontSize: 9,
@@ -350,7 +350,7 @@ class _RenameDialogState extends State<RenameDialog> {
           decoration: BoxDecoration(
             color: Colors.black12,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
@@ -427,7 +427,7 @@ class _RenameDialogState extends State<RenameDialog> {
                 ? []
                 : [
                     BoxShadow(
-                      color: AppColors.violet.withOpacity(0.3),
+                      color: AppColors.violet.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),

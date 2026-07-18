@@ -1,13 +1,12 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/file_type_utils.dart';
-import '../../domain/entities/file_item.dart';
-import 'media_thumbnail_preview.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/file_type_utils.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
 
 /// Preview widget for items in the file grid — exact same UI as original
 /// _buildItemPreview(), _buildFileFallback(), _buildArchivalIcon(), _buildSvgIcon().
@@ -55,8 +54,9 @@ class ItemPreview extends StatelessWidget {
     final name = item.name.toLowerCase();
 
     // SVG icon mappings — exact same as original _buildFileFallback()
-    if (name.contains('readme') || name.endsWith('.md'))
+    if (name.contains('readme') || name.endsWith('.md')) {
       return _buildSvgIcon('assets/icons/readme.svg');
+    }
     if (name.endsWith('.pdf')) return _buildSvgIcon('assets/icons/pdf.svg');
     if (name.endsWith('.zip') ||
         name.endsWith('.rar') ||
@@ -119,7 +119,7 @@ class ItemPreview extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         gradient: LinearGradient(
-          colors: [colors[0].withOpacity(0.12), colors[1].withOpacity(0.06)],
+          colors: [colors[0].withValues(alpha: 0.12), colors[1].withValues(alpha: 0.06)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -141,7 +141,7 @@ class ItemPreview extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        color: Colors.white.withOpacity(0.02),
+        color: Colors.white.withValues(alpha: 0.02),
       ),
       child: Center(
         child: SvgPicture.asset(

@@ -3,38 +3,22 @@ import 'dart:io' as io;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
-import 'task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 
 /// A single entry in the task history.
 class TaskHistoryEntry {
-  final String id;
-  final String title;
-  final String subtitle;
-  final String statusName;
-  final String? errorMessage;
-  final int processedCount;
-  final int totalCount;
-  final int? processedSizeBytes;
-  final int? totalSizeBytes;
-  final List<String> logs;
-  final DateTime createdAt;
-  final DateTime? startedAt;
-  final DateTime? completedAt;
-  final List<String>? sourcePaths;
-  final String? targetPath;
 
   const TaskHistoryEntry({
     required this.id,
     required this.title,
     required this.subtitle,
     required this.statusName,
-    this.errorMessage,
+    required this.createdAt, this.errorMessage,
     this.processedCount = 0,
     this.totalCount = 0,
     this.processedSizeBytes = 0,
     this.totalSizeBytes = 0,
     this.logs = const [],
-    required this.createdAt,
     this.startedAt,
     this.completedAt,
     this.sourcePaths,
@@ -86,6 +70,21 @@ class TaskHistoryEntry {
       targetPath: json['targetPath'] as String?,
     );
   }
+  final String id;
+  final String title;
+  final String subtitle;
+  final String statusName;
+  final String? errorMessage;
+  final int processedCount;
+  final int totalCount;
+  final int? processedSizeBytes;
+  final int? totalSizeBytes;
+  final List<String> logs;
+  final DateTime createdAt;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+  final List<String>? sourcePaths;
+  final String? targetPath;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -137,7 +136,7 @@ class TaskHistoryNotifier extends Notifier<List<TaskHistoryEntry>> {
       final file = io.File(_historyFilePath);
       if (file.existsSync()) {
         final content = file.readAsStringSync();
-        final List<dynamic> jsonList = jsonDecode(content) as List<dynamic>;
+        final jsonList = jsonDecode(content) as List<dynamic>;
         _allEntries = jsonList
             .map((e) => TaskHistoryEntry.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -235,7 +234,7 @@ class TaskHistoryNotifier extends Notifier<List<TaskHistoryEntry>> {
   static bool _matchesFilter(TaskHistoryEntry entry, TaskHistoryFilter filter) {
     if (filter.isEmpty) return true;
 
-    bool dateMatch = true;
+    var dateMatch = true;
     if (filter.selectedDates != null && filter.selectedDates!.isNotEmpty) {
       dateMatch = filter.selectedDates!.any(
         (d) =>
@@ -245,7 +244,7 @@ class TaskHistoryNotifier extends Notifier<List<TaskHistoryEntry>> {
       );
     }
 
-    bool opMatch = true;
+    var opMatch = true;
     if (filter.operationType != null && filter.operationType != 'All') {
       final t = entry.title.toLowerCase();
       final op = filter.operationType!.toLowerCase();
@@ -267,10 +266,10 @@ class TaskHistoryNotifier extends Notifier<List<TaskHistoryEntry>> {
 }
 
 class TaskHistoryFilter {
-  final Set<DateTime>? selectedDates;
-  final String? operationType;
 
   const TaskHistoryFilter({this.selectedDates, this.operationType});
+  final Set<DateTime>? selectedDates;
+  final String? operationType;
 
   bool get isEmpty =>
       (selectedDates == null || selectedDates!.isEmpty) &&

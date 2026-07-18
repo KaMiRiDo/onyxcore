@@ -3,15 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
-import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
-import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
-
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 
 /// Orchestrator for the inline preview mode.
 /// Switches between image and video previewers based on file type.
@@ -44,7 +43,7 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ColoredBox(
       color: AppColors.background,
       child: Focus(
         focusNode: _focusNode,
@@ -52,10 +51,10 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {
             // Block all shortcuts if the marker editor is active
-            if (ref.read(isMarkerEditorActiveProvider))
+            if (ref.read(isMarkerEditorActiveProvider)) {
               return KeyEventResult.ignored;
+            }
 
-            final isAltPressed = HardwareKeyboard.instance.isAltPressed;
             final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
 
             final isDocument = widget.item.type == FileItemType.document;
@@ -93,7 +92,7 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
                   widget.item.type == FileItemType.document)
               ? null
               : () async {
-                  List<String> preloadPaths = [];
+                  final preloadPaths = <String>[];
                   if (widget.item.type == FileItemType.image) {
                     final items = ref.read(directoryItemsProvider).value ?? [];
                     final mediaItems = items
@@ -104,7 +103,7 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
                         (i) => i.path == widget.item.path,
                       );
                       if (currentIndex != -1) {
-                        for (int i = 1; i <= 2; i++) {
+                        for (var i = 1; i <= 2; i++) {
                           preloadPaths.add(
                             mediaItems[(currentIndex + i) % mediaItems.length]
                                 .path,

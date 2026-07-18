@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
-import 'package:path/path.dart' as p;
 
-import '../../../../core/utils/file_type_classifier.dart';
-import '../../domain/entities/file_item.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:path/path.dart' as p;
 
 /// Data source for local file system operations.
 class LocalFileDatasource {
@@ -53,7 +53,7 @@ class LocalFileDatasource {
     String? taskId,
     void Function(String message)? onLog,
   }) async {
-    for (int i = 0; i < paths.length; i++) {
+    for (var i = 0; i < paths.length; i++) {
       final path = paths[i];
       final type = FileSystemEntity.typeSync(path);
       if (type == FileSystemEntityType.directory) {
@@ -88,7 +88,7 @@ class LocalFileDatasource {
     String? taskId,
     void Function(String message)? onLog,
   }) async {
-    for (int i = 0; i < paths.length; i++) {
+    for (var i = 0; i < paths.length; i++) {
       final path = paths[i];
       try {
         await Process.run('gio', ['trash', path]);
@@ -124,7 +124,7 @@ class LocalFileDatasource {
     String? taskId,
     void Function(String message)? onLog,
   }) async {
-    for (int i = 0; i < paths.length; i++) {
+    for (var i = 0; i < paths.length; i++) {
       final path = paths[i];
       try {
         // gio trash --restore requires a trash:// URI, not a filesystem path.
@@ -175,11 +175,14 @@ class LocalFileDatasource {
     final isSourceInsideDest = absSource.startsWith(
       absDestination + p.separator,
     );
+    final isDestInsideSource = absDestination.startsWith(
+      absSource + p.separator,
+    );
 
-    String actualSource = absSource;
+    var actualSource = absSource;
     Directory? tempDir;
 
-    if (isSourceInsideDest) {
+    if (isSourceInsideDest || isDestInsideSource) {
       tempDir = Directory.systemTemp.createTempSync('onyx_copy_tmp_');
       actualSource = p.join(tempDir.path, p.basename(absSource));
       if (isDir) {
@@ -234,20 +237,15 @@ class LocalFileDatasource {
         final status = message['status'];
         switch (status) {
           case 'progress':
-            onProgress?.call(message['bytesCopied']);
-            break;
+            onProgress?.call(message['bytesCopied'] as int);
           case 'syncing':
             onSyncing?.call();
-            break;
           case 'completed':
             completer.complete();
-            break;
           case 'cancelled':
             completer.completeError('CANCELLED');
-            break;
           case 'error':
-            completer.completeError(message['error']);
-            break;
+            completer.completeError(message['error'] as Object);
         }
       }
     });
@@ -338,11 +336,12 @@ class LocalFileDatasource {
     final sourceType = FileSystemEntity.typeSync(absSource);
     final isDir = sourceType == FileSystemEntityType.directory;
     final isSourceInsideDest = absSource.startsWith(absDest + p.separator);
+    final isDestInsideSource = absDest.startsWith(absSource + p.separator);
 
-    String actualSource = absSource;
+    var actualSource = absSource;
     Directory? tempDir;
 
-    if (isSourceInsideDest) {
+    if (isSourceInsideDest || isDestInsideSource) {
       tempDir = Directory.systemTemp.createTempSync('onyx_move_tmp_');
       actualSource = p.join(tempDir.path, p.basename(absSource));
       if (isDir) {
@@ -423,7 +422,7 @@ class LocalFileDatasource {
     void Function(String message)? onLog,
   }) async {
     final newPaths = <String>[];
-    for (int i = 0; i < paths.length; i++) {
+    for (var i = 0; i < paths.length; i++) {
       final path = paths[i];
       final dirname = p.dirname(path);
       final originalName = p.basename(path);
@@ -510,17 +509,17 @@ class LocalFileDatasource {
 }
 
 /// Top-level isolate entry point for file copying.
-void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
-  final SendPort mainSendPort = params['sendPort'];
-  final String sourcePath = params['source'];
-  final String destPath = params['destination'];
-  final String? taskId = params['taskId'];
-  final int flushThreshold = params['flushThreshold'];
+Future<void> _fileCopyIsolateEntry(Map<String, dynamic> params) async {
+  final mainSendPort = params['sendPort'] as SendPort;
+  final sourcePath = params['source'] as String;
+  final destPath = params['destination'] as String;
+  final taskId = params['taskId'] as String?;
+  final flushThreshold = params['flushThreshold'] as int;
 
   final controlPort = ReceivePort();
   mainSendPort.send(controlPort.sendPort);
 
-  bool isCancelled = false;
+  var isCancelled = false;
   controlPort.listen((message) {
     if (message is Map && message['command'] == 'cancel') {
       isCancelled = true;
@@ -531,14 +530,14 @@ void _fileCopyIsolateEntry(Map<String, dynamic> params) async {
   RandomAccessFile? destRaf;
 
   try {
-    final sRaf = await File(sourcePath).open(mode: FileMode.read);
+    final sRaf = await File(sourcePath).open();
     sourceRaf = sRaf;
     final dRaf = await File(destPath).open(mode: FileMode.write);
     destRaf = dRaf;
 
     final buffer = Uint8List(1024 * 1024 * 8); // 8MB buffer
-    int bytesCopied = 0;
-    int bytesSinceLastFlush = 0;
+    var bytesCopied = 0;
+    var bytesSinceLastFlush = 0;
     final stopwatch = Stopwatch()..start();
 
     int bytesRead;

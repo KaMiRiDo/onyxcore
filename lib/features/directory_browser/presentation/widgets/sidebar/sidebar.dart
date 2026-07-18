@@ -1,13 +1,9 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:window_manager/window_manager.dart';
-
 import 'package:flutter_svg/flutter_svg.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
@@ -16,6 +12,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/selec
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/devices_section.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/storage_indicator.dart';
+import 'package:window_manager/window_manager.dart';
 
 /// Main sidebar widget — pixel-perfect replica of original _buildSidebar().
 class Sidebar extends ConsumerWidget {
@@ -23,9 +20,9 @@ class Sidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String currentPath = ref.watch(currentPathProvider);
+    final currentPath = ref.watch(currentPathProvider);
     // Always use the real system home — never derive from currentPath
-    final String home = Platform.environment['HOME'] ?? '/';
+    final home = Platform.environment['HOME'] ?? '/';
 
     return Container(
       width: 240,
@@ -33,8 +30,7 @@ class Sidebar extends ConsumerWidget {
         color: const Color(0xFF161616),
         border: Border(
           right: BorderSide(
-            color: Colors.white.withOpacity(0.05),
-            width: 1,
+            color: Colors.white.withValues(alpha: 0.05),
           ),
         ),
       ),
@@ -51,14 +47,12 @@ class Sidebar extends ConsumerWidget {
                 alignment: Alignment.centerLeft,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // App icon — fixed 28×28, never stretches
                     SvgPicture.asset(
                       'assets/app_icon/app_icon.svg',
                       width: 28,
                       height: 28,
-                      fit: BoxFit.contain,
                     ),
                     const SizedBox(width: 10),
                     // Gradient brand text

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'item_card.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
 
 class SelectionRectNotifier extends Notifier<Rect?> {
   @override
   Rect? build() => null;
+  @override
   set state(Rect? value) => super.state = value;
 }
 
@@ -15,8 +16,8 @@ final selectionRectProvider = NotifierProvider<SelectionRectNotifier, Rect?>(
 );
 
 class RubberBandOverlay extends ConsumerStatefulWidget {
-  final Widget child;
   const RubberBandOverlay({required this.child, super.key});
+  final Widget child;
 
   @override
   ConsumerState<RubberBandOverlay> createState() => _RubberBandOverlayState();
@@ -91,8 +92,8 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
   }
 
   void _updateInteractiveSelection(Rect selectionRect) {
-    final List<String> currentRectPaths = [];
-    final RenderBox? overlayBox = context.findRenderObject() as RenderBox?;
+    final currentRectPaths = <String>[];
+    final overlayBox = context.findRenderObject() as RenderBox?;
     if (overlayBox == null) return;
 
     final origin = overlayBox.localToGlobal(Offset.zero);
@@ -118,21 +119,21 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
       ..addAll(currentRectPaths);
     ref
         .read(selectionProvider.notifier)
-        .selectMultiple(combined.toList(), isCtrl: false);
+        .selectMultiple(combined.toList());
   }
 }
 
 class _SimpleSelectionPainter extends CustomPainter {
-  final Rect rect;
   _SimpleSelectionPainter({required this.rect});
+  final Rect rect;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF00E5FF).withOpacity(0.12)
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.12)
       ..style = PaintingStyle.fill;
     final borderPaint = Paint()
-      ..color = const Color(0xFF00E5FF).withOpacity(0.4)
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 

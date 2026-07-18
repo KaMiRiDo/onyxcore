@@ -47,6 +47,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const _documentSearchUseRegex = 'documentSearchUseRegex';
   static const _audioPlayerVolume = 'audioPlayerVolume';
   static const _videoPlayerVolume = 'videoPlayerVolume';
+  static const _videoShowRemainingTime = 'videoShowRemainingTime';
   static const _openWithDialogWidth = 'open_with_dialog_width';
   static const _openWithDialogHeight = 'open_with_dialog_height';
   static const _sidePanelWidthPixels = 'side_panel_width_pixels';
@@ -72,7 +73,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _confirmDeleteDocument, _confirmDeleteAudio, _downloadBrowser,
       _downloadToCurrentFolder, _maxConcurrentDownloads, _maxLiveRecordingMinutes,
       _documentSearchCaseSensitive, _documentSearchUseRegex,
-      _audioPlayerVolume, _videoPlayerVolume,
+      _audioPlayerVolume, _videoPlayerVolume, _videoShowRemainingTime,
     ];
 
     final vals = await _readAll(keys);
@@ -109,8 +110,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       filePickerHeight: SettingsCodec.decodeDouble(vals[_filePickerHeight], fallback: 650.0),
       settingsWidth: SettingsCodec.decodeDouble(vals[_settingsWidth], fallback: 760.0),
       settingsHeight: SettingsCodec.decodeDouble(vals[_settingsHeight], fallback: 560.0),
-      downloaderWidth: SettingsCodec.decodeDouble(vals[_downloaderWidth], fallback: 750.0),
-      downloaderHeight: SettingsCodec.decodeDouble(vals[_downloaderHeight], fallback: 560.0),
+      downloaderWidth: SettingsCodec.decodeDouble(vals[_downloaderWidth], fallback: 950.0),
+      downloaderHeight: SettingsCodec.decodeDouble(vals[_downloaderHeight], fallback: 700.0),
       confirmDeleteImage: SettingsCodec.decodeBool(vals[_confirmDeleteImage], fallback: true),
       confirmDeleteVideo: SettingsCodec.decodeBool(vals[_confirmDeleteVideo], fallback: true),
       confirmDeleteDocument: SettingsCodec.decodeBool(vals[_confirmDeleteDocument], fallback: true),
@@ -122,7 +123,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       documentSearchCaseSensitive: SettingsCodec.decodeBool(vals[_documentSearchCaseSensitive], fallback: false),
       documentSearchUseRegex: SettingsCodec.decodeBool(vals[_documentSearchUseRegex], fallback: false),
       audioPlayerVolume: SettingsCodec.decodeDouble(vals[_audioPlayerVolume], fallback: 100.0),
-      videoPlayerVolume: SettingsCodec.decodeDouble(vals[_videoPlayerVolume], fallback: 100.0),
+      videoPlayerVolume: SettingsCodec.decodeDouble(vals[_videoPlayerVolume], fallback: 30.0),
+      videoShowRemainingTime: SettingsCodec.decodeBool(vals[_videoShowRemainingTime], fallback: false),
     );
   }
 
@@ -163,6 +165,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _db.setSetting(_documentSearchUseRegex, SettingsCodec.encodeBool(settings.documentSearchUseRegex)),
       _db.setSetting(_audioPlayerVolume, SettingsCodec.encodeDouble(settings.audioPlayerVolume)),
       _db.setSetting(_videoPlayerVolume, SettingsCodec.encodeDouble(settings.videoPlayerVolume)),
+      _db.setSetting(_videoShowRemainingTime, SettingsCodec.encodeBool(settings.videoShowRemainingTime)),
       // Nullable
       settings.cachedResolvedHwDec != null
           ? _db.setSetting(_cachedResolvedHwDec, settings.cachedResolvedHwDec!)

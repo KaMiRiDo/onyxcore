@@ -2,20 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class EmptyStateView extends StatelessWidget {
+
+  const EmptyStateView({
+    required this.title, required this.subtitle, required this.icon, super.key,
+    this.onAction,
+    this.actionLabel,
+  });
   final String title;
   final String subtitle;
   final IconData icon;
   final VoidCallback? onAction;
   final String? actionLabel;
-
-  const EmptyStateView({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    this.onAction,
-    this.actionLabel,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +23,7 @@ class EmptyStateView extends StatelessWidget {
           Icon(
             icon,
             size: 160,
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
           ),
           const SizedBox(height: 24),
           Text(
@@ -34,7 +31,7 @@ class EmptyStateView extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 24,
               fontWeight: FontWeight.w600,
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               letterSpacing: -0.2,
             ),
           ),
@@ -46,7 +43,7 @@ class EmptyStateView extends StatelessWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.12),
+                color: Colors.white.withValues(alpha: 0.12),
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -63,7 +60,7 @@ class EmptyStateView extends StatelessWidget {
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
                 ),
               ),
               child: Text(

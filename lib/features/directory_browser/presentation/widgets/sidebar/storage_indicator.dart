@@ -1,9 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:onyxcore/core/platform/disk_usage.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
@@ -49,7 +48,7 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
     final totalLabel = usage?.totalHuman ?? '2.0 TB';
     final availableLabel = usage?.availableHuman ?? '';
     
-    String formattedUsage = '$usedLabel of $totalLabel';
+    var formattedUsage = '$usedLabel of $totalLabel';
     try {
       final parts = totalLabel.split(' ');
       if (parts.length == 2) {
@@ -76,7 +75,7 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                   letterSpacing: 1.1,
                 ),
               ),
@@ -98,7 +97,7 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
               color: const Color(0xFF222222),
               borderRadius: BorderRadius.circular(2),
               border: Border.all(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 width: 0.5,
               ),
             ),
@@ -118,7 +117,7 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
             subtitleText,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.white.withOpacity(0.4),
+              color: Colors.white.withValues(alpha: 0.4),
             ),
           ),
         ],

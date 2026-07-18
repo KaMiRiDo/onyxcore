@@ -1,25 +1,25 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
-
 import 'package:onyxcore/core/cache/directory_cache.dart';
 import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/directory_size_datasource.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
 import 'package:onyxcore/features/directory_browser/data/repositories/directory_repository_impl.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 // ——— Infrastructure Providers ———
 
@@ -66,6 +66,7 @@ class CurrentPathNotifier extends Notifier<String> {
     );
   }
 
+  @override
   set state(String value) {
     final tabId = ref.read(tabIdProvider);
     ref.read(tabManagerProvider.notifier).updateTabPath(tabId, value);
@@ -81,8 +82,8 @@ final zoomProvider = StateProvider<Map<String, double>>((ref) => {});
 
 /// Current zoom for the active folder.
 final currentZoomProvider = Provider<double>((ref) {
-  final String path = ref.watch(currentPathProvider);
-  final Map<String, double> zooms = ref.watch(zoomProvider);
+  final path = ref.watch(currentPathProvider);
+  final zooms = ref.watch(zoomProvider);
   return zooms[path] ?? 0.8;
 });
 
@@ -116,6 +117,7 @@ class SearchQueryNotifier extends Notifier<String> {
     );
   }
 
+  @override
   set state(String value) {
     final tabId = ref.read(tabIdProvider);
     ref.read(tabManagerProvider.notifier).updateSearchQuery(tabId, value);
@@ -247,7 +249,7 @@ final pathErrorProvider = StateProvider<String?>((ref) => null);
 
 /// Whether the current path is a virtual path (recent, starred).
 final isVirtualPathProvider = Provider<bool>((ref) {
-  final String path = ref.watch(currentPathProvider);
+  final path = ref.watch(currentPathProvider);
   return path.startsWith('virtual:');
 });
 
@@ -279,10 +281,12 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
   @override
   Future<List<FileItem>> build() async {
-    final String path = ref.watch(currentPathProvider);
-    final showHidden = ref.watch(
-      settingsProvider.select((s) => s.value?.showHiddenFiles ?? false),
-    );
+    final path = ref.watch(currentPathProvider);
+
+    // Wait for user settings to load to avoid UI jumps on startup
+    try {
+      await ref.read(settingsProvider.future);
+    } catch (_) {}
 
     // Handle virtual paths (allow filtering if data exists)
     if (path.startsWith('virtual:')) {
@@ -301,53 +305,134 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     final repo = ref.read(directoryRepositoryProvider);
     final items = await repo.listDirectory(path);
 
-    // Start watching for changes
-    _watchSubscription?.cancel();
-    _watchSubscription = repo.watchDirectory(path).listen((_) {
-      // Invalidate cache and reload on any file change
-      ref.read(directoryCacheProvider).invalidate(path);
-      ref.invalidateSelf();
-    });
-
-    ref.onDispose(() {
-      _watchSubscription?.cancel();
-    });
-
-    // Generate metadata async (aspect ratios)
-    _generateMetadataAsync(items);
-
-    return items;
-  }
-
-  /// Generates image aspect ratios in the background.
-  Future<void> _generateMetadataAsync(List<FileItem> items) async {
-    // Defer execution to avoid synchronous state mutation during the build phase
-    await Future.delayed(Duration.zero);
-
-    final mediaDatasource = ref.read(mediaMetadataDatasourceProvider);
-    var changed = false;
-
-    final updatedItems = List<FileItem>.from(items);
-
-    for (var i = 0; i < updatedItems.length; i++) {
-      final item = updatedItems[i];
-      if (item.type == FileItemType.image && item.imageAspectRatio == null) {
-        final ratio = await mediaDatasource.extractAspectRatio(item.path);
-        if (ratio != null) {
-          updatedItems[i] = item.copyWith(imageAspectRatio: ratio);
-          changed = true;
+    // Preserve metadata from previous state to prevent UI jumping during refresh
+    final previousItems = state.value ?? [];
+    if (previousItems.isNotEmpty) {
+      final prevMap = {for (final item in previousItems) item.path: item};
+      for (var i = 0; i < items.length; i++) {
+        final prev = prevMap[items[i].path];
+        if (prev != null) {
+          items[i] = items[i].copyWith(
+            sizeBytes: items[i].sizeBytes ?? prev.sizeBytes,
+            imageAspectRatio: items[i].imageAspectRatio ?? prev.imageAspectRatio,
+          );
         }
       }
     }
 
-    if (changed) {
-      state = AsyncValue.data(updatedItems);
+    final sort = ref.read(sortSettingsProvider);
+    final needsMetadataForSort = sort.option == SortOption.sizeSmallToLarge || 
+                                 sort.option == SortOption.sizeLargeToSmall;
+
+    final hasMissingSizes = items.any((i) => i.type == FileItemType.folder && i.sizeBytes == null);
+
+    if (needsMetadataForSort && hasMissingSizes) {
+      // Start watching for changes
+      _watchSubscription?.cancel().ignore();
+      _watchSubscription = repo.watchDirectory(path).listen((_) {
+        // Invalidate cache and reload on any file change
+        ref.read(directoryCacheProvider).invalidate(path);
+        ref.invalidateSelf();
+      });
+
+      ref.onDispose(() {
+        _watchSubscription?.cancel().ignore();
+      });
+
+      // Await metadata generation to avoid default sort jump on startup or navigation
+      return _generateMetadataAsync(items, path, returnOnly: true);
+    } else {
+      // Start watching for changes
+      _watchSubscription?.cancel().ignore();
+      _watchSubscription = repo.watchDirectory(path).listen((_) {
+        // Invalidate cache and reload on any file change
+        ref.read(directoryCacheProvider).invalidate(path);
+        ref.invalidateSelf();
+      });
+
+      ref.onDispose(() {
+        _watchSubscription?.cancel().ignore();
+      });
+
+      // Generate metadata async (aspect ratios)
+      _generateMetadataAsync(items, path).ignore();
+
+      return items;
     }
+  }
+
+  /// Generates image aspect ratios and directory sizes in the background.
+  Future<List<FileItem>> _generateMetadataAsync(List<FileItem> items, String originalPath, {bool returnOnly = false}) async {
+    // Defer execution to avoid synchronous state mutation during the build phase
+    if (!returnOnly) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    final mediaDatasource = ref.read(mediaMetadataDatasourceProvider);
+    final sizeDatasource = ref.read(directorySizeDatasourceProvider);
+    var changed = false;
+
+    final updatedItems = List<FileItem>.from(items);
+    final folders = <String>[];
+    final images = <String>[];
+
+    for (final item in updatedItems) {
+      if (item.type == FileItemType.folder && item.sizeBytes == null) {
+        folders.add(item.path);
+      } else if (item.type == FileItemType.image && item.imageAspectRatio == null) {
+        images.add(item.path);
+      }
+    }
+
+    if (folders.isNotEmpty) {
+      final sizes = await sizeDatasource.getDirectorySizes(folders);
+      for (var i = 0; i < updatedItems.length; i++) {
+        if (sizes.containsKey(updatedItems[i].path)) {
+          updatedItems[i] = updatedItems[i].copyWith(sizeBytes: sizes[updatedItems[i].path]);
+          changed = true;
+        }
+      }
+      // Yield to the event loop
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    if (images.isNotEmpty) {
+      // Chunk the images to avoid running ffprobe on 10,000 files in one isolate run, which could take a long time
+      const chunkSize = 100;
+      for (var i = 0; i < images.length; i += chunkSize) {
+        final chunk = images.skip(i).take(chunkSize).toList();
+        final ratios = await mediaDatasource.extractAspectRatios(chunk);
+        
+        for (var j = 0; j < updatedItems.length; j++) {
+          if (ratios.containsKey(updatedItems[j].path)) {
+            updatedItems[j] = updatedItems[j].copyWith(imageAspectRatio: ratios[updatedItems[j].path]);
+            changed = true;
+          }
+        }
+        
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    if (changed) {
+      // Cache it for the path we generated metadata for
+      ref.read(directoryCacheProvider).put(originalPath, updatedItems);
+      
+      if (!returnOnly) {
+        // Only update the UI state if the user hasn't navigated away
+        final currentPath = ref.read(currentPathProvider);
+        if (currentPath == originalPath) {
+          state = AsyncValue.data(updatedItems);
+        }
+      }
+    }
+    
+    return updatedItems;
   }
 
   /// Force reload the current directory (invalidates cache).
   Future<void> refresh() async {
-    final String path = ref.read(currentPathProvider);
+    final path = ref.read(currentPathProvider);
     ref.read(directoryCacheProvider).invalidate(path);
     ref.invalidateSelf();
   }
@@ -400,7 +485,7 @@ final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((
 
     // 1. Filter hidden files
     if (!showHidden) {
-      filtered = filtered.where((item) => !item.name.startsWith(".")).toList();
+      filtered = filtered.where((item) => !item.name.startsWith('.')).toList();
     }
 
     // 2. Filter by search query
@@ -433,7 +518,7 @@ final sortedDirectoryItemsProvider = FutureProvider<List<FileItem>>((
 
   // Use compute for large directories to avoid UI lag
   if (items.length > 500) {
-    return await compute(
+    return compute(
       _sortItemsCompute,
       _SortParams(items, sort.option, pinnedMap),
     );
@@ -445,10 +530,10 @@ final sortedDirectoryItemsProvider = FutureProvider<List<FileItem>>((
 // ——— Internal Sorting Logic ———
 
 class _SortParams {
+  _SortParams(this.items, this.option, this.pinnedMap);
   final List<FileItem> items;
   final SortOption option;
   final Map<String, int> pinnedMap;
-  _SortParams(this.items, this.option, this.pinnedMap);
 }
 
 List<FileItem> _sortItemsCompute(_SortParams params) {
@@ -460,6 +545,11 @@ List<FileItem> _sortItems(
   SortOption option,
   Map<String, int> pinnedMap,
 ) {
+  if (items.isEmpty) return [];
+
+  String stripDot(String name) => name.startsWith('.') ? name.substring(1) : name;
+
+  // Split into pinned and unpinned
   final pinnedList = <FileItem>[];
   final unpinnedList = <FileItem>[];
 
@@ -480,36 +570,46 @@ List<FileItem> _sortItems(
 
   // Sort unpinned
   unpinnedList.sort((a, b) {
-    // Folders first logic (unless filesFirst option is selected)
-    if (option != SortOption.filesFirst) {
-      if (a.type == FileItemType.folder && b.type != FileItemType.folder)
+    // Folders first logic (unless filesFirst or size-based options are selected)
+    if (option != SortOption.filesFirst &&
+        option != SortOption.sizeSmallToLarge &&
+        option != SortOption.sizeLargeToSmall) {
+      if (a.type == FileItemType.folder && b.type != FileItemType.folder) {
         return -1;
-      if (a.type != FileItemType.folder && b.type == FileItemType.folder)
+      }
+      if (a.type != FileItemType.folder && b.type == FileItemType.folder) {
         return 1;
-    } else {
+      }
+    } else if (option == SortOption.filesFirst) {
       // Files first logic
-      if (a.type != FileItemType.folder && b.type == FileItemType.folder)
+      if (a.type != FileItemType.folder && b.type == FileItemType.folder) {
         return -1;
-      if (a.type == FileItemType.folder && b.type != FileItemType.folder)
+      }
+      if (a.type == FileItemType.folder && b.type != FileItemType.folder) {
         return 1;
+      }
     }
 
     // Secondary sort based on option
     switch (option) {
       case SortOption.aToZ:
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        return stripDot(a.name).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
       case SortOption.zToA:
-        return b.name.toLowerCase().compareTo(a.name.toLowerCase());
+        return stripDot(b.name).toLowerCase().compareTo(stripDot(a.name).toLowerCase());
       case SortOption.firstModified:
         return a.modified.compareTo(b.modified);
       case SortOption.lastModified:
         return b.modified.compareTo(a.modified);
       case SortOption.sizeSmallToLarge:
-        return (a.sizeBytes ?? 0).compareTo(b.sizeBytes ?? 0);
+        final cmp = (a.sizeBytes ?? 0).compareTo(b.sizeBytes ?? 0);
+        if (cmp != 0) return cmp;
+        return stripDot(a.name).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
       case SortOption.sizeLargeToSmall:
-        return (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
+        final cmp = (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
+        if (cmp != 0) return cmp;
+        return stripDot(a.name).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
       case SortOption.filesFirst:
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        return stripDot(a.name).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
     }
   });
 
@@ -528,6 +628,7 @@ class IsRefreshingNotifier extends Notifier<bool> {
     );
   }
 
+  @override
   set state(bool value) {
     final tabId = ref.read(tabIdProvider);
     ref.read(tabManagerProvider.notifier).setRefreshing(tabId, value);
@@ -550,6 +651,7 @@ class RefreshCountNotifier extends Notifier<int> {
     );
   }
 
+  @override
   set state(int value) {
     // This is usually called as state++, so we need a way to increment.
     // But setting it directly works too.

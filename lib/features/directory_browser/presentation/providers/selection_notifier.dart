@@ -1,8 +1,8 @@
 import 'dart:math' as math;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 
-import '../../domain/entities/selection_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 
 /// Notifier managing multi-selection state, scoped to the current tab.
 class SelectionNotifier extends Notifier<SelectionState> {

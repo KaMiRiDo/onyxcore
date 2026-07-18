@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +9,7 @@ import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class DownloadsHeader extends ConsumerWidget {
   const DownloadsHeader({super.key});
@@ -51,7 +53,11 @@ class DownloadsHeader extends ConsumerWidget {
                       modified: DateTime.now(),
                       sizeBytes: 0,
                     ),
-                    initParams: {'currentPath': currentPath},
+                    initParams: {
+                      'currentPath': currentPath,
+                      'width': math.max(950, ref.read(settingsProvider).value?.downloaderWidth.toInt() ?? 950),
+                      'height': math.max(700, ref.read(settingsProvider).value?.downloaderHeight.toInt() ?? 700),
+                    },
                   ),
                 );
               },

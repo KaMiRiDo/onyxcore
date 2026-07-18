@@ -1,15 +1,15 @@
 import 'dart:async';
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:path/path.dart' as p;
 
 class GnomeTabBar extends ConsumerStatefulWidget {
   const GnomeTabBar({super.key});
@@ -62,7 +62,7 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableWidth = constraints.maxWidth;
-          double calculatedWidth = availableWidth / tabState.tabs.length;
+          var calculatedWidth = availableWidth / tabState.tabs.length;
           if (calculatedWidth < _minTabWidth) calculatedWidth = _minTabWidth;
 
           return SingleChildScrollView(
@@ -100,10 +100,6 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
 }
 
 class _TabWidget extends ConsumerStatefulWidget {
-  final TabState tab;
-  final bool isActive;
-  final VoidCallback onTap;
-  final VoidCallback onClose;
 
   const _TabWidget({
     required this.tab,
@@ -111,6 +107,10 @@ class _TabWidget extends ConsumerStatefulWidget {
     required this.onTap,
     required this.onClose,
   });
+  final TabState tab;
+  final bool isActive;
+  final VoidCallback onTap;
+  final VoidCallback onClose;
 
   @override
   ConsumerState<_TabWidget> createState() => _TabWidgetState();
@@ -129,17 +129,20 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
   IconData _getTabIcon(String title) {
     final lowerTitle = title.toLowerCase();
     if (lowerTitle.contains('download')) return Icons.file_download_outlined;
-    if (lowerTitle.contains('document') || lowerTitle.contains('work'))
+    if (lowerTitle.contains('document') || lowerTitle.contains('work')) {
       return Icons.work_outline_rounded;
+    }
     if (lowerTitle.contains('picture') ||
         lowerTitle.contains('asset') ||
-        lowerTitle.contains('image'))
+        lowerTitle.contains('image')) {
       return Icons.image_outlined;
+    }
     if (lowerTitle.contains('music')) return Icons.music_note_rounded;
     if (lowerTitle.contains('video')) return Icons.movie_outlined;
     if (lowerTitle.contains('desktop')) return Icons.desktop_windows_outlined;
-    if (lowerTitle == 'vimal-babu' || lowerTitle == 'root')
+    if (lowerTitle == 'vimal-babu' || lowerTitle == 'root') {
       return Icons.account_box_outlined;
+    }
     return Icons.folder_outlined;
   }
 
@@ -201,7 +204,7 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
                   : EdgeInsets.zero,
               decoration: BoxDecoration(
                 color: isOver
-                    ? AppColors.violet.withOpacity(0.1)
+                    ? AppColors.violet.withValues(alpha: 0.1)
                     : (widget.isActive ? activeBg : inactiveBg),
                 borderRadius: widget.isActive
                     ? BorderRadius.circular(6)
@@ -209,7 +212,7 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
                 border: widget.isActive
                     ? null
                     : const Border(
-                        right: BorderSide(color: borderColor, width: 1),
+                        right: BorderSide(color: borderColor),
                       ),
               ),
               child: Stack(
@@ -266,10 +269,10 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
 }
 
 class _CloseButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final bool isActive;
 
   const _CloseButton({required this.onTap, required this.isActive});
+  final VoidCallback onTap;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {

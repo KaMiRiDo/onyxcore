@@ -5,9 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 
 class ErrorDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String buttonText;
 
   const ErrorDialog({
     required this.title,
@@ -15,6 +12,9 @@ class ErrorDialog extends StatelessWidget {
     this.buttonText = 'Cancel',
     super.key,
   });
+  final String title;
+  final String message;
+  final String buttonText;
 
   @override
   Widget build(BuildContext context) {
@@ -36,12 +36,12 @@ class ErrorDialog extends StatelessWidget {
             child: Container(
               width: 440,
               decoration: BoxDecoration(
-                color: AppColors.surfaceBase.withOpacity(0.85),
+                color: AppColors.surfaceBase.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 32,
                     offset: const Offset(0, 16),
                   ),
@@ -90,14 +90,14 @@ class ErrorDialog extends StatelessWidget {
                       ),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: AppColors.violet.withOpacity(0.05),
+                          color: AppColors.violet.withValues(alpha: 0.05),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Text(
                           buttonText,
                           textAlign: TextAlign.center,
                           style: GoogleFonts.outfit(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),

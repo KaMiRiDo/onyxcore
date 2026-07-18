@@ -1,6 +1,7 @@
-import 'dart:ui';
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,22 +9,22 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/utils/app_launcher_utils.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
 
 class OpenWithDialog extends ConsumerStatefulWidget {
-  final String filePath;
 
   const OpenWithDialog({
     required this.filePath,
     super.key,
   });
+  final String filePath;
 
   static Future<void> show(BuildContext context, String filePath) {
-    return showDialog(
+    return showDialog<dynamic>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (context) => OpenWithDialog(filePath: filePath),
     );
   }
@@ -74,7 +75,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
   }
 
   List<AppInfo> get _visibleApps {
-    final List<AppInfo> allAvailable = [
+    final allAvailable = <AppInfo>[
       if (_defaultApp != null) _defaultApp!,
       ..._recommendedApps,
       ..._otherApps,
@@ -149,14 +150,16 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
 
       // Calculate the exact target offset for the current index
       double targetTop = 0;
-      for (int i = 0; i < _selectedIndex; i++) {
+      for (var i = 0; i < _selectedIndex; i++) {
         targetTop += 62.0; // Tile height
         if (_searchQuery.isEmpty) {
           if (i == 0 && _defaultApp != null) targetTop += 42.0; // Header height
-          if (i == (_defaultApp != null ? 1 : 0) && _recommendedApps.isNotEmpty)
+          if (i == (_defaultApp != null ? 1 : 0) && _recommendedApps.isNotEmpty) {
             targetTop += 42.0;
-          if (i == (_defaultApp != null ? 1 : 0) + _recommendedApps.length)
+          }
+          if (i == (_defaultApp != null ? 1 : 0) + _recommendedApps.length) {
             targetTop += 42.0;
+          }
         }
       }
 
@@ -236,7 +239,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-              child: Container(color: Colors.black.withOpacity(0.2)),
+              child: Container(color: Colors.black.withValues(alpha: 0.2)),
             ),
           ),
           Center(
@@ -253,14 +256,14 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                         filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161616).withOpacity(0.95),
+                            color: const Color(0xFF161616).withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.08),
+                              color: Colors.white.withValues(alpha: 0.08),
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.6),
+                                color: Colors.black.withValues(alpha: 0.6),
                                 blurRadius: 60,
                                 offset: const Offset(0, 30),
                               ),
@@ -334,7 +337,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -355,7 +358,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
                 Text(
@@ -364,7 +367,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.4),
+                    color: Colors.white.withValues(alpha: 0.4),
                   ),
                 ),
               ],
@@ -389,7 +392,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
         Text(
           'Scanning for applications...',
           style: GoogleFonts.manrope(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 14,
           ),
         ),
@@ -408,9 +411,9 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
           child: Container(
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.04),
+              color: Colors.white.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
             child: TextField(
               focusNode: _searchFocusNode,
@@ -495,8 +498,8 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
         style: GoogleFonts.manrope(
           fontSize: 10,
           fontWeight: FontWeight.w800,
-          letterSpacing: 1.0,
-          color: AppColors.violet.withOpacity(0.8),
+          letterSpacing: 1,
+          color: AppColors.violet.withValues(alpha: 0.8),
         ),
       ),
     );
@@ -522,12 +525,12 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isSelected
-                ? Colors.white.withOpacity(0.1)
+                ? Colors.white.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
-                  ? Colors.white.withOpacity(0.1)
+                  ? Colors.white.withValues(alpha: 0.1)
                   : Colors.transparent,
             ),
           ),
@@ -538,7 +541,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                 height: 36,
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.03),
+                  color: Colors.white.withValues(alpha: 0.03),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: _buildAppIcon(app),
@@ -551,7 +554,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                     Text(
                       app.name,
                       style: GoogleFonts.manrope(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 14,
                         fontWeight: isSelected
                             ? FontWeight.w700
@@ -561,7 +564,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                     Text(
                       app.id,
                       style: GoogleFonts.manrope(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         fontSize: 11,
                       ),
                     ),
@@ -585,7 +588,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       ),
       child: Row(
         children: [
@@ -609,7 +612,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
             child: Text(
               'CANCEL',
               style: GoogleFonts.manrope(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
               ),
@@ -632,8 +635,9 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                   elevation: 0,
                 ).copyWith(
                   backgroundColor: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.disabled))
+                    if (states.contains(WidgetState.disabled)) {
                       return Colors.white10;
+                    }
                     return AppColors.violet;
                   }),
                 ),
@@ -642,7 +646,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
               style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
-                letterSpacing: 1.0,
+                letterSpacing: 1,
               ),
             ),
           ),
@@ -685,8 +689,8 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
 }
 
 class _ResizeHandlePainter extends CustomPainter {
-  final Color color;
   _ResizeHandlePainter({this.color = Colors.white24});
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {

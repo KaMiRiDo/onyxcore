@@ -1,26 +1,27 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import "package:path/path.dart" as p;
 
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_state_view.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
-import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_state_view.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
+import 'package:path/path.dart' as p;
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
 class FileGrid extends ConsumerStatefulWidget {
@@ -33,14 +34,13 @@ class FileGrid extends ConsumerStatefulWidget {
 class _FileGridState extends ConsumerState<FileGrid>
     with WidgetsBindingObserver {
   String? _hoveredPath;
-  late final FocusNode _focusNode;
+  String? _lastLoadedPath;
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _focusNode = ref.read(mainFocusNodeProvider);
   }
 
   @override
@@ -61,58 +61,46 @@ class _FileGridState extends ConsumerState<FileGrid>
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(sortedDirectoryItemsProvider);
+    final filteredAsync = ref.watch(filteredDirectoryItemsProvider);
     final zoom = ref.watch(currentZoomProvider);
     final selection = ref.watch(selectionProvider);
-    final String currentPath = ref.watch(currentPathProvider);
+    final currentPath = ref.watch(currentPathProvider);
     final isRefreshing = ref.watch(isRefreshingProvider);
+    
+    final isDataLoading = itemsAsync.isLoading || filteredAsync.isLoading;
+
+    if (!isDataLoading && itemsAsync.hasValue) {
+      _lastLoadedPath = currentPath;
+    }
 
     final content = AnimatedOpacity(
       duration: const Duration(milliseconds: 150),
       opacity: isRefreshing ? 0.2 : 1.0,
       curve: Curves.easeInOut,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        child: itemsAsync.when(
-          loading: () => itemsAsync.hasValue
-              ? _buildGrid(itemsAsync.value!, selection, zoom, currentPath)
-              : Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.violet.withOpacity(0.4),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Reading disk...',
-                        style: GoogleFonts.manrope(
-                          color: Colors.white24,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
+      child: isDataLoading
+          ? (itemsAsync.hasValue && _lastLoadedPath == currentPath
+              ? AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _buildGrid(itemsAsync.value!, selection, zoom, currentPath),
+                )
+              : const Center(
+                  child: BubbleLoader(size: 60),
+                ))
+          : itemsAsync.when(
+              loading: () => const Center(
+                child: BubbleLoader(size: 60),
+              ),
+              error: (error, _) => Center(
+                child: Text(
+                  'Error: $error',
+                  style: const TextStyle(color: AppColors.textMuted),
                 ),
-          error: (error, _) => Center(
-            child: Text(
-              'Error: $error',
-              style: const TextStyle(color: AppColors.textMuted),
+              ),
+              data: (items) => AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _buildGrid(items, selection, zoom, currentPath),
+              ),
             ),
-          ),
-          data: (items) => _buildGrid(items, selection, zoom, currentPath),
-        ),
-      ),
     );
 
     if (currentPath.startsWith('virtual:')) return content;
@@ -150,7 +138,7 @@ class _FileGridState extends ConsumerState<FileGrid>
           ref.read(selectionProvider.notifier).deselectAll();
           ref.read(conflictProvider.notifier).clearGlobalResolution();
 
-          for (int i = 0; i < sources.length; i++) {
+          for (var i = 0; i < sources.length; i++) {
             if (ref.read(taskProvider.notifier).isTaskCancelled(taskId)) break;
 
             final source = sources[i];
@@ -158,8 +146,9 @@ class _FileGridState extends ConsumerState<FileGrid>
             final destPath = p.join(currentPath, name);
             final isFolder = Directory(source).existsSync();
 
-            String finalDestPath = destPath;
+            var finalDestPath = destPath;
 
+            if (!context.mounted) break;
             if (File(destPath).existsSync() ||
                 Directory(destPath).existsSync()) {
               final resolution = await ref
@@ -177,11 +166,11 @@ class _FileGridState extends ConsumerState<FileGrid>
                 final ext = p.extension(name);
                 final base = p.basenameWithoutExtension(name);
                 var counter = 1;
-                var newName = "$base($counter)$ext";
+                var newName = '$base($counter)$ext';
                 while (File(p.join(currentPath, newName)).existsSync() ||
                     Directory(p.join(currentPath, newName)).existsSync()) {
                   counter++;
-                  newName = "$base($counter)$ext";
+                  newName = '$base($counter)$ext';
                 }
                 finalDestPath = p.join(currentPath, newName);
               }
@@ -209,7 +198,7 @@ class _FileGridState extends ConsumerState<FileGrid>
           }
 
           ref.read(taskProvider.notifier).completeTask(taskId);
-          ref.read(directoryItemsProvider.notifier).refresh();
+          await ref.read(directoryItemsProvider.notifier).refresh();
           ref.read(selectionProvider.notifier).deselectAll();
         } catch (e) {
           ref.read(taskProvider.notifier).addLog(taskId, 'ERROR: $e');
@@ -220,7 +209,7 @@ class _FileGridState extends ConsumerState<FileGrid>
         final isOver = candidateData.isNotEmpty;
         return Container(
           decoration: BoxDecoration(
-            color: isOver ? AppColors.violet.withOpacity(0.05) : null,
+            color: isOver ? AppColors.violet.withValues(alpha: 0.05) : null,
           ),
           child: content,
         );
@@ -317,7 +306,7 @@ class _FileGridState extends ConsumerState<FileGrid>
           icon: Icons.filter_list_off_rounded,
           title: 'No Items Match',
           subtitle:
-              'Try adjusting your filters to find what you\'re looking for',
+              "Try adjusting your filters to find what you're looking for",
           actionLabel: 'Clear All Filters',
           onAction: () {
             final tabId = ref.read(tabIdProvider);
@@ -328,7 +317,7 @@ class _FileGridState extends ConsumerState<FileGrid>
         );
       }
 
-      String message = 'This folder is empty';
+      var message = 'This folder is empty';
       if (currentPath == 'virtual:recent') message = 'No recent files found';
       if (currentPath == 'virtual:starred') message = 'No starred items yet';
 
@@ -397,7 +386,7 @@ class _FileGridState extends ConsumerState<FileGrid>
     final lastIndex = ((firstVisibleRow + visibleRows) * maxCols).clamp(0, items.length);
 
     final visiblePaths = <String>{};
-    for (int i = firstIndex; i < lastIndex; i++) {
+    for (var i = firstIndex; i < lastIndex; i++) {
       if (items[i].type == FileItemType.video || items[i].type == FileItemType.image) {
         visiblePaths.add(items[i].path);
       }

@@ -4,9 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 
 class CreateItemDialog extends StatefulWidget {
-  final String currentPath;
-  final List<String> existingNames;
-  final bool initialIsFolder;
 
   const CreateItemDialog({
     required this.currentPath,
@@ -14,6 +11,9 @@ class CreateItemDialog extends StatefulWidget {
     this.initialIsFolder = true,
     super.key,
   });
+  final String currentPath;
+  final List<String> existingNames;
+  final bool initialIsFolder;
 
   static Future<String?> show({
     required BuildContext context,
@@ -23,7 +23,7 @@ class CreateItemDialog extends StatefulWidget {
   }) {
     return showDialog<String>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.4),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (context) => CreateItemDialog(
         currentPath: currentPath,
         existingNames: existingNames,
@@ -79,7 +79,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
         error = 'Name contains invalid characters';
       } else if (widget.existingNames.contains(text)) {
         error =
-            'A ${(_isFolder ? "folder" : "file")} with this name already exists';
+            'A ${_isFolder ? "folder" : "file"} with this name already exists';
       }
     }
 
@@ -135,10 +135,10 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
             decoration: BoxDecoration(
               color: const Color(0xFF111111),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   blurRadius: 40,
                   spreadRadius: 5,
                   offset: const Offset(0, 15),
@@ -170,16 +170,16 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
       width: 64,
       height: 64,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: Colors.white.withValues(alpha: 0.04),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.08), width: 1.5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
       ),
       child: Center(
         child: Icon(
           _isFolder
               ? Icons.create_new_folder_outlined
               : Icons.note_add_outlined,
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
           size: 32,
         ),
       ),
@@ -188,7 +188,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
 
   Widget _buildTitle() {
     return Text(
-      _isFolder ? "New Folder" : "New Document",
+      _isFolder ? 'New Folder' : 'New Document',
       style: GoogleFonts.outfit(
         fontSize: 22,
         fontWeight: FontWeight.w800,
@@ -208,7 +208,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
             child: Text(
               _errorMessage!,
               style: GoogleFonts.manrope(
-                color: AppColors.error.withOpacity(0.9),
+                color: AppColors.error.withValues(alpha: 0.9),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -216,12 +216,12 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
           ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.03),
+            color: Colors.white.withValues(alpha: 0.03),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: _errorMessage != null
-                  ? AppColors.error.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.1),
+                  ? AppColors.error.withValues(alpha: 0.3)
+                  : Colors.white.withValues(alpha: 0.1),
             ),
           ),
           child: TextField(
@@ -231,14 +231,14 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
             cursorColor: AppColors.violet,
             textAlign: TextAlign.left,
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
               hintText: _isFolder ? 'Enter folder name' : 'Enter document name',
               hintStyle: GoogleFonts.manrope(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 fontWeight: FontWeight.w500,
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -300,13 +300,13 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: isSelected
-                ? Colors.white.withOpacity(0.03)
-                : Colors.white.withOpacity(0.01),
+                ? Colors.white.withValues(alpha: 0.03)
+                : Colors.white.withValues(alpha: 0.01),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isSelected
-                  ? Colors.white.withOpacity(0.1)
-                  : Colors.white.withOpacity(0.03),
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.white.withValues(alpha: 0.03),
             ),
           ),
           child: Row(
@@ -315,7 +315,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? Colors.white.withOpacity(0.05)
+                      ? Colors.white.withValues(alpha: 0.05)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -335,12 +335,11 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                     : Icon(
                         icon,
                         size: 18,
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                       ),
               ),
               const SizedBox(width: 12),
-              isSelected
-                  ? ShaderMask(
+              if (isSelected) ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
                         colors: [
                           AppColors.magenta,
@@ -358,11 +357,10 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                    )
-                  : Text(
+                    ) else Text(
                       title,
                       style: GoogleFonts.manrope(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -376,7 +374,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                   border: Border.all(
                     color: isSelected
                         ? Colors.transparent
-                        : Colors.white.withOpacity(0.1),
+                        : Colors.white.withValues(alpha: 0.1),
                     width: 2,
                   ),
                   gradient: isSelected
@@ -409,7 +407,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
   }
 
   Widget _buildBottomActions() {
-    final bool canCreate =
+    final canCreate =
         _errorMessage == null && _controller.text.trim().isNotEmpty;
 
     return Row(
@@ -419,14 +417,14 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
             onPressed: () => Navigator.pop(context),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white70,
-              side: BorderSide(color: Colors.white.withOpacity(0.1)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               padding: const EdgeInsets.symmetric(vertical: 18),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
             child: Text(
-              "Cancel",
+              'Cancel',
               style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
@@ -450,7 +448,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                       end: Alignment.bottomRight,
                     )
                   : null,
-              color: canCreate ? null : Colors.white.withOpacity(0.05),
+              color: canCreate ? null : Colors.white.withValues(alpha: 0.05),
             ),
             child: ElevatedButton(
               onPressed: canCreate ? _submit : null,
@@ -465,7 +463,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                 disabledBackgroundColor: Colors.transparent,
               ),
               child: Text(
-                "Create",
+                'Create',
                 style: GoogleFonts.manrope(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,

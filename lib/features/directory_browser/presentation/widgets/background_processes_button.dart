@@ -1,9 +1,10 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
@@ -27,11 +28,9 @@ class _BackgroundProcessesButtonState
     with SingleTickerProviderStateMixin {
   bool _showingCompletionTick = false;
   bool _hadErrorSinceLastOpen = false;
-  bool _callbackRegistered = false;
 
   @override
   Widget build(BuildContext context) {
-    final tasks = ref.watch(taskProvider);
     final isOpen = ref.watch(backgroundPanelOpenProvider);
     final notifier = ref.read(taskProvider.notifier);
 
@@ -79,7 +78,7 @@ class _BackgroundProcessesButtonState
           nowHasCompleted &&
           !ref.read(taskProvider.notifier).hasErrors) {
         setState(() => _showingCompletionTick = true);
-        Future.delayed(const Duration(seconds: 3), () {
+        Future<void>.delayed(const Duration(seconds: 3), () {
           if (mounted) {
             setState(() => _showingCompletionTick = false);
           }
@@ -132,9 +131,9 @@ class _BackgroundProcessesButtonState
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: AppColors.error.withOpacity(0.15),
+          color: AppColors.error.withValues(alpha: 0.15),
           border: Border.all(
-            color: AppColors.error.withOpacity(0.6),
+            color: AppColors.error.withValues(alpha: 0.6),
             width: 1.5,
           ),
         ),
@@ -151,7 +150,7 @@ class _BackgroundProcessesButtonState
     // Completion tick state: green check, auto-resets
     if (_showingCompletionTick) {
       return TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
+        tween: Tween(begin: 0, end: 1),
         duration: const Duration(milliseconds: 400),
         curve: Curves.elasticOut,
         builder: (context, value, child) {
@@ -162,9 +161,9 @@ class _BackgroundProcessesButtonState
               height: size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.success.withOpacity(0.15),
+                color: AppColors.success.withValues(alpha: 0.15),
                 border: Border.all(
-                  color: AppColors.success.withOpacity(0.6),
+                  color: AppColors.success.withValues(alpha: 0.6),
                   width: 1.5,
                 ),
               ),
@@ -191,7 +190,7 @@ class _BackgroundProcessesButtonState
             1.0,
           ), // Show at least a sliver if running
           strokeColor: AppColors.violet,
-          backgroundColor: Colors.white.withOpacity(0.05),
+          backgroundColor: Colors.white.withValues(alpha: 0.05),
         ),
       );
     }
@@ -204,8 +203,8 @@ class _BackgroundProcessesButtonState
         shape: BoxShape.circle,
         border: Border.all(
           color: isOpen
-              ? AppColors.violet.withOpacity(0.6)
-              : Colors.white.withOpacity(0.25),
+              ? AppColors.violet.withValues(alpha: 0.6)
+              : Colors.white.withValues(alpha: 0.25),
           width: 1.5,
         ),
       ),
@@ -215,15 +214,15 @@ class _BackgroundProcessesButtonState
 
 /// Custom painter that draws a filled pie-chart arc.
 class _PieProgressPainter extends CustomPainter {
-  final double progress;
-  final Color strokeColor;
-  final Color backgroundColor;
 
   _PieProgressPainter({
     required this.progress,
     required this.strokeColor,
     required this.backgroundColor,
   });
+  final double progress;
+  final Color strokeColor;
+  final Color backgroundColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -238,7 +237,7 @@ class _PieProgressPainter extends CustomPainter {
 
     // Outline
     final outlinePaint = Paint()
-      ..color = strokeColor.withOpacity(0.3)
+      ..color = strokeColor.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, radius, outlinePaint);
@@ -246,7 +245,7 @@ class _PieProgressPainter extends CustomPainter {
     // Progress arc (pie slice)
     if (progress > 0) {
       final progressPaint = Paint()
-        ..color = strokeColor.withOpacity(0.9)
+        ..color = strokeColor.withValues(alpha: 0.9)
         ..style = PaintingStyle.fill;
 
       final sweepAngle = 2 * math.pi * progress;

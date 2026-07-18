@@ -12,7 +12,7 @@ class SortOverlay {
     required Offset buttonPosition,
     required Size buttonSize,
     required SortOption currentOption,
-    required Function(SortOption) onSelected,
+    required void Function(SortOption) onSelected,
   }) {
     hide();
 
@@ -39,11 +39,6 @@ class SortOverlay {
 }
 
 class _SortOverlayWidget extends StatelessWidget {
-  final Offset buttonPosition;
-  final Size buttonSize;
-  final SortOption currentOption;
-  final Function(SortOption) onSelected;
-  final VoidCallback onClose;
 
   const _SortOverlayWidget({
     required this.buttonPosition,
@@ -52,6 +47,11 @@ class _SortOverlayWidget extends StatelessWidget {
     required this.onSelected,
     required this.onClose,
   });
+  final Offset buttonPosition;
+  final Size buttonSize;
+  final SortOption currentOption;
+  final void Function(SortOption) onSelected;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -60,13 +60,14 @@ class _SortOverlayWidget extends StatelessWidget {
     final height = SortOption.values.length * 44.0 + 32.0;
 
     // Align left edge of popup with the button so it opens towards the right
-    double left = buttonPosition.dx + 8;
+    var left = buttonPosition.dx + 8;
     // Show directly below the button
-    double top = buttonPosition.dy + buttonSize.height + 8;
+    var top = buttonPosition.dy + buttonSize.height + 8;
 
     if (left < 16) left = 16;
-    if (left + width > screenSize.width - 16)
+    if (left + width > screenSize.width - 16) {
       left = screenSize.width - width - 16;
+    }
 
     if (top + height > screenSize.height - 16) {
       top = buttonPosition.dy - height - 8;
@@ -91,7 +92,7 @@ class _SortOverlayWidget extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 32,
                     offset: const Offset(0, 16),
                   ),
@@ -105,9 +106,9 @@ class _SortOverlayWidget extends StatelessWidget {
                     width: width,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF181818).withOpacity(0.95),
+                      color: const Color(0xFF181818).withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

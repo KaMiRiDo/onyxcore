@@ -1,32 +1,31 @@
-import 'dart:io';
 import 'dart:async';
-import 'package:path/path.dart' as p;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/core/utils/string_utils.dart';
-
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
-import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/filter_overlay.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/background_processes_button.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/filter_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:path/path.dart' as p;
+import 'package:window_manager/window_manager.dart';
 
 class TopBar extends ConsumerStatefulWidget {
   const TopBar({super.key});
@@ -81,9 +80,9 @@ class _TopBarState extends ConsumerState<TopBar> {
 
   @override
   Widget build(BuildContext context) {
-    final String currentPath = ref.watch(currentPathProvider);
+    final currentPath = ref.watch(currentPathProvider);
     final previewFile = ref.watch(previewFileProvider);
-    final String homePath = Platform.environment['HOME'] ?? '/';
+    final homePath = Platform.environment['HOME'] ?? '/';
     final devices = ref.watch(deviceProvider).value ?? [];
     final isSearchActive = ref.watch(isSearchActiveProvider);
     final isLocationEditing = ref.watch(isLocationEditingProvider);
@@ -101,7 +100,7 @@ class _TopBarState extends ConsumerState<TopBar> {
 
         // Auto-scroll to end
         if (_breadcrumbController.hasClients) {
-          Future.delayed(const Duration(milliseconds: 100), () {
+          Future<void>.delayed(const Duration(milliseconds: 100), () {
             _breadcrumbController.animateTo(
               _breadcrumbController.position.maxScrollExtent,
               duration: const Duration(milliseconds: 300),
@@ -155,11 +154,11 @@ class _TopBarState extends ConsumerState<TopBar> {
                     decoration: BoxDecoration(
                       color: isSearchActive
                           ? null
-                          : Colors.white.withOpacity(0.05),
+                          : Colors.white.withValues(alpha: 0.05),
                       gradient: isSearchActive
                           ? LinearGradient(
                               colors: AppTheme.primaryGradient.colors
-                                  .map((c) => c.withOpacity(0.15))
+                                  .map((c) => c.withValues(alpha: 0.15))
                                   .toList(),
                               begin: AppTheme.primaryGradient.begin,
                               end: AppTheme.primaryGradient.end,
@@ -168,8 +167,8 @@ class _TopBarState extends ConsumerState<TopBar> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isSearchActive
-                            ? AppColors.violet.withOpacity(0.5)
-                            : Colors.white.withOpacity(0.05),
+                            ? AppColors.violet.withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.05),
                       ),
                     ),
                     child: ClipRRect(
@@ -206,13 +205,10 @@ class _TopBarState extends ConsumerState<TopBar> {
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
                                           children: [
                                             Padding(
                                               padding: const EdgeInsets.only(
                                                 left: 14,
-                                                right: 0,
                                               ),
                                               child: _buildGradientIcon(
                                                 _getRootIconData(
@@ -259,7 +255,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                                   focusNode: _locationFocusNode,
                                   textAlignVertical: TextAlignVertical.center,
                                   style: GoogleFonts.manrope(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -312,7 +308,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                                           parentDir;
 
                                       // Wait slightly for directory to load, then select
-                                      Future.delayed(
+                                      Future<void>.delayed(
                                         const Duration(milliseconds: 150),
                                         () {
                                           ref
@@ -330,7 +326,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                                               .read(pathErrorProvider.notifier)
                                               .state =
                                           'Invalid path';
-                                      Future.delayed(
+                                      Future<void>.delayed(
                                         const Duration(seconds: 2),
                                         () {
                                           ref
@@ -413,7 +409,6 @@ class _TopBarState extends ConsumerState<TopBar> {
                                     padding: const EdgeInsets.all(12),
                                     child: _buildGradientIcon(
                                       Icons.search,
-                                      size: 18,
                                     ),
                                   ),
                                 ),
@@ -431,11 +426,11 @@ class _TopBarState extends ConsumerState<TopBar> {
                   height: 40,
                   width: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     gradient: isSearchActive
                         ? LinearGradient(
                             colors: AppTheme.primaryGradient.colors
-                                .map((c) => c.withOpacity(0.15))
+                                .map((c) => c.withValues(alpha: 0.15))
                                 .toList(),
                             begin: AppTheme.primaryGradient.begin,
                             end: AppTheme.primaryGradient.end,
@@ -444,8 +439,8 @@ class _TopBarState extends ConsumerState<TopBar> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: isSearchActive
-                          ? AppColors.violet.withOpacity(0.5)
-                          : Colors.white.withOpacity(0.05),
+                          ? AppColors.violet.withValues(alpha: 0.5)
+                          : Colors.white.withValues(alpha: 0.05),
                     ),
                   ),
                   child: Center(
@@ -466,8 +461,8 @@ class _TopBarState extends ConsumerState<TopBar> {
                     return _buildActionIcon(
                       icon: Icons.sort_rounded,
                       onPressed: () {
-                        final RenderBox box =
-                            context.findRenderObject() as RenderBox;
+                        final box =
+                            context.findRenderObject()! as RenderBox;
                         final position = box.localToGlobal(Offset.zero);
                         SortOverlay.show(
                           context: context,
@@ -500,16 +495,15 @@ class _TopBarState extends ConsumerState<TopBar> {
                     if (!isFilterActive) {
                       return _buildActionIcon(
                         icon: Icons.tune_rounded,
-                        isActive: false,
                         onPressed: () {
-                          final RenderBox box =
-                              context.findRenderObject() as RenderBox;
+                          final box =
+                              context.findRenderObject()! as RenderBox;
                           final position = box.localToGlobal(Offset.zero);
                           FilterOverlay.show(
                             context: context,
                             position: position,
                             initialSettings: filter,
-                            onApply: (newSettings) {
+                            onSelected: (FilterSettings newSettings) {
                               final tabId = ref.read(tabIdProvider);
                               ref
                                   .read(tabManagerProvider.notifier)
@@ -522,10 +516,10 @@ class _TopBarState extends ConsumerState<TopBar> {
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: AppColors.violet.withOpacity(0.15),
+                        color: AppColors.violet.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.violet.withOpacity(0.25),
+                          color: AppColors.violet.withValues(alpha: 0.25),
                         ),
                       ),
                       child: Row(
@@ -535,14 +529,14 @@ class _TopBarState extends ConsumerState<TopBar> {
                             icon: Icons.tune_rounded,
                             isActive: true,
                             onPressed: () {
-                              final RenderBox box =
-                                  context.findRenderObject() as RenderBox;
+                              final box =
+                                  context.findRenderObject()! as RenderBox;
                               final position = box.localToGlobal(Offset.zero);
                               FilterOverlay.show(
                                 context: context,
                                 position: position,
                                 initialSettings: filter,
-                                onApply: (newSettings) {
+                                onSelected: (FilterSettings newSettings) {
                                   final tabId = ref.read(tabIdProvider);
                                   ref
                                       .read(tabManagerProvider.notifier)
@@ -555,11 +549,10 @@ class _TopBarState extends ConsumerState<TopBar> {
                           Container(
                             width: 1,
                             height: 16,
-                            color: AppColors.violet.withOpacity(0.2),
+                            color: AppColors.violet.withValues(alpha: 0.2),
                           ),
                           _buildActionIcon(
                             icon: Icons.close_rounded,
-                            isActive: false,
                             onPressed: () {
                               final tabId = ref.read(tabIdProvider);
                               ref
@@ -570,7 +563,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                                   );
                             },
                             backgroundColor: Colors.transparent,
-                            iconColor: Colors.white.withOpacity(0.7),
+                            iconColor: Colors.white.withValues(alpha: 0.7),
                           ),
                         ],
                       ),
@@ -667,7 +660,7 @@ class _TopBarState extends ConsumerState<TopBar> {
               left: 32,
               bottom: -10, // Adjusted for padding
               child: AnimatedOpacity(
-                opacity: pathError != null ? 1.0 : 0.0,
+                opacity: 1,
                 duration: const Duration(milliseconds: 200),
                 child: Padding(
                   padding: const EdgeInsets.only(top: 2),
@@ -742,7 +735,7 @@ class _TopBarState extends ConsumerState<TopBar> {
           color:
               backgroundColor ??
               (isActive
-                  ? AppColors.violet.withOpacity(0.2)
+                  ? AppColors.violet.withValues(alpha: 0.2)
                   : Colors.transparent),
           borderRadius: BorderRadius.circular(8),
         ),
@@ -767,7 +760,7 @@ class _TopBarState extends ConsumerState<TopBar> {
     String? previewFileName,
     List<Device> devices,
   ) {
-    List<MapEntry<String, String>> parts = [];
+    final parts = <MapEntry<String, String>>[];
 
     if (currentPath.startsWith('virtual:')) {
       final label = currentPath.replaceFirst('virtual:', '');
@@ -779,7 +772,7 @@ class _TopBarState extends ConsumerState<TopBar> {
       final relPath = currentPath.replaceFirst(homePath, 'Home');
       final subParts = relPath.split('/').where((s) => s.isNotEmpty).toList();
 
-      String accumulated = homePath;
+      var accumulated = homePath;
       parts.add(MapEntry('Home', homePath));
 
       for (final sub in subParts) {
@@ -787,8 +780,9 @@ class _TopBarState extends ConsumerState<TopBar> {
         final subIndex = currentPath.indexOf('/$sub', accumulated.length - 1);
         if (subIndex != -1) {
           accumulated = currentPath.substring(0, subIndex + sub.length + 1);
-          if (accumulated.endsWith('/'))
+          if (accumulated.endsWith('/')) {
             accumulated = accumulated.substring(0, accumulated.length - 1);
+          }
           parts.add(
             MapEntry(
               StringUtils.truncateMiddle(sub, maxLength: 16),
@@ -821,7 +815,7 @@ class _TopBarState extends ConsumerState<TopBar> {
         final subPath = currentPath.substring(matchingDevice.path.length);
         final subParts = subPath.split('/').where((s) => s.isNotEmpty).toList();
 
-        String accumulatedPath = matchingDevice.path;
+        var accumulatedPath = matchingDevice.path;
         for (final pPart in subParts) {
           accumulatedPath = p.join(accumulatedPath, pPart);
           parts.add(
@@ -836,7 +830,7 @@ class _TopBarState extends ConsumerState<TopBar> {
             .split('/')
             .where((s) => s.isNotEmpty)
             .toList();
-        String accumulatedPath = '/';
+        var accumulatedPath = '/';
         parts.add(const MapEntry('File System', '/'));
         for (final pPart in splitParts) {
           accumulatedPath = p.join(accumulatedPath, pPart);
@@ -909,7 +903,7 @@ class WindowButtons extends StatelessWidget {
       children: [
         _buildButton(
           icon: Icons.remove,
-          onPressed: () => windowManager.minimize(),
+          onPressed: windowManager.minimize,
         ),
         const SizedBox(width: 8),
         _buildButton(
@@ -925,7 +919,7 @@ class WindowButtons extends StatelessWidget {
         const SizedBox(width: 8),
         _buildButton(
           icon: Icons.close,
-          onPressed: () => windowManager.close(),
+          onPressed: windowManager.close,
           isClose: true,
         ),
       ],
@@ -944,7 +938,7 @@ class WindowButtons extends StatelessWidget {
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           shape: BoxShape.circle,
         ),
         child: Center(
@@ -1030,9 +1024,7 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
     return DragTarget<List<String>>(
       onWillAcceptWithDetails: (details) {
         _hoverTimer?.cancel();
-        _hoverTimer = Timer(const Duration(milliseconds: 1000), () {
-          _navigate();
-        });
+        _hoverTimer = Timer(const Duration(milliseconds: 1000), _navigate);
         return true;
       },
       onLeave: (_) {
@@ -1040,8 +1032,9 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
       },
       onAcceptWithDetails: (details) async {
         _hoverTimer?.cancel();
-        if (details.data.every((path) => p.dirname(path) == widget.targetPath))
+        if (details.data.every((path) => p.dirname(path) == widget.targetPath)) {
           return;
+        }
 
         final repo = ref.read(directoryRepositoryProvider);
         final taskId = ref
@@ -1067,7 +1060,7 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
         return Container(
           decoration: BoxDecoration(
             color: isOver
-                ? AppColors.violet.withOpacity(0.2)
+                ? AppColors.violet.withValues(alpha: 0.2)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),

@@ -1,51 +1,48 @@
-import 'dart:ui';
 import 'dart:async';
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:convert';
-import 'dart:io';
-import 'package:path/path.dart' as p;
-
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/directory_size_utils.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
-import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/preview_container.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/gnome_tab_bar.dart';
-import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_analysis_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/rubber_band_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/create_item_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/error_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/gnome_tab_bar.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/preview_container.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/error_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/create_item_dialog.dart';
-import 'package:onyxcore/features/video_player/data/repositories/playback_memory_repository.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/rubber_band_overlay.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/unified_side_panel.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'package:onyxcore/core/utils/string_utils.dart';
-import 'package:onyxcore/core/utils/directory_size_utils.dart';
-import 'dart:isolate';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:path/path.dart' as p;
 
 /// Main gallery page — slim orchestrator that composes all widgets.
 class GalleryPage extends ConsumerStatefulWidget {
@@ -242,11 +239,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
                                                                 .create_new_folder_rounded,
                                                             shortcut:
                                                                 'Ctrl+Shift+N',
-                                                            onTap: () =>
-                                                                _handleNewItem(
-                                                                  initialIsFolder:
-                                                                      true,
-                                                                ),
+                                                            onTap: _handleNewItem,
                                                           ),
                                                           ContextMenuItem(
                                                             title:
@@ -408,8 +401,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
                                     final previewFile = ref.watch(
                                       previewFileProvider,
                                     );
-                                    if (previewFile == null)
+                                    if (previewFile == null) {
                                       return const SizedBox.shrink();
+                                    }
                                     return Positioned.fill(
                                       child: PreviewContainer(
                                         key: ValueKey(previewFile.path),
@@ -435,7 +429,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
                             child: Center(
                               child: RepaintBoundary(
                                 child: DragTarget<List<String>>(
-                                  onAccept: (_) {
+                                  onAcceptWithDetails: (_) {
                                     ref
                                             .read(isDraggingProvider.notifier)
                                             .state =
@@ -460,11 +454,11 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
                                               height: 56,
                                               decoration: BoxDecoration(
                                                 color: isOver
-                                                    ? Colors.red.withOpacity(
-                                                        0.6,
+                                                    ? Colors.red.withValues(
+                                                        alpha: 0.6,
                                                       )
-                                                    : Colors.white.withOpacity(
-                                                        0.08,
+                                                    : Colors.white.withValues(
+                                                        alpha: 0.08,
                                                       ),
                                                 shape: BoxShape.circle,
                                                 border: Border.all(
@@ -504,25 +498,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
     );
   }
 
-  Widget _buildContent() {
-    final previewFile = ref.watch(previewFileProvider);
-    if (previewFile != null) {
-      return Expanded(child: PreviewContainer(item: previewFile));
-    }
 
-    return Expanded(
-      child: Column(
-        children: [
-          // const ActionBar(), // Removed panel
-          Expanded(
-            child: RubberBandOverlay(
-              child: const FileGrid(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Same as _buildContent but without the Expanded wrapper (for inline Row layout).
   Widget _buildContentInner() {
@@ -550,7 +526,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
                 var filtered = items;
                 if (!showHidden) {
                   filtered = filtered
-                      .where((item) => !item.name.startsWith("."))
+                      .where((item) => !item.name.startsWith('.'))
                       .toList();
                 }
                 if (query.isNotEmpty) {
@@ -570,8 +546,8 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
 }
 
 class _TabBody extends ConsumerWidget {
-  final String tabId;
   const _TabBody({required this.tabId});
+  final String tabId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -658,8 +634,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           LogicalKeyboardKey.keyN,
           control: true,
           shift: true,
-        ): () =>
-            _handleNewItem(initialIsFolder: true),
+        ): _handleNewItem,
         const SingleActivator(
           LogicalKeyboardKey.keyC,
           control: true,
@@ -776,15 +751,25 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     ref.read(isSearchActiveProvider.notifier).set(active);
   }
 
-  void _refresh() async {
+  Future<void> _refresh() async {
+    if (ref.read(isRefreshingProvider)) return;
+    ref.read(isRefreshingProvider.notifier).state = true;
+
     final currentPath = ref.read(currentPathProvider);
     ref.read(directoryRepositoryProvider).invalidateCache(currentPath);
     ref.read(refreshCountProvider.notifier).state =
         ref.read(refreshCountProvider) + 1;
-    ref.read(isRefreshingProvider.notifier).state = true;
+    
     ref.read(directoryItemsProvider.notifier).refresh();
-    // Subtle blink duration
-    await Future.delayed(const Duration(milliseconds: 150));
+    
+    try {
+      // Wait for both the data load and the minimum animation duration
+      await Future.wait([
+        ref.read(directoryItemsProvider.future),
+        Future<void>.delayed(const Duration(milliseconds: 150)),
+      ]);
+    } catch (_) {}
+
     ref.read(isRefreshingProvider.notifier).state = false;
   }
 
@@ -836,7 +821,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   }
 
   int _getDirectorySizeSync(String path) {
-    int total = 0;
+    var total = 0;
     try {
       final dir = Directory(path);
       if (dir.existsSync()) {
@@ -861,7 +846,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         ? [ref.read(currentPathProvider)]
         : selection.selectedPaths.toList();
 
-    showDialog(
+    showDialog<dynamic>(
       context: context,
       builder: (context) => PropertiesDialog(paths: paths),
     );
@@ -885,10 +870,6 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goBack();
-    final nav = ref.read(navigationProvider);
-    if (nav.currentPath.isNotEmpty) {
-      ref.read(currentPathProvider.notifier).state = nav.currentPath;
-    }
   }
 
   void _goForward() {
@@ -897,10 +878,6 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     ref.read(isSearchActiveProvider.notifier).set(false);
     ref.read(selectionProvider.notifier).deselectAll();
     ref.read(navigationProvider.notifier).goForward();
-    final nav = ref.read(navigationProvider);
-    if (nav.currentPath.isNotEmpty) {
-      ref.read(currentPathProvider.notifier).state = nav.currentPath;
-    }
   }
 
   ContextMenuItem _buildSortItem(
@@ -961,15 +938,15 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         .compressItems(context, selection.selectedPaths.toList(), currentDir);
   }
 
-  void _handlePaste() async { 
+  Future<void> _handlePaste() async { 
     final clipboard = ref.read(clipboardProvider);
-    if (clipboard == null || clipboard.paths.isEmpty) return;
+    if (clipboard.paths.isEmpty) return;
 
     final targetDir = ref.read(currentPathProvider);
     final repo = ref.read(directoryRepositoryProvider);
 
     // Phase 1: Pre-check all items for conflicts and resolve them
-    final List<_PasteOperation> operations = [];
+    final operations = <_PasteOperation>[];
     ref.read(conflictProvider.notifier).clearGlobalResolution();
 
     for (final source in clipboard.paths) {
@@ -982,7 +959,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
       // 1. Circular reference check
       if (absDest.startsWith(absSource + p.separator)) {
-        await showDialog(
+        await showDialog<dynamic>(
           context: context,
           builder: (context) => ErrorDialog(
             title: 'You cannot copy a $typeStr into itself.',
@@ -994,7 +971,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
       // 2. Parent-child overwrite check
       if (absSource.startsWith(absDest + p.separator)) {
-        await showDialog(
+        await showDialog<dynamic>(
           context: context,
           builder: (context) => ErrorDialog(
             title:
@@ -1008,7 +985,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
       // 3. Same path check
       if (absSource == absDest && clipboard.isCut) {
-        await showDialog(
+        await showDialog<dynamic>(
           context: context,
           builder: (context) => ErrorDialog(
             title: 'You cannot move a $typeStr over itself.',
@@ -1020,7 +997,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       }
 
       // 4. Conflict check
-      String finalDestPath = destPath;
+      var finalDestPath = destPath;
       if (File(destPath).existsSync() || Directory(destPath).existsSync()) {
         final resolution = await ref
             .read(conflictProvider.notifier)
@@ -1036,7 +1013,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         } else if (resolution == ConflictResolution.replace &&
             (absSource == absDest ||
                 absSource.startsWith(absDest + p.separator))) {
-          await showDialog(
+          await showDialog<dynamic>(
             context: context,
             builder: (context) => ErrorDialog(
               title: 'You cannot copy a $typeStr over itself.',
@@ -1049,18 +1026,18 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           final ext = p.extension(name);
           final base = p.basenameWithoutExtension(name);
           var counter = 1;
-          var newName = "$base($counter)$ext";
+          var newName = '$base($counter)$ext';
           while (File(p.join(targetDir, newName)).existsSync() ||
               Directory(p.join(targetDir, newName)).existsSync()) {
             counter++;
-            newName = "$base($counter)$ext";
+            newName = '$base($counter)$ext';
           }
           finalDestPath = p.join(targetDir, newName);
         }
       }
 
       // 5. Size calculation
-      int size = 0;
+      var size = 0;
       final stat = FileStat.statSync(source);
       if (stat.type == FileSystemEntityType.directory) {
         size = _getDirectorySizeSync(source);
@@ -1081,7 +1058,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (operations.isEmpty) return;
 
     // Phase 2: Start background task for resolved operations
-    final String taskId = ref
+    final taskId = ref
         .read(taskProvider.notifier)
         .addTask(
           title: clipboard.isCut ? 'Moving Files' : 'Copying Files',
@@ -1091,10 +1068,10 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           targetPath: targetDir,
         );
 
-    int totalSizeBytes = operations.fold(0, (sum, o) => sum + o.size);
+    final totalSizeBytes = operations.fold(0, (sum, o) => sum + o.size);
     ref.read(taskProvider.notifier).updateByteCounts(taskId, 0, totalSizeBytes);
 
-    int totalBytesProcessed = 0;
+    var totalBytesProcessed = 0;
 
     try {
       // Clear selection before starting
@@ -1102,7 +1079,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         ref.read(selectionProvider.notifier).deselectAll();
       }
 
-      for (int i = 0; i < operations.length; i++) {
+      for (var i = 0; i < operations.length; i++) {
         if (ref.read(taskProvider.notifier).isTaskCancelled(taskId)) break;
 
         final op = operations[i];
@@ -1112,7 +1089,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
             .addLog(taskId, '$operationVerb ${op.name}...');
         ref.read(taskProvider.notifier).updateCurrentItem(taskId, op.name);
 
-        int lastItemBytesProcessed = 0;
+        var lastItemBytesProcessed = 0;
 
         void onProgress(int bytesCopied) {
           final delta = bytesCopied - lastItemBytesProcessed;
@@ -1134,7 +1111,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         final isLastOperation = i == operations.length - 1;
         void onSyncing() {
           if (isLastOperation) {
-            ref.read(taskProvider.notifier).setSyncing(taskId, true);
+            ref.read(taskProvider.notifier).setSyncing(taskId);
             ref
                 .read(taskProvider.notifier)
                 .addLog(taskId, 'Syncing to disk...');
@@ -1203,8 +1180,6 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (selection.selectedPaths.isEmpty) return;
 
     final currentPath = ref.read(currentPathProvider);
-    final home = Platform.environment['HOME'] ?? '/';
-    final trashPath = '$home/.local/share/Trash/files';
 
     // If we are in trash, every delete is permanent
     final isDeletingFromTrash =
@@ -1213,8 +1188,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         currentPath == 'trash:///';
     final effectivelyPermanent = permanent || isDeletingFromTrash;
 
-    final count = selection.selectedPaths.length;
-    bool confirmed = false;
+    var confirmed = false;
     if (effectivelyPermanent) {
       // Calculate detailed stats for the confirmation dialog
       final stats = await _calculateSelectionStats(
@@ -1280,7 +1254,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                "System trash utility not found. Use Shift+Delete.",
+                'System trash utility not found. Use Shift+Delete.',
               ),
               backgroundColor: AppColors.error,
             ),
@@ -1382,7 +1356,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       final path = selection.selectedPaths.first;
       final key = itemKeys[path];
       if (key?.currentContext != null) {
-        final box = key!.currentContext!.findRenderObject() as RenderBox;
+        final box = key!.currentContext!.findRenderObject()! as RenderBox;
         anchorPosition = box.localToGlobal(
           Offset(box.size.width / 2, box.size.height),
         );
@@ -1392,14 +1366,16 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         );
       }
     } else {
-      double minX = double.infinity, minY = double.infinity;
-      double maxX = -double.infinity, maxY = -double.infinity;
-      bool foundAny = false;
+      var minX = double.infinity;
+      var minY = double.infinity;
+      var maxX = -double.infinity;
+      var maxY = -double.infinity;
+      var foundAny = false;
 
       for (final path in selection.selectedPaths) {
         final key = itemKeys[path];
         if (key?.currentContext != null) {
-          final box = key!.currentContext!.findRenderObject() as RenderBox;
+          final box = key!.currentContext!.findRenderObject()! as RenderBox;
           final pos = box.localToGlobal(Offset.zero);
           minX = min(minX, pos.dx);
           minY = min(minY, pos.dy);
@@ -1468,7 +1444,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       );
     } else {
       // Bulk rename or fallback: Centered Dialog
-      final result = await showDialog(
+      final result = await showDialog<dynamic>(
         context: context,
         builder: (context) =>
             RenameDialog(paths: selection.selectedPaths.toList()),
@@ -1509,7 +1485,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         } else if (result is Map) {
           final mode = result['mode'] as RenameMode;
           final value = result['value'] as String;
-          List<String> newPaths = [];
+          var newPaths = <String>[];
           final paths = selection.selectedPaths.toList();
           final taskId = ref
               .read(taskProvider.notifier)
@@ -1562,7 +1538,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   }
 
   Future<void> _handleNewItem({bool initialIsFolder = true}) async {
-    final String currentPath = ref.read(currentPathProvider);
+    final currentPath = ref.read(currentPathProvider);
     final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
     final existingNames = items.map((i) => i.name).toList();
 
@@ -1635,7 +1611,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   }
 
   void _zoom(double delta) {
-    final String path = ref.read(currentPathProvider);
+    final path = ref.read(currentPathProvider);
     final zooms = Map<String, double>.from(ref.read(zoomProvider));
     final current = zooms[path] ?? 0.8;
     zooms[path] = (current + delta).clamp(0.5, 2.0);
@@ -1643,7 +1619,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   }
 
   void _resetZoom() {
-    final String path = ref.read(currentPathProvider);
+    final path = ref.read(currentPathProvider);
     final zooms = Map<String, double>.from(ref.read(zoomProvider));
     zooms[path] = 0.8;
     ref.read(zoomProvider.notifier).state = zooms;
@@ -1651,14 +1627,14 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 }
 
 class _PasteOperation {
-  final String source;
-  final String target;
-  final String name;
-  final int size;
   _PasteOperation({
     required this.source,
     required this.target,
     required this.name,
     required this.size,
   });
+  final String source;
+  final String target;
+  final String name;
+  final int size;
 }

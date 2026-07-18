@@ -53,8 +53,8 @@ void main() {
       expect(log.length, 1);
       expect(log.first.method, 'create_window');
       
-      // We know ViewerType.downloader implies maximize: true
-      expect(log.first.arguments['maximize'], true);
+      // We know ViewerType.downloader no longer implies maximize: true
+      expect(log.first.arguments['maximize'], false);
     });
   });
 }

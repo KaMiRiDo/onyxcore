@@ -7,11 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image/image.dart' as img;
-
-import '../../../../core/cache/thumbnail_cache_service.dart';
-import '../../../../features/settings/presentation/providers/settings_providers.dart';
-import '../../../../core/utils/file_type_classifier.dart';
-import '../../domain/entities/file_item.dart';
+import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Thumbnail Generation Queue — viewport-aware, with reprioritization
@@ -201,7 +200,6 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
           }
         }
         // Cached file missing from disk — fall through to regenerate
-        break;
 
       case ThumbnailLookupResult.failed:
         // Previously failed — don't retry, show fallback
@@ -234,7 +232,7 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
              ext.endsWith('.dng')
           );
 
-          bool generated = false;
+          var generated = false;
 
           // 1. Try Dart image package for common image formats
           if (isCommonImage) {
@@ -354,7 +352,7 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        color: Colors.white.withOpacity(0.02),
+        color: Colors.white.withValues(alpha: 0.02),
       ),
       child: Center(
         child: SvgPicture.asset(
@@ -387,28 +385,27 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
       }
 
       // 16:9 for landscape, 3:4 for portrait (so it's not too narrow/sleek in the grid)
-      final double aspectRatio = _isLandscape ? (16 / 9) : (3 / 4);
-      final double innerWidth = 140.0;
-      final double innerHeight = innerWidth / aspectRatio;
+      final aspectRatio = _isLandscape ? (16 / 9) : (3 / 4);
+      const innerWidth = 140;
+      final innerHeight = innerWidth / aspectRatio;
 
       // Because portrait is taller, it gets scaled down more to fit the grid height.
       // We scale up its borders/holes so they appear the same visual size as landscape on screen.
-      final double borderScale =
+      final borderScale =
           _isLandscape ? 1.0 : (innerHeight / 140.0);
 
       return Center(
         child: FittedBox(
-          fit: BoxFit.contain,
           child: SizedBox(
-            width: innerWidth,
+            width: innerWidth.toDouble(),
             child: Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF333333),
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.4),
-                    blurRadius: 6.0,
+                    blurRadius: 6,
                     offset: const Offset(0, 3),
                   ),
                 ],
@@ -436,13 +433,13 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
                           if (wasSynchronouslyLoaded) return child;
                           if (frame == null) {
                             return SizedBox(
-                              width: 112.0,
-                              height: 63.0,
+                              width: 112,
+                              height: 63,
                               child: Center(
                                 child: SvgPicture.asset(
                                   'assets/icons/video.svg',
-                                  width: 42.0,
-                                  height: 42.0,
+                                  width: 42,
+                                  height: 42,
                                 ),
                               ),
                             );
@@ -450,13 +447,13 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
                           return child;
                         },
                         errorBuilder: (_, __, ___) => SizedBox(
-                          width: 112.0,
-                          height: 63.0,
+                          width: 112,
+                          height: 63,
                           child: Center(
                             child: SvgPicture.asset(
                               'assets/icons/video.svg',
-                              width: 42.0,
-                              height: 42.0,
+                              width: 42,
+                              height: 42,
                             ),
                           ),
                         ),
@@ -476,30 +473,30 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
 }
 
 class FilmstripHolesPainter extends CustomPainter {
-  final double scale;
 
   FilmstripHolesPainter({this.scale = 1.0});
+  final double scale;
 
   @override
   void paint(Canvas canvas, Size size) {
     final holePaint = Paint()..color = const Color(0xFFEEEEEE); // Light holes
 
-    final double stripWidth = 14.0 * scale;
-    final double holeWidth = 8.0 * scale;
-    final double holeHeight = 6.0 * scale;
-    final double spacing = 6.0 * scale;
+    final stripWidth = 14.0 * scale;
+    final holeWidth = 8.0 * scale;
+    final holeHeight = 6.0 * scale;
+    final spacing = 6.0 * scale;
 
-    final double holeXLeft = (stripWidth - holeWidth) / 2;
-    final double holeXRight =
+    final holeXLeft = (stripWidth - holeWidth) / 2;
+    final holeXRight =
         size.width - stripWidth + (stripWidth - holeWidth) / 2;
 
-    final int holeCount =
+    final holeCount =
         ((size.height - spacing) / (holeHeight + spacing)).floor();
-    final double totalHolesHeight =
+    final totalHolesHeight =
         holeCount * holeHeight + (holeCount - 1) * spacing;
-    double y = (size.height - totalHolesHeight) / 2;
+    var y = (size.height - totalHolesHeight) / 2;
 
-    for (int i = 0; i < holeCount; i++) {
+    for (var i = 0; i < holeCount; i++) {
       final leftRect = RRect.fromRectAndRadius(
         Rect.fromLTWH(holeXLeft, y, holeWidth, holeHeight),
         Radius.circular(1.5 * scale),

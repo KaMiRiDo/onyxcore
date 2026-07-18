@@ -1,14 +1,15 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar/sidebar_item.dart';
-import 'dart:io';
-import 'dart:async';
 
 class DevicesSection extends ConsumerStatefulWidget {
   const DevicesSection({
@@ -114,8 +115,8 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
     bool isSuccess = false,
     bool isWarning = false,
   }) {
-    IconData iconData = Icons.info_outline_rounded;
-    Color iconColor = AppColors.violet;
+    var iconData = Icons.info_outline_rounded;
+    var iconColor = AppColors.violet;
 
     if (isSuccess) {
       iconData = Icons.check_circle_rounded;
@@ -163,9 +164,9 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
           task.status != FileTaskStatus.pending) {
         return false;
       }
-      final hasTarget = task.targetPath?.startsWith(devicePath) == true;
+      final hasTarget = task.targetPath?.startsWith(devicePath) ?? false;
       final hasSource =
-          task.sourcePaths?.any((p) => p.startsWith(devicePath)) == true;
+          task.sourcePaths?.any((p) => p.startsWith(devicePath)) ?? false;
       return hasTarget || hasSource;
     });
   }
@@ -178,7 +179,6 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
       if (parts.length != 2) return totalSizeStr;
 
       final total = double.parse(parts[0]);
-      final suffix = parts[1];
       final used = total * usage;
 
       return '${used.toStringAsFixed(1)} / $totalSizeStr';
@@ -234,9 +234,7 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
 
     return devicesAsync.when(
       data: (devices) {
-        final home = Platform.environment['HOME'] ?? '/';
         final filteredDevices = devices.where((d) {
-          final path = d.path;
           // Only filter out the core root / if we really want to, but the user requested all volumes.
           // We will keep it simple and just show all volumes that lsblk found.
           return true;

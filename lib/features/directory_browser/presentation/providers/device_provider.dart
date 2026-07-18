@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/device.dart';
 import 'package:onyxcore/core/utils/logger.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
 
 /// StreamProvider that polls for connected storage devices every 2 seconds.
 final deviceProvider = StreamProvider<List<Device>>((ref) {
   final controller = StreamController<List<Device>>();
-  final Set<String> attemptedMounts = {};
-  bool _isUpdating = false;
+  final attemptedMounts = <String>{};
+  var isUpdating = false;
 
   Timer? timer;
 
@@ -23,8 +24,8 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
   }
 
   Future<void> updateDevices() async {
-    if (_isUpdating) return;
-    _isUpdating = true;
+    if (isUpdating) return;
+    isUpdating = true;
     try {
       // Use --bytes for raw sizes, -p for full paths, --json for easy parsing
       final result =
@@ -45,11 +46,11 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
       }
 
       final data = jsonDecode(result.stdout as String) as Map<String, dynamic>;
-      final List<Device> devices = [];
+      final devices = <Device>[];
 
-      final Set<String> currentIds = {};
+      final currentIds = <String>{};
       void parseDevices(List<dynamic> list) {
-        for (var item in list) {
+        for (final item in list) {
           final deviceId = item['name']?.toString() ?? '';
           if (deviceId.isNotEmpty) currentIds.add(deviceId);
 
@@ -59,7 +60,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
           final fsavailStr = item['fsavail']?.toString();
           final fstype = item['fstype']?.toString() ?? '';
           final isRemovable =
-              (item['rm'] == true || item['rm'] == 1 || item['rm'] == "1");
+              item['rm'] == true || item['rm'] == 1 || item['rm'] == '1';
 
           final mp = mountpoint?.trim() ?? '';
           final rawSize = double.tryParse(item['size']?.toString() ?? '0') ?? 0;
@@ -88,8 +89,9 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
                 final used = double.tryParse(fsusedStr) ?? 0.0;
                 final avail = double.tryParse(fsavailStr) ?? 0.0;
                 final totalUsable = used + avail;
-                if (totalUsable > 0)
+                if (totalUsable > 0) {
                   usage = (used / totalUsable).clamp(0.0, 1.0);
+                }
               } else if (fssizeStr != null && fsusedStr != null) {
                 final used = double.tryParse(fsusedStr) ?? 0.0;
                 final total = double.tryParse(fssizeStr) ?? 0.0;
@@ -161,8 +163,8 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
           for (final entity in entities) {
             if (entity is Directory) {
               final name = entity.path.split('/').last;
-              String displayName = name;
-              bool isMobile = false;
+              var displayName = name;
+              var isMobile = false;
               if (name.startsWith('mtp:host=')) {
                 isMobile = true;
                 try {
@@ -181,7 +183,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
                 displayName = 'SMB Share';
               }
 
-              String sizeStr = 'Unknown';
+              var sizeStr = 'Unknown';
               double usage = 0.0;
               try {
                 final dfRes = await Process.run('df', ['-k', entity.path])
@@ -237,7 +239,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
       log('Error detecting devices: $e');
       if (!controller.isClosed) controller.add([]);
     } finally {
-      _isUpdating = false;
+      isUpdating = false;
     }
   }
 

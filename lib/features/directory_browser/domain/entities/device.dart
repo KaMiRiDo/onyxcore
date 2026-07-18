@@ -1,11 +1,4 @@
 class Device {
-  final String id; // System identifier (e.g., /dev/sdb1)
-  final String name;
-  final String path;
-  final String size;
-  final double usage; // 0.0 to 1.0
-  final bool isRemovable;
-  final bool isMobile;
 
   Device({
     required this.id,
@@ -16,4 +9,11 @@ class Device {
     required this.isRemovable,
     this.isMobile = false,
   });
+  final String id; // System identifier (e.g., /dev/sdb1)
+  final String name;
+  final String path;
+  final String size;
+  final double usage; // 0.0 to 1.0
+  final bool isRemovable;
+  final bool isMobile;
 }

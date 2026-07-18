@@ -1,17 +1,15 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:path/path.dart' as p;
 
 /// Individual sidebar navigation item — Enhanced with Drag & Drop capabilities.
 class SidebarItem extends ConsumerStatefulWidget {
@@ -58,7 +56,7 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
 
   @override
   Widget build(BuildContext context) {
-    Widget labelWidget = widget.isActive
+    final labelWidget = widget.isActive
         ? ShaderMask(
             shaderCallback: (bounds) =>
                 AppTheme.primaryGradient.createShader(bounds),
@@ -84,15 +82,13 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
             ),
           );
 
-    Widget content = Row(
+    final Widget content = Row(
       children: [
-        widget.isActive
-            ? ShaderMask(
+        if (widget.isActive) ShaderMask(
                 shaderCallback: (bounds) =>
                     AppTheme.primaryGradient.createShader(bounds),
                 child: Icon(widget.icon, size: 20, color: Colors.white),
-              )
-            : Icon(widget.icon, color: AppColors.textMuted, size: 20),
+              ) else Icon(widget.icon, color: AppColors.textMuted, size: 20),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -109,7 +105,7 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
                     child: Text(
                       widget.storageText!,
                       style: GoogleFonts.manrope(
-                        color: AppColors.textMuted.withOpacity(0.6),
+                        color: AppColors.textMuted.withValues(alpha: 0.6),
                         fontSize: 9,
                         fontWeight: FontWeight.w600,
                       ),
@@ -121,7 +117,7 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
                   height: 3,
                   width: 120,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(1.5),
                   ),
                   child: FractionallySizedBox(
@@ -155,7 +151,7 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
       ],
     );
 
-    final bool isVirtual = widget.path.startsWith('virtual:');
+    final isVirtual = widget.path.startsWith('virtual:');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
@@ -180,8 +176,9 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
           if (isVirtual || widget.path.isEmpty) return;
 
           // Prevent dropping into same directory
-          if (details.data.every((path) => p.dirname(path) == widget.path))
+          if (details.data.every((path) => p.dirname(path) == widget.path)) {
             return;
+          }
 
           final repo = ref.read(directoryRepositoryProvider);
           final taskId = ref
@@ -213,7 +210,7 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: isOver
-                    ? AppColors.violet.withOpacity(0.1)
+                    ? AppColors.violet.withValues(alpha: 0.1)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),

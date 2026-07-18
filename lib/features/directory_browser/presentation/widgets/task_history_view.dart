@@ -1,14 +1,15 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
+import 'package:path/path.dart' as p;
 
 /// History list view within the background panel.
 class TaskHistoryView extends ConsumerStatefulWidget {
@@ -66,7 +67,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         return KeyEventResult.ignored;
       },
       child: GestureDetector(
-        onTap: () => _focusNode.requestFocus(),
+        onTap: _focusNode.requestFocus,
         child: Stack(
           children: [
             Column(
@@ -124,7 +125,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
               child: Icon(
                 hasSelection ? Icons.close_rounded : Icons.arrow_back_rounded,
                 size: 18,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ),
@@ -153,7 +154,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                 child: Icon(
                   Icons.close_rounded,
                   size: 18,
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -173,9 +174,9 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.02),
+        color: Colors.white.withValues(alpha: 0.02),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04), width: 0.5),
         ),
       ),
       child: Row(
@@ -183,13 +184,13 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
           Icon(
             Icons.analytics_outlined,
             size: 12,
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
           ),
           const SizedBox(width: 8),
           Text(
             '$totalCount Entries',
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.4),
+              color: Colors.white.withValues(alpha: 0.4),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -199,7 +200,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
             child: Text(
               '•',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 fontSize: 10,
               ),
             ),
@@ -207,7 +208,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
           Text(
             totalSize,
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -226,7 +227,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
               icon: Icon(
                 Icons.close_rounded,
                 size: 14,
-                color: AppColors.error.withOpacity(0.6),
+                color: AppColors.error.withValues(alpha: 0.6),
               ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -255,19 +256,19 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.violet.withOpacity(0.2)
+              ? AppColors.violet.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: active
-                ? AppColors.violet.withOpacity(0.3)
+                ? AppColors.violet.withValues(alpha: 0.3)
                 : Colors.transparent,
           ),
         ),
         child: Icon(
           icon,
           size: 14,
-          color: active ? AppColors.violet : Colors.white.withOpacity(0.4),
+          color: active ? AppColors.violet : Colors.white.withValues(alpha: 0.4),
         ),
       ),
     );
@@ -286,14 +287,14 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
             width: 280, // Slightly bigger
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(
-                0.03,
+              color: Colors.white.withValues(
+                alpha: 0.03,
               ), // More transparent for glass effect
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   blurRadius: 40,
                   spreadRadius: -10,
                 ),
@@ -349,7 +350,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.violet.withOpacity(0.3),
+                              color: AppColors.violet.withValues(alpha: 0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -363,7 +364,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                                 _isFiltering = true;
                                 _showFilterBox = false;
                               });
-                              await Future.delayed(
+                              await Future<void>.delayed(
                                 const Duration(milliseconds: 300),
                               );
                               ref
@@ -389,7 +390,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                                       color: Colors.white,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.0,
+                                      letterSpacing: 1,
                                     ),
                                   ),
                                 ],
@@ -409,7 +410,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     );
   }
 
-  Widget _buildOperationDropdown(String value, Function(String?) onChanged) {
+  Widget _buildOperationDropdown(String value, void Function(String?) onChanged) {
     final ops = ['All', 'Rename', 'Delete', 'Copy', 'Move', 'Create'];
     return Container(
       height: 36, // Reduced height
@@ -417,7 +418,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
       decoration: BoxDecoration(
         color: Colors.black26,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -453,16 +454,16 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
             child: CircularProgressIndicator(
               strokeWidth: 3,
               valueColor: AlwaysStoppedAnimation<Color>(
-                AppColors.violet.withOpacity(0.5),
+                AppColors.violet.withValues(alpha: 0.5),
               ),
-              backgroundColor: Colors.white.withOpacity(0.05),
+              backgroundColor: Colors.white.withValues(alpha: 0.05),
             ),
           ),
           const SizedBox(height: 16),
           Text(
             'Filtering history...',
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               fontSize: 13,
             ),
           ),
@@ -502,7 +503,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                             child: Text(
                               _formatDate(entry.createdAt),
                               style: GoogleFonts.manrope(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.2,
@@ -521,7 +522,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
           decoration: BoxDecoration(
             color: Colors.black26,
             border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.05)),
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
             ),
           ),
           child: Row(
@@ -567,7 +568,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                 ? Icons.filter_list_off_rounded
                 : Icons.history_rounded,
             size: 48,
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
           ),
           const SizedBox(height: 16),
           Text(
@@ -575,7 +576,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                 ? 'No history matching the filter'
                 : 'No history yet',
             style: GoogleFonts.manrope(
-              color: AppColors.textMuted.withOpacity(0.5),
+              color: AppColors.textMuted.withValues(alpha: 0.5),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -649,7 +650,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Material(
-          color: Colors.black.withOpacity(0.4),
+          color: Colors.black.withValues(alpha: 0.4),
           child: Center(child: child),
         ),
       ),
@@ -671,12 +672,12 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: color.withOpacity(0.1),
+        backgroundColor: color.withValues(alpha: 0.1),
         foregroundColor: color,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: color.withOpacity(0.2)),
+          side: BorderSide(color: color.withValues(alpha: 0.2)),
         ),
         elevation: 0,
       ),
@@ -693,7 +694,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         ref.watch(selectedHistoryIdProvider) == entry.id;
     final statusColor = _getStatusColor(entry.statusName);
 
-    String subtitle = '';
+    var subtitle = '';
     if (entry.totalCount > 0) {
       subtitle = '${entry.processedCount}/${entry.totalCount} items';
     }
@@ -790,13 +791,13 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.violet.withOpacity(0.15)
-              : statusColor.withOpacity(0.02),
+              ? AppColors.violet.withValues(alpha: 0.15)
+              : statusColor.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? AppColors.violet.withOpacity(0.4)
-                : statusColor.withOpacity(0.05),
+                ? AppColors.violet.withValues(alpha: 0.4)
+                : statusColor.withValues(alpha: 0.05),
           ),
         ),
         child: Row(
@@ -804,13 +805,13 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: opColor.withOpacity(isSelected ? 0.3 : 0.05),
+                color: opColor.withValues(alpha: isSelected ? 0.3 : 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 operationIcon,
                 size: 16,
-                color: isSelected ? Colors.white : opColor.withOpacity(0.8),
+                color: isSelected ? Colors.white : opColor.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(width: 12),
@@ -824,7 +825,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                         child: Text(
                           _toPastTense(entry.title),
                           style: GoogleFonts.outfit(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -840,17 +841,17 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: statusColor.withOpacity(0.1),
+                            color: statusColor.withValues(alpha: 0.1),
                             width: 0.5,
                           ),
                         ),
                         child: Text(
                           entry.statusName.toUpperCase(),
                           style: GoogleFonts.manrope(
-                            color: statusColor.withOpacity(0.8),
+                            color: statusColor.withValues(alpha: 0.8),
                             fontSize: 8,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.5,
@@ -866,7 +867,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                         Text(
                           subtitle,
                           style: GoogleFonts.manrope(
-                            color: AppColors.textMuted.withOpacity(0.5),
+                            color: AppColors.textMuted.withValues(alpha: 0.5),
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -876,7 +877,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                           child: Text(
                             '•',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                               fontSize: 10,
                             ),
                           ),
@@ -887,7 +888,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                           child: Text(
                             locationInfo,
                             style: GoogleFonts.manrope(
-                              color: AppColors.textMuted.withOpacity(0.3),
+                              color: AppColors.textMuted.withValues(alpha: 0.3),
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
@@ -908,7 +909,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                 Text(
                   _formatTime(entry.createdAt),
                   style: GoogleFonts.firaCode(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     fontSize: 10,
                   ),
                 ),
@@ -916,7 +917,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 14,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ],
             ),
@@ -942,14 +943,18 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
   }
 
   String _toPastTense(String title) {
-    if (title.startsWith('Copying'))
+    if (title.startsWith('Copying')) {
       return title.replaceFirst('Copying', 'Copied');
-    if (title.startsWith('Moving'))
+    }
+    if (title.startsWith('Moving')) {
       return title.replaceFirst('Moving', 'Moved');
-    if (title.startsWith('Deleting'))
+    }
+    if (title.startsWith('Deleting')) {
       return title.replaceFirst('Deleting', 'Deleted');
-    if (title.startsWith('Renaming'))
+    }
+    if (title.startsWith('Renaming')) {
       return title.replaceFirst('Renaming', 'Renamed');
+    }
     return title;
   }
 
@@ -957,7 +962,7 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     if (bytes <= 0) return '0 B';
     const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
     var i = 0;
-    double size = bytes.toDouble();
+    var size = bytes.toDouble();
     while (size >= 1024 && i < suffixes.length - 1) {
       size /= 1024;
       i++;
@@ -969,8 +974,9 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     final t = title.toLowerCase();
     if (t.contains('copy')) return Icons.copy_all_rounded;
     if (t.contains('mov')) return Icons.drive_file_move_rounded;
-    if (t.contains('delet') || t.contains('trash'))
+    if (t.contains('delet') || t.contains('trash')) {
       return Icons.delete_forever_rounded;
+    }
     if (t.contains('renam')) return Icons.edit_rounded;
     if (t.contains('new folder')) return Icons.create_new_folder_rounded;
     if (t.contains('new file')) return Icons.note_add_rounded;
@@ -1000,10 +1006,10 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
 }
 
 class _ClearHistoryDialog extends ConsumerStatefulWidget {
-  final VoidCallback onCancel;
-  final Function(TaskHistoryFilter?) onConfirm;
 
   const _ClearHistoryDialog({required this.onCancel, required this.onConfirm});
+  final VoidCallback onCancel;
+  final void Function(TaskHistoryFilter?) onConfirm;
 
   @override
   ConsumerState<_ClearHistoryDialog> createState() =>
@@ -1026,12 +1032,12 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
             width: 320,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   blurRadius: 40,
                   spreadRadius: -10,
                 ),
@@ -1043,7 +1049,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
+                    color: AppColors.error.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -1161,7 +1167,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
       decoration: BoxDecoration(
         color: Colors.black26,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -1189,11 +1195,6 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
 }
 
 class _DeleteConfirmDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String confirmLabel;
-  final VoidCallback onConfirm;
-  final VoidCallback onCancel;
 
   const _DeleteConfirmDialog({
     required this.title,
@@ -1202,6 +1203,11 @@ class _DeleteConfirmDialog extends StatelessWidget {
     required this.onConfirm,
     required this.onCancel,
   });
+  final String title;
+  final String message;
+  final String confirmLabel;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -1214,12 +1220,12 @@ class _DeleteConfirmDialog extends StatelessWidget {
             width: 280,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   blurRadius: 40,
                   spreadRadius: -10,
                 ),
@@ -1282,16 +1288,13 @@ class _DeleteConfirmDialog extends StatelessWidget {
 }
 
 class HistoryCalendar extends StatefulWidget {
+
+  const HistoryCalendar({
+    required this.selectedDates, required this.availableDates, required this.onDatesChanged, super.key,
+  });
   final Set<DateTime> selectedDates;
   final Set<DateTime> availableDates;
   final ValueChanged<Set<DateTime>> onDatesChanged;
-
-  const HistoryCalendar({
-    super.key,
-    required this.selectedDates,
-    required this.availableDates,
-    required this.onDatesChanged,
-  });
 
   @override
   State<HistoryCalendar> createState() => _HistoryCalendarState();
@@ -1335,7 +1338,7 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
     final monthDays = _getDaysInMonth(_viewDate);
     final prevMonthDays = _getPrevMonthDays(_viewDate);
     final firstDayOfWeek =
-        DateTime(_viewDate.year, _viewDate.month, 1).weekday % 7;
+        DateTime(_viewDate.year, _viewDate.month).weekday % 7;
 
     return Column(
       children: [
@@ -1397,7 +1400,7 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
           itemCount: 42,
           itemBuilder: (context, index) {
             DateTime date;
-            bool currentMonth = true;
+            var currentMonth = true;
             if (index < firstDayOfWeek) {
               date = DateTime(
                 _viewDate.year,
@@ -1438,12 +1441,12 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
                 decoration: BoxDecoration(
                   gradient: isSelected ? AppTheme.primaryGradient : null,
                   color: !isSelected && isToday
-                      ? AppColors.violet.withOpacity(0.1)
+                      ? AppColors.violet.withValues(alpha: 0.1)
                       : (isSelected ? null : Colors.transparent),
                   borderRadius: BorderRadius.circular(6),
                   border: isToday && !isSelected
                       ? Border.all(
-                          color: AppColors.violet.withOpacity(0.2),
+                          color: AppColors.violet.withValues(alpha: 0.2),
                           width: 0.5,
                         )
                       : null,
@@ -1455,7 +1458,7 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
                         ? Colors.white
                         : (isAvailable
                               ? (currentMonth ? Colors.white70 : Colors.white24)
-                              : Colors.white.withOpacity(0.05)),
+                              : Colors.white.withValues(alpha: 0.05)),
                     fontSize: 9,
                     fontWeight: isSelected || isToday
                         ? FontWeight.w800
@@ -1492,7 +1495,7 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
           LogicalKeyboardKey.metaRight,
         );
 
-    Set<DateTime> newDates = Set.from(widget.selectedDates);
+    var newDates = Set<DateTime>.from(widget.selectedDates);
 
     if (isShift && _anchorDate != null) {
       // Range select
@@ -1531,19 +1534,19 @@ class _HistoryCalendarState extends State<HistoryCalendar> {
       a.year == b.year && a.month == b.month && a.day == b.day;
   String _formatMonthYear(DateTime date) {
     final months = [
-      "JANUARY",
-      "FEBRUARY",
-      "MARCH",
-      "APRIL",
-      "MAY",
-      "JUNE",
-      "JULY",
-      "AUGUST",
-      "SEPTEMBER",
-      "OCTOBER",
-      "NOVEMBER",
-      "DECEMBER",
+      'JANUARY',
+      'FEBRUARY',
+      'MARCH',
+      'APRIL',
+      'MAY',
+      'JUNE',
+      'JULY',
+      'AUGUST',
+      'SEPTEMBER',
+      'OCTOBER',
+      'NOVEMBER',
+      'DECEMBER',
     ];
-    return "${months[date.month - 1]} ${date.year}";
+    return '${months[date.month - 1]} ${date.year}';
   }
 }

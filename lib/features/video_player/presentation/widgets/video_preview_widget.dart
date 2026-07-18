@@ -99,6 +99,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   Timer? _hideTimer;
   Timer? _fastSeekTimer;
   Timer? _volumeTimer;
+  Timer? _volumeSaveDebouncer;
   Timer? _volumeOverlayTimer;
   Timer? _seekIndicatorTimer;
   LogicalKeyboardKey? _activeSeekKey;
@@ -123,6 +124,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   bool _isSmartBuffering = false;
   bool _isSeekLoading = false;
+  bool _hasError = false;
+  String _errorMessage = '';
   Timer? _seekLoaderTimer;
   Duration? _preSeekPosition;
   DateTime _lastSeekTime = DateTime.now();
@@ -238,6 +241,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(videoIsEmptyProvider.notifier).state = false;
     });
+
+    final settings = ref.read(settingsProvider).value;
+    if (settings != null) {
+      _showRemainingTime = settings.videoShowRemainingTime;
+    }
 
     if (_isNetworkStream) {
       final formatsJson = widget.initParams?['formats'] as List?;
@@ -367,7 +375,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         } catch (e) {
           debugPrint('[VideoPlayer] Error parsing standalone playlist: $e');
         }
-      } else {
+      } else if (!_isNetworkStream) {
+        // Only scan local filesystem for sibling videos.
+        // Network streams don't have a local parent directory.
         _initStandalonePlaylist();
       }
     }
@@ -591,12 +601,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     player.stream.volume.listen((vol) {
       if (!mounted) return;
-      final settings = ref.read(settingsProvider).value;
-      if (settings != null && settings.videoPlayerVolume != vol) {
-        ref
-            .read(settingsProvider.notifier)
-            .saveSettings(settings.copyWith(videoPlayerVolume: vol));
-      }
+
+      _volumeSaveDebouncer?.cancel();
+      _volumeSaveDebouncer = Timer(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        final settings = ref.read(settingsProvider).value;
+        if (settings != null && settings.videoPlayerVolume != vol) {
+          ref
+              .read(settingsProvider.notifier)
+              .saveSettings(settings.copyWith(videoPlayerVolume: vol));
+        }
+      });
     });
 
     _isOpening = true;
@@ -623,26 +638,42 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       );
       setState(() => _isSeekingToInitial = true);
 
-      // Wait for player to be truly ready for seeking
-      player.stream.duration.firstWhere((d) => d > Duration.zero).then((
-        _,
-      ) async {
-        // Small stability delay to ensure engine-level media initialization
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+      // Wait for player to be truly ready for seeking.
+      // catchError handles "Bad state: No element" which occurs when the media
+      // fails to load (e.g. corrupted file / missing moov atom) and the
+      // duration stream closes without ever emitting a value > Duration.zero.
+      // Without this guard the unhandled Dart exception cascades into GTK
+      // assertion crashes on Linux.
+      player.stream.duration
+          .firstWhere((d) => d > Duration.zero)
+          .then((_) async {
+            // Small stability delay to ensure engine-level media initialization
+            await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        if (mounted) {
-          debugPrint(
-            '[VideoPlayer] Applying seek to ${widget.initialPosition}',
-          );
-          await player.seek(widget.initialPosition!);
+            if (mounted) {
+              debugPrint(
+                '[VideoPlayer] Applying seek to ${widget.initialPosition}',
+              );
+              await player.seek(widget.initialPosition!);
 
-          setState(() {
-            _isSeekingToInitial = false;
-            // Initially hide controls for a clean startup
-            _isControlsVisible = false;
+              setState(() {
+                _isSeekingToInitial = false;
+                // Initially hide controls for a clean startup
+                _isControlsVisible = false;
+              });
+            }
+          })
+          .catchError((Object e) {
+            // Media failed to load — stream closed without a valid duration.
+            // Reset seek state so the loader is dismissed; the error stream
+            // listener will have already set _hasError = true.
+            debugPrint('[VideoPlayer] Seek setup failed (media load error): $e');
+            if (mounted) {
+              setState(() {
+                _isSeekingToInitial = false;
+              });
+            }
           });
-        }
-      });
     }
 
     _completedSubscription = player.stream.completed.listen((completed) {
@@ -704,6 +735,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           _isOpening = false;
           _isBuffering = false;
           _isSeekingToInitial = false;
+          _hasError = true;
+          _errorMessage = error.toString();
         });
       }
     });
@@ -902,6 +935,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   }
 
   Future<void> _onResolutionChanged(MediaFormat format) async {
+    if (_isClosing || !mounted) return;
     if (_selectedFormatId == format.formatId) return;
 
     final currentPosition = player.state.position;
@@ -921,16 +955,23 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         );
       } else {
         final streamUrl = format.url ?? format.formatString;
+        if (streamUrl.isEmpty) {
+          debugPrint('[VideoPlayer] Resolution switch aborted: no stream URL available');
+          return;
+        }
         await player.open(Media(streamUrl), play: true);
       }
 
-      // Wait for player to be ready
-      await player.stream.duration
+      // Wait for player to be ready — use timeout to avoid hanging indefinitely
+      // if the format can't be opened (e.g. "Failed to recognize file format")
+      final duration = await player.stream.duration
           .firstWhere((d) => d > Duration.zero)
           .timeout(const Duration(seconds: 10), onTimeout: () => Duration.zero);
-      _performSeek(currentPosition);
+      if (duration > Duration.zero && mounted && !_isClosing) {
+        _performSeek(currentPosition);
+      }
     } catch (e) {
-      debugPrint("Error switching resolution: $e");
+      debugPrint('[VideoPlayer] Error switching resolution: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -1103,6 +1144,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _hideTimer?.cancel();
     _fastSeekTimer?.cancel();
     _volumeTimer?.cancel();
+    _volumeSaveDebouncer?.cancel();
     _volumeOverlayTimer?.cancel();
     _seekIndicatorTimer?.cancel();
     _snapshotToastTimer?.cancel();
@@ -2518,6 +2560,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                             Positioned.fill(
                                               child: _buildEmptyState(),
                                             )
+                                          else if (_hasError)
+                                            Positioned.fill(
+                                              child: _buildErrorState(),
+                                            )
                                           else if (_isPlayerInitialized)
                                             RepaintBoundary(
                                               child: Center(
@@ -3281,10 +3327,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                 bottom: 17,
                                                               ),
                                                           child: GestureDetector(
-                                                            onTap: () => setState(
-                                                              () => _showRemainingTime =
-                                                                  !_showRemainingTime,
-                                                            ),
+                                                            onTap: () {
+                                                              setState(() {
+                                                                _showRemainingTime = !_showRemainingTime;
+                                                              });
+                                                              final currentSettings = ref.read(settingsProvider).value;
+                                                              if (currentSettings != null) {
+                                                                ref.read(settingsProvider.notifier).saveSettings(
+                                                                  currentSettings.copyWith(videoShowRemainingTime: _showRemainingTime),
+                                                                );
+                                                              }
+                                                            },
                                                             child: Text(
                                                               _showRemainingTime
                                                                   ? '-${_formatDuration(remaining)}'
@@ -4195,6 +4248,84 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: const Color(0xFF121212),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 64,
+                    color: Colors.red.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to play media',
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                    child: Text(
+                      _errorMessage,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.manrope(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 32,
+          left: 32,
+          child: IconButton(
+            onPressed: () {
+              if (widget.isStandalone) {
+                // If it's a standalone window, close the window.
+                if (widget.windowId != null) {
+                  PersistentViewerManager.closeWindow(
+                    int.parse(widget.windowId!),
+                  );
+                }
+              } else {
+                // Return to home view
+                ref.read(videoViewModeProvider.notifier).state =
+                    VideoViewMode.home;
+              }
+            },
+            icon: Icon(
+              widget.isStandalone
+                  ? Icons.close_rounded
+                  : Icons.arrow_back_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.1),
+              hoverColor: Colors.white.withOpacity(0.2),
+              padding: const EdgeInsets.all(12),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -39,7 +39,7 @@ void main() {
                   context: context,
                   position: const Offset(100, 100),
                   initialSettings: const FilterSettings(),
-                  onApply: (settings) {
+                  onSelected: (settings) {
                     appliedSettings = settings;
                   },
                 );
@@ -92,7 +92,7 @@ void main() {
                   context: context,
                   position: const Offset(100, 100),
                   initialSettings: const FilterSettings(),
-                  onApply: (settings) {
+                  onSelected: (settings) {
                     appliedSettings = settings;
                   },
                 );
@@ -159,7 +159,7 @@ void main() {
                   context: context,
                   position: const Offset(100, 100),
                   initialSettings: const FilterSettings(),
-                  onApply: (settings) {},
+                  onSelected: (settings) {},
                 );
               },
               child: const Text('Show Filter'),

@@ -1,13 +1,8 @@
 import 'package:equatable/equatable.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 class FilterSettings extends Equatable {
-  final Set<DateTime>? selectedDates; // null = any
-  final bool?
-  foldersOnly; // null = both, true = folders only, false = files only
-  final FileItemType? category;
-  final Set<String> extensions;
 
   const FilterSettings({
     this.selectedDates,
@@ -15,6 +10,11 @@ class FilterSettings extends Equatable {
     this.category,
     this.extensions = const {},
   });
+  final Set<DateTime>? selectedDates; // null = any
+  final bool?
+  foldersOnly; // null = both, true = folders only, false = files only
+  final FileItemType? category;
+  final Set<String> extensions;
 
   bool get isEmpty =>
       selectedDates == null &&

@@ -1,27 +1,25 @@
-import 'dart:ui';
-import 'dart:isolate';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'dart:isolate';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/directory_size_utils.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
+import 'package:path/path.dart' as p;
 
 class PropertiesDialog extends ConsumerStatefulWidget {
-  final List<String> paths;
-  final bool isInTrash;
   const PropertiesDialog({
-    super.key,
-    required this.paths,
+    required this.paths, super.key,
     this.isInTrash = false,
   });
+  final List<String> paths;
+  final bool isInTrash;
 
   @override
   ConsumerState<PropertiesDialog> createState() => _PropertiesDialogState();
@@ -129,7 +127,6 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
         DirectorySizeArgs(
           paths: widget.paths,
           sendPort: _receivePort!.sendPort,
-          updateFrequency: 500,
         ),
       );
     } catch (e) {
@@ -165,10 +162,10 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isMulti = widget.paths.length > 1;
-    final String title = widget.paths
-        .map((path) => p.basename(path))
-        .join(", ");
+    final isMulti = widget.paths.length > 1;
+    final title = widget.paths
+        .map(p.basename)
+        .join(', ');
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -180,12 +177,12 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
           child: Container(
             width: 420,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E).withOpacity(0.85),
+              color: const Color(0xFF1E1E1E).withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 30,
                   offset: const Offset(0, 10),
                 ),
@@ -200,7 +197,7 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
                     Align(
                       alignment: Alignment.topRight,
                       child: Padding(
-                        padding: const EdgeInsets.all(8.0),
+                        padding: const EdgeInsets.all(8),
                         child: IconButton(
                           icon: const Icon(
                             Icons.close,
@@ -356,7 +353,7 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
         width: 80,
         height: 80,
         decoration: BoxDecoration(
-          color: Colors.indigo.withOpacity(0.2),
+          color: Colors.indigo.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Center(
@@ -375,8 +372,8 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
       height: 80,
       decoration: BoxDecoration(
         color: isFolder
-            ? Colors.blueAccent.withOpacity(0.2)
-            : Colors.white.withOpacity(0.05),
+            ? Colors.blueAccent.withValues(alpha: 0.2)
+            : Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(
@@ -393,9 +390,9 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,7 +407,7 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
       decoration: BoxDecoration(
         border: isBottom
             ? null
-            : Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+            : Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       ),
       child: Row(
         children: [
@@ -440,7 +437,7 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
     }
 
     final totalItems = _currentFilesCount + _currentFoldersCount;
-    String detailText =
+    var detailText =
         '${NumberFormat.decimalPattern().format(totalItems)} items';
     if (_currentFoldersCount > 0) {
       detailText =

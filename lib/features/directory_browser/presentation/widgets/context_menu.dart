@@ -1,25 +1,15 @@
-import 'dart:ui';
 import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:onyxcore/core/theme/app_colors.dart';
 
 class ContextMenuItem {
-  final String title;
-  final IconData? icon;
-  final VoidCallback onTap;
-  final bool isDestructive;
-  final String? shortcut;
-  final bool isDivider;
-  final bool isEnabled;
-  final bool isSelected;
-  final List<ContextMenuItem>? subItems;
 
   const ContextMenuItem({
     required this.title,
-    this.icon,
-    required this.onTap,
+    required this.onTap, this.icon,
     this.isDestructive = false,
     this.shortcut,
     this.isDivider = false,
@@ -35,6 +25,15 @@ class ContextMenuItem {
       isDivider: true,
     );
   }
+  final String title;
+  final IconData? icon;
+  final VoidCallback onTap;
+  final bool isDestructive;
+  final String? shortcut;
+  final bool isDivider;
+  final bool isEnabled;
+  final bool isSelected;
+  final List<ContextMenuItem>? subItems;
 }
 
 class ContextMenu {
@@ -65,10 +64,6 @@ class ContextMenu {
 }
 
 class _ContextMenuWidget extends StatefulWidget {
-  final Offset position;
-  final List<ContextMenuItem> items;
-  final VoidCallback onClose;
-  final bool isSubmenu;
 
   const _ContextMenuWidget({
     required this.position,
@@ -78,6 +73,10 @@ class _ContextMenuWidget extends StatefulWidget {
     this.onEnter,
     this.notchY,
   });
+  final Offset position;
+  final List<ContextMenuItem> items;
+  final VoidCallback onClose;
+  final bool isSubmenu;
 
   final VoidCallback? onEnter;
   final double? notchY;
@@ -90,12 +89,12 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final double menuWidth = 240;
+    const double menuWidth = 240;
     // Estimate menu height: padding + (items * item height) + dividers
-    final double menuHeight = 16 + (widget.items.length * 40);
+    final menuHeight = 16 + (widget.items.length * 40);
 
-    double left = widget.position.dx;
-    double top = widget.position.dy;
+    var left = widget.position.dx;
+    var top = widget.position.dy;
 
     // Adjust position for screen boundaries
     if (left + menuWidth > screenSize.width) {
@@ -139,14 +138,14 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
                   if (widget.isSubmenu && widget.notchY != null)
                     Positioned(
                       left: -6,
-                      top: widget.notchY!,
+                      top: widget.notchY,
                       child: Transform.rotate(
                         angle: 0.785398, // 45 degrees
                         child: Container(
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1E1E1E).withOpacity(0.85),
+                            color: const Color(0xFF1E1E1E).withValues(alpha: 0.85),
                             border: const Border(
                               left: BorderSide(color: Colors.white12),
                               bottom: BorderSide(color: Colors.white12),
@@ -162,7 +161,7 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.4),
+                          color: Colors.black.withValues(alpha: 0.4),
                           blurRadius: 32,
                           offset: const Offset(0, 16),
                         ),
@@ -176,10 +175,10 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
                           width: menuWidth,
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF181818).withOpacity(0.95),
+                            color: const Color(0xFF181818).withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.06),
+                              color: Colors.white.withValues(alpha: 0.06),
                             ),
                           ),
                           child: Column(
@@ -224,15 +223,15 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
 }
 
 class _ContextMenuItemWidget extends StatefulWidget {
-  final ContextMenuItem item;
-  final VoidCallback onTap;
-  final VoidCallback onCloseAll;
 
   const _ContextMenuItemWidget({
     required this.item,
     required this.onTap,
     required this.onCloseAll,
   });
+  final ContextMenuItem item;
+  final VoidCallback onTap;
+  final VoidCallback onCloseAll;
 
   @override
   State<_ContextMenuItemWidget> createState() => _ContextMenuItemWidgetState();
@@ -247,7 +246,7 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
     _submenuTimer?.cancel();
     if (widget.item.subItems == null || _submenuOverlay != null) return;
 
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final renderBox = context.findRenderObject()! as RenderBox;
     final position = renderBox.localToGlobal(Offset.zero);
 
     // Parent item center relative to submenu top (which is shifted by -8)
@@ -307,10 +306,10 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
     final isSelected = widget.item.isSelected;
 
     final color = widget.item.isDestructive
-        ? Colors.redAccent.withOpacity(isEnabled ? 1.0 : 0.4)
+        ? Colors.redAccent.withValues(alpha: isEnabled ? 1.0 : 0.4)
         : isSelected
         ? AppColors.violet
-        : Colors.white.withOpacity(isEnabled ? 1.0 : 0.4);
+        : Colors.white.withValues(alpha: isEnabled ? 1.0 : 0.4);
 
     return MouseRegion(
       onEnter: (_) {
@@ -330,10 +329,10 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: (isSelected)
-                ? AppColors.violet.withOpacity(0.15)
+            color: isSelected
+                ? AppColors.violet.withValues(alpha: 0.15)
                 : (_isHovered && isEnabled)
-                ? Colors.white.withOpacity(0.08)
+                ? Colors.white.withValues(alpha: 0.08)
                 : Colors.transparent,
           ),
           child: Row(
@@ -349,7 +348,7 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
                   Icon(
                     widget.item.icon,
                     size: 18,
-                    color: color.withOpacity(isEnabled ? 0.8 : 0.3),
+                    color: color.withValues(alpha: isEnabled ? 0.8 : 0.3),
                   ),
                 const SizedBox(width: 12),
               ],
@@ -367,14 +366,14 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 16,
-                  color: color.withOpacity(0.4),
+                  color: color.withValues(alpha: 0.4),
                 ),
               ] else if (widget.item.shortcut != null) ...[
                 const SizedBox(width: 12),
                 Text(
                   widget.item.shortcut!,
                   style: GoogleFonts.manrope(
-                    color: Colors.white.withOpacity(isEnabled ? 0.38 : 0.15),
+                    color: Colors.white.withValues(alpha: isEnabled ? 0.38 : 0.15),
                     fontSize: 12,
                   ),
                 ),

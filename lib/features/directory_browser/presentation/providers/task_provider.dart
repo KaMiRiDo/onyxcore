@@ -1,12 +1,36 @@
 import 'dart:async';
 import 'dart:isolate';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
+import 'package:uuid/uuid.dart';
 
 enum FileTaskStatus { pending, running, completed, error, cancelled }
 
-class FileTask {
+class FileTask { // in bytes per second
+
+  const FileTask({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.createdAt, double progress = 0.0,
+    this.status = FileTaskStatus.pending,
+    this.errorMessage,
+    this.isCancelled = false,
+    this.isSyncing = false,
+    this.currentItem,
+    this.processedCount = 0,
+    this.totalCount = 0,
+    this.processedSizeBytes = 0,
+    this.totalSizeBytes = 0,
+    this.logs = const [],
+    this.startedAt,
+    this.completedAt,
+    this.sourcePaths,
+    this.targetPath,
+    this.isLight = false,
+    this.speed,
+  }) : _rawProgress = progress;
   final String id;
   final String title;
   final String subtitle;
@@ -27,31 +51,7 @@ class FileTask {
   final List<String>? sourcePaths;
   final String? targetPath;
   final bool isLight;
-  final double? speed; // in bytes per second
-
-  const FileTask({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    double progress = 0.0,
-    this.status = FileTaskStatus.pending,
-    this.errorMessage,
-    this.isCancelled = false,
-    this.isSyncing = false,
-    this.currentItem,
-    this.processedCount = 0,
-    this.totalCount = 0,
-    this.processedSizeBytes = 0,
-    this.totalSizeBytes = 0,
-    this.logs = const [],
-    required this.createdAt,
-    this.startedAt,
-    this.completedAt,
-    this.sourcePaths,
-    this.targetPath,
-    this.isLight = false,
-    this.speed,
-  }) : _rawProgress = progress;
+  final double? speed;
 
   /// Progress value (0.0 to 1.0).
   /// Clamped to 0.99 during the syncing phase to prevent the UI from
@@ -203,7 +203,7 @@ class TaskNotifier extends Notifier<List<FileTask>> {
               t.status == FileTaskStatus.pending,
         )
         .toList();
-    if (active.isEmpty) return 0.0;
+    if (active.isEmpty) return 0;
 
     double sum = 0.0;
     for (final t in active) {
@@ -353,7 +353,7 @@ class TaskNotifier extends Notifier<List<FileTask>> {
         completedTask = task.copyWith(
           status: FileTaskStatus.completed,
           completedAt: DateTime.now(),
-          progress: 1.0,
+          progress: 1,
         );
         return completedTask!;
       }
@@ -434,7 +434,7 @@ class TaskNotifier extends Notifier<List<FileTask>> {
     final isolate = _taskIsolates[id];
     if (isolate != null) {
       // Delay slightly to allow graceful cleanup (e.g. deleting partial file)
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
       isolate.kill(priority: Isolate.immediate);
     }
 

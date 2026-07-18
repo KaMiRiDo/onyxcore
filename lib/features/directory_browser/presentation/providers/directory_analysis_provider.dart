@@ -1,16 +1,17 @@
 import 'dart:io';
+import 'dart:isolate';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/platform/disk_usage.dart';
-import 'dart:isolate';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 class CategoryStats {
-  final int count;
-  final int totalBytes;
 
   const CategoryStats({this.count = 0, this.totalBytes = 0});
+  final int count;
+  final int totalBytes;
 
   CategoryStats copyWith({int? count, int? totalBytes}) {
     return CategoryStats(
@@ -21,12 +22,6 @@ class CategoryStats {
 }
 
 class DirectoryAnalysisResult {
-  final String path;
-  final int totalItems;
-  final int totalBytes;
-  final DiskUsage? diskUsage;
-  final Map<FileItemType, CategoryStats> categoryStats;
-  final List<FileStatWithInfo> allFiles;
 
   const DirectoryAnalysisResult({
     required this.path,
@@ -36,23 +31,25 @@ class DirectoryAnalysisResult {
     required this.categoryStats,
     required this.allFiles,
   });
+  final String path;
+  final int totalItems;
+  final int totalBytes;
+  final DiskUsage? diskUsage;
+  final Map<FileItemType, CategoryStats> categoryStats;
+  final List<FileStatWithInfo> allFiles;
 }
 
 class FileStatData {
-  final int size;
-  final DateTime modified;
 
   const FileStatData({
     required this.size,
     required this.modified,
   });
+  final int size;
+  final DateTime modified;
 }
 
 class FileStatWithInfo {
-  final String path;
-  final String name;
-  final FileStatData stat;
-  final FileItemType type;
 
   const FileStatWithInfo({
     required this.path,
@@ -60,19 +57,23 @@ class FileStatWithInfo {
     required this.stat,
     required this.type,
   });
+  final String path;
+  final String name;
+  final FileStatData stat;
+  final FileItemType type;
 }
 
 class _AnalysisParams {
-  final String path;
-  final SendPort sendPort;
 
   _AnalysisParams(this.path, this.sendPort);
+  final String path;
+  final SendPort sendPort;
 }
 
 class DirectoryAnalysisProgress {
+  const DirectoryAnalysisProgress(this.totalItems, this.totalBytes);
   final int totalItems;
   final int totalBytes;
-  const DirectoryAnalysisProgress(this.totalItems, this.totalBytes);
 }
 
 Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
@@ -90,9 +91,9 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
     );
   }
 
-  int totalItems = 0;
-  int totalBytes = 0;
-  final Map<FileItemType, CategoryStats> stats = {
+  var totalItems = 0;
+  var totalBytes = 0;
+  final stats = <FileItemType, CategoryStats>{
     FileItemType.image: const CategoryStats(),
     FileItemType.video: const CategoryStats(),
     FileItemType.audio: const CategoryStats(),
@@ -101,7 +102,7 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
     FileItemType.other: const CategoryStats(),
   };
 
-  final List<FileStatWithInfo> allFiles = [];
+  final allFiles = <FileStatWithInfo>[];
 
   try {
     await for (final entity in dir.list(recursive: true, followLinks: false)) {
@@ -152,12 +153,12 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
 }
 
 class _IsolateMessage {
+  _IsolateMessage(this.params, this.sendPort);
   final _AnalysisParams params;
   final SendPort sendPort;
-  _IsolateMessage(this.params, this.sendPort);
 }
 
-void _isolateEntry(_IsolateMessage msg) async {
+Future<void> _isolateEntry(_IsolateMessage msg) async {
   final result = await _analyzeDirectoryInIsolate(msg.params);
   msg.sendPort.send(result);
 }
@@ -205,7 +206,7 @@ final directoryAnalysisProvider = FutureProvider.autoDispose.family<DirectoryAna
   isolate.kill();
 
   if (result == null) {
-    throw Exception("Analysis failed to return a result.");
+    throw Exception('Analysis failed to return a result.');
   }
 
   return DirectoryAnalysisResult(
@@ -227,9 +228,9 @@ void removeFilesFromAnalysis(WidgetRef ref, String path, List<String> pathsToRem
   final newAllFiles = currentResult.allFiles.where((f) => !pathsSet.contains(f.path)).toList();
 
   // Recompute stats
-  int totalItems = 0;
-  int totalBytes = 0;
-  final Map<FileItemType, CategoryStats> stats = {
+  var totalItems = 0;
+  var totalBytes = 0;
+  final stats = <FileItemType, CategoryStats>{
     FileItemType.image: const CategoryStats(),
     FileItemType.video: const CategoryStats(),
     FileItemType.audio: const CategoryStats(),

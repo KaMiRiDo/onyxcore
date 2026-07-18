@@ -60,7 +60,6 @@ void main() {
           sizeBytes: any(named: 'sizeBytes'),
         )).thenReturn(ThumbnailLookupResult.hit);
     
-    // Create a dummy temp file
     final tempVideoThumb = File('/tmp/cached_video_test.jpg')..createSync();
     addTearDown(() => tempVideoThumb.deleteSync());
 

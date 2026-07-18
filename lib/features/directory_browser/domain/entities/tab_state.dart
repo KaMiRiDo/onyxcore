@@ -1,22 +1,10 @@
 import 'dart:io';
-import 'package:path/path.dart' as p;
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:path/path.dart' as p;
 
 class TabState {
-  final String id;
-  final String currentPath;
-  final List<String> history;
-  final int historyIndex;
-  final Set<String> selectedPaths;
-  final String searchQuery;
-  final bool isSearchActive;
-  final bool isAnalysisActive;
-  final bool isLocationEditing;
-  final int refreshCount;
-  final bool isRefreshing;
-  final SortSettings sortSettings;
-  final FilterSettings filterSettings;
 
   TabState({
     required this.id,
@@ -33,13 +21,27 @@ class TabState {
     this.sortSettings = const SortSettings(),
     this.filterSettings = const FilterSettings(),
   });
+  final String id;
+  final String currentPath;
+  final List<String> history;
+  final int historyIndex;
+  final Set<String> selectedPaths;
+  final String searchQuery;
+  final bool isSearchActive;
+  final bool isAnalysisActive;
+  final bool isLocationEditing;
+  final int refreshCount;
+  final bool isRefreshing;
+  final SortSettings sortSettings;
+  final FilterSettings filterSettings;
 
   String get title {
     if (currentPath == '/') return 'Root';
     if (currentPath == Platform.environment['HOME']) return 'Home';
     if (currentPath.endsWith('.local/share/Trash/files') ||
-        currentPath == 'trash:///')
+        currentPath == 'trash:///') {
       return 'Trash';
+    }
     return p.basename(currentPath);
   }
 

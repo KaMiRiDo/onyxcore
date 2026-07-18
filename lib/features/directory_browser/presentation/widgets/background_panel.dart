@@ -1,15 +1,16 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/task_tile.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_view.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_detail_view.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_view.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/task_tile.dart';
 
 /// Slide-in panel from the right showing background processes.
 ///
@@ -68,7 +69,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
     super.dispose();
   }
 
-  void _handleRefresh() async {
+  Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
     _refreshController.repeat();
@@ -76,7 +77,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
     ref.read(taskProvider.notifier).refreshTasks();
 
     // Hold the effect for a bit to make it visible
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future<void>.delayed(const Duration(milliseconds: 800));
 
     if (mounted) {
       _refreshController.stop();
@@ -143,7 +144,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
                             size: 18,
                             color: _isRefreshing
                                 ? AppColors.violet
-                                : Colors.white.withOpacity(0.5),
+                                : Colors.white.withValues(alpha: 0.5),
                           ),
                         ),
                       ),
@@ -163,7 +164,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      backgroundColor: Colors.white.withOpacity(0.05),
+                      backgroundColor: Colors.white.withValues(alpha: 0.05),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -171,7 +172,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
                     child: Text(
                       'History',
                       style: GoogleFonts.manrope(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -192,7 +193,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
                         child: Icon(
                           Icons.close_rounded,
                           size: 18,
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withValues(alpha: 0.5),
                         ),
                       ),
                     ),
@@ -214,13 +215,13 @@ class _TasksViewState extends ConsumerState<_TasksView>
                             Icon(
                               Icons.hourglass_empty_rounded,
                               size: 40,
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                             ),
                             const SizedBox(height: 12),
                             Text(
                               'No active tasks',
                               style: GoogleFonts.manrope(
-                                color: AppColors.textMuted.withOpacity(0.5),
+                                color: AppColors.textMuted.withValues(alpha: 0.5),
                                 fontSize: 14,
                               ),
                             ),
@@ -241,9 +242,9 @@ class _TasksViewState extends ConsumerState<_TasksView>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   border: const Border(
-                    top: BorderSide(color: Colors.white10, width: 1),
+                    top: BorderSide(color: Colors.white10),
                   ),
                 ),
                 child: SizedBox(
@@ -254,13 +255,13 @@ class _TasksViewState extends ConsumerState<_TasksView>
                       setState(() => _showCancelAllConfirm = true);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.error.withOpacity(0.1),
+                      backgroundColor: AppColors.error.withValues(alpha: 0.1),
                       foregroundColor: AppColors.error,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                         side: BorderSide(
-                          color: AppColors.error.withOpacity(0.3),
+                          color: AppColors.error.withValues(alpha: 0.3),
                         ),
                       ),
                     ),
@@ -281,7 +282,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
         if (_showCancelAllConfirm)
           Positioned.fill(
             child: Material(
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.black.withValues(alpha: 0.7),
               child: InkWell(
                 onTap: () => setState(() => _showCancelAllConfirm = false),
                 overlayColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -313,7 +314,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.error.withOpacity(0.1),
+                              color: AppColors.error.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(

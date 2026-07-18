@@ -31,18 +31,8 @@ enum SortOption {
 }
 
 class SortSettings extends Equatable {
-  final SortOption option;
 
   const SortSettings({this.option = SortOption.aToZ});
-
-  @override
-  List<Object?> get props => [option];
-
-  SortSettings copyWith({SortOption? option}) {
-    return SortSettings(option: option ?? this.option);
-  }
-
-  Map<String, dynamic> toJson() => {'option': option.name};
 
   factory SortSettings.fromJson(Map<String, dynamic> json) {
     return SortSettings(
@@ -52,4 +42,14 @@ class SortSettings extends Equatable {
       ),
     );
   }
+  final SortOption option;
+
+  @override
+  List<Object?> get props => [option];
+
+  SortSettings copyWith({SortOption? option}) {
+    return SortSettings(option: option ?? this.option);
+  }
+
+  Map<String, dynamic> toJson() => {'option': option.name};
 }

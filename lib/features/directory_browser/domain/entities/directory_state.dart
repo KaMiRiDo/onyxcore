@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import 'file_item.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 /// Immutable state of the current directory listing.
 class DirectoryState extends Equatable {

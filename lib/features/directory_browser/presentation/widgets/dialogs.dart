@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
 
 /// Show a vibrant confirmation dialog — exact same UI as original.
 Future<bool> showVibrantConfirmDialog({
@@ -32,7 +32,7 @@ Future<bool> showVibrantConfirmDialog({
         TextButton(
           onPressed: () => Navigator.pop(context, false),
           child: Text(
-            "Cancel",
+            'Cancel',
             style: GoogleFonts.manrope(
               color: Colors.white38,
               fontWeight: FontWeight.w600,
@@ -43,7 +43,7 @@ Future<bool> showVibrantConfirmDialog({
           autofocus: true,
           onPressed: () => Navigator.pop(context, true),
           style: TextButton.styleFrom(
-            backgroundColor: confirmColor.withOpacity(0.15),
+            backgroundColor: confirmColor.withValues(alpha: 0.15),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -80,15 +80,15 @@ Future<String?> showInputDialog({
 }
 
 class _InputDialog extends StatefulWidget {
-  final String title;
-  final String hint;
-  final String? initialValue;
 
   const _InputDialog({
     required this.title,
     required this.hint,
     this.initialValue,
   });
+  final String title;
+  final String hint;
+  final String? initialValue;
 
   @override
   State<_InputDialog> createState() => _InputDialogState();
@@ -130,7 +130,7 @@ class _InputDialogState extends State<_InputDialog> {
           hintText: widget.hint,
           hintStyle: GoogleFonts.manrope(color: Colors.white30),
           enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.violet.withOpacity(0.5)),
+            borderSide: BorderSide(color: AppColors.violet.withValues(alpha: 0.5)),
           ),
           focusedBorder: const UnderlineInputBorder(
             borderSide: BorderSide(color: AppColors.violet),
@@ -142,7 +142,7 @@ class _InputDialogState extends State<_InputDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
-            "Cancel",
+            'Cancel',
             style: GoogleFonts.manrope(
               color: Colors.white38,
               fontWeight: FontWeight.w600,
@@ -152,7 +152,7 @@ class _InputDialogState extends State<_InputDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context, _controller.text.trim()),
           child: Text(
-            "Create",
+            'Create',
             style: GoogleFonts.manrope(
               color: AppColors.violet,
               fontWeight: FontWeight.w700,
@@ -166,10 +166,6 @@ class _InputDialogState extends State<_InputDialog> {
 
 /// A reusable confirmation dialog with destructive/normal styling.
 class ConfirmDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String confirmText;
-  final bool isDestructive;
 
   const ConfirmDialog({
     required this.title,
@@ -178,6 +174,10 @@ class ConfirmDialog extends StatelessWidget {
     this.isDestructive = false,
     super.key,
   });
+  final String title;
+  final String message;
+  final String confirmText;
+  final bool isDestructive;
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +213,7 @@ class ConfirmDialog extends StatelessWidget {
           autofocus: true,
           onPressed: () => Navigator.pop(context, true),
           style: TextButton.styleFrom(
-            backgroundColor: confirmColor.withOpacity(0.15),
+            backgroundColor: confirmColor.withValues(alpha: 0.15),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -233,24 +233,19 @@ class ConfirmDialog extends StatelessWidget {
 
 /// A specialized, high-fidelity confirmation dialog for permanent deletions.
 class PermanentDeleteDialog extends StatelessWidget {
+
+  const PermanentDeleteDialog({
+    required this.filesCount, required this.foldersCount, required this.totalSize, super.key,
+    this.onDontAskAgainChanged,
+  });
   final int filesCount;
   final int foldersCount;
   final String totalSize;
   final ValueChanged<bool>? onDontAskAgainChanged;
 
-  const PermanentDeleteDialog({
-    super.key,
-    required this.filesCount,
-    required this.foldersCount,
-    required this.totalSize,
-    this.onDontAskAgainChanged,
-  });
-
   @override
   Widget build(BuildContext context) {
-    bool dontAskAgain = false;
-    final totalItems = filesCount + foldersCount;
-
+    var dontAskAgain = false;
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -261,10 +256,10 @@ class PermanentDeleteDialog extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF111111),
           borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               blurRadius: 50,
               spreadRadius: 10,
               offset: const Offset(0, 20),
@@ -279,28 +274,28 @@ class PermanentDeleteDialog extends StatelessWidget {
               width: 84,
               height: 84,
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.05),
+                color: AppColors.error.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.error.withOpacity(0.15),
+                  color: AppColors.error.withValues(alpha: 0.15),
                   width: 1.5,
                 ),
               ),
               child: Center(
                 child: Icon(
                   Icons.delete_outline_rounded,
-                  color: AppColors.error.withOpacity(0.9),
+                  color: AppColors.error.withValues(alpha: 0.9),
                   size: 44,
                 ),
               ),
             ),
             const SizedBox(height: 28),
             Text(
-              "Are you sure?",
+              'Are you sure?',
               style: GoogleFonts.outfit(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 letterSpacing: -0.5,
               ),
             ),
@@ -311,19 +306,19 @@ class PermanentDeleteDialog extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildStatItem(
-                    label: "Folders",
+                    label: 'Folders',
                     value: foldersCount.toString(),
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                   _buildStatItem(
-                    label: "Files",
+                    label: 'Files',
                     value: filesCount.toString(),
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                   _buildStatItem(
-                    label: "Total Space",
+                    label: 'Total Space',
                     value: totalSize,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ],
               ),
@@ -333,24 +328,24 @@ class PermanentDeleteDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.04),
+                color: AppColors.error.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(100),
-                border: Border.all(color: AppColors.error.withOpacity(0.08)),
+                border: Border.all(color: AppColors.error.withValues(alpha: 0.08)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     Icons.info_outline_rounded,
-                    color: AppColors.error.withOpacity(0.6),
+                    color: AppColors.error.withValues(alpha: 0.6),
                     size: 14,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    "This action cannot be undone",
+                    'This action cannot be undone',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
-                      color: AppColors.error.withOpacity(0.6),
+                      color: AppColors.error.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.1,
                     ),
@@ -413,14 +408,14 @@ class PermanentDeleteDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white70,
-                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: Text(
-                      "No, Cancel",
+                      'No, Cancel',
                       style: GoogleFonts.manrope(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
@@ -448,7 +443,7 @@ class PermanentDeleteDialog extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      "Yes, Delete",
+                      'Yes, Delete',
                       style: GoogleFonts.manrope(
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
@@ -497,20 +492,18 @@ class PermanentDeleteDialog extends StatelessWidget {
 
 /// A specialized, high-fidelity confirmation dialog for viewer deletions (Trash vs. Permanent).
 class ViewerDeleteDialog extends StatelessWidget {
+
+  const ViewerDeleteDialog({
+    required this.fileName, required this.permanent, super.key,
+    this.onDontAskAgainChanged,
+  });
   final String fileName;
   final bool permanent;
   final ValueChanged<bool>? onDontAskAgainChanged;
 
-  const ViewerDeleteDialog({
-    super.key,
-    required this.fileName,
-    required this.permanent,
-    this.onDontAskAgainChanged,
-  });
-
   @override
   Widget build(BuildContext context) {
-    bool dontAskAgain = false;
+    var dontAskAgain = false;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -522,10 +515,10 @@ class ViewerDeleteDialog extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF111111),
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 blurRadius: 50,
                 spreadRadius: 10,
                 offset: const Offset(0, 20),
@@ -540,28 +533,28 @@ class ViewerDeleteDialog extends StatelessWidget {
                 width: 84,
                 height: 84,
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.05),
+                  color: AppColors.error.withValues(alpha: 0.05),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: AppColors.error.withOpacity(0.15),
+                    color: AppColors.error.withValues(alpha: 0.15),
                     width: 1.5,
                   ),
                 ),
                 child: Center(
                   child: Icon(
                     Icons.delete_outline_rounded,
-                    color: AppColors.error.withOpacity(0.9),
+                    color: AppColors.error.withValues(alpha: 0.9),
                     size: 44,
                   ),
                 ),
               ),
               const SizedBox(height: 28),
               Text(
-                permanent ? "Permanently Delete?" : "Move to Trash?",
+                permanent ? 'Permanently Delete?' : 'Move to Trash?',
                 style: GoogleFonts.outfit(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   letterSpacing: -0.5,
                 ),
               ),
@@ -586,13 +579,13 @@ class ViewerDeleteDialog extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: permanent
-                      ? AppColors.error.withOpacity(0.04)
-                      : AppColors.violet.withOpacity(0.04),
+                      ? AppColors.error.withValues(alpha: 0.04)
+                      : AppColors.violet.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(100),
                   border: Border.all(
                     color: permanent
-                        ? AppColors.error.withOpacity(0.08)
-                        : AppColors.violet.withOpacity(0.08),
+                        ? AppColors.error.withValues(alpha: 0.08)
+                        : AppColors.violet.withValues(alpha: 0.08),
                   ),
                 ),
                 child: Row(
@@ -603,20 +596,20 @@ class ViewerDeleteDialog extends StatelessWidget {
                           ? Icons.info_outline_rounded
                           : Icons.delete_sweep_outlined,
                       color: permanent
-                          ? AppColors.error.withOpacity(0.6)
-                          : AppColors.violet.withOpacity(0.6),
+                          ? AppColors.error.withValues(alpha: 0.6)
+                          : AppColors.violet.withValues(alpha: 0.6),
                       size: 14,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       permanent
-                          ? "This action cannot be undone"
-                          : "You can restore it from system Trash",
+                          ? 'This action cannot be undone'
+                          : 'You can restore it from system Trash',
                       style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: permanent
-                            ? AppColors.error.withOpacity(0.6)
-                            : AppColors.violet.withOpacity(0.6),
+                            ? AppColors.error.withValues(alpha: 0.6)
+                            : AppColors.violet.withValues(alpha: 0.6),
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.1,
                       ),
@@ -680,14 +673,14 @@ class ViewerDeleteDialog extends StatelessWidget {
                       onPressed: () => Navigator.pop(context, false),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white70,
-                        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       child: Text(
-                        "No, Cancel",
+                        'No, Cancel',
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,
@@ -717,7 +710,7 @@ class ViewerDeleteDialog extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        permanent ? "Yes, Delete" : "Yes, Trash",
+                        permanent ? 'Yes, Delete' : 'Yes, Trash',
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,

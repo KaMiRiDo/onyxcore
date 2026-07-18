@@ -1,6 +1,6 @@
 import 'dart:isolate';
-import '../../../../core/platform/directory_watcher.dart';
-import '../entities/file_item.dart';
+import 'package:onyxcore/core/platform/directory_watcher.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 /// Abstract interface for directory operations.
 ///

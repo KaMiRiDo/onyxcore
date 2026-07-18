@@ -9,8 +9,8 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/task_
 import 'package:path/path.dart' as p;
 
 class TaskTile extends ConsumerStatefulWidget {
-  final FileTask task;
   const TaskTile({required this.task, super.key});
+  final FileTask task;
 
   @override
   ConsumerState<TaskTile> createState() => _TaskTileState();
@@ -97,9 +97,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -147,7 +147,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                     ? 'From: ${p.dirname(task.sourcePaths![0])}'
                                     : 'From: ${task.sourcePaths!.length} items from ${p.dirname(task.sourcePaths![0])}',
                                 style: GoogleFonts.manrope(
-                                  color: AppColors.textMuted.withOpacity(0.7),
+                                  color: AppColors.textMuted.withValues(alpha: 0.7),
                                   fontSize: 11,
                                 ),
                               ),
@@ -158,7 +158,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                               child: Text(
                                 'To: ${StringUtils.truncateMiddle(task.targetPath!, maxLength: 40)}',
                                 style: GoogleFonts.manrope(
-                                  color: AppColors.textMuted.withOpacity(0.7),
+                                  color: AppColors.textMuted.withValues(alpha: 0.7),
                                   fontSize: 11,
                                 ),
                               ),
@@ -174,7 +174,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                   child: Text(
                                     'Processing: ${StringUtils.truncateMiddle(task.currentItem!, maxLength: 35)}',
                                     style: GoogleFonts.manrope(
-                                      color: AppColors.violet.withOpacity(0.7),
+                                      color: AppColors.violet.withValues(alpha: 0.7),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -228,7 +228,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                           child: Icon(
                             Icons.close_rounded,
                             size: 16,
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withValues(alpha: 0.4),
                           ),
                         ),
                       ),
@@ -253,18 +253,17 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                   : task.progress,
                             ),
                             duration: const Duration(milliseconds: 500),
-                            curve: Curves.linear,
                             builder: (context, animatedProgress, _) {
                               return LinearProgressIndicator(
                                 value: animatedProgress,
-                                backgroundColor: Colors.white.withOpacity(0.06),
+                                backgroundColor: Colors.white.withValues(alpha: 0.06),
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   task.status == FileTaskStatus.pending
-                                      ? Colors.white.withOpacity(0.1)
+                                      ? Colors.white.withValues(alpha: 0.1)
                                       : (task.isSyncing
                                             ? AppColors.violet
-                                            : AppColors.violet.withOpacity(
-                                                0.8,
+                                            : AppColors.violet.withValues(
+                                                alpha: 0.8,
                                               )),
                                 ),
                               );
@@ -285,7 +284,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                         Text(
                           '${task.processedCount} of ${task.totalCount} items',
                           style: GoogleFonts.manrope(
-                            color: AppColors.textMuted.withOpacity(0.6),
+                            color: AppColors.textMuted.withValues(alpha: 0.6),
                             fontSize: 11,
                           ),
                         ),
@@ -297,7 +296,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                               Text(
                                 '${StringUtils.formatBytes(task.processedSizeBytes)} / ${task.totalSizeBytes > 0 ? StringUtils.formatBytes(task.totalSizeBytes) : '?'}',
                                 style: GoogleFonts.manrope(
-                                  color: AppColors.textMuted.withOpacity(0.6),
+                                  color: AppColors.textMuted.withValues(alpha: 0.6),
                                   fontSize: 11,
                                 ),
                               ),
@@ -306,7 +305,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                 Text(
                                   '${StringUtils.formatBytes(task.speed!.toInt())}/s',
                                   style: GoogleFonts.manrope(
-                                    color: AppColors.violet.withOpacity(0.7),
+                                    color: AppColors.violet.withValues(alpha: 0.7),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -318,7 +317,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                 Text(
                                   '${(task.progress * 100).toStringAsFixed(1)}%',
                                   style: GoogleFonts.manrope(
-                                    color: AppColors.textMuted.withOpacity(0.6),
+                                    color: AppColors.textMuted.withValues(alpha: 0.6),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -337,7 +336,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                   child: Text(
                     task.errorMessage!,
                     style: GoogleFonts.manrope(
-                      color: AppColors.error.withOpacity(0.8),
+                      color: AppColors.error.withValues(alpha: 0.8),
                       fontSize: 12,
                     ),
                     maxLines: 2,
@@ -359,13 +358,13 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                               ? Icons.expand_less_rounded
                               : Icons.expand_more_rounded,
                           size: 16,
-                          color: AppColors.textMuted.withOpacity(0.6),
+                          color: AppColors.textMuted.withValues(alpha: 0.6),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'Logs',
                           style: GoogleFonts.manrope(
-                            color: AppColors.textMuted.withOpacity(0.6),
+                            color: AppColors.textMuted.withValues(alpha: 0.6),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -381,9 +380,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                     margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withOpacity(0.04)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
                     ),
                     child: ListView.builder(
                       controller: _logScrollController,
@@ -394,7 +393,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                           child: Text(
                             task.logs[index],
                             style: GoogleFonts.firaCode(
-                              color: Colors.white.withOpacity(0.5),
+                              color: Colors.white.withValues(alpha: 0.5),
                               fontSize: 10,
                               height: 1.5,
                             ),
@@ -418,7 +417,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
 
   Widget _buildCancelConfirmation() {
     return Material(
-      color: Colors.black.withOpacity(0.8),
+      color: Colors.black.withValues(alpha: 0.8),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -437,14 +436,14 @@ class _TaskTileState extends ConsumerState<TaskTile> {
               children: [
                 _confirmButton(
                   'No',
-                  Colors.white.withOpacity(0.1),
+                  Colors.white.withValues(alpha: 0.1),
                   Colors.white,
                   () => setState(() => _showCancelConfirm = false),
                 ),
                 const SizedBox(width: 12),
                 _confirmButton(
                   'Yes, Cancel',
-                  AppColors.error.withOpacity(0.2),
+                  AppColors.error.withValues(alpha: 0.2),
                   AppColors.error,
                   () {
                     ref.read(taskProvider.notifier).cancelTask(widget.task.id);
@@ -473,7 +472,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: textColor.withOpacity(0.2)),
+          border: Border.all(color: textColor.withValues(alpha: 0.2)),
         ),
         child: Text(
           label,
@@ -494,23 +493,23 @@ class _TaskTileState extends ConsumerState<TaskTile> {
 
     switch (status) {
       case FileTaskStatus.running:
-        bgColor = AppColors.violet.withOpacity(0.15);
+        bgColor = AppColors.violet.withValues(alpha: 0.15);
         textColor = AppColors.violet;
         label = 'Running';
       case FileTaskStatus.pending:
-        bgColor = Colors.amber.withOpacity(0.1);
+        bgColor = Colors.amber.withValues(alpha: 0.1);
         textColor = Colors.amber;
         label = 'Pending';
       case FileTaskStatus.completed:
-        bgColor = AppColors.success.withOpacity(0.1);
+        bgColor = AppColors.success.withValues(alpha: 0.1);
         textColor = AppColors.success;
         label = 'Completed';
       case FileTaskStatus.error:
-        bgColor = AppColors.error.withOpacity(0.1);
+        bgColor = AppColors.error.withValues(alpha: 0.1);
         textColor = AppColors.error;
         label = 'Error';
       case FileTaskStatus.cancelled:
-        bgColor = Colors.orange.withOpacity(0.1);
+        bgColor = Colors.orange.withValues(alpha: 0.1);
         textColor = Colors.orange;
         label = 'Cancelled';
     }

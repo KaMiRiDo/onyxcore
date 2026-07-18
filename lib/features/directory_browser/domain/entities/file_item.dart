@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../core/utils/file_type_classifier.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 /// Immutable entity representing a single file or folder in the filesystem.
 class FileItem extends Equatable {
@@ -16,6 +16,21 @@ class FileItem extends Equatable {
     this.isExecutable = false,
     this.hasWritePermission = true,
   });
+
+  factory FileItem.fromJson(Map<String, dynamic> json) {
+    return FileItem(
+      path: json['path'] as String,
+      name: json['name'] as String,
+      type: FileItemType.values[json['type'] as int],
+      modified: DateTime.fromMillisecondsSinceEpoch(json['modified'] as int),
+      sizeBytes: json['sizeBytes'] as int?,
+      thumbnailPath: json['thumbnailPath'] as String?,
+      imageAspectRatio: json['imageAspectRatio'] as double?,
+      itemCount: json['itemCount'] as int?,
+      isExecutable: json['isExecutable'] as bool? ?? false,
+      hasWritePermission: json['hasWritePermission'] as bool? ?? true,
+    );
+  }
 
   final String path;
   final String name;
@@ -68,21 +83,6 @@ class FileItem extends Equatable {
       'isExecutable': isExecutable,
       'hasWritePermission': hasWritePermission,
     };
-  }
-
-  factory FileItem.fromJson(Map<String, dynamic> json) {
-    return FileItem(
-      path: json['path'],
-      name: json['name'],
-      type: FileItemType.values[json['type']],
-      modified: DateTime.fromMillisecondsSinceEpoch(json['modified']),
-      sizeBytes: json['sizeBytes'],
-      thumbnailPath: json['thumbnailPath'],
-      imageAspectRatio: json['imageAspectRatio'],
-      itemCount: json['itemCount'],
-      isExecutable: json['isExecutable'] ?? false,
-      hasWritePermission: json['hasWritePermission'] ?? true,
-    );
   }
 
   @override

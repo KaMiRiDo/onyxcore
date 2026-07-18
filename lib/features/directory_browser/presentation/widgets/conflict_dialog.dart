@@ -1,5 +1,6 @@
-import 'dart:ui';
 import 'dart:math';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,16 +11,12 @@ import 'package:path/path.dart' as p;
 enum ConflictResolution { replace, skip, rename }
 
 class ConflictResult {
+  ConflictResult(this.resolution, this.applyToAll);
   final ConflictResolution resolution;
   final bool applyToAll;
-  ConflictResult(this.resolution, this.applyToAll);
 }
 
 class ConflictDialog extends ConsumerStatefulWidget {
-  final String fileName;
-  final String destinationPath;
-  final bool isFolder;
-  final bool showApplyToAll;
 
   const ConflictDialog({
     required this.fileName,
@@ -28,6 +25,10 @@ class ConflictDialog extends ConsumerStatefulWidget {
     this.showApplyToAll = true,
     super.key,
   });
+  final String fileName;
+  final String destinationPath;
+  final bool isFolder;
+  final bool showApplyToAll;
 
   @override
   ConsumerState<ConflictDialog> createState() => _ConflictDialogState();
@@ -55,8 +56,8 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
     );
 
     _shakeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: 0,
+      end: 1,
     ).chain(CurveTween(curve: CurveSelection())).animate(_shakeController);
   }
 
@@ -67,7 +68,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
   }
 
   void _triggerShake() {
-    _shakeController.forward(from: 0.0);
+    _shakeController.forward(from: 0);
   }
 
   void _handleNavigate(int direction) {
@@ -113,7 +114,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
           child: AnimatedBuilder(
             animation: _shakeAnimation,
             builder: (context, child) {
-              final double offset = sin(_shakeAnimation.value * pi * 4) * 8;
+              final offset = sin(_shakeAnimation.value * pi * 4) * 8;
               return Transform.translate(
                 offset: Offset(offset, 0),
                 child: child,
@@ -131,14 +132,14 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
                     child: Container(
                       width: 440,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceBase.withOpacity(0.8),
+                        color: AppColors.surfaceBase.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
+                            color: Colors.black.withValues(alpha: 0.4),
                             blurRadius: 32,
                             offset: const Offset(0, 16),
                           ),
@@ -256,7 +257,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
                                           ),
                                         ),
                                         side: BorderSide(
-                                          color: Colors.white.withOpacity(0.2),
+                                          color: Colors.white.withValues(alpha: 0.2),
                                         ),
                                       ),
                                     ),
@@ -310,7 +311,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
         child: Container(
           decoration: isSelected
               ? BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   border: const Border(
                     left: BorderSide(color: AppColors.violet, width: 3),
                   ),
@@ -323,7 +324,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 22),
@@ -336,7 +337,7 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
                     Text(
                       title,
                       style: GoogleFonts.outfit(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -369,15 +370,15 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
     if (parts.length >= 2) {
       final folder = _truncateMiddle(parts[parts.length - 2], 24);
       final file = _truncateMiddle(parts[parts.length - 1], 24);
-      return "...../$folder/$file";
+      return '...../$folder/$file';
     }
     return _truncateMiddle(path, 40);
   }
 
   String _truncateMiddle(String text, int maxLength) {
     if (text.length <= maxLength) return text;
-    int half = (maxLength / 2).floor();
-    return "${text.substring(0, half - 2)}...${text.substring(text.length - (half - 1))}";
+    final half = (maxLength / 2).floor();
+    return '${text.substring(0, half - 2)}...${text.substring(text.length - (half - 1))}';
   }
 }
 

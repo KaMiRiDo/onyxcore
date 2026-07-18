@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/directory_size_datasource.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
@@ -50,6 +51,9 @@ class MockDirectoryRepository extends Mock implements DirectoryRepository {}
 class MockMediaMetadataDatasource extends Mock
     implements MediaMetadataDatasource {}
 
+class MockDirectorySizeDatasource extends Mock
+    implements DirectorySizeDatasource {}
+
 class MockPinnedItemsNotifier extends PinnedItemsNotifier {
   @override
   Future<Map<String, int>> build() async => {'/mock/pinned': 1};
@@ -65,6 +69,7 @@ void main() {
     late MockSettingsRepository mockSettingsRepository;
     late MockDirectoryRepository mockDirectoryRepository;
     late MockMediaMetadataDatasource mockMediaMetadataDatasource;
+    late MockDirectorySizeDatasource mockDirectorySizeDatasource;
 
     setUp(() async {
       mockSettingsRepository = MockSettingsRepository();
@@ -88,6 +93,11 @@ void main() {
       when(
         () => mockMediaMetadataDatasource.extractAspectRatio(any()),
       ).thenAnswer((_) async => null);
+      
+      mockDirectorySizeDatasource = MockDirectorySizeDatasource();
+      when(
+        () => mockDirectorySizeDatasource.getDirectorySize(any()),
+      ).thenAnswer((_) async => null);
 
       final mockDb = getMockDb();
 
@@ -101,6 +111,9 @@ void main() {
           ),
           mediaMetadataDatasourceProvider.overrideWithValue(
             mockMediaMetadataDatasource,
+          ),
+          directorySizeDatasourceProvider.overrideWithValue(
+            mockDirectorySizeDatasource,
           ),
           pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
           tabManagerProvider.overrideWith(MockTabManager.new),
@@ -484,6 +497,158 @@ void main() {
 
       notifier.update((curr) => {});
       expect(container.read(itemKeysProvider).isEmpty, true);
+    });
+
+    test('sortedDirectoryItemsProvider hidden files sorting (TDD)', () async {
+      final now = DateTime.now();
+      final mockItems = [
+        FileItem(
+          path: '/test/zebra.txt',
+          name: 'zebra.txt',
+          type: FileItemType.other,
+          modified: now,
+          sizeBytes: 100,
+        ),
+        FileItem(
+          path: '/test/.hidden',
+          name: '.hidden',
+          type: FileItemType.other,
+          modified: now,
+          sizeBytes: 50,
+        ),
+        FileItem(
+          path: '/test/apple.txt',
+          name: 'apple.txt',
+          type: FileItemType.other,
+          modified: now,
+          sizeBytes: 200,
+        ),
+      ];
+
+      final localContainer = ProviderContainer(
+        overrides: [
+          directoryItemsProvider.overrideWith(
+            () => _FakeDirectoryItemsNotifier(mockItems),
+          ),
+          tabIdProvider.overrideWithValue('tab_1'),
+          tabManagerProvider.overrideWith(MockTabManager.new),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+          pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
+          sortSettingsProvider.overrideWithValue(
+            SortSettings(option: SortOption.aToZ),
+          ),
+        ],
+      );
+
+      await localContainer.read(directoryItemsProvider.future);
+      await localContainer.read(pinnedItemsProvider.future);
+      await localContainer.read(settingsProvider.future);
+      localContainer.read(sortedDirectoryItemsProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final sortedItems = localContainer.read(sortedDirectoryItemsProvider).value!;
+      expect(sortedItems.length, 3);
+      // Expected A-Z order (ignoring dot): apple.txt, .hidden, zebra.txt
+      expect(sortedItems[0].name, 'apple.txt');
+      expect(sortedItems[1].name, '.hidden');
+      expect(sortedItems[2].name, 'zebra.txt');
+    });
+
+    test('DirectoryItemsNotifier asynchronously updates folder sizes (TDD)', () async {
+      final now = DateTime.now();
+      final mockItems = [
+        FileItem(
+          path: '/test/folder1',
+          name: 'folder1',
+          type: FileItemType.folder,
+          modified: now,
+          sizeBytes: null,
+        ),
+      ];
+      
+      when(
+        () => mockDirectoryRepository.listDirectory(any()),
+      ).thenAnswer((_) async => mockItems);
+      
+      when(
+        () => mockDirectorySizeDatasource.getDirectorySizes(['/test/folder1']),
+      ).thenAnswer((_) async => {'/test/folder1': 9999});
+
+      final localContainer = ProviderContainer(
+        overrides: [
+          directoryRepositoryProvider.overrideWithValue(
+            mockDirectoryRepository,
+          ),
+          mediaMetadataDatasourceProvider.overrideWithValue(
+            mockMediaMetadataDatasource,
+          ),
+          directorySizeDatasourceProvider.overrideWithValue(
+            mockDirectorySizeDatasource,
+          ),
+          tabIdProvider.overrideWithValue('tab_1'),
+          tabManagerProvider.overrideWith(MockTabManager.new),
+        ],
+      );
+
+      final notifier = localContainer.read(directoryItemsProvider.notifier);
+      final itemsAsync = await localContainer.read(directoryItemsProvider.future);
+      expect(itemsAsync.length, 1);
+      expect(itemsAsync[0].sizeBytes, null);
+      
+      // Wait for async generation
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      
+      final updatedAsync = localContainer.read(directoryItemsProvider);
+      expect(updatedAsync.value![0].sizeBytes, 9999);
+    });
+
+    test('DirectoryItemsNotifier awaits metadata generation when size sorting is active (TDD)', () async {
+      final now = DateTime.now();
+      final mockItems = [
+        FileItem(
+          path: '/test/folder1',
+          name: 'folder1',
+          type: FileItemType.folder,
+          modified: now,
+          sizeBytes: null,
+        ),
+      ];
+      
+      when(
+        () => mockDirectoryRepository.listDirectory(any()),
+      ).thenAnswer((_) async => mockItems);
+      
+      when(
+        () => mockDirectorySizeDatasource.getDirectorySizes(['/test/folder1']),
+      ).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return {'/test/folder1': 9999};
+      });
+
+      final localContainer = ProviderContainer(
+        overrides: [
+          directoryRepositoryProvider.overrideWithValue(
+            mockDirectoryRepository,
+          ),
+          mediaMetadataDatasourceProvider.overrideWithValue(
+            mockMediaMetadataDatasource,
+          ),
+          directorySizeDatasourceProvider.overrideWithValue(
+            mockDirectorySizeDatasource,
+          ),
+          tabIdProvider.overrideWithValue('tab_1'),
+          tabManagerProvider.overrideWith(MockTabManager.new),
+          sortSettingsProvider.overrideWithValue(
+            SortSettings(option: SortOption.sizeLargeToSmall),
+          ),
+        ],
+      );
+
+      final itemsAsync = await localContainer.read(directoryItemsProvider.future);
+      
+      // Because size sorting is active and sizeBytes is null, it should have awaited the sizes
+      expect(itemsAsync.length, 1);
+      expect(itemsAsync[0].sizeBytes, 9999);
     });
   });
 }

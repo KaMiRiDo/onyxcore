@@ -15,7 +15,7 @@ class RenamePopover {
     required Offset position,
     required List<String> paths,
     required List<String> existingNames,
-    required Function(dynamic) onRename,
+    required void Function(dynamic) onRename,
     VoidCallback? onClose,
   }) {
     hide();
@@ -46,11 +46,6 @@ class RenamePopover {
 }
 
 class _RenamePopoverWidget extends StatefulWidget {
-  final Offset position;
-  final List<String> paths;
-  final List<String> existingNames;
-  final Function(dynamic) onRename;
-  final VoidCallback onClose;
 
   const _RenamePopoverWidget({
     required this.position,
@@ -59,6 +54,11 @@ class _RenamePopoverWidget extends StatefulWidget {
     required this.onRename,
     required this.onClose,
   });
+  final Offset position;
+  final List<String> paths;
+  final List<String> existingNames;
+  final void Function(dynamic) onRename;
+  final VoidCallback onClose;
 
   @override
   State<_RenamePopoverWidget> createState() => _RenamePopoverWidgetState();
@@ -73,7 +73,7 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
   @override
   void initState() {
     super.initState();
-    final name = widget.paths.length == 1 ? p.basename(widget.paths.first) : "";
+    final name = widget.paths.length == 1 ? p.basename(widget.paths.first) : '';
     _controller = TextEditingController(text: name);
     _focusNode = FocusNode();
 
@@ -147,23 +147,24 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final bool isMulti = widget.paths.length > 1;
-    final width = 340.0;
+    final isMulti = widget.paths.length > 1;
+    const width = 340.0;
     final height = isMulti ? 260.0 : (_hasConflict ? 165.0 : 135.0);
 
-    double left = widget.position.dx - (width / 2);
-    double top = widget.position.dy + 12;
+    var left = widget.position.dx - (width / 2);
+    var top = widget.position.dy + 12;
 
-    bool isBelow = true;
+    var isBelow = true;
     if (left < 16) left = 16;
-    if (left + width > screenSize.width - 16)
+    if (left + width > screenSize.width - 16) {
       left = screenSize.width - width - 16;
+    }
     if (top + height > screenSize.height - 16) {
       top = widget.position.dy - height - 30;
       isBelow = false;
     }
 
-    final backgroundColor = const Color(0xFF2D2D2D).withOpacity(0.95);
+    final backgroundColor = const Color(0xFF2D2D2D).withValues(alpha: 0.95);
 
     return Stack(
       children: [
@@ -201,10 +202,10 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
                   decoration: BoxDecoration(
                     color: backgroundColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         blurRadius: 30,
                         offset: const Offset(0, 15),
                       ),
@@ -240,8 +241,8 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: _hasConflict
-                                ? AppColors.error.withOpacity(0.5)
-                                : const Color(0xFF007AFF).withOpacity(0.5),
+                                ? AppColors.error.withValues(alpha: 0.5)
+                                : const Color(0xFF007AFF).withValues(alpha: 0.5),
                           ),
                         ),
                         child: TextField(
@@ -303,7 +304,7 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
   }
 
   Widget _buildRadioMode(RenameMode mode, String label) {
-    final bool isSelected = _bulkMode == mode;
+    final isSelected = _bulkMode == mode;
     return InkWell(
       onTap: () => setState(() => _bulkMode = mode),
       borderRadius: BorderRadius.circular(8),
@@ -359,7 +360,7 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
             ? []
             : [
                 BoxShadow(
-                  color: AppColors.violet.withOpacity(0.3),
+                  color: AppColors.violet.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -388,10 +389,10 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
 }
 
 class _TrianglePainter extends CustomPainter {
-  final Color color;
-  final bool isUp;
 
   _TrianglePainter({required this.color, required this.isUp});
+  final Color color;
+  final bool isUp;
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -1,30 +1,28 @@
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:path/path.dart' as p;
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/open_with_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
+import 'package:path/path.dart' as p;
 
 /// Individual file/folder card — pixel-perfect replica of original _buildItemCard().
 class ItemCard extends ConsumerStatefulWidget {
@@ -91,7 +89,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
     final pinnedMap = pinnedAsync.value ?? const {};
     final isPinned = pinnedMap.containsKey(widget.item.path);
 
-    Widget cardContent = Opacity(
+    final Widget cardContent = Opacity(
       opacity: isCut ? 0.4 : (isSourceDragging ? 0.3 : 1.0),
       child: Container(
         width: double.infinity,
@@ -99,20 +97,19 @@ class _ItemCardState extends ConsumerState<ItemCard> {
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: widget.isSelected
-              ? AppColors.violet.withOpacity(0.12)
+              ? AppColors.violet.withValues(alpha: 0.12)
               : (widget.isHovered
-                    ? Colors.white.withOpacity(0.04)
+                    ? Colors.white.withValues(alpha: 0.04)
                     : Colors.transparent),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: widget.isSelected
-                ? AppColors.violet.withOpacity(0.2)
+                ? AppColors.violet.withValues(alpha: 0.2)
                 : Colors.transparent,
             strokeAlign: BorderSide.strokeAlignOutside,
           ),
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             SizedBox(
               height: 120 * widget.zoom,
@@ -127,11 +124,11 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                       child: Container(
                         padding: EdgeInsets.all(4 * widget.zoom),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0F0F0).withOpacity(0.95),
+                          color: const Color(0xFFF0F0F0).withValues(alpha: 0.95),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -149,7 +146,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                       top: 8 * widget.zoom,
                       right: 8 * widget.zoom,
                       child: Tooltip(
-                        message: "Restore to original location",
+                        message: 'Restore to original location',
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () async {
@@ -204,11 +201,10 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                                     ),
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.18),
+                                        color: Colors.white.withValues(alpha: 0.18),
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: Colors.white.withOpacity(0.40),
-                                          width: 1.0,
+                                          color: Colors.white.withValues(alpha: 0.40),
                                         ),
                                       ),
                                     ),
@@ -237,16 +233,16 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                       child: Container(
                         padding: EdgeInsets.all(4 * widget.zoom),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(8 * widget.zoom),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Icon(
                           Icons.lock,
                           size: 14 * widget.zoom,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                       ),
                     ),
@@ -281,19 +277,19 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                     message: widget.item.name,
                     waitDuration: const Duration(milliseconds: 600),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A1A).withOpacity(0.98),
+                      color: const Color(0xFF1A1A1A).withValues(alpha: 0.98),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     textStyle: GoogleFonts.manrope(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -332,7 +328,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -363,7 +359,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           if (!widget.isSelected) {
             ref.read(selectionProvider.notifier).selectMultiple([
               widget.item.path,
-            ], isCtrl: false);
+            ]);
           }
         }
       },
@@ -388,7 +384,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
       child: cardContent,
     );
 
-    Widget result = draggableWidget;
+    var result = draggableWidget;
 
     if (isFolder) {
       result = DragTarget<List<String>>(
@@ -431,7 +427,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           return Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: isOver ? AppColors.violet.withOpacity(0.1) : null,
+              color: isOver ? AppColors.violet.withValues(alpha: 0.1) : null,
             ),
             child: draggableWidget,
           );
@@ -626,7 +622,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                 },
               );
             } else {
-              final result = await showDialog(
+              final result = await showDialog<dynamic>(
                 context: context,
                 builder: (context) => RenameDialog(paths: paths),
               );
@@ -670,7 +666,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                 } else if (result is Map) {
                   final mode = result['mode'] as RenameMode;
                   final value = result['value'] as String;
-                  List<String> newPaths = [];
+                  var newPaths = <String>[];
                   final taskId = ref
                       .read(taskProvider.notifier)
                       .addTask(
@@ -804,7 +800,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
         icon: Icons.info_outline_rounded,
         shortcut: 'Alt+Return',
         onTap: () {
-          showDialog(
+          showDialog<dynamic>(
             context: context,
             builder: (context) => PropertiesDialog(
               paths: paths,
@@ -834,7 +830,6 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           borderRadius: BorderRadius.circular(12),
           child: SvgPicture.file(
             File(widget.item.path),
-            fit: BoxFit.contain,
           ),
         );
       }
@@ -905,7 +900,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
     return SizedBox(
       width: (isVertical ? 90 : 110) * s,
       height: (isVertical ? 120 : 110) * s,
-      child: SvgPicture.asset(assetPath, fit: BoxFit.contain),
+      child: SvgPicture.asset(assetPath),
     );
   }
 
@@ -939,7 +934,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                 width: 38 * s,
                 height: 14 * s,
                 decoration: BoxDecoration(
-                  color: colors.first.withOpacity(0.9),
+                  color: colors.first.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(6 * s),
                   ),

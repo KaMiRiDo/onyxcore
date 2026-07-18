@@ -1,19 +1,20 @@
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/tab_state.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/tab_state.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:uuid/uuid.dart';
 
 class TabManagerState {
-  final List<TabState> tabs;
-  final int activeTabIndex;
 
   TabManagerState({
     required this.tabs,
     required this.activeTabIndex,
   });
+  final List<TabState> tabs;
+  final int activeTabIndex;
 
   TabState get activeTab => tabs[activeTabIndex];
 
@@ -51,7 +52,6 @@ class TabManager extends Notifier<TabManagerState> {
           id: const Uuid().v4(),
           currentPath: home,
           history: [home],
-          historyIndex: 0,
           sortSettings: SortSettings(
             option: _getFolderSort(home),
           ),
@@ -107,7 +107,7 @@ class TabManager extends Notifier<TabManagerState> {
     if (index == -1) return;
 
     final newTabs = List<TabState>.from(state.tabs)..removeAt(index);
-    int newActiveIndex = state.activeTabIndex;
+    var newActiveIndex = state.activeTabIndex;
 
     if (index <= state.activeTabIndex) {
       newActiveIndex = (state.activeTabIndex - 1).clamp(0, newTabs.length - 1);

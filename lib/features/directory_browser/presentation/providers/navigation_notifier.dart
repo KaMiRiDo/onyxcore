@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/navigation_state.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
-
-import '../../domain/entities/navigation_state.dart';
 
 /// Notifier managing the browser navigation history, scoped to the current tab.
 class NavigationNotifier extends Notifier<NavigationState> {
@@ -50,9 +49,9 @@ class NavigationNotifier extends Notifier<NavigationState> {
     );
 
     final history = tab.history;
-    int targetIndex = -1;
+    var targetIndex = -1;
 
-    for (int i = tab.historyIndex - 1; i >= 0; i--) {
+    for (var i = tab.historyIndex - 1; i >= 0; i--) {
       if (!history[i].startsWith(ejectedDevicePath)) {
         targetIndex = i;
         break;

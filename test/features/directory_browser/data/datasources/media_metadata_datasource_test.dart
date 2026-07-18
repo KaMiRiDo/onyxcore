@@ -53,5 +53,19 @@ void main() {
       expect(result, 1.0);
       expect(datasource.getCachedAspectRatio('/path/to/non_existent.mp4'), isNull);
     });
+
+    test('extractAspectRatios returns batched results with fallbacks', () async {
+      // These files don't exist, so ffprobe fails and it falls back to 1.0
+      final result = await datasource.extractAspectRatios([
+        '/path/to/file1.png',
+        '/path/to/file2.mp4',
+        '/path/to/missing.png',
+      ]);
+
+      expect(result.length, 3);
+      expect(result['/path/to/file1.png'], 1.0);
+      expect(result['/path/to/file2.mp4'], 1.0);
+      expect(result['/path/to/missing.png'], 1.0);
+    });
   });
 }

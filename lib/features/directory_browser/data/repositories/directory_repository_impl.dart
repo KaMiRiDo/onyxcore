@@ -1,11 +1,11 @@
 import 'dart:isolate';
-import 'package:path/path.dart' as p;
 
-import '../../../../core/cache/directory_cache.dart';
-import '../../../../core/platform/directory_watcher.dart';
-import '../../domain/entities/file_item.dart';
-import '../../domain/repositories/directory_repository.dart';
-import '../datasources/local_file_datasource.dart';
+import 'package:onyxcore/core/cache/directory_cache.dart';
+import 'package:onyxcore/core/platform/directory_watcher.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
+import 'package:path/path.dart' as p;
 
 /// Concrete implementation of [DirectoryRepository].
 ///
