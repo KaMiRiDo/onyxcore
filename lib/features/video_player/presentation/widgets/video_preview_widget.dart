@@ -428,6 +428,19 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           platform.setProperty('audio-file', audioUrl);
         }
 
+        final ytDlpPath = p.join(
+          Platform.environment['HOME'] ?? '',
+          '.local',
+          'share',
+          'onyxcore',
+          'yt-dlp-venv',
+          'bin',
+          'yt-dlp',
+        );
+        if (File(ytDlpPath).existsSync()) {
+          platform.setProperty('script-opts', 'ytdl_hook-ytdl_path=$ytDlpPath');
+        }
+
         // Setup cache directory
         try {
           final tempDir = await getTemporaryDirectory();

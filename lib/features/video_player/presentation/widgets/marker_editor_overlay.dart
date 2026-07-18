@@ -1,81 +1,80 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image/image.dart' as img;
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'emoji_data.dart';
-import 'dart:io';
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
-import 'package:image/image.dart' as img;
+import 'package:onyxcore/features/video_player/presentation/widgets/emoji_data.dart';
 
 class CustomEmojiSet {
-  final String rawData;
-  final Map<String, String> parsedMap;
 
   CustomEmojiSet({required this.rawData, required this.parsedMap});
-
-  Map<String, dynamic> toJson() => {
-    'rawData': rawData,
-    'parsedMap': parsedMap,
-  };
 
   factory CustomEmojiSet.fromJson(Map<String, dynamic> json) => CustomEmojiSet(
     rawData: json['rawData'] as String,
     parsedMap: Map<String, String>.from(json['parsedMap'] as Map),
   );
+  final String rawData;
+  final Map<String, String> parsedMap;
+
+  Map<String, dynamic> toJson() => {
+    'rawData': rawData,
+    'parsedMap': parsedMap,
+  };
 }
 
 class CustomIconSet {
-  final Uint8List imageBytes;
-  final String tags;
 
   CustomIconSet({required this.imageBytes, required this.tags});
-
-  Map<String, dynamic> toJson() => {
-    'imageBytes': base64Encode(imageBytes),
-    'tags': tags,
-  };
 
   factory CustomIconSet.fromJson(Map<String, dynamic> json) => CustomIconSet(
     imageBytes: base64Decode(json['imageBytes'] as String),
     tags: json['tags'] as String,
   );
+  final Uint8List imageBytes;
+  final String tags;
+
+  Map<String, dynamic> toJson() => {
+    'imageBytes': base64Encode(imageBytes),
+    'tags': tags,
+  };
 }
 
 class IconUploadItem {
+
+  IconUploadItem({
+    required this.tagController, this.rawFilePath,
+    this.originalBytes,
+    this.processedBytes,
+    this.isProcessing = false,
+    this.error,
+  });
   String? rawFilePath;
   Uint8List? originalBytes;
   Uint8List? processedBytes;
   bool isProcessing;
   String? error;
   TextEditingController tagController;
-
-  IconUploadItem({
-    this.rawFilePath,
-    this.originalBytes,
-    this.processedBytes,
-    this.isProcessing = false,
-    this.error,
-    required this.tagController,
-  });
 }
 
 Future<Uint8List?> _processAndResizeImage(Uint8List bytes) async {
   return compute((Uint8List data) {
     try {
-      final img.Image? original = img.decodeImage(data);
+      final original = img.decodeImage(data);
       if (original == null) return null;
 
-      int size = min(original.width, original.height);
-      int x = (original.width - size) ~/ 2;
-      int y = (original.height - size) ~/ 2;
-      img.Image cropped = img.copyCrop(
+      final int size = min(original.width, original.height);
+      final x = (original.width - size) ~/ 2;
+      final y = (original.height - size) ~/ 2;
+      final cropped = img.copyCrop(
         original,
         x: x,
         y: y,
@@ -83,7 +82,7 @@ Future<Uint8List?> _processAndResizeImage(Uint8List bytes) async {
         height: size,
       );
 
-      img.Image resized = img.copyResize(
+      final resized = img.copyResize(
         cropped,
         width: 96,
         height: 96,
@@ -98,22 +97,19 @@ Future<Uint8List?> _processAndResizeImage(Uint8List bytes) async {
 }
 
 class MarkerEditorOverlay extends ConsumerStatefulWidget {
-  final String? initialContent;
-  final String? initialIcon;
-  final Duration timestamp;
-  final Function(String, String) onSave;
-  final VoidCallback onCancel;
-  final double notchOffset;
 
   const MarkerEditorOverlay({
-    this.initialContent,
+    required this.timestamp, required this.onSave, required this.onCancel, this.initialContent,
     this.initialIcon,
-    required this.timestamp,
-    required this.onSave,
-    required this.onCancel,
     this.notchOffset = 210.0,
     super.key,
   });
+  final String? initialContent;
+  final String? initialIcon;
+  final Duration timestamp;
+  final void Function(String, String) onSave;
+  final VoidCallback onCancel;
+  final double notchOffset;
 
   @override
   ConsumerState<MarkerEditorOverlay> createState() => MarkerEditorOverlayState();
@@ -137,7 +133,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
 
   // Icon Upload State
   bool _isAddingIcon = false;
-  List<IconUploadItem> _iconUploads = [];
+  final List<IconUploadItem> _iconUploads = [];
   String? _editorError;
   List<CustomIconSet> _customIcons = [];
 
@@ -172,7 +168,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
       vsync: this,
     );
 
-    _shakeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
 
@@ -287,7 +283,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
     _textFieldFocusNode.dispose();
     _customDataController.dispose();
     _customFocusNode.dispose();
-    for (var item in _iconUploads) {
+    for (final item in _iconUploads) {
       item.tagController.dispose();
     }
     _sidebarScrollController.dispose();
@@ -297,7 +293,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
   }
 
   void shake() {
-    _shakeController.forward(from: 0.0);
+    _shakeController.forward(from: 0);
   }
 
   void save() {
@@ -316,7 +312,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
       }
 
       setState(() {
-        for (var item in validItems) {
+        for (final item in validItems) {
           _customIcons.add(
             CustomIconSet(
               imageBytes: item.processedBytes!,
@@ -377,7 +373,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
     return AnimatedBuilder(
       animation: _shakeAnimation,
       builder: (context, child) {
-        final double offset = sin(_shakeAnimation.value * pi * 8) * 6;
+        final offset = sin(_shakeAnimation.value * pi * 8) * 6;
         return Transform.translate(
           offset: Offset(offset, 0),
           child: child,
@@ -406,14 +402,14 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                       width: 420,
                       height: _isExpanded ? 650 : null,
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
+                            color: Colors.black.withValues(alpha: 0.4),
                             blurRadius: 30,
                             offset: const Offset(0, 10),
                           ),
@@ -474,17 +470,17 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
         height: 32,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.3),
+          color: Colors.black.withValues(alpha: 0.3),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
           border: Border(
-            top: BorderSide(color: Colors.white.withOpacity(0.05)),
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
           ),
         ),
         alignment: Alignment.center,
@@ -492,7 +488,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           _isExpanded
               ? Icons.keyboard_arrow_down_rounded
               : Icons.keyboard_arrow_up_rounded,
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           size: 20,
         ),
       ),
@@ -505,16 +501,16 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
         Container(
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.04),
+            color: Colors.white.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
               Icon(
                 Icons.search_rounded,
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 size: 18,
               ),
               const SizedBox(width: 8),
@@ -557,7 +553,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
               bottom: BorderSide(
                 color: isSelected
                     ? AppColors.magenta
-                    : Colors.white.withOpacity(0.05),
+                    : Colors.white.withValues(alpha: 0.05),
                 width: 2,
               ),
             ),
@@ -580,17 +576,21 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
     List<String> filteredEmojis;
     if (_searchQuery.isEmpty) {
       filteredEmojis = [];
-      for (var cat in EmojiData.categories) {
+      for (final cat in EmojiData.categories) {
         filteredEmojis.addAll(cat.emojis);
       }
-      for (var set in _customSets) {
+      for (final set in _customSets) {
         filteredEmojis.addAll(set.parsedMap.keys);
       }
     } else {
       final query = _searchQuery.toLowerCase();
-      final Set<String> allEmojis = {};
-      for (final cat in EmojiData.categories) allEmojis.addAll(cat.emojis);
-      for (final set in _customSets) allEmojis.addAll(set.parsedMap.keys);
+      final allEmojis = <String>{};
+      for (final cat in EmojiData.categories) {
+        allEmojis.addAll(cat.emojis);
+      }
+      for (final set in _customSets) {
+        allEmojis.addAll(set.parsedMap.keys);
+      }
 
       filteredEmojis = allEmojis.where((e) {
         if (e.contains(query)) return true;
@@ -608,7 +608,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                     children: [
                       Icon(
                         Icons.category_outlined,
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         size: 40,
                       ),
                       const SizedBox(height: 12),
@@ -632,7 +632,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                         _gridScrollController ??
                         (_gridScrollController = ScrollController()),
                     thumbVisibility: true,
-                    thumbColor: AppColors.magenta.withOpacity(0.5),
+                    thumbColor: AppColors.magenta.withValues(alpha: 0.5),
                     thickness: 5,
                     radius: const Radius.circular(2.5),
                     padding: const EdgeInsets.only(
@@ -669,7 +669,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                   _gridScrollController ??
                   (_gridScrollController = ScrollController()),
               thumbVisibility: true,
-              thumbColor: AppColors.magenta.withOpacity(0.5),
+              thumbColor: AppColors.magenta.withValues(alpha: 0.5),
               thickness: 5,
               radius: const Radius.circular(2.5),
               padding: const EdgeInsets.only(
@@ -699,9 +699,9 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.2),
+        color: Colors.black.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -745,10 +745,10 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
             topLeft: Radius.circular(12),
             bottomRight: Radius.circular(16),
           ),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(-2, -2),
             ),
@@ -775,7 +775,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
             _iconUploads.removeAt(index);
           }
 
-          for (var path in result) {
+          for (final path in result) {
             final item = IconUploadItem(
               rawFilePath: path,
               isProcessing: true,
@@ -811,7 +811,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           if (processed != null) {
             item.processedBytes = processed;
           } else {
-            item.error = "Failed to process image";
+            item.error = 'Failed to process image';
           }
         });
       }
@@ -819,7 +819,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
       if (mounted) {
         setState(() {
           item.isProcessing = false;
-          item.error = "Corrupted file";
+          item.error = 'Corrupted file';
         });
       }
     }
@@ -829,9 +829,9 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
     return Container(
       height: 260,
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.2),
+        color: Colors.black.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -840,7 +840,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
               ),
             ),
             child: Row(
@@ -867,7 +867,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                   },
                   child: Icon(
                     Icons.close_rounded,
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     size: 18,
                   ),
                 ),
@@ -898,7 +898,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                           border: Border.all(
                             color: item.error != null
                                 ? Colors.redAccent
-                                : Colors.white.withOpacity(0.1),
+                                : Colors.white.withValues(alpha: 0.1),
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,
@@ -909,7 +909,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                     Text(
                       ':',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
@@ -919,10 +919,10 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                       child: Container(
                         height: 48,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.04),
+                          color: Colors.white.withValues(alpha: 0.04),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                           ),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -962,7 +962,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: Colors.redAccent.withOpacity(0.1),
+                              color: Colors.redAccent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
@@ -980,7 +980,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           ),
           if (_editorError != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8.0, right: 16.0),
+              padding: const EdgeInsets.only(bottom: 8, right: 16),
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Text(
@@ -994,7 +994,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
               ),
             ),
           Padding(
-            padding: const EdgeInsets.all(16.0).copyWith(top: 0),
+            padding: const EdgeInsets.all(16).copyWith(top: 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -1094,7 +1094,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
   }
 
   Widget _buildEmojiItem(String emoji) {
-    final bool isCustom = _customSets.any(
+    final isCustom = _customSets.any(
       (set) => set.parsedMap.containsKey(emoji),
     );
 
@@ -1119,7 +1119,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
             child: GestureDetector(
               onTap: () {
                 setState(() {
-                  for (var set in _customSets) {
+                  for (final set in _customSets) {
                     if (set.parsedMap.containsKey(emoji)) {
                       set.parsedMap.remove(emoji);
                     }
@@ -1135,7 +1135,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.close, color: Colors.white70, size: 10),
@@ -1154,7 +1154,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
       children: [
         GestureDetector(
           onTap: () {
-            final String base64Icon = "B64:${base64Encode(icon.imageBytes)}";
+            final base64Icon = 'B64:${base64Encode(icon.imageBytes)}';
             _addIconToRecentlyUsed(base64Icon);
           },
           behavior: HitTestBehavior.opaque,
@@ -1178,7 +1178,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           child: GestureDetector(
             onTap: () {
               setState(() {
-                final base64String = "B64:${base64Encode(icon.imageBytes)}";
+                final base64String = 'B64:${base64Encode(icon.imageBytes)}';
                 _customIcons.remove(icon);
                 _removeBase64FromRecents(icon.imageBytes);
                 _recentlyUsed.removeWhere(
@@ -1201,7 +1201,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
             child: Container(
               padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, color: Colors.white70, size: 10),
@@ -1232,7 +1232,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
               onPressed: _resetRecentlyUsed,
               icon: Icon(
                 Icons.refresh_rounded,
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 size: 18,
               ),
               padding: EdgeInsets.zero,
@@ -1247,16 +1247,16 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           height: 78,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           clipBehavior: Clip.antiAlias,
           child: Theme(
             data: ThemeData(
               scrollbarTheme: ScrollbarThemeData(
                 thumbColor: WidgetStateProperty.all(
-                  AppColors.magenta.withOpacity(0.3),
+                  AppColors.magenta.withValues(alpha: 0.3),
                 ),
                 thickness: WidgetStateProperty.all(2), // Sleeker thickness
                 radius: const Radius.circular(1),
@@ -1291,16 +1291,16 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                             return false;
                           }
                         }
-                        bool isBuiltIn = EmojiData.categories.any(
+                        final isBuiltIn = EmojiData.categories.any(
                           (cat) => cat.emojis.contains(item),
                         );
                         if (isBuiltIn) return true;
-                        bool isCustom = _customSets.any(
+                        final isCustom = _customSets.any(
                           (set) => set.parsedMap.containsKey(item),
                         );
                         return isCustom;
                       })
-                      .map((e) => _buildRecentItem(e))
+                      .map(_buildRecentItem)
                       .toList(),
                 ),
               ),
@@ -1329,7 +1329,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           child: Center(
             child: Padding(
               padding: const EdgeInsets.only(
-                bottom: 8.0,
+                bottom: 8,
               ), // Vertically center the emoji inside the 48px square
               child: isBase64
                   ? ClipRRect(
@@ -1360,11 +1360,11 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           height: 80,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             gradient: LinearGradient(
               colors: [
-                AppColors.magenta.withOpacity(0.3),
-                AppColors.violet.withOpacity(0.3),
+                AppColors.magenta.withValues(alpha: 0.3),
+                AppColors.violet.withValues(alpha: 0.3),
               ],
             ),
           ),
@@ -1406,7 +1406,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
               children: [
                 if (_editorError != null)
                   Padding(
-                    padding: const EdgeInsets.only(right: 12.0),
+                    padding: const EdgeInsets.only(right: 12),
                     child: Text(
                       _editorError!,
                       style: GoogleFonts.manrope(
@@ -1466,55 +1466,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
     );
   }
 
-  Widget _buildGlassAddButton({required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(10),
-            bottomRight: Radius.circular(16),
-          ),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(10),
-            bottomRight: Radius.circular(16),
-          ),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: const Icon(Icons.add, color: Colors.white, size: 20),
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildAddPlusButton({required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: AppColors.magenta,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.magenta.withOpacity(0.4),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Icon(Icons.add, color: Colors.white, size: 20),
-      ),
-    );
-  }
 
   Widget _buildNotch() {
     return Container(
@@ -1531,7 +1483,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
             child: Container(
               width: 32,
               height: 16,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.04)),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.04)),
               child: CustomPaint(
                 painter: NotchPainter(color: Colors.transparent),
               ),
@@ -1560,9 +1512,9 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
               padding: const EdgeInsets.all(12),
               child: Focus(
@@ -1655,7 +1607,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
                         if (map.isEmpty) {
                           setState(
                             () => _editorError =
-                                'Invalid format. Use \'emoji\': \'tags\'',
+                                "Invalid format. Use 'emoji': 'tags'",
                           );
                           return;
                         }
@@ -1705,19 +1657,19 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
   }
 
   Map<String, String> _parseCustomData(String data) {
-    final Map<String, String> result = {};
+    final result = <String, String>{};
     final lines = data.split('\n');
-    for (var line in lines) {
+    for (final line in lines) {
       try {
         final parts = line.split(':');
         if (parts.length >= 2) {
-          final emoji = parts[0].trim().replaceAll("'", "").replaceAll('"', "");
+          final emoji = parts[0].trim().replaceAll("'", '').replaceAll('"', '');
           final keywords = parts
               .sublist(1)
               .join(':')
               .trim()
-              .replaceAll("'", "")
-              .replaceAll('"', "");
+              .replaceAll("'", '')
+              .replaceAll('"', '');
           if (emoji.isNotEmpty) {
             result[emoji] = keywords;
           }
@@ -1729,9 +1681,9 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
 }
 
 class NotchPainter extends CustomPainter {
-  final Color color;
 
   NotchPainter({required this.color});
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1748,7 +1700,7 @@ class NotchPainter extends CustomPainter {
     canvas.drawPath(path, paint);
 
     final borderPaint = Paint()
-      ..color = Colors.white.withOpacity(0.12)
+      ..color = Colors.white.withValues(alpha: 0.12)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
@@ -1784,8 +1736,8 @@ class TriangleClipper extends CustomClipper<Path> {
 }
 
 class BubbleTailPainter extends CustomPainter {
-  final Color color;
   BubbleTailPainter({required this.color});
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1794,9 +1746,9 @@ class BubbleTailPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final path = Path();
-    final radius = 14.0; // Smooth rounded rectangle like Image 2
-    final tailWidth = 12.0;
-    final tailHeight = 8.0;
+    const radius = 14.0; // Smooth rounded rectangle like Image 2
+    const tailWidth = 12.0;
+    const tailHeight = 8.0;
 
     final rectHeight = size.height - tailHeight;
 
