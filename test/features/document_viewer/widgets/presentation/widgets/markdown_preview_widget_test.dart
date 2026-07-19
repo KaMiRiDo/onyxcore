@@ -1,3 +1,4 @@
+// ignore_for_file: cascade_invocations, inference_failure_on_instance_creation, deprecated_member_use, avoid_print, avoid_dynamic_calls
 import 'dart:io';
 import 'dart:ui';
 

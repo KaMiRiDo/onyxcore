@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
@@ -103,8 +102,6 @@ void main() {
         filePath: '/fail.jpg',
         mtime: 100,
         sizeBytes: 200,
-        cacheFileNormal: null,
-        cacheFileLarge: null,
         kind: 'video',
         status: 'failed',
         generatedAt: 123456789,
@@ -124,7 +121,7 @@ void main() {
       when(() => mockDb.getAllThumbnailEntries()).thenAnswer((_) async => [mockEntry]);
       await cacheService.load();
 
-      final normalPath = cacheService.getCachedPath('/test.jpg', size: ThumbnailSize.normal);
+      final normalPath = cacheService.getCachedPath('/test.jpg');
       final largePath = cacheService.getCachedPath('/test.jpg', size: ThumbnailSize.large);
 
       expect(normalPath, '/tmp/cache_normal.jpg');
@@ -170,7 +167,7 @@ void main() {
       final tempFile = File('/tmp/thumbnail_test_gen.jpg')
         ..createSync()
         ..writeAsStringSync('dummy_data');
-      addTearDown(() => tempFile.deleteSync());
+      addTearDown(tempFile.deleteSync);
 
       await cacheService.storeThumbnail(
         filePath: '/new.jpg',
@@ -178,7 +175,6 @@ void main() {
         sizeBytes: 150,
         kind: 'image',
         thumbnailFile: tempFile,
-        size: ThumbnailSize.normal,
       );
 
       final result = cacheService.lookup(

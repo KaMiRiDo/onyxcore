@@ -1,26 +1,24 @@
+// ignore_for_file: inference_failure_on_instance_creation
+import 'dart:async';
 import 'dart:io';
+
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
-import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/hero_audio_player.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/playlist_sidebar.dart';
-import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
-import 'package:drift/native.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'dart:async';
-import 'package:media_kit/media_kit.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/hero_audio_player.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class MockSettingsNotifier extends SettingsNotifier {
   @override
@@ -87,7 +85,7 @@ void main() {
               audioRootPathProvider.overrideWith((ref) => '/'),
               audioCurrentPathProvider.overrideWith((ref) => '/'),
               audioPlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              settingsProvider.overrideWith(() => MockSettingsNotifier()),
+              settingsProvider.overrideWith(MockSettingsNotifier.new),
             ],
             child: MaterialApp(
               home: Scaffold(
@@ -196,7 +194,7 @@ void main() {
               audioRootPathProvider.overrideWith((ref) => '/'),
               audioCurrentPathProvider.overrideWith((ref) => '/'),
               audioPlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              settingsProvider.overrideWith(() => MockSettingsNotifier()),
+              settingsProvider.overrideWith(MockSettingsNotifier.new),
             ],
             child: MaterialApp(
               home: Scaffold(

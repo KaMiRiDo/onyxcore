@@ -1,3 +1,4 @@
+// ignore_for_file: unused_local_variable
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

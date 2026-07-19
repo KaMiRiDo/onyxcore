@@ -31,7 +31,8 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `flutter_highlight` | ^0.7.0 | Syntax highlighting for code blocks |
 | | `flutter_math_fork` | ^0.7.4 | Math equation rendering (LaTeX) |
 | | `desktop_drop` | ^0.7.1 | Drag and drop file interactions |
-| **Utility** | `path` | ^1.9.0 | Path manipulation |
+| **Utility** | `crypto` | ^3.0.6 | Cryptographic hash functions |
+| | `path` | ^1.9.0 | Path manipulation |
 | | `intl` | ^0.19.0 | Number formatting |
 | | `equatable` | ^2.0.7 | Value equality |
 | | `uuid` | ^4.5.3 | Unique ID generation |
@@ -41,8 +42,9 @@ OnyxCore is a Linux-native multimedia file manager built with Flutter. It combin
 | | `watcher` | ^1.2.1 | File system watching |
 | | `audiotags` | ^1.4.5 | ID3 audio metadata manipulation |
 | | `file_selector` | ^1.1.0 | Platform-native file selection dialogs |
-| **Lint** | `very_good_analysis` | ^10.1.0 | Static analysis rules |
-| **Test & Dev** | `flutter_test` | SDK | Widget testing framework |
+| **Lint** | `very_good_analysis` | ^6.0.0 | Static analysis rules |
+| **Test & Dev** | `flutter_test` | SDK |
+| | `mocktail_image_network` | ^1.3.0 | Mocking image network requests in tests | | Widget testing framework |
 | | `mocktail` | ^1.0.4 | Mock object generation for tests |
 | | `drift_dev` | ^2.26.0 | Code generation for Drift database |
 | | `build_runner` | ^2.5.4 | Dart code generator runner |
@@ -153,279 +155,537 @@ graph TB
 
 ```
 onyxcore/
-├── lib/
-│   ├── app.dart
-│   ├── core/
-│   │   ├── cache/
-│   │   │   ├── directory_cache.dart
-│   │   │   ├── metadata_cache.dart
-│   │   │   └── thumbnail_cache_service.dart
-│   │   ├── database/
-│   │   │   ├── app_database.dart
-│   │   │   ├── app_database.g.dart
-│   │   │   ├── database_provider.dart
-│   │   │   └── settings_codec.dart
-│   │   ├── errors/
-│   │   │   ├── exceptions.dart
-│   │   │   └── failures.dart
-│   │   ├── platform/
-│   │   │   ├── directory_watcher.dart
-│   │   │   └── disk_usage.dart
-│   │   ├── playlist/
-│   │   │   ├── media_queue_isolate.dart
-│   │   │   ├── playlist_providers.dart
-│   │   │   ├── playlist_sidebar_base.dart
-│   │   │   └── playlist_tile.dart
-│   │   ├── theme/
-│   │   │   ├── app_colors.dart
-│   │   │   └── app_theme.dart
-│   │   ├── utils/
-│   │   │   ├── app_launcher_utils.dart
-│   │   │   ├── browser_detector.dart
-│   │   │   ├── directory_size_utils.dart
-│   │   │   ├── extensions.dart
-│   │   │   ├── file_type_classifier.dart
-│   │   │   ├── file_type_utils.dart
-│   │   │   ├── formatters.dart
-│   │   │   ├── logger.dart
-│   │   │   ├── media_uri_helper.dart
-│   │   │   ├── process_utils.dart
-│   │   │   └── string_utils.dart
-│   │   ├── widgets/
-│   │   │   ├── bubble_loader.dart
-│   │   │   ├── onyx_switch.dart
-│   │   │   ├── search_replace_overlay.dart
-│   │   │   ├── task_progress_overlay.dart
-│   │   │   ├── toast_helper.dart
-│   │   │   ├── tooltip_if_truncated.dart
-│   │   │   └── viewer_top_bar.dart
-│   │   └── window_management/
-│   │       ├── persistent_viewer_manager.dart
-│   │       └── window_params.dart
-│   ├── features/
-│   │   ├── archive_manager/
-│   │   │   ├── presentation/
-│   │   │   │   ├── providers/
-│   │   │   │   │   └── archive_provider.dart
-│   │   │   │   └── widgets/
-│   │   │   │       ├── compress_dialog.dart
-│   │   │   │       └── password_dialog.dart
-│   │   │   └── services/
-│   │   │       └── archive_service.dart
-│   │   ├── audio_player/
-│   │   │   ├── domain/
-│   │   │   │   ├── entities/
-│   │   │   │   │   └── audio_track.dart
-│   │   │   │   └── utils/
-│   │   │   │       ├── audio_metadata_utils.dart
-│   │   │   │       └── audio_queue_isolate.dart
-│   │   │   └── presentation/
-│   │   │       ├── pages/
-│   │   │       │   └── audio_player_view.dart
-│   │   │       ├── providers/
-│   │   │       │   └── audio_player_providers.dart
-│   │   │       └── widgets/
-│   │   │           ├── audio_controls_bar.dart
-│   │   │           ├── dialogs/
-│   │   │           │   ├── audio_properties_dialog.dart
-│   │   │           │   └── audio_tag_editor_dialog.dart
-│   │   │           ├── hero_audio_player.dart
-│   │   │           ├── playing_eq_animation.dart
-│   │   │           ├── playlist_sidebar.dart
-│   │   │           └── waveform_scrubber.dart
-│   │   ├── directory_browser/
-│   │   │   ├── data/
-│   │   │   │   ├── datasources/
-│   │   │   │   │   ├── local_file_datasource.dart
-│   │   │   │   │   └── media_metadata_datasource.dart
-│   │   │   │   └── repositories/
-│   │   │   │       └── directory_repository_impl.dart
-│   │   │   ├── domain/
-│   │   │   │   ├── entities/
-│   │   │   │   │   ├── device.dart
-│   │   │   │   │   ├── directory_state.dart
-│   │   │   │   │   ├── file_item.dart
-│   │   │   │   │   ├── filter_settings.dart
-│   │   │   │   │   ├── navigation_state.dart
-│   │   │   │   │   ├── selection_state.dart
-│   │   │   │   │   ├── sort_settings.dart
-│   │   │   │   │   └── tab_state.dart
-│   │   │   │   └── repositories/
-│   │   │   │       └── directory_repository.dart
-│   │   │   └── presentation/
-│   │   │       ├── pages/
-│   │   │       │   ├── directory_analysis_page.dart
-│   │   │       │   └── gallery_page.dart
-│   │   │       ├── providers/
-│   │   │       │   ├── background_panel_provider.dart
-│   │   │       │   ├── clipboard_provider.dart
-│   │   │       │   ├── conflict_provider.dart
-│   │   │       │   ├── device_provider.dart
-│   │   │       │   ├── directory_analysis_provider.dart
-│   │   │       │   ├── directory_providers.dart
-│   │   │       │   ├── navigation_notifier.dart
-│   │   │       │   ├── pinned_items_provider.dart
-│   │   │       │   ├── selection_notifier.dart
-│   │   │       │   ├── tab_manager.dart
-│   │   │       │   ├── task_history_provider.dart
-│   │   │       │   └── task_provider.dart
-│   │   │       └── widgets/
-│   │   │           ├── action_bar.dart
-│   │   │           ├── background_panel.dart
-│   │   │           ├── background_processes_button.dart
-│   │   │           ├── conflict_dialog.dart
-│   │   │           ├── context_menu.dart
-│   │   │           ├── create_item_dialog.dart
-│   │   │           ├── dialogs.dart
-│   │   │           ├── empty_state_view.dart
-│   │   │           ├── error_dialog.dart
-│   │   │           ├── file_grid.dart
-│   │   │           ├── filter_overlay.dart
-│   │   │           ├── gnome_tab_bar.dart
-│   │   │           ├── item_card.dart
-│   │   │           ├── item_preview.dart
-│   │   │           ├── open_with_dialog.dart
-│   │   │           ├── preview_container.dart
-│   │   │           ├── properties_dialog.dart
-│   │   │           ├── rename_dialog.dart
-│   │   │           ├── rename_popover.dart
-│   │   │           ├── rubber_band_overlay.dart
-│   │   │           ├── sidebar/
-│   │   │           │   ├── devices_section.dart
-│   │   │           │   ├── sidebar.dart
-│   │   │           │   ├── sidebar_item.dart
-│   │   │           │   └── storage_indicator.dart
-│   │   │           ├── sort_overlay.dart
-│   │   │           ├── task_history_detail_view.dart
-│   │   │           ├── task_history_view.dart
-│   │   │           ├── task_tile.dart
-│   │   │           ├── top_bar.dart
-│   │   │           ├── unified_side_panel.dart
-│   │   │           └── media_thumbnail_preview.dart
-│   │   ├── document_viewer/
-│   │   │   ├── presentation/
-│   │   │   │   └── widgets/
-│   │   │   │       ├── line_numbers_painter.dart
-│   │   │   │       ├── markdown_preview_widget.dart
-│   │   │   │       └── markdown_syntax_highlighter.dart
-│   │   │   ├── services/
-│   │   │   │   └── mermaid_offline_renderer.dart
-│   │   │   └── utils/
-│   │   │       └── html_search_highlighter.dart
-│   │   ├── downloader/
-│   │   │   ├── domain/
-│   │   │   │   └── entities/
-│   │   │   │       ├── download_config.dart
-│   │   │   │       └── media_info.dart
-│   │   │   ├── presentation/
-│   │   │   │   ├── pages/
-│   │   │   │   │   └── standalone_downloader_window.dart
-│   │   │   │   ├── providers/
-│   │   │   │   │   ├── download_history_provider.dart
-│   │   │   │   │   ├── download_task_provider.dart
-│   │   │   │   │   ├── downloads_panel_provider.dart
-│   │   │   │   │   └── downloads_shared_controller.dart
-│   │   │   │   └── widgets/
-│   │   │   │       ├── components/
-│   │   │   │       │   ├── downloads_empty_state.dart
-│   │   │   │       │   ├── downloads_header.dart
-│   │   │   │       │   ├── downloads_missing_binaries_view.dart
-│   │   │   │       │   ├── downloads_panel_controls.dart
-│   │   │   │       │   ├── downloads_panel_input.dart
-│   │   │   │       │   ├── downloads_panel_preview.dart
-│   │   │   │       │   ├── downloads_panel_results_view.dart
-│   │   │   │       │   ├── downloads_panel_tiles.dart
-│   │   │   │       │   ├── downloads_shared_components.dart
-│   │   │   │       │   └── downloads_shared_dropdowns.dart
-│   │   │   │       ├── standalone_window/
-│   │   │   │       │   ├── standalone_window_action_bar.dart
-│   │   │   │       │   ├── standalone_window_active_downloads.dart
-│   │   │   │       │   ├── standalone_window_header.dart
-│   │   │   │       │   ├── standalone_window_location_bar.dart
-│   │   │   │       │   ├── standalone_window_media_grid.dart
-│   │   │   │       │   └── standalone_window_media_list.dart
-│   │   │   │       ├── download_history_detail_view.dart
-│   │   │   │       ├── download_history_view.dart
-│   │   │   │       ├── download_task_tile.dart
-│   │   │   │       ├── downloads_panel.dart
-│   │   │   │       └── downloads_panel_helpers.dart
-│   │   │   └── services/
-│   │   │       ├── aria2_accelerator.dart
-│   │   │       ├── cookie_helper.dart
-│   │   │       ├── download_history_database.dart
-│   │   │       ├── downloader_process_wrapper.dart
-│   │   │       ├── downloader_update_service.dart
-│   │   │       └── engines/
-│   │   │           ├── download_engine.dart
-│   │   │           ├── engine_registry.dart
-│   │   │           ├── gallery_dl_engine.dart
-│   │   │           ├── lux_engine.dart
-│   │   │           ├── playwright_engine.dart
-│   │   │           ├── streamlink_engine.dart
-│   │   │           ├── youget_engine.dart
-│   │   │           └── ytdlp_engine.dart
-│   │   ├── file_picker/
-│   │   │   └── presentation/
-│   │   │       ├── providers/
-│   │   │       │   └── file_picker_notifier.dart
-│   │   │       └── widgets/
-│   │   │           ├── custom_file_picker_dialog.dart
-│   │   │           ├── file_entity_tile.dart
-│   │   │           ├── file_picker_new_folder_dialog.dart
-│   │   │           └── file_picker_preview_pane.dart
-│   │   ├── image_viewer/
-│   │   │   └── presentation/
-│   │   │       ├── providers/
-│   │   │       │   └── image_playlist_providers.dart
-│   │   │       └── widgets/
-│   │   │           ├── image_editor_overlay.dart
-│   │   │           ├── image_playlist_sidebar.dart
-│   │   │           └── image_preview_widget.dart
-│   │   ├── settings/
-│   │   │   ├── data/
-│   │   │   │   └── repositories/
-│   │   │   │       └── settings_repository_impl.dart
-│   │   │   ├── domain/
-│   │   │   │   ├── entities/
-│   │   │   │   │   └── app_settings.dart
-│   │   │   │   └── repositories/
-│   │   │   │       └── settings_repository.dart
-│   │   │   └── presentation/
-│   │   │       ├── providers/
-│   │   │       │   └── settings_providers.dart
-│   │   │       └── widgets/
-│   │   │           └── settings_dialog.dart
-│   │   └── video_player/
-│   │       ├── data/
-│   │       │   └── repositories/
-│   │       │       ├── marker_repository.dart
-│   │       │       └── playback_memory_repository.dart
-│   │       ├── domain/
-│   │       │   ├── entities/
-│   │       │   │   └── video_marker.dart
-│   │       │   └── utils/
-│   │       │       └── video_queue_isolate.dart
-│   │       └── presentation/
-│   │           ├── providers/
-│   │           │   ├── video_markers_provider.dart
-│   │           │   └── video_playlist_providers.dart
-│   │           └── widgets/
-│   │               ├── emoji_data.dart
-│   │               ├── gradient_slider_track.dart
-│   │               ├── hover_preview.dart
-│   │               ├── marker_editor_overlay.dart
-│   │               ├── menu_tooltip.dart
-│   │               ├── playback_speed_control.dart
-│   │               ├── timeline_marker.dart
-│   │               ├── track_selector_menu.dart
-│   │               ├── video_playlist_sidebar.dart
-│   │               ├── video_preview_widget.dart
-│   │               ├── video_speed_overlay.dart
-│   │               └── video_volume_overlay.dart
-│   ├── main.dart
-│   └── services/
-│       └── file_system_service.dart
+lib/
+│   app.dart
+│   main.dart
+│   core/
+│   │   cache/
+│   │   │   directory_cache.dart
+│   │   │   metadata_cache.dart
+│   │   │   thumbnail_cache_service.dart
+│   │   database/
+│   │   │   app_database.dart
+│   │   │   app_database.g.dart
+│   │   │   database_provider.dart
+│   │   │   settings_codec.dart
+│   │   errors/
+│   │   │   exceptions.dart
+│   │   │   failures.dart
+│   │   platform/
+│   │   │   directory_watcher.dart
+│   │   │   disk_usage.dart
+│   │   playlist/
+│   │   │   media_queue_isolate.dart
+│   │   │   playlist_providers.dart
+│   │   │   playlist_sidebar_base.dart
+│   │   │   playlist_tile.dart
+│   │   theme/
+│   │   │   app_colors.dart
+│   │   │   app_theme.dart
+│   │   utils/
+│   │   │   app_launcher_utils.dart
+│   │   │   browser_detector.dart
+│   │   │   directory_size_utils.dart
+│   │   │   extensions.dart
+│   │   │   file_type_classifier.dart
+│   │   │   file_type_utils.dart
+│   │   │   formatters.dart
+│   │   │   logger.dart
+│   │   │   media_uri_helper.dart
+│   │   │   process_utils.dart
+│   │   │   string_utils.dart
+│   │   widgets/
+│   │   │   bubble_loader.dart
+│   │   │   onyx_switch.dart
+│   │   │   search_replace_overlay.dart
+│   │   │   task_progress_overlay.dart
+│   │   │   toast_helper.dart
+│   │   │   tooltip_if_truncated.dart
+│   │   │   viewer_top_bar.dart
+│   │   window_management/
+│   │   │   persistent_viewer_manager.dart
+│   │   │   window_params.dart
+│   features/
+│   │   archive_manager/
+│   │   │   presentation/
+│   │   │   │   providers/
+│   │   │   │   │   archive_provider.dart
+│   │   │   │   widgets/
+│   │   │   │   │   compress_dialog.dart
+│   │   │   │   │   password_dialog.dart
+│   │   │   services/
+│   │   │   │   archive_service.dart
+│   │   audio_player/
+│   │   │   domain/
+│   │   │   │   entities/
+│   │   │   │   │   audio_track.dart
+│   │   │   │   utils/
+│   │   │   │   │   audio_metadata_utils.dart
+│   │   │   │   │   audio_queue_isolate.dart
+│   │   │   presentation/
+│   │   │   │   pages/
+│   │   │   │   │   audio_player_view.dart
+│   │   │   │   providers/
+│   │   │   │   │   audio_player_providers.dart
+│   │   │   │   widgets/
+│   │   │   │   │   audio_controls_bar.dart
+│   │   │   │   │   hero_audio_player.dart
+│   │   │   │   │   playing_eq_animation.dart
+│   │   │   │   │   playlist_sidebar.dart
+│   │   │   │   │   waveform_scrubber.dart
+│   │   │   │   │   dialogs/
+│   │   │   │   │   │   audio_properties_dialog.dart
+│   │   │   │   │   │   audio_tag_editor_dialog.dart
+│   │   directory_browser/
+│   │   │   data/
+│   │   │   │   datasources/
+│   │   │   │   │   directory_size_datasource.dart
+│   │   │   │   │   local_file_datasource.dart
+│   │   │   │   │   media_metadata_datasource.dart
+│   │   │   │   repositories/
+│   │   │   │   │   directory_repository_impl.dart
+│   │   │   domain/
+│   │   │   │   entities/
+│   │   │   │   │   device.dart
+│   │   │   │   │   directory_state.dart
+│   │   │   │   │   file_item.dart
+│   │   │   │   │   filter_settings.dart
+│   │   │   │   │   navigation_state.dart
+│   │   │   │   │   selection_state.dart
+│   │   │   │   │   sort_settings.dart
+│   │   │   │   │   tab_state.dart
+│   │   │   │   repositories/
+│   │   │   │   │   directory_repository.dart
+│   │   │   presentation/
+│   │   │   │   pages/
+│   │   │   │   │   directory_analysis_page.dart
+│   │   │   │   │   gallery_page.dart
+│   │   │   │   providers/
+│   │   │   │   │   background_panel_provider.dart
+│   │   │   │   │   clipboard_provider.dart
+│   │   │   │   │   conflict_provider.dart
+│   │   │   │   │   device_provider.dart
+│   │   │   │   │   directory_analysis_provider.dart
+│   │   │   │   │   directory_providers.dart
+│   │   │   │   │   navigation_notifier.dart
+│   │   │   │   │   pinned_items_provider.dart
+│   │   │   │   │   selection_notifier.dart
+│   │   │   │   │   tab_manager.dart
+│   │   │   │   │   task_history_provider.dart
+│   │   │   │   │   task_provider.dart
+│   │   │   │   widgets/
+│   │   │   │   │   action_bar.dart
+│   │   │   │   │   background_panel.dart
+│   │   │   │   │   background_processes_button.dart
+│   │   │   │   │   conflict_dialog.dart
+│   │   │   │   │   context_menu.dart
+│   │   │   │   │   create_item_dialog.dart
+│   │   │   │   │   dialogs.dart
+│   │   │   │   │   empty_state_view.dart
+│   │   │   │   │   error_dialog.dart
+│   │   │   │   │   file_grid.dart
+│   │   │   │   │   filter_overlay.dart
+│   │   │   │   │   gnome_tab_bar.dart
+│   │   │   │   │   item_card.dart
+│   │   │   │   │   item_preview.dart
+│   │   │   │   │   media_thumbnail_preview.dart
+│   │   │   │   │   open_with_dialog.dart
+│   │   │   │   │   preview_container.dart
+│   │   │   │   │   properties_dialog.dart
+│   │   │   │   │   rename_dialog.dart
+│   │   │   │   │   rename_popover.dart
+│   │   │   │   │   rubber_band_overlay.dart
+│   │   │   │   │   sort_overlay.dart
+│   │   │   │   │   task_history_detail_view.dart
+│   │   │   │   │   task_history_view.dart
+│   │   │   │   │   task_tile.dart
+│   │   │   │   │   top_bar.dart
+│   │   │   │   │   unified_side_panel.dart
+│   │   │   │   │   sidebar/
+│   │   │   │   │   │   devices_section.dart
+│   │   │   │   │   │   sidebar.dart
+│   │   │   │   │   │   sidebar_item.dart
+│   │   │   │   │   │   storage_indicator.dart
+│   │   document_viewer/
+│   │   │   presentation/
+│   │   │   │   widgets/
+│   │   │   │   │   line_numbers_painter.dart
+│   │   │   │   │   markdown_preview_widget.dart
+│   │   │   │   │   markdown_syntax_highlighter.dart
+│   │   │   services/
+│   │   │   │   mermaid_offline_renderer.dart
+│   │   │   utils/
+│   │   │   │   html_search_highlighter.dart
+│   │   downloader/
+│   │   │   domain/
+│   │   │   │   entities/
+│   │   │   │   │   download_config.dart
+│   │   │   │   │   media_info.dart
+│   │   │   presentation/
+│   │   │   │   pages/
+│   │   │   │   │   standalone_downloader_window.dart
+│   │   │   │   providers/
+│   │   │   │   │   download_history_provider.dart
+│   │   │   │   │   download_task_provider.dart
+│   │   │   │   │   downloads_panel_provider.dart
+│   │   │   │   │   downloads_shared_controller.dart
+│   │   │   │   widgets/
+│   │   │   │   │   download_history_detail_view.dart
+│   │   │   │   │   download_history_view.dart
+│   │   │   │   │   download_task_tile.dart
+│   │   │   │   │   downloads_panel.dart
+│   │   │   │   │   downloads_panel_helpers.dart
+│   │   │   │   │   components/
+│   │   │   │   │   │   downloads_empty_state.dart
+│   │   │   │   │   │   downloads_header.dart
+│   │   │   │   │   │   downloads_missing_binaries_view.dart
+│   │   │   │   │   │   downloads_panel_controls.dart
+│   │   │   │   │   │   downloads_panel_input.dart
+│   │   │   │   │   │   downloads_panel_preview.dart
+│   │   │   │   │   │   downloads_panel_results_view.dart
+│   │   │   │   │   │   downloads_panel_tiles.dart
+│   │   │   │   │   │   downloads_shared_components.dart
+│   │   │   │   │   │   downloads_shared_dropdowns.dart
+│   │   │   │   │   standalone_window/
+│   │   │   │   │   │   standalone_window_action_bar.dart
+│   │   │   │   │   │   standalone_window_active_downloads.dart
+│   │   │   │   │   │   standalone_window_header.dart
+│   │   │   │   │   │   standalone_window_location_bar.dart
+│   │   │   │   │   │   standalone_window_media_grid.dart
+│   │   │   │   │   │   standalone_window_media_list.dart
+│   │   │   services/
+│   │   │   │   aria2_accelerator.dart
+│   │   │   │   cookie_helper.dart
+│   │   │   │   download_history_database.dart
+│   │   │   │   downloader_process_wrapper.dart
+│   │   │   │   downloader_update_service.dart
+│   │   │   │   engines/
+│   │   │   │   │   download_engine.dart
+│   │   │   │   │   engine_registry.dart
+│   │   │   │   │   gallery_dl_engine.dart
+│   │   │   │   │   lux_engine.dart
+│   │   │   │   │   playwright_engine.dart
+│   │   │   │   │   streamlink_engine.dart
+│   │   │   │   │   youget_engine.dart
+│   │   │   │   │   ytdlp_engine.dart
+│   │   file_picker/
+│   │   │   presentation/
+│   │   │   │   providers/
+│   │   │   │   │   file_picker_notifier.dart
+│   │   │   │   widgets/
+│   │   │   │   │   custom_file_picker_dialog.dart
+│   │   │   │   │   file_entity_tile.dart
+│   │   │   │   │   file_picker_new_folder_dialog.dart
+│   │   │   │   │   file_picker_preview_pane.dart
+│   │   image_viewer/
+│   │   │   presentation/
+│   │   │   │   providers/
+│   │   │   │   │   image_playlist_providers.dart
+│   │   │   │   widgets/
+│   │   │   │   │   image_editor_overlay.dart
+│   │   │   │   │   image_playlist_sidebar.dart
+│   │   │   │   │   image_preview_widget.dart
+│   │   settings/
+│   │   │   data/
+│   │   │   │   repositories/
+│   │   │   │   │   settings_repository_impl.dart
+│   │   │   domain/
+│   │   │   │   entities/
+│   │   │   │   │   app_settings.dart
+│   │   │   │   repositories/
+│   │   │   │   │   settings_repository.dart
+│   │   │   presentation/
+│   │   │   │   providers/
+│   │   │   │   │   settings_providers.dart
+│   │   │   │   widgets/
+│   │   │   │   │   settings_dialog.dart
+│   │   video_player/
+│   │   │   data/
+│   │   │   │   repositories/
+│   │   │   │   │   marker_repository.dart
+│   │   │   │   │   playback_memory_repository.dart
+│   │   │   domain/
+│   │   │   │   entities/
+│   │   │   │   │   video_marker.dart
+│   │   │   │   utils/
+│   │   │   │   │   video_queue_isolate.dart
+│   │   │   presentation/
+│   │   │   │   providers/
+│   │   │   │   │   video_markers_provider.dart
+│   │   │   │   │   video_playlist_providers.dart
+│   │   │   │   widgets/
+│   │   │   │   │   emoji_data.dart
+│   │   │   │   │   gradient_slider_track.dart
+│   │   │   │   │   hover_preview.dart
+│   │   │   │   │   marker_editor_overlay.dart
+│   │   │   │   │   menu_tooltip.dart
+│   │   │   │   │   playback_speed_control.dart
+│   │   │   │   │   timeline_marker.dart
+│   │   │   │   │   track_selector_menu.dart
+│   │   │   │   │   video_playlist_sidebar.dart
+│   │   │   │   │   video_preview_widget.dart
+│   │   │   │   │   video_speed_overlay.dart
+│   │   │   │   │   video_volume_overlay.dart
+│   services/
+│   │   file_system_service.dart
+test/
+│   core/
+│   │   cache/
+│   │   │   thumbnail_cache_service_test.dart
+│   │   database/
+│   │   │   app_database_test.dart
+│   │   playlist/
+│   │   │   media_queue_isolate_test.dart
+│   │   │   playlist_providers_test.dart
+│   │   │   playlist_sidebar_base_test.dart
+│   │   │   playlist_sidebar_test.dart
+│   │   │   playlist_tile_test.dart
+│   │   utils/
+│   │   │   media_uri_helper_test.dart
+│   │   window_management/
+│   │   │   persistent_viewer_manager_test.dart
+│   │   │   window_params_test.dart
+│   features/
+│   │   archive_manager/
+│   │   │   presentation/
+│   │   │   │   providers/
+│   │   │   │   │   archive_provider_test.dart
+│   │   │   │   widgets/
+│   │   │   │   │   compress_dialog_test.dart
+│   │   │   │   │   password_dialog_test.dart
+│   │   │   services/
+│   │   │   │   archive_service_test.dart
+│   │   audio_player/
+│   │   │   domain/
+│   │   │   │   entities/
+│   │   │   │   │   audio_track_test.dart
+│   │   │   │   utils/
+│   │   │   │   │   audio_metadata_utils_test.dart
+│   │   │   │   │   audio_queue_isolate_test.dart
+│   │   │   presentation/
+│   │   │   │   pages/
+│   │   │   │   │   audio_player_view_focus_test.dart
+│   │   │   │   │   audio_player_view_test.dart
+│   │   │   │   providers/
+│   │   │   │   │   audio_player_providers_test.dart
+│   │   │   │   widgets/
+│   │   │   │   │   audio_controls_bar_test.dart
+│   │   │   │   │   audio_tag_editor_dialog_test.dart
+│   │   │   │   │   hero_audio_player_test.dart
+│   │   │   │   │   playing_eq_animation_test.dart
+│   │   │   │   │   playlist_sidebar_test.dart
+│   │   │   │   │   waveform_scrubber_test.dart
+│   │   │   unit/
+│   │   │   │   domain/
+│   │   │   │   │   entities/
+│   │   │   │   │   │   audio_track_test.dart
+│   │   │   │   │   utils/
+│   │   │   │   │   │   audio_metadata_utils_test.dart
+│   │   │   │   │   │   audio_queue_isolate_test.dart
+│   │   │   widgets/
+│   │   │   │   presentation/
+│   │   │   │   │   widgets/
+│   │   │   │   │   │   dialogs/
+│   │   │   │   │   │   │   audio_properties_dialog_test.dart
+│   │   directory_browser/
+│   │   │   data/
+│   │   │   │   datasources/
+│   │   │   │   │   directory_size_datasource_test.dart
+│   │   │   │   │   local_file_datasource_test.dart
+│   │   │   │   │   media_metadata_datasource_test.dart
+│   │   │   │   repositories/
+│   │   │   │   │   directory_repository_impl_test.dart
+│   │   │   domain/
+│   │   │   │   entities/
+│   │   │   │   │   device_test.dart
+│   │   │   │   │   directory_state_test.dart
+│   │   │   │   │   file_item_test.dart
+│   │   │   │   │   filter_settings_test.dart
+│   │   │   │   │   navigation_state_test.dart
+│   │   │   │   │   selection_state_test.dart
+│   │   │   │   │   sort_settings_test.dart
+│   │   │   │   │   tab_state_test.dart
+│   │   │   presentation/
+│   │   │   │   pages/
+│   │   │   │   │   directory_analysis_page_extra_test.dart
+│   │   │   │   │   directory_analysis_page_test.dart
+│   │   │   │   │   gallery_page_test.dart
+│   │   │   │   │   mock_utils.dart
+│   │   │   │   providers/
+│   │   │   │   │   background_panel_provider_test.dart
+│   │   │   │   │   clipboard_provider_test.dart
+│   │   │   │   │   conflict_provider_test.dart
+│   │   │   │   │   device_provider_test.dart
+│   │   │   │   │   directory_analysis_provider_test.dart
+│   │   │   │   │   directory_providers_test.dart
+│   │   │   │   │   navigation_notifier_test.dart
+│   │   │   │   │   pinned_items_provider_test.dart
+│   │   │   │   │   selection_notifier_test.dart
+│   │   │   │   │   tab_manager_test.dart
+│   │   │   │   │   task_history_provider_test.dart
+│   │   │   │   │   task_provider_test.dart
+│   │   │   │   widgets/
+│   │   │   │   │   action_bar_test.dart
+│   │   │   │   │   background_panel_test.dart
+│   │   │   │   │   background_processes_button_test.dart
+│   │   │   │   │   conflict_dialog_test.dart
+│   │   │   │   │   context_menu_test.dart
+│   │   │   │   │   create_item_dialog_test.dart
+│   │   │   │   │   dialogs_test.dart
+│   │   │   │   │   empty_state_view_test.dart
+│   │   │   │   │   error_dialog_test.dart
+│   │   │   │   │   file_grid_test.dart
+│   │   │   │   │   filter_overlay_test.dart
+│   │   │   │   │   gnome_tab_bar_test.dart
+│   │   │   │   │   item_card_test.dart
+│   │   │   │   │   item_preview_test.dart
+│   │   │   │   │   media_thumbnail_preview_test.dart
+│   │   │   │   │   open_with_dialog_test.dart
+│   │   │   │   │   preview_container_test.dart
+│   │   │   │   │   properties_dialog_test.dart
+│   │   │   │   │   rename_dialog_test.dart
+│   │   │   │   │   rename_popover_test.dart
+│   │   │   │   │   rubber_band_overlay_test.dart
+│   │   │   │   │   sort_overlay_test.dart
+│   │   │   │   │   task_history_detail_view_test.dart
+│   │   │   │   │   task_history_view_test.dart
+│   │   │   │   │   task_tile_test.dart
+│   │   │   │   │   top_bar_test.dart
+│   │   │   │   │   unified_side_panel_test.dart
+│   │   │   │   │   sidebar/
+│   │   │   │   │   │   devices_section_test.dart
+│   │   │   │   │   │   sidebar_item_test.dart
+│   │   │   │   │   │   sidebar_test.dart
+│   │   │   │   │   │   storage_indicator_test.dart
+│   │   │   widgets/
+│   │   │   │   file_grid_test.dart
+│   │   document_viewer/
+│   │   │   unit/
+│   │   │   │   presentation/
+│   │   │   │   │   widgets/
+│   │   │   │   │   │   markdown_syntax_highlighter_test.dart
+│   │   │   │   services/
+│   │   │   │   │   mermaid_offline_renderer_test.dart
+│   │   │   widgets/
+│   │   │   │   presentation/
+│   │   │   │   │   widgets/
+│   │   │   │   │   │   markdown_preview_widget_test.dart
+│   │   │   │   │   │   markdown_syntax_highlighter_test.dart
+│   │   │   │   │   │   text_span_test.dart
+│   │   downloader/
+│   │   │   presentation/
+│   │   │   │   pages/
+│   │   │   │   │   standalone_downloader_window_test.dart
+│   │   │   │   providers/
+│   │   │   │   │   download_task_provider_test.dart
+│   │   │   │   │   downloads_shared_controller_test.dart
+│   │   │   │   widgets/
+│   │   │   │   │   download_history_detail_view_test.dart
+│   │   │   │   │   download_history_view_test.dart
+│   │   │   │   │   downloads_header_test.dart
+│   │   │   │   │   downloads_panel_test.dart
+│   │   │   │   │   downloads_shared_dropdowns_test.dart
+│   │   │   │   │   standalone_window/
+│   │   │   │   │   │   standalone_window_action_bar_test.dart
+│   │   │   │   │   │   standalone_window_active_downloads_test.dart
+│   │   │   │   │   │   standalone_window_header_test.dart
+│   │   │   │   │   │   standalone_window_location_bar_test.dart
+│   │   │   │   │   │   standalone_window_media_grid_test.dart
+│   │   │   │   │   │   standalone_window_media_list_test.dart
+│   │   │   unit/
+│   │   │   │   domain/
+│   │   │   │   │   entities/
+│   │   │   │   │   │   download_config_test.dart
+│   │   │   │   │   │   media_info_test.dart
+│   │   │   │   presentation/
+│   │   │   │   │   pages/
+│   │   │   │   │   │   standalone_downloader_window_stream_test.dart
+│   │   │   │   │   providers/
+│   │   │   │   │   │   download_history_provider_test.dart
+│   │   │   │   │   │   download_task_provider_test.dart
+│   │   │   │   │   │   downloads_panel_provider_test.dart
+│   │   │   │   │   widgets/
+│   │   │   │   │   │   downloads_panel_helpers_test.dart
+│   │   │   │   services/
+│   │   │   │   │   aria2_accelerator_test.dart
+│   │   │   │   │   cookie_helper_test.dart
+│   │   │   │   │   download_history_database_test.dart
+│   │   │   │   │   downloader_process_wrapper_test.dart
+│   │   │   │   │   downloader_update_service_test.dart
+│   │   │   │   │   engines/
+│   │   │   │   │   │   download_engine_test.dart
+│   │   │   │   │   │   engine_registry_test.dart
+│   │   │   │   │   │   gallery_dl_engine_test.dart
+│   │   │   │   │   │   lux_engine_test.dart
+│   │   │   │   │   │   playwright_engine_test.dart
+│   │   │   │   │   │   streamlink_engine_test.dart
+│   │   │   │   │   │   youget_engine_test.dart
+│   │   │   │   │   │   ytdlp_engine_test.dart
+│   │   │   widgets/
+│   │   │   │   presentation/
+│   │   │   │   │   widgets/
+│   │   │   │   │   │   download_history_detail_view_test.dart
+│   │   │   │   │   │   download_history_view_test.dart
+│   │   │   │   │   │   download_history_widgets_test.dart
+│   │   │   │   │   │   download_task_tile_test.dart
+│   │   │   │   │   │   downloads_panel_comprehensive_test.dart
+│   │   │   │   │   │   downloads_panel_input_test.dart
+│   │   │   │   │   │   downloads_panel_preview_test.dart
+│   │   │   │   │   │   downloads_panel_shortcuts_test.dart
+│   │   │   │   │   │   downloads_panel_tiles_test.dart
+│   │   │   │   │   │   downloads_panel_widgets_test.dart
+│   │   │   │   │   │   mock_providers.dart
+│   │   │   │   │   │   components/
+│   │   │   │   │   │   │   downloads_missing_binaries_view_test.dart
+│   │   │   │   │   │   │   downloads_panel_controls_test.dart
+│   │   │   │   │   │   │   downloads_panel_results_view_test.dart
+│   │   image_viewer/
+│   │   │   presentation/
+│   │   │   │   widgets/
+│   │   │   │   │   image_preview_widget_focus_test.dart
+│   │   settings/
+│   │   │   data/
+│   │   │   │   repositories/
+│   │   │   │   │   settings_repository_impl_test.dart
+│   │   │   presentation/
+│   │   │   │   providers/
+│   │   │   │   │   settings_providers_test.dart
+│   │   video_player/
+│   │   │   data/
+│   │   │   │   repositories/
+│   │   │   │   │   marker_repository_test.dart
+│   │   │   │   │   playback_memory_repository_test.dart
+│   │   │   domain/
+│   │   │   │   entities/
+│   │   │   │   │   video_marker_test.dart
+│   │   │   presentation/
+│   │   │   │   providers/
+│   │   │   │   │   video_markers_provider_test.dart
+│   │   │   │   │   video_playlist_providers_test.dart
+│   │   │   │   widgets/
+│   │   │   │   │   gradient_slider_track_test.dart
+│   │   │   │   │   hover_preview_test.dart
+│   │   │   │   │   menu_tooltip_test.dart
+│   │   │   │   │   playback_speed_control_test.dart
+│   │   │   │   │   timeline_marker_test.dart
+│   │   │   │   │   track_selector_menu_test.dart
+│   │   │   │   │   video_playlist_sidebar_test.dart
+│   │   │   │   │   video_preview_widget_autoplay_and_error_test.dart
+│   │   │   │   │   video_preview_widget_focus_test.dart
+│   │   │   │   │   video_preview_widget_standalone_navigation_test.dart
+│   │   │   │   │   video_preview_widget_sw_crash_fix_test.dart
+│   │   │   │   │   video_preview_widget_ytdl_path_test.dart
+│   │   │   │   │   video_speed_overlay_test.dart
+│   │   │   │   │   video_volume_overlay_test.dart
+│   helpers/
+│   │   file_system_helper.dart
+│   mocks/
+│   │   mocks.dart
+│   services/
+│   │   unit/
+│   │   │   file_system_service_test.dart
 ```
+
 
 **Total: 210+ Dart source files across 9 feature modules, core infrastructure, and services layer.**
 

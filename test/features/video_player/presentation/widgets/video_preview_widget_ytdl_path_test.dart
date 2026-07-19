@@ -8,8 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import "package:onyxcore/core/utils/file_type_classifier.dart";
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 
 void main() {

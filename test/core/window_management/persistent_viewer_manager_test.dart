@@ -1,17 +1,18 @@
-import 'package:flutter/services.dart';
+// ignore_for_file: avoid_dynamic_calls
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PersistentViewerManager', () {
     const channel = MethodChannel('onyxcore/window_manager');
-    final List<MethodCall> log = [];
+    final log = <MethodCall>[];
 
     setUp(() {
       log.clear();
@@ -32,7 +33,7 @@ void main() {
     });
 
     test('init sets method call handler', () async {
-      final ByteData? result = await TestDefaultBinaryMessengerBinding
+      final result = await TestDefaultBinaryMessengerBinding
           .instance.defaultBinaryMessenger
           .handlePlatformMessage(
         'onyxcore/window_manager',
@@ -138,7 +139,7 @@ void main() {
       final params1 = WindowParams(viewerType: ViewerType.video, file: file1);
 
       await PersistentViewerManager.openMedia(params1);
-      final int viewId = WidgetsBinding.instance.platformDispatcher.views.first.viewId;
+      final viewId = WidgetsBinding.instance.platformDispatcher.views.first.viewId;
       log.clear();
 
       final file2 = FileItem(path: '/test2.mp4', name: 'test2.mp4', type: FileItemType.video, modified: DateTime.now(), sizeBytes: 100);

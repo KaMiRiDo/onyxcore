@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use, cascade_invocations, unused_local_variable
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';

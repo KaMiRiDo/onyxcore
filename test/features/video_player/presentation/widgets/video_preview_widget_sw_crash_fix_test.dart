@@ -85,14 +85,14 @@ Future<void> _drainAndDispose(WidgetTester tester) async {
 // Unit-level logic (no widget pump required)
 // ---------------------------------------------------------------------------
 
-/// Mirrors the clamping logic from [video_preview_widget.dart] so we can
+/// Mirrors the clamping logic from [VideoPreviewWidget] so we can
 /// test the arithmetic in pure Dart without inflating the full widget tree.
 ({int width, int height}) _safeBufferDims({
   required double? physicalWidth,
   required double? physicalHeight,
 }) {
-  final int w = (physicalWidth ?? 1920.0).round().clamp(1, 3840);
-  final int h = (physicalHeight ?? 1080.0).round().clamp(1, 2160);
+  final w = (physicalWidth ?? 1920.0).round().clamp(1, 3840);
+  final h = (physicalHeight ?? 1080.0).round().clamp(1, 2160);
   return (width: w, height: h);
 }
 
@@ -124,7 +124,7 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  FileItem _makeFileItem(String name) => FileItem(
+  FileItem makeFileItem(String name) => FileItem(
         path: '${tempDir.path}/$name',
         name: name,
         type: FileItemType.video,
@@ -137,7 +137,7 @@ void main() {
 
   group('VideoControllerConfiguration safe buffer dimension logic', () {
     test('uses physical screen dimensions when display is available', () {
-      final dims = _safeBufferDims(physicalWidth: 1920.0, physicalHeight: 1080.0);
+      final dims = _safeBufferDims(physicalWidth: 1920, physicalHeight: 1080);
       expect(dims.width, 1920);
       expect(dims.height, 1080);
     });
@@ -149,38 +149,38 @@ void main() {
     });
 
     test('uses smaller dimensions on a 768p screen without capping', () {
-      final dims = _safeBufferDims(physicalWidth: 1366.0, physicalHeight: 768.0);
+      final dims = _safeBufferDims(physicalWidth: 1366, physicalHeight: 768);
       expect(dims.width, 1366);
       expect(dims.height, 768);
     });
 
     test('uses 4K dimensions on a 4K display without capping', () {
-      final dims = _safeBufferDims(physicalWidth: 3840.0, physicalHeight: 2160.0);
+      final dims = _safeBufferDims(physicalWidth: 3840, physicalHeight: 2160);
       expect(dims.width, 3840);
       expect(dims.height, 2160);
     });
 
     test('clamps width above 3840 to maximum allowed value', () {
-      final dims = _safeBufferDims(physicalWidth: 5120.0, physicalHeight: 2160.0);
+      final dims = _safeBufferDims(physicalWidth: 5120, physicalHeight: 2160);
       expect(dims.width, 3840);
       expect(dims.height, 2160);
     });
 
     test('clamps height above 2160 to maximum allowed value', () {
-      final dims = _safeBufferDims(physicalWidth: 1920.0, physicalHeight: 4320.0);
+      final dims = _safeBufferDims(physicalWidth: 1920, physicalHeight: 4320);
       expect(dims.width, 1920);
       expect(dims.height, 2160);
     });
 
     test('clamps both dimensions when both exceed maximum', () {
-      final dims = _safeBufferDims(physicalWidth: 7680.0, physicalHeight: 4320.0);
+      final dims = _safeBufferDims(physicalWidth: 7680, physicalHeight: 4320);
       expect(dims.width, 3840);
       expect(dims.height, 2160);
     });
 
     test('clamps width to minimum 1 if given zero', () {
       // Zero would trigger the exact crash we fixed.
-      final dims = _safeBufferDims(physicalWidth: 0.0, physicalHeight: 0.0);
+      final dims = _safeBufferDims(physicalWidth: 0, physicalHeight: 0);
       expect(dims.width, greaterThanOrEqualTo(1));
       expect(dims.height, greaterThanOrEqualTo(1));
     });
@@ -194,7 +194,7 @@ void main() {
 
     test('result width is always at least 1 (never produces a fatal 0)', () {
       for (final w in [-100.0, -1.0, 0.0, 0.4, 0.9]) {
-        final dims = _safeBufferDims(physicalWidth: w, physicalHeight: 1080.0);
+        final dims = _safeBufferDims(physicalWidth: w, physicalHeight: 1080);
         expect(dims.width, greaterThanOrEqualTo(1),
             reason: 'width must be ≥1 for physicalWidth=$w');
       }
@@ -202,7 +202,7 @@ void main() {
 
     test('result height is always at least 1 (never produces a fatal 0)', () {
       for (final h in [-100.0, -1.0, 0.0, 0.4, 0.9]) {
-        final dims = _safeBufferDims(physicalWidth: 1920.0, physicalHeight: h);
+        final dims = _safeBufferDims(physicalWidth: 1920, physicalHeight: h);
         expect(dims.height, greaterThanOrEqualTo(1),
             reason: 'height must be ≥1 for physicalHeight=$h');
       }
@@ -224,9 +224,9 @@ void main() {
   group('PlatformDispatcher display dimensions remain within safe bounds', () {
     test('displays.first.size.width produces a valid safe buffer width', () {
       final displays = PlatformDispatcher.instance.displays;
-      final double physW =
+      final physW =
           displays.isNotEmpty ? displays.first.size.width : 1920.0;
-      final double physH =
+      final physH =
           displays.isNotEmpty ? displays.first.size.height : 1080.0;
 
       final dims = _safeBufferDims(physicalWidth: physW, physicalHeight: physH);
@@ -245,8 +245,8 @@ void main() {
     test('safe buffer always produces non-zero dimensions regardless of display count', () {
       // Test with actual PlatformDispatcher value (may be empty in test env).
       final displays = PlatformDispatcher.instance.displays;
-      final double? w = displays.isNotEmpty ? displays.first.size.width : null;
-      final double? h = displays.isNotEmpty ? displays.first.size.height : null;
+      final w = displays.isNotEmpty ? displays.first.size.width : null;
+      final h = displays.isNotEmpty ? displays.first.size.height : null;
       final dims = _safeBufferDims(physicalWidth: w, physicalHeight: h);
       expect(dims.width, greaterThanOrEqualTo(1));
       expect(dims.height, greaterThanOrEqualTo(1));
@@ -261,7 +261,7 @@ void main() {
     testWidgets(
         'widget initialises without throwing (dimensions applied via configuration)',
         (WidgetTester tester) async {
-      final fileItem = _makeFileItem('test_init_config.mp4');
+      final fileItem = makeFileItem('test_init_config.mp4');
 
       await tester.pumpWidget(_buildWidget(fileItem, db));
       await tester.pump();
@@ -279,7 +279,7 @@ void main() {
         (WidgetTester tester) async {
       // In a headless test runner PlatformDispatcher.instance.displays may be
       // empty. The fallback must prevent any assertion error from the native bridge.
-      final fileItem = _makeFileItem('test_no_display.mp4');
+      final fileItem = makeFileItem('test_no_display.mp4');
 
       await tester.pumpWidget(_buildWidget(fileItem, db));
       await tester.pump();
@@ -287,8 +287,8 @@ void main() {
       // Accept RenderFlex overflow (layout warning from the widget's complex tree)
       // and MissingPluginException (native channels are stubbed).
       // The only truly fatal errors are assertion failures from media_kit.
-      Object? err = tester.takeException();
-      final bool onlyLayoutOrPlugin =
+      final Object? err = tester.takeException();
+      final onlyLayoutOrPlugin =
           err == null ||
           err is MissingPluginException ||
           (err is FlutterError &&
@@ -309,7 +309,7 @@ void main() {
     testWidgets(
         'media open IS triggered after two frame callbacks',
         (WidgetTester tester) async {
-      final fileItem = _makeFileItem('test_opens_after_2_frames.mp4');
+      final fileItem = makeFileItem('test_opens_after_2_frames.mp4');
 
       await tester.pumpWidget(_buildWidget(fileItem, db));
 
@@ -329,7 +329,7 @@ void main() {
     testWidgets(
         'widget remains mounted and functional after the double-frame delay',
         (WidgetTester tester) async {
-      final fileItem = _makeFileItem('test_still_mounted_after_delay.mp4');
+      final fileItem = makeFileItem('test_still_mounted_after_delay.mp4');
 
       await tester.pumpWidget(_buildWidget(fileItem, db));
       await tester.pump(); // frame 1
@@ -340,7 +340,7 @@ void main() {
 
       // Only layout or plugin exceptions are acceptable.
       final Object? err = tester.takeException();
-      final bool acceptable =
+      final acceptable =
           err == null ||
           err is MissingPluginException ||
           (err is FlutterError && err.message.contains('overflowed'));
@@ -354,7 +354,7 @@ void main() {
         (WidgetTester tester) async {
       // If the widget is removed before the second addPostFrameCallback fires,
       // the `if (!mounted) return` guard must prevent any error.
-      final fileItem = _makeFileItem('test_unmount_before_frame2.mp4');
+      final fileItem = makeFileItem('test_unmount_before_frame2.mp4');
 
       await tester.pumpWidget(_buildWidget(fileItem, db));
       await tester.pump(); // frame 1 – first callback fires, second scheduled
@@ -366,7 +366,7 @@ void main() {
     testWidgets(
         'unmounting before frame 1 fires does not throw (very early teardown)',
         (WidgetTester tester) async {
-      final fileItem = _makeFileItem('test_unmount_before_frame1.mp4');
+      final fileItem = makeFileItem('test_unmount_before_frame1.mp4');
 
       await tester.pumpWidget(_buildWidget(fileItem, db));
       // Unmount immediately before any frame callbacks have fired.
@@ -382,7 +382,7 @@ void main() {
     testWidgets(
         'widget survives full startup: two-frame delay + media open + 300ms timer',
         (WidgetTester tester) async {
-      final fileItem = _makeFileItem('test_full_startup.mp4');
+      final fileItem = makeFileItem('test_full_startup.mp4');
 
       await tester.pumpWidget(_buildWidget(fileItem, db));
       await tester.pump();  // frame 1
@@ -399,7 +399,7 @@ void main() {
     testWidgets(
         'BubbleLoader is present at startup (widget alive during opening phase)',
         (WidgetTester tester) async {
-      final fileItem = _makeFileItem('test_loader_visible.mp4');
+      final fileItem = makeFileItem('test_loader_visible.mp4');
 
       await tester.pumpWidget(_buildWidget(fileItem, db));
       await tester.pump(); // _isOpening == true at this point
@@ -414,7 +414,7 @@ void main() {
     testWidgets(
         'standalone mode: window-present timer + double-frame delay both complete cleanly',
         (WidgetTester tester) async {
-      final fileItem = _makeFileItem('test_standalone_delay.mp4');
+      final fileItem = makeFileItem('test_standalone_delay.mp4');
 
       await tester.pumpWidget(ProviderScope(
         overrides: [databaseProvider.overrideWithValue(db)],

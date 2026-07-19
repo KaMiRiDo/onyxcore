@@ -12,6 +12,11 @@ import 'package:google_fonts/google_fonts.dart';
 /// - While extracting: queue the latest position.
 /// - When extraction finishes: immediately start the queued one.
 /// This gives instant response AND continuous updates while sliding.
+typedef ProcessStartCallback = Future<Process> Function(
+  String executable,
+  List<String> arguments,
+);
+
 class HoverPreview extends StatefulWidget {
   const HoverPreview({
     required this.mediaPath,
@@ -19,8 +24,15 @@ class HoverPreview extends StatefulWidget {
     required this.sliderWidth,
     required this.hoverXNotifier,
     required this.isVisible,
+    this.processStart = _defaultProcessStart,
     super.key,
   });
+
+  static Future<Process> _defaultProcessStart(String executable, List<String> arguments) {
+    return Process.start(executable, arguments);
+  }
+
+  final ProcessStartCallback processStart;
 
   final String mediaPath;
   final Duration totalDuration;
@@ -100,7 +112,7 @@ class _HoverPreviewState extends State<HoverPreview> {
     try {
       _killActiveProcess();
 
-      final process = await Process.start('ffmpeg', [
+      final process = await widget.processStart('ffmpeg', [
         '-threads',
         '2',
         '-ss',

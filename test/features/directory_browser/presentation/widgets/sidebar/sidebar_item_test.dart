@@ -1,3 +1,4 @@
+// ignore_for_file: use_named_constants
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

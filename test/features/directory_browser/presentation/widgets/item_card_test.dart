@@ -1,3 +1,4 @@
+// ignore_for_file: use_named_constants
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -114,7 +115,7 @@ void main() {
       matching: find.byType(Container),
     ).first);
 
-    final decoration = container.decoration as BoxDecoration;
+    final decoration = container.decoration! as BoxDecoration;
     expect(decoration.color, AppColors.violet.withValues(alpha: 0.12));
   });
 }

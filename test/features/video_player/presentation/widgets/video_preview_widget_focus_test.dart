@@ -72,6 +72,7 @@ void main() {
       windowLogs,
       contains(
         isA<MethodCall>().having((call) => call.method, 'method', 'present_window')
+                         // ignore: avoid_dynamic_calls
                          .having((call) => call.arguments['view_id'], 'view_id', 300),
       ),
     );

@@ -1,9 +1,11 @@
+// ignore_for_file: cascade_invocations
 import 'package:audiotags/audiotags.dart';
 import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
@@ -12,8 +14,6 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-
-import 'package:mocktail/mocktail.dart';
 
 class MockSettingsNotifier extends SettingsNotifier {
   MockSettingsNotifier(this._settings);
@@ -592,7 +592,7 @@ void main() {
       when(() => mockStream.position).thenAnswer((_) => Stream.value(Duration.zero));
       when(() => mockStream.duration).thenAnswer((_) => Stream.value(Duration.zero));
       when(() => mockStream.playing).thenAnswer((_) => Stream.value(false));
-      when(() => mockStream.volume).thenAnswer((_) => Stream.value(100.0));
+      when(() => mockStream.volume).thenAnswer((_) => Stream.value(100));
       
       final player = MockPlayer();
       when(() => player.stream).thenReturn(mockStream);

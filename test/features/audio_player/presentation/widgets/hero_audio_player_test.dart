@@ -1,17 +1,16 @@
+// ignore_for_file: cascade_invocations
+import 'dart:ui' as ui;
+
+import 'package:audiotags/audiotags.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/hero_audio_player.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:audiotags/audiotags.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:flutter/services.dart';
-import 'dart:convert';
-
-import 'dart:ui' as ui;
 
 class DummyAudioFavoritesNotifier extends AudioFavoritesNotifier {
   @override
@@ -83,7 +82,7 @@ void main() {
         modified: DateTime.now(),
         sizeBytes: 100,
       );
-      await tester.pumpWidget(buildTestWidget(currentTrack: file, tag: null));
+      await tester.pumpWidget(buildTestWidget(currentTrack: file));
       expect(find.text('test'), findsWidgets);
       expect(find.text('Audio File'), findsWidgets);
 

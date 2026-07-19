@@ -80,6 +80,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
     }
     if (widget.isMarkerEditorActive && !oldWidget.isMarkerEditorActive) {
       if (_isMenuOpen || _isDeletePromptVisible) {
+        Navigator.of(context, rootNavigator: true).pop();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             setState(() {
@@ -94,6 +95,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
   }
 
   void _showDeleteAllDialog(BuildContext context) {
+    setState(() => _isDeletePromptVisible = true);
     // Keep HUD visible while dialog is open
     widget.onMenuVisibilityChanged(true);
 
@@ -284,7 +286,10 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
       transitionDuration: const Duration(milliseconds: 200),
     ).then((confirmed) async {
       // Dismiss HUD hold
-      if (mounted) widget.onMenuVisibilityChanged(false);
+      if (mounted) {
+        setState(() => _isDeletePromptVisible = false);
+        widget.onMenuVisibilityChanged(false);
+      }
       if (confirmed == true && mounted) {
         await ref
             .read(markerActionsProvider)
@@ -294,6 +299,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
   }
 
   void _showRadialMenu(BuildContext context) {
+    setState(() => _isMenuOpen = true);
     // Keep HUD visible
     widget.onMenuVisibilityChanged(true);
 

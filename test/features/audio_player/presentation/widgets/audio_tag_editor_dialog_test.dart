@@ -1,5 +1,5 @@
+// ignore_for_file: inference_failure_on_function_return_type, unused_local_variable
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
@@ -232,7 +232,7 @@ void main() {
     });
 
     testWidgets('saves and renames single file', (WidgetTester tester) async {
-      bool renameCalled = false;
+      var renameCalled = false;
       await tester.pumpWidget(createWidget(['/path/to/Song.mp3'], onRename: (oldP, newP) {
         renameCalled = true;
       }));

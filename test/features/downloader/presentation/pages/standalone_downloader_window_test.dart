@@ -15,10 +15,9 @@ import 'package:onyxcore/features/downloader/presentation/providers/downloads_pa
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
 import 'package:path/path.dart' as p;
 
-// ignore_for_file: avoid_dynamic_calls, invalid_use_of_protected_member
+// ignore_for_file: avoid_dynamic_calls, invalid_use_of_protected_member, cascade_invocations
 
 const _windowChannel = MethodChannel('onyxcore/window_manager');
 
@@ -463,8 +462,8 @@ void main() {
       final group = makeGroup(
         originalUrl: 'https://playlist.example',
         items: [
-          makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://playlist.example/v1', isVideo: true, isPlaylist: true, formats: []),
-          makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://playlist.example/v2', isVideo: true, isPlaylist: true, formats: []),
+          makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://playlist.example/v1', isPlaylist: true, formats: []),
+          makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://playlist.example/v2', isPlaylist: true, formats: []),
         ],
       );
       
@@ -1159,10 +1158,10 @@ void main() {
       final group = makeGroup(
         originalUrl: 'https://playlist.example',
         items: [
-          makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://playlist.example/v1', isVideo: true, isPlaylist: true, thumbnail: 'https://thumb.example', formats: [
+          makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://playlist.example/v1', isPlaylist: true, thumbnail: 'https://thumb.example', formats: [
             makeFormat(formatId: 'a1', resolution: 'audio only', filesize: 100, videoCodec: 'none'),
           ]),
-          makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://playlist.example/v2', isVideo: true, isPlaylist: true, thumbnail: 'https://thumb.example', formats: []),
+          makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://playlist.example/v2', isPlaylist: true, thumbnail: 'https://thumb.example', formats: []),
         ],
       );
       controller.cache.parsedItems = [group];
@@ -1198,7 +1197,7 @@ void main() {
 
       final group = makeGroup(
         originalUrl: 'https://video.example',
-        items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video.example/v1', isVideo: true)],
+        items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video.example/v1')],
       );
       controller.cache.parsedItems = [group];
       controller.cache.configs[0] = DownloadConfig();
@@ -1249,11 +1248,11 @@ void main() {
 
       final group1 = makeGroup(
         originalUrl: 'https://video1.example',
-        items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video1.example', isVideo: true)],
+        items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video1.example')],
       );
       final group2 = makeGroup(
         originalUrl: 'https://video2.example',
-        items: [makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://video2.example', isVideo: true)],
+        items: [makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://video2.example')],
       );
       controller.cache.parsedItems = [group1, group2];
       controller.cache.configs[0] = DownloadConfig();

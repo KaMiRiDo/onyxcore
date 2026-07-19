@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print, unused_local_variable
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
@@ -535,7 +536,7 @@ void main() {
           settingsProvider.overrideWith(MockSettingsNotifier.new),
           pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
           sortSettingsProvider.overrideWithValue(
-            SortSettings(option: SortOption.aToZ),
+            SortSettings(),
           ),
         ],
       );
@@ -562,7 +563,6 @@ void main() {
           name: 'folder1',
           type: FileItemType.folder,
           modified: now,
-          sizeBytes: null,
         ),
       ];
       
@@ -610,7 +610,6 @@ void main() {
           name: 'folder1',
           type: FileItemType.folder,
           modified: now,
-          sizeBytes: null,
         ),
       ];
       

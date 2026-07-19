@@ -143,8 +143,8 @@ void main() {
       final f1080 = MediaFormat(formatId: '1080', extension: 'mp4', resolution: '1080p', formatString: '');
       final f720 = MediaFormat(formatId: '720', extension: 'mp4', resolution: '720p', formatString: '');
       
-      final v1 = MediaInfo(id: 'v1', title: 'v1', originalUrl: 'v1', formats: [f1080, f720], isVideo: true);
-      final v2 = MediaInfo(id: 'v2', title: 'v2', originalUrl: 'v2', formats: [f1080, f720], isVideo: true);
+      final v1 = MediaInfo(id: 'v1', title: 'v1', originalUrl: 'v1', formats: [f1080, f720]);
+      final v2 = MediaInfo(id: 'v2', title: 'v2', originalUrl: 'v2', formats: [f1080, f720]);
       
       final group = MediaGroup(originalUrl: 'p1', items: [v1, v2]);
       final playlistItem = MediaInfo(id: 'p1', title: 'p1', originalUrl: 'p1', isPlaylist: true, formats: []);
@@ -158,7 +158,6 @@ void main() {
           item: playlistItem,
           config: config,
           index: 0,
-          isItemLevel: false,
           group: group,
           getHeight: (r) => r.contains('1080') ? 1080 : 720,
           matchTargetFormat: (i, f) => f1080,

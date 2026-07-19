@@ -5,7 +5,7 @@ import 'package:onyxcore/features/video_player/presentation/widgets/gradient_sli
 void main() {
   group('GradientRectSliderTrackShape', () {
     testWidgets('paints inactive, active, and buffer tracks correctly', (tester) async {
-      final gradient = const LinearGradient(colors: [Colors.red, Colors.blue]);
+      const gradient = LinearGradient(colors: [Colors.red, Colors.blue]);
       final trackShape = GradientRectSliderTrackShape(
         gradient: gradient,
         bufferProgress: 0.5,
@@ -39,10 +39,9 @@ void main() {
     });
     
     testWidgets('paints correctly without bufferProgress', (tester) async {
-      final gradient = const LinearGradient(colors: [Colors.red, Colors.blue]);
+      const gradient = LinearGradient(colors: [Colors.red, Colors.blue]);
       final trackShape = GradientRectSliderTrackShape(
         gradient: gradient,
-        bufferProgress: null,
       );
 
       await tester.pumpWidget(

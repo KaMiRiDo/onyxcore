@@ -1,3 +1,4 @@
+// ignore_for_file: inference_failure_on_collection_literal
 
 import 'dart:io';
 

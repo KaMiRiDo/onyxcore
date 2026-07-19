@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
 import 'package:drift/native.dart';
@@ -6,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/cache/metadata_cache.dart';
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
-import 'package:path/path.dart' as p;
 
 void main() {
   late MetadataCache cache;

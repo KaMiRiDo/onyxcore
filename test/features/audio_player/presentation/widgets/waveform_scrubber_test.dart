@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 import 'package:onyxcore/features/audio_player/presentation/widgets/waveform_scrubber.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:flutter/services.dart';
 
 void main() {
   setUpAll(() {

@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_type_check
 
 import 'dart:io' as import_io;
 import 'dart:typed_data';

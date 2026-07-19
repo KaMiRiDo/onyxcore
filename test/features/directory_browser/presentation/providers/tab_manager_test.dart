@@ -1,3 +1,4 @@
+// ignore_for_file: join_return_with_assignment, cascade_invocations, inference_failure_on_instance_creation
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

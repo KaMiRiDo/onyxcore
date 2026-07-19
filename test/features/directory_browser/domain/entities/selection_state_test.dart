@@ -1,3 +1,4 @@
+// ignore_for_file: use_named_constants
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
 

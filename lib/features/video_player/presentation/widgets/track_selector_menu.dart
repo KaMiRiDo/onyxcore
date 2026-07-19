@@ -101,12 +101,16 @@ class TrackSelectorMenu extends StatelessWidget {
               size: 18,
             ),
             const SizedBox(width: 12),
-            Text(
-              'Load External Subtitle',
-              style: GoogleFonts.manrope(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                'Load External Subtitle',
+                style: GoogleFonts.manrope(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

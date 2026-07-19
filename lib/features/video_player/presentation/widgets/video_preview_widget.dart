@@ -126,6 +126,15 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   bool _isSeekLoading = false;
   bool _hasError = false;
   String _errorMessage = '';
+
+  @visibleForTesting
+  void setErrorForTest() {
+    setState(() {
+      _hasError = true;
+      _errorMessage = 'Failed to play';
+    });
+  }
+
   Timer? _seekLoaderTimer;
   Duration? _preSeekPosition;
   DateTime _lastSeekTime = DateTime.now();
@@ -251,17 +260,22 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       final formatsJson = widget.initParams?['formats'] as List?;
       if (formatsJson != null) {
         _availableFormats = formatsJson
-            .map((e) => MediaFormat.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map(
+              (e) => MediaFormat.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
             .toList();
         _availableFormats = _availableFormats
             .where((f) => !f.isAudioOnly)
             .toList();
 
-        final selectedFormatIdStr = widget.initParams?['selectedFormatId']?.toString();
-        
+        final selectedFormatIdStr = widget.initParams?['selectedFormatId']
+            ?.toString();
+
         // Ensure the selected format is prioritized during deduplication
         if (selectedFormatIdStr != null) {
-          final selectedIndex = _availableFormats.indexWhere((f) => f.formatId == selectedFormatIdStr);
+          final selectedIndex = _availableFormats.indexWhere(
+            (f) => f.formatId == selectedFormatIdStr,
+          );
           if (selectedIndex > 0) {
             final selected = _availableFormats.removeAt(selectedIndex);
             _availableFormats.insert(0, selected);
@@ -416,13 +430,17 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       final dynamic platform = player.platform;
 
       if (_isNetworkStream) {
-        final selectedFormatId = widget.initParams?['selectedFormatId'] as String?;
+        final selectedFormatId =
+            widget.initParams?['selectedFormatId'] as String?;
         if (selectedFormatId != null) {
-          platform.setProperty('ytdl-format', '$selectedFormatId+bestaudio/best');
+          platform.setProperty(
+            'ytdl-format',
+            '$selectedFormatId+bestaudio/best',
+          );
         } else {
           platform.setProperty('ytdl-format', 'bestvideo+bestaudio/best');
         }
-        
+
         final audioUrl = widget.initParams?['audioUrl'] as String?;
         if (audioUrl != null && audioUrl.isNotEmpty) {
           platform.setProperty('audio-file', audioUrl);
@@ -680,7 +698,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             // Media failed to load — stream closed without a valid duration.
             // Reset seek state so the loader is dismissed; the error stream
             // listener will have already set _hasError = true.
-            debugPrint('[VideoPlayer] Seek setup failed (media load error): $e');
+            debugPrint(
+              '[VideoPlayer] Seek setup failed (media load error): $e',
+            );
             if (mounted) {
               setState(() {
                 _isSeekingToInitial = false;
@@ -691,9 +711,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     _completedSubscription = player.stream.completed.listen((completed) {
       if (completed) {
-        final settings = ref.read(settingsProvider).value;
-        final autoPlay = settings?.autoPlayNext ?? true;
-        if (autoPlay) {
+        final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
+        if (isAutoPlay) {
           _navigateMedia(true);
         } else {
           player.pause();
@@ -726,9 +745,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _positionSubscription = player.stream.position.listen((pos) {
       if (_isClosing || !mounted) return;
       if (_preSeekPosition != null) {
-        final timeSinceSeek = DateTime.now().difference(_lastSeekTime).inMilliseconds;
-        final posDiff = (pos.inMilliseconds - _preSeekPosition!.inMilliseconds).abs();
-        
+        final timeSinceSeek = DateTime.now()
+            .difference(_lastSeekTime)
+            .inMilliseconds;
+        final posDiff = (pos.inMilliseconds - _preSeekPosition!.inMilliseconds)
+            .abs();
+
         // If the position has changed significantly or if it has been longer than 500ms
         // (meaning the player likely resumed natively), consider the seek finished.
         if (posDiff > 100 || timeSinceSeek > 500) {
@@ -849,6 +871,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
     // 2. Update state
     setState(() {
+      _hasError = false;
+      _errorMessage = '';
       _currentItem = item;
       _fps = null;
       _isEmpty = false;
@@ -961,7 +985,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     try {
       if (_isNetworkStream) {
         final platform = player.platform as dynamic;
-        platform.setProperty('ytdl-format', '${format.formatId}+bestaudio/best');
+        platform.setProperty(
+          'ytdl-format',
+          '${format.formatId}+bestaudio/best',
+        );
         await player.open(
           Media(MediaUriHelper.getSafeMediaUri(_currentItem.path)),
           play: true,
@@ -969,7 +996,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       } else {
         final streamUrl = format.url ?? format.formatString;
         if (streamUrl.isEmpty) {
-          debugPrint('[VideoPlayer] Resolution switch aborted: no stream URL available');
+          debugPrint(
+            '[VideoPlayer] Resolution switch aborted: no stream URL available',
+          );
           return;
         }
         await player.open(Media(streamUrl), play: true);
@@ -1075,7 +1104,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     super.didUpdateWidget(oldWidget);
     final oldFormatId = oldWidget.initParams?['selectedFormatId']?.toString();
     final newFormatId = widget.initParams?['selectedFormatId']?.toString();
-    
+
     final pathChanged = oldWidget.item.path != widget.item.path;
     final formatChanged = oldFormatId != newFormatId;
 
@@ -1103,7 +1132,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     await _savePlaybackPosition();
 
     // Stop the MPV pipeline fully so its render thread stops firing into the FlView.
-    // We then await its disposal so it has time to gracefully detach from the GTK 
+    // We then await its disposal so it has time to gracefully detach from the GTK
     // OpenGL context *before* the window is actually destroyed.
     try {
       player.stop();
@@ -1121,7 +1150,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       await PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
     }
   }
-
 
   Future<void> _clearNetworkCache() async {
     try {
@@ -1440,7 +1468,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       debugPrint('[VideoPlayer] Error taking screenshot: $e');
     }
   }
-
 
   void _openMarkerEditor({VideoMarker? marker}) {
     _hideTimer?.cancel();
@@ -2170,7 +2197,39 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   void _navigateMedia(bool forward) {
     if (widget.isStandalone) {
-      // Handled natively via shared isolate state or just fallback to inline logic
+      // 1. Standalone Mode: Use _standalonePlaylist
+      List<FileItem> mediaItems = _standalonePlaylist;
+      if (mediaItems.isEmpty) {
+        mediaItems = ref.read(videoQueueProvider);
+      }
+
+      if (mediaItems.isEmpty) return;
+
+      final currentIndex = mediaItems.indexWhere(
+        (i) => i.path == _currentItem.path,
+      );
+
+      if (currentIndex == -1 || mediaItems.length == 1) {
+        player.pause();
+        return;
+      }
+
+      int nextIndex;
+      if (forward) {
+        if (currentIndex == mediaItems.length - 1) {
+          player.pause();
+          return;
+        }
+        nextIndex = currentIndex + 1;
+      } else {
+        if (currentIndex == 0) {
+          player.pause();
+          return;
+        }
+        nextIndex = currentIndex - 1;
+      }
+
+      _loadMedia(mediaItems[nextIndex]);
     } else {
       // 2. Inline Mode: Local Riverpod state update
       List<FileItem> mediaItems = ref
@@ -2596,7 +2655,8 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                 duration: const Duration(
                                                   milliseconds: 300,
                                                 ),
-                                                opacity: (_isOpening ||
+                                                opacity:
+                                                    (_isOpening ||
                                                         _isSeekingToInitial ||
                                                         _isSmartBuffering ||
                                                         _isSeekLoading)
@@ -3342,13 +3402,27 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                           child: GestureDetector(
                                                             onTap: () {
                                                               setState(() {
-                                                                _showRemainingTime = !_showRemainingTime;
+                                                                _showRemainingTime =
+                                                                    !_showRemainingTime;
                                                               });
-                                                              final currentSettings = ref.read(settingsProvider).value;
-                                                              if (currentSettings != null) {
-                                                                ref.read(settingsProvider.notifier).saveSettings(
-                                                                  currentSettings.copyWith(videoShowRemainingTime: _showRemainingTime),
-                                                                );
+                                                              final currentSettings = ref
+                                                                  .read(
+                                                                    settingsProvider,
+                                                                  )
+                                                                  .value;
+                                                              if (currentSettings !=
+                                                                  null) {
+                                                                ref
+                                                                    .read(
+                                                                      settingsProvider
+                                                                          .notifier,
+                                                                    )
+                                                                    .saveSettings(
+                                                                      currentSettings.copyWith(
+                                                                        videoShowRemainingTime:
+                                                                            _showRemainingTime,
+                                                                      ),
+                                                                    );
                                                               }
                                                             },
                                                             child: Text(
@@ -3478,13 +3552,39 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                                 : Colors
                                                                       .white70,
                                                             onPressed: () {
+                                                              final newState =
+                                                                  !isAutoPlay;
                                                               ref
                                                                       .read(
                                                                         videoAutoPlaySessionProvider
                                                                             .notifier,
                                                                       )
                                                                       .state =
-                                                                  !isAutoPlay;
+                                                                  newState;
+
+                                                              if (newState) {
+                                                                if (player
+                                                                    .state
+                                                                    .completed) {
+                                                                  _navigateMedia(
+                                                                    true,
+                                                                  );
+                                                                } else if (player
+                                                                            .state
+                                                                            .duration
+                                                                            .inMilliseconds >
+                                                                        0 &&
+                                                                    (player
+                                                                            .state
+                                                                            .position
+                                                                            .inMilliseconds >=
+                                                                        player.state.duration.inMilliseconds -
+                                                                            500)) {
+                                                                  _navigateMedia(
+                                                                    true,
+                                                                  );
+                                                                }
+                                                              }
                                                             },
                                                             tooltip: isAutoPlay
                                                                 ? 'Autoplay Next: ON'

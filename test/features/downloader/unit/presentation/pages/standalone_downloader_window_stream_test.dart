@@ -206,9 +206,6 @@ void main() {
         id: '1',
         title: 'Video',
         originalUrl: '', // empty
-        directUrl: null,
-        webpageUrl: null,
-        formats: [],
       );
       expect(resolveStreamUrl(item), isNull);
     });
@@ -217,7 +214,7 @@ void main() {
     // gallery-dl pattern: CDN URL stored in formatString (not url)
     // ═══════════════════════════════════════════════════════════════
 
-    test('U-DL-STR-11: picks formatString as URL for gallery-dl \"original\" format '
+    test('U-DL-STR-11: picks formatString as URL for gallery-dl "original" format '
         'when format.url is null', () {
       // gallery-dl stores the CDN URL in formatString, not in url
       const item = MediaInfo(
@@ -285,12 +282,12 @@ void main() {
   group('resolveEffectiveFormat', () {
     test('U-DL-STR-15: returns selectedFormat if provided', () {
       final selected = MediaFormat(formatId: '137', resolution: '1080p', extension: 'mp4', formatString: '1080p');
-      const item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: []);
+      const item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test');
       expect(resolveEffectiveFormat(item, selectedFormat: selected), selected);
     });
 
     test('U-DL-STR-16: returns null if item has no formats', () {
-      const item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: []);
+      const item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test');
       expect(resolveEffectiveFormat(item), isNull);
     });
 

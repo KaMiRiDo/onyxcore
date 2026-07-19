@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_dynamic_calls
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
@@ -11,7 +12,6 @@ import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
-import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 void main() {
@@ -20,9 +20,9 @@ void main() {
   late AppDatabase db;
 
   /// Returns a mock [MethodCall] handler that silently accepts any native call.
-  Future<dynamic> _nullHandler(MethodCall call) async => null;
+  Future<dynamic> nullHandler(MethodCall call) async => null;
 
-  void _stubNativeChannels() {
+  void stubNativeChannels() {
     for (final channel in const [
       'com.alexmercerind/media_kit_video',
       'com.alexmercerind/media_kit',
@@ -30,7 +30,7 @@ void main() {
       'plugins.flutter.io/window_manager',
     ]) {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(MethodChannel(channel), _nullHandler);
+          .setMockMethodCallHandler(MethodChannel(channel), nullHandler);
     }
   }
 
@@ -38,7 +38,7 @@ void main() {
     MediaKit.ensureInitialized();
     tempDir = Directory.systemTemp.createTempSync('audio_player_focus_test_');
     db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
-    _stubNativeChannels();
+    stubNativeChannels();
   });
 
   tearDownAll(() async {

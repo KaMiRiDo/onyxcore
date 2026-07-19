@@ -1,16 +1,17 @@
-import 'package:onyxcore/features/archive_manager/presentation/widgets/password_dialog.dart';
+// ignore_for_file: inference_failure_on_instance_creation
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/app.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
+import 'package:onyxcore/features/archive_manager/presentation/widgets/password_dialog.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/selection_state.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/app.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fake TaskNotifier — records calls; no Uuid, no Isolates, no timers.

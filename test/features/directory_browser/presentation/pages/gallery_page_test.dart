@@ -1,3 +1,4 @@
+// ignore_for_file: inference_failure_on_instance_creation
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
@@ -5,19 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/preview_container.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/background_panel.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-
 import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
@@ -27,13 +16,17 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/pages/gallery_page.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/device_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/pinned_items_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/properties_dialog.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
@@ -1679,7 +1672,7 @@ void main() {
 
   group('Gallery Page Unit/Lifecycle and Interactions (Part 3)', () {
     testWidgets('W-GAL-136, W-GAL-137: _showProperties()', (tester) async {
-      final mockPath = '/tmp/mock_properties';
+      const mockPath = '/tmp/mock_properties';
       if (!Directory(mockPath).existsSync()) Directory(mockPath).createSync(recursive: true);
       addTearDown(() {
         if (Directory(mockPath).existsSync()) Directory(mockPath).deleteSync(recursive: true);
@@ -1783,7 +1776,7 @@ void main() {
         onSyncing: any(named: 'onSyncing'),
         taskId: any(named: 'taskId'),
         onPort: any(named: 'onPort'),
-      )).thenAnswer((_) async => await Future.delayed(const Duration(milliseconds: 200)));
+      )).thenAnswer((_) async => Future.delayed(const Duration(milliseconds: 200)));
 
       final db = getMockDb();
       await tester.pumpWidget(createWidgetUnderTest(db, mockDirRepo: mockDirRepo));
@@ -1817,7 +1810,7 @@ void main() {
     });
 
     testWidgets('W-GAL-188, W-GAL-189, W-GAL-190, W-GAL-191: Rename dialog', (tester) async {
-      final mockPath = '/mock/path/file.txt';
+      const mockPath = '/mock/path/file.txt';
       final mockDirRepo = MockDirectoryRepository();
       when(() => mockDirRepo.watchDirectory(any())).thenAnswer((_) => const Stream.empty());
       when(() => mockDirRepo.listDirectory(any())).thenAnswer((_) async => [

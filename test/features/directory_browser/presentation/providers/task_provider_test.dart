@@ -1,3 +1,4 @@
+// ignore_for_file: cascade_invocations, unawaited_futures
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
