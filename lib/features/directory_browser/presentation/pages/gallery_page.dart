@@ -406,7 +406,6 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
                                     }
                                     return Positioned.fill(
                                       child: PreviewContainer(
-                                        key: ValueKey(previewFile.path),
                                         item: previewFile,
                                       ),
                                     );

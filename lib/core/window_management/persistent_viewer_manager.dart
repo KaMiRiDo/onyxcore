@@ -178,12 +178,7 @@ class PersistentViewerManager {
             theme: AppTheme.theme,
             home: const Scaffold(
               backgroundColor: Colors.black,
-              body: Center(
-                child: Text(
-                  'Waiting for media...',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
+              body: SizedBox.shrink(),
             ),
           );
         }

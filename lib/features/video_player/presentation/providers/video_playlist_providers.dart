@@ -46,16 +46,16 @@ final videoIsReloadingProvider = StateProvider<bool>((ref) => false);
 // ── Video Playlist Sidebar Providers ─────────────────────────────────────────
 
 /// Whether the video playlist side panel is visible.
-final videoPlaylistSidebarVisibleProvider = StateProvider.autoDispose<bool>((ref) => false);
+final videoPlaylistSidebarVisibleProvider = StateProvider<bool>((ref) => false);
 
 /// Current width of the video playlist side panel (null = default 280px).
-final videoPlaylistSidebarWidthProvider = StateProvider.autoDispose<double?>((ref) => null);
+final videoPlaylistSidebarWidthProvider = StateProvider<double?>((ref) => null);
 
 /// True while the user is dragging the sidebar resize handle.
-final isVideoPlaylistSidebarDraggingProvider = StateProvider.autoDispose<bool>(
+final isVideoPlaylistSidebarDraggingProvider = StateProvider<bool>(
   (ref) => false,
 );
-final videoAutoPlaySessionProvider = StateProvider.autoDispose<bool>((ref) {
+final videoAutoPlaySessionProvider = StateProvider<bool>((ref) {
   return ref.watch(settingsProvider).value?.autoPlayNext ?? true;
 });
 

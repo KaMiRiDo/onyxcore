@@ -153,5 +153,6 @@ void main() {
       expect(config.viewModeProvider, videoViewModeProvider);
       expect(config.favoritesValue, VideoViewMode.favorites);
     });
+
   });
 }

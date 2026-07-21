@@ -101,11 +101,12 @@ void main() {
           isTrue);
     });
 
-    testWidgets('buildView returns empty waiting scaffold when params is null',
+    testWidgets('buildView returns empty black scaffold when params is null',
         (tester) async {
       final widget = PersistentViewerManager.buildView(999);
-      await tester.pumpWidget(widget);
-      expect(find.text('Waiting for media...'), findsOneWidget);
+      await tester.pumpWidget(MaterialApp(home: widget));
+      expect(find.byType(Scaffold), findsOneWidget);
+      expect(find.text('Waiting for media...'), findsNothing);
     });
 
     testWidgets('openMedia creates new window and sets params', (tester) async {
