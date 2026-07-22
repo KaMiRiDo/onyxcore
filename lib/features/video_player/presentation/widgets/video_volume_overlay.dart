@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 
 class VideoVolumeOverlay extends StatelessWidget {
-  final double volume;
-  final ValueChanged<double> onVolumeChanged;
-
   const VideoVolumeOverlay({
     required this.volume,
     required this.onVolumeChanged,
     super.key,
   });
+  final double volume;
+  final ValueChanged<double> onVolumeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -18,9 +17,9 @@ class VideoVolumeOverlay extends StatelessWidget {
       height: 200,
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -40,14 +39,13 @@ class VideoVolumeOverlay extends StatelessWidget {
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 4,
                   activeTrackColor: Colors.white,
-                  inactiveTrackColor: Colors.white.withOpacity(0.2),
+                  inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
                   thumbShape: SliderComponentShape.noThumb,
                   overlayShape: SliderComponentShape.noOverlay,
                   trackShape: _GradientRectSliderTrackShape(),
                 ),
                 child: Slider(
                   value: volume.clamp(0.0, 200.0),
-                  min: 0,
                   max: 200,
                   onChanged: onVolumeChanged,
                 ),
@@ -82,7 +80,7 @@ class _GradientRectSliderTrackShape extends SliderTrackShape
     bool isEnabled = false,
     double additionalActiveTrackHeight = 0,
   }) {
-    final Rect trackRect = getPreferredRect(
+    final trackRect = getPreferredRect(
       parentBox: parentBox,
       offset: offset,
       sliderTheme: sliderTheme,
@@ -90,14 +88,13 @@ class _GradientRectSliderTrackShape extends SliderTrackShape
       isDiscrete: isDiscrete,
     );
 
-    final activeGradient = AppTheme.primaryGradient;
+    const activeGradient = AppTheme.primaryGradient;
 
-    final Paint activePaint = Paint()
+    final activePaint = Paint()
       ..shader = activeGradient.createShader(trackRect);
-    final Paint inactivePaint = Paint()
-      ..color = sliderTheme.inactiveTrackColor!;
+    final inactivePaint = Paint()..color = sliderTheme.inactiveTrackColor!;
 
-    final double trackRadius = trackRect.height / 2;
+    final trackRadius = trackRect.height / 2;
 
     // Paint inactive track
     context.canvas.drawRRect(

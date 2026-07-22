@@ -1,24 +1,14 @@
-import 'dart:ui';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../domain/entities/video_marker.dart';
-import '../providers/video_markers_provider.dart';
+import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
 
 class TimelineMarker extends ConsumerStatefulWidget {
-  final VideoMarker marker;
-  final Duration totalDuration;
-  final double sliderWidth;
-  final String videoPath;
-  final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final void Function(bool) onHoverChanged;
-  final void Function(bool) onMenuVisibilityChanged;
-  final ValueNotifier<double?> hoverXNotifier;
-  final bool isMarkerEditorActive;
-
   const TimelineMarker({
     required this.marker,
     required this.totalDuration,
@@ -32,6 +22,16 @@ class TimelineMarker extends ConsumerStatefulWidget {
     required this.isMarkerEditorActive,
     super.key,
   });
+  final VideoMarker marker;
+  final Duration totalDuration;
+  final double sliderWidth;
+  final String videoPath;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final void Function(bool) onHoverChanged;
+  final void Function(bool) onMenuVisibilityChanged;
+  final ValueNotifier<double?> hoverXNotifier;
+  final bool isMarkerEditorActive;
 
   @override
   ConsumerState<TimelineMarker> createState() => _TimelineMarkerState();
@@ -119,7 +119,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
     RenderBox? playerBox;
     context.visitAncestorElements((element) {
       if (element.renderObject is RenderBox) {
-        final box = element.renderObject as RenderBox;
+        final box = element.renderObject! as RenderBox;
         // The video player root has a width matching widget.sliderWidth
         if (box.size.width == widget.sliderWidth) {
           playerBox = box;
@@ -170,7 +170,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                 child: FadeTransition(
                   opacity: animation,
                   child: ScaleTransition(
-                    scale: Tween<double>(begin: 0.9, end: 1.0).animate(
+                    scale: Tween<double>(begin: 0.9, end: 1).animate(
                       CurvedAnimation(
                         parent: animation,
                         curve: Curves.easeOutBack,
@@ -190,14 +190,14 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.9),
+                              color: Colors.black.withValues(alpha: 0.9),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   blurRadius: 12,
                                 ),
                               ],
@@ -223,7 +223,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                                         ).pop(false),
                                         style: TextButton.styleFrom(
                                           backgroundColor: Colors.white
-                                              .withOpacity(0.08),
+                                              .withValues(alpha: 0.08),
                                           foregroundColor: Colors.white70,
                                           padding: const EdgeInsets.symmetric(
                                             vertical: 6,
@@ -248,7 +248,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                                         ).pop(true),
                                         style: TextButton.styleFrom(
                                           backgroundColor: Colors.redAccent
-                                              .withOpacity(0.2),
+                                              .withValues(alpha: 0.2),
                                           foregroundColor: Colors.redAccent,
                                           padding: const EdgeInsets.symmetric(
                                             vertical: 6,
@@ -283,14 +283,13 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
           ),
         );
       },
-      transitionDuration: const Duration(milliseconds: 200),
     ).then((confirmed) async {
       // Dismiss HUD hold
       if (mounted) {
         setState(() => _isDeletePromptVisible = false);
         widget.onMenuVisibilityChanged(false);
       }
-      if (confirmed == true && mounted) {
+      if ((confirmed ?? false) && mounted) {
         await ref
             .read(markerActionsProvider)
             .deleteAllMarkers(widget.videoPath);
@@ -318,18 +317,18 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
         final screenSize = MediaQuery.of(dialogContext).size;
 
         // --- Smart No-Overlap Positioning Logic ---
-        final buttonSize = 40.0;
+        const buttonSize = 40.0;
         const offset = 44.0;
         final idealCenterX = iconPos.dx + iconSize.width / 2;
         final idealCenterY = iconPos.dy + iconSize.height / 2;
 
         // 1. Initial ideal positions centered on marker
-        double editX = idealCenterX - buttonSize / 2;
-        double deleteX = idealCenterX - offset - buttonSize / 2;
-        double deleteAllX = idealCenterX + offset - buttonSize / 2;
+        var editX = idealCenterX - buttonSize / 2;
+        var deleteX = idealCenterX - offset - buttonSize / 2;
+        var deleteAllX = idealCenterX + offset - buttonSize / 2;
 
         // 2. Clamp individually to screen edges (with 8px margin)
-        final leftBound = 8.0;
+        const leftBound = 8.0;
         final rightBound = screenSize.width - buttonSize - 8.0;
 
         deleteX = deleteX.clamp(leftBound, rightBound);
@@ -367,7 +366,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => Navigator.of(dialogContext).pop(null),
+                  onTap: () => Navigator.of(dialogContext).pop(),
                 ),
               ),
               // Edit (Top)
@@ -381,7 +380,6 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                 icon: Icons.edit_rounded,
                 color: Colors.white,
                 result: 'edit',
-                delay: 0,
                 animation: animation,
               ),
               // Delete (Left)
@@ -416,7 +414,6 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
           ),
         );
       },
-      transitionDuration: const Duration(milliseconds: 200),
     ).then((result) {
       if (!mounted) return;
       setState(() => _isMenuOpen = false);
@@ -454,12 +451,12 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
       child: FadeTransition(
         opacity: animation,
         child: ScaleTransition(
-          scale: Tween<double>(begin: 0.0, end: 1.0).animate(
+          scale: Tween<double>(begin: 0, end: 1).animate(
             CurvedAnimation(
               parent: animation,
               curve: Interval(
                 (delay / 300).clamp(0.0, 1.0),
-                1.0,
+                1,
                 curve: Curves.easeOutBack,
               ),
             ),
@@ -475,11 +472,11 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                   height: 40,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.black.withOpacity(0.9),
-                    border: Border.all(color: color.withOpacity(0.6)),
+                    color: Colors.black.withValues(alpha: 0.9),
+                    border: Border.all(color: color.withValues(alpha: 0.6)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         blurRadius: 8,
                       ),
                     ],
@@ -528,7 +525,7 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                 child: TweenAnimationBuilder<double>(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOutBack,
-                  tween: Tween(begin: 0.0, end: 1.0),
+                  tween: Tween(begin: 0, end: 1),
                   builder: (context, scale, child) {
                     return Transform.scale(
                       scale: scale,
@@ -546,10 +543,10 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
+                          color: Colors.black.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                           ),
                         ),
                         child: Text(
@@ -608,18 +605,17 @@ class _TimelineMarkerState extends ConsumerState<TimelineMarker> {
                         width: 36,
                         height: 42,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(
-                            _isHovered ? 0.15 : 0.08,
+                          color: Colors.white.withValues(
+                            alpha: _isHovered ? 0.15 : 0.08,
                           ),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.12),
-                            width: 1,
+                            color: Colors.white.withValues(alpha: 0.12),
                           ),
                         ),
                         alignment: const Alignment(0, -0.3),
                         child: _isBase64 && _cachedImageBytes != null
                             ? Padding(
-                                padding: const EdgeInsets.only(bottom: 4.0),
+                                padding: const EdgeInsets.only(bottom: 4),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
                                   child: Image.memory(

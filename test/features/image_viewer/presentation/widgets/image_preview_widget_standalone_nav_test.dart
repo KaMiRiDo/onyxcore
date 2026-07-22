@@ -1,16 +1,15 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +28,6 @@ void main() {
   testWidgets(
     'ImagePreviewWidget standalone mode updates PersistentViewerManager on navigation',
     (WidgetTester tester) async {
-      WindowParams? passedParams;
 
       // We can't easily mock PersistentViewerManager because it's full of static methods.
       // However, PersistentViewerManager calls a MethodChannel, so we can intercept the method channel!
@@ -95,7 +93,7 @@ void main() {
           ),
         );
         // Wait for real async file I/O
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
 
       await tester.pumpAndSettle();
@@ -154,12 +152,6 @@ void main() {
         type: FileItemType.image,
         modified: DateTime.now(),
       );
-      final fileItemA = FileItem(
-        path: imagePathA,
-        name: 'A.png',
-        type: FileItemType.image,
-        modified: DateTime.now(),
-      );
 
       final container = ProviderContainer();
 
@@ -183,7 +175,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
 
       await tester.pumpAndSettle();

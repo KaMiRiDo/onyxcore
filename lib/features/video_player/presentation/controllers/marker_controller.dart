@@ -107,12 +107,7 @@ class VideoMarkerController {
     } else {
       await ref
           .read(markerActionsProvider)
-          .addMarker(
-            currentPath,
-            player.state.position,
-            content,
-            icon: icon,
-          );
+          .addMarker(currentPath, player.state.position, content, icon: icon);
     }
 
     closeMarkerEditor(resume: true);

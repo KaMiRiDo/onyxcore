@@ -15,7 +15,6 @@ import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_p
 import 'package:onyxcore/features/video_player/presentation/widgets/emoji_data.dart';
 
 class CustomEmojiSet {
-
   CustomEmojiSet({required this.rawData, required this.parsedMap});
 
   factory CustomEmojiSet.fromJson(Map<String, dynamic> json) => CustomEmojiSet(
@@ -25,14 +24,10 @@ class CustomEmojiSet {
   final String rawData;
   final Map<String, String> parsedMap;
 
-  Map<String, dynamic> toJson() => {
-    'rawData': rawData,
-    'parsedMap': parsedMap,
-  };
+  Map<String, dynamic> toJson() => {'rawData': rawData, 'parsedMap': parsedMap};
 }
 
 class CustomIconSet {
-
   CustomIconSet({required this.imageBytes, required this.tags});
 
   factory CustomIconSet.fromJson(Map<String, dynamic> json) => CustomIconSet(
@@ -49,9 +44,9 @@ class CustomIconSet {
 }
 
 class IconUploadItem {
-
   IconUploadItem({
-    required this.tagController, this.rawFilePath,
+    required this.tagController,
+    this.rawFilePath,
     this.originalBytes,
     this.processedBytes,
     this.isProcessing = false,
@@ -97,9 +92,11 @@ Future<Uint8List?> _processAndResizeImage(Uint8List bytes) async {
 }
 
 class MarkerEditorOverlay extends ConsumerStatefulWidget {
-
   const MarkerEditorOverlay({
-    required this.timestamp, required this.onSave, required this.onCancel, this.initialContent,
+    required this.timestamp,
+    required this.onSave,
+    required this.onCancel,
+    this.initialContent,
     this.initialIcon,
     this.notchOffset = 210.0,
     super.key,
@@ -112,7 +109,8 @@ class MarkerEditorOverlay extends ConsumerStatefulWidget {
   final double notchOffset;
 
   @override
-  ConsumerState<MarkerEditorOverlay> createState() => MarkerEditorOverlayState();
+  ConsumerState<MarkerEditorOverlay> createState() =>
+      MarkerEditorOverlayState();
 }
 
 class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
@@ -374,10 +372,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
       animation: _shakeAnimation,
       builder: (context, child) {
         final offset = sin(_shakeAnimation.value * pi * 8) * 6;
-        return Transform.translate(
-          offset: Offset(offset, 0),
-          child: child,
-        );
+        return Transform.translate(offset: Offset(offset, 0), child: child);
       },
       child: GestureDetector(
         onTap: () {},
@@ -530,12 +525,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
           ),
         ),
         const SizedBox(height: 12), // Reduced gap below search box as requested
-        Row(
-          children: [
-            _buildTab('EMOJIS', 0),
-            _buildTab('ICONS', 1),
-          ],
-        ),
+        Row(children: [_buildTab('EMOJIS', 0), _buildTab('ICONS', 1)]),
       ],
     );
   }
@@ -707,11 +697,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
       child: Stack(
         children: [
           mainContent, // Full height container restored
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: _buildGridAddButton(),
-          ),
+          Positioned(bottom: 0, right: 0, child: _buildGridAddButton()),
         ],
       ),
     );
@@ -1094,9 +1080,7 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
   }
 
   Widget _buildEmojiItem(String emoji) {
-    final isCustom = _customSets.any(
-      (set) => set.parsedMap.containsKey(emoji),
-    );
+    final isCustom = _customSets.any((set) => set.parsedMap.containsKey(emoji));
 
     return Stack(
       children: [
@@ -1466,8 +1450,6 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
     );
   }
 
-
-
   Widget _buildNotch() {
     return Container(
       width: 420,
@@ -1483,7 +1465,9 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
             child: Container(
               width: 32,
               height: 16,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.04)),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+              ),
               child: CustomPaint(
                 painter: NotchPainter(color: Colors.transparent),
               ),
@@ -1681,7 +1665,6 @@ class MarkerEditorOverlayState extends ConsumerState<MarkerEditorOverlay>
 }
 
 class NotchPainter extends CustomPainter {
-
   NotchPainter({required this.color});
   final Color color;
 

@@ -64,7 +64,7 @@ void main() {
     
     // Force error state
     // ignore: avoid_dynamic_calls
-    widgetState.setErrorForTest();
+    widgetState.setErrorForTest('Failed to play video');
     await tester.pump();
     
     // Verify error is shown
@@ -81,6 +81,53 @@ void main() {
     // The error should be gone because the state was reset
     expect(find.textContaining('Failed to play'), findsNothing, reason: 'Error should be cleared on new media load');
 
+    // Cleanup
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('Non-fatal error decoding audio does not block playback', (WidgetTester tester) async {
+    final validFile = FileItem(path: '/test/valid_video.mp4', name: 'valid.mp4', type: FileItemType.video, modified: DateTime.now());
+    final playlist = [validFile];
+    final playlistJson = jsonEncode(playlist.map((e) => e.toJson()).toList());
+
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: VideoPreviewWidget(
+              item: validFile,
+              isStandalone: true,
+              windowId: '1',
+              initParams: {
+                'playlistJson': playlistJson,
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Initial load
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final widgetState = tester.state(find.byType(VideoPreviewWidget)) as dynamic;
+    
+    // Force non-fatal error state
+    // ignore: avoid_dynamic_calls
+    widgetState.setErrorForTest('Error decoding audio.');
+    await tester.pump();
+    
+    // Verify error is NOT shown because it's non-fatal
+    expect(find.textContaining('Error decoding audio.'), findsNothing, reason: 'Non-fatal error overlay should NOT be visible');
+    
     // Cleanup
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));

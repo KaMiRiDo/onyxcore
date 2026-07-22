@@ -3,14 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class PlaybackSpeedControl extends StatefulWidget {
-  final double currentSpeed;
-  final void Function(double) onSpeedSelected;
-
   const PlaybackSpeedControl({
     required this.currentSpeed,
     required this.onSpeedSelected,
     super.key,
   });
+  final double currentSpeed;
+  final void Function(double) onSpeedSelected;
 
   static const List<double> speeds = [
     0.25,
@@ -46,9 +45,9 @@ class _PlaybackSpeedControlState extends State<PlaybackSpeedControl> {
           width: 120,
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E26).withOpacity(0.85),
+            color: const Color(0xFF1E1E26).withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

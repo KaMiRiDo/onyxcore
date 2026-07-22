@@ -73,6 +73,10 @@ static gboolean on_secondary_window_delete(GtkWidget* widget, GdkEvent* event, g
     fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
     fl_method_channel_invoke_method(app->window_channel, "on_window_close", args, nullptr, nullptr, nullptr);
   }
+  
+  // Hide the window immediately so the user perceives no lag.
+  gtk_widget_hide(widget);
+
   // Return TRUE to prevent GTK from destroying the window immediately.
   // Dart side will call close_window to cleanly destroy it.
   return TRUE;
@@ -238,6 +242,23 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
     } else {
       fl_method_call_respond_error(method_call, "ERROR", "Invalid arguments", nullptr, nullptr);
     }
+  } else if (strcmp(method, "hide_window") == 0) {
+    FlValue* args = fl_method_call_get_args(method_call);
+    FlValue* view_id_val = fl_value_lookup_string(args, "view_id");
+    
+    if (view_id_val && fl_value_get_type(view_id_val) == FL_VALUE_TYPE_INT) {
+      int64_t target_id = fl_value_get_int(view_id_val);
+      
+      GtkWindow* target_window = get_window_by_view_id(self, target_id);
+      if (target_window) {
+        gtk_widget_hide(GTK_WIDGET(target_window));
+        fl_method_call_respond_success(method_call, nullptr, nullptr);
+      } else {
+        fl_method_call_respond_error(method_call, "ERROR", "Window not found", nullptr, nullptr);
+      }
+    } else {
+      fl_method_call_respond_error(method_call, "ERROR", "Invalid arguments", nullptr, nullptr);
+    }
   } else if (strcmp(method, "close_window") == 0) {
     FlValue* args = fl_method_call_get_args(method_call);
     FlValue* view_id_val = fl_value_lookup_string(args, "view_id");
@@ -300,10 +321,10 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
         // prevent the reference from being freed before deferred destroy
         g_object_ref(target_window);
         
-        // Deferred destruction: destroy the empty window shell after 200ms.
+        // Deferred destruction: destroy the empty window shell after 500ms.
         // The FlView has already been removed above, so this just cleans up
         // the GtkWindow itself without touching any GL resources.
-        g_timeout_add(200, [](gpointer data) -> gboolean {
+        g_timeout_add(500, [](gpointer data) -> gboolean {
           GtkWidget* widget = GTK_WIDGET(data);
           if (GTK_IS_WIDGET(widget)) {
             gtk_widget_destroy(widget);

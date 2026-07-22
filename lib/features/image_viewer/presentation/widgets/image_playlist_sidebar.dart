@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/playlist/playlist_providers.dart';
@@ -9,10 +7,10 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 
 class ImagePlaylistSidebar extends PlaylistSidebarBase {
-
   const ImagePlaylistSidebar({
     super.key,
     super.onDelete,
@@ -61,8 +59,9 @@ class _ImagePlaylistSidebarState
 
   @override
   void watchActiveItemDependencies() {
-    ref.watch(imageIsEmptyProvider);
-    ref.watch(previewFileProvider);
+    ref
+      ..watch(imageIsEmptyProvider)
+      ..watch(previewFileProvider);
   }
 
   @override
@@ -134,9 +133,7 @@ class _ImagePlaylistSidebarState
       ref.read(imageIsEmptyProvider.notifier).state = false;
       ref.read(imageRestartSignalProvider.notifier).state++;
     }
-    if (widget.onImageSelected != null) {
-      widget.onImageSelected!(item);
-    }
+    widget.onImageSelected?.call(item);
   }
 
   // ── Tile Customization ─────────────────────────────────────────────────────
@@ -162,16 +159,10 @@ class _ImagePlaylistSidebarState
     if (item.type != FileItemType.image) return null;
     return ClipRRect(
       borderRadius: BorderRadius.circular(4),
-      child: Image.file(
-        File(item.path),
+      child: SizedBox(
         width: defaultMediaIconSize,
         height: defaultMediaIconSize,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Icon(
-          defaultMediaIcon,
-          size: defaultMediaIconSize,
-          color: Colors.white38,
-        ),
+        child: MediaThumbnailPreview(item: item, zoom: 1),
       ),
     );
   }

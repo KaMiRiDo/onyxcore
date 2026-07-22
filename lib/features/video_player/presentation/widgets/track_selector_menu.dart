@@ -7,6 +7,16 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/menu_tooltip.dart';
 
 class TrackSelectorMenu extends StatelessWidget {
+  const TrackSelectorMenu({
+    required this.title,
+    required this.selectedTrack,
+    required this.onTrackSelected,
+    this.videoTracks = const [],
+    this.audioTracks = const [],
+    this.subtitleTracks = const [],
+    this.onLoadExternal,
+    super.key,
+  });
   final String title;
   final List<VideoTrack> videoTracks;
   final List<AudioTrack> audioTracks;
@@ -14,17 +24,6 @@ class TrackSelectorMenu extends StatelessWidget {
   final dynamic selectedTrack;
   final void Function(dynamic) onTrackSelected;
   final VoidCallback? onLoadExternal;
-
-  const TrackSelectorMenu({
-    required this.title,
-    this.videoTracks = const [],
-    this.audioTracks = const [],
-    this.subtitleTracks = const [],
-    required this.selectedTrack,
-    required this.onTrackSelected,
-    this.onLoadExternal,
-    super.key,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,12 +35,12 @@ class TrackSelectorMenu extends StatelessWidget {
           width: 280,
           constraints: const BoxConstraints(maxHeight: 400),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E26).withOpacity(0.85),
+            color: const Color(0xFF1E1E26).withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: 40,
                 offset: const Offset(0, 20),
               ),
@@ -120,7 +119,7 @@ class TrackSelectorMenu extends StatelessWidget {
   }
 
   List<Widget> _buildItems() {
-    final List<dynamic> tracks = [];
+    final tracks = <dynamic>[];
     if (audioTracks.isNotEmpty) tracks.addAll(audioTracks);
     if (subtitleTracks.isNotEmpty) tracks.addAll(subtitleTracks);
     if (videoTracks.isNotEmpty) tracks.addAll(videoTracks);

@@ -1,9 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/video_player/data/repositories/marker_repository.dart';
+import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
 // ignore: implementation_imports
 import 'package:uuid/uuid.dart';
-import '../../domain/entities/video_marker.dart';
-import '../../data/repositories/marker_repository.dart';
-
 
 // Use FutureProvider for loading markers.
 // We will use ref.invalidate() to trigger reloads after mutations.
@@ -15,11 +14,11 @@ final videoMarkersProvider = FutureProvider.family<List<VideoMarker>, String>((
 });
 
 // A separate provider for marker actions
-final markerActionsProvider = Provider((ref) => MarkerActions(ref));
+final markerActionsProvider = Provider(MarkerActions.new);
 
 class MarkerActions {
-  final Ref ref;
   MarkerActions(this.ref);
+  final Ref ref;
 
   Future<void> addMarker(
     String videoPath,

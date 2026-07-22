@@ -124,6 +124,10 @@ class PersistentViewerManager {
   /// Closes a specific view ID window safely by unmounting Flutter widgets first
   static Future<void> closeWindow(int viewId) async {
     try {
+      // Hide the window instantly so the user doesn't perceive any lag
+      // while we wait for the background GL teardown
+      await _channel.invokeMethod('hide_window', {'view_id': viewId});
+
       // Remove from tracking so Flutter doesn't try to render it during destruction
       _viewParams.remove(viewId);
       _activeWindowsByType.removeWhere((k, v) => v == viewId);
@@ -131,7 +135,8 @@ class PersistentViewerManager {
       
       // Wait for Flutter to unmount the widget and for media_kit to release GL contexts.
       // Use a longer delay for systems with slow GPU teardown (e.g. Linux Mint with software Mesa).
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      // Increased to 1500ms to avoid GLib-GObject-CRITICAL crashes during fast open/close.
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
 
       await _channel.invokeMethod('close_window', {'view_id': viewId});
     } catch (e) {
@@ -191,7 +196,7 @@ class PersistentViewerManager {
             final audioId = params.initParams['audioTrackId'] as String?;
             final subtitleId = params.initParams['subtitleTrackId'] as String?;
             content = VideoPreviewWidget(
-              key: ValueKey(params.file.path),
+              key: ValueKey(viewId),
               item: params.file,
               initialPosition: startMs != null
                   ? Duration(milliseconds: startMs)
@@ -206,7 +211,7 @@ class PersistentViewerManager {
             );
           case ViewerType.image:
             content = ImagePreviewWidget(
-              key: ValueKey(params.file.path),
+              key: ValueKey(viewId),
               item: params.file,
               isStandalone: true,
               windowId: viewId.toString(),
@@ -215,7 +220,7 @@ class PersistentViewerManager {
             );
           case ViewerType.audio:
             content = AudioPlayerView(
-              key: ValueKey(params.file.path),
+              key: ValueKey(viewId),
               item: params.file,
               isStandalone: true,
               windowId: viewId.toString(),
@@ -223,7 +228,7 @@ class PersistentViewerManager {
             );
           case ViewerType.markdown:
             content = MarkdownPreviewWidget(
-              key: ValueKey(params.file.path),
+              key: ValueKey(viewId),
               item: params.file,
               isStandalone: true,
               windowId: viewId.toString(),

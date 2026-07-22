@@ -2,14 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class MenuTooltip extends StatefulWidget {
+  const MenuTooltip({required this.message, required this.child, super.key});
   final String message;
   final Widget child;
-
-  const MenuTooltip({
-    required this.message,
-    required this.child,
-    super.key,
-  });
 
   @override
   State<MenuTooltip> createState() => _MenuTooltipState();
@@ -31,7 +26,6 @@ class _MenuTooltipState extends State<MenuTooltip> {
           overlayChildBuilder: (context) => CompositedTransformFollower(
             link: _link,
             showWhenUnlinked: false,
-            targetAnchor: Alignment.topLeft,
             followerAnchor: Alignment.bottomLeft,
             offset: const Offset(30, -8),
             child: UnconstrainedBox(
@@ -52,7 +46,7 @@ class _MenuTooltipState extends State<MenuTooltip> {
                       borderRadius: BorderRadius.circular(4),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),

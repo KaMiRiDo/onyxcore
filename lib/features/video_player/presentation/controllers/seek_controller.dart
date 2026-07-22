@@ -122,8 +122,9 @@ class VideoSeekController {
     }
 
     final now = DateTime.now();
-    final timeSinceLastSeek =
-        now.difference(c.getLastEngineSeekTime()).inMilliseconds;
+    final timeSinceLastSeek = now
+        .difference(c.getLastEngineSeekTime())
+        .inMilliseconds;
 
     // Cancel any pending debounced seek
     c.getEngineSeekTimer()?.cancel();
@@ -231,8 +232,7 @@ class VideoSeekController {
         c.getRef().read(settingsProvider).value?.doubleTapSeekSeconds ?? 10;
     final step = Duration(seconds: seekSeconds);
 
-    Duration target =
-        isForward ? currentBase + step : currentBase - step;
+    var target = isForward ? currentBase + step : currentBase - step;
 
     // Clamp to valid range
     if (target < Duration.zero) target = Duration.zero;
@@ -311,12 +311,12 @@ class VideoSeekController {
     c.showSeekIndicator();
     final duration = c.getPlayer().state.duration;
     final targetMs = (v * duration.inMilliseconds).toInt();
-    
+
     c.setStateCallback(() {
       c.setVirtualScrubPosition(Duration(milliseconds: targetMs));
       c.setPendingScrubPosition(Duration(milliseconds: targetMs));
     });
-    
+
     // In our simplified slider handler, we just dispatch instantly because throttle is handled externally or we can implement it here.
     // For simplicity, we just perform seek.
     final pending = c.getPendingScrubPosition();
@@ -328,13 +328,12 @@ class VideoSeekController {
   void handleSliderChangeEnd(double v) {
     final duration = c.getPlayer().state.duration;
     performSeek(Duration(milliseconds: (v * duration.inMilliseconds).toInt()));
-    
+
     if (c.getWasPlayingBeforeScrub()) {
       c.getPlayer().play();
       c.setWasPlayingBeforeScrub(false);
     }
-    
+
     scheduleVirtualStateCleanup();
   }
-
 }

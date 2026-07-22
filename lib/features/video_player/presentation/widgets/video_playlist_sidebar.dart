@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/playlist/playlist_providers.dart';
 import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import '../providers/video_playlist_providers.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
 
 class VideoPlaylistSidebar extends PlaylistSidebarBase {
-  final void Function(FileItem)? onVideoSelected;
-
   const VideoPlaylistSidebar({
     super.key,
     super.onDelete,
@@ -19,6 +17,7 @@ class VideoPlaylistSidebar extends PlaylistSidebarBase {
     super.onReload,
     this.onVideoSelected,
   });
+  final void Function(FileItem)? onVideoSelected;
 
   @override
   ConsumerState<VideoPlaylistSidebar> createState() =>
@@ -143,13 +142,13 @@ class _VideoPlaylistSidebarState
     if (item.type == FileItemType.folder) {
       return item.itemCount != null
           ? "${item.itemCount} Video File${item.itemCount == 1 ? '' : 's'}"
-          : "Folder";
+          : 'Folder';
     }
 
-    String subtitle = "Video File";
+    var subtitle = 'Video File';
     if (item.sizeBytes != null && item.sizeBytes! > 0) {
       final sizeMB = (item.sizeBytes! / (1024 * 1024)).toStringAsFixed(1);
-      subtitle += " • $sizeMB MB";
+      subtitle += ' • $sizeMB MB';
     }
     return subtitle;
   }
@@ -161,11 +160,7 @@ class _VideoPlaylistSidebarState
   Widget? buildActiveIndicator(bool isPlaying) {
     return isPlaying
         ? const Icon(Icons.play_arrow, color: AppColors.violet, size: 16)
-        : const Icon(
-            Icons.pause_rounded,
-            color: AppColors.magenta,
-            size: 16,
-          );
+        : const Icon(Icons.pause_rounded, color: AppColors.magenta, size: 16);
   }
 
   @override

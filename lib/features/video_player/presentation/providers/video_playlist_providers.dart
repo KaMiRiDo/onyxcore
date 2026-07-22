@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:onyxcore/core/playlist/playlist_providers.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
 
 enum VideoViewMode { home, favorites }
 

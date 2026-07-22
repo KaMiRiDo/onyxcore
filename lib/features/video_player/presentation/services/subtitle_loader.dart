@@ -5,7 +5,6 @@ import 'package:path/path.dart' as p;
 
 /// Service for automatically discovering and loading external subtitle files.
 class SubtitleLoader {
-
   /// Scans the directory of the video file for matching subtitles and loads them.
   /// Supported extensions: .srt, .vtt, .ass
   static Future<void> autoLoadExternalSubtitles({
@@ -16,7 +15,7 @@ class SubtitleLoader {
       final file = File(videoPath);
       final dir = file.parent;
       final baseName = p.basenameWithoutExtension(videoPath);
-      final extensions = const ['.srt', '.vtt', '.ass'];
+      const extensions = ['.srt', '.vtt', '.ass'];
 
       for (final ext in extensions) {
         final subPath = p.join(dir.path, '$baseName$ext');

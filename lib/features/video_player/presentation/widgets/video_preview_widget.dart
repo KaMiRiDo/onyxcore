@@ -146,13 +146,29 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   );
 
   @visibleForTesting
-  void setErrorForTest() {
-    setState(() {
-      _displayState = _displayState.copyWith(
-        hasError: true,
-        errorMessage: 'Failed to play',
-      );
-    });
+  void setErrorForTest([String error = 'Test error']) {
+    _handleEngineError(error);
+  }
+
+  void _handleEngineError(String error) {
+    debugPrint('[VideoPlayer] Engine Error: $error');
+
+    // Ignore non-fatal decoding errors since video playback can usually continue
+    if (error == 'Error decoding audio.' || error == 'Error decoding video.') {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _displayState = _displayState.copyWith(
+          isOpening: false,
+          isSeekingToInitial: false,
+          hasError: true,
+          errorMessage: error,
+        );
+        _isBuffering = false;
+      });
+    }
   }
 
   Timer? _seekLoaderTimer;
@@ -907,20 +923,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
       }
     });
 
-    _errorSubscription = player.stream.error.listen((error) {
-      debugPrint('[VideoPlayer] Engine Error: $error');
-      if (mounted) {
-        setState(() {
-          _displayState = _displayState.copyWith(
-            isOpening: false,
-            isSeekingToInitial: false,
-            hasError: true,
-            errorMessage: error,
-          );
-          _isBuffering = false;
-        });
-      }
-    });
+    _errorSubscription = player.stream.error.listen(_handleEngineError);
 
     _positionSubscription = player.stream.position.listen((pos) {
       if (_isClosing || !mounted) return;
@@ -2038,11 +2041,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                             isVisible:
                                                 !_displayState.hasError &&
                                                 (_displayState.isOpening ||
-                                                _displayState
-                                                    .isSeekingToInitial ||
-                                                _displayState
-                                                    .isSmartBuffering ||
-                                                _displayState.isSeekLoading),
+                                                    _displayState
+                                                        .isSeekingToInitial ||
+                                                    _displayState
+                                                        .isSmartBuffering ||
+                                                    _displayState
+                                                        .isSeekLoading),
                                           ),
 
                                           // Snapshot Flash Effect
@@ -2123,101 +2127,105 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                   if (!_displayState.isEmpty)
                                     Positioned(
                                       top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    child: AnimatedOpacity(
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
-                                      opacity: isVisible ? 1.0 : 0.0,
-                                      child: StreamBuilder<int?>(
-                                        stream: player.stream.width,
-                                        builder: (context, _) {
-                                          final state = player.state;
-                                          final res = (state.height ?? 0) > 0
-                                              ? '${state.height}p'
-                                              : 'Loading...';
-                                          final fpsString = _fps != null
-                                              ? ' • ${_fps!.toInt()} FPS'
-                                              : '';
+                                      left: 0,
+                                      right: 0,
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        opacity: isVisible ? 1.0 : 0.0,
+                                        child: StreamBuilder<int?>(
+                                          stream: player.stream.width,
+                                          builder: (context, _) {
+                                            final state = player.state;
+                                            final res = (state.height ?? 0) > 0
+                                                ? '${state.height}p'
+                                                : 'Loading...';
+                                            final fpsString = _fps != null
+                                                ? ' • ${_fps!.toInt()} FPS'
+                                                : '';
 
-                                          var q = ref
-                                              .watch(
-                                                filteredAndSortedVideoQueueProvider,
-                                              )
-                                              .where(
-                                                (i) =>
-                                                    i.type ==
-                                                    FileItemType.video,
-                                              )
-                                              .toList();
-                                          if (q.isEmpty) {
-                                            final items =
-                                                ref
-                                                    .watch(
-                                                      sortedDirectoryItemsProvider,
-                                                    )
-                                                    .value ??
-                                                [];
-                                            q = items
+                                            var q = ref
+                                                .watch(
+                                                  filteredAndSortedVideoQueueProvider,
+                                                )
                                                 .where(
                                                   (i) =>
                                                       i.type ==
                                                       FileItemType.video,
                                                 )
                                                 .toList();
-                                          }
-                                          final index = q.indexWhere(
-                                            (i) => i.path == _currentItem.path,
-                                          );
-                                          final indexString = index != -1
-                                              ? ' • ${index + 1} / ${q.length}'
-                                              : '';
+                                            if (q.isEmpty) {
+                                              final items =
+                                                  ref
+                                                      .watch(
+                                                        sortedDirectoryItemsProvider,
+                                                      )
+                                                      .value ??
+                                                  [];
+                                              q = items
+                                                  .where(
+                                                    (i) =>
+                                                        i.type ==
+                                                        FileItemType.video,
+                                                  )
+                                                  .toList();
+                                            }
+                                            final index = q.indexWhere(
+                                              (i) =>
+                                                  i.path == _currentItem.path,
+                                            );
+                                            final indexString = index != -1
+                                                ? ' • ${index + 1} / ${q.length}'
+                                                : '';
 
-                                          return ViewerTopBar(
-                                            title: _displayState.isEmpty ? '' : _currentItem.name,
-                                            metadata: _displayState.isEmpty
-                                                ? ''
-                                                : '$res$fpsString$indexString',
-                                            isStandalone: widget.isStandalone,
-                                            onPopOut: _openInNewWindow,
-                                            onClose: () =>
-                                                ref
-                                                        .read(
-                                                          previewFileProvider
-                                                              .notifier,
-                                                        )
-                                                        .state =
-                                                    null,
-                                            extraActions: [
-                                              if (!_displayState.isEmpty) ...[
-                                                if (!_isNetworkStream)
-                                                  _buildTopBarButton(
-                                                  icon: Icons.edit_outlined,
-                                                  onPressed: () {
-                                                    // TODO: Implement video editing
-                                                  },
-                                                  tooltip: 'Edit Video',
-                                                ),
-                                              const SizedBox(width: 8),
-                                              _buildTopBarButton(
-                                                icon: Icons.settings_rounded,
-                                                onPressed: () =>
-                                                    SettingsDialog.show(
-                                                      context,
-                                                      initialTab: 1,
-                                                      section: 'Video',
+                                            return ViewerTopBar(
+                                              title: _displayState.isEmpty
+                                                  ? ''
+                                                  : _currentItem.name,
+                                              metadata: _displayState.isEmpty
+                                                  ? ''
+                                                  : '$res$fpsString$indexString',
+                                              isStandalone: widget.isStandalone,
+                                              onPopOut: _openInNewWindow,
+                                              onClose: () =>
+                                                  ref
+                                                          .read(
+                                                            previewFileProvider
+                                                                .notifier,
+                                                          )
+                                                          .state =
+                                                      null,
+                                              extraActions: [
+                                                if (!_displayState.isEmpty) ...[
+                                                  if (!_isNetworkStream)
+                                                    _buildTopBarButton(
+                                                      icon: Icons.edit_outlined,
+                                                      onPressed: () {
+                                                        // TODO: Implement video editing
+                                                      },
+                                                      tooltip: 'Edit Video',
                                                     ),
-                                                tooltip: 'Video Settings',
-                                              ),
-                                              const SizedBox(width: 8),
+                                                  const SizedBox(width: 8),
+                                                  _buildTopBarButton(
+                                                    icon:
+                                                        Icons.settings_rounded,
+                                                    onPressed: () =>
+                                                        SettingsDialog.show(
+                                                          context,
+                                                          initialTab: 1,
+                                                          section: 'Video',
+                                                        ),
+                                                    tooltip: 'Video Settings',
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                ],
                                               ],
-                                            ],
-                                          );
-                                        },
+                                            );
+                                          },
+                                        ),
                                       ),
                                     ),
-                                  ),
 
                                   // Custom Bottom Controls
                                   VideoBottomControls(
@@ -2368,8 +2376,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     try {
       final videos = <FileItem>[];
 
-      if (widget.initParams != null && widget.initParams!['playlistPaths'] != null) {
-        final paths = List<String>.from(widget.initParams!['playlistPaths'] as Iterable);
+      if (widget.initParams != null &&
+          widget.initParams!['playlistPaths'] != null) {
+        final paths = List<String>.from(
+          widget.initParams!['playlistPaths'] as Iterable,
+        );
         for (final path in paths) {
           final file = File(path);
           if (file.existsSync()) {
@@ -2425,9 +2436,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             }
           }
         }
-        
+
         videos.sort(
-            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
       }
 
       debugPrint('[VideoPlayer] Standalone playlist count: ${videos.length}');

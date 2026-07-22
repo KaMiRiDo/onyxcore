@@ -91,7 +91,9 @@ class VideoHudController {
     c.getHideTimer()?.cancel();
     if (c.getIsAnyMenuVisible() ||
         c.getIsMarkerEditorActive() ||
-        c.getIsHoveringMarker()) return;
+        c.getIsHoveringMarker()) {
+      return;
+    }
     c.setHideTimer(
       Timer(const Duration(seconds: 2), () {
         if (c.getMounted() &&
@@ -153,8 +155,7 @@ class VideoHudController {
 
     // Wake up global HUD if it was manually hidden
     final ref = c.getRef();
-    if (c.getWindowId() == null &&
-        !ref.read(previewHudVisibleProvider)) {
+    if (c.getWindowId() == null && !ref.read(previewHudVisibleProvider)) {
       // Immediate update is safe here because listeners handle 'mounted' check
       // ignore: inference_failure_on_function_invocation
       ref.read(previewHudVisibleProvider.notifier).state = true;
@@ -167,7 +168,9 @@ class VideoHudController {
     // If marker editor or any menu is active, we don't start the hide timer
     if (c.getIsMarkerEditorActive() ||
         c.getIsAnyMenuVisible() ||
-        c.getIsHoveringMarker()) return;
+        c.getIsHoveringMarker()) {
+      return;
+    }
 
     startHideTimer();
   }
@@ -203,8 +206,7 @@ class VideoHudController {
     });
 
     final ctx = c.getOverlayContext();
-    final RenderBox? renderBox =
-        key.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox = key.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
     final position = renderBox.localToGlobal(Offset.zero);

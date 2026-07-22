@@ -8,11 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 /// `_VideoPreviewWidgetState`. Uses [Consumer] internally for the sidebar
 /// toggle so it rebuilds independently of the player state.
 class VideoEmptyState extends StatelessWidget {
-  const VideoEmptyState({
-    super.key,
-    this.isStandalone = false,
-    this.onClose,
-  });
+  const VideoEmptyState({super.key, this.isStandalone = false, this.onClose});
 
   final bool isStandalone;
   final VoidCallback? onClose;

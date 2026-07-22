@@ -6,7 +6,6 @@
 library;
 
 class VideoPlayerUtils {
-
   /// Formats a [Duration] as `mm:ss` or `hh:mm:ss` for the player OSD.
   ///
   /// Identical to the original `_formatDuration` in `_VideoPreviewWidgetState`.

@@ -1,47 +1,33 @@
-import 'dart:io';
-import 'dart:ui' as ui;
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
-import 'package:image/image.dart' as img;
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/core/window_management/window_params.dart';
-import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:path/path.dart' as p;
-import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
-import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
-
-Future<bool> _convertDngToJpgPreview(List<String> args) async {
-  final sourcePath = args[0];
-  final destPath = args[1];
-  try {
-    final bytes = File(sourcePath).readAsBytesSync();
-    final image = img.decodeImage(bytes);
-    if (image == null) return false;
-    final jpegBytes = img.encodeJpg(image, quality: 90);
-    File(destPath).writeAsBytesSync(jpegBytes);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
+import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
+import 'package:onyxcore/features/image_viewer/utils/special_image_converter.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:path/path.dart' as p;
+import 'package:window_manager/window_manager.dart';
 
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({
@@ -81,10 +67,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   final TransformationController _transformationController =
       TransformationController();
   Offset _mousePosition = Offset.zero;
-  double _currentScale = 1.0;
-  double _initialScale = 1.0;
+  double _currentScale = 1;
+  double _initialScale = 1;
   Matrix4 _gestureStartMatrix = Matrix4.identity();
-  double _scrubAccumulatedScale = 1.0;
+  double _scrubAccumulatedScale = 1;
   bool _isPanZoomGesture = false;
   bool _isInteracting = false;
   bool _showZoomIndicator = false;
@@ -96,8 +82,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   ImageStream? _imageStream;
 
   // Image Edit State
-  double _rotationAngle = 0.0;
-  double _brightness = 0.0;
+  double _rotationAngle = 0;
+  double _brightness = 0;
 
   bool _isGlobalHudVisible = true;
   bool _isLoading = true;
@@ -105,7 +91,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   final Completer<void> _firstFrameCompleter = Completer<void>();
   DateTime? _lastNavTime;
   bool _isReadyForInteraction = false;
-
 
   late FileItem _currentItem;
 
@@ -118,8 +103,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     try {
       final images = <FileItem>[];
 
-      if (widget.initParams != null && widget.initParams!['playlistPaths'] != null) {
-        final paths = List<String>.from(widget.initParams!['playlistPaths'] as Iterable);
+      if (widget.initParams != null &&
+          widget.initParams!['playlistPaths'] != null) {
+        final paths = List<String>.from(
+          widget.initParams!['playlistPaths'] as Iterable,
+        );
         for (final path in paths) {
           final file = File(path);
           if (file.existsSync()) {
@@ -169,9 +157,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
             }
           }
         }
-        
+
         images.sort(
-            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
       }
 
       debugPrint('Added ${images.length} images to standalone playlist');
@@ -180,7 +169,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           _standalonePlaylist = images;
         });
         ref.read(imageQueueProvider.notifier).state = _standalonePlaylist;
-        _updateIndexData();
+        unawaited(_updateIndexData());
       }
     } catch (e) {
       debugPrint('[ImagePreviewWidget] Error in _initStandalonePlaylist: $e');
@@ -189,58 +178,23 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   Future<void> _loadSpecialImageIfNecessary() async {
     final ext = _currentItem.path.toLowerCase();
-    final isHeic =
-        ext.endsWith('.heic') || ext.endsWith('.heif') || ext.endsWith('.avif');
-    final isDng = ext.endsWith('.dng') || ext.endsWith('.raw');
+    final isSpecial =
+        ext.endsWith('.heic') ||
+        ext.endsWith('.heif') ||
+        ext.endsWith('.avif') ||
+        ext.endsWith('.dng') ||
+        ext.endsWith('.raw');
 
-    if (isHeic || isDng) {
+    if (isSpecial) {
       setState(() => _isConvertingHeic = true);
-      final tempPath =
-          '${Directory.systemTemp.path}/onyx_special_${_currentItem.path.hashCode}.jpg';
-      final tempFile = File(tempPath);
-      if (!tempFile.existsSync() || tempFile.lengthSync() == 0) {
-        try {
-          if (isHeic) {
-            final process = await Process.start('heif-thumbnailer', [
-              '-s',
-              '10000',
-              _currentItem.path,
-              tempPath,
-            ]);
-            await process.exitCode;
 
-            final file = File(tempPath);
-            if (!file.existsSync() || file.lengthSync() == 0) {
-              final fallbackProcess = await Process.start('ffmpeg', [
-                '-y',
-                '-i',
-                _currentItem.path,
-                '-vframes',
-                '1',
-                '-q:v',
-                '2',
-                '-update',
-                '1',
-                tempPath,
-              ]);
-              await fallbackProcess.exitCode;
-            }
-          } else if (isDng) {
-            await compute(_convertDngToJpgPreview, [
-              _currentItem.path,
-              tempPath,
-            ]);
-          }
-        } catch (e) {
-          debugPrint('Failed to convert special image: $e');
-        }
-      }
+      final resultPath = await SpecialImageConverter.convertIfNecessary(
+        _currentItem.path,
+      );
+
       if (mounted) {
         setState(() {
-          final file = File(tempPath);
-          _convertedHeicPath = (file.existsSync() && file.lengthSync() > 0)
-              ? tempPath
-              : null;
+          _convertedHeicPath = resultPath;
           _isConvertingHeic = false;
         });
       }
@@ -355,15 +309,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   void _onTransformationChanged() {
     if (!mounted) return;
 
-    final Size viewportSize = MediaQuery.of(context).size;
-    final Matrix4 clamped = _clampMatrix(_transformationController.value, viewportSize);
+    final viewportSize = MediaQuery.of(context).size;
+    final clamped = _clampMatrix(_transformationController.value, viewportSize);
 
     final currentTx = _transformationController.value.getTranslation().x;
     final currentTy = _transformationController.value.getTranslation().y;
     final clampedTx = clamped.getTranslation().x;
     final clampedTy = clamped.getTranslation().y;
 
-    if ((currentTx - clampedTx).abs() > 0.1 || (currentTy - clampedTy).abs() > 0.1) {
+    if ((currentTx - clampedTx).abs() > 0.1 ||
+        (currentTy - clampedTy).abs() > 0.1) {
       _transformationController.value = clamped;
       return;
     }
@@ -397,16 +352,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   void _precacheAdjacentImages() {
-    List<String> pathsToPreload = [];
+    var pathsToPreload = <String>[];
 
     if (widget.isStandalone &&
         widget.initParams != null &&
         widget.initParams!['preloadPaths'] != null) {
-      final List<dynamic> preloadList =
-          widget.initParams!['preloadPaths'] as List<dynamic>;
+      final preloadList = widget.initParams!['preloadPaths'] as List<dynamic>;
       pathsToPreload = preloadList.map((e) => e.toString()).toList();
     } else if (!widget.isStandalone && widget.windowId == null) {
-      List<FileItem> mediaItems = ref
+      var mediaItems = ref
           .read(filteredAndSortedImageQueueProvider)
           .where((i) => i.type == FileItemType.image)
           .toList();
@@ -419,7 +373,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           (i) => i.path == _currentItem.path,
         );
         if (currentIndex != -1) {
-          for (int i = 1; i <= 2; i++) {
+          for (var i = 1; i <= 2; i++) {
             pathsToPreload.add(
               mediaItems[(currentIndex + i) % mediaItems.length].path,
             );
@@ -435,13 +389,40 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
     for (final path in pathsToPreload) {
       if (path != _currentItem.path && !path.toLowerCase().endsWith('.svg')) {
-        precacheImage(
-          _getImageProvider(path),
-          context,
-          onError: (e, s) {
-            debugPrint('Failed to precache image $path: $e');
-          },
-        );
+        final pLower = path.toLowerCase();
+        final isSpecial =
+            pLower.endsWith('.heic') ||
+            pLower.endsWith('.heif') ||
+            pLower.endsWith('.avif') ||
+            pLower.endsWith('.dng') ||
+            pLower.endsWith('.raw');
+
+        if (isSpecial) {
+          // Pre-trigger background conversion for special images, do not natively precache them.
+          unawaited(
+            SpecialImageConverter.convertIfNecessary(path).then((
+              convertedPath,
+            ) {
+              if (mounted && convertedPath != null) {
+                precacheImage(
+                  FileImage(File(convertedPath)),
+                  context,
+                  onError: (e, s) => debugPrint(
+                    'Failed to precache converted image $convertedPath: $e',
+                  ),
+                );
+              }
+            }),
+          );
+        } else {
+          precacheImage(
+            _getImageProvider(path),
+            context,
+            onError: (e, s) {
+              debugPrint('Failed to precache image $path: $e');
+            },
+          );
+        }
       }
     }
   }
@@ -456,21 +437,22 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   Matrix4 _clampMatrix(Matrix4 matrix, Size viewportSize) {
     if (_imageSize == null) return matrix;
 
-    final double scaleX = viewportSize.width / _imageSize!.width;
-    final double scaleY = viewportSize.height / _imageSize!.height;
+    final scaleX = viewportSize.width / _imageSize!.width;
+    final scaleY = viewportSize.height / _imageSize!.height;
     final double fitScale = math.min(scaleX, scaleY);
 
-    final double fittedWidth = _imageSize!.width * fitScale;
-    final double fittedHeight = _imageSize!.height * fitScale;
+    final fittedWidth = _imageSize!.width * fitScale;
+    final fittedHeight = _imageSize!.height * fitScale;
 
-    final double currentZoom = matrix.getMaxScaleOnAxis();
-    final double scaledWidth = fittedWidth * currentZoom;
-    final double scaledHeight = fittedHeight * currentZoom;
+    final currentZoom = matrix.getMaxScaleOnAxis();
+    final scaledWidth = fittedWidth * currentZoom;
+    final scaledHeight = fittedHeight * currentZoom;
 
-    final double padX = (viewportSize.width - fittedWidth) / 2;
-    final double padY = (viewportSize.height - fittedHeight) / 2;
+    final padX = (viewportSize.width - fittedWidth) / 2;
+    final padY = (viewportSize.height - fittedHeight) / 2;
 
-    double minTx, maxTx;
+    double minTx;
+    double maxTx;
     if (scaledWidth > viewportSize.width) {
       minTx = viewportSize.width - scaledWidth - padX * currentZoom;
       maxTx = -padX * currentZoom;
@@ -478,7 +460,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       minTx = maxTx = viewportSize.width * (1 - currentZoom) / 2;
     }
 
-    double minTy, maxTy;
+    double minTy;
+    double maxTy;
     if (scaledHeight > viewportSize.height) {
       minTy = viewportSize.height - scaledHeight - padY * currentZoom;
       maxTy = -padY * currentZoom;
@@ -486,11 +469,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       minTy = maxTy = viewportSize.height * (1 - currentZoom) / 2;
     }
 
-    final double clampedTx = matrix.getTranslation().x.clamp(minTx, maxTx);
-    final double clampedTy = matrix.getTranslation().y.clamp(minTy, maxTy);
+    final clampedTx = matrix.getTranslation().x.clamp(minTx, maxTx);
+    final clampedTy = matrix.getTranslation().y.clamp(minTy, maxTy);
 
-    final Matrix4 clampedMatrix = matrix.clone();
-    clampedMatrix.setTranslationRaw(clampedTx, clampedTy, 0.0);
+    final clampedMatrix = matrix.clone();
+    clampedMatrix.setTranslationRaw(clampedTx, clampedTy, 0);
     return clampedMatrix;
   }
 
@@ -502,9 +485,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       final isSidebarOpen = ref.read(imagePlaylistSidebarVisibleProvider);
       if (!isSidebarOpen) return _mousePosition;
       final screenWidth = MediaQuery.of(context).size.width;
-      final minWidth = 240.0;
+      const minWidth = 240.0;
       final maxWidth = screenWidth * 0.40;
-      double panelWidth =
+      var panelWidth =
           ref.read(imagePlaylistSidebarWidthProvider) ?? (screenWidth * 0.25);
       panelWidth = panelWidth.clamp(minWidth, maxWidth);
       return Offset(_mousePosition.dx - panelWidth, _mousePosition.dy);
@@ -522,24 +505,24 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       return;
     }
 
-    final Matrix4 currentMatrix = _transformationController.value.clone();
-    final double oldScale = currentMatrix.getMaxScaleOnAxis();
+    final currentMatrix = _transformationController.value.clone();
+    final oldScale = currentMatrix.getMaxScaleOnAxis();
 
     if ((clampedScale - oldScale).abs() < 0.001) return;
 
-    final double scaleRatio = clampedScale / oldScale;
+    final scaleRatio = clampedScale / oldScale;
 
     try {
       // Convert the viewport focal point to scene coordinates using the
       // inverse of the current transformation matrix. This ensures the
       // content point under the cursor stays pinned during zoom.
-      final Matrix4 inverseMatrix = Matrix4.inverted(currentMatrix);
-      final Offset scenePoint = MatrixUtils.transformPoint(inverseMatrix, P);
+      final inverseMatrix = Matrix4.inverted(currentMatrix);
+      final scenePoint = MatrixUtils.transformPoint(inverseMatrix, P);
 
       // Build the new matrix: translate so that scenePoint is at origin,
       // apply uniform scale, then translate back — all in scene space,
       // then compose with the existing transform.
-      final Matrix4 newMatrix = currentMatrix.clone()
+      final newMatrix = currentMatrix.clone()
         ..translate(scenePoint.dx, scenePoint.dy)
         ..scale(scaleRatio, scaleRatio)
         ..translate(-scenePoint.dx, -scenePoint.dy);
@@ -575,20 +558,20 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       return;
     }
 
-    final double startScale = _gestureStartMatrix.getMaxScaleOnAxis();
+    final startScale = _gestureStartMatrix.getMaxScaleOnAxis();
     if (startScale < 0.001) return;
-    final double scaleRatio = clampedScale / startScale;
+    final scaleRatio = clampedScale / startScale;
 
     try {
       // Map viewport focal point to scene coordinates using the INITIAL matrix
       // (not the current one), so the anchor stays fixed across the gesture.
-      final Matrix4 inverseStart = Matrix4.inverted(_gestureStartMatrix);
-      final Offset scenePoint = MatrixUtils.transformPoint(
+      final inverseStart = Matrix4.inverted(_gestureStartMatrix);
+      final scenePoint = MatrixUtils.transformPoint(
         inverseStart,
         viewportFocalPoint,
       );
 
-      final Matrix4 newMatrix = _gestureStartMatrix.clone()
+      final newMatrix = _gestureStartMatrix.clone()
         ..translate(scenePoint.dx, scenePoint.dy)
         ..scale(scaleRatio, scaleRatio)
         ..translate(-scenePoint.dx, -scenePoint.dy);
@@ -680,7 +663,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   Future<void> _updateIndexData() async {
-    final useInitParams = widget.windowId != null &&
+    final useInitParams =
+        widget.windowId != null &&
         widget.initParams != null &&
         widget.initParams!['currentIndex'] != null &&
         !(widget.isStandalone && _standalonePlaylist.isNotEmpty);
@@ -693,11 +677,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         });
       }
     } else {
-      List<FileItem> mediaItems = widget.isStandalone 
-          ? _standalonePlaylist 
-          : ref.read(filteredAndSortedImageQueueProvider)
-              .where((i) => i.type == FileItemType.image)
-              .toList();
+      var mediaItems = widget.isStandalone
+          ? _standalonePlaylist
+          : ref
+                .read(filteredAndSortedImageQueueProvider)
+                .where((i) => i.type == FileItemType.image)
+                .toList();
       if (mediaItems.isEmpty && !widget.isStandalone) {
         final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
         mediaItems = items.where((i) => i.type == FileItemType.image).toList();
@@ -748,8 +733,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           if (!completer.isCompleted) completer.complete(info);
         },
         onError: (dynamic error, StackTrace? stackTrace) {
-          if (!completer.isCompleted)
+          if (!completer.isCompleted) {
             completer.completeError(error as Object, stackTrace);
+          }
         },
       );
 
@@ -774,7 +760,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   @override
   void dispose() {
-
     _imageStream?.removeListener(ImageStreamListener(_updateImage));
     _navigationThrottleTimer?.cancel();
     if (widget.windowId != null) {
@@ -794,7 +779,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   @override
-  void onWindowClose() async {
+  Future<void> onWindowClose() async {
     if (_isClosing) return;
     _isClosing = true;
 
@@ -860,9 +845,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   Future<void> _openInNewWindow() async {
-    List<String> preloadPaths = [];
+    final preloadPaths = <String>[];
     if (!widget.isStandalone && widget.windowId == null) {
-      List<FileItem> mediaItems = ref
+      var mediaItems = ref
           .read(filteredAndSortedImageQueueProvider)
           .where((i) => i.type == FileItemType.image)
           .toList();
@@ -875,7 +860,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           (i) => i.path == _currentItem.path,
         );
         if (currentIndex != -1) {
-          for (int i = 1; i <= 2; i++) {
+          for (var i = 1; i <= 2; i++) {
             preloadPaths.add(
               mediaItems[(currentIndex + i) % mediaItems.length].path,
             );
@@ -908,11 +893,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _navigationThrottleTimer = Timer(const Duration(milliseconds: 300), () {});
 
     // IPC removed, falling back to local state
-    List<FileItem> mediaItems = widget.isStandalone 
-        ? _standalonePlaylist 
-        : ref.read(filteredAndSortedImageQueueProvider)
-            .where((i) => i.type == FileItemType.image)
-            .toList();
+    var mediaItems = widget.isStandalone
+        ? _standalonePlaylist
+        : ref
+              .read(filteredAndSortedImageQueueProvider)
+              .where((i) => i.type == FileItemType.image)
+              .toList();
     if (mediaItems.isEmpty && !widget.isStandalone) {
       final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
       mediaItems = items.where((i) => i.type == FileItemType.image).toList();
@@ -994,12 +980,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     }
 
     FileItem? nextItem;
-    bool hasMultiple = false;
+    var hasMultiple = false;
 
     if (widget.isStandalone) {
       // Handled natively or safely ignored
     } else {
-      List<FileItem> mediaItems = ref
+      var mediaItems = ref
           .read(filteredAndSortedImageQueueProvider)
           .where((i) => i.type == FileItemType.image)
           .toList();
@@ -1052,7 +1038,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         repo.invalidateCache(currentPath);
         ref.read(refreshCountProvider.notifier).state =
             ref.read(refreshCountProvider) + 1;
-        ref.read(directoryItemsProvider.notifier).refresh();
+        unawaited(ref.read(directoryItemsProvider.notifier).refresh());
       }
 
       if (hasMultiple && nextItem != null) {
@@ -1142,7 +1128,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
               _setZoom(_currentScale - 0.2);
               return KeyEventResult.handled;
             } else if (event.logicalKey == LogicalKeyboardKey.digit0) {
-              _setZoom(1.0);
+              _setZoom(1);
               return KeyEventResult.handled;
             }
           }
@@ -1229,12 +1215,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                   imagePlaylistSidebarVisibleProvider,
                 );
                 final screenWidth = MediaQuery.of(context).size.width;
-                final minWidth = 240.0;
+                const minWidth = 240.0;
                 final maxWidth = screenWidth * 0.40;
-                double? savedWidth = sidebarRef.watch(
+                final savedWidth = sidebarRef.watch(
                   imagePlaylistSidebarWidthProvider,
                 );
-                double panelWidth = savedWidth ?? (screenWidth * 0.25);
+                var panelWidth = savedWidth ?? (screenWidth * 0.25);
                 panelWidth = panelWidth.clamp(minWidth, maxWidth);
                 final sidebarWidth = isSidebarOpen ? panelWidth : 0.0;
 
@@ -1278,10 +1264,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                               LogicalKeyboardKey.controlRight,
                                             );
                                     if (ctrl) {
-                                      final double delta =
+                                      final delta =
                                           pointerSignal.scrollDelta.dy;
                                       if (delta != 0) {
-                                        final double zoomFactor = delta > 0
+                                        final zoomFactor = delta > 0
                                             ? 1.05
                                             : 0.95;
                                         _setZoom(
@@ -1293,14 +1279,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                     } else if (_currentScale > 1.05) {
                                       // Handle trackpad two-finger drag (panning via scroll)
                                       final delta = pointerSignal.scrollDelta;
-                                      const double sensitivity = 5.0;
+                                      const sensitivity = 5;
                                       final translation =
                                           Matrix4.translationValues(
                                             -delta.dx * sensitivity,
                                             -delta.dy * sensitivity,
                                             0,
                                           );
-                                      final Matrix4 nextMatrix =
+                                      final nextMatrix =
                                           (translation *
                                                   _transformationController
                                                       .value)
@@ -1308,11 +1294,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
                                       if (nextMatrix.storage.any(
                                         (v) => !v.isFinite,
-                                      ))
+                                      )) {
                                         return;
+                                      }
 
-
-                                      _transformationController.value = nextMatrix;
+                                      _transformationController.value =
+                                          nextMatrix;
                                       _onTransformationChanged();
                                     }
                                   }
@@ -1350,7 +1337,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                           );
 
                                   if (ctrl) {
-                                    final double dy = event.panDelta.dy;
+                                    final dy = event.panDelta.dy;
                                     if (dy != 0) {
                                       // Accumulate the scrub scale from gesture start
                                       // dy positive (scrub down) -> zoom in, negative -> zoom out
@@ -1376,17 +1363,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                             delta.dy,
                                             0,
                                           );
-                                      final Matrix4 nextMatrix =
+                                      final nextMatrix =
                                           (translation *
                                                   _transformationController
                                                       .value)
                                               as Matrix4;
                                       if (nextMatrix.storage.any(
                                         (v) => !v.isFinite,
-                                      ))
+                                      )) {
                                         return;
+                                      }
 
-                                      _transformationController.value = nextMatrix;
+                                      _transformationController.value =
+                                          nextMatrix;
                                       _onTransformationChanged();
                                     }
                                   }
@@ -1394,8 +1383,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 child: InteractiveViewer(
                                   transformationController:
                                       _transformationController,
-                                  minScale: 1.0,
-                                  maxScale: 15.0,
+                                  minScale: 1,
+                                  maxScale: 15,
                                   panEnabled:
                                       !_isPanZoomGesture &&
                                       (_isReadyForInteraction ||
@@ -1410,13 +1399,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                       setState(() {
                                         _isControlsVisible =
                                             !_isControlsVisible;
-                                        if (_isControlsVisible)
+                                        if (_isControlsVisible) {
                                           _startHideTimer();
+                                        }
                                       });
                                     },
                                     onDoubleTap: widget.windowId == null
                                         ? _openInNewWindow
-                                        : () => _setZoom(1.0),
+                                        : () => _setZoom(1),
                                     child: Builder(
                                       builder: (context) {
                                         Widget buildImageWidget() {
@@ -1437,13 +1427,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                             '.svg',
                                           )) {
                                             return isNetwork
-                                                ? SvgPicture.network(
-                                                    imagePath,
-                                                    fit: BoxFit.contain,
-                                                  )
+                                                ? SvgPicture.network(imagePath)
                                                 : SvgPicture.file(
                                                     File(imagePath),
-                                                    fit: BoxFit.contain,
                                                   );
                                           } else {
                                             return isNetwork
@@ -1505,8 +1491,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                                             1,
                                                             0,
                                                           ]),
-                                                      child:
-                                                          buildImageWidget(),
+                                                      child: buildImageWidget(),
                                                     )
                                                   : buildImageWidget(),
                                             ),
@@ -1521,7 +1506,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
                           if (_isLoading)
                             const IgnorePointer(
-                              child: Center(child: BubbleLoader(size: 80)),
+                              child: Center(child: BubbleLoader()),
                             ),
 
                           Positioned(
@@ -1667,10 +1652,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                     vertical: 8,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.4),
+                                    color: Colors.black.withValues(alpha: 0.4),
                                     borderRadius: BorderRadius.circular(24),
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.1),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.1,
+                                      ),
                                     ),
                                   ),
                                   child: ClipRRect(
@@ -1683,7 +1670,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                       child: Text(
                                         '${(_currentScale * 100).toInt()}%',
                                         style: GoogleFonts.outfit(
-                                          color: Colors.white.withOpacity(0.9),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 0.5,
@@ -1716,11 +1705,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     return Container(
       decoration: BoxDecoration(
         color: active
-            ? const Color(0xFF00E5FF).withOpacity(0.2)
-            : Colors.white.withOpacity(0.1),
+            ? const Color(0xFF00E5FF).withValues(alpha: 0.2)
+            : Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: active
-            ? Border.all(color: const Color(0xFF00E5FF).withOpacity(0.5))
+            ? Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.5))
             : null,
       ),
       child: IconButton(
@@ -1741,9 +1730,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       duration: const Duration(milliseconds: 300),
       height: 200,
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.85),
+        color: Colors.black.withValues(alpha: 0.85),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       padding: const EdgeInsets.all(24),
       child: SingleChildScrollView(
@@ -1752,7 +1741,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           children: [
             _buildControlLabel(
               Icons.rotate_right,
-              "Rotation: ${_rotationAngle.toInt()}°",
+              'Rotation: ${_rotationAngle.toInt()}°',
             ),
             Slider(
               value: _rotationAngle,
@@ -1763,11 +1752,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
               onChanged: (val) => setState(() => _rotationAngle = val),
             ),
             const SizedBox(height: 8),
-            _buildControlLabel(Icons.brightness_6, "Brightness"),
+            _buildControlLabel(Icons.brightness_6, 'Brightness'),
             Slider(
               value: _brightness,
-              min: -1.0,
-              max: 1.0,
+              min: -1,
               activeColor: const Color(0xFF00E5FF),
               inactiveColor: Colors.white10,
               onChanged: (val) => setState(() => _brightness = val),
@@ -1797,7 +1785,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   Widget _buildEmptyState() {
-    return Container(
+    return ColoredBox(
       color: const Color(0xFF121212),
       child: Center(
         child: Column(
@@ -1806,13 +1794,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
             Icon(
               Icons.image_not_supported_rounded,
               size: 64,
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
             ),
             const SizedBox(height: 16),
             Text(
               'No more images to view.',
               style: GoogleFonts.manrope(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),

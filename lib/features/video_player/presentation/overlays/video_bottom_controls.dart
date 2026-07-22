@@ -243,377 +243,26 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                 // Progress Slider & Timers Row
                 if (!widget.displayState.isEmpty)
                   StreamBuilder<Duration>(
-                  stream: player.stream.position,
-                  builder: (context, snapshot) {
-                    final streamPos = snapshot.data ?? displayPosition;
-                    final position =
-                        (_isScrubbing && _virtualScrubPosition != null)
-                        ? _virtualScrubPosition!
-                        : streamPos;
-                    final duration = player.state.duration;
-                    final remaining = duration - position;
-                    final progress = duration.inMilliseconds > 0
-                        ? position.inMilliseconds / duration.inMilliseconds
-                        : 0.0;
+                    stream: player.stream.position,
+                    builder: (context, snapshot) {
+                      final streamPos = snapshot.data ?? displayPosition;
+                      final position =
+                          (_isScrubbing && _virtualScrubPosition != null)
+                          ? _virtualScrubPosition!
+                          : streamPos;
+                      final duration = player.state.duration;
+                      final remaining = duration - position;
+                      final progress = duration.inMilliseconds > 0
+                          ? position.inMilliseconds / duration.inMilliseconds
+                          : 0.0;
 
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 17),
-                          child: Text(
-                            _formatDuration(position),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              _sliderWidth = constraints.maxWidth;
-                              return MouseRegion(
-                                onEnter: (_) {
-                                  _hoverExitTimer?.cancel();
-                                  if (mounted && !_isSliderHovered) {
-                                    setState(() => _isSliderHovered = true);
-                                  }
-                                },
-                                onExit: (_) {
-                                  _hoverExitTimer?.cancel();
-                                  _hoverExitTimer = Timer(
-                                    const Duration(milliseconds: 300),
-                                    () {
-                                      if (mounted) {
-                                        setState(
-                                          () => _isSliderHovered = false,
-                                        );
-                                        _hoverXNotifier.value = null;
-                                      }
-                                    },
-                                  );
-                                },
-                                onHover: (event) {
-                                  // Strictly show preview only when hovering over the progress bar (bottom area)
-                                  // The track is at bottom: 20-30 of the 100px container (dy: 70-80)
-                                  final dy = event.localPosition.dy;
-                                  if (dy >= 65 &&
-                                      dy <= 95 &&
-                                      !_isHoveringMarker) {
-                                    _hoverXNotifier.value =
-                                        event.localPosition.dx;
-                                  } else {
-                                    _hoverXNotifier.value = null;
-                                  }
-                                },
-                                child: CompositedTransformTarget(
-                                  link: _sliderLink,
-                                  key: _sliderKey,
-                                  child: SizedBox(
-                                    height:
-                                        100, // Increased height for radial marker menu
-                                    child: Stack(
-                                      clipBehavior: Clip.none,
-                                      alignment: Alignment.bottomCenter,
-                                      children: [
-                                        Positioned(
-                                          left: 0,
-                                          right: 0,
-                                          bottom: 20, // Move slider up slightly
-                                          child: StreamBuilder<Duration>(
-                                            stream: player.stream.buffer,
-                                            builder: (context, bufferSnapshot) {
-                                              final bufferDuration =
-                                                  bufferSnapshot.data ??
-                                                  player.state.buffer;
-                                              final bufferProgress =
-                                                  duration.inMilliseconds > 0
-                                                  ? bufferDuration
-                                                            .inMilliseconds /
-                                                        duration.inMilliseconds
-                                                  : 0.0;
-                                              return SliderTheme(
-                                                data: SliderTheme.of(context)
-                                                    .copyWith(
-                                                      trackShape:
-                                                          GradientRectSliderTrackShape(
-                                                            gradient: AppTheme
-                                                                .primaryGradient,
-                                                            bufferProgress:
-                                                                bufferProgress
-                                                                    .clamp(
-                                                                      0.0,
-                                                                      1.0,
-                                                                    ),
-                                                          ),
-                                                      activeTrackColor:
-                                                          Colors.white,
-                                                      inactiveTrackColor: Colors
-                                                          .white
-                                                          .withValues(
-                                                            alpha: 0.1,
-                                                          ),
-                                                      thumbShape:
-                                                          SliderComponentShape
-                                                              .noThumb,
-                                                      overlayShape:
-                                                          SliderComponentShape
-                                                              .noOverlay,
-                                                      trackHeight: 10,
-                                                    ),
-                                                child: Slider(
-                                                  value: progress.clamp(
-                                                    0.0,
-                                                    1.0,
-                                                  ),
-                                                  onChangeStart: (_) {
-                                                    setState(() {
-                                                      // 1. Explicitly kill all step-seek state
-
-                                                      // 2. Kill all pending timers
-                                                      _engineSeekTimer
-                                                          ?.cancel();
-                                                      _virtualSeekCleanupTimer
-                                                          ?.cancel();
-                                                      _fastSeekTimer?.cancel();
-
-                                                      // 3. Initialize scrub state
-                                                      _isScrubbing = true;
-                                                      _wasPlayingBeforeScrub =
-                                                          player.state.playing;
-                                                    });
-                                                    player.pause();
-                                                  },
-                                                  onChanged: (v) {
-                                                    _onInteraction();
-                                                    _showSeekIndicator();
-                                                    final targetMs =
-                                                        (v *
-                                                                duration
-                                                                    .inMilliseconds)
-                                                            .toInt();
-                                                    setState(() {
-                                                      _virtualScrubPosition =
-                                                          Duration(
-                                                            milliseconds:
-                                                                targetMs,
-                                                          );
-                                                      _pendingScrubPosition =
-                                                          _virtualScrubPosition;
-                                                    });
-                                                    if (_scrubThrottleTimer
-                                                            ?.isActive !=
-                                                        true) {
-                                                      _performSeek(
-                                                        _pendingScrubPosition!,
-                                                      );
-                                                      _scrubThrottleTimer = Timer(
-                                                        const Duration(
-                                                          milliseconds: 100,
-                                                        ),
-                                                        () {
-                                                          if (_pendingScrubPosition !=
-                                                                  null &&
-                                                              mounted &&
-                                                              _isScrubbing) {
-                                                            _performSeek(
-                                                              _pendingScrubPosition!,
-                                                            );
-                                                          }
-                                                        },
-                                                      );
-                                                    }
-                                                  },
-                                                  onChangeEnd: (v) {
-                                                    _scrubThrottleTimer
-                                                        ?.cancel();
-                                                    _smartDelayTimer?.cancel();
-
-                                                    // Final seek
-                                                    _performSeek(
-                                                      Duration(
-                                                        milliseconds:
-                                                            (v *
-                                                                    duration
-                                                                        .inMilliseconds)
-                                                                .toInt(),
-                                                      ),
-                                                    );
-
-                                                    if (_wasPlayingBeforeScrub) {
-                                                      player.play();
-                                                      _wasPlayingBeforeScrub =
-                                                          false;
-                                                    }
-
-                                                    // Reset cleanup timer
-                                                    _virtualSeekCleanupTimer
-                                                        ?.cancel();
-                                                    _virtualSeekCleanupTimer =
-                                                        Timer(
-                                                          const Duration(
-                                                            seconds: 1,
-                                                          ),
-                                                          _cleanupVirtualSeeking,
-                                                        );
-                                                  },
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-
-                                        // EPX-009: Timeline Markers
-                                        if (ref
-                                                .watch(settingsProvider)
-                                                .value
-                                                ?.showMarkersOnTimeline ??
-                                            true)
-                                          ...ref
-                                              .watch(
-                                                videoMarkersProvider(
-                                                  widget.currentItem.path,
-                                                ),
-                                              )
-                                              .maybeWhen(
-                                                data: (markers) => markers.map(
-                                                  (m) => TimelineMarker(
-                                                    marker: m,
-                                                    totalDuration: duration,
-                                                    sliderWidth: _sliderWidth,
-                                                    videoPath:
-                                                        widget.currentItem.path,
-                                                    hoverXNotifier:
-                                                        _hoverXNotifier,
-                                                    isMarkerEditorActive: widget
-                                                        .displayState
-                                                        .isMarkerEditorActive,
-                                                    onTap: () {
-                                                      if (player.platform !=
-                                                          null) {
-                                                        (player.platform
-                                                                as dynamic)
-                                                            .setProperty(
-                                                              'hr-seek',
-                                                              'yes',
-                                                            );
-                                                      }
-                                                      player.seek(m.timestamp);
-                                                      player.play();
-                                                      // Briefly keep high-precision seek active to ensure the frame is hit accurately
-                                                      Future.delayed(
-                                                        const Duration(
-                                                          milliseconds: 200,
-                                                        ),
-                                                        () {
-                                                          if (mounted &&
-                                                              player.platform !=
-                                                                  null) {
-                                                            (player.platform
-                                                                    as dynamic)
-                                                                .setProperty(
-                                                                  'hr-seek',
-                                                                  'no',
-                                                                );
-                                                          }
-                                                        },
-                                                      );
-                                                    },
-                                                    onEdit: () => widget
-                                                        .onOpenMarkerEditor(m),
-                                                    onHoverChanged: (hovering) {
-                                                      if (mounted) {
-                                                        setState(
-                                                          () =>
-                                                              _isHoveringMarker =
-                                                                  hovering,
-                                                        );
-                                                        if (hovering) {
-                                                          _hideTimer?.cancel();
-                                                        } else {
-                                                          _onInteraction();
-                                                        }
-                                                      }
-                                                    },
-                                                    onMenuVisibilityChanged: (visible) {
-                                                      if (mounted) {
-                                                        widget
-                                                            .onMarkerMenuVisibilityChanged(
-                                                              visible,
-                                                            );
-                                                        if (visible) {
-                                                          _onInteraction(); // Ensure HUD is visible when menu opens
-                                                        } else {
-                                                          _onInteraction(); // Start fade-out timer when menu closes
-                                                        }
-                                                      }
-                                                    },
-                                                  ),
-                                                ),
-                                                orElse: () => [],
-                                              ),
-
-                                        // BUG-001: Hover thumbnail preview
-                                        Positioned(
-                                          left: 0,
-                                          right: 0,
-                                          bottom: 24,
-                                          child: IgnorePointer(
-                                            child: AnimatedOpacity(
-                                              duration: const Duration(
-                                                milliseconds: 150,
-                                              ),
-                                              opacity: _isSliderHovered
-                                                  ? 1.0
-                                                  : 0.0,
-                                              child: HoverPreview(
-                                                mediaPath:
-                                                    widget.currentItem.path,
-                                                totalDuration: duration,
-                                                sliderWidth: _sliderWidth,
-                                                hoverXNotifier: _hoverXNotifier,
-                                                isVisible: _isSliderHovered,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 17),
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _showRemainingTime = !_showRemainingTime;
-                              });
-                              final currentSettings = ref
-                                  .read(settingsProvider)
-                                  .value;
-                              if (currentSettings != null) {
-                                ref
-                                    .read(settingsProvider.notifier)
-                                    .saveSettings(
-                                      currentSettings.copyWith(
-                                        videoShowRemainingTime:
-                                            _showRemainingTime,
-                                      ),
-                                    );
-                              }
-                            },
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 17),
                             child: Text(
-                              _showRemainingTime
-                                  ? '-${_formatDuration(remaining)}'
-                                  : _formatDuration(duration),
+                              _formatDuration(position),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 13,
@@ -621,11 +270,375 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                _sliderWidth = constraints.maxWidth;
+                                return MouseRegion(
+                                  onEnter: (_) {
+                                    _hoverExitTimer?.cancel();
+                                    if (mounted && !_isSliderHovered) {
+                                      setState(() => _isSliderHovered = true);
+                                    }
+                                  },
+                                  onExit: (_) {
+                                    _hoverExitTimer?.cancel();
+                                    _hoverExitTimer = Timer(
+                                      const Duration(milliseconds: 300),
+                                      () {
+                                        if (mounted) {
+                                          setState(
+                                            () => _isSliderHovered = false,
+                                          );
+                                          _hoverXNotifier.value = null;
+                                        }
+                                      },
+                                    );
+                                  },
+                                  onHover: (event) {
+                                    // Strictly show preview only when hovering over the progress bar (bottom area)
+                                    // The track is at bottom: 20-30 of the 100px container (dy: 70-80)
+                                    final dy = event.localPosition.dy;
+                                    if (dy >= 65 &&
+                                        dy <= 95 &&
+                                        !_isHoveringMarker) {
+                                      _hoverXNotifier.value =
+                                          event.localPosition.dx;
+                                    } else {
+                                      _hoverXNotifier.value = null;
+                                    }
+                                  },
+                                  child: CompositedTransformTarget(
+                                    link: _sliderLink,
+                                    key: _sliderKey,
+                                    child: SizedBox(
+                                      height:
+                                          100, // Increased height for radial marker menu
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        alignment: Alignment.bottomCenter,
+                                        children: [
+                                          Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom:
+                                                20, // Move slider up slightly
+                                            child: StreamBuilder<Duration>(
+                                              stream: player.stream.buffer,
+                                              builder: (context, bufferSnapshot) {
+                                                final bufferDuration =
+                                                    bufferSnapshot.data ??
+                                                    player.state.buffer;
+                                                final bufferProgress =
+                                                    duration.inMilliseconds > 0
+                                                    ? bufferDuration
+                                                              .inMilliseconds /
+                                                          duration
+                                                              .inMilliseconds
+                                                    : 0.0;
+                                                return SliderTheme(
+                                                  data: SliderTheme.of(context)
+                                                      .copyWith(
+                                                        trackShape:
+                                                            GradientRectSliderTrackShape(
+                                                              gradient: AppTheme
+                                                                  .primaryGradient,
+                                                              bufferProgress:
+                                                                  bufferProgress
+                                                                      .clamp(
+                                                                        0.0,
+                                                                        1.0,
+                                                                      ),
+                                                            ),
+                                                        activeTrackColor:
+                                                            Colors.white,
+                                                        inactiveTrackColor:
+                                                            Colors.white
+                                                                .withValues(
+                                                                  alpha: 0.1,
+                                                                ),
+                                                        thumbShape:
+                                                            SliderComponentShape
+                                                                .noThumb,
+                                                        overlayShape:
+                                                            SliderComponentShape
+                                                                .noOverlay,
+                                                        trackHeight: 10,
+                                                      ),
+                                                  child: Slider(
+                                                    value: progress.clamp(
+                                                      0.0,
+                                                      1.0,
+                                                    ),
+                                                    onChangeStart: (_) {
+                                                      setState(() {
+                                                        // 1. Explicitly kill all step-seek state
+
+                                                        // 2. Kill all pending timers
+                                                        _engineSeekTimer
+                                                            ?.cancel();
+                                                        _virtualSeekCleanupTimer
+                                                            ?.cancel();
+                                                        _fastSeekTimer
+                                                            ?.cancel();
+
+                                                        // 3. Initialize scrub state
+                                                        _isScrubbing = true;
+                                                        _wasPlayingBeforeScrub =
+                                                            player
+                                                                .state
+                                                                .playing;
+                                                      });
+                                                      player.pause();
+                                                    },
+                                                    onChanged: (v) {
+                                                      _onInteraction();
+                                                      _showSeekIndicator();
+                                                      final targetMs =
+                                                          (v *
+                                                                  duration
+                                                                      .inMilliseconds)
+                                                              .toInt();
+                                                      setState(() {
+                                                        _virtualScrubPosition =
+                                                            Duration(
+                                                              milliseconds:
+                                                                  targetMs,
+                                                            );
+                                                        _pendingScrubPosition =
+                                                            _virtualScrubPosition;
+                                                      });
+                                                      if (_scrubThrottleTimer
+                                                              ?.isActive !=
+                                                          true) {
+                                                        _performSeek(
+                                                          _pendingScrubPosition!,
+                                                        );
+                                                        _scrubThrottleTimer = Timer(
+                                                          const Duration(
+                                                            milliseconds: 100,
+                                                          ),
+                                                          () {
+                                                            if (_pendingScrubPosition !=
+                                                                    null &&
+                                                                mounted &&
+                                                                _isScrubbing) {
+                                                              _performSeek(
+                                                                _pendingScrubPosition!,
+                                                              );
+                                                            }
+                                                          },
+                                                        );
+                                                      }
+                                                    },
+                                                    onChangeEnd: (v) {
+                                                      _scrubThrottleTimer
+                                                          ?.cancel();
+                                                      _smartDelayTimer
+                                                          ?.cancel();
+
+                                                      // Final seek
+                                                      _performSeek(
+                                                        Duration(
+                                                          milliseconds:
+                                                              (v *
+                                                                      duration
+                                                                          .inMilliseconds)
+                                                                  .toInt(),
+                                                        ),
+                                                      );
+
+                                                      if (_wasPlayingBeforeScrub) {
+                                                        player.play();
+                                                        _wasPlayingBeforeScrub =
+                                                            false;
+                                                      }
+
+                                                      // Reset cleanup timer
+                                                      _virtualSeekCleanupTimer
+                                                          ?.cancel();
+                                                      _virtualSeekCleanupTimer =
+                                                          Timer(
+                                                            const Duration(
+                                                              seconds: 1,
+                                                            ),
+                                                            _cleanupVirtualSeeking,
+                                                          );
+                                                    },
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+
+                                          // EPX-009: Timeline Markers
+                                          if (ref
+                                                  .watch(settingsProvider)
+                                                  .value
+                                                  ?.showMarkersOnTimeline ??
+                                              true)
+                                            ...ref
+                                                .watch(
+                                                  videoMarkersProvider(
+                                                    widget.currentItem.path,
+                                                  ),
+                                                )
+                                                .maybeWhen(
+                                                  data: (markers) => markers.map(
+                                                    (m) => TimelineMarker(
+                                                      marker: m,
+                                                      totalDuration: duration,
+                                                      sliderWidth: _sliderWidth,
+                                                      videoPath: widget
+                                                          .currentItem
+                                                          .path,
+                                                      hoverXNotifier:
+                                                          _hoverXNotifier,
+                                                      isMarkerEditorActive: widget
+                                                          .displayState
+                                                          .isMarkerEditorActive,
+                                                      onTap: () {
+                                                        if (player.platform !=
+                                                            null) {
+                                                          (player.platform
+                                                                  as dynamic)
+                                                              .setProperty(
+                                                                'hr-seek',
+                                                                'yes',
+                                                              );
+                                                        }
+                                                        player.seek(
+                                                          m.timestamp,
+                                                        );
+                                                        player.play();
+                                                        // Briefly keep high-precision seek active to ensure the frame is hit accurately
+                                                        Future.delayed(
+                                                          const Duration(
+                                                            milliseconds: 200,
+                                                          ),
+                                                          () {
+                                                            if (mounted &&
+                                                                player.platform !=
+                                                                    null) {
+                                                              (player.platform
+                                                                      as dynamic)
+                                                                  .setProperty(
+                                                                    'hr-seek',
+                                                                    'no',
+                                                                  );
+                                                            }
+                                                          },
+                                                        );
+                                                      },
+                                                      onEdit: () => widget
+                                                          .onOpenMarkerEditor(
+                                                            m,
+                                                          ),
+                                                      onHoverChanged: (hovering) {
+                                                        if (mounted) {
+                                                          setState(
+                                                            () =>
+                                                                _isHoveringMarker =
+                                                                    hovering,
+                                                          );
+                                                          if (hovering) {
+                                                            _hideTimer
+                                                                ?.cancel();
+                                                          } else {
+                                                            _onInteraction();
+                                                          }
+                                                        }
+                                                      },
+                                                      onMenuVisibilityChanged: (visible) {
+                                                        if (mounted) {
+                                                          widget
+                                                              .onMarkerMenuVisibilityChanged(
+                                                                visible,
+                                                              );
+                                                          if (visible) {
+                                                            _onInteraction(); // Ensure HUD is visible when menu opens
+                                                          } else {
+                                                            _onInteraction(); // Start fade-out timer when menu closes
+                                                          }
+                                                        }
+                                                      },
+                                                    ),
+                                                  ),
+                                                  orElse: () => [],
+                                                ),
+
+                                          // BUG-001: Hover thumbnail preview
+                                          Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 24,
+                                            child: IgnorePointer(
+                                              child: AnimatedOpacity(
+                                                duration: const Duration(
+                                                  milliseconds: 150,
+                                                ),
+                                                opacity: _isSliderHovered
+                                                    ? 1.0
+                                                    : 0.0,
+                                                child: HoverPreview(
+                                                  mediaPath:
+                                                      widget.currentItem.path,
+                                                  totalDuration: duration,
+                                                  sliderWidth: _sliderWidth,
+                                                  hoverXNotifier:
+                                                      _hoverXNotifier,
+                                                  isVisible: _isSliderHovered,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 17),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _showRemainingTime = !_showRemainingTime;
+                                });
+                                final currentSettings = ref
+                                    .read(settingsProvider)
+                                    .value;
+                                if (currentSettings != null) {
+                                  ref
+                                      .read(settingsProvider.notifier)
+                                      .saveSettings(
+                                        currentSettings.copyWith(
+                                          videoShowRemainingTime:
+                                              _showRemainingTime,
+                                        ),
+                                      );
+                                }
+                              },
+                              child: Text(
+                                _showRemainingTime
+                                    ? '-${_formatDuration(remaining)}'
+                                    : _formatDuration(duration),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 const SizedBox(height: 12),
                 // Control Buttons
                 Row(
@@ -658,7 +671,7 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                     ),
 
                     // All remaining left/center/right controls hidden in empty state
-                    if (!widget.displayState.isEmpty) ...[ 
+                    if (!widget.displayState.isEmpty) ...[
                       const SizedBox(width: 4),
                       if (!widget.displayState.isNetworkStream)
                         Consumer(
@@ -718,10 +731,10 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                                   if (player.state.completed) {
                                     widget.onNavigateMedia(true);
                                   } else if (player
-                                                  .state
-                                                  .duration
-                                                  .inMilliseconds >
-                                              0 &&
+                                              .state
+                                              .duration
+                                              .inMilliseconds >
+                                          0 &&
                                       (player.state.position.inMilliseconds >=
                                           player.state.duration.inMilliseconds -
                                               500)) {
@@ -747,7 +760,8 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                             child: StreamBuilder<dynamic>(
                               stream: player.stream.track,
                               builder: (context, snapshot) {
-                                final state = snapshot.data ?? player.state.track;
+                                final state =
+                                    snapshot.data ?? player.state.track;
                                 return TrackSelectorMenu(
                                   title: 'Subtitles',
                                   subtitleTracks: player.state.tracks.subtitle,
@@ -797,7 +811,8 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                             child: StreamBuilder<dynamic>(
                               stream: player.stream.track,
                               builder: (context, snapshot) {
-                                final state = snapshot.data ?? player.state.track;
+                                final state =
+                                    snapshot.data ?? player.state.track;
                                 return TrackSelectorMenu(
                                   title: 'Audio Tracks',
                                   audioTracks: player.state.tracks.audio,
@@ -1026,15 +1041,15 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                                     activeTrackColor: volume > 100
                                         ? Colors.orange
                                         : Colors.white,
-                                    inactiveTrackColor:
-                                        Colors.white.withValues(alpha: 0.2),
+                                    inactiveTrackColor: Colors.white.withValues(
+                                      alpha: 0.2,
+                                    ),
                                     thumbShape: const RoundSliderThumbShape(
                                       enabledThumbRadius: 3,
                                     ),
-                                    overlayShape:
-                                        const RoundSliderOverlayShape(
-                                          overlayRadius: 6,
-                                        ),
+                                    overlayShape: const RoundSliderOverlayShape(
+                                      overlayRadius: 6,
+                                    ),
                                   ),
                                   child: Slider(
                                     value: volume.clamp(0.0, 200.0),

@@ -28,7 +28,7 @@ class GradientRectSliderTrackShape extends RectangularSliderTrackShape {
       return;
     }
 
-    final Rect trackRect = getPreferredRect(
+    final trackRect = getPreferredRect(
       parentBox: parentBox,
       offset: offset,
       sliderTheme: sliderTheme,
@@ -38,29 +38,35 @@ class GradientRectSliderTrackShape extends RectangularSliderTrackShape {
 
     // BUG-FIX: Force the track to use the FULL width of the parentBox
     // by overriding the default 24px margin in RectangularSliderTrackShape.
-    final Rect fullWidthRect = Rect.fromLTWH(
+    final fullWidthRect = Rect.fromLTWH(
       offset.dx,
       trackRect.top,
       parentBox.size.width,
       trackRect.height,
     );
 
-    final Radius radius = Radius.circular(fullWidthRect.height / 2);
-    final RRect fullTrackRRect = RRect.fromRectAndRadius(fullWidthRect, radius);
+    final radius = Radius.circular(fullWidthRect.height / 2);
+    final fullTrackRRect = RRect.fromRectAndRadius(fullWidthRect, radius);
 
-    final Paint activePaint = Paint()..shader = gradient.createShader(fullWidthRect);
-    final Paint inactivePaint = Paint()..color = sliderTheme.inactiveTrackColor!;
-    final Paint bufferPaint = Paint()..color = Colors.white30;
+    final activePaint = Paint()..shader = gradient.createShader(fullWidthRect);
+    final inactivePaint = Paint()..color = sliderTheme.inactiveTrackColor!;
+    final bufferPaint = Paint()..color = Colors.white30;
 
     // 1. Draw inactive track (full width)
     context.canvas.drawRRect(fullTrackRRect, inactivePaint);
 
     // 2. Draw buffer track (clipped)
     if (bufferProgress != null && bufferProgress! > 0) {
-      final double bufferDx = fullWidthRect.left + (fullWidthRect.width * bufferProgress!);
+      final bufferDx =
+          fullWidthRect.left + (fullWidthRect.width * bufferProgress!);
       context.canvas.save();
       context.canvas.clipRect(
-        Rect.fromLTRB(fullWidthRect.left, fullWidthRect.top, bufferDx, fullWidthRect.bottom),
+        Rect.fromLTRB(
+          fullWidthRect.left,
+          fullWidthRect.top,
+          bufferDx,
+          fullWidthRect.bottom,
+        ),
       );
       context.canvas.drawRRect(fullTrackRRect, bufferPaint);
       context.canvas.restore();
@@ -70,7 +76,12 @@ class GradientRectSliderTrackShape extends RectangularSliderTrackShape {
     if (thumbCenter.dx > fullWidthRect.left) {
       context.canvas.save();
       context.canvas.clipRect(
-        Rect.fromLTRB(fullWidthRect.left, fullWidthRect.top, thumbCenter.dx, fullWidthRect.bottom),
+        Rect.fromLTRB(
+          fullWidthRect.left,
+          fullWidthRect.top,
+          thumbCenter.dx,
+          fullWidthRect.bottom,
+        ),
       );
       context.canvas.drawRRect(fullTrackRRect, activePaint);
       context.canvas.restore();

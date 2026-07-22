@@ -12,10 +12,8 @@ import 'package:google_fonts/google_fonts.dart';
 /// - While extracting: queue the latest position.
 /// - When extraction finishes: immediately start the queued one.
 /// This gives instant response AND continuous updates while sliding.
-typedef ProcessStartCallback = Future<Process> Function(
-  String executable,
-  List<String> arguments,
-);
+typedef ProcessStartCallback =
+    Future<Process> Function(String executable, List<String> arguments);
 
 class HoverPreview extends StatefulWidget {
   const HoverPreview({
@@ -28,7 +26,10 @@ class HoverPreview extends StatefulWidget {
     super.key,
   });
 
-  static Future<Process> _defaultProcessStart(String executable, List<String> arguments) {
+  static Future<Process> _defaultProcessStart(
+    String executable,
+    List<String> arguments,
+  ) {
     return Process.start(executable, arguments);
   }
 
@@ -99,8 +100,9 @@ class _HoverPreviewState extends State<HoverPreview> {
 
   Future<void> _extractFrame(double hoverX) async {
     if (_isDisposed || !mounted) return;
-    if (widget.totalDuration <= Duration.zero || widget.sliderWidth <= 0)
+    if (widget.totalDuration <= Duration.zero || widget.sliderWidth <= 0) {
       return;
+    }
 
     _isExtracting = true;
     _pendingHoverX = null;
@@ -233,12 +235,12 @@ class _HoverPreviewState extends State<HoverPreview> {
                 color: const Color(0xE0181818),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                   width: 0.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),

@@ -1,10 +1,11 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 /// Configures an MPV [Player] instance before opening any media.
 ///
@@ -39,10 +40,7 @@ class PlayerInitializer {
       // ── yt-dlp / network stream configuration ────────────────────────
       final selectedFormatId = initParams?['selectedFormatId'] as String?;
       if (selectedFormatId != null) {
-        platform.setProperty(
-          'ytdl-format',
-          '$selectedFormatId+bestaudio/best',
-        );
+        platform.setProperty('ytdl-format', '$selectedFormatId+bestaudio/best');
       } else {
         platform.setProperty('ytdl-format', 'bestvideo+bestaudio/best');
       }
@@ -103,10 +101,7 @@ class PlayerInitializer {
       // ── Local File Sliding Window Buffer Configuration ────────────────
       // 400 MiB forward + 200 MiB backward for zero-latency arrow-key seeks
       platform.setProperty('demuxer-readahead-secs', '60');
-      platform.setProperty(
-        'demuxer-max-bytes',
-        '419430400',
-      ); // 400 MiB forward
+      platform.setProperty('demuxer-max-bytes', '419430400'); // 400 MiB forward
       platform.setProperty(
         'demuxer-max-back-bytes',
         '209715200',

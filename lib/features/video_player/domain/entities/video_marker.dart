@@ -1,26 +1,12 @@
 import 'package:equatable/equatable.dart';
 
 class VideoMarker extends Equatable {
-  final String id;
-  final Duration timestamp;
-  final String content;
-  final String icon;
-
   const VideoMarker({
     required this.id,
     required this.timestamp,
     required this.content,
     this.icon = '📍',
   });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'timestamp': timestamp.inMilliseconds,
-      'content': content,
-      'icon': icon,
-    };
-  }
 
   factory VideoMarker.fromJson(Map<String, dynamic> json) {
     return VideoMarker(
@@ -29,6 +15,19 @@ class VideoMarker extends Equatable {
       content: json['content'] as String,
       icon: (json['icon'] as String?) ?? '📍',
     );
+  }
+  final String id;
+  final Duration timestamp;
+  final String content;
+  final String icon;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'timestamp': timestamp.inMilliseconds,
+      'content': content,
+      'icon': icon,
+    };
   }
 
   VideoMarker copyWith({

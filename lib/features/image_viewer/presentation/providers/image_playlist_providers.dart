@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:onyxcore/core/playlist/playlist_providers.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
 
 enum ImageViewMode { home, favorites }
 
@@ -45,10 +45,14 @@ final imageIsReloadingProvider = StateProvider<bool>((ref) => false);
 // ── Image Playlist Sidebar Providers ─────────────────────────────────────────
 
 /// Whether the image playlist side panel is visible.
-final imagePlaylistSidebarVisibleProvider = StateProvider.autoDispose<bool>((ref) => false);
+final imagePlaylistSidebarVisibleProvider = StateProvider.autoDispose<bool>(
+  (ref) => false,
+);
 
 /// Current width of the image playlist side panel (null = default 280px).
-final imagePlaylistSidebarWidthProvider = StateProvider.autoDispose<double?>((ref) => null);
+final imagePlaylistSidebarWidthProvider = StateProvider.autoDispose<double?>(
+  (ref) => null,
+);
 
 /// True while the user is dragging the sidebar resize handle.
 final isImagePlaylistSidebarDraggingProvider = StateProvider.autoDispose<bool>(

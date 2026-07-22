@@ -1,11 +1,7 @@
 class EmojiCategory {
+  const EmojiCategory({required this.title, required this.emojis});
   final String title;
   final List<String> emojis;
-
-  const EmojiCategory({
-    required this.title,
-    required this.emojis,
-  });
 }
 
 class EmojiData {

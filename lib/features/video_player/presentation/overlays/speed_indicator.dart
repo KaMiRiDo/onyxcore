@@ -31,11 +31,9 @@ class SpeedIndicator extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.6),
+            color: Colors.black.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.1),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

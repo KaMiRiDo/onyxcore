@@ -176,9 +176,7 @@ class VideoGestureHandler {
     if (isDiscrete) {
       // For discrete scrolls (mouse wheel), use a timer because there's no "End" signal.
       c.setScrollResetTimer(
-        Timer(const Duration(milliseconds: 1000), () {
-          resetTrackpadGesture();
-        }),
+        Timer(const Duration(milliseconds: 1000), resetTrackpadGesture),
       );
     }
     // For continuous pan-zoom (trackpad), wait for the "End" event from the OS.
@@ -212,17 +210,16 @@ class VideoGestureHandler {
       final settings = c.getRef().read(settingsProvider).value;
       final option = settings?.trackpadSpeedControl ?? SpeedControlOption.off;
       if (option == SpeedControlOption.releaseToNormal) {
-        player.setRate(1.0);
+        player.setRate(1);
       }
     }
 
     c.setStateCallback(() {
       if (c.getScrollLockAxis() == 'speed') {
         final settings = c.getRef().read(settingsProvider).value;
-        final option =
-            settings?.trackpadSpeedControl ?? SpeedControlOption.off;
+        final option = settings?.trackpadSpeedControl ?? SpeedControlOption.off;
         if (option == SpeedControlOption.releaseToNormal) {
-          c.setVirtualSpeed(1.0);
+          c.setVirtualSpeed(1);
           c.showSpeedOverlay();
         }
       }
@@ -239,9 +236,7 @@ class VideoGestureHandler {
       // Start the cleanup timer now that the physical gesture has ended.
       c.getVirtualSeekCleanupTimer()?.cancel();
       c.setVirtualSeekCleanupTimer(
-        Timer(const Duration(seconds: 1), () {
-          c.cleanupVirtualSeeking();
-        }),
+        Timer(const Duration(seconds: 1), c.cleanupVirtualSeeking),
       );
     });
   }
@@ -252,7 +247,7 @@ class VideoGestureHandler {
     final scrubPos = c.getVirtualScrubPosition();
     if (duration > Duration.zero && scrubPos != null) {
       // 200ms per unit of dx is the sensitivity
-      int newMs = scrubPos.inMilliseconds + (dx * 200).toInt();
+      var newMs = scrubPos.inMilliseconds + (dx * 200).toInt();
       newMs = newMs.clamp(0, duration.inMilliseconds);
       c.setStateCallback(() {
         c.setVirtualScrubPosition(Duration(milliseconds: newMs));
@@ -265,9 +260,7 @@ class VideoGestureHandler {
       // Reset cleanup timer to keep virtual position alive during gesture
       c.getVirtualSeekCleanupTimer()?.cancel();
       c.setVirtualSeekCleanupTimer(
-        Timer(const Duration(seconds: 1), () {
-          c.cleanupVirtualSeeking();
-        }),
+        Timer(const Duration(seconds: 1), c.cleanupVirtualSeeking),
       );
 
       final pending = c.getPendingScrubPosition();

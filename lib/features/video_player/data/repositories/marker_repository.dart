@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import '../../domain/entities/video_marker.dart';
 
 class MarkerRepository {
   static const String _sidecarDir = '.onyxcore';
@@ -26,8 +27,8 @@ class MarkerRepository {
     final safeName = videoPath.length > 200
         ? videoPath
               .substring(videoPath.length - 200)
-              .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
-        : videoPath.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+              .replaceAll(RegExp('[^a-zA-Z0-9]'), '_')
+        : videoPath.replaceAll(RegExp('[^a-zA-Z0-9]'), '_');
 
     return p.join(markersDir.path, '$safeName.markers.json');
   }
@@ -58,7 +59,7 @@ class MarkerRepository {
 
   static List<VideoMarker> _parseMarkers(String jsonString) {
     try {
-      final List<dynamic> jsonList = jsonDecode(jsonString) as List<dynamic>;
+      final jsonList = jsonDecode(jsonString) as List<dynamic>;
       return jsonList
           .map((e) => VideoMarker.fromJson(e as Map<String, dynamic>))
           .toList();
