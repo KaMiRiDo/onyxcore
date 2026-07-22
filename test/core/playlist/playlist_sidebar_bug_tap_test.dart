@@ -1,79 +1,70 @@
+import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/playlist_sidebar.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
-
-class TestPlaylistSidebar extends PlaylistSidebarBase {
-  bool doubleTapCalled = false;
-
-  TestPlaylistSidebar({super.key})
-      : super(
-          config: PlaylistProviderConfig(
-            currentPathProvider: StateProvider((ref) => '/tmp'),
-            rootPathProvider: StateProvider((ref) => '/tmp'),
-            pathHistoryProvider: StateProvider((ref) => []),
-            pathForwardHistoryProvider: StateProvider((ref) => []),
-            showHiddenProvider: StateProvider((ref) => false),
-            selectionProvider: StateProvider((ref) => {}),
-            selectionAnchorProvider: StateProvider((ref) => null),
-            queueProvider: StateProvider((ref) => [
-              FileItem(
-                path: '/tmp/test.jpg',
-                name: 'test.jpg',
-                type: FileItemType.image,
-                modified: DateTime.now(),
-                accessed: DateTime.now(),
-              )
-            ]),
-            isReloadingProvider: StateProvider((ref) => false),
-            sortOptionProvider: StateProvider((ref) => SortOption.aToZ),
-            searchQueryProvider: StateProvider((ref) => ''),
-            filteredAndSortedQueueProvider: Provider((ref) => [
-              FileItem(
-                path: '/tmp/test.jpg',
-                name: 'test.jpg',
-                type: FileItemType.image,
-                modified: DateTime.now(),
-                accessed: DateTime.now(),
-              )
-            ]),
-            viewModeProvider: StateProvider((ref) => 0),
-            favoritesValue: 1,
-          ),
-          itemBuilder: (context, item, isSelected, isCurrentlyPlaying, onToggleFavorite, isFavorite) {
-            return ListTile(title: Text(item.name));
-          },
-        );
-
-  @override
-  void onItemDoubleTap(FileItem item, int realIndex, List<FileItem> queue) {
-    doubleTapCalled = true;
-  }
-}
 
 void main() {
-  testWidgets('Playlist single tap should trigger double tap behavior for media playback', (WidgetTester tester) async {
-    final sidebar = TestPlaylistSidebar();
-    
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: sidebar,
-          ),
-        ),
+  late AppDatabase db;
+
+  setUpAll(() {
+    db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+  });
+
+  tearDownAll(() async {
+    await db.close();
+  });
+
+  final dummyFile1 = FileItem(
+    name: 'test.mp3',
+    path: '/music/test.mp3',
+    type: FileItemType.audio,
+    modified: DateTime.now(),
+  );
+
+  Widget buildTestWidget({List<dynamic> overrides = const []}) {
+    return ProviderScope(
+      overrides: [databaseProvider.overrideWithValue(db), ...overrides.cast()],
+      child: const MaterialApp(
+        home: Scaffold(body: SizedBox(width: 300, child: PlaylistSidebar())),
       ),
     );
+  }
 
-    await tester.pumpAndSettle();
-    
-    // Tap the item in the list
-    await tester.tap(find.text('test.jpg'));
-    await tester.pumpAndSettle();
-    
-    expect(sidebar.doubleTapCalled, true, reason: 'Single tap should call onItemDoubleTap to play the media');
-  });
+  testWidgets(
+    'Playlist single tap should trigger double tap behavior for media playback',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          overrides: [
+            audioQueueProvider.overrideWith((ref) => [dummyFile1]),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap the item in the list
+      await tester.tap(find.text('test.mp3'));
+
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      final element = tester.element(find.byType(PlaylistSidebar));
+      final container = ProviderScope.containerOf(element);
+
+      expect(
+        container.read(audioPlayingQueueProvider),
+        [dummyFile1],
+        reason:
+            'Single tap should call onItemTap which acts as onItemDoubleTap to play the media',
+      );
+    },
+  );
 }
