@@ -93,9 +93,9 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
               ? null
               : () async {
                   final preloadPaths = <String>[];
+                  final allItems = ref.read(sortedDirectoryItemsProvider).value ?? [];
                   if (widget.item.type == FileItemType.image) {
-                    final items = ref.read(directoryItemsProvider).value ?? [];
-                    final mediaItems = items
+                    final mediaItems = allItems
                         .where((i) => i.type == FileItemType.image)
                         .toList();
                     if (mediaItems.isNotEmpty) {
@@ -129,15 +129,20 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
                     file: widget.item,
                     initParams: {
                       'preloadPaths': preloadPaths,
+                      if (widget.item.type == FileItemType.image || widget.item.type == FileItemType.video)
+                        'playlistPaths': allItems
+                            .where((i) => i.type == widget.item.type)
+                            .map((i) => i.path)
+                            .toList(),
                       if (widget.item.type == FileItemType.image) ...{
                         'currentIndex':
-                            (ref.read(directoryItemsProvider).value ?? [])
+                            allItems
                                 .where((i) => i.type == FileItemType.image)
                                 .toList()
                                 .indexWhere((i) => i.path == widget.item.path) +
                             1,
                         'totalCount':
-                            (ref.read(directoryItemsProvider).value ?? [])
+                            allItems
                                 .where((i) => i.type == FileItemType.image)
                                 .length,
                       },

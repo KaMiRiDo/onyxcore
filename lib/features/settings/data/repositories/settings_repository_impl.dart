@@ -16,6 +16,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   final AppDatabase _db;
 
   // ── Keys for the Settings table ──────────────────────────────────────────
+  static const _openInStandaloneMode = 'openInStandaloneMode';
   static const _autoPlayNext = 'autoPlayNext';
   static const _audioAutoPlayNext = 'audioAutoPlayNext';
   static const _showHiddenFiles = 'showHiddenFiles';
@@ -64,7 +65,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<AppSettings> load() async {
     final keys = [
-      _autoPlayNext, _audioAutoPlayNext, _showHiddenFiles, _showHiddenAudioFiles,
+      _openInStandaloneMode, _autoPlayNext, _audioAutoPlayNext, _showHiddenFiles, _showHiddenAudioFiles,
       _snapshotPrefix, _doubleTapSeekSeconds, _maxConcurrentTasks,
       _globalSortOption, _resumePlayback, _audioSeekSeconds, _selectedHwDec,
       _cachedResolvedHwDec, _trackpadSpeedControl, _filePickerWidth,
@@ -88,6 +89,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     final pinnedFolders = await _db.getOrderedPinnedFolders();
 
     return AppSettings(
+      openInStandaloneMode: SettingsCodec.decodeBool(vals[_openInStandaloneMode], fallback: true),
       autoPlayNext: SettingsCodec.decodeBool(vals[_autoPlayNext], fallback: true),
       audioAutoPlayNext: SettingsCodec.decodeBool(vals[_audioAutoPlayNext], fallback: true),
       showHiddenFiles: SettingsCodec.decodeBool(vals[_showHiddenFiles], fallback: false),
@@ -136,6 +138,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> saveSettings(AppSettings settings) async {
     // Save all scalar settings
     await Future.wait([
+      _db.setSetting(_openInStandaloneMode, SettingsCodec.encodeBool(settings.openInStandaloneMode)),
       _db.setSetting(_autoPlayNext, SettingsCodec.encodeBool(settings.autoPlayNext)),
       _db.setSetting(_audioAutoPlayNext, SettingsCodec.encodeBool(settings.audioAutoPlayNext)),
       _db.setSetting(_showHiddenFiles, SettingsCodec.encodeBool(settings.showHiddenFiles)),

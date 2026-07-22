@@ -1,17 +1,17 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
-import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import '../providers/image_playlist_providers.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/core/playlist/playlist_providers.dart';
+import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
+import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
+
 class ImagePlaylistSidebar extends PlaylistSidebarBase {
-  final void Function(FileItem)? onImageSelected;
 
   const ImagePlaylistSidebar({
     super.key,
@@ -20,6 +20,7 @@ class ImagePlaylistSidebar extends PlaylistSidebarBase {
     super.onReload,
     this.onImageSelected,
   });
+  final void Function(FileItem)? onImageSelected;
 
   @override
   ConsumerState<ImagePlaylistSidebar> createState() =>
@@ -145,13 +146,13 @@ class _ImagePlaylistSidebarState
     if (item.type == FileItemType.folder) {
       return item.itemCount != null
           ? "${item.itemCount} Image File${item.itemCount == 1 ? '' : 's'}"
-          : "Folder";
+          : 'Folder';
     }
 
-    String subtitle = "Image File";
+    var subtitle = 'Image File';
     if (item.sizeBytes != null && item.sizeBytes! > 0) {
       final sizeMB = (item.sizeBytes! / (1024 * 1024)).toStringAsFixed(1);
-      subtitle += " • $sizeMB MB";
+      subtitle += ' • $sizeMB MB';
     }
     return subtitle;
   }
@@ -166,8 +167,11 @@ class _ImagePlaylistSidebarState
         width: defaultMediaIconSize,
         height: defaultMediaIconSize,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            Icon(defaultMediaIcon, size: defaultMediaIconSize, color: Colors.white38),
+        errorBuilder: (context, error, stackTrace) => Icon(
+          defaultMediaIcon,
+          size: defaultMediaIconSize,
+          color: Colors.white38,
+        ),
       ),
     );
   }
@@ -185,9 +189,11 @@ class _ImagePlaylistSidebarState
   bool isItemActive(WidgetRef ref, FileItem item) {
     final isEmpty = ref.watch(imageIsEmptyProvider);
     final currentPreviewTrack = ref.watch(previewFileProvider);
-    
-    debugPrint('[ImageSidebar] isItemActive check for ${item.name}: isEmpty=$isEmpty, currentPreview=${currentPreviewTrack?.name}');
-    
+
+    debugPrint(
+      '[ImageSidebar] isItemActive check for ${item.name}: isEmpty=$isEmpty, currentPreview=${currentPreviewTrack?.name}',
+    );
+
     if (isEmpty) return false;
     if (currentPreviewTrack == null) return false;
 

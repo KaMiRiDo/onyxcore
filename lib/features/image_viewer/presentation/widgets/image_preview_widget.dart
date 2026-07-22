@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:image/image.dart' as img;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -90,6 +91,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   late AnimationController _zoomAnimationController;
   Animation<Matrix4>? _zoomAnimation;
+  Timer? _navigationThrottleTimer;
+  Size? _imageSize;
+  ImageStream? _imageStream;
 
   // Image Edit State
   double _rotationAngle = 0.0;
@@ -101,43 +105,131 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   final Completer<void> _firstFrameCompleter = Completer<void>();
   DateTime? _lastNavTime;
   bool _isReadyForInteraction = false;
-  
+
+
+  late FileItem _currentItem;
+
   String? _convertedHeicPath;
   bool _isConvertingHeic = false;
 
+  List<FileItem> _standalonePlaylist = [];
+
+  Future<void> _initStandalonePlaylist() async {
+    try {
+      final images = <FileItem>[];
+
+      if (widget.initParams != null && widget.initParams!['playlistPaths'] != null) {
+        final paths = List<String>.from(widget.initParams!['playlistPaths'] as Iterable);
+        for (final path in paths) {
+          final file = File(path);
+          if (file.existsSync()) {
+            final name = p.basename(path);
+            try {
+              final stat = await file.stat();
+              images.add(
+                FileItem(
+                  name: name,
+                  path: path,
+                  type: FileItemType.image,
+                  sizeBytes: stat.size,
+                  modified: stat.modified,
+                ),
+              );
+            } catch (e) {
+              debugPrint('Error stating file $path: $e');
+            }
+          }
+        }
+      } else {
+        final absolutePath = File(_currentItem.path).absolute.path;
+        final parentDir = File(absolutePath).parent;
+        if (!parentDir.existsSync()) return;
+
+        final entities = await parentDir.list().toList();
+
+        for (final entity in entities) {
+          debugPrint('Found entity: ${entity.path}');
+          if (FileSystemEntity.isFileSync(entity.path)) {
+            final name = p.basename(entity.path);
+            if (classifyFileType(name) == FileItemType.image) {
+              try {
+                final stat = await entity.stat();
+                images.add(
+                  FileItem(
+                    name: name,
+                    path: entity.path,
+                    type: FileItemType.image,
+                    sizeBytes: stat.size,
+                    modified: stat.modified,
+                  ),
+                );
+              } catch (e) {
+                debugPrint('Error stating file ${entity.path}: $e');
+              }
+            }
+          }
+        }
+        
+        images.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      }
+
+      debugPrint('Added ${images.length} images to standalone playlist');
+      if (mounted) {
+        setState(() {
+          _standalonePlaylist = images;
+        });
+        ref.read(imageQueueProvider.notifier).state = _standalonePlaylist;
+        _updateIndexData();
+      }
+    } catch (e) {
+      debugPrint('[ImagePreviewWidget] Error in _initStandalonePlaylist: $e');
+    }
+  }
+
   Future<void> _loadSpecialImageIfNecessary() async {
-    final ext = widget.item.path.toLowerCase();
-    final isHeic = ext.endsWith('.heic') || ext.endsWith('.heif') || ext.endsWith('.avif');
+    final ext = _currentItem.path.toLowerCase();
+    final isHeic =
+        ext.endsWith('.heic') || ext.endsWith('.heif') || ext.endsWith('.avif');
     final isDng = ext.endsWith('.dng') || ext.endsWith('.raw');
-    
+
     if (isHeic || isDng) {
       setState(() => _isConvertingHeic = true);
-      final tempPath = '${Directory.systemTemp.path}/onyx_special_${widget.item.path.hashCode}.jpg';
+      final tempPath =
+          '${Directory.systemTemp.path}/onyx_special_${_currentItem.path.hashCode}.jpg';
       final tempFile = File(tempPath);
       if (!tempFile.existsSync() || tempFile.lengthSync() == 0) {
         try {
           if (isHeic) {
             final process = await Process.start('heif-thumbnailer', [
-              '-s', '10000',
-              widget.item.path,
+              '-s',
+              '10000',
+              _currentItem.path,
               tempPath,
             ]);
             await process.exitCode;
-            
+
             final file = File(tempPath);
             if (!file.existsSync() || file.lengthSync() == 0) {
               final fallbackProcess = await Process.start('ffmpeg', [
                 '-y',
-                '-i', widget.item.path,
-                '-vframes', '1',
-                '-q:v', '2',
-                '-update', '1',
+                '-i',
+                _currentItem.path,
+                '-vframes',
+                '1',
+                '-q:v',
+                '2',
+                '-update',
+                '1',
                 tempPath,
               ]);
               await fallbackProcess.exitCode;
             }
           } else if (isDng) {
-            await compute(_convertDngToJpgPreview, [widget.item.path, tempPath]);
+            await compute(_convertDngToJpgPreview, [
+              _currentItem.path,
+              tempPath,
+            ]);
           }
         } catch (e) {
           debugPrint('Failed to convert special image: $e');
@@ -146,7 +238,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       if (mounted) {
         setState(() {
           final file = File(tempPath);
-          _convertedHeicPath = (file.existsSync() && file.lengthSync() > 0) ? tempPath : null;
+          _convertedHeicPath = (file.existsSync() && file.lengthSync() > 0)
+              ? tempPath
+              : null;
           _isConvertingHeic = false;
         });
       }
@@ -164,10 +258,34 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     if (mounted) _focusNode.requestFocus();
   }
 
+  void _resolveImageSize() {
+    if (_currentItem.path.endsWith('.svg')) return;
+    final provider = FileImage(File(_currentItem.path));
+    _imageStream?.removeListener(ImageStreamListener(_updateImage));
+    _imageStream = provider.resolve(ImageConfiguration.empty);
+    _imageStream!.addListener(ImageStreamListener(_updateImage));
+  }
+
+  void _updateImage(ImageInfo info, bool synchronousCall) {
+    if (mounted) {
+      setState(() {
+        _imageSize = Size(
+          info.image.width.toDouble(),
+          info.image.height.toDouble(),
+        );
+      });
+    }
+  }
+
+  @override
   void initState() {
     super.initState();
+    _currentItem = widget.item;
+    _resolveImageSize();
     if (widget.isStandalone && widget.windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(widget.windowId!),
+      ).addListener(_onWindowFocus);
     }
     _zoomAnimationController =
         AnimationController(
@@ -190,31 +308,38 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _startHideTimer();
     _loadSpecialImageIfNecessary();
 
+    if (widget.isStandalone) {
+      _initStandalonePlaylist();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(previewFileProvider.notifier).state = _currentItem;
+      });
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(imageIsEmptyProvider.notifier).state = false;
-        if (widget.windowId == null && !widget.isStandalone) {
-          final parentPath = p.dirname(widget.item.path);
-          final currentRoot = ref.read(imageRootPathProvider);
-          if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
-            ref.read(imageRootPathProvider.notifier).state = parentPath;
-          }
-          ref.read(imageCurrentPathProvider.notifier).state = parentPath;
+        final parentPath = p.dirname(_currentItem.path);
+        final currentRoot = ref.read(imageRootPathProvider);
+        if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
+          ref.read(imageRootPathProvider.notifier).state = parentPath;
         }
+        ref.read(imageCurrentPathProvider.notifier).state = parentPath;
         _precacheAdjacentImages();
         _focusNode.requestFocus();
-        
+
         // On Linux/GTK, newly spawned windows may take a moment to be mapped by the OS.
         // A delayed focus request ensures the widget grabs focus after the window is fully active.
         Future.delayed(const Duration(milliseconds: 300), () async {
           if (mounted) {
             if (widget.isStandalone && widget.windowId != null) {
-              await PersistentViewerManager.presentWindow(int.parse(widget.windowId!));
+              await PersistentViewerManager.presentWindow(
+                int.parse(widget.windowId!),
+              );
             }
             if (mounted) _focusNode.requestFocus();
           }
         });
-        
+
         if (!_firstFrameCompleter.isCompleted) {
           _firstFrameCompleter.complete();
         }
@@ -228,6 +353,21 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   void _onTransformationChanged() {
+    if (!mounted) return;
+
+    final Size viewportSize = MediaQuery.of(context).size;
+    final Matrix4 clamped = _clampMatrix(_transformationController.value, viewportSize);
+
+    final currentTx = _transformationController.value.getTranslation().x;
+    final currentTy = _transformationController.value.getTranslation().y;
+    final clampedTx = clamped.getTranslation().x;
+    final clampedTy = clamped.getTranslation().y;
+
+    if ((currentTx - clampedTx).abs() > 0.1 || (currentTy - clampedTy).abs() > 0.1) {
+      _transformationController.value = clamped;
+      return;
+    }
+
     final scale = _transformationController.value.getMaxScaleOnAxis();
     if (scale != _currentScale) {
       setState(() {
@@ -266,14 +406,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           widget.initParams!['preloadPaths'] as List<dynamic>;
       pathsToPreload = preloadList.map((e) => e.toString()).toList();
     } else if (!widget.isStandalone && widget.windowId == null) {
-      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
+      List<FileItem> mediaItems = ref
+          .read(filteredAndSortedImageQueueProvider)
+          .where((i) => i.type == FileItemType.image)
+          .toList();
       if (mediaItems.isEmpty) {
         final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
         mediaItems = items.where((i) => i.type == FileItemType.image).toList();
       }
       if (mediaItems.isNotEmpty) {
         final currentIndex = mediaItems.indexWhere(
-          (i) => i.path == widget.item.path,
+          (i) => i.path == _currentItem.path,
         );
         if (currentIndex != -1) {
           for (int i = 1; i <= 2; i++) {
@@ -291,7 +434,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     }
 
     for (final path in pathsToPreload) {
-      if (path != widget.item.path && !path.toLowerCase().endsWith('.svg')) {
+      if (path != _currentItem.path && !path.toLowerCase().endsWith('.svg')) {
         precacheImage(
           _getImageProvider(path),
           context,
@@ -310,6 +453,47 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     return FileImage(File(path));
   }
 
+  Matrix4 _clampMatrix(Matrix4 matrix, Size viewportSize) {
+    if (_imageSize == null) return matrix;
+
+    final double scaleX = viewportSize.width / _imageSize!.width;
+    final double scaleY = viewportSize.height / _imageSize!.height;
+    final double fitScale = math.min(scaleX, scaleY);
+
+    final double fittedWidth = _imageSize!.width * fitScale;
+    final double fittedHeight = _imageSize!.height * fitScale;
+
+    final double currentZoom = matrix.getMaxScaleOnAxis();
+    final double scaledWidth = fittedWidth * currentZoom;
+    final double scaledHeight = fittedHeight * currentZoom;
+
+    final double padX = (viewportSize.width - fittedWidth) / 2;
+    final double padY = (viewportSize.height - fittedHeight) / 2;
+
+    double minTx, maxTx;
+    if (scaledWidth > viewportSize.width) {
+      minTx = viewportSize.width - scaledWidth - padX * currentZoom;
+      maxTx = -padX * currentZoom;
+    } else {
+      minTx = maxTx = viewportSize.width * (1 - currentZoom) / 2;
+    }
+
+    double minTy, maxTy;
+    if (scaledHeight > viewportSize.height) {
+      minTy = viewportSize.height - scaledHeight - padY * currentZoom;
+      maxTy = -padY * currentZoom;
+    } else {
+      minTy = maxTy = viewportSize.height * (1 - currentZoom) / 2;
+    }
+
+    final double clampedTx = matrix.getTranslation().x.clamp(minTx, maxTx);
+    final double clampedTy = matrix.getTranslation().y.clamp(minTy, maxTy);
+
+    final Matrix4 clampedMatrix = matrix.clone();
+    clampedMatrix.setTranslationRaw(clampedTx, clampedTy, 0.0);
+    return clampedMatrix;
+  }
+
   void _setZoom(double newScale, {Offset? focalPoint, bool animate = true}) {
     final clampedScale = newScale.clamp(1.0, 15.0);
 
@@ -320,7 +504,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       final screenWidth = MediaQuery.of(context).size.width;
       final minWidth = 240.0;
       final maxWidth = screenWidth * 0.40;
-      double panelWidth = ref.read(imagePlaylistSidebarWidthProvider) ?? (screenWidth * 0.25);
+      double panelWidth =
+          ref.read(imagePlaylistSidebarWidthProvider) ?? (screenWidth * 0.25);
       panelWidth = panelWidth.clamp(minWidth, maxWidth);
       return Offset(_mousePosition.dx - panelWidth, _mousePosition.dy);
     }
@@ -419,16 +604,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   void _animateMatrix(Matrix4 start, Matrix4 end) {
     _zoomAnimationController.stop();
-    _zoomAnimation =
-        Matrix4Tween(
-          begin: start,
-          end: end,
-        ).animate(
-          CurvedAnimation(
-            parent: _zoomAnimationController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
+    _zoomAnimation = Matrix4Tween(begin: start, end: end).animate(
+      CurvedAnimation(
+        parent: _zoomAnimationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
     _zoomAnimationController.forward(from: 0);
   }
 
@@ -476,7 +657,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     if (widget.windowId != null) {
       final willBeFullScreen = !_isStandaloneFullscreen;
       _isStandaloneFullscreen = willBeFullScreen;
-      await PersistentViewerManager.setFullScreen(int.parse(widget.windowId!), willBeFullScreen);
+      await PersistentViewerManager.setFullScreen(
+        int.parse(widget.windowId!),
+        willBeFullScreen,
+      );
       _onInteraction();
       return;
     }
@@ -496,20 +680,30 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   Future<void> _updateIndexData() async {
-    if (widget.windowId != null && widget.initParams != null && widget.initParams!['currentIndex'] != null) {
-        if (mounted) {
-          setState(() {
-            _indexString = '${widget.initParams!['currentIndex']}/${widget.initParams!['totalCount']}';
-          });
-        }
+    final useInitParams = widget.windowId != null &&
+        widget.initParams != null &&
+        widget.initParams!['currentIndex'] != null &&
+        !(widget.isStandalone && _standalonePlaylist.isNotEmpty);
+
+    if (useInitParams) {
+      if (mounted) {
+        setState(() {
+          _indexString =
+              '${widget.initParams!['currentIndex']}/${widget.initParams!['totalCount']}';
+        });
+      }
     } else {
-      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
-      if (mediaItems.isEmpty) {
+      List<FileItem> mediaItems = widget.isStandalone 
+          ? _standalonePlaylist 
+          : ref.read(filteredAndSortedImageQueueProvider)
+              .where((i) => i.type == FileItemType.image)
+              .toList();
+      if (mediaItems.isEmpty && !widget.isStandalone) {
         final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
         mediaItems = items.where((i) => i.type == FileItemType.image).toList();
       }
       final currentIndex =
-          mediaItems.indexWhere((i) => i.path == widget.item.path) + 1;
+          mediaItems.indexWhere((i) => i.path == _currentItem.path) + 1;
       final totalCount = mediaItems.length;
       if (currentIndex > 0 && mounted) {
         setState(() {
@@ -520,8 +714,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   Future<void> _loadMetadata() async {
+    final file = File(_currentItem.path);
+    if (!file.existsSync()) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     try {
-      final isSvg = widget.item.path.toLowerCase().endsWith('.svg');
+      final isSvg = _currentItem.path.toLowerCase().endsWith('.svg');
       if (isSvg) {
         setState(() {
           _metadata = 'Vector Graphic • Scalable';
@@ -538,7 +737,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
       if (!mounted) return;
 
-      final imageProvider = _getImageProvider(widget.item.path);
+      final imageProvider = _getImageProvider(_currentItem.path);
       final completer = Completer<ImageInfo>();
       final stream = imageProvider.resolve(
         createLocalImageConfiguration(context),
@@ -555,7 +754,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       );
 
       stream.addListener(listener);
-      final info = await completer.future;
+      final info = await completer.future.timeout(const Duration(seconds: 1));
       stream.removeListener(listener);
 
       final image = info.image;
@@ -575,13 +774,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   @override
   void dispose() {
+
+    _imageStream?.removeListener(ImageStreamListener(_updateImage));
+    _navigationThrottleTimer?.cancel();
     if (widget.windowId != null) {
       windowManager.removeListener(this);
     }
     _hideTimer?.cancel();
     _zoomTimer?.cancel();
     if (widget.isStandalone && widget.windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).removeListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(widget.windowId!),
+      ).removeListener(_onWindowFocus);
     }
     _focusNode.dispose();
     _transformationController.dispose();
@@ -607,49 +811,68 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   void didUpdateWidget(ImagePreviewWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.path != widget.item.path) {
-      _transformationController.value = Matrix4.identity();
-      setState(() {
-        _isLoading = true;
-        _isEmpty = false;
-        _rotationAngle = 0.0;
-        _brightness = 0.0;
-        _currentScale = 1.0;
-        _isControlsVisible = false;
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref.read(imageIsEmptyProvider.notifier).state = false;
-        }
-      });
-      _loadMetadata();
-      _updateIndexData();
-      _loadSpecialImageIfNecessary();
+      _loadMedia(widget.item);
+    }
+  }
+
+  void _loadMedia(FileItem item) {
+    _resolveImageSize();
+    _zoomAnimationController.stop();
+    _transformationController.value = Matrix4.identity();
+    setState(() {
+      _currentItem = item;
+      _isLoading = true;
+      _isEmpty = false;
+      _rotationAngle = 0.0;
+      _brightness = 0.0;
+      _currentScale = 1.0;
+      _isPanZoomGesture = false;
+      _mousePosition = Offset.zero;
+      _isControlsVisible = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _focusNode.requestFocus();
-        if (widget.windowId == null && !widget.isStandalone) {
-          final parentPath = p.dirname(widget.item.path);
-          final currentRoot = ref.read(imageRootPathProvider);
-          if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
-            ref.read(imageRootPathProvider.notifier).state = parentPath;
-          }
-          ref.read(imageCurrentPathProvider.notifier).state = parentPath;
-        }
+        ref.read(imageIsEmptyProvider.notifier).state = false;
+        ref.read(previewFileProvider.notifier).state = item;
       }
-      _precacheAdjacentImages();
+    });
+    _loadMetadata();
+    _updateIndexData();
+    _loadSpecialImageIfNecessary();
+    if (mounted) {
+      _focusNode.requestFocus();
+      final parentPath = p.dirname(item.path);
+      final currentRoot = ref.read(imageRootPathProvider);
+      if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
+        ref.read(imageRootPathProvider.notifier).state = parentPath;
+      }
+      ref.read(imageCurrentPathProvider.notifier).state = parentPath;
+    }
+    _precacheAdjacentImages();
+  }
+
+  void _openFile(FileItem item) {
+    if (widget.isStandalone) {
+      _loadMedia(item);
+    } else {
+      ref.read(previewFileProvider.notifier).state = item;
     }
   }
 
   Future<void> _openInNewWindow() async {
     List<String> preloadPaths = [];
     if (!widget.isStandalone && widget.windowId == null) {
-      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
+      List<FileItem> mediaItems = ref
+          .read(filteredAndSortedImageQueueProvider)
+          .where((i) => i.type == FileItemType.image)
+          .toList();
       if (mediaItems.isEmpty) {
         final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
         mediaItems = items.where((i) => i.type == FileItemType.image).toList();
       }
       if (mediaItems.isNotEmpty) {
         final currentIndex = mediaItems.indexWhere(
-          (i) => i.path == widget.item.path,
+          (i) => i.path == _currentItem.path,
         );
         if (currentIndex != -1) {
           for (int i = 1; i <= 2; i++) {
@@ -668,10 +891,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
     final windowParams = WindowParams(
       viewerType: ViewerType.image,
-      file: widget.item,
-      initParams: {
-        'preloadPaths': preloadPaths,
-      },
+      file: _currentItem,
+      initParams: {'preloadPaths': preloadPaths},
     );
 
     try {
@@ -683,18 +904,53 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   void _navigateMedia(bool forward) {
-      // IPC removed, falling back to local state
-      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
-      if (mediaItems.isEmpty) {
-        final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-        mediaItems = items.where((i) => i.type == FileItemType.image).toList();
-      }
-      if (mediaItems.isEmpty) return;
+    if (_navigationThrottleTimer?.isActive ?? false) return;
+    _navigationThrottleTimer = Timer(const Duration(milliseconds: 300), () {});
 
-      final currentIndex = mediaItems.indexWhere(
-        (i) => i.path == widget.item.path,
-      );
-      if (currentIndex == -1) {
+    // IPC removed, falling back to local state
+    List<FileItem> mediaItems = widget.isStandalone 
+        ? _standalonePlaylist 
+        : ref.read(filteredAndSortedImageQueueProvider)
+            .where((i) => i.type == FileItemType.image)
+            .toList();
+    if (mediaItems.isEmpty && !widget.isStandalone) {
+      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+      mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+    }
+    if (mediaItems.isEmpty) return;
+
+    final currentIndex = mediaItems.indexWhere(
+      (i) => i.path == _currentItem.path,
+    );
+    if (currentIndex == -1) {
+      setState(() {
+        _isEmpty = true;
+        _isEmptyAtEnd = true;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(imageIsEmptyProvider.notifier).state = true;
+      });
+      return;
+    }
+
+    if (_isEmpty) {
+      if (_isEmptyAtEnd && forward) return;
+      if (!_isEmptyAtEnd && !forward) return;
+
+      // Recover from empty state
+      setState(() => _isEmpty = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(imageIsEmptyProvider.notifier).state = false;
+        }
+      });
+      _openFile(mediaItems[currentIndex]);
+      return;
+    }
+
+    int nextIndex;
+    if (forward) {
+      if (currentIndex == mediaItems.length - 1) {
         setState(() {
           _isEmpty = true;
           _isEmptyAtEnd = true;
@@ -704,50 +960,22 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         });
         return;
       }
-
-      if (_isEmpty) {
-        if (_isEmptyAtEnd && forward) return;
-        if (!_isEmptyAtEnd && !forward) return;
-
-        // Recover from empty state
-        setState(() => _isEmpty = false);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ref.read(imageIsEmptyProvider.notifier).state = false;
-          }
+      nextIndex = currentIndex + 1;
+    } else {
+      if (currentIndex == 0) {
+        setState(() {
+          _isEmpty = true;
+          _isEmptyAtEnd = false;
         });
-        ref.read(previewFileProvider.notifier).state = mediaItems[currentIndex];
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(imageIsEmptyProvider.notifier).state = true;
+        });
         return;
       }
+      nextIndex = currentIndex - 1;
+    }
 
-      int nextIndex;
-      if (forward) {
-        if (currentIndex == mediaItems.length - 1) {
-          setState(() {
-            _isEmpty = true;
-            _isEmptyAtEnd = true;
-          });
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(imageIsEmptyProvider.notifier).state = true;
-          });
-          return;
-        }
-        nextIndex = currentIndex + 1;
-      } else {
-        if (currentIndex == 0) {
-          setState(() {
-            _isEmpty = true;
-            _isEmptyAtEnd = false;
-          });
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(imageIsEmptyProvider.notifier).state = true;
-          });
-          return;
-        }
-        nextIndex = currentIndex - 1;
-      }
-
-      ref.read(previewFileProvider.notifier).state = mediaItems[nextIndex];
+    _openFile(mediaItems[nextIndex]);
   }
 
   Future<void> _handleDelete({required bool permanent}) async {
@@ -758,7 +986,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       final shouldDelete = await showDialog<bool>(
         context: context,
         builder: (context) => ViewerDeleteDialog(
-          fileName: widget.item.name,
+          fileName: _currentItem.name,
           permanent: permanent,
         ),
       );
@@ -771,7 +999,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     if (widget.isStandalone) {
       // Handled natively or safely ignored
     } else {
-      List<FileItem> mediaItems = ref.read(filteredAndSortedImageQueueProvider).where((i) => i.type == FileItemType.image).toList();
+      List<FileItem> mediaItems = ref
+          .read(filteredAndSortedImageQueueProvider)
+          .where((i) => i.type == FileItemType.image)
+          .toList();
       if (mediaItems.isEmpty) {
         final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
         mediaItems = items.where((i) => i.type == FileItemType.image).toList();
@@ -779,7 +1010,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       if (mediaItems.length > 1) {
         hasMultiple = true;
         final currentIndex = mediaItems.indexWhere(
-          (i) => i.path == widget.item.path,
+          (i) => i.path == _currentItem.path,
         );
         if (currentIndex != -1) {
           final nextIndex = (currentIndex + 1) % mediaItems.length;
@@ -802,13 +1033,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                 ? 'Deleting image permanently'
                 : 'Moving image to Trash',
             subtitle: permanent ? 'Delete' : 'Trash',
-            sourcePaths: [widget.item.path],
+            sourcePaths: [_currentItem.path],
             isLight: true,
           );
 
       try {
         await repo.deleteItems(
-          [widget.item.path],
+          [_currentItem.path],
           permanent: permanent,
           taskId: taskId,
           onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
@@ -862,6 +1093,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent || event is KeyRepeatEvent) {
           final ctrl = HardwareKeyboard.instance.isControlPressed;
+          final alt = HardwareKeyboard.instance.isAltPressed;
 
           if (event.logicalKey == LogicalKeyboardKey.keyF) {
             if (widget.windowId != null && event is KeyDownEvent) {
@@ -870,7 +1102,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
             }
           }
 
-          if (ctrl && event.logicalKey == LogicalKeyboardKey.keyW) {
+          final isCloseShortcut =
+              (ctrl && event.logicalKey == LogicalKeyboardKey.keyW) ||
+              event.logicalKey == LogicalKeyboardKey.backspace ||
+              (alt && event.logicalKey == LogicalKeyboardKey.arrowLeft);
+
+          if (isCloseShortcut) {
             if (widget.windowId == null && event is KeyDownEvent) {
               ref.read(previewFileProvider.notifier).state = null;
               return KeyEventResult.handled;
@@ -889,7 +1126,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
               HardwareKeyboard.instance.isShiftPressed) {
             if (event is KeyDownEvent) {
               final isOpen = ref.read(imagePlaylistSidebarVisibleProvider);
-              ref.read(imagePlaylistSidebarVisibleProvider.notifier).state = !isOpen;
+              ref.read(imagePlaylistSidebarVisibleProvider.notifier).state =
+                  !isOpen;
             }
             return KeyEventResult.handled;
           }
@@ -938,7 +1176,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                 (isAltPressed &&
                     (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
                         event.logicalKey == LogicalKeyboardKey.arrowRight))) {
-              final isSidebarOpen = ref.read(imagePlaylistSidebarVisibleProvider);
+              final isSidebarOpen = ref.read(
+                imagePlaylistSidebarVisibleProvider,
+              );
               if (isSidebarOpen && isAltPressed) {
                 if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
                   _navigatePlaylistHistoryBack(ref);
@@ -985,388 +1225,477 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
             },
             child: Consumer(
               builder: (context, sidebarRef, _) {
-                final isSidebarOpen = sidebarRef.watch(imagePlaylistSidebarVisibleProvider);
+                final isSidebarOpen = sidebarRef.watch(
+                  imagePlaylistSidebarVisibleProvider,
+                );
                 final screenWidth = MediaQuery.of(context).size.width;
                 final minWidth = 240.0;
                 final maxWidth = screenWidth * 0.40;
-                double? savedWidth = sidebarRef.watch(imagePlaylistSidebarWidthProvider);
+                double? savedWidth = sidebarRef.watch(
+                  imagePlaylistSidebarWidthProvider,
+                );
                 double panelWidth = savedWidth ?? (screenWidth * 0.25);
                 panelWidth = panelWidth.clamp(minWidth, maxWidth);
                 final sidebarWidth = isSidebarOpen ? panelWidth : 0.0;
-                
+
                 return Row(
                   children: [
                     SizedBox(
                       width: sidebarWidth,
                       child: isSidebarOpen
                           ? ImagePlaylistSidebar(
-                              onImageSelected: (image) {
-                                if (!widget.isStandalone) {
-                                  ref.read(previewFileProvider.notifier).state = image;
-                                }
-                              },
-                              onDelete: (paths) => _handleDelete(permanent: false),
+                              onImageSelected: _openFile,
+                              onDelete: (paths) =>
+                                  _handleDelete(permanent: false),
                             )
                           : const SizedBox.shrink(),
                     ),
                     Expanded(
                       child: Stack(
                         children: [
-                if (_isEmpty)
-                  Positioned.fill(child: _buildEmptyState())
-                else
-                  Positioned.fill(
-                    child: Listener(
-                      behavior: HitTestBehavior.translucent,
-                    onPointerSignal: (pointerSignal) {
-                      if (pointerSignal is PointerScrollEvent) {
-                        final ctrl =
-                            HardwareKeyboard.instance.isControlPressed ||
-                            HardwareKeyboard.instance.logicalKeysPressed
-                                .contains(LogicalKeyboardKey.controlLeft) ||
-                            HardwareKeyboard.instance.logicalKeysPressed
-                                .contains(LogicalKeyboardKey.controlRight);
-                        if (ctrl) {
-                          final double delta = pointerSignal.scrollDelta.dy;
-                          if (delta != 0) {
-                            final double zoomFactor = delta > 0 ? 1.05 : 0.95;
-                            _setZoom(
-                              _currentScale * zoomFactor,
-                              focalPoint: pointerSignal.localPosition,
-                            );
-                          }
-                        } else if (_currentScale > 1.05) {
-                          // Handle trackpad two-finger drag (panning via scroll)
-                          final delta = pointerSignal.scrollDelta;
-                          const double sensitivity = 5.0;
-                          final translation = Matrix4.translationValues(
-                            -delta.dx * sensitivity,
-                            -delta.dy * sensitivity,
-                            0,
-                          );
-                          final Matrix4 nextMatrix =
-                              (translation * _transformationController.value)
-                                  as Matrix4;
+                          if (_isEmpty)
+                            Positioned.fill(child: _buildEmptyState())
+                          else
+                            Positioned.fill(
+                              child: Listener(
+                                behavior: HitTestBehavior.translucent,
+                                onPointerSignal: (pointerSignal) {
+                                  if (pointerSignal is PointerScrollEvent) {
+                                    final ctrl =
+                                        HardwareKeyboard
+                                            .instance
+                                            .isControlPressed ||
+                                        HardwareKeyboard
+                                            .instance
+                                            .logicalKeysPressed
+                                            .contains(
+                                              LogicalKeyboardKey.controlLeft,
+                                            ) ||
+                                        HardwareKeyboard
+                                            .instance
+                                            .logicalKeysPressed
+                                            .contains(
+                                              LogicalKeyboardKey.controlRight,
+                                            );
+                                    if (ctrl) {
+                                      final double delta =
+                                          pointerSignal.scrollDelta.dy;
+                                      if (delta != 0) {
+                                        final double zoomFactor = delta > 0
+                                            ? 1.05
+                                            : 0.95;
+                                        _setZoom(
+                                          _currentScale * zoomFactor,
+                                          focalPoint:
+                                              pointerSignal.localPosition,
+                                        );
+                                      }
+                                    } else if (_currentScale > 1.05) {
+                                      // Handle trackpad two-finger drag (panning via scroll)
+                                      final delta = pointerSignal.scrollDelta;
+                                      const double sensitivity = 5.0;
+                                      final translation =
+                                          Matrix4.translationValues(
+                                            -delta.dx * sensitivity,
+                                            -delta.dy * sensitivity,
+                                            0,
+                                          );
+                                      final Matrix4 nextMatrix =
+                                          (translation *
+                                                  _transformationController
+                                                      .value)
+                                              as Matrix4;
 
-                          if (nextMatrix.storage.any((v) => !v.isFinite))
-                            return;
+                                      if (nextMatrix.storage.any(
+                                        (v) => !v.isFinite,
+                                      ))
+                                        return;
 
-                          _transformationController.value = nextMatrix;
-                          _onTransformationChanged();
-                        }
-                      }
-                    },
-                    onPointerPanZoomStart: (event) {
-                      // Use gesture localPosition as fallback if _mousePosition
-                      if (_mousePosition == Offset.zero) {
-                        _mousePosition = event.localPosition;
-                      }
-                      _initialScale = _currentScale;
-                      _gestureStartMatrix = _transformationController.value
-                          .clone();
-                      _scrubAccumulatedScale = 1.0;
-                      setState(() => _isPanZoomGesture = true);
-                    },
-                    onPointerPanZoomEnd: (event) {
-                      setState(() => _isPanZoomGesture = false);
-                    },
-                    onPointerPanZoomUpdate: (event) {
-                      final ctrl =
-                          HardwareKeyboard.instance.isControlPressed ||
-                          HardwareKeyboard.instance.logicalKeysPressed.contains(
-                            LogicalKeyboardKey.controlLeft,
-                          ) ||
-                          HardwareKeyboard.instance.logicalKeysPressed.contains(
-                            LogicalKeyboardKey.controlRight,
-                          );
 
-                      if (ctrl) {
-                        final double dy = event.panDelta.dy;
-                        if (dy != 0) {
-                          // Accumulate the scrub scale from gesture start
-                          // dy positive (scrub down) -> zoom in, negative -> zoom out
-                          _scrubAccumulatedScale *= 1.0 + (dy * 0.005);
-                          _setZoomFromGesture(
-                            _initialScale * _scrubAccumulatedScale,
-                            event.localPosition,
-                          );
-                        }
-                      } else {
-                        if (event.scale != 1.0) {
-                          _setZoomFromGesture(
-                            _initialScale * event.scale,
-                            event.localPosition,
-                          );
-                        } else if (event.panDelta != Offset.zero &&
-                            _currentScale > 1.05) {
-                          final delta = event.panDelta;
-                          final translation = Matrix4.translationValues(
-                            delta.dx,
-                            delta.dy,
-                            0,
-                          );
-                          final Matrix4 nextMatrix =
-                              (translation * _transformationController.value)
-                                  as Matrix4;
-                          if (nextMatrix.storage.any((v) => !v.isFinite))
-                            return;
-                          _transformationController.value = nextMatrix;
-                          _onTransformationChanged();
-                        }
-                      }
-                    },
-                    child: InteractiveViewer(
-                      transformationController: _transformationController,
-                      minScale: 1.0,
-                      maxScale: 15.0,
-                      panEnabled:
-                          !_isPanZoomGesture &&
-                          (_isReadyForInteraction || widget.isStandalone),
-                      scaleEnabled:
-                          false, // Handled customly above for perfect cursor-centered zoom
-                      onInteractionUpdate: (_) => _onTransformationChanged(),
-                      child: GestureDetector(
-                        onTap: () {
-                          _focusNode.requestFocus();
-                          setState(() {
-                            _isControlsVisible = !_isControlsVisible;
-                            if (_isControlsVisible) _startHideTimer();
-                          });
-                        },
-                        onDoubleTap: widget.windowId == null
-                            ? _openInNewWindow
-                            : null,
-                        child: Builder(
-                          builder: (context) {
-                            Widget _buildImageWidget() {
-                              if (_isConvertingHeic) {
-                                return const Center(child: BubbleLoader(size: 60));
-                              }
-                              
-                              final imagePath = _convertedHeicPath ?? widget.item.path;
-                              final isNetwork = imagePath.startsWith('http://') || imagePath.startsWith('https://');
-                              
-                              if (imagePath.toLowerCase().endsWith('.svg')) {
-                                return isNetwork 
-                                  ? SvgPicture.network(
-                                      imagePath,
-                                      fit: BoxFit.contain,
-                                    )
-                                  : SvgPicture.file(
-                                      File(imagePath),
-                                      fit: BoxFit.contain,
-                                    );
-                              } else {
-                                return isNetwork
-                                  ? Image.network(
-                                      imagePath,
-                                      fit: BoxFit.contain,
-                                      filterQuality:
-                                          (_isInteracting ||
-                                              _isPanZoomGesture ||
-                                              _zoomAnimationController
-                                                  .isAnimating)
-                                          ? FilterQuality.low
-                                          : FilterQuality.high,
-                                    )
-                                  : Image.file(
-                                      File(imagePath),
-                                      fit: BoxFit.contain,
-                                      filterQuality:
-                                          (_isInteracting ||
-                                              _isPanZoomGesture ||
-                                              _zoomAnimationController
-                                                  .isAnimating)
-                                          ? FilterQuality.low
-                                          : FilterQuality.high,
-                                    );
-                              }
-                            }
+                                      _transformationController.value = nextMatrix;
+                                      _onTransformationChanged();
+                                    }
+                                  }
+                                },
+                                onPointerPanZoomStart: (event) {
+                                  // Use gesture localPosition as fallback if _mousePosition
+                                  if (_mousePosition == Offset.zero) {
+                                    _mousePosition = event.localPosition;
+                                  }
+                                  _initialScale = _currentScale;
+                                  _gestureStartMatrix =
+                                      _transformationController.value.clone();
+                                  _scrubAccumulatedScale = 1.0;
+                                  setState(() => _isPanZoomGesture = true);
+                                },
+                                onPointerPanZoomEnd: (event) {
+                                  setState(() => _isPanZoomGesture = false);
+                                },
+                                onPointerPanZoomUpdate: (event) {
+                                  final ctrl =
+                                      HardwareKeyboard
+                                          .instance
+                                          .isControlPressed ||
+                                      HardwareKeyboard
+                                          .instance
+                                          .logicalKeysPressed
+                                          .contains(
+                                            LogicalKeyboardKey.controlLeft,
+                                          ) ||
+                                      HardwareKeyboard
+                                          .instance
+                                          .logicalKeysPressed
+                                          .contains(
+                                            LogicalKeyboardKey.controlRight,
+                                          );
 
-                            return Center(
-                              child: Hero(
-                                tag: widget.item.path,
-                                child: Transform.rotate(
-                                  angle: _rotationAngle * 3.14159 / 180,
-                                  child: _brightness != 0.0
-                                      ? ColorFiltered(
-                                          colorFilter: ColorFilter.matrix([
-                                            1,
+                                  if (ctrl) {
+                                    final double dy = event.panDelta.dy;
+                                    if (dy != 0) {
+                                      // Accumulate the scrub scale from gesture start
+                                      // dy positive (scrub down) -> zoom in, negative -> zoom out
+                                      _scrubAccumulatedScale *=
+                                          1.0 + (dy * 0.005);
+                                      _setZoomFromGesture(
+                                        _initialScale * _scrubAccumulatedScale,
+                                        event.localPosition,
+                                      );
+                                    }
+                                  } else {
+                                    if (event.scale != 1.0) {
+                                      _setZoomFromGesture(
+                                        _initialScale * event.scale,
+                                        event.localPosition,
+                                      );
+                                    } else if (event.panDelta != Offset.zero &&
+                                        _currentScale > 1.05) {
+                                      final delta = event.panDelta;
+                                      final translation =
+                                          Matrix4.translationValues(
+                                            delta.dx,
+                                            delta.dy,
                                             0,
-                                            0,
-                                            0,
-                                            _brightness * 255,
-                                            0,
-                                            1,
-                                            0,
-                                            0,
-                                            _brightness * 255,
-                                            0,
-                                            0,
-                                            1,
-                                            0,
-                                            _brightness * 255,
-                                            0,
-                                            0,
-                                            0,
-                                            1,
-                                            0,
-                                          ]),
-                                          child: _buildImageWidget(),
-                                        )
-                                      : _buildImageWidget(),
+                                          );
+                                      final Matrix4 nextMatrix =
+                                          (translation *
+                                                  _transformationController
+                                                      .value)
+                                              as Matrix4;
+                                      if (nextMatrix.storage.any(
+                                        (v) => !v.isFinite,
+                                      ))
+                                        return;
+
+                                      _transformationController.value = nextMatrix;
+                                      _onTransformationChanged();
+                                    }
+                                  }
+                                },
+                                child: InteractiveViewer(
+                                  transformationController:
+                                      _transformationController,
+                                  minScale: 1.0,
+                                  maxScale: 15.0,
+                                  panEnabled:
+                                      !_isPanZoomGesture &&
+                                      (_isReadyForInteraction ||
+                                          widget.isStandalone),
+                                  scaleEnabled:
+                                      false, // Handled customly above for perfect cursor-centered zoom
+                                  onInteractionUpdate: (_) =>
+                                      _onTransformationChanged(),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      _focusNode.requestFocus();
+                                      setState(() {
+                                        _isControlsVisible =
+                                            !_isControlsVisible;
+                                        if (_isControlsVisible)
+                                          _startHideTimer();
+                                      });
+                                    },
+                                    onDoubleTap: widget.windowId == null
+                                        ? _openInNewWindow
+                                        : () => _setZoom(1.0),
+                                    child: Builder(
+                                      builder: (context) {
+                                        Widget buildImageWidget() {
+                                          if (_isConvertingHeic) {
+                                            return const Center(
+                                              child: BubbleLoader(size: 60),
+                                            );
+                                          }
+
+                                          final imagePath =
+                                              _convertedHeicPath ??
+                                              _currentItem.path;
+                                          final isNetwork =
+                                              imagePath.startsWith('http://') ||
+                                              imagePath.startsWith('https://');
+
+                                          if (imagePath.toLowerCase().endsWith(
+                                            '.svg',
+                                          )) {
+                                            return isNetwork
+                                                ? SvgPicture.network(
+                                                    imagePath,
+                                                    fit: BoxFit.contain,
+                                                  )
+                                                : SvgPicture.file(
+                                                    File(imagePath),
+                                                    fit: BoxFit.contain,
+                                                  );
+                                          } else {
+                                            return isNetwork
+                                                ? Image.network(
+                                                    imagePath,
+                                                    fit: BoxFit.contain,
+                                                    filterQuality:
+                                                        (_isInteracting ||
+                                                            _isPanZoomGesture ||
+                                                            _zoomAnimationController
+                                                                .isAnimating)
+                                                        ? FilterQuality.low
+                                                        : FilterQuality.high,
+                                                  )
+                                                : Image.file(
+                                                    File(imagePath),
+                                                    fit: BoxFit.contain,
+                                                    filterQuality:
+                                                        (_isInteracting ||
+                                                            _isPanZoomGesture ||
+                                                            _zoomAnimationController
+                                                                .isAnimating)
+                                                        ? FilterQuality.low
+                                                        : FilterQuality.high,
+                                                  );
+                                          }
+                                        }
+
+                                        return Center(
+                                          child: Hero(
+                                            tag: _currentItem.path,
+                                            child: Transform.rotate(
+                                              angle:
+                                                  _rotationAngle *
+                                                  3.14159 /
+                                                  180,
+                                              child: _brightness != 0.0
+                                                  ? ColorFiltered(
+                                                      colorFilter:
+                                                          ColorFilter.matrix([
+                                                            1,
+                                                            0,
+                                                            0,
+                                                            0,
+                                                            _brightness * 255,
+                                                            0,
+                                                            1,
+                                                            0,
+                                                            0,
+                                                            _brightness * 255,
+                                                            0,
+                                                            0,
+                                                            1,
+                                                            0,
+                                                            _brightness * 255,
+                                                            0,
+                                                            0,
+                                                            0,
+                                                            1,
+                                                            0,
+                                                          ]),
+                                                      child:
+                                                          buildImageWidget(),
+                                                    )
+                                                  : buildImageWidget(),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                if (_isLoading)
-                  const IgnorePointer(
-                    child: Center(child: BubbleLoader(size: 80)),
-                  ),
-
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 300),
-                    opacity: isVisible ? 1.0 : 0.0,
-                    child: ViewerTopBar(
-                      title: widget.item.name,
-                      metadata: _indexString != null
-                          ? '$_indexString • ${_metadata ?? ''}'
-                          : _metadata,
-                      isStandalone:
-                          widget.isStandalone || widget.windowId != null,
-                      onPopOut: _openInNewWindow,
-                      onClose: () =>
-                          ref.read(previewFileProvider.notifier).state = null,
-                      extraActions: [
-                        if (!_isEmpty) ...[
-                          if (!_isNetworkStream)
-                            Consumer(
-                              builder: (context, ref, _) {
-                                final favorites = ref.watch(imageFavoritesProvider);
-                                final isFavorite = favorites.contains(widget.item.path);
-                                return _buildTopBarButton(
-                                  icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                  onPressed: () {
-                                    ref.read(imageFavoritesProvider.notifier).toggleFavorite(widget.item.path);
-                                  },
-                                  tooltip: 'Toggle Favorite',
-                                  active: isFavorite,
-                                );
-                              },
                             ),
-                          if (!_isNetworkStream)
-                            const SizedBox(width: 8),
-                          if (!_isNetworkStream)
-                            _buildTopBarButton(
-                              icon: _isEditing
-                                  ? Icons.edit_rounded
-                                  : Icons.edit_outlined,
-                              onPressed: () =>
-                                  setState(() => _isEditing = !_isEditing),
-                              tooltip: 'Edit Image',
-                              active: _isEditing,
+
+                          if (_isLoading)
+                            const IgnorePointer(
+                              child: Center(child: BubbleLoader(size: 80)),
                             ),
-                          if (!_isNetworkStream)
-                            const SizedBox(width: 8),
-                        _buildTopBarButton(
-                          icon: Icons.settings_rounded,
-                          onPressed: () => SettingsDialog.show(
-                            context,
-                            initialTab: 1,
-                            section: 'Image',
+
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 300),
+                              opacity: isVisible ? 1.0 : 0.0,
+                              child: ViewerTopBar(
+                                title: _currentItem.name,
+                                metadata: _indexString != null
+                                    ? '$_indexString • ${_metadata ?? ''}'
+                                    : _metadata,
+                                isStandalone:
+                                    widget.isStandalone ||
+                                    widget.windowId != null,
+                                onPopOut: _openInNewWindow,
+                                onClose: () =>
+                                    ref
+                                            .read(previewFileProvider.notifier)
+                                            .state =
+                                        null,
+                                extraActions: [
+                                  if (!_isEmpty) ...[
+                                    if (!_isNetworkStream)
+                                      Consumer(
+                                        builder: (context, ref, _) {
+                                          final favorites = ref.watch(
+                                            imageFavoritesProvider,
+                                          );
+                                          final isFavorite = favorites.contains(
+                                            _currentItem.path,
+                                          );
+                                          return _buildTopBarButton(
+                                            icon: isFavorite
+                                                ? Icons.favorite_rounded
+                                                : Icons.favorite_border_rounded,
+                                            onPressed: () {
+                                              ref
+                                                  .read(
+                                                    imageFavoritesProvider
+                                                        .notifier,
+                                                  )
+                                                  .toggleFavorite(
+                                                    _currentItem.path,
+                                                  );
+                                            },
+                                            tooltip: 'Toggle Favorite',
+                                            active: isFavorite,
+                                          );
+                                        },
+                                      ),
+                                    if (!_isNetworkStream)
+                                      const SizedBox(width: 8),
+                                    if (!_isNetworkStream)
+                                      _buildTopBarButton(
+                                        icon: _isEditing
+                                            ? Icons.edit_rounded
+                                            : Icons.edit_outlined,
+                                        onPressed: () => setState(
+                                          () => _isEditing = !_isEditing,
+                                        ),
+                                        tooltip: 'Edit Image',
+                                        active: _isEditing,
+                                      ),
+                                    if (!_isNetworkStream)
+                                      const SizedBox(width: 8),
+                                    _buildTopBarButton(
+                                      icon: Icons.settings_rounded,
+                                      onPressed: () => SettingsDialog.show(
+                                        context,
+                                        initialTab: 1,
+                                        section: 'Image',
+                                      ),
+                                      tooltip: 'Image Settings',
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ),
-                          tooltip: 'Image Settings',
-                        ),
-                        const SizedBox(width: 8),
+
+                          if (_isEditing && isVisible)
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: _buildEditingPanel(),
+                            ),
+
+                          if (isVisible)
+                            Positioned(
+                              bottom: 32,
+                              left: 32,
+                              child: Consumer(
+                                builder: (context, sidebarRef, _) {
+                                  final isSidebarOpen = sidebarRef.watch(
+                                    imagePlaylistSidebarVisibleProvider,
+                                  );
+                                  return AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 200),
+                                    opacity: isVisible ? 1.0 : 0.0,
+                                    child: IconButton(
+                                      icon: const Icon(
+                                        Icons.playlist_play,
+                                        size: 24,
+                                      ),
+                                      color: _isNetworkStream
+                                          ? Colors.white30
+                                          : (isSidebarOpen
+                                                ? AppColors.magenta
+                                                : Colors.white),
+                                      onPressed: _isNetworkStream
+                                          ? null
+                                          : () {
+                                              sidebarRef
+                                                      .read(
+                                                        imagePlaylistSidebarVisibleProvider
+                                                            .notifier,
+                                                      )
+                                                      .state =
+                                                  !isSidebarOpen;
+                                            },
+                                      tooltip: 'Playlist',
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                          if (_showZoomIndicator)
+                            Positioned(
+                              bottom: 32,
+                              right: 32,
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: _showZoomIndicator ? 1.0 : 0.0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.4),
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.1),
+                                    ),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(24),
+                                    child: BackdropFilter(
+                                      filter: ui.ImageFilter.blur(
+                                        sigmaX: 10,
+                                        sigmaY: 10,
+                                      ),
+                                      child: Text(
+                                        '${(_currentScale * 100).toInt()}%',
+                                        style: GoogleFonts.outfit(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
-                      ],
-                    ),
-                  ),
-                ),
-
-                  if (_isEditing && isVisible)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: _buildEditingPanel(),
-                    ),
-
-                  if (isVisible)
-                    Positioned(
-                      bottom: 32,
-                      left: 32,
-                      child: Consumer(
-                        builder: (context, sidebarRef, _) {
-                          final isSidebarOpen = sidebarRef.watch(imagePlaylistSidebarVisibleProvider);
-                          return AnimatedOpacity(
-                            duration: const Duration(milliseconds: 200),
-                            opacity: isVisible ? 1.0 : 0.0,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.playlist_play,
-                                size: 24,
-                              ),
-                              color: _isNetworkStream ? Colors.white30 : (isSidebarOpen ? AppColors.magenta : Colors.white),
-                              onPressed: _isNetworkStream ? null : () {
-                                sidebarRef.read(imagePlaylistSidebarVisibleProvider.notifier).state = !isSidebarOpen;
-                              },
-                              tooltip: 'Playlist',
-                            ),
-                          );
-                        },
                       ),
-                    ),
-
-                  if (_showZoomIndicator)
-                  Positioned(
-                    bottom: 32,
-                    right: 32,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: _showZoomIndicator ? 1.0 : 0.0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: BackdropFilter(
-                            filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Text(
-                              '${(_currentScale * 100).toInt()}%',
-                              style: GoogleFonts.outfit(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
                     ),
                   ],
                 );
@@ -1500,11 +1829,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       final newPath = history.last;
       final currentPath = ref.read(imageCurrentPathProvider);
 
-      ref.read(imagePathHistoryProvider.notifier).state =
-          history.sublist(0, history.length - 1);
-      ref.read(imagePathForwardHistoryProvider.notifier).update(
-            (state) => [...state, currentPath],
-          );
+      ref.read(imagePathHistoryProvider.notifier).state = history.sublist(
+        0,
+        history.length - 1,
+      );
+      ref
+          .read(imagePathForwardHistoryProvider.notifier)
+          .update((state) => [...state, currentPath]);
 
       _openPlaylistFolder(ref, newPath);
     }
@@ -1516,17 +1847,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       final newPath = forwardHistory.last;
       final currentPath = ref.read(imageCurrentPathProvider);
 
-      ref.read(imagePathForwardHistoryProvider.notifier).state =
-          forwardHistory.sublist(0, forwardHistory.length - 1);
-      ref.read(imagePathHistoryProvider.notifier).update(
-            (state) => [...state, currentPath],
-          );
+      ref.read(imagePathForwardHistoryProvider.notifier).state = forwardHistory
+          .sublist(0, forwardHistory.length - 1);
+      ref
+          .read(imagePathHistoryProvider.notifier)
+          .update((state) => [...state, currentPath]);
 
       _openPlaylistFolder(ref, newPath);
     }
   }
 
-  void _openPlaylistFolder(WidgetRef ref, String path) async {
+  Future<void> _openPlaylistFolder(WidgetRef ref, String path) async {
     final repo = ref.read(directoryRepositoryProvider);
     final showHidden = ref.read(imageShowHiddenProvider);
     try {

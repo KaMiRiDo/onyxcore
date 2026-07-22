@@ -58,6 +58,7 @@ class ViewerTopBar extends StatelessWidget {
                         letterSpacing: -0.5,
                       ),
                       maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (metadata != null) ...[
@@ -69,6 +70,8 @@ class ViewerTopBar extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ],

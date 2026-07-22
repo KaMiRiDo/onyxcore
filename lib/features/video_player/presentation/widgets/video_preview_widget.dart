@@ -232,7 +232,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
   // Marker editor state is now in VideoMarkerController
   VideoMarker? _editingMarker;
   Offset? _markerEditorAnchor;
-  bool _isHoveringMarker = false;
+  final bool _isHoveringMarker = false;
 
   final GlobalKey<MarkerEditorOverlayState> _markerEditorKey =
       GlobalKey<MarkerEditorOverlayState>();
@@ -894,11 +894,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         });
       } else {
         _smartDelayTimer?.cancel();
-        if (mounted)
+        if (mounted) {
           setState(
             () =>
                 _displayState = _displayState.copyWith(isSmartBuffering: false),
           );
+        }
       }
 
       if (mounted && _isBuffering != buffering) {
@@ -914,7 +915,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             isOpening: false,
             isSeekingToInitial: false,
             hasError: true,
-            errorMessage: error.toString(),
+            errorMessage: error,
           );
           _isBuffering = false;
         });
@@ -1020,10 +1021,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         play: shouldPlay,
       );
       debugPrint('[VideoPlayer] player.open() completed successfully');
-      if (mounted)
+      if (mounted) {
         setState(
           () => _displayState = _displayState.copyWith(isOpening: false),
         );
+      }
     } catch (e) {
       debugPrint('[VideoPlayer] player.open() FAILED: $e');
       if (mounted) {
@@ -1076,10 +1078,11 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             Media(MediaUriHelper.getSafeMediaUri(item.path)),
             play: shouldPlay,
           );
-          if (mounted)
+          if (mounted) {
             setState(
               () => _displayState = _displayState.copyWith(isOpening: false),
             );
+          }
 
           // 4. Initialize new media (subs, memory) after open completes
           _initMedia();
@@ -1758,9 +1761,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     });
 
     if (!_isPlayerInitialized) {
-      return Container(
+      return const ColoredBox(
         color: Colors.black,
-        child: const Center(child: BubbleLoader(size: 40)),
+        child: Center(child: BubbleLoader(size: 40)),
       );
     }
 
@@ -1955,7 +1958,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                             _playerWidth = constraints.maxWidth;
                             _playerHeight = constraints.maxHeight;
 
-                            return Container(
+                            return ColoredBox(
                               key: _playerKey,
                               color: Colors.black,
                               child: Stack(
@@ -2363,40 +2366,68 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   Future<void> _initStandalonePlaylist() async {
     try {
-      final absolutePath = File(_currentItem.path).absolute.path;
-      final parentDir = File(absolutePath).parent;
-      debugPrint(
-        '[VideoPlayer] Scanning standalone playlist: ${parentDir.path}',
-      );
-
-      if (!parentDir.existsSync()) {
-        debugPrint('[VideoPlayer] Parent directory does not exist!');
-        return;
-      }
-
-      final entities = await parentDir.list().toList();
       final videos = <FileItem>[];
 
-      for (final entity in entities) {
-        if (FileSystemEntity.isFileSync(entity.path)) {
-          final name = p.basename(entity.path);
-          if (classifyFileType(name) == FileItemType.video) {
+      if (widget.initParams != null && widget.initParams!['playlistPaths'] != null) {
+        final paths = List<String>.from(widget.initParams!['playlistPaths'] as Iterable);
+        for (final path in paths) {
+          final file = File(path);
+          if (file.existsSync()) {
+            final name = p.basename(path);
             try {
-              final stat = await entity.stat();
+              final stat = await file.stat();
               videos.add(
                 FileItem(
                   name: name,
-                  path: entity.path,
+                  path: path,
                   type: FileItemType.video,
                   sizeBytes: stat.size,
                   modified: stat.modified,
                 ),
               );
             } catch (e) {
-              debugPrint('Error stating file ${entity.path}: $e');
+              debugPrint('Error stating file $path: $e');
             }
           }
         }
+      } else {
+        final absolutePath = File(_currentItem.path).absolute.path;
+        final parentDir = File(absolutePath).parent;
+        debugPrint(
+          '[VideoPlayer] Scanning standalone playlist: ${parentDir.path}',
+        );
+
+        if (!parentDir.existsSync()) {
+          debugPrint('[VideoPlayer] Parent directory does not exist!');
+          return;
+        }
+
+        final entities = await parentDir.list().toList();
+
+        for (final entity in entities) {
+          if (FileSystemEntity.isFileSync(entity.path)) {
+            final name = p.basename(entity.path);
+            if (classifyFileType(name) == FileItemType.video) {
+              try {
+                final stat = await entity.stat();
+                videos.add(
+                  FileItem(
+                    name: name,
+                    path: entity.path,
+                    type: FileItemType.video,
+                    sizeBytes: stat.size,
+                    modified: stat.modified,
+                  ),
+                );
+              } catch (e) {
+                debugPrint('Error stating file ${entity.path}: $e');
+              }
+            }
+          }
+        }
+        
+        videos.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       }
 
       debugPrint('[VideoPlayer] Standalone playlist count: ${videos.length}');

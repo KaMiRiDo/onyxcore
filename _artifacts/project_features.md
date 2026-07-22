@@ -96,7 +96,6 @@ graph TB
 
         subgraph ImageViewer["image_viewer"]
             ImgPreview["ImagePreviewWidget"]
-            ImgEditor["ImageEditorOverlay (ffmpeg)"]
         end
 
         subgraph VideoPlayer["video_player"]
@@ -382,7 +381,6 @@ lib/
 │   │   │   │   providers/
 │   │   │   │   │   image_playlist_providers.dart
 │   │   │   │   widgets/
-│   │   │   │   │   image_editor_overlay.dart
 │   │   │   │   │   image_playlist_sidebar.dart
 │   │   │   │   │   image_preview_widget.dart
 │   │   settings/
@@ -963,9 +961,15 @@ test/
 - **Intelligent File Support**: Detects `.svg` files, gracefully bypassing binary metadata extraction and dynamically tagging them as "Vector Graphic • Scalable".
 - **Secure Deletion**: Uses `Delete` (trash) or `Shift+Delete` (permanent) hotkeys integrated with the background Task Manager; upon deletion, it seamlessly auto-navigates to the next image to prevent UI disruption.
 - **RAW & Advanced Format Support**: Full integration with `DNG`, `RAW`, `AVIF`, and `HEIC` files via background `ffmpeg` conversion, rendering high-fidelity previews instantly.
+- **Keyboard Shortcuts**:
+  - `+` / `=` to zoom in, `-` / `Numpad -` to zoom out, `0` to instantly reset zoom to 1.0x.
+  - `Ctrl+Shift+P` to toggle the image playlist side panel.
+  - `Delete` (move to trash) or `Shift+Delete` (permanent delete) with seamless auto-navigation.
 
 #### 2.2 Standalone Mode (Persistent Window)
 - Dedicated window via `PersistentViewerManager` (window reuse, hide instead of destroy)
+- **Standalone Navigation & Sort Sync**: Standalone image and video viewers natively respect the directory browser's playlist sort order (e.g. by modified date or size) passed via `initParams['playlistPaths']`, preventing fallback to alphabetical sorting.
+- **Playlist & HUD Synchronization**: Fully synced playlist sidebars that accurately highlight the current item being viewed, and a top-bar HUD counter (e.g. "3/15") that precisely updates during ←/→ navigation.
 - **Focus Reliability**: Implements a 100ms compositor mapping delay before requesting OS focus, guaranteeing trackpad pinch-to-zoom works immediately upon launch without requiring a click
 - **Extreme Zoom**: Support for up to **1500% (15.0x)** magnification
 - **True Cursor-Centered Zoom**:
@@ -985,18 +989,12 @@ test/
 - `←`/`→` navigation via reverse IPC (`request_navigation`) to main window
 - **ViewerTopBar** with title, metadata, pop-out, close, edit, settings buttons
 
-#### 2.3 Image Editor Overlay
-- **FFMPEG Native Pipeline**: Leverages `Process.run('bash', ['-c', ...])` to pipe exact string commands (`rotate`, `eq=brightness`, `crop`) directly to system `ffmpeg`, performing high-speed non-destructive edits without blowing up Dart heap memory.
-- **Glassmorphic Editor Canvas**: Blur `sigmaX: 20` backing the active editor layer.
-- **Custom Painter UI**: 
-  - 8-point draggable crop frame overlaid with a custom 3x3 `GridPainter`.
-  - Continuous `-180°` to `180°` rotation dial via custom `RotationSliderPainter`.
-- **Live Preview Filters**: Uses `ColorFiltered` matrix manipulations to instantly render brightness/contrast adjustments before committing them to the FFMPEG pipeline.
-- Save dialog with "Save Copy" (auto-increments filename) or "Replace" modes.
-
-#### 2.4 Image Playlist Sidebar
+#### 2.3 Image Playlist Sidebar
 - **Toggleable Side Panel**: Triggered via `Ctrl+Shift+P` or UI button.
 - **Synchronized Thumbnail Grid**: Automatically mirrors the `filteredAndSortedImageQueueProvider`, allowing direct-click navigation between images in the current folder.
+- **Interactive Tiles**: Double-tap an image tile to instantly render it in the viewport.
+- **Context Menu Integration**: Full access to standard file operations (Move to Trash, Copy Items, Move Items, Rename via `F2`) directly from the sidebar.
+- **Dynamic Metadata Subtitles**: Folders display their total item count (e.g., "5 Image Files"), while individual image tiles display their file size in MB.
 
 ---
 

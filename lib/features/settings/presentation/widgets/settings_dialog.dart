@@ -60,6 +60,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     'Performance': GlobalKey(),
   };
   final _viewersKeys = {
+    'General': GlobalKey(),
     'Image': GlobalKey(),
     'Video': GlobalKey(),
     'Audio': GlobalKey(),
@@ -79,7 +80,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   };
 
   String _activeGeneralSection = 'Files & Folders';
-  String _activeViewersSection = 'Image';
+  String _activeViewersSection = 'General';
   String _activeSecuritySection = 'Vault';
   String _activeShortcutsSection = 'General';
 
@@ -686,7 +687,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     return Row(
       children: [
         _buildSubSidebar(
-          items: ['Image', 'Video', 'Audio', 'Documents'],
+          items: ['General', 'Image', 'Video', 'Audio', 'Documents'],
           activeItem: _activeViewersSection,
           onSelected: (section) => _scrollToSection(
             _viewersKeys[section]!,
@@ -701,6 +702,22 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildSectionHeader('General', _viewersKeys['General']!),
+                _buildSettingTile(
+                  title: 'Open in standalone mode',
+                  subtitle:
+                      'Open all medias and files in standalone mode by default bypassing the preview mode',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.openInStandaloneMode ?? true,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          openInStandaloneMode: value,
+                        );
+                      });
+                    },
+                  ),
+                ),
                 _buildSectionHeader('Image', _viewersKeys['Image']!),
                 _buildSettingTile(
                   title: 'Confirm delete',

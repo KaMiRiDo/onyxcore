@@ -19,6 +19,7 @@ enum SpeedControlOption {
 /// have been removed.
 class AppSettings extends Equatable {
   const AppSettings({
+    this.openInStandaloneMode = true,
     this.autoPlayNext = true,
     this.audioAutoPlayNext = true,
     this.showHiddenFiles = false,
@@ -55,6 +56,9 @@ class AppSettings extends Equatable {
     this.videoPlayerVolume = 30.0,
     this.videoShowRemainingTime = false,
   });
+
+  /// Whether to open medias and files in standalone mode by default.
+  final bool openInStandaloneMode;
 
   /// Whether to automatically play the next video in the playlist.
   final bool autoPlayNext;
@@ -162,6 +166,7 @@ class AppSettings extends Equatable {
   final bool videoShowRemainingTime;
 
   AppSettings copyWith({
+    bool? openInStandaloneMode,
     bool? autoPlayNext,
     bool? audioAutoPlayNext,
     bool? showHiddenFiles,
@@ -199,6 +204,7 @@ class AppSettings extends Equatable {
     bool? videoShowRemainingTime,
   }) {
     return AppSettings(
+      openInStandaloneMode: openInStandaloneMode ?? this.openInStandaloneMode,
       autoPlayNext: autoPlayNext ?? this.autoPlayNext,
       audioAutoPlayNext: audioAutoPlayNext ?? this.audioAutoPlayNext,
       showHiddenFiles: showHiddenFiles ?? this.showHiddenFiles,
@@ -246,6 +252,7 @@ class AppSettings extends Equatable {
 
   @override
   List<Object?> get props => [
+    openInStandaloneMode,
     autoPlayNext,
     audioAutoPlayNext,
     showHiddenFiles,

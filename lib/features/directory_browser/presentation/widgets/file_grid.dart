@@ -21,6 +21,9 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/conflic
 import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_state_view.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:path/path.dart' as p;
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().
@@ -259,7 +262,55 @@ class _FileGridState extends ConsumerState<FileGrid>
         item.type == FileItemType.video ||
         item.type == FileItemType.audio ||
         item.type == FileItemType.document) {
-      ref.read(previewFileProvider.notifier).state = item;
+      
+      final openInStandalone = ref.read(settingsProvider).value?.openInStandaloneMode ?? true;
+      
+      if (openInStandalone) {
+         final preloadPaths = <String>[];
+         final allItems = ref.read(sortedDirectoryItemsProvider).value ?? [];
+         if (item.type == FileItemType.image) {
+           final mediaItems = allItems.where((i) => i.type == FileItemType.image).toList();
+           if (mediaItems.isNotEmpty) {
+             final currentIndex = mediaItems.indexWhere((i) => i.path == item.path);
+             if (currentIndex != -1) {
+               for (var i = 1; i <= 2; i++) {
+                 preloadPaths.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
+                 preloadPaths.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
+               }
+             }
+           }
+         }
+         final windowParams = WindowParams(
+           viewerType: item.type == FileItemType.video
+               ? ViewerType.video
+               : (item.type == FileItemType.audio
+                   ? ViewerType.audio
+                   : (item.type == FileItemType.document
+                       ? ViewerType.markdown
+                       : ViewerType.image)),
+           file: item,
+           initParams: {
+             'preloadPaths': preloadPaths,
+             if (item.type == FileItemType.image || item.type == FileItemType.video)
+               'playlistPaths': allItems
+                   .where((i) => i.type == item.type)
+                   .map((i) => i.path)
+                   .toList(),
+             if (item.type == FileItemType.image) ...{
+               'currentIndex': allItems
+                   .where((i) => i.type == FileItemType.image)
+                   .toList()
+                   .indexWhere((i) => i.path == item.path) + 1,
+               'totalCount': allItems
+                   .where((i) => i.type == FileItemType.image)
+                   .length,
+             },
+           },
+         );
+         PersistentViewerManager.openMedia(windowParams);
+      } else {
+        ref.read(previewFileProvider.notifier).state = item;
+      }
       return;
     }
 

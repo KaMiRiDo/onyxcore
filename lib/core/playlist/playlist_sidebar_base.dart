@@ -95,8 +95,13 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
   /// Called when a non-folder item is double-tapped.
   void onItemDoubleTap(FileItem item, int realIndex, List<FileItem> queue);
 
-  /// Called when a non-folder item is tapped.
-  void onItemTap(FileItem item, int realIndex, List<FileItem> queue) {}
+  /// Invoked when a file item is single-tapped.
+  /// 
+  /// Routes to onItemDoubleTap by default to emulate standard playlist behavior 
+  /// (single click plays the item).
+  void onItemTap(FileItem item, int realIndex, List<FileItem> queue) {
+    onItemDoubleTap(item, realIndex, queue);
+  }
 
   /// Build the subtitle text for a tile.
   String buildSubtitle(FileItem item);
