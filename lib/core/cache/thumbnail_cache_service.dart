@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
-import '../database/app_database.dart';
+import 'package:onyxcore/core/database/app_database.dart';
 
 /// Size tier for cached thumbnails, matching freedesktop convention.
 enum ThumbnailSize {
@@ -124,7 +124,7 @@ class ThumbnailCacheService {
 
     if (entry.status == 'failed') return ThumbnailLookupResult.failed;
     if (entry.status == 'ready') {
-      bool valid = false;
+      var valid = false;
       if (entry.cacheFileNormal != null) {
         final f = File(entry.cacheFileNormal!);
         if (f.existsSync() && f.lengthSync() > 0) valid = true;
@@ -132,6 +132,42 @@ class ThumbnailCacheService {
       if (entry.cacheFileLarge != null) {
         final f = File(entry.cacheFileLarge!);
         if (f.existsSync() && f.lengthSync() > 0) valid = true;
+      }
+      if (valid) return ThumbnailLookupResult.hit;
+    }
+
+    // 'pending' or unknown status → miss
+    return ThumbnailLookupResult.miss;
+  }
+
+  /// Look up the thumbnail cache asynchronously to prevent blocking the UI thread.
+  Future<ThumbnailLookupResult> lookupAsync({
+    required String filePath,
+    required int mtime,
+    required int sizeBytes,
+  }) async {
+    final hash = AppDatabase.computeFileHash(filePath);
+    final entry = _index[hash];
+
+    if (entry == null) return ThumbnailLookupResult.miss;
+
+    // Check staleness: mtime or size changed → treat as miss
+    if (entry.mtime != mtime || entry.sizeBytes != sizeBytes) {
+      return ThumbnailLookupResult.miss;
+    }
+
+    if (entry.status == 'failed') return ThumbnailLookupResult.failed;
+    if (entry.status == 'ready') {
+      var valid = false;
+      if (entry.cacheFileNormal != null) {
+        final f = File(entry.cacheFileNormal!);
+        // ignore: avoid_slow_async_io
+        if (await f.exists() && await f.length() > 0) valid = true;
+      }
+      if (entry.cacheFileLarge != null) {
+        final f = File(entry.cacheFileLarge!);
+        // ignore: avoid_slow_async_io
+        if (await f.exists() && await f.length() > 0) valid = true;
       }
       if (valid) return ThumbnailLookupResult.hit;
     }
@@ -161,6 +197,31 @@ class ThumbnailCacheService {
       if (path != null) {
         final f = File(path);
         if (f.existsSync() && f.lengthSync() > 0) return path;
+      }
+      return null;
+    }
+  }
+
+  /// Get the cached thumbnail path for a file asynchronously.
+  Future<String?> getCachedPathAsync(String filePath, {ThumbnailSize size = ThumbnailSize.normal}) async {
+    final hash = AppDatabase.computeFileHash(filePath);
+    final entry = _index[hash];
+    if (entry == null || entry.status != 'ready') return null;
+
+    if (size == ThumbnailSize.normal) {
+      final path = entry.cacheFileNormal ?? entry.cacheFileLarge;
+      if (path != null) {
+        final f = File(path);
+        // ignore: avoid_slow_async_io
+        if (await f.exists() && await f.length() > 0) return path;
+      }
+      return null;
+    } else {
+      final path = entry.cacheFileLarge ?? entry.cacheFileNormal;
+      if (path != null) {
+        final f = File(path);
+        // ignore: avoid_slow_async_io
+        if (await f.exists() && await f.length() > 0) return path;
       }
       return null;
     }
@@ -256,8 +317,6 @@ class ThumbnailCacheService {
         filePath: filePath,
         mtime: mtime,
         sizeBytes: sizeBytes,
-        cacheFileNormal: null,
-        cacheFileLarge: null,
         kind: kind,
         status: 'failed',
         generatedAt: DateTime.now().millisecondsSinceEpoch,

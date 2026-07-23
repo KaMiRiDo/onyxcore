@@ -128,6 +128,29 @@ void main() {
       expect(largePath, '/tmp/cache_large.jpg');
     });
 
+    test('lookupAsync returns correct result asynchronously', () async {
+      when(() => mockDb.getAllThumbnailEntries()).thenAnswer((_) async => [mockEntry]);
+      await cacheService.load();
+
+      final result = await cacheService.lookupAsync(
+        filePath: '/test.jpg',
+        mtime: 1000,
+        sizeBytes: 2000,
+      );
+      expect(result, ThumbnailLookupResult.hit);
+    });
+
+    test('getCachedPathAsync returns correct path asynchronously', () async {
+      when(() => mockDb.getAllThumbnailEntries()).thenAnswer((_) async => [mockEntry]);
+      await cacheService.load();
+
+      final normalPath = await cacheService.getCachedPathAsync('/test.jpg');
+      final largePath = await cacheService.getCachedPathAsync('/test.jpg', size: ThumbnailSize.large);
+
+      expect(normalPath, '/tmp/cache_normal.jpg');
+      expect(largePath, '/tmp/cache_large.jpg');
+    });
+
     test('markFailed inserts failed entry to db and memory', () async {
       when(() => mockDb.markThumbnailFailed(
             fileHash: any(named: 'fileHash'),

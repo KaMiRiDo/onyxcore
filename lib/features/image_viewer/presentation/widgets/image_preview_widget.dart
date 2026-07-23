@@ -1,11 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
@@ -18,16 +14,20 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/image_gesture_handler.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_hud_controller.dart';
-import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
-import 'package:onyxcore/features/image_viewer/presentation/controllers/image_navigation_controller.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_keyboard_handler.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/image_navigation_controller.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_viewer_lifecycle.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/image_zoom_controller.dart';
+import 'package:onyxcore/features/image_viewer/presentation/engines/zoom_animation_engine.dart';
+import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/services/image_metadata_loader.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_editing_panel.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_empty_state.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_zoom_indicator.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/interactive_image_viewport.dart';
 import 'package:onyxcore/features/image_viewer/utils/special_image_converter.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
@@ -66,21 +66,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   String? _convertedHeicPath;
 
   final FocusNode _focusNode = FocusNode();
-  final TransformationController _transformationController =
-      TransformationController();
   Offset _mousePosition = Offset.zero;
-  double _currentScale = 1;
-  double _initialScale = 1;
-  Matrix4 _gestureStartMatrix = Matrix4.identity();
-  double _scrubAccumulatedScale = 1;
-  bool _isPanZoomGesture = false;
-  bool _isInteracting = false;
 
   late AnimationController _zoomAnimationController;
+  late ZoomAnimationEngine _zoomAnimationEngine;
+  late ImageZoomController _imageZoomController;
+  late ImageGestureHandler _imageGestureHandler;
+
   late ImageNavigationController _navigationController;
   late ImageKeyboardHandler _keyboardHandler;
   late ImageViewerLifecycle _lifecycle;
-  Animation<Matrix4>? _zoomAnimation;
   Size? _imageSize;
 
   // Image Edit State
@@ -92,7 +87,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   bool _isReadyForInteraction = false;
 
   late FileItem _currentItem;
-
 
   Future<void> _loadSpecialImageIfNecessary() async {
     final ext = _currentItem.path.toLowerCase();
@@ -133,43 +127,55 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   @override
   void initState() {
     super.initState();
-    _hudController = ImageHudController()..addListener(() {
-      if (mounted) setState(() {});
-    });
-    _navigationController = ImageNavigationController(
-      isStandalone: widget.isStandalone,
-      initParams: widget.initParams,
-      windowId: widget.windowId,
-      ref: ref,
-      onNavigate: _openFile,
-      onClearNavigation: _onClearNavigation,
-    )..addListener(() {
-        if (mounted) {
-          setState(() {
-            _isEmpty = _navigationController.isEmpty;
-          });
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              ref.read(imageIsEmptyProvider.notifier).state = _isEmpty;
-            }
-          });
-        }
-    });
-    
+    _hudController = ImageHudController()
+      ..addListener(() {
+        if (mounted) setState(() {});
+      });
+    _navigationController =
+        ImageNavigationController(
+          isStandalone: widget.isStandalone,
+          initParams: widget.initParams,
+          windowId: widget.windowId,
+          ref: ref,
+          onNavigate: _openFile,
+          onClearNavigation: _onClearNavigation,
+        )..addListener(() {
+          if (mounted) {
+            setState(() {
+              _isEmpty = _navigationController.isEmpty;
+            });
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ref.read(imageIsEmptyProvider.notifier).state = _isEmpty;
+              }
+            });
+          }
+        });
+
     _keyboardHandler = ImageKeyboardHandler(
       onClose: () => ref.read(previewFileProvider.notifier).state = null,
-      onDelete: ({required bool permanent}) => _handleDelete(permanent: permanent),
+      onDelete: _handleDelete,
       onToggleSidebar: () {
         final isOpen = ref.read(imagePlaylistSidebarVisibleProvider);
         ref.read(imagePlaylistSidebarVisibleProvider.notifier).state = !isOpen;
       },
-      onZoomIn: () => _setZoom(_currentScale + 0.2),
-      onZoomOut: () => _setZoom(_currentScale - 0.2),
-      onResetZoom: () => _setZoom(1),
+      onZoomIn: () => _imageZoomController.setZoom(
+        _imageZoomController.currentScale + 0.2,
+        focalPoint: _getFocalPoint(),
+      ),
+      onZoomOut: () => _imageZoomController.setZoom(
+        _imageZoomController.currentScale - 0.2,
+        focalPoint: _getFocalPoint(),
+      ),
+      onResetZoom: () =>
+          _imageZoomController.setZoom(1, focalPoint: _getFocalPoint()),
       onNavigateForward: ({required bool isKeyRepeat}) => _navigateMedia(true),
-      onNavigateBackward: ({required bool isKeyRepeat}) => _navigateMedia(false),
-      onNavigateHistoryForward: () => _navigationController.navigatePlaylistHistoryForward(),
-      onNavigateHistoryBackward: () => _navigationController.navigatePlaylistHistoryBack(),
+      onNavigateBackward: ({required bool isKeyRepeat}) =>
+          _navigateMedia(false),
+      onNavigateHistoryForward: () =>
+          _navigationController.navigatePlaylistHistoryForward(),
+      onNavigateHistoryBackward: () =>
+          _navigationController.navigatePlaylistHistoryBack(),
       onToggleFullscreen: _toggleFullscreen,
       isSidebarOpen: () => ref.read(imagePlaylistSidebarVisibleProvider),
       isStandalone: widget.isStandalone,
@@ -177,16 +183,26 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     );
 
     _currentItem = widget.item;
-    _zoomAnimationController =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 200),
-        )..addListener(() {
-          if (_zoomAnimation != null) {
-            _transformationController.value = _zoomAnimation!.value;
-            _onTransformationChanged();
-          }
-        });
+    _zoomAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+
+    _zoomAnimationEngine = ZoomAnimationEngine(
+      animationController: _zoomAnimationController,
+      onTick: (matrix) {
+        _imageZoomController.onAnimationTick(matrix);
+      },
+    );
+
+    _imageZoomController = ImageZoomController(
+      animationEngine: _zoomAnimationEngine,
+      onZoomChanged: _onZoomChanged,
+    );
+
+    _imageGestureHandler = ImageGestureHandler(
+      zoomController: _imageZoomController,
+    );
 
     _lifecycle = ImageViewerLifecycle(
       windowId: widget.windowId,
@@ -230,200 +246,27 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     );
   }
 
-  void _onTransformationChanged() {
+  void _onZoomChanged() {
     if (!mounted) return;
-
-    final viewportSize = MediaQuery.of(context).size;
-    final clamped = _clampMatrix(_transformationController.value, viewportSize);
-
-    final currentTx = _transformationController.value.getTranslation().x;
-    final currentTy = _transformationController.value.getTranslation().y;
-    final clampedTx = clamped.getTranslation().x;
-    final clampedTy = clamped.getTranslation().y;
-
-    if ((currentTx - clampedTx).abs() > 0.1 ||
-        (currentTy - clampedTy).abs() > 0.1) {
-      _transformationController.value = clamped;
-      return;
-    }
-
-    final scale = _transformationController.value.getMaxScaleOnAxis();
-    if (scale != _currentScale) {
-      setState(() {
-        _currentScale = scale;
-        // Show indicator if zoomed in, otherwise hide it after a short delay
-        if (_currentScale > 1.0) {
-          _hudController.showZoomIndicatorForDuration();
-        }
-
-        if (_currentScale > 1.0) {
-          _hudController.hideControls();
-        }
-      });
-    }
+    setState(() {
+      if (_imageZoomController.currentScale > 1.0) {
+        _hudController
+          ..showZoomIndicatorForDuration()
+          ..hideControls();
+      }
+    });
   }
 
-
-  Matrix4 _clampMatrix(Matrix4 matrix, Size viewportSize) {
-    if (_imageSize == null) return matrix;
-
-    final scaleX = viewportSize.width / _imageSize!.width;
-    final scaleY = viewportSize.height / _imageSize!.height;
-    final double fitScale = math.min(scaleX, scaleY);
-
-    final fittedWidth = _imageSize!.width * fitScale;
-    final fittedHeight = _imageSize!.height * fitScale;
-
-    final currentZoom = matrix.getMaxScaleOnAxis();
-    final scaledWidth = fittedWidth * currentZoom;
-    final scaledHeight = fittedHeight * currentZoom;
-
-    final padX = (viewportSize.width - fittedWidth) / 2;
-    final padY = (viewportSize.height - fittedHeight) / 2;
-
-    double minTx;
-    double maxTx;
-    if (scaledWidth > viewportSize.width) {
-      minTx = viewportSize.width - scaledWidth - padX * currentZoom;
-      maxTx = -padX * currentZoom;
-    } else {
-      minTx = maxTx = viewportSize.width * (1 - currentZoom) / 2;
-    }
-
-    double minTy;
-    double maxTy;
-    if (scaledHeight > viewportSize.height) {
-      minTy = viewportSize.height - scaledHeight - padY * currentZoom;
-      maxTy = -padY * currentZoom;
-    } else {
-      minTy = maxTy = viewportSize.height * (1 - currentZoom) / 2;
-    }
-
-    final clampedTx = matrix.getTranslation().x.clamp(minTx, maxTx);
-    final clampedTy = matrix.getTranslation().y.clamp(minTy, maxTy);
-
-    final clampedMatrix = matrix.clone();
-    clampedMatrix.setTranslationRaw(clampedTx, clampedTy, 0);
-    return clampedMatrix;
-  }
-
-  void _setZoom(double newScale, {Offset? focalPoint, bool animate = true}) {
-    final clampedScale = newScale.clamp(1.0, 15.0);
-
-    Offset getFocalPoint() {
-      if (focalPoint != null) return focalPoint;
-      final isSidebarOpen = ref.read(imagePlaylistSidebarVisibleProvider);
-      if (!isSidebarOpen) return _mousePosition;
-      final screenWidth = MediaQuery.of(context).size.width;
-      const minWidth = 240.0;
-      final maxWidth = screenWidth * 0.40;
-      var panelWidth =
-          ref.read(imagePlaylistSidebarWidthProvider) ?? (screenWidth * 0.25);
-      panelWidth = panelWidth.clamp(minWidth, maxWidth);
-      return Offset(_mousePosition.dx - panelWidth, _mousePosition.dy);
-    }
-
-    final P = getFocalPoint();
-
-    if (clampedScale == 1.0) {
-      if (animate) {
-        _animateMatrix(_transformationController.value, Matrix4.identity());
-      } else {
-        _transformationController.value = Matrix4.identity();
-        _onTransformationChanged();
-      }
-      return;
-    }
-
-    final currentMatrix = _transformationController.value.clone();
-    final oldScale = currentMatrix.getMaxScaleOnAxis();
-
-    if ((clampedScale - oldScale).abs() < 0.001) return;
-
-    final scaleRatio = clampedScale / oldScale;
-
-    try {
-      // Convert the viewport focal point to scene coordinates using the
-      // inverse of the current transformation matrix. This ensures the
-      // content point under the cursor stays pinned during zoom.
-      final inverseMatrix = Matrix4.inverted(currentMatrix);
-      final scenePoint = MatrixUtils.transformPoint(inverseMatrix, P);
-
-      // Build the new matrix: translate so that scenePoint is at origin,
-      // apply uniform scale, then translate back — all in scene space,
-      // then compose with the existing transform.
-      final newMatrix = currentMatrix.clone()
-        ..translate(scenePoint.dx, scenePoint.dy)
-        ..scale(scaleRatio, scaleRatio)
-        ..translate(-scenePoint.dx, -scenePoint.dy);
-
-      if (newMatrix.storage.any((v) => !v.isFinite)) {
-        return;
-      }
-
-      if (animate) {
-        _animateMatrix(currentMatrix, newMatrix);
-      } else {
-        _transformationController.value = newMatrix;
-        _onTransformationChanged();
-      }
-    } catch (e) {
-      debugPrint('[ImagePreview] Error calculating zoom: $e');
-      if (!animate) {
-        _transformationController.value = Matrix4.identity();
-        _onTransformationChanged();
-      }
-    }
-  }
-
-  /// Non-incremental zoom for pinch-to-zoom gestures.
-  /// Computes the target matrix directly from [_gestureStartMatrix] to avoid
-  /// cumulative drift from repeated incremental applications.
-  void _setZoomFromGesture(double targetScale, Offset viewportFocalPoint) {
-    final clampedScale = targetScale.clamp(1.0, 15.0);
-
-    if (clampedScale == 1.0) {
-      _transformationController.value = Matrix4.identity();
-      _onTransformationChanged();
-      return;
-    }
-
-    final startScale = _gestureStartMatrix.getMaxScaleOnAxis();
-    if (startScale < 0.001) return;
-    final scaleRatio = clampedScale / startScale;
-
-    try {
-      // Map viewport focal point to scene coordinates using the INITIAL matrix
-      // (not the current one), so the anchor stays fixed across the gesture.
-      final inverseStart = Matrix4.inverted(_gestureStartMatrix);
-      final scenePoint = MatrixUtils.transformPoint(
-        inverseStart,
-        viewportFocalPoint,
-      );
-
-      final newMatrix = _gestureStartMatrix.clone()
-        ..translate(scenePoint.dx, scenePoint.dy)
-        ..scale(scaleRatio, scaleRatio)
-        ..translate(-scenePoint.dx, -scenePoint.dy);
-
-      if (newMatrix.storage.any((v) => !v.isFinite)) return;
-
-      _transformationController.value = newMatrix;
-      _onTransformationChanged();
-    } catch (e) {
-      debugPrint('[ImagePreview] Error in gesture zoom: $e');
-    }
-  }
-
-  void _animateMatrix(Matrix4 start, Matrix4 end) {
-    _zoomAnimationController.stop();
-    _zoomAnimation = Matrix4Tween(begin: start, end: end).animate(
-      CurvedAnimation(
-        parent: _zoomAnimationController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
-    _zoomAnimationController.forward(from: 0);
+  Offset _getFocalPoint() {
+    final isSidebarOpen = ref.read(imagePlaylistSidebarVisibleProvider);
+    if (!isSidebarOpen) return _mousePosition;
+    final screenWidth = MediaQuery.of(context).size.width;
+    const minWidth = 240.0;
+    final maxWidth = screenWidth * 0.40;
+    var panelWidth =
+        ref.read(imagePlaylistSidebarWidthProvider) ?? (screenWidth * 0.25);
+    panelWidth = panelWidth.clamp(minWidth, maxWidth);
+    return Offset(_mousePosition.dx - panelWidth, _mousePosition.dy);
   }
 
   void _onInteraction({Offset? focalPoint, Offset? eventDelta}) {
@@ -483,20 +326,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _onInteraction();
   }
 
-
-
   Future<void> _loadMetadata() async {
-      final path = _convertedHeicPath ?? _currentItem.path;
-      final result = await ImageMetadataLoader.load(
-        path,
-        context,
-        _lifecycle.firstFrame,
-      );
+    final path = _convertedHeicPath ?? _currentItem.path;
+    final result = await ImageMetadataLoader.load(
+      path,
+      context,
+      _lifecycle.firstFrame,
+    );
 
     if (mounted) {
       setState(() {
         if (result.metadataString != null) {
-          _metadata = result.metadataString!;
+          _metadata = result.metadataString;
         }
         if (result.imageSize != null) {
           _imageSize = result.imageSize;
@@ -513,9 +354,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _lifecycle.dispose();
     _hudController.dispose();
     _navigationController.dispose();
+    _zoomAnimationEngine.dispose();
     _zoomAnimationController.dispose();
+    _imageZoomController.dispose();
     _focusNode.dispose();
-    _transformationController.dispose();
     super.dispose();
   }
 
@@ -542,15 +384,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   void _loadMedia(FileItem item) {
-    _zoomAnimationController.stop();
-    _transformationController.value = Matrix4.identity();
+    _imageZoomController.reset();
     setState(() {
       _currentItem = item;
       _isEmpty = false;
       _rotationAngle = 0.0;
       _brightness = 0.0;
-      _currentScale = 1.0;
-      _isPanZoomGesture = false;
       _mousePosition = Offset.zero;
       _hudController.hideControls();
     });
@@ -600,14 +439,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         );
         if (currentIndex != -1) {
           for (var i = 1; i <= 2; i++) {
-            preloadPaths.add(
-              mediaItems[(currentIndex + i) % mediaItems.length].path,
-            );
-            preloadPaths.add(
-              mediaItems[(currentIndex - i + mediaItems.length) %
-                      mediaItems.length]
-                  .path,
-            );
+            preloadPaths
+              ..add(mediaItems[(currentIndex + i) % mediaItems.length].path)
+              ..add(
+                mediaItems[(currentIndex - i + mediaItems.length) %
+                        mediaItems.length]
+                    .path,
+              );
           }
         }
       }
@@ -626,8 +464,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       debugPrint('Error opening persistent image viewer: $e');
     }
   }
-
-
 
   void _onClearNavigation() {
     if (widget.isStandalone) {
@@ -694,18 +530,23 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
             ref.read(refreshCountProvider) + 1;
         unawaited(ref.read(directoryItemsProvider.notifier).refresh());
       }
-      
+
       _navigationController.navigateAfterDeletion(_currentItem);
     }
   }
 
   KeyEventResult _handleKeyEvent(KeyEvent event) {
-    if (_isInteracting) return KeyEventResult.ignored;
+    if (_imageZoomController.isInteracting) return KeyEventResult.ignored;
     return _keyboardHandler.handleKeyEvent(event);
   }
 
   @override
   Widget build(BuildContext context) {
+    _imageZoomController.updateConstraints(
+      MediaQuery.of(context).size,
+      _imageSize,
+    );
+
     ref.listen(imageRestartSignalProvider, (previous, next) {
       _navigationController.resetEmptyState();
     });
@@ -746,13 +587,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           child: Listener(
             onPointerDown: (event) {
               _mousePosition = event.localPosition;
-              setState(() => _isInteracting = true);
-              if (_zoomAnimationController.isAnimating) {
-                _zoomAnimationController.stop();
-              }
+              _imageZoomController.setIsInteracting(true);
             },
             onPointerUp: (event) {
-              setState(() => _isInteracting = false);
+              _imageZoomController.setIsInteracting(false);
             },
             onPointerMove: (event) {
               _mousePosition = event.localPosition;
@@ -791,276 +629,160 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                             Positioned.fill(child: const ImageEmptyState())
                           else
                             Positioned.fill(
-                              child: Listener(
-                                behavior: HitTestBehavior.translucent,
-                                onPointerSignal: (pointerSignal) {
-                                  if (pointerSignal is PointerScrollEvent) {
-                                    final ctrl =
-                                        HardwareKeyboard
-                                            .instance
-                                            .isControlPressed ||
-                                        HardwareKeyboard
-                                            .instance
-                                            .logicalKeysPressed
-                                            .contains(
-                                              LogicalKeyboardKey.controlLeft,
-                                            ) ||
-                                        HardwareKeyboard
-                                            .instance
-                                            .logicalKeysPressed
-                                            .contains(
-                                              LogicalKeyboardKey.controlRight,
-                                            );
-                                    if (ctrl) {
-                                      final delta =
-                                          pointerSignal.scrollDelta.dy;
-                                      if (delta != 0) {
-                                        final zoomFactor = delta > 0
-                                            ? 1.05
-                                            : 0.95;
-                                        _setZoom(
-                                          _currentScale * zoomFactor,
-                                          focalPoint:
-                                              pointerSignal.localPosition,
+                              child: InteractiveImageViewport(
+                                zoomController: _imageZoomController,
+                                gestureHandler: _imageGestureHandler,
+                                hudController: _hudController,
+                                isStandalone: widget.isStandalone,
+                                windowId: widget.windowId == null
+                                    ? null
+                                    : int.tryParse(widget.windowId!),
+                                onDoubleTapPopOut: _openInNewWindow,
+                                focusNode: _focusNode,
+                                isReadyForInteraction: _isReadyForInteraction,
+                                child: Builder(
+                                  builder: (context) {
+                                    Widget buildImageWidget() {
+                                      if (_isConvertingHeic) {
+                                        return const Center(
+                                          child: BubbleLoader(size: 60),
                                         );
                                       }
-                                    } else if (_currentScale > 1.05) {
-                                      // Handle trackpad two-finger drag (panning via scroll)
-                                      final delta = pointerSignal.scrollDelta;
-                                      const sensitivity = 5;
-                                      final translation =
-                                          Matrix4.translationValues(
-                                            -delta.dx * sensitivity,
-                                            -delta.dy * sensitivity,
-                                            0,
-                                          );
-                                      final nextMatrix =
-                                          (translation *
-                                                  _transformationController
-                                                      .value)
-                                              as Matrix4;
 
-                                      if (nextMatrix.storage.any(
-                                        (v) => !v.isFinite,
+                                      final imagePath =
+                                          _convertedHeicPath ??
+                                          _currentItem.path;
+                                      final isNetwork =
+                                          imagePath.startsWith('http://') ||
+                                          imagePath.startsWith('https://');
+
+                                      if (imagePath.toLowerCase().endsWith(
+                                        '.svg',
                                       )) {
-                                        return;
-                                      }
-
-                                      _transformationController.value =
-                                          nextMatrix;
-                                      _onTransformationChanged();
-                                    }
-                                  }
-                                },
-                                onPointerPanZoomStart: (event) {
-                                  // Use gesture localPosition as fallback if _mousePosition
-                                  if (_mousePosition == Offset.zero) {
-                                    _mousePosition = event.localPosition;
-                                  }
-                                  _initialScale = _currentScale;
-                                  _gestureStartMatrix =
-                                      _transformationController.value.clone();
-                                  _scrubAccumulatedScale = 1.0;
-                                  setState(() => _isPanZoomGesture = true);
-                                },
-                                onPointerPanZoomEnd: (event) {
-                                  setState(() => _isPanZoomGesture = false);
-                                },
-                                onPointerPanZoomUpdate: (event) {
-                                  final ctrl =
-                                      HardwareKeyboard
-                                          .instance
-                                          .isControlPressed ||
-                                      HardwareKeyboard
-                                          .instance
-                                          .logicalKeysPressed
-                                          .contains(
-                                            LogicalKeyboardKey.controlLeft,
-                                          ) ||
-                                      HardwareKeyboard
-                                          .instance
-                                          .logicalKeysPressed
-                                          .contains(
-                                            LogicalKeyboardKey.controlRight,
-                                          );
-
-                                  if (ctrl) {
-                                    final dy = event.panDelta.dy;
-                                    if (dy != 0) {
-                                      // Accumulate the scrub scale from gesture start
-                                      // dy positive (scrub down) -> zoom in, negative -> zoom out
-                                      _scrubAccumulatedScale *=
-                                          1.0 + (dy * 0.005);
-                                      _setZoomFromGesture(
-                                        _initialScale * _scrubAccumulatedScale,
-                                        event.localPosition,
-                                      );
-                                    }
-                                  } else {
-                                    if (event.scale != 1.0) {
-                                      _setZoomFromGesture(
-                                        _initialScale * event.scale,
-                                        event.localPosition,
-                                      );
-                                    } else if (event.panDelta != Offset.zero &&
-                                        _currentScale > 1.05) {
-                                      final delta = event.panDelta;
-                                      final translation =
-                                          Matrix4.translationValues(
-                                            delta.dx,
-                                            delta.dy,
-                                            0,
-                                          );
-                                      final nextMatrix =
-                                          (translation *
-                                                  _transformationController
-                                                      .value)
-                                              as Matrix4;
-                                      if (nextMatrix.storage.any(
-                                        (v) => !v.isFinite,
-                                      )) {
-                                        return;
-                                      }
-
-                                      _transformationController.value =
-                                          nextMatrix;
-                                      _onTransformationChanged();
-                                    }
-                                  }
-                                },
-                                child: InteractiveViewer(
-                                  transformationController:
-                                      _transformationController,
-                                  minScale: 1,
-                                  maxScale: 15,
-                                  panEnabled:
-                                      !_isPanZoomGesture &&
-                                      (_isReadyForInteraction ||
-                                          widget.isStandalone),
-                                  scaleEnabled:
-                                      false, // Handled customly above for perfect cursor-centered zoom
-                                  onInteractionUpdate: (_) =>
-                                      _onTransformationChanged(),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      _focusNode.requestFocus();
-                                        _hudController.toggleControls();
-                                    },
-                                    onDoubleTap: widget.windowId == null
-                                        ? _openInNewWindow
-                                        : () => _setZoom(1),
-                                    child: Builder(
-                                      builder: (context) {
-                                        Widget buildImageWidget() {
-                                          if (_isConvertingHeic) {
-                                            return const Center(
-                                              child: BubbleLoader(size: 60),
-                                            );
-                                          }
-
-                                          final imagePath =
-                                              _convertedHeicPath ??
-                                              _currentItem.path;
-                                          final isNetwork =
-                                              imagePath.startsWith('http://') ||
-                                              imagePath.startsWith('https://');
-
-                                          if (imagePath.toLowerCase().endsWith(
-                                            '.svg',
-                                          )) {
-                                            return isNetwork
-                                                ? SvgPicture.network(
-                                                    imagePath,
-                                                    placeholderBuilder: (_) => const Center(child: BubbleLoader(size: 60)),
-                                                  )
-                                                : SvgPicture.file(
-                                                    File(imagePath),
-                                                    placeholderBuilder: (_) => const Center(child: BubbleLoader(size: 60)),
-                                                  );
-                                          } else {
-                                            return isNetwork
-                                                ? Image.network(
-                                                    imagePath,
-                                                    fit: BoxFit.contain,
-                                                    cacheWidth: 3840,
-                                                    filterQuality:
-                                                        (_isInteracting ||
-                                                                _isPanZoomGesture ||
-                                                                _zoomAnimationController
-                                                                    .isAnimating)
-                                                            ? FilterQuality.low
-                                                            : FilterQuality.high,
-                                                    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                                                      if (wasSynchronouslyLoaded || frame != null) return child;
-                                                      return const Center(child: BubbleLoader(size: 60));
+                                        return isNetwork
+                                            ? SvgPicture.network(
+                                                imagePath,
+                                                placeholderBuilder: (_) =>
+                                                    const Center(
+                                                      child: BubbleLoader(
+                                                        size: 60,
+                                                      ),
+                                                    ),
+                                              )
+                                            : SvgPicture.file(
+                                                File(imagePath),
+                                                placeholderBuilder: (_) =>
+                                                    const Center(
+                                                      child: BubbleLoader(
+                                                        size: 60,
+                                                      ),
+                                                    ),
+                                              );
+                                      } else {
+                                        return isNetwork
+                                            ? Image.network(
+                                                imagePath,
+                                                fit: BoxFit.contain,
+                                                cacheWidth: 3840,
+                                                filterQuality:
+                                                    (_imageZoomController
+                                                            .isInteracting ||
+                                                        _imageZoomController
+                                                            .isPanZoomGesture ||
+                                                        _zoomAnimationController
+                                                            .isAnimating)
+                                                    ? FilterQuality.low
+                                                    : FilterQuality.high,
+                                                frameBuilder:
+                                                    (
+                                                      context,
+                                                      child,
+                                                      frame,
+                                                      wasSynchronouslyLoaded,
+                                                    ) {
+                                                      if (wasSynchronouslyLoaded ||
+                                                          frame != null)
+                                                        return child;
+                                                      return const Center(
+                                                        child: BubbleLoader(
+                                                          size: 60,
+                                                        ),
+                                                      );
                                                     },
-                                                  )
-                                                : Image.file(
-                                                    File(imagePath),
-                                                    fit: BoxFit.contain,
-                                                    cacheWidth: 3840,
-                                                    filterQuality:
-                                                        (_isInteracting ||
-                                                                _isPanZoomGesture ||
-                                                                _zoomAnimationController
-                                                                    .isAnimating)
-                                                            ? FilterQuality.low
-                                                            : FilterQuality.high,
-                                                    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                                                      if (wasSynchronouslyLoaded || frame != null) return child;
-                                                      return const Center(child: BubbleLoader(size: 60));
+                                              )
+                                            : Image.file(
+                                                File(imagePath),
+                                                fit: BoxFit.contain,
+                                                cacheWidth: 3840,
+                                                filterQuality:
+                                                    (_imageZoomController
+                                                            .isInteracting ||
+                                                        _imageZoomController
+                                                            .isPanZoomGesture ||
+                                                        _zoomAnimationController
+                                                            .isAnimating)
+                                                    ? FilterQuality.low
+                                                    : FilterQuality.high,
+                                                frameBuilder:
+                                                    (
+                                                      context,
+                                                      child,
+                                                      frame,
+                                                      wasSynchronouslyLoaded,
+                                                    ) {
+                                                      if (wasSynchronouslyLoaded ||
+                                                          frame != null)
+                                                        return child;
+                                                      return const Center(
+                                                        child: BubbleLoader(
+                                                          size: 60,
+                                                        ),
+                                                      );
                                                     },
-                                                  );
-                                          }
-                                        }
+                                              );
+                                      }
+                                    }
 
-                                        return Center(
-                                          child: Hero(
-                                            tag: _currentItem.path,
-                                            child: Transform.rotate(
-                                              angle:
-                                                  _rotationAngle *
-                                                  3.14159 /
-                                                  180,
-                                              child: _brightness != 0.0
-                                                  ? ColorFiltered(
-                                                      colorFilter:
-                                                          ColorFilter.matrix([
-                                                            1,
-                                                            0,
-                                                            0,
-                                                            0,
-                                                            _brightness * 255,
-                                                            0,
-                                                            1,
-                                                            0,
-                                                            0,
-                                                            _brightness * 255,
-                                                            0,
-                                                            0,
-                                                            1,
-                                                            0,
-                                                            _brightness * 255,
-                                                            0,
-                                                            0,
-                                                            0,
-                                                            1,
-                                                            0,
-                                                          ]),
-                                                      child: buildImageWidget(),
-                                                    )
-                                                  : buildImageWidget(),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
+                                    return Center(
+                                      child: Hero(
+                                        tag: _currentItem.path,
+                                        child: Transform.rotate(
+                                          angle: _rotationAngle * 3.14159 / 180,
+                                          child: _brightness != 0.0
+                                              ? ColorFiltered(
+                                                  colorFilter:
+                                                      ColorFilter.matrix([
+                                                        1,
+                                                        0,
+                                                        0,
+                                                        0,
+                                                        _brightness * 255,
+                                                        0,
+                                                        1,
+                                                        0,
+                                                        0,
+                                                        _brightness * 255,
+                                                        0,
+                                                        0,
+                                                        1,
+                                                        0,
+                                                        _brightness * 255,
+                                                        0,
+                                                        0,
+                                                        0,
+                                                        1,
+                                                        0,
+                                                      ]),
+                                                  child: buildImageWidget(),
+                                                )
+                                              : buildImageWidget(),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
-
-
 
                           Positioned(
                             top: 0,
@@ -1071,7 +793,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                               opacity: isVisible ? 1.0 : 0.0,
                               child: ViewerTopBar(
                                 title: _currentItem.name,
-                                metadata: _navigationController.indexString != null
+                                metadata:
+                                    _navigationController.indexString != null
                                     ? '${_navigationController.indexString} • ${_metadata ?? ''}'
                                     : _metadata,
                                 isStandalone:
@@ -1150,8 +873,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                               child: ImageEditingPanel(
                                 rotationAngle: _rotationAngle,
                                 brightness: _brightness,
-                                onRotationChanged: (val) => setState(() => _rotationAngle = val),
-                                onBrightnessChanged: (val) => setState(() => _brightness = val),
+                                onRotationChanged: (val) =>
+                                    setState(() => _rotationAngle = val),
+                                onBrightnessChanged: (val) =>
+                                    setState(() => _brightness = val),
                               ),
                             ),
 
@@ -1201,8 +926,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                               right: 32,
                               child: AnimatedOpacity(
                                 duration: const Duration(milliseconds: 200),
-                                opacity: _hudController.showZoomIndicator ? 1.0 : 0.0,
-                                child: ImageZoomIndicator(scale: _currentScale),
+                                opacity: _hudController.showZoomIndicator
+                                    ? 1.0
+                                    : 0.0,
+                                child: ImageZoomIndicator(
+                                  scale: _imageZoomController.currentScale,
+                                ),
                               ),
                             ),
                         ],
@@ -1246,8 +975,4 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       ),
     );
   }
-
-
-
-
 }

@@ -176,7 +176,7 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
     await cacheService.ensureLoaded();
     if (_disposed || !mounted) return;
 
-    final result = cacheService.lookup(
+    final result = await cacheService.lookupAsync(
       filePath: filePath,
       mtime: mtime,
       sizeBytes: sizeBytes,
@@ -185,10 +185,11 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
     switch (result) {
       case ThumbnailLookupResult.hit:
         // Cache hit — use immediately
-        final cachedPath = cacheService.getCachedPath(filePath);
+        final cachedPath = await cacheService.getCachedPathAsync(filePath);
         if (cachedPath != null) {
           final file = File(cachedPath);
-          if (file.existsSync()) {
+          // ignore: avoid_slow_async_io
+          if (await file.exists()) {
             final isLandscape = await _checkIsLandscape(file);
             if (!_disposed && mounted) {
               setState(() {
@@ -248,7 +249,8 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
             ]);
             await process.exitCode;
             final file = File(tempThumbPath);
-            generated = file.existsSync() && file.lengthSync() > 0;
+            // ignore: avoid_slow_async_io
+            generated = await file.exists() && await file.length() > 0;
           }
 
           // 3. Fallback to FFmpeg for videos and RAW images
@@ -283,7 +285,8 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
           }
 
           final thumbFile = File(tempThumbPath);
-          if (generated && thumbFile.existsSync()) {
+          // ignore: avoid_slow_async_io
+          if (generated && await thumbFile.exists()) {
             debugPrint(
               'MediaThumbnailPreview: Thumbnail created successfully '
               'for ${widget.item.name}',
@@ -370,9 +373,7 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
       if (widget.item.type == FileItemType.image) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            width: double.infinity,
-            height: double.infinity,
+          child: SizedBox.expand(
             child: Image.file(
               File(_cachedThumbPath!),
               fit: widget.item.imageAspectRatio != null && widget.item.imageAspectRatio! < 1
@@ -505,8 +506,9 @@ class FilmstripHolesPainter extends CustomPainter {
         Rect.fromLTWH(holeXRight, y, holeWidth, holeHeight),
         Radius.circular(1.5 * scale),
       );
-      canvas.drawRRect(leftRect, holePaint);
-      canvas.drawRRect(rightRect, holePaint);
+      canvas
+        ..drawRRect(leftRect, holePaint)
+        ..drawRRect(rightRect, holePaint);
       y += holeHeight + spacing;
     }
   }

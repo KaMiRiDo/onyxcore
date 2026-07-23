@@ -17,11 +17,11 @@ void main() {
   setUp(() {
     mockCacheService = MockThumbnailCacheService();
     when(() => mockCacheService.ensureLoaded()).thenAnswer((_) async {});
-    when(() => mockCacheService.lookup(
+    when(() => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenReturn(ThumbnailLookupResult.failed);
+        )).thenAnswer((_) async => ThumbnailLookupResult.failed);
   });
 
   testWidgets('ItemPreview renders file icon for generic file', (tester) async {

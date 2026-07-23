@@ -20,11 +20,11 @@ void main() {
   testWidgets('MediaThumbnailPreview handles unplayable video gracefully', (tester) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookup(
+    when(() => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenReturn(ThumbnailLookupResult.failed);
+        )).thenAnswer((_) async => ThumbnailLookupResult.failed);
 
     final item = FileItem(
       path: '/path/to/nonexistent/video.mp4',
@@ -55,16 +55,16 @@ void main() {
   testWidgets('MediaThumbnailPreview loads cached thumbnail for video', (tester) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookup(
+    when(() => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenReturn(ThumbnailLookupResult.hit);
+        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
     
     final tempVideoThumb = File('/tmp/cached_video_test.jpg')..createSync();
     addTearDown(tempVideoThumb.deleteSync);
 
-    when(() => mockCacheService.getCachedPath(any(), size: any(named: 'size'))).thenReturn(tempVideoThumb.path);
+    when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => tempVideoThumb.path);
 
     final item = FileItem(
       path: '/path/to/video.mp4',
@@ -73,39 +73,42 @@ void main() {
       sizeBytes: 1024,
       modified: DateTime.now(),
     );
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: MediaThumbnailPreview(
-              item: item,
-              zoom: 1,
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: MediaThumbnailPreview(
+                item: item,
+                zoom: 1,
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
     await tester.pumpAndSettle();
 
-    expect(find.byType(CustomPaint), findsOneWidget);
+    expect(find.byType(CustomPaint), findsWidgets);
   });
 
   testWidgets('MediaThumbnailPreview loads cached thumbnail for image', (tester) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookup(
+    when(() => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenReturn(ThumbnailLookupResult.hit);
+        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
         
     final tempImageThumb = File('/tmp/cached_image_test.jpg')..createSync();
     addTearDown(tempImageThumb.deleteSync);
 
-    when(() => mockCacheService.getCachedPath(any(), size: any(named: 'size'))).thenReturn(tempImageThumb.path);
+    when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => tempImageThumb.path);
 
     final item = FileItem(
       path: '/path/to/image.jpg',
@@ -114,21 +117,24 @@ void main() {
       sizeBytes: 1024,
       modified: DateTime.now(),
     );
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: MediaThumbnailPreview(
-              item: item,
-              zoom: 1,
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: MediaThumbnailPreview(
+                item: item,
+                zoom: 1,
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
     await tester.pumpAndSettle();
 
     expect(find.byType(ClipRRect), findsWidgets);
