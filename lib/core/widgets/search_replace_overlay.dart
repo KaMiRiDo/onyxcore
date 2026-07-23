@@ -3,6 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SearchReplaceOverlay extends StatefulWidget {
+
+  const SearchReplaceOverlay({
+    required this.initialQuery, required this.initialCaseSensitive, required this.initialUseRegex, required this.totalMatches, required this.currentMatchIndex, required this.isPreviewMode, required this.onSearchChanged, required this.onReplace, required this.onReplaceAll, required this.onNext, required this.onPrev, required this.onClose, required this.onCaseSensitiveChanged, required this.onUseRegexChanged, super.key,
+    this.onDragUpdate,
+  });
   final String initialQuery;
   final bool initialCaseSensitive;
   final bool initialUseRegex;
@@ -18,25 +23,6 @@ class SearchReplaceOverlay extends StatefulWidget {
   final ValueChanged<bool> onCaseSensitiveChanged;
   final ValueChanged<bool> onUseRegexChanged;
   final GestureDragUpdateCallback? onDragUpdate;
-
-  const SearchReplaceOverlay({
-    Key? key,
-    required this.initialQuery,
-    required this.initialCaseSensitive,
-    required this.initialUseRegex,
-    required this.totalMatches,
-    required this.currentMatchIndex,
-    required this.isPreviewMode,
-    required this.onSearchChanged,
-    required this.onReplace,
-    required this.onReplaceAll,
-    required this.onNext,
-    required this.onPrev,
-    required this.onClose,
-    required this.onCaseSensitiveChanged,
-    required this.onUseRegexChanged,
-    this.onDragUpdate,
-  }) : super(key: key);
 
   @override
   State<SearchReplaceOverlay> createState() => _SearchReplaceOverlayState();
@@ -82,10 +68,10 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasMatches = widget.totalMatches > 0;
-    final bool isSearchEmpty = _searchController.text.isEmpty;
-    final bool canGoPrev = hasMatches && widget.currentMatchIndex > 0;
-    final bool canGoNext =
+    final hasMatches = widget.totalMatches > 0;
+    final isSearchEmpty = _searchController.text.isEmpty;
+    final canGoPrev = hasMatches && widget.currentMatchIndex > 0;
+    final canGoNext =
         hasMatches && widget.currentMatchIndex < widget.totalMatches - 1;
 
     return Container(
@@ -98,15 +84,14 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (widget.onDragUpdate != null)
             MouseRegion(
@@ -114,7 +99,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
               child: GestureDetector(
                 onPanUpdate: widget.onDragUpdate,
                 child: const Padding(
-                  padding: EdgeInsets.only(right: 8.0),
+                  padding: EdgeInsets.only(right: 8),
                   child: Icon(
                     Icons.drag_indicator,
                     color: Colors.white54,
@@ -136,7 +121,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
                     // Nav buttons
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -171,7 +156,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
                           });
                         },
                         tooltip: 'Toggle Replace',
-                        backgroundColor: Colors.white.withOpacity(0.05),
+                        backgroundColor: Colors.white.withValues(alpha: 0.05),
                       ),
                     if (!widget.isPreviewMode) const SizedBox(width: 8),
                     _buildIconButton(
@@ -236,7 +221,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
       height: 32,
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -275,7 +260,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
           ),
           if (_searchController.text.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(right: 8.0),
+              padding: const EdgeInsets.only(right: 8),
               child: Text(
                 widget.totalMatches > 0
                     ? '${widget.currentMatchIndex + 1} of ${widget.totalMatches}'
@@ -308,7 +293,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
       height: 32,
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -320,8 +305,9 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
             child: CallbackShortcuts(
               bindings: {
                 const SingleActivator(LogicalKeyboardKey.enter): () {
-                  if (widget.totalMatches > 0)
+                  if (widget.totalMatches > 0) {
                     widget.onReplace(_replaceController.text);
+                  }
                 },
                 const SingleActivator(LogicalKeyboardKey.escape):
                     widget.onClose,
@@ -398,7 +384,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
             color: isActive
-                ? Colors.white.withOpacity(0.15)
+                ? Colors.white.withValues(alpha: 0.15)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(4),
           ),
@@ -421,7 +407,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
     bool enabled = true,
   }) {
     return Material(
-      color: Colors.white.withOpacity(enabled ? 0.05 : 0.02),
+      color: Colors.white.withValues(alpha: enabled ? 0.05 : 0.02),
       borderRadius: BorderRadius.circular(4),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

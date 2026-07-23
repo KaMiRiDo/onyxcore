@@ -1,9 +1,9 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 class TestImageFavoritesNotifier extends ImageFavoritesNotifier {
   // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
   void updateFavorites(Set<String> favs) => state = favs;

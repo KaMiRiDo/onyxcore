@@ -26,7 +26,7 @@ void main() {
       final expectedText = '${VideoPlayerUtils.formatDuration(displayPosition)} / ${VideoPlayerUtils.formatDuration(totalDuration)}';
       expect(find.text(expectedText), findsOneWidget);
 
-      final AnimatedOpacity opacityWidget = tester.widget(find.byType(AnimatedOpacity));
+      final opacityWidget = tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
       expect(opacityWidget.opacity, 1.0);
     });
 
@@ -46,7 +46,7 @@ void main() {
         ),
       );
 
-      final AnimatedOpacity opacityWidget = tester.widget(find.byType(AnimatedOpacity));
+      final opacityWidget = tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
       expect(opacityWidget.opacity, 0.0);
     });
   });

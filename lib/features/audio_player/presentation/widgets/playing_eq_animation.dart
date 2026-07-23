@@ -37,7 +37,7 @@ class _PlayingEqAnimationState extends State<PlayingEqAnimation>
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _EqBar(animation: _controller, offset: 0.0),
+          _EqBar(animation: _controller, offset: 0),
           _EqBar(animation: _controller, offset: 0.3),
           _EqBar(animation: _controller, offset: 0.6),
         ],
@@ -47,10 +47,10 @@ class _PlayingEqAnimationState extends State<PlayingEqAnimation>
 }
 
 class _EqBar extends StatelessWidget {
-  final Animation<double> animation;
-  final double offset;
 
   const _EqBar({required this.animation, required this.offset});
+  final Animation<double> animation;
+  final double offset;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +58,7 @@ class _EqBar extends StatelessWidget {
       animation: animation,
       builder: (context, child) {
         // Shift the animation phase
-        final value = ((animation.value + offset) % 1.0);
+        final value = (animation.value + offset) % 1.0;
         // Use a sine wave for smooth bouncing
         final height = 4.0 + (math.sin(value * math.pi) * 8.0);
 

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
@@ -26,10 +25,11 @@ class TaskProgressButton extends ConsumerWidget {
         .where((t) => t.status == FileTaskStatus.error)
         .toList();
 
-    Color bgColor = Colors.transparent;
+    var bgColor = Colors.transparent;
     Widget content;
 
     if (runningTasks.isNotEmpty) {
+      // ignore: omit_local_variable_types, prefer_int_literals
       double totalProgress = 0.0;
       for (final t in runningTasks) {
         totalProgress += t.progress;
@@ -43,7 +43,7 @@ class TaskProgressButton extends ConsumerWidget {
           value: avgProgress > 0 ? avgProgress : null,
           strokeWidth: 10, // Half of 20 for pie chart effect
           color: Colors.white,
-          backgroundColor: Colors.white.withOpacity(0.2),
+          backgroundColor: Colors.white.withValues(alpha: 0.2),
         ),
       );
     } else if (errorTasks.isNotEmpty) {
@@ -71,7 +71,7 @@ class TaskProgressButton extends ConsumerWidget {
           boxShadow: bgColor != Colors.transparent
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),

@@ -2,13 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ViewerTopBar extends StatelessWidget {
-  final String title;
-  final String? metadata;
-  final VoidCallback? onPopOut;
-  final VoidCallback? onClose;
-  final bool isStandalone;
-  final List<Widget>? leadingActions;
-  final List<Widget>? extraActions;
 
   const ViewerTopBar({
     required this.title,
@@ -20,6 +13,13 @@ class ViewerTopBar extends StatelessWidget {
     this.leadingActions,
     super.key,
   });
+  final String title;
+  final String? metadata;
+  final VoidCallback? onPopOut;
+  final VoidCallback? onClose;
+  final bool isStandalone;
+  final List<Widget>? leadingActions;
+  final List<Widget>? extraActions;
 
   @override
   Widget build(BuildContext context) {
@@ -31,11 +31,10 @@ class ViewerTopBar extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+            colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
           ),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (leadingActions != null) ...[
               ...leadingActions!,
@@ -110,7 +109,7 @@ class ViewerTopBar extends StatelessWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: IconButton(

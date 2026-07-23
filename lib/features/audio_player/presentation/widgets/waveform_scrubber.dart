@@ -1,14 +1,15 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:media_kit/media_kit.dart';
-import '../providers/audio_player_providers.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 
 class WaveformScrubber extends ConsumerStatefulWidget {
-  final String fileName;
 
   const WaveformScrubber({required this.fileName, super.key});
+  final String fileName;
 
   @override
   ConsumerState<WaveformScrubber> createState() => _WaveformScrubberState();
@@ -19,7 +20,7 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
   Duration? _scrubAnchor;
 
   /// The cumulative horizontal drag distance (in pixels) since drag start.
-  double _scrubDragAccumulator = 0.0;
+  double _scrubDragAccumulator = 0;
 
   /// Virtual position shown during scrubbing (for smooth UI feedback).
   Duration? _virtualScrubPosition;
@@ -55,7 +56,7 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
               onHorizontalDragUpdate: (details) =>
                   _onDragUpdate(details, width, duration, player),
               onHorizontalDragEnd: (_) => _onDragEnd(),
-              onHorizontalDragCancel: () => _onDragEnd(),
+              onHorizontalDragCancel: _onDragEnd,
               onTapDown: (details) => _handleTapSeek(
                 details.localPosition.dx,
                 width,
@@ -85,7 +86,7 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 Text(
-                  "-${_formatDuration(duration - displayPosition)}",
+                  '-${_formatDuration(duration - displayPosition)}',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -121,8 +122,9 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
   ) {
     if (totalDuration.inMilliseconds <= 0 ||
         player == null ||
-        _scrubAnchor == null)
+        _scrubAnchor == null) {
       return;
+    }
 
     _scrubDragAccumulator += details.delta.dx;
 
@@ -174,11 +176,6 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
 }
 
 class WaveformPainter extends CustomPainter {
-  final double progress;
-  final int barCount;
-  final int seed;
-  final double barWidth;
-  final double gap;
 
   WaveformPainter({
     required this.progress,
@@ -187,6 +184,11 @@ class WaveformPainter extends CustomPainter {
     required this.barWidth,
     required this.gap,
   });
+  final double progress;
+  final int barCount;
+  final int seed;
+  final double barWidth;
+  final double gap;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -200,14 +202,14 @@ class WaveformPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final unplayedPaint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
+      ..color = Colors.white.withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
 
     final playheadPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
 
-    for (int i = 0; i < barCount; i++) {
+    for (var i = 0; i < barCount; i++) {
       final barHeight = 10 + random.nextDouble() * (size.height - 10);
       final x = i * (barWidth + gap);
       final isPlayed = (x / size.width) <= progress;

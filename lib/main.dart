@@ -1,14 +1,14 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/app.dart';
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:window_manager/window_manager.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +29,7 @@ void main(List<String> args) async {
   Future.microtask(() => globalAudioPlayer);
 
   // Configure window options for a seamless, titlebar-less experience for the main window
-  const WindowOptions windowOptions = WindowOptions(
+  const windowOptions = WindowOptions(
     size: Size(1280, 720),
     center: true,
     backgroundColor: Colors.transparent,

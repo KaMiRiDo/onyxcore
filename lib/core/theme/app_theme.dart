@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'app_colors.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
 
 /// Central design system for the OnyxCore application.
 ///
@@ -28,7 +28,7 @@ class AppTheme {
   static TextStyle get labelStyle => GoogleFonts.manrope(
     fontSize: 13,
     fontWeight: FontWeight.w800,
-    letterSpacing: 1.0,
+    letterSpacing: 1,
     color: AppColors.textBody,
   );
 
@@ -56,10 +56,10 @@ class AppTheme {
         decoration: BoxDecoration(
           color: const Color(0xFF262626),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.15)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withValues(alpha: 0.4),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),

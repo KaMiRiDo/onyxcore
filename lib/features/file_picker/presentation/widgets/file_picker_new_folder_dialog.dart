@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
@@ -36,7 +35,7 @@ class _FilePickerNewFolderDialogState extends State<FilePickerNewFolderDialog> {
         decoration: BoxDecoration(
           color: const Color(0xFF2D2D2D),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -55,7 +54,7 @@ class _FilePickerNewFolderDialogState extends State<FilePickerNewFolderDialog> {
                 color: Colors.black26,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: const Color(0xFF007AFF).withOpacity(0.5),
+                  color: const Color(0xFF007AFF).withValues(alpha: 0.5),
                 ),
               ),
               child: TextField(

@@ -6,17 +6,7 @@ import 'package:onyxcore/features/downloader/presentation/providers/downloads_pa
 
 class StandaloneWindowMediaList extends StatelessWidget {
   const StandaloneWindowMediaList({
-    super.key,
-    required this.isTrashView,
-    required this.trashCount,
-    required this.activeListPath,
-    required this.customLists,
-    required this.isListChanged,
-    required this.onTrashTap,
-    required this.onImportTap,
-    required this.onListTap,
-    required this.onCustomListClose,
-    required this.onCustomListSave,
+    required this.isTrashView, required this.trashCount, required this.activeListPath, required this.customLists, required this.isListChanged, required this.onTrashTap, required this.onImportTap, required this.onListTap, required this.onCustomListClose, required this.onCustomListSave, super.key,
   });
 
   final bool isTrashView;

@@ -84,6 +84,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
               fstype != 'swap') {
             // Only show mounted volumes in the UI
             if (isMounted) {
+              // ignore: omit_local_variable_types, prefer_int_literals
               double usage = 0.0;
               if (fsavailStr != null && fsusedStr != null) {
                 final used = double.tryParse(fsusedStr) ?? 0.0;
@@ -184,6 +185,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
               }
 
               var sizeStr = 'Unknown';
+              // ignore: omit_local_variable_types, prefer_int_literals
               double usage = 0.0;
               try {
                 final dfRes = await Process.run('df', ['-k', entity.path])

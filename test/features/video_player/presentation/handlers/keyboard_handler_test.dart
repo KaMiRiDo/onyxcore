@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/features/video_player/presentation/handlers/keyboard_handler.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
 
 class MockMarkerEditorState extends Mock implements MarkerEditorOverlayState {
   @override
@@ -13,7 +13,7 @@ class MockMarkerEditorState extends Mock implements MarkerEditorOverlayState {
 }
 
 class MockGlobalKey<T extends State<StatefulWidget>> extends GlobalKey<T> {
-  MockGlobalKey(this.mockState) : super.constructor();
+  const MockGlobalKey(this.mockState) : super.constructor();
   final T mockState;
   @override
   T? get currentState => mockState;
@@ -47,7 +47,7 @@ void main() {
     late VideoKeyboardCallbacks callbacks;
     late VideoKeyboardHandler handler;
 
-    Widget buildTestApp(WidgetTester tester, Function(WidgetRef, BuildContext) onBuild) {
+    Widget buildTestApp(WidgetTester tester, void Function(WidgetRef, BuildContext) onBuild) {
       return ProviderScope(
         child: MaterialApp(
           home: Scaffold(
@@ -89,13 +89,19 @@ void main() {
       callbacks = VideoKeyboardCallbacks(
         playOrPause: () => playOrPauseCalled = true,
         startFastSeek: ({required bool isForward}) {
-          if (isForward) startFastSeekForwardCalled = true;
-          else startFastSeekBackwardCalled = true;
+          if (isForward) {
+            startFastSeekForwardCalled = true;
+          } else {
+            startFastSeekBackwardCalled = true;
+          }
         },
         stopFastSeek: () => stopFastSeekCalled = true,
         startVolumeAdjust: ({required bool isIncrease}) {
-          if (isIncrease) startVolumeIncreaseCalled = true;
-          else startVolumeDecreaseCalled = true;
+          if (isIncrease) {
+            startVolumeIncreaseCalled = true;
+          } else {
+            startVolumeDecreaseCalled = true;
+          }
         },
         stopVolumeAdjust: () => stopVolumeAdjustCalled = true,
         toggleMute: () => toggleMuteCalled = true,
@@ -300,7 +306,7 @@ void main() {
     });
 
     testWidgets('handles Delete (permanent and non-permanent)', (tester) async {
-      bool deleteCalled = false;
+      var deleteCalled = false;
       await tester.pumpWidget(buildTestApp(tester, (ref, _) {
         setupHandler(ref);
         callbacks = VideoKeyboardCallbacks(
@@ -350,7 +356,7 @@ void main() {
     testWidgets('marker editor handles Enter to save when tag field focused', (tester) async {
       final mockState = MockMarkerEditorState();
       when(() => mockState.isTagFieldFocused).thenReturn(true);
-      when(() => mockState.save()).thenReturn(null);
+      when(mockState.save).thenReturn(null);
 
       await tester.pumpWidget(buildTestApp(tester, (ref, _) {
         setupHandler(ref);
@@ -367,7 +373,7 @@ void main() {
 
       final result = handler.handle(createKeyEvent(LogicalKeyboardKey.enter));
       expect(result, equals(KeyEventResult.handled));
-      verify(() => mockState.save()).called(1);
+      verify(mockState.save).called(1);
     });
 
     testWidgets('handles Alt + ArrowLeft/Right to navigate playlist history', (tester) async {
@@ -397,7 +403,7 @@ void main() {
     });
 
     testWidgets('handles F to hide menu when controls are visible', (tester) async {
-      bool hideMenuCalled = false;
+      var hideMenuCalled = false;
       await tester.pumpWidget(buildTestApp(tester, (ref, _) {
         setupHandler(ref);
         isControlsVisible = true;

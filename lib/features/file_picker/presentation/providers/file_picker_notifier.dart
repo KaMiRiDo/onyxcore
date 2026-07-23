@@ -1,19 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:file/file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/services/file_system_service.dart';
 import 'package:path/path.dart' as p;
-import '../../../../services/file_system_service.dart';
 
 /// State for the Custom File Picker.
 class FilePickerState {
-  final String currentDirectory;
-  final bool showHiddenFiles;
-  final List<String>? allowedExtensions;
-  final List<FileSystemEntity> contents;
-  final Set<String> selection;
-  final String? error;
-  final bool pickDirectory;
 
   FilePickerState({
     required this.currentDirectory,
@@ -24,6 +18,13 @@ class FilePickerState {
     this.error,
     this.pickDirectory = false,
   });
+  final String currentDirectory;
+  final bool showHiddenFiles;
+  final List<String>? allowedExtensions;
+  final List<FileSystemEntity> contents;
+  final Set<String> selection;
+  final String? error;
+  final bool pickDirectory;
 
   FilePickerState copyWith({
     String? currentDirectory,
@@ -81,14 +82,14 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
         allowedExtensions: allowedExtensions,
         pickDirectory: pickDirectory,
       );
-      return await _loadDirectoryContents(initialState);
+      return _loadDirectoryContents(initialState);
     });
   }
 
   String _getHomeDirectory() {
     // Basic home directory detection for Linux/macOS/Windows
     if (Platform.isWindows) {
-      return Platform.environment['USERPROFILE'] ?? 'C:\\';
+      return Platform.environment['USERPROFILE'] ?? r'C:\';
     }
     return Platform.environment['HOME'] ?? '/';
   }
@@ -107,7 +108,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
           : entities.where((e) => !p.basename(e.path).startsWith('.')).toList();
 
       if (currentState.pickDirectory) {
-        filtered = filtered.where((e) => e is Directory).toList();
+        filtered = filtered.whereType<Directory>().toList();
       } else if (currentState.allowedExtensions != null &&
           currentState.allowedExtensions!.isNotEmpty) {
         filtered = filtered.where((e) {
@@ -132,7 +133,6 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
       return currentState.copyWith(
         contents: filtered,
         selection: {},
-        error: null,
       );
     } catch (e) {
       // If access denied or other error, return state with error but keep current path if possible
@@ -155,7 +155,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final newState = currentState.copyWith(currentDirectory: path);
-      return await _loadDirectoryContents(newState);
+      return _loadDirectoryContents(newState);
     });
   }
 
@@ -177,7 +177,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final currentState = state.value;
-      return await _loadDirectoryContents(
+      return _loadDirectoryContents(
         FilePickerState(
           currentDirectory: path,
           showHiddenFiles: currentState?.showHiddenFiles ?? false,
@@ -196,7 +196,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final currentState = state.value;
-      return await _loadDirectoryContents(
+      return _loadDirectoryContents(
         FilePickerState(
           currentDirectory: path,
           showHiddenFiles: currentState?.showHiddenFiles ?? false,
@@ -215,7 +215,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
       final newState = currentState.copyWith(
         showHiddenFiles: !currentState.showHiddenFiles,
       );
-      return await _loadDirectoryContents(newState);
+      return _loadDirectoryContents(newState);
     });
   }
 
@@ -239,9 +239,10 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
     );
 
     if (isShift && _anchorIndex != null) {
-      if (!isCtrl)
+      if (!isCtrl) {
         newSelection
             .clear(); // Shift+Click replaces selection unless Ctrl is held
+      }
 
       final start = _anchorIndex! < currentIndex ? _anchorIndex! : currentIndex;
       final end = _anchorIndex! > currentIndex ? _anchorIndex! : currentIndex;
@@ -271,7 +272,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
   void clearError() {
     final currentState = state.value;
     if (currentState == null) return;
-    state = AsyncValue.data(currentState.copyWith(error: null));
+    state = AsyncValue.data(currentState.copyWith());
   }
 }
 

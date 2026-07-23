@@ -3,10 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/filter_settings.dart';
@@ -22,8 +23,6 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_s
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:path/path.dart' as p;
 
 /// Main file grid — pixel-perfect replica of original _buildMainContent().

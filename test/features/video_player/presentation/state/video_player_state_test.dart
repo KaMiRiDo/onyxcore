@@ -26,7 +26,7 @@ void main() {
       showSnapshotToast: false,
       isEmpty: false,
       isNetworkStream: false,
-      playbackSpeed: 1.0,
+      playbackSpeed: 1,
       isAudioMenuVisible: false,
       isSubtitleMenuVisible: false,
       isSpeedMenuVisible: false,
@@ -75,7 +75,7 @@ void main() {
       final updated = defaultState.copyWith(
         isOpening: true,
         errorMessage: 'Error',
-        playbackSpeed: 2.0,
+        playbackSpeed: 2,
         scrollLockAxis: 'horizontal',
       );
 

@@ -4,13 +4,20 @@ import 'package:onyxcore/features/image_viewer/presentation/engines/transformati
 import 'package:onyxcore/features/image_viewer/presentation/engines/zoom_animation_engine.dart';
 
 class ImageZoomController extends ChangeNotifier {
+  
+  ImageZoomController({
+    required this.animationEngine,
+    required this.onZoomChanged,
+  }) {
+    transformationController.addListener(_onTransformationChanged);
+  }
   final TransformationController transformationController = TransformationController();
   final ZoomAnimationEngine animationEngine;
   
-  double _currentScale = 1.0;
-  double _initialScale = 1.0;
+  double _currentScale = 1;
+  double _initialScale = 1;
   Matrix4 _gestureStartMatrix = Matrix4.identity();
-  double _scrubAccumulatedScale = 1.0;
+  double _scrubAccumulatedScale = 1;
   
   bool _isPanZoomGesture = false;
   bool _isInteracting = false;
@@ -19,13 +26,6 @@ class ImageZoomController extends ChangeNotifier {
   Size? _imageSize;
   
   final VoidCallback onZoomChanged;
-  
-  ImageZoomController({
-    required this.animationEngine,
-    required this.onZoomChanged,
-  }) {
-    transformationController.addListener(_onTransformationChanged);
-  }
 
   double get currentScale => _currentScale;
   bool get isPanZoomGesture => _isPanZoomGesture;

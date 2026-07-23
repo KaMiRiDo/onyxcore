@@ -22,7 +22,7 @@ class HtmlSearchHighlighter {
 
     // We only want to highlight text nodes, not HTML tags or attributes.
     // A simple approach is to split the string by tags, process the text chunks, and reassemble.
-    final tagRegex = RegExp(r'(<[^>]+>)');
+    final tagRegex = RegExp('(<[^>]+>)');
     final parts = htmlContent.split(tagRegex);
     final tags = tagRegex
         .allMatches(htmlContent)
@@ -30,22 +30,22 @@ class HtmlSearchHighlighter {
         .toList();
 
     final buffer = StringBuffer();
-    int globalMatchCounter = 0;
+    var globalMatchCounter = 0;
 
-    for (int i = 0; i < parts.length; i++) {
-      String textPart = parts[i];
+    for (var i = 0; i < parts.length; i++) {
+      final textPart = parts[i];
       if (textPart.isNotEmpty) {
         // Highlight matches inside textPart
-        int lastMatchEnd = 0;
+        var lastMatchEnd = 0;
         for (final match in searchExp.allMatches(textPart)) {
           if (match.start > lastMatchEnd) {
             buffer.write(textPart.substring(lastMatchEnd, match.start));
           }
           final matchedText = match.group(0)!;
 
-          final bool isCurrentMatch = globalMatchCounter == currentMatchIndex;
+          final isCurrentMatch = globalMatchCounter == currentMatchIndex;
           final backgroundColor = isCurrentMatch ? '#808A3FFC' : '#80E845C9';
-          final textColor = '#FFFFFF';
+          const textColor = '#FFFFFF';
 
           // Use span tag with custom styling because flutter_html supports inline styles on spans better
           buffer.write(

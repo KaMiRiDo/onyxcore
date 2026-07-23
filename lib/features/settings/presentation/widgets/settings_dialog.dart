@@ -1,29 +1,29 @@
 import 'dart:io';
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/core/widgets/onyx_switch.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/core/utils/browser_detector.dart';
+import 'package:onyxcore/core/widgets/onyx_switch.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
-import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class SettingsDialog extends ConsumerStatefulWidget {
-  final int initialTab;
-  final String? initialSection;
 
   const SettingsDialog({
     this.initialTab = 0,
     this.initialSection,
     super.key,
   });
+  final int initialTab;
+  final String? initialSection;
 
   static Future<void> show(
     BuildContext context, {
@@ -122,14 +122,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   : (widget.initialTab == 2 ? 'Security' : 'Shortcuts'));
 
         GlobalKey? targetKey;
-        if (tabName == 'General')
+        if (tabName == 'General') {
           targetKey = _generalKeys[widget.initialSection];
-        if (tabName == 'Viewers/Players')
+        }
+        if (tabName == 'Viewers/Players') {
           targetKey = _viewersKeys[widget.initialSection];
-        if (tabName == 'Security')
+        }
+        if (tabName == 'Security') {
           targetKey = _securityKeys[widget.initialSection];
-        if (tabName == 'Shortcuts')
+        }
+        if (tabName == 'Shortcuts') {
           targetKey = _shortcutsKeys[widget.initialSection];
+        }
 
         if (targetKey != null) {
           _scrollToSection(targetKey, widget.initialSection!, tabName);
@@ -142,7 +146,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
   Future<void> _loadBrowsers() async {
     // Wait for the dialog transition animation to finish before starting processes
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future<void>.delayed(const Duration(milliseconds: 200));
     if (!mounted) return;
     
     final installed = await BrowserDetector.getInstalledBrowsers();
@@ -183,8 +187,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
           ? _securityScrollController
           : _shortcutsScrollController;
 
-      final RenderBox box = context.findRenderObject() as RenderBox;
-      final RenderBox? viewport =
+      final box = context.findRenderObject()! as RenderBox;
+      final viewport =
           scrollController.position.context.storageContext.findRenderObject()
               as RenderBox?;
 
@@ -241,11 +245,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                               color: const Color(0xFF161616),
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.08),
+                                color: Colors.white.withValues(alpha: 0.08),
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.6),
+                                  color: Colors.black.withValues(alpha: 0.6),
                                   blurRadius: 60,
                                   offset: const Offset(0, 30),
                                 ),
@@ -358,7 +362,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
       if (mounted) {
         if (hwDecChanged) {
-          await showDialog(
+          await showDialog<void>(
             context: context,
             barrierDismissible: false,
             builder: (context) => AlertDialog(
@@ -403,7 +407,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -412,9 +416,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
           Text(
             'SETTINGS',
             style: AppTheme.labelStyle.copyWith(
-              letterSpacing: 2.0,
+              letterSpacing: 2,
               fontSize: 16,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -432,9 +436,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.1),
+        color: Colors.black.withValues(alpha: 0.1),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: _buildTabBar(),
@@ -457,8 +461,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
         ),
       ),
       indicatorSize: TabBarIndicatorSize.label,
-      labelColor: Colors.white.withOpacity(0.9),
-      unselectedLabelColor: AppColors.textMuted.withOpacity(0.5),
+      labelColor: Colors.white.withValues(alpha: 0.9),
+      unselectedLabelColor: AppColors.textMuted.withValues(alpha: 0.5),
       tabs: [
         _buildTab(0, 'General'),
         _buildTab(1, 'Viewers/Players'),
@@ -666,7 +670,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                       setState(() {
                         _draftSettings = _draftSettings!.copyWith(
                           selectedHwDec: value,
-                          cachedResolvedHwDec: null,
                         );
                       });
                     },
@@ -1156,7 +1159,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
           Text(
             description,
             style: GoogleFonts.manrope(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontWeight: FontWeight.w500,
               fontSize: 14,
             ),
@@ -1170,7 +1173,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   child: Text(
                     'or',
                     style: GoogleFonts.manrope(
-                      color: AppColors.textMuted.withOpacity(0.6),
+                      color: AppColors.textMuted.withValues(alpha: 0.6),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1181,14 +1184,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                 margin: const EdgeInsets.only(left: 6),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 ),
                 child: Text(
                   keyStr,
                   style: GoogleFonts.firaCode(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1208,7 +1211,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   }) {
     return Container(
       width: 180,
-      color: Colors.black.withOpacity(0.1),
+      color: Colors.black.withValues(alpha: 0.1),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
       child: ListView.builder(
         itemCount: items.length,
@@ -1250,8 +1253,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                           ? FontWeight.w700
                           : FontWeight.w500,
                       color: isSelected
-                          ? Colors.white.withOpacity(0.9)
-                          : AppColors.textMuted.withOpacity(0.6),
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : AppColors.textMuted.withValues(alpha: 0.6),
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -1274,7 +1277,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
           fontSize: 15,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.5,
-          color: AppColors.violet.withOpacity(0.8),
+          color: AppColors.violet.withValues(alpha: 0.8),
         ),
       ),
     );
@@ -1312,7 +1315,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   style: GoogleFonts.manrope(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     letterSpacing: 0.2,
                   ),
                 ),
@@ -1321,7 +1324,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   subtitle,
                   style: GoogleFonts.manrope(
                     fontSize: 13,
-                    color: AppColors.textMuted.withOpacity(0.5),
+                    color: AppColors.textMuted.withValues(alpha: 0.5),
                     height: 1.4,
                   ),
                 ),
@@ -1346,7 +1349,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
       offset: const Offset(0, 40),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       color: const Color(0xFF161616),
       elevation: 24,
@@ -1365,7 +1368,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: isSelected
-                  ? Colors.white.withOpacity(0.06)
+                  ? Colors.white.withValues(alpha: 0.06)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
@@ -1376,7 +1379,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
                     ? Colors.white
-                    : Colors.white.withOpacity(0.7),
+                    : Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ),
@@ -1386,9 +1389,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
+          color: Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1396,7 +1399,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
             Text(
               selectedOption.value,
               style: GoogleFonts.manrope(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -1404,7 +1407,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
             const SizedBox(width: 6),
             Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               size: 18,
             ),
           ],
@@ -1428,7 +1431,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.5,
-                  color: AppColors.violet.withOpacity(0.8),
+                  color: AppColors.violet.withValues(alpha: 0.8),
                 ),
               ),
               if (ref.watch(downloaderUpdateProvider).isUpdating)
@@ -1438,10 +1441,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.violet.withOpacity(0.1),
+                    color: AppColors.violet.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: AppColors.violet.withOpacity(0.2),
+                      color: AppColors.violet.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Row(
@@ -1474,10 +1477,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.violet.withOpacity(0.1),
+                    color: AppColors.violet.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: AppColors.violet.withOpacity(0.2),
+                      color: AppColors.violet.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Row(
@@ -1575,7 +1578,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
               progress != null ||
               (updateState.isUpdating && engine.updateInfo != null);
 
-          double displayProgress = progress ?? 0.0;
+          var displayProgress = progress ?? 0.0;
           if (updateState.isUpdating &&
               engine.updateInfo != null &&
               progress == null) {
@@ -1598,14 +1601,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
               Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.02),
+                  color: Colors.white.withValues(alpha: 0.02),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: engineError != null
-                        ? Colors.redAccent.withOpacity(0.3)
+                        ? Colors.redAccent.withValues(alpha: 0.3)
                         : (installed
-                              ? Colors.white.withOpacity(0.06)
-                              : Colors.white.withOpacity(0.03)),
+                              ? Colors.white.withValues(alpha: 0.06)
+                              : Colors.white.withValues(alpha: 0.03)),
                   ),
                 ),
                 child: Stack(
@@ -1627,7 +1630,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                 alignment: Alignment.centerLeft,
                                 widthFactor: value,
                                 child: Container(
-                                  color: Colors.green.withOpacity(0.15),
+                                  color: Colors.green.withValues(alpha: 0.15),
                                 ),
                               );
                             },
@@ -1640,7 +1643,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                           borderRadius: BorderRadius.circular(10),
                           child: LinearProgressIndicator(
                             backgroundColor: Colors.transparent,
-                            color: Colors.green.withOpacity(0.15),
+                            color: Colors.green.withValues(alpha: 0.15),
                           ),
                         ),
                       ),
@@ -1657,7 +1660,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                             size: 18,
                             color: installed
                                 ? engine.color
-                                : engine.color.withOpacity(0.3),
+                                : engine.color.withValues(alpha: 0.3),
                           ),
                           const SizedBox(width: 10),
                           // Engine name
@@ -1673,8 +1676,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: installed
-                                        ? Colors.white.withOpacity(0.85)
-                                        : Colors.white.withOpacity(0.4),
+                                        ? Colors.white.withValues(alpha: 0.85)
+                                        : Colors.white.withValues(alpha: 0.4),
                                   ),
                                 ),
                                 if (engine.isOptional)
@@ -1682,8 +1685,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                     'Optional',
                                     style: GoogleFonts.manrope(
                                       fontSize: 10,
-                                      color: AppColors.textMuted.withOpacity(
-                                        0.4,
+                                      color: AppColors.textMuted.withValues(
+                                        alpha: 0.4,
                                       ),
                                     ),
                                   ),
@@ -1699,10 +1702,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                               ),
                               decoration: BoxDecoration(
                                 color: engineError != null
-                                    ? Colors.redAccent.withOpacity(0.12)
+                                    ? Colors.redAccent.withValues(alpha: 0.12)
                                     : isUpdating
-                                    ? Colors.blue.withOpacity(0.12)
-                                    : Colors.white.withOpacity(0.04),
+                                    ? Colors.blue.withValues(alpha: 0.12)
+                                    : Colors.white.withValues(alpha: 0.04),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -1720,7 +1723,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                       ? Colors.redAccent
                                       : isUpdating
                                       ? Colors.blue.shade300
-                                      : AppColors.textMuted.withOpacity(0.4),
+                                      : AppColors.textMuted.withValues(alpha: 0.4),
                                 ),
                               ),
                             ),
@@ -1756,7 +1759,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                     'Up to date',
                                     style: GoogleFonts.manrope(
                                       fontSize: 10,
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                 ),
@@ -1812,23 +1815,25 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                 icon: Icons.download_rounded,
                                 color: AppColors.violet,
                                 onTap: () {
+                                  Future<Process>? processFuture;
                                   if (engine.updateInfo != null) {
                                     ref
                                         .read(downloaderUpdateProvider.notifier)
                                         .updateEngine(engine);
-                                  } else if (engine.install != null) {
-                                    final processFuture = engine.install();
-                                    if (processFuture != null) {
-                                      ref
-                                          .read(
-                                            downloaderUpdateProvider.notifier,
-                                          )
-                                          .installProcessEngine(
-                                            engine,
-                                            processFuture,
-                                          );
-                                    }
+                                  } else {
+                                    processFuture = engine.install();
                                   }
+                                  if (processFuture != null) {
+                                    ref
+                                        .read(
+                                          downloaderUpdateProvider.notifier,
+                                        )
+                                        .installProcessEngine(
+                                          engine,
+                                          processFuture,
+                                        );
+                                  }
+
                                 },
                               ),
                             ],
@@ -1845,10 +1850,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   padding: const EdgeInsets.all(12),
                   height: 120,
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.05),
+                    color: Colors.redAccent.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: Colors.redAccent.withOpacity(0.2),
+                      color: Colors.redAccent.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Column(
@@ -1874,7 +1879,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                             engineError,
                             style: GoogleFonts.firaCode(
                               fontSize: 10,
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                             ),
                           ),
                         ),
@@ -1890,9 +1895,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.02),
+            color: Colors.white.withValues(alpha: 0.02),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withOpacity(0.06)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
           ),
           child: Row(
             children: [
@@ -1901,7 +1906,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                 size: 18,
                 color: Aria2Accelerator.isAvailable
                     ? Colors.cyanAccent
-                    : Colors.cyanAccent.withOpacity(0.3),
+                    : Colors.cyanAccent.withValues(alpha: 0.3),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1914,8 +1919,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Aria2Accelerator.isAvailable
-                            ? Colors.white.withOpacity(0.85)
-                            : Colors.white.withOpacity(0.4),
+                            ? Colors.white.withValues(alpha: 0.85)
+                            : Colors.white.withValues(alpha: 0.4),
                       ),
                     ),
                     if (!Aria2Accelerator.isAvailable)
@@ -1923,7 +1928,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                         'Install via: sudo apt install aria2',
                         style: GoogleFonts.manrope(
                           fontSize: 10,
-                          color: AppColors.textMuted.withOpacity(0.5),
+                          color: AppColors.textMuted.withValues(alpha: 0.5),
                         ),
                       ),
                   ],
@@ -1933,8 +1938,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: Aria2Accelerator.isAvailable
-                      ? Colors.green.withOpacity(0.12)
-                      : Colors.white.withOpacity(0.04),
+                      ? Colors.green.withValues(alpha: 0.12)
+                      : Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -1944,7 +1949,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                     fontWeight: FontWeight.w700,
                     color: Aria2Accelerator.isAvailable
                         ? Colors.green.shade300
-                        : AppColors.textMuted.withOpacity(0.4),
+                        : AppColors.textMuted.withValues(alpha: 0.4),
                   ),
                 ),
               ),
@@ -1967,9 +1972,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1994,7 +1999,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       ),
       child: Align(
         alignment: Alignment.centerRight,
@@ -2012,8 +2017,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
               style: GoogleFonts.manrope(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: Colors.white.withOpacity(0.9),
-                letterSpacing: 1.0,
+                color: Colors.white.withValues(alpha: 0.9),
+                letterSpacing: 1,
               ),
             ),
           ),
@@ -2074,8 +2079,8 @@ class _GradientUnderlinePainter extends BoxPainter {
 }
 
 class _ResizeHandlePainter extends CustomPainter {
-  final Color color;
   _ResizeHandlePainter({this.color = Colors.white24});
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -1,7 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/features/video_player/presentation/services/subtitle_loader.dart';
 
 class MockPlayer extends Mock implements Player {}

@@ -1,9 +1,10 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/video_player/presentation/controllers/hud_controller.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/video_player/presentation/controllers/hud_controller.dart';
 
 void main() {
   group('VideoHudController', () {
@@ -31,7 +32,7 @@ void main() {
     late VideoHudCallbacks callbacks;
     late VideoHudController controller;
 
-    Widget buildTestApp(WidgetTester tester, Function(WidgetRef, BuildContext) onBuild) {
+    Widget buildTestApp(WidgetTester tester, void Function(WidgetRef, BuildContext) onBuild) {
       return ProviderScope(
         child: MaterialApp(
           home: Scaffold(
@@ -117,7 +118,7 @@ void main() {
     }
 
     testWidgets('startHideTimer cancels existing and creates new timer', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       isControlsVisible = true;
       controller.startHideTimer();
       expect(hideTimer, isNotNull);
@@ -128,7 +129,7 @@ void main() {
     });
 
     testWidgets('startHideTimer ignores if menus active', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       isControlsVisible = true;
       isAnyMenuVisible = true;
       controller.startHideTimer();
@@ -136,7 +137,7 @@ void main() {
     });
 
     testWidgets('showVolumeOverlay sets visibility and starts timer', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       controller.showVolumeOverlay();
       expect(isVolumeOverlayVisible, isTrue);
       expect(volumeOverlayTimer, isNotNull);
@@ -146,7 +147,7 @@ void main() {
     });
 
     testWidgets('showVolumeOverlay ignores if unmounted', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       mounted = false;
       controller.showVolumeOverlay();
       expect(isVolumeOverlayVisible, isFalse);
@@ -155,7 +156,7 @@ void main() {
     });
 
     testWidgets('showSpeedOverlay sets visibility and starts timer', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       controller.showSpeedOverlay();
       expect(showSpeedOverlayVisible, isTrue);
       expect(speedOverlayTimer, isNotNull);
@@ -165,7 +166,7 @@ void main() {
     });
 
     testWidgets('showSeekIndicator sets visibility and starts timer', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       controller.showSeekIndicator();
       expect(isSeekIndicatorVisible, isTrue);
       expect(seekIndicatorTimer, isNotNull);
@@ -197,14 +198,14 @@ void main() {
     });
 
     testWidgets('onInteraction ignores if closing or unmounted', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       isClosing = true;
       controller.onInteraction();
       expect(isControlsVisible, isFalse);
     });
 
     testWidgets('onInteraction ignores hide timer if menu visible', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       isAnyMenuVisible = true;
       controller.onInteraction();
       expect(hideTimer, isNull);
@@ -225,7 +226,7 @@ void main() {
                           setupController(ref, context);
                           return Align(
                             alignment: Alignment.bottomRight,
-                            child: Container(key: key, width: 50, height: 50),
+                            child: SizedBox(key: key, width: 50, height: 50),
                           );
                         },
                       );
@@ -252,7 +253,7 @@ void main() {
     });
 
     testWidgets('hideMenu gracefully handles unmounted state', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       
       isAudioMenuVisible = true;
       mounted = false;
@@ -278,7 +279,7 @@ void main() {
                           setupController(ref, context);
                           return Align(
                             alignment: Alignment.bottomRight,
-                            child: Container(key: key, width: 50, height: 50),
+                            child: SizedBox(key: key, width: 50, height: 50),
                           );
                         },
                       );
@@ -317,7 +318,7 @@ void main() {
                           setupController(ref, context);
                           return Align(
                             alignment: Alignment.bottomRight,
-                            child: Container(key: key, width: 50, height: 50),
+                            child: SizedBox(key: key, width: 50, height: 50),
                           );
                         },
                       );
@@ -347,7 +348,7 @@ void main() {
     });
 
     testWidgets('showMenu aborts if unmounted or renderbox missing', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) => setupController(ref, ctx)));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
       final key = GlobalKey();
       
       // Missing renderbox

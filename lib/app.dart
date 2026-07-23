@@ -1,12 +1,12 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:onyxcore/features/archive_manager/services/archive_service.dart';
+import 'package:onyxcore/features/directory_browser/presentation/pages/gallery_page.dart';
+import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:window_manager/window_manager.dart';
-
-import 'core/theme/app_theme.dart';
-import 'features/directory_browser/presentation/pages/gallery_page.dart';
-import 'features/archive_manager/services/archive_service.dart';
-import 'features/downloader/services/downloader_update_service.dart';
 
 /// Global navigator key for accessing context outside widgets.
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -45,7 +45,7 @@ class _OnyxCoreAppState extends ConsumerState<OnyxCoreApp> with WindowListener {
   }
 
   @override
-  void onWindowClose() async {
+  Future<void> onWindowClose() async {
     // If a dialog is open (like properties or rename), close the dialog instead of the app
     final context = appNavigatorKey.currentContext;
     if (context != null && Navigator.of(context).canPop()) {

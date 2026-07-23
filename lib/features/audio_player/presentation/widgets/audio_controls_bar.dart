@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import '../providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 
 class AudioControlsBar extends ConsumerWidget {
-  final VoidCallback? onNextPressed;
-  final VoidCallback? onPreviousPressed;
-  final bool isAudioPlayOnly;
 
   const AudioControlsBar({
     super.key,
@@ -14,6 +11,9 @@ class AudioControlsBar extends ConsumerWidget {
     this.onPreviousPressed,
     this.isAudioPlayOnly = false,
   });
+  final VoidCallback? onNextPressed;
+  final VoidCallback? onPreviousPressed;
+  final bool isAudioPlayOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -112,7 +112,6 @@ class AudioControlsBar extends ConsumerWidget {
                     ),
                     child: Slider(
                       value: volume.clamp(0.0, 200.0),
-                      min: 0,
                       max: 200,
                       onChanged: (val) => player?.setVolume(val),
                     ),

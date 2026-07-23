@@ -1,9 +1,10 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/widgets/tooltip_if_truncated.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 /// Shared media tile widget used by both audio and video playlist sidebars.
 ///
@@ -12,6 +13,16 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 /// Customization is provided via slots: [coverArt], [subtitle], [activeIndicator],
 /// and [defaultMediaIcon].
 class MediaTile extends StatelessWidget {
+
+  const MediaTile({
+    required this.item, required this.isActive, required this.isSelected, required this.subtitle, required this.defaultMediaIcon, super.key,
+    this.onTap,
+    this.onDoubleTap,
+    this.onSecondaryTapDown,
+    this.coverArt,
+    this.activeIndicator,
+    this.defaultMediaIconSize = 24,
+  });
   final FileItem item;
   final bool isActive;
   final bool isSelected;
@@ -38,21 +49,6 @@ class MediaTile extends StatelessWidget {
   /// The size of the default media icon. Defaults to 24.
   final double defaultMediaIconSize;
 
-  const MediaTile({
-    super.key,
-    required this.item,
-    required this.isActive,
-    required this.isSelected,
-    required this.subtitle,
-    required this.defaultMediaIcon,
-    this.onTap,
-    this.onDoubleTap,
-    this.onSecondaryTapDown,
-    this.coverArt,
-    this.activeIndicator,
-    this.defaultMediaIconSize = 24,
-  });
-
   @override
   Widget build(BuildContext context) {
     final isFolder = item.type == FileItemType.folder;
@@ -71,16 +67,16 @@ class MediaTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected
-                  ? Colors.white.withOpacity(0.1)
+                  ? Colors.white.withValues(alpha: 0.1)
                   : (isActive
-                        ? Colors.white.withOpacity(0.03)
+                        ? Colors.white.withValues(alpha: 0.03)
                         : Colors.transparent),
               borderRadius: BorderRadius.circular(12),
               border: isSelected || isActive
                   ? Border.all(
                       color: isSelected
-                          ? Colors.white.withOpacity(0.15)
-                          : Colors.white.withOpacity(0.05),
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : Colors.white.withValues(alpha: 0.05),
                     )
                   : Border.all(color: Colors.transparent),
             ),
@@ -93,8 +89,7 @@ class MediaTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     color: const Color(0xFF181818),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.04),
-                      width: 1.0,
+                      color: Colors.white.withValues(alpha: 0.04),
                     ),
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -131,7 +126,6 @@ class MediaTile extends StatelessWidget {
                               : FontWeight.w500,
                           fontSize: 14,
                         ),
-                        maxLines: 1,
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -169,11 +163,11 @@ class MediaTile extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: [
               Color.alphaBlend(
-                AppColors.magenta.withOpacity(0.08),
+                AppColors.magenta.withValues(alpha: 0.08),
                 const Color(0xFF181818),
               ),
               Color.alphaBlend(
-                AppColors.violet.withOpacity(0.03),
+                AppColors.violet.withValues(alpha: 0.03),
                 const Color(0xFF181818),
               ),
             ],
@@ -206,11 +200,11 @@ class MediaTile extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: [
                   Color.alphaBlend(
-                    AppColors.magenta.withOpacity(0.08),
+                    AppColors.magenta.withValues(alpha: 0.08),
                     const Color(0xFF181818),
                   ),
                   Color.alphaBlend(
-                    AppColors.violet.withOpacity(0.03),
+                    AppColors.violet.withValues(alpha: 0.03),
                     const Color(0xFF181818),
                   ),
                 ],
@@ -219,7 +213,7 @@ class MediaTile extends StatelessWidget {
           ),
         if (hasImage)
           Container(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
           ),
         Center(
           child: ShaderMask(
@@ -241,10 +235,10 @@ class MediaTile extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withOpacity(0.15),
+                Colors.white.withValues(alpha: 0.15),
                 Colors.transparent,
                 Colors.transparent,
-                Colors.black.withOpacity(hasImage ? 0.4 : 0.2),
+                Colors.black.withValues(alpha: hasImage ? 0.4 : 0.2),
               ],
               stops: const [0.0, 0.3, 0.7, 1.0],
             ),

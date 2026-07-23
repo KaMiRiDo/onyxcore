@@ -31,7 +31,6 @@ void main() {
       // We can check if the TextStyle has overflow or if the Text widget itself has overflow.
       // Often, overflow is handled at the TextStyle level or the Text widget level.
       // We'll check both.
-      final hasEllipsis = (textWidget.style?.overflow == TextOverflow.ellipsis) || (textWidget.overflow == TextOverflow.ellipsis);
       // Wait, actually _trimMiddle truncates the title so it might NOT need ellipsis, but metadata definitely needs it!
       // I'll just check that ALL texts in ViewerTopBar have ellipsis!
       if (textWidget.data != null && textWidget.data!.contains('1/100')) {

@@ -10,8 +10,8 @@ void main() {
   testWidgets('ImageViewerLifecycle initializes and completes firstFrame', (tester) async {
     final focusNode = FocusNode();
     final zoomAnimationController = AnimationController(vsync: const TestVSync());
-    bool onReadyForInteractionCalled = false;
-    bool onFirstFrameCalled = false;
+    var onReadyForInteractionCalled = false;
+    var onFirstFrameCalled = false;
 
     final lifecycle = ImageViewerLifecycle(
       windowId: null,

@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/features/video_player/data/repositories/marker_repository.dart';
-import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
 import 'package:path/path.dart' as p;
 

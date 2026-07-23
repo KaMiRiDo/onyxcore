@@ -3,9 +3,7 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 
 class OnyxSwitch extends StatelessWidget {
   const OnyxSwitch({
-    super.key,
-    required this.value,
-    required this.onChanged,
+    required this.value, required this.onChanged, super.key,
   });
 
   final bool value;

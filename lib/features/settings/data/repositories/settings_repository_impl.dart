@@ -1,9 +1,8 @@
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/settings_codec.dart';
-
-import '../../domain/entities/app_settings.dart';
-import '../../domain/repositories/settings_repository.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/domain/repositories/settings_repository.dart';
 
 /// Drift-backed implementation of [SettingsRepository].
 ///
@@ -108,12 +107,12 @@ class SettingsRepositoryImpl implements SettingsRepository {
         (e) => e.name == vals[_trackpadSpeedControl],
         orElse: () => SpeedControlOption.off,
       ),
-      filePickerWidth: SettingsCodec.decodeDouble(vals[_filePickerWidth], fallback: 1000.0),
-      filePickerHeight: SettingsCodec.decodeDouble(vals[_filePickerHeight], fallback: 650.0),
-      settingsWidth: SettingsCodec.decodeDouble(vals[_settingsWidth], fallback: 760.0),
-      settingsHeight: SettingsCodec.decodeDouble(vals[_settingsHeight], fallback: 560.0),
-      downloaderWidth: SettingsCodec.decodeDouble(vals[_downloaderWidth], fallback: 950.0),
-      downloaderHeight: SettingsCodec.decodeDouble(vals[_downloaderHeight], fallback: 700.0),
+      filePickerWidth: SettingsCodec.decodeDouble(vals[_filePickerWidth], fallback: 1000),
+      filePickerHeight: SettingsCodec.decodeDouble(vals[_filePickerHeight], fallback: 650),
+      settingsWidth: SettingsCodec.decodeDouble(vals[_settingsWidth], fallback: 760),
+      settingsHeight: SettingsCodec.decodeDouble(vals[_settingsHeight], fallback: 560),
+      downloaderWidth: SettingsCodec.decodeDouble(vals[_downloaderWidth], fallback: 950),
+      downloaderHeight: SettingsCodec.decodeDouble(vals[_downloaderHeight], fallback: 700),
       confirmDeleteImage: SettingsCodec.decodeBool(vals[_confirmDeleteImage], fallback: true),
       confirmDeleteVideo: SettingsCodec.decodeBool(vals[_confirmDeleteVideo], fallback: true),
       confirmDeleteDocument: SettingsCodec.decodeBool(vals[_confirmDeleteDocument], fallback: true),
@@ -124,8 +123,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       maxLiveRecordingMinutes: SettingsCodec.decodeInt(vals[_maxLiveRecordingMinutes], fallback: 0),
       documentSearchCaseSensitive: SettingsCodec.decodeBool(vals[_documentSearchCaseSensitive], fallback: false),
       documentSearchUseRegex: SettingsCodec.decodeBool(vals[_documentSearchUseRegex], fallback: false),
-      audioPlayerVolume: SettingsCodec.decodeDouble(vals[_audioPlayerVolume], fallback: 100.0),
-      videoPlayerVolume: SettingsCodec.decodeDouble(vals[_videoPlayerVolume], fallback: 30.0),
+      audioPlayerVolume: SettingsCodec.decodeDouble(vals[_audioPlayerVolume], fallback: 100),
+      videoPlayerVolume: SettingsCodec.decodeDouble(vals[_videoPlayerVolume], fallback: 30),
       videoShowRemainingTime: SettingsCodec.decodeBool(vals[_videoShowRemainingTime], fallback: false),
     );
   }
@@ -170,12 +169,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _db.setSetting(_videoPlayerVolume, SettingsCodec.encodeDouble(settings.videoPlayerVolume)),
       _db.setSetting(_videoShowRemainingTime, SettingsCodec.encodeBool(settings.videoShowRemainingTime)),
       // Nullable
-      settings.cachedResolvedHwDec != null
-          ? _db.setSetting(_cachedResolvedHwDec, settings.cachedResolvedHwDec!)
-          : _db.removeSetting(_cachedResolvedHwDec),
-      settings.downloadBrowser != null
-          ? _db.setSetting(_downloadBrowser, settings.downloadBrowser!)
-          : _db.removeSetting(_downloadBrowser),
+      if (settings.cachedResolvedHwDec != null) _db.setSetting(_cachedResolvedHwDec, settings.cachedResolvedHwDec!) else _db.removeSetting(_cachedResolvedHwDec),
+      if (settings.downloadBrowser != null) _db.setSetting(_downloadBrowser, settings.downloadBrowser!) else _db.removeSetting(_downloadBrowser),
       // Pinned folders
       _db.savePinnedFolders(settings.pinnedFolders),
     ]);
@@ -265,11 +260,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<(double width, double height)> getOpenWithDialogSize() async {
     final w = SettingsCodec.decodeDouble(
       await _db.getSetting(_openWithDialogWidth),
-      fallback: 500.0,
+      fallback: 500,
     );
     final h = SettingsCodec.decodeDouble(
       await _db.getSetting(_openWithDialogHeight),
-      fallback: 650.0,
+      fallback: 650,
     );
     return (w, h);
   }
@@ -285,7 +280,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<double> getDownloadsPanelWidth() async {
     return SettingsCodec.decodeDouble(
       await _db.getSetting(_sidePanelWidthPixels),
-      fallback: 320.0,
+      fallback: 320,
     );
   }
 
@@ -305,7 +300,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   // ——— Gallery Pinning ———
 
   // In-memory cache of pinned folders (loaded on startup via load())
-  List<String> _pinnedFolders = [];
+  final List<String> _pinnedFolders = [];
 
   @override
   List<String> get pinnedFolders => List<String>.from(_pinnedFolders);

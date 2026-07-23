@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/utils/browser_detector.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class MermaidOfflineRenderer {
   static final Map<String, Uint8List> _memoryCache = {};
@@ -141,8 +142,8 @@ class MermaidOfflineRenderer {
     );
     await puppeteerConfig.writeAsString(
       jsonEncode({
-        "executablePath": chromePath,
-        "args": ["--no-sandbox", "--disable-setuid-sandbox"],
+        'executablePath': chromePath,
+        'args': ['--no-sandbox', '--disable-setuid-sandbox'],
       }),
     );
 

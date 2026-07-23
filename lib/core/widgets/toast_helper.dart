@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:onyxcore/app.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/app.dart';
 
 class ToastHelper {
   static OverlayEntry? _currentEntry;
@@ -47,11 +48,11 @@ class ToastHelper {
 }
 
 class _ToastWidget extends StatefulWidget {
+
+  const _ToastWidget({required this.message, required this.isError, this.icon});
   final String message;
   final IconData? icon;
   final bool isError;
-
-  const _ToastWidget({required this.message, this.icon, required this.isError});
 
   @override
   State<_ToastWidget> createState() => _ToastWidgetState();
@@ -106,8 +107,8 @@ class _ToastWidgetState extends State<_ToastWidget>
               child: CustomPaint(
                 painter: _TrianglePainter(
                   color: widget.isError
-                      ? AppColors.error.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.1),
+                      ? AppColors.error.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.1),
                 ),
               ),
             ),
@@ -121,16 +122,16 @@ class _ToastWidgetState extends State<_ToastWidget>
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E).withOpacity(0.85),
+                    color: const Color(0xFF1E1E1E).withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: widget.isError
-                          ? AppColors.error.withOpacity(0.3)
-                          : Colors.white.withOpacity(0.1),
+                          ? AppColors.error.withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.1),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -146,13 +147,13 @@ class _ToastWidgetState extends State<_ToastWidget>
                               ? null
                               : AppTheme.primaryGradient.withOpacity(0.2),
                           color: widget.isError
-                              ? AppColors.error.withOpacity(0.2)
+                              ? AppColors.error.withValues(alpha: 0.2)
                               : null,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: widget.isError
-                                ? AppColors.error.withOpacity(0.4)
-                                : AppColors.violet.withOpacity(0.3),
+                                ? AppColors.error.withValues(alpha: 0.4)
+                                : AppColors.violet.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Icon(
@@ -170,7 +171,7 @@ class _ToastWidgetState extends State<_ToastWidget>
                       Text(
                         widget.message,
                         style: GoogleFonts.manrope(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.2,
@@ -189,13 +190,13 @@ class _ToastWidgetState extends State<_ToastWidget>
 }
 
 class _TrianglePainter extends CustomPainter {
-  final Color color;
   _TrianglePainter({required this.color});
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1E1E1E).withOpacity(0.85)
+      ..color = const Color(0xFF1E1E1E).withValues(alpha: 0.85)
       ..style = PaintingStyle.fill;
 
     final borderPaint = Paint()

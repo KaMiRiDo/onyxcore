@@ -1,34 +1,33 @@
-import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_html/flutter_html.dart';
-import 'package:flutter_html_table/flutter_html_table.dart';
-import 'package:onyxcore/features/document_viewer/services/mermaid_offline_renderer.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
-import 'package:flutter_highlight/flutter_highlight.dart';
-import 'package:flutter_highlight/themes/atom-one-dark.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:markdown/markdown.dart' as md;
+import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_highlight/themes/atom-one-dark.dart';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:flutter_html_table/flutter_html_table.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/core/window_management/window_params.dart';
-import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_syntax_highlighter.dart';
 import 'package:onyxcore/core/widgets/search_replace_overlay.dart';
-import 'package:onyxcore/features/document_viewer/utils/html_search_highlighter.dart';
+import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/line_numbers_painter.dart';
+import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_syntax_highlighter.dart';
+import 'package:onyxcore/features/document_viewer/services/mermaid_offline_renderer.dart';
+import 'package:onyxcore/features/document_viewer/utils/html_search_highlighter.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:window_manager/window_manager.dart';
 
 class SaveIntent extends Intent {
   const SaveIntent();
@@ -116,7 +115,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   bool _searchUseRegex = false;
 
   final ValueNotifier<_SearchPosition> _searchPosition = ValueNotifier(
-    const _SearchPosition(top: 100.0, right: 16.0),
+    const _SearchPosition(top: 100, right: 16),
   );
 
   void _onWindowFocus() {
@@ -265,8 +264,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   void _onEditorScroll() {
     if (!_isDualPane) return;
     if (_isSyncingScroll) return;
-    if (!_editorScrollController.hasClients || !_scrollController.hasClients)
+    if (!_editorScrollController.hasClients || !_scrollController.hasClients) {
       return;
+    }
     if (_editorScrollController.position.maxScrollExtent == 0) return;
 
     final ratio =
@@ -284,8 +284,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   void _onPreviewScroll() {
     if (!_isDualPane) return;
     if (_isSyncingScroll) return;
-    if (!_editorScrollController.hasClients || !_scrollController.hasClients)
+    if (!_editorScrollController.hasClients || !_scrollController.hasClients) {
       return;
+    }
     if (_scrollController.position.maxScrollExtent == 0) return;
 
     final ratio =
@@ -451,7 +452,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   }
 
   @override
-  void onWindowClose() async {
+  Future<void> onWindowClose() async {
     if (widget.windowId != null) {
       // Delegate to PersistentViewerManager which will:
       // 1. Remove the view from the widget tree (unmount Flutter widgets)
@@ -512,6 +513,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   }
 
   void _switchToPreview() {
+    // ignore: omit_local_variable_types, prefer_int_literals
     double percentage = 0.0;
     if (_isEditing && _editController.text.isNotEmpty) {
       final offset = _editController.selection.baseOffset;
@@ -541,6 +543,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   }
 
   void _switchToEditor() {
+    // ignore: omit_local_variable_types, prefer_int_literals
     double percentage = 0.0;
     if (!_isEditing && _scrollController.hasClients) {
       final maxScroll = _scrollController.position.maxScrollExtent;
@@ -587,26 +590,26 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   void _fixCursorAfterUndoRedo(String oldText, String newText) {
     if (oldText == newText) return;
 
-    int prefixLen = 0;
-    int minLen = math.min(oldText.length, newText.length);
+    var prefixLen = 0;
+    final int minLen = math.min(oldText.length, newText.length);
     while (prefixLen < minLen && oldText[prefixLen] == newText[prefixLen]) {
       prefixLen++;
     }
 
-    int suffixLen = 0;
+    var suffixLen = 0;
     while (suffixLen < (minLen - prefixLen) &&
         oldText[oldText.length - 1 - suffixLen] ==
             newText[newText.length - 1 - suffixLen]) {
       suffixLen++;
     }
 
-    int cursorOffset = newText.length - suffixLen;
+    final cursorOffset = newText.length - suffixLen;
 
     _editController.selection = TextSelection.collapsed(offset: cursorOffset);
 
     // Ensure the editor scrolls to the reverted line
     if (_editorScrollController.hasClients) {
-      final double lineHeight = 15 * 1.5; // FontSize * height
+      const lineHeight = 15 * 1.5; // FontSize * height
       final textBeforeCursor = _editController.text.substring(
         0,
         cursorOffset.clamp(0, _editController.text.length),
@@ -799,7 +802,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                 // Content
                 Positioned.fill(
                   child: _isLoading
-                      ? Center(child: BubbleLoader(size: 80))
+                      ? Center(child: BubbleLoader())
                       : MouseRegion(
                           onHover: (_) => _onInteraction(),
                           cursor: _isResizingDualPane
@@ -871,7 +874,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                                                       child: Container(
                                                         width: 2,
                                                         color: Colors.white
-                                                            .withOpacity(0.1),
+                                                            .withValues(alpha: 0.1),
                                                       ),
                                                     ),
                                                   ),
@@ -942,7 +945,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                           color: _isDualPane
                               ? const Color(0xFFA6E22E)
                               : Colors.white,
-                          tooltip: 'Toggle Dual Pane (Ctrl + \\)',
+                          tooltip: r'Toggle Dual Pane (Ctrl + \)',
                         ),
                         const SizedBox(width: 8),
                         if (!_isDualPane)
@@ -1014,7 +1017,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
       ),
       child: ExcludeFocus(
@@ -1103,8 +1106,8 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
 
       // Editor Scroll
       if (_isEditing && _editorScrollController.hasClients) {
-        final double lineHeight = 15 * 1.5; // FontSize * height
-        final double targetOffset = lineIndex * lineHeight;
+        const lineHeight = 15 * 1.5; // FontSize * height
+        final targetOffset = lineIndex * lineHeight;
         final viewportHeight =
             _editorScrollController.position.viewportDimension;
         final centeredOffset = targetOffset - (viewportHeight / 2);
@@ -1256,10 +1259,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
       },
       onDragUpdate: (details) {
         final currentPos = _searchPosition.value;
-        double newTop = (currentPos.top ?? 100.0) + details.delta.dy;
+        final newTop = (currentPos.top ?? 100.0) + details.delta.dy;
 
         double? newRight;
-        double? newLeft = currentPos.left;
+        var newLeft = currentPos.left;
 
         if (currentPos.left == null) {
           newRight = (currentPos.right ?? 16.0) - details.delta.dx;
@@ -1277,7 +1280,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   }
 
   Widget _buildEditor() {
-    return Container(
+    return ColoredBox(
       color: const Color(0xFF181818), // Seamless background
       child: SingleChildScrollView(
         controller: _editorScrollController,
@@ -1310,7 +1313,6 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                   hintText: 'Start typing...',
                   hintStyle: TextStyle(color: Colors.white24),
                 ),
-                cursorWidth: 2.0,
                 cursorColor: const Color(0xFFA6E22E),
               ),
             ),
@@ -1323,7 +1325,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                 decoration: BoxDecoration(
                   border: Border(
                     right: BorderSide(
-                      color: Colors.white.withOpacity(0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                       width: 1.5,
                     ),
                   ),
@@ -1350,11 +1352,11 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   }
 
   Widget _buildMarkdown() {
-    String textToRender = _isEditing ? _previewContent : _content;
+    var textToRender = _isEditing ? _previewContent : _content;
 
     // Frontmatter Parsing
-    Map<String, String> frontmatter = {};
-    List<String> tags = [];
+    final frontmatter = <String, String>{};
+    var tags = <String>[];
 
     if (textToRender.startsWith('---\n')) {
       final endIdx = textToRender.indexOf('\n---\n', 4);
@@ -1383,19 +1385,19 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
     }
 
     // Pre-process Math and Mermaid
-    String htmlContent = _processAdvancedMarkdown(textToRender);
+    var htmlContent = _processAdvancedMarkdown(textToRender);
     htmlContent = htmlContent.replaceAll(
       RegExp(
-        r'<input[^>]*type="checkbox"[^>]*checked="(true|checked)"[^>]*>(?:</input>)?',
+        '<input[^>]*type="checkbox"[^>]*checked="(true|checked)"[^>]*>(?:</input>)?',
       ),
       '<task-checked></task-checked>',
     );
     htmlContent = htmlContent.replaceAll(
-      RegExp(r'<input[^>]*type="checkbox"[^>]*>(?:</input>)?'),
+      RegExp('<input[^>]*type="checkbox"[^>]*>(?:</input>)?'),
       '<task-unchecked></task-unchecked>',
     );
 
-    final htmlWidget = Container(
+    final htmlWidget = ColoredBox(
       color: AppColors.background,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1424,7 +1426,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                               style: _buildHtmlStyles(),
                               extensions: [
                                 TagExtension(
-                                  tagsToExtend: {"math-display"},
+                                  tagsToExtend: {'math-display'},
                                   builder: (context) {
                                     final mathCode =
                                         context.element?.text ?? '';
@@ -1435,7 +1437,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                                   },
                                 ),
                                 TagExtension(
-                                  tagsToExtend: {"math-inline"},
+                                  tagsToExtend: {'math-inline'},
                                   builder: (context) {
                                     final mathCode =
                                         context.element?.text ?? '';
@@ -1446,7 +1448,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                                   },
                                 ),
                                 TagExtension(
-                                  tagsToExtend: {"mermaid"},
+                                  tagsToExtend: {'mermaid'},
                                   builder: (context) {
                                     final mermaidCode =
                                         context.element?.text ?? '';
@@ -1454,7 +1456,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                                   },
                                 ),
                                 TagExtension(
-                                  tagsToExtend: {"pre"},
+                                  tagsToExtend: {'pre'},
                                   builder: (context) {
                                     final codeElement = context
                                         .element
@@ -1464,7 +1466,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                                     if (codeElement != null) {
                                       final code = codeElement.text;
                                       final classes = codeElement.classes;
-                                      String language = '';
+                                      var language = '';
                                       for (final c in classes) {
                                         if (c.startsWith('language-')) {
                                           language = c.replaceFirst(
@@ -1483,8 +1485,8 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                                 ),
                                 TagExtension(
                                   tagsToExtend: {
-                                    "task-checked",
-                                    "task-unchecked",
+                                    'task-checked',
+                                    'task-unchecked',
                                   },
                                   builder: (context) {
                                     final checked =
@@ -1492,8 +1494,8 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                                         'task-checked';
                                     return Padding(
                                       padding: const EdgeInsets.only(
-                                        right: 8.0,
-                                        top: 2.0,
+                                        right: 8,
+                                        top: 2,
                                       ),
                                       child: Icon(
                                         checked
@@ -1548,12 +1550,12 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
               if (_htmlKey.currentContext?.findRenderObject() != null) {
                 final rootRenderObject = _htmlKey.currentContext!
                     .findRenderObject()!;
-                final List<dynamic> paragraphs = [];
+                final paragraphs = <dynamic>[];
 
                 void walk(RenderObject object) {
                   try {
                     final dynamic dynObj = object;
-                    String textStr = '';
+                    var textStr = '';
                     try {
                       textStr = dynObj.text.toPlainText() as String;
                     } catch (_) {
@@ -1575,16 +1577,16 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                 if (htmlBox == null) return;
 
                 dynamic closestParagraph;
-                double minDistance = double.infinity;
+                var minDistance = double.infinity;
 
                 for (final p in paragraphs) {
                   try {
-                    final RenderBox box = p as RenderBox;
+                    final box = p as RenderBox;
                     final offset = box.localToGlobal(Offset.zero);
                     final yCenter = offset.dy + (box.size.height / 2);
                     final distance = (yCenter - details.position.dy).abs();
 
-                    String textStr = '';
+                    var textStr = '';
                     try {
                       textStr = (p as dynamic).text.toPlainText() as String;
                     } catch (_) {
@@ -1647,7 +1649,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                 if (_editorScrollController.hasClients) {
                   final lines = _editController.text.split('\n');
 
-                  int targetLineIndex = -1;
+                  var targetLineIndex = -1;
 
                   if (clickedText!.isNotEmpty) {
                     final sanitizedTarget = clickedText.replaceAll(
@@ -1658,22 +1660,23 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                         ? sanitizedTarget.substring(0, 50)
                         : sanitizedTarget;
 
-                    int bestMatchIndex = -1;
-                    int closestDistance = 999999;
+                    var bestMatchIndex = -1;
+                    var closestDistance = 999999;
 
-                    int expectedIndex = (scrollPercentage * lines.length)
+                    final expectedIndex = (scrollPercentage * lines.length)
                         .toInt();
 
-                    for (int i = 0; i < lines.length; i++) {
+                    for (var i = 0; i < lines.length; i++) {
                       final sanitizedLine = lines[i].replaceAll(
                         RegExp(r'[\s\*_#>`~\-\+]'),
                         '',
                       );
                       if (sanitizedLine.contains(searchSnippet) ||
                           searchSnippet.contains(sanitizedLine)) {
-                        if (sanitizedLine.isEmpty && searchSnippet.isNotEmpty)
+                        if (sanitizedLine.isEmpty && searchSnippet.isNotEmpty) {
                           continue;
-                        int distance = (i - expectedIndex).abs();
+                        }
+                        final distance = (i - expectedIndex).abs();
                         if (distance < closestDistance) {
                           closestDistance = distance;
                           bestMatchIndex = i;
@@ -1692,12 +1695,12 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
 
                   targetLineIndex = targetLineIndex.clamp(0, lines.length - 1);
 
-                  int charOffset = 0;
-                  for (int i = 0; i < targetLineIndex; i++) {
+                  var charOffset = 0;
+                  for (var i = 0; i < targetLineIndex; i++) {
                     charOffset += lines[i].length + 1;
                   }
 
-                  int lineLength = 0;
+                  var lineLength = 0;
                   if (targetLineIndex < lines.length) {
                     lineLength = lines[targetLineIndex].length;
                   }
@@ -1707,7 +1710,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                   );
 
                   // 4. Scroll the editor exactly to that line
-                  final textStyle = const TextStyle(
+                  const textStyle = TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 15,
                     height: 1.5,
@@ -1776,13 +1779,13 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
     });
 
     // Convert to HTML using Dart markdown package
-    String html = md.markdownToHtml(
+    var html = md.markdownToHtml(
       mdText,
       extensionSet: md.ExtensionSet.gitHubWeb,
     );
 
     // Restore Mermaid Blocks
-    for (int i = 0; i < mermaidBlocks.length; i++) {
+    for (var i = 0; i < mermaidBlocks.length; i++) {
       // Escape the code so HTML parsing doesn't break on < or > inside mermaid
       final escapedCode = const HtmlEscape().convert(mermaidBlocks[i]);
       // markdownToHtml might wrap our placeholder in a paragraph
@@ -1815,25 +1818,25 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.2),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        color: Colors.black.withValues(alpha: 0.2),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Table(
         columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
         border: TableBorder.symmetric(
-          inside: BorderSide(color: Colors.white.withOpacity(0.15)),
+          inside: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
         ),
         children: [
           ...frontmatter.entries.map(
             (e) => TableRow(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(12.0),
+                  padding: const EdgeInsets.all(12),
                   child: Text(
                     e.key,
                     style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),
@@ -1841,11 +1844,11 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(12.0),
+                  padding: const EdgeInsets.all(12),
                   child: Text(
                     e.value,
                     style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 14,
                     ),
                   ),
@@ -1857,11 +1860,11 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
             TableRow(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(12.0),
+                  padding: const EdgeInsets.all(12),
                   child: Text(
                     'tags',
                     style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),
@@ -1869,7 +1872,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(12.0),
+                  padding: const EdgeInsets.all(12),
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -1881,10 +1884,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
+                              color: Colors.white.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
                             ),
                             child: Text(
@@ -1947,11 +1950,11 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(32.0),
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1976,14 +1979,14 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
               color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Theme.of(context).colorScheme.error.withOpacity(0.5),
+                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
+                  padding: const EdgeInsets.only(bottom: 16),
                   child: Row(
                     children: [
                       Icon(
@@ -2014,10 +2017,10 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
           decoration: BoxDecoration(
             color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -2026,9 +2029,8 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: InteractiveViewer(
-              panEnabled: true,
               minScale: 0.5,
-              maxScale: 4.0,
+              maxScale: 4,
               child: Image.memory(
                 snapshot.data!,
                 fit: BoxFit.contain,
@@ -2043,93 +2045,93 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
 
   Map<String, Style> _buildHtmlStyles() {
     return {
-      "body": Style(
+      'body': Style(
         color: const Color(0xFFD0D0D0),
         fontFamily: 'Inter',
-        fontSize: FontSize(16.0),
+        fontSize: FontSize(16),
         lineHeight: LineHeight.number(1.6),
         margin: Margins.zero,
         padding: HtmlPaddings.zero,
       ),
-      "h1": Style(
+      'h1': Style(
         color: Colors.white,
-        fontSize: FontSize(32.0),
+        fontSize: FontSize(32),
         fontWeight: FontWeight.w800,
-        margin: Margins.only(top: 32.0, bottom: 16.0),
+        margin: Margins.only(top: 32, bottom: 16),
       ),
-      "h2": Style(
+      'h2': Style(
         color: Colors.white,
-        fontSize: FontSize(26.0),
+        fontSize: FontSize(26),
         fontWeight: FontWeight.w700,
-        margin: Margins.only(top: 28.0, bottom: 16.0),
+        margin: Margins.only(top: 28, bottom: 16),
       ),
-      "h3": Style(
+      'h3': Style(
         color: Colors.white,
-        fontSize: FontSize(22.0),
+        fontSize: FontSize(22),
         fontWeight: FontWeight.w600,
-        margin: Margins.only(top: 24.0, bottom: 12.0),
+        margin: Margins.only(top: 24, bottom: 12),
       ),
-      "h4": Style(
-        color: Colors.white.withOpacity(0.9),
-        fontSize: FontSize(18.0),
+      'h4': Style(
+        color: Colors.white.withValues(alpha: 0.9),
+        fontSize: FontSize(18),
         fontWeight: FontWeight.w600,
-        margin: Margins.only(top: 20.0, bottom: 12.0),
+        margin: Margins.only(top: 20, bottom: 12),
       ),
-      "p": Style(margin: Margins.only(bottom: 16.0)),
-      "li": Style(margin: Margins.only(bottom: 8.0)),
-      "table": Style(
+      'p': Style(margin: Margins.only(bottom: 16)),
+      'li': Style(margin: Margins.only(bottom: 8)),
+      'table': Style(
         backgroundColor: Colors.transparent,
-        margin: Margins.only(bottom: 24.0),
+        margin: Margins.only(bottom: 24),
         width: Width.auto(),
       ),
-      "th": Style(
-        padding: HtmlPaddings.all(12.0),
+      'th': Style(
+        padding: HtmlPaddings.all(12),
         backgroundColor: const Color(0xFF1E293B),
         fontWeight: FontWeight.w600,
         color: Colors.white,
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
-      "td": Style(
-        padding: HtmlPaddings.all(12.0),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-        backgroundColor: const Color(0xFF16161E).withOpacity(0.5),
+      'td': Style(
+        padding: HtmlPaddings.all(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        backgroundColor: const Color(0xFF16161E).withValues(alpha: 0.5),
       ),
-      "kbd": Style(
-        backgroundColor: Colors.white.withOpacity(0.1),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-        padding: HtmlPaddings.symmetric(horizontal: 6.0, vertical: 2.0),
-        margin: Margins.symmetric(horizontal: 2.0),
+      'kbd': Style(
+        backgroundColor: Colors.white.withValues(alpha: 0.1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        padding: HtmlPaddings.symmetric(horizontal: 6, vertical: 2),
+        margin: Margins.symmetric(horizontal: 2),
         color: Colors.white,
         fontFamily: 'JetBrains Mono',
-        fontSize: FontSize(13.0),
+        fontSize: FontSize(13),
       ),
-      "mark": Style(
-        backgroundColor: Colors.yellow.withOpacity(0.3),
+      'mark': Style(
+        backgroundColor: Colors.yellow.withValues(alpha: 0.3),
         color: Colors.white,
       ),
-      "code": Style(
-        backgroundColor: Colors.white.withOpacity(0.05),
+      'code': Style(
+        backgroundColor: Colors.white.withValues(alpha: 0.05),
         color: const Color(0xFFE2B4FF),
         fontFamily: 'JetBrains Mono',
-        fontSize: FontSize(14.0),
-        padding: HtmlPaddings.symmetric(horizontal: 6.0, vertical: 2.0),
+        fontSize: FontSize(14),
+        padding: HtmlPaddings.symmetric(horizontal: 6, vertical: 2),
       ),
-      "pre": Style(
-        backgroundColor: Colors.black.withOpacity(0.4),
+      'pre': Style(
+        backgroundColor: Colors.black.withValues(alpha: 0.4),
         padding: HtmlPaddings.zero,
-        margin: Margins.only(top: 16.0, bottom: 24.0),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        margin: Margins.only(top: 16, bottom: 24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
-      "blockquote": Style(
-        margin: Margins.only(left: 0, right: 0, bottom: 16.0),
-        padding: HtmlPaddings.only(left: 16.0, top: 4.0, bottom: 4.0),
+      'blockquote': Style(
+        margin: Margins.only(left: 0, right: 0, bottom: 16),
+        padding: HtmlPaddings.only(left: 16, top: 4, bottom: 4),
         border: Border(
-          left: BorderSide(color: const Color(0xFF64B5F6), width: 4.0),
+          left: BorderSide(color: const Color(0xFF64B5F6), width: 4),
         ),
-        color: Colors.white.withOpacity(0.6),
+        color: Colors.white.withValues(alpha: 0.6),
         fontStyle: FontStyle.italic,
       ),
-      "a": Style(
+      'a': Style(
         color: const Color(0xFF64B5F6),
         textDecoration: TextDecoration.none,
       ),
@@ -2137,13 +2139,13 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
   }
 
   Widget _buildCodeBlock(String code, String language) {
-    final bool isBlock = code.contains('\n');
+    final isBlock = code.contains('\n');
 
     if (!isBlock) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
@@ -2160,9 +2162,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2173,7 +2175,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withValues(alpha: 0.03),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(12),
               ),
@@ -2187,7 +2189,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                       color: Colors.white24,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
+                      letterSpacing: 1,
                     ),
                   ),
                 const Spacer(),
@@ -2220,8 +2222,8 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
 }
 
 class _CopyButton extends StatefulWidget {
-  final String text;
   const _CopyButton({required this.text});
+  final String text;
 
   @override
   State<_CopyButton> createState() => _CopyButtonState();
@@ -2270,8 +2272,8 @@ class _CopyButtonState extends State<_CopyButton> {
 }
 
 class _SearchPosition {
+  const _SearchPosition({this.top, this.right, this.left});
   final double? top;
   final double? right;
   final double? left;
-  const _SearchPosition({this.top, this.right, this.left});
 }

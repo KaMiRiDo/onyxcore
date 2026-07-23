@@ -1,14 +1,15 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/archive_manager/services/archive_service.dart';
-import 'package:onyxcore/features/archive_manager/presentation/widgets/password_dialog.dart';
-import 'package:onyxcore/features/archive_manager/presentation/widgets/compress_dialog.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/core/widgets/toast_helper.dart';
 import 'package:onyxcore/app.dart';
+import 'package:onyxcore/core/widgets/toast_helper.dart';
+import 'package:onyxcore/features/archive_manager/presentation/widgets/compress_dialog.dart';
+import 'package:onyxcore/features/archive_manager/presentation/widgets/password_dialog.dart';
+import 'package:onyxcore/features/archive_manager/services/archive_service.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:path/path.dart' as p;
 
 class ArchiveProviderNotifier extends Notifier<void> {

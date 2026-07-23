@@ -6,21 +6,21 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:path/path.dart' as p;
 
 class CompressDialogResult {
-  final String archiveName;
-  final String format;
-  final String? password;
 
   CompressDialogResult({
     required this.archiveName,
     required this.format,
     this.password,
   });
+  final String archiveName;
+  final String format;
+  final String? password;
 }
 
 class CompressDialog extends StatefulWidget {
-  final List<String> sourcePaths;
 
-  const CompressDialog({super.key, required this.sourcePaths});
+  const CompressDialog({required this.sourcePaths, super.key});
+  final List<String> sourcePaths;
 
   static Future<CompressDialogResult?> show(
     BuildContext context,
@@ -48,7 +48,7 @@ class _CompressDialogState extends State<CompressDialog> {
   @override
   void initState() {
     super.initState();
-    String defaultName = 'archive';
+    var defaultName = 'archive';
     if (widget.sourcePaths.isNotEmpty) {
       if (widget.sourcePaths.length == 1) {
         defaultName = p.basenameWithoutExtension(widget.sourcePaths.first);
@@ -99,12 +99,12 @@ class _CompressDialogState extends State<CompressDialog> {
           child: Container(
             width: 480,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E).withOpacity(0.85),
+              color: const Color(0xFF1E1E1E).withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 40,
                   offset: const Offset(0, 20),
                 ),
@@ -122,7 +122,7 @@ class _CompressDialogState extends State<CompressDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "ARCHIVE NAME",
+                        'ARCHIVE NAME',
                         style: GoogleFonts.manrope(
                           color: Colors.white24,
                           fontSize: 10,
@@ -131,10 +131,10 @@ class _CompressDialogState extends State<CompressDialog> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildTextField(_nameController, "Enter archive name"),
+                      _buildTextField(_nameController, 'Enter archive name'),
                       const SizedBox(height: 24),
                       Text(
-                        "FORMAT",
+                        'FORMAT',
                         style: GoogleFonts.manrope(
                           color: Colors.white24,
                           fontSize: 10,
@@ -146,7 +146,7 @@ class _CompressDialogState extends State<CompressDialog> {
                       _buildFormatSelector(),
                       const SizedBox(height: 24),
                       Text(
-                        "PASSWORD (OPTIONAL)",
+                        'PASSWORD (OPTIONAL)',
                         style: GoogleFonts.manrope(
                           color: Colors.white24,
                           fontSize: 10,
@@ -179,7 +179,7 @@ class _CompressDialogState extends State<CompressDialog> {
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient.withOpacity(0.2),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.violet.withOpacity(0.3)),
+              border: Border.all(color: AppColors.violet.withValues(alpha: 0.3)),
             ),
             child: const Icon(
               Icons.folder_zip_rounded,
@@ -206,7 +206,7 @@ class _CompressDialogState extends State<CompressDialog> {
       decoration: BoxDecoration(
         color: Colors.black26,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.violet.withOpacity(0.2)),
+        border: Border.all(color: AppColors.violet.withValues(alpha: 0.2)),
       ),
       child: TextField(
         controller: controller,
@@ -231,7 +231,7 @@ class _CompressDialogState extends State<CompressDialog> {
       decoration: BoxDecoration(
         color: Colors.black26,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.violet.withOpacity(0.2)),
+        border: Border.all(color: AppColors.violet.withValues(alpha: 0.2)),
       ),
       child: TextField(
         controller: _passwordController,
@@ -244,7 +244,7 @@ class _CompressDialogState extends State<CompressDialog> {
             vertical: 18,
           ),
           border: InputBorder.none,
-          hintText: "Enter password to encrypt",
+          hintText: 'Enter password to encrypt',
           hintStyle: const TextStyle(color: Colors.white12),
           suffixIcon: IconButton(
             icon: Icon(
@@ -277,13 +277,13 @@ class _CompressDialogState extends State<CompressDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: isActive
-                    ? AppColors.violet.withOpacity(0.2)
-                    : Colors.white.withOpacity(0.03),
+                    ? AppColors.violet.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.03),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isActive
                       ? AppColors.violet
-                      : Colors.white.withOpacity(0.05),
+                      : Colors.white.withValues(alpha: 0.05),
                 ),
               ),
               child: Text(
@@ -324,7 +324,7 @@ class _CompressDialogState extends State<CompressDialog> {
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: AppColors.violet.withOpacity(0.3),
+                color: AppColors.violet.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),

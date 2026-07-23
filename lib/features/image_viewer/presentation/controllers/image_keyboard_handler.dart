@@ -2,22 +2,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 class ImageKeyboardHandler {
-  final VoidCallback onClose;
-  final void Function({required bool permanent}) onDelete;
-  final VoidCallback onToggleSidebar;
-  final VoidCallback onZoomIn;
-  final VoidCallback onZoomOut;
-  final VoidCallback onResetZoom;
-  final void Function({required bool isKeyRepeat}) onNavigateForward;
-  final void Function({required bool isKeyRepeat}) onNavigateBackward;
-  final VoidCallback onNavigateHistoryForward;
-  final VoidCallback onNavigateHistoryBackward;
-  final VoidCallback onToggleFullscreen;
-  final bool Function() isSidebarOpen;
-  final bool isStandalone;
-  final bool isWindowed;
-
-  DateTime? _lastNavTime;
 
   ImageKeyboardHandler({
     required this.onClose,
@@ -35,6 +19,22 @@ class ImageKeyboardHandler {
     required this.isStandalone,
     required this.isWindowed,
   });
+  final VoidCallback onClose;
+  final void Function({required bool permanent}) onDelete;
+  final VoidCallback onToggleSidebar;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onResetZoom;
+  final void Function({required bool isKeyRepeat}) onNavigateForward;
+  final void Function({required bool isKeyRepeat}) onNavigateBackward;
+  final VoidCallback onNavigateHistoryForward;
+  final VoidCallback onNavigateHistoryBackward;
+  final VoidCallback onToggleFullscreen;
+  final bool Function() isSidebarOpen;
+  final bool isStandalone;
+  final bool isWindowed;
+
+  DateTime? _lastNavTime;
 
   KeyEventResult handleKeyEvent(KeyEvent event) {
     final ctrl = HardwareKeyboard.instance.isControlPressed;

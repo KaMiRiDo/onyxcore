@@ -538,7 +538,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
   void _parseProgress(String id, String rawData) {
     // Strip ANSI escape codes (colors, clear lines) before parsing
-    var data = rawData.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
+    final data = rawData.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
 
     void updateWithProgress(
       double percentage, {

@@ -1,37 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_components.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:onyxcore/core/widgets/bubble_loader.dart';
 
 class StandaloneWindowMediaGrid extends StatelessWidget {
   const StandaloneWindowMediaGrid({
-    super.key,
-    required this.listPath,
-    required this.isTrashView,
-    required this.groups,
-    required this.currentGroup,
-    required this.selectedIndices,
-    required this.downloadingImageIndices,
-    required this.getConfig,
+    required this.listPath, required this.isTrashView, required this.groups, required this.currentGroup, required this.selectedIndices, required this.downloadingImageIndices, required this.getConfig, required this.isHydratingItem, required this.onTapItem, required this.onDoubleTapItem, required this.onRestoreTrashItem, required this.onFormatChanged, required this.onFilterChanged, required this.onStartDownload, required this.mainFocusNode, required this.matchTargetFormat, required this.getHeight, required this.getFormatBytes, required this.onTagItem, super.key,
     this.currentGroupRootIndex,
-    required this.isHydratingItem,
-    required this.onTapItem,
-    required this.onDoubleTapItem,
-    required this.onRestoreTrashItem,
-    required this.onFormatChanged,
-    required this.onFilterChanged,
-    required this.onStartDownload,
-    required this.mainFocusNode,
-    required this.matchTargetFormat,
-    required this.getHeight,
-    required this.getFormatBytes,
-    required this.onTagItem,
     this.scrollController,
     this.tagKeys = const {},
     this.trash = const [],
@@ -105,7 +86,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
     }
 
     final displayIndices = <int>[];
-    for (int i = 0; i < groups.length; i++) {
+    for (var i = 0; i < groups.length; i++) {
       displayIndices.add(i);
     }
 
@@ -116,9 +97,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
       },
       behavior: HitTestBehavior.opaque,
       child: CustomScrollView(
-        controller: scrollController,
+        // ignore: deprecated_member_use
+        cacheExtent: 1000.0, controller: scrollController,
         key: PageStorageKey<String>(isTrashView ? 'trash_$listPath' : listPath),
-        cacheExtent: 1000,
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(16),
@@ -157,8 +138,8 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
           }
 
           final isSelected = selectedIndices.contains(index);
-          final String? tag = currentGroup == null ? group.tag : firstItem?.tag;
-          final bool isTagged = tag != null && tag.isNotEmpty;
+          final tag = currentGroup == null ? group.tag : firstItem?.tag;
+          final isTagged = tag != null && tag.isNotEmpty;
           final itemUrl = currentGroup == null ? group.originalUrl : (firstItem?.id ?? '');
           final globalKey = isTagged ? (tagKeys[itemUrl] ??= GlobalKey()) : null;
 
@@ -206,7 +187,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                   children: [
                     Builder(
                       builder: (context) {
-                        bool showThumbnail = firstItem?.thumbnail != null;
+                        var showThumbnail = firstItem?.thumbnail != null;
                         if (showThumbnail && currentGroup != null && currentGroup!.items.isNotEmpty && (currentGroup!.first.isProfile || currentGroup!.first.isPlaylist)) {
                           if (firstItem!.thumbnail == currentGroup!.first.thumbnail) {
                             showThumbnail = false;
@@ -634,7 +615,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                   child: Row(
                     children: [
                       const Padding(
-                        padding: EdgeInsets.only(left: 8.0, right: 4.0),
+                        padding: EdgeInsets.only(left: 8, right: 4),
                         child: Icon(Icons.sell, size: 14, color: Colors.amber),
                       ),
                       Expanded(
@@ -649,7 +630,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                             hintStyle: TextStyle(color: Colors.amber.withValues(alpha: 0.5)),
                             isDense: true,
                             counterText: '',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                            contentPadding: const EdgeInsets.symmetric(),
                             border: InputBorder.none,
                           ),
                           onSubmitted: (val) {

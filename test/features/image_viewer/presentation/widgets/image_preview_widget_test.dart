@@ -1,17 +1,18 @@
 // ignore_for_file: avoid_dynamic_calls
 import 'dart:io';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
-import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -96,7 +97,6 @@ void main() {
               home: Scaffold(
                 body: ImagePreviewWidget(
                   item: dummyPng,
-                  isStandalone: false,
                 ),
               ),
             ),
@@ -130,7 +130,6 @@ void main() {
               home: Scaffold(
                 body: ImagePreviewWidget(
                   item: dummySvg,
-                  isStandalone: false,
                 ),
               ),
             ),
@@ -154,7 +153,6 @@ void main() {
               home: Scaffold(
                 body: ImagePreviewWidget(
                   item: dummyHeic,
-                  isStandalone: false,
                 ),
               ),
             ),
@@ -245,7 +243,6 @@ void main() {
               home: Scaffold(
                 body: ImagePreviewWidget(
                   item: dummyPng,
-                  isStandalone: false,
                 ),
               ),
             ),
@@ -314,7 +311,6 @@ void main() {
               home: Scaffold(
                 body: ImagePreviewWidget(
                   item: dummyPng,
-                  isStandalone: false,
                 ),
               ),
             ),
@@ -428,7 +424,6 @@ void main() {
               home: Scaffold(
                 body: ImagePreviewWidget(
                   item: dummyPng,
-                  isStandalone: false,
                 ),
               ),
             ),

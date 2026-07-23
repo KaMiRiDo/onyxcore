@@ -1,13 +1,9 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:isolate';
+import 'dart:math';
 
 /// Represents a progress update from the directory size calculation isolate.
 class DirectorySizeUpdate {
-  final int size;
-  final int filesCount;
-  final int foldersCount;
-  final bool isFinished;
 
   DirectorySizeUpdate({
     required this.size,
@@ -15,19 +11,23 @@ class DirectorySizeUpdate {
     required this.foldersCount,
     required this.isFinished,
   });
+  final int size;
+  final int filesCount;
+  final int foldersCount;
+  final bool isFinished;
 }
 
 /// The arguments passed to the Isolate.
 class DirectorySizeArgs {
-  final List<String> paths;
-  final SendPort sendPort;
-  final int updateFrequency;
 
   DirectorySizeArgs({
     required this.paths,
     required this.sendPort,
     this.updateFrequency = 500,
   });
+  final List<String> paths;
+  final SendPort sendPort;
+  final int updateFrequency;
 }
 
 /// Top-level function designed to be run in an Isolate via Isolate.spawn()
@@ -37,9 +37,9 @@ void calculateDirectorySizeIncremental(DirectorySizeArgs args) {
 }
 
 Future<void> _processDirectoryAsync(DirectorySizeArgs args) async {
-  int totalSize = 0;
-  int filesCount = 0;
-  int foldersCount = 0;
+  var totalSize = 0;
+  var filesCount = 0;
+  var foldersCount = 0;
 
   try {
     for (final path in args.paths) {
@@ -92,9 +92,9 @@ Future<void> _processDirectoryAsync(DirectorySizeArgs args) async {
 
 /// Helper method to format bytes into readable strings (KB, MB, GB)
 String formatBytes(int bytes) {
-  if (bytes <= 0) return "0 B";
-  const suffixes = ["B", "KB", "MB", "GB", "TB"];
-  int i = (log(bytes) / log(1024)).floor();
+  if (bytes <= 0) return '0 B';
+  const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var i = (log(bytes) / log(1024)).floor();
   if (i >= suffixes.length) i = suffixes.length - 1;
   return '${(bytes / pow(1024, i)).toStringAsFixed(2)} ${suffixes[i]}';
 }

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
 class ZoomAnimationEngine {
-  final AnimationController _animationController;
-  final void Function(Matrix4) onTick;
-  Animation<Matrix4>? _zoomAnimation;
 
   ZoomAnimationEngine({
     required AnimationController animationController,
@@ -11,6 +8,9 @@ class ZoomAnimationEngine {
   }) : _animationController = animationController {
     _animationController.addListener(_onAnimationTick);
   }
+  final AnimationController _animationController;
+  final void Function(Matrix4) onTick;
+  Animation<Matrix4>? _zoomAnimation;
 
   void _onAnimationTick() {
     if (_zoomAnimation != null) {

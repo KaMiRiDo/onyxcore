@@ -9,7 +9,7 @@ import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.
 class FakeSettingsNotifier extends AsyncNotifier<AppSettings> implements SettingsNotifier {
   @override
   Future<AppSettings> build() async {
-    return const AppSettings(openInStandaloneMode: true);
+    return const AppSettings();
   }
   
   @override

@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 
 class MatrixClampEngine {
   /// Clamps the translation of [matrix] such that the image stays within the viewport boundaries.

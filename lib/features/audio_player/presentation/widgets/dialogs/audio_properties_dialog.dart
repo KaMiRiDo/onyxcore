@@ -1,29 +1,29 @@
 import 'dart:io';
+
+import 'package:audiotags/audiotags.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:path/path.dart' as p;
-import 'package:intl/intl.dart';
 import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
-import 'package:audiotags/audiotags.dart';
+import 'package:path/path.dart' as p;
 
 class AudioPropertiesDialog extends StatefulWidget {
+
+  const AudioPropertiesDialog({
+    required this.path, super.key,
+    this.testTag,
+    this.testProperties,
+    this.testStat,
+  });
   final String path;
 
   /// Optional overrides for testing — bypasses FFI and filesystem calls.
   final Tag? testTag;
   final AudioProperties? testProperties;
   final FileStat? testStat;
-
-  const AudioPropertiesDialog({
-    super.key,
-    required this.path,
-    this.testTag,
-    this.testProperties,
-    this.testStat,
-  });
 
   static Future<void> show(BuildContext context, String path) {
     return showDialog(
@@ -75,8 +75,9 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -100,12 +101,12 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
           child: Container(
             width: 500,
             decoration: BoxDecoration(
-              color: const Color(0xFF161616).withOpacity(0.98),
+              color: const Color(0xFF161616).withValues(alpha: 0.98),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   blurRadius: 40,
                   offset: const Offset(0, 20),
                 ),
@@ -196,7 +197,7 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -205,9 +206,9 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
           Text(
             'AUDIO INFORMATION',
             style: AppTheme.labelStyle.copyWith(
-              letterSpacing: 2.0,
+              letterSpacing: 2,
               fontSize: 14,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -232,7 +233,7 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
           fontSize: 12,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.5,
-          color: AppColors.violet.withOpacity(0.8),
+          color: AppColors.violet.withValues(alpha: 0.8),
         ),
       ),
     );
@@ -265,7 +266,7 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
                     value,
                     style: GoogleFonts.manrope(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w600,
                     ),
                   )
@@ -273,7 +274,7 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
                     value,
                     style: GoogleFonts.manrope(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -287,8 +288,8 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.1),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+        color: Colors.black.withValues(alpha: 0.1),
+        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,

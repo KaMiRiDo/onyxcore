@@ -7,13 +7,7 @@ import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.
 
 class StandaloneWindowHeader extends StatelessWidget {
   const StandaloneWindowHeader({
-    super.key,
-    required this.urlController,
-    required this.urlFocusNode,
-    required this.gradientController,
-    required this.onFetch,
-    required this.selectedEngine,
-    required this.onEngineChanged,
+    required this.urlController, required this.urlFocusNode, required this.gradientController, required this.onFetch, required this.selectedEngine, required this.onEngineChanged, super.key,
   });
 
   final TextEditingController urlController;
@@ -186,7 +180,7 @@ class _GradientBorderPainter extends CustomPainter {
     AppColors.indigo,
     AppColors.magenta,
   ];
-  final double radius = 12.0;
+  final double radius = 12;
   final double strokeWidth = 1.5;
 
   @override

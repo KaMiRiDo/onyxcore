@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,19 +12,18 @@ import 'package:onyxcore/core/playlist/playlist_providers.dart';
 import 'package:onyxcore/core/playlist/playlist_tile.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_popover.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:path/path.dart' as p;
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
-import 'dart:io';
+import 'package:path/path.dart' as p;
 
 /// Abstract base widget for media playlist sidebars.
 ///
@@ -35,9 +36,6 @@ import 'dart:io';
 /// - Tile metadata (subtitle, cover art, active indicator)
 /// - The media file type filter
 abstract class PlaylistSidebarBase extends ConsumerStatefulWidget {
-  final void Function(List<String> paths)? onDelete;
-  final void Function(List<String> paths)? onMove;
-  final VoidCallback? onReload;
 
   const PlaylistSidebarBase({
     super.key,
@@ -45,6 +43,9 @@ abstract class PlaylistSidebarBase extends ConsumerStatefulWidget {
     this.onMove,
     this.onReload,
   });
+  final void Function(List<String> paths)? onDelete;
+  final void Function(List<String> paths)? onMove;
+  final VoidCallback? onReload;
 }
 
 abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
@@ -184,7 +185,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     final isCtrl = HardwareKeyboard.instance.isControlPressed;
 
     final selection = ref.read(config.selectionProvider);
-    int? anchor = ref.read(config.selectionAnchorProvider);
+    final anchor = ref.read(config.selectionAnchorProvider);
     final newSelection = Set<String>.from(selection);
 
     if (isShift && anchor != null) {
@@ -212,7 +213,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
 
   // ── Folder Navigation ──────────────────────────────────────────────────────
 
-  void openFolder(WidgetRef ref, String path) async {
+  Future<void> openFolder(WidgetRef ref, String path) async {
     final repo = ref.read(directoryRepositoryProvider);
     final showHidden = ref.read(config.showHiddenProvider);
 
@@ -246,7 +247,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
         }
       });
     } catch (e) {
-      debugPrint("Error opening folder: $e");
+      debugPrint('Error opening folder: $e');
     }
   }
 
@@ -289,7 +290,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     final repo = ref.read(directoryRepositoryProvider);
     final taskNotifier = ref.read(taskProvider.notifier);
 
-    final String taskId = taskNotifier.addTask(
+    final taskId = taskNotifier.addTask(
       title: isMove ? 'Moving items' : 'Copying items',
       subtitle: '${paths.length} items to ${p.basename(targetDir)}',
       totalCount: paths.length,
@@ -297,7 +298,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
       targetPath: targetDir,
     );
 
-    int totalSizeBytes = 0;
+    var totalSizeBytes = 0;
     for (final path in paths) {
       try {
         final stat = FileStat.statSync(path);
@@ -306,10 +307,10 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     }
     taskNotifier.updateByteCounts(taskId, 0, totalSizeBytes);
 
-    int totalBytesProcessed = 0;
+    var totalBytesProcessed = 0;
 
     try {
-      for (int i = 0; i < paths.length; i++) {
+      for (var i = 0; i < paths.length; i++) {
         if (taskNotifier.isTaskCancelled(taskId)) break;
 
         final sourcePath = paths[i];
@@ -319,7 +320,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
         taskNotifier.addLog(taskId, '${isMove ? "Moving" : "Copying"} $fileName...');
         taskNotifier.updateCurrentItem(taskId, fileName);
 
-        int lastItemBytesProcessed = 0;
+        var lastItemBytesProcessed = 0;
         void onProgress(int bytesCopied) {
           final delta = bytesCopied - lastItemBytesProcessed;
           lastItemBytesProcessed = bytesCopied;
@@ -334,7 +335,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
         final isLastOperation = i == paths.length - 1;
         void onSyncing() {
           if (isLastOperation) {
-            taskNotifier.setSyncing(taskId, true);
+            taskNotifier.setSyncing(taskId);
             taskNotifier.addLog(taskId, 'Syncing to disk...');
           }
         }
@@ -410,7 +411,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
       } else if (result is Map) {
         final mode = result['mode'] as RenameMode;
         final value = result['value'] as String;
-        List<String> newPaths = [];
+        var newPaths = <String>[];
         final taskId = taskNotifier.addTask(
           title: 'Bulk renaming ${paths.length} items',
           subtitle: mode == RenameMode.prefix ? 'Prefix: $value' : 'Index: $value',
@@ -464,10 +465,10 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     final relativePath = p.relative(currentPath, from: baseDir);
     final allSegments = p.split(relativePath);
 
-    List<Widget> breadcrumbWidgets = [];
-    String accumulatedPath = baseDir;
+    final breadcrumbWidgets = <Widget>[];
+    var accumulatedPath = baseDir;
 
-    for (int i = 0; i < allSegments.length; i++) {
+    for (var i = 0; i < allSegments.length; i++) {
       final segment = allSegments[i];
       accumulatedPath = p.join(accumulatedPath, segment);
       final isLast = i == allSegments.length - 1;
@@ -485,7 +486,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
             color: isLast
-                ? Colors.white.withOpacity(0.1)
+                ? Colors.white.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
@@ -525,7 +526,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
               final isOver = candidateData.isNotEmpty;
               return Container(
                 decoration: BoxDecoration(
-                  color: isOver ? AppColors.violet.withOpacity(0.2) : Colors.transparent,
+                  color: isOver ? AppColors.violet.withValues(alpha: 0.2) : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: inkWell,
@@ -595,7 +596,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
               },
               borderRadius: BorderRadius.circular(4),
               child: Padding(
-                padding: const EdgeInsets.all(4.0),
+                padding: const EdgeInsets.all(4),
                 child: ref.watch(config.showHiddenProvider)
                     ? ShaderMask(
                         shaderCallback: (bounds) =>
@@ -621,7 +622,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
               onTap: onReloadTap,
               borderRadius: BorderRadius.circular(4),
               child: const Padding(
-                padding: EdgeInsets.all(4.0),
+                padding: EdgeInsets.all(4),
                 child: Icon(
                   Icons.refresh_rounded,
                   color: Colors.white38,
@@ -653,7 +654,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppColors.magenta.withOpacity(0.15)
+                  ? AppColors.magenta.withValues(alpha: 0.15)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
             ),
@@ -699,8 +700,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
 
     buildListeners();
 
-    int activeIndex = -1;
-    for (int i = 0; i < queue.length; i++) {
+    var activeIndex = -1;
+    for (var i = 0; i < queue.length; i++) {
       if (isItemActive(ref, queue[i])) {
         activeIndex = i;
         break;
@@ -712,8 +713,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !scrollController.hasClients) return;
         
-        final double itemHeight = 68.0;
-        final double targetOffset = activeIndex * itemHeight;
+        const itemHeight = 68;
+        final targetOffset = activeIndex * itemHeight;
         
         final currentOffset = scrollController.offset;
         final viewportHeight = scrollController.position.viewportDimension;
@@ -721,7 +722,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
         // Check if item is completely out of view or partially obscured
         if (targetOffset < currentOffset || targetOffset + itemHeight > currentOffset + viewportHeight) {
           // Scroll to center the item
-          double scrollOffset = targetOffset - (viewportHeight / 2) + (itemHeight / 2);
+          var scrollOffset = targetOffset - (viewportHeight / 2) + (itemHeight / 2);
           // Don't scroll past the boundaries
           final maxExtent = scrollController.position.maxScrollExtent;
           if (maxExtent > 0) {
@@ -741,7 +742,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
       decoration: BoxDecoration(
         color: const Color(0xFF181818), // Matte dark grey
         border: Border(
-          right: BorderSide(color: Colors.white.withOpacity(0.03)),
+          right: BorderSide(color: Colors.white.withValues(alpha: 0.03)),
         ),
       ),
       child: GestureDetector(
@@ -784,10 +785,10 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                               color: Colors.white70,
                               size: 20,
                             ),
-                            tooltip: "Sort",
+                            tooltip: 'Sort',
                             onPressed: () {
-                              final RenderBox box =
-                                  context.findRenderObject() as RenderBox;
+                              final box =
+                                  context.findRenderObject()! as RenderBox;
                               final position = box.localToGlobal(Offset.zero);
                               SortOverlay.show(
                                 context: context,
@@ -817,7 +818,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
 
             // Search Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SizedBox(
                 height: 36,
                 child: TextField(
@@ -831,7 +832,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                       size: 18,
                     ),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.05),
+                    fillColor: Colors.white.withValues(alpha: 0.05),
                     contentPadding: EdgeInsets.zero,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -864,8 +865,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                 },
                 child: Stack(
                   children: [
-                    queue.isEmpty
-                        ? Center(
+                    if (queue.isEmpty) Center(
                             child: Text(
                               isFavoritesMode
                                   ? favoritesEmptyStateText
@@ -875,18 +875,17 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                                 fontSize: 14,
                               ),
                             ),
-                          )
-                        : ListView.builder(
+                          ) else ListView.builder(
                             controller: scrollController,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemExtent: 68.0,
+                            itemExtent: 68,
                             itemCount: queue.length,
                           itemBuilder: (context, index) {
                             final item = queue[index];
                             final isActive = isItemActive(ref, item);
                             final isItemSelected = selection.contains(item.path);
 
-                            Widget tileWidget = MediaTile(
+                            final Widget tileWidget = MediaTile(
                               item: item,
                               isActive: isActive,
                               isSelected: isItemSelected,
@@ -905,8 +904,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                                     item.path,
                                   };
                                 }
-                                final RenderBox box =
-                                    tileContext.findRenderObject() as RenderBox;
+                                final box =
+                                    tileContext.findRenderObject()! as RenderBox;
                                 // Align context menu strictly to the right side of the list tile
                                 final position = box.localToGlobal(
                                   Offset(box.size.width, 24),
@@ -943,7 +942,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                               },
                             );
 
-                            Widget draggableWidget = Draggable<List<String>>(
+                            final Widget draggableWidget = Draggable<List<String>>(
                               data: isItemSelected
                                   ? selection.toList()
                                   : [item.path],
@@ -955,11 +954,11 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                                     width: 250,
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF181818).withOpacity(0.95),
+                                      color: const Color(0xFF181818).withValues(alpha: 0.95),
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                                       boxShadow: [
-                                        BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4)),
+                                        BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 4)),
                                       ],
                                     ),
                                     child: Text(
@@ -1002,7 +1001,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                                   return Container(
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
-                                      color: isOver ? AppColors.violet.withOpacity(0.15) : null,
+                                      color: isOver ? AppColors.violet.withValues(alpha: 0.15) : null,
                                     ),
                                     child: draggableWidget,
                                   );
@@ -1015,8 +1014,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                         ),
                   if (ref.watch(config.isReloadingProvider))
                     Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withOpacity(0.1),
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.1),
                         child: const Center(
                           child: BubbleLoader(size: 48),
                         ),
@@ -1042,7 +1041,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
       decoration: BoxDecoration(
         color: const Color(0xFF141414),
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.03)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.03)),
         ),
       ),
       child: Row(
@@ -1050,15 +1049,15 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
         children: [
           buildNavItem(
             icon: Icons.home_rounded,
-            label: "Home",
+            label: 'Home',
             isSelected: !isFavoritesMode,
-            onTap: () => onHomeNavTap(),
+            onTap: onHomeNavTap,
           ),
           buildNavItem(
             icon: Icons.favorite_rounded,
-            label: "Favorites",
+            label: 'Favorites',
             isSelected: isFavoritesMode,
-            onTap: () => onFavoritesNavTap(),
+            onTap: onFavoritesNavTap,
           ),
         ],
       ),

@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
@@ -7,22 +7,19 @@ import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/video_player/presentation/lifecycle/player_initializer.dart';
-import 'package:path/path.dart' as p;
-import 'package:flutter/services.dart';
 
 class MockPlayer extends Mock implements Player {}
 class MockPlatform extends Mock implements PlatformPlayer {
   final Map<String, String> properties = {};
   
-  @override
   Future<void> setProperty(String property, String value) async {
     properties[property] = value;
   }
 }
 
 class MockSettingsNotifier extends SettingsNotifier {
-  final AppSettings settings;
   MockSettingsNotifier(this.settings);
+  final AppSettings settings;
   
   @override
   Future<AppSettings> build() async => settings;
@@ -106,7 +103,7 @@ void main() {
       expect(mockPlatform.properties['vd-lavc-dr'], equals('no'));
       expect(mockPlatform.properties['hwdec'], equals('vaapi,nvdec,vdpau,auto-safe'));
       
-      verify(() => mockPlayer.setVolume(30.0)).called(1);
+      verify(() => mockPlayer.setVolume(30)).called(1);
     });
 
     testWidgets('configures network stream settings correctly with yt-dlp params', (tester) async {
@@ -145,7 +142,6 @@ void main() {
 
     testWidgets('configures hwdec when auto and cached is available', (tester) async {
       final ref = await getTestRef(tester, const AppSettings(
-        selectedHwDec: 'auto',
         cachedResolvedHwDec: 'vaapi',
       ));
 

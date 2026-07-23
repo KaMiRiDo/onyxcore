@@ -15,7 +15,7 @@ class MockImageZoomController extends ImageZoomController {
     onZoomChanged: () {},
   );
   
-  double _mockCurrentScale = 1.0;
+  double _mockCurrentScale = 1;
   @override
   double get currentScale => _mockCurrentScale;
 
@@ -73,7 +73,7 @@ void main() {
       // we assume default is ctrl NOT pressed.
       
       // Wait, in plain dart test, HardwareKeyboard.instance.logicalKeysPressed is empty.
-      final event = PointerScrollEvent(scrollDelta: const Offset(0, 10), position: Offset.zero);
+      final event = PointerScrollEvent(scrollDelta: const Offset(0, 10));
       handler.handlePointerSignal(event);
       
       // If ctrl is not pressed, and scale is 1.0, it shouldn't translate
@@ -87,24 +87,24 @@ void main() {
     });
 
     test('handlePanZoomStart calls startPanZoomGesture', () {
-      final event = PointerPanZoomStartEvent(position: Offset.zero);
+      final event = PointerPanZoomStartEvent();
       handler.handlePanZoomStart(event);
       expect(mockController.startPanZoomGestureCalls, equals(1));
     });
 
     test('handlePanZoomEnd calls endPanZoomGesture', () {
-      final event = PointerPanZoomEndEvent(position: Offset.zero);
+      final event = PointerPanZoomEndEvent();
       handler.handlePanZoomEnd(event);
       expect(mockController.endPanZoomGestureCalls, equals(1));
     });
 
     test('handlePanZoomUpdate without ctrl pinches or translates', () {
-      final eventPinch = PointerPanZoomUpdateEvent(position: Offset.zero, scale: 2.0, panDelta: Offset.zero);
+      final eventPinch = PointerPanZoomUpdateEvent(scale: 2);
       handler.handlePanZoomUpdate(eventPinch);
       expect(mockController.updatePinchGestureCalls, equals(1));
       
       mockController._mockCurrentScale = 2.0;
-      final eventTranslate = PointerPanZoomUpdateEvent(position: Offset.zero, scale: 1.0, panDelta: const Offset(10, 10));
+      final eventTranslate = PointerPanZoomUpdateEvent(panDelta: const Offset(10, 10));
       handler.handlePanZoomUpdate(eventTranslate);
       expect(mockController.applyTranslationCalls, equals(1));
     });

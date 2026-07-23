@@ -8,7 +8,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: VideoEmptyState(isStandalone: false),
+            body: VideoEmptyState(),
           ),
         ),
       );
@@ -22,7 +22,7 @@ void main() {
     });
 
     testWidgets('Renders close button in standalone mode and handles tap', (tester) async {
-      bool closeCalled = false;
+      var closeCalled = false;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(

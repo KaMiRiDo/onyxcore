@@ -3,17 +3,16 @@ import 'dart:io';
 
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 class ImageMetadata {
-  final String? metadataString;
-  final Size? imageSize;
 
   const ImageMetadata({
     this.metadataString,
     this.imageSize,
   });
+  final String? metadataString;
+  final Size? imageSize;
 }
 
 /// Stateless async service. Loads image dimensions and builds a human-readable
@@ -29,7 +28,7 @@ class ImageMetadataLoader {
   ) async {
     final file = File(filePath);
     if (!file.existsSync()) {
-      return const ImageMetadata(metadataString: null, imageSize: null);
+      return const ImageMetadata();
     }
 
     try {
@@ -37,7 +36,6 @@ class ImageMetadataLoader {
       if (isSvg) {
         return const ImageMetadata(
           metadataString: 'Vector Graphic • Scalable',
-          imageSize: null,
         );
       }
 
@@ -59,7 +57,7 @@ class ImageMetadataLoader {
       });
 
       if (size == null) {
-        return const ImageMetadata(metadataString: null, imageSize: null);
+        return const ImageMetadata();
       }
 
       final mp = (size.width * size.height / 1000000).toStringAsFixed(1);
@@ -71,14 +69,14 @@ class ImageMetadataLoader {
       );
     } on TimeoutException {
       // Silently catch timeouts to prevent log spam for very slow images
-      return const ImageMetadata(metadataString: null, imageSize: null);
+      return const ImageMetadata();
     } catch (e) {
       if (e.toString().contains('Invalid image data')) {
         // Silently catch unsupported formats (e.g. attempting to read a video or raw file as an image)
-        return const ImageMetadata(metadataString: null, imageSize: null);
+        return const ImageMetadata();
       }
       debugPrint('Error loading image metadata: $e');
-      return const ImageMetadata(metadataString: null, imageSize: null);
+      return const ImageMetadata();
     }
   }
 }

@@ -1,10 +1,11 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:path/path.dart' as p;
 import 'package:onyxcore/features/video_player/presentation/services/screenshot_service.dart';
+import 'package:path/path.dart' as p;
 
 class MockPlayer extends Mock implements Player {}
 

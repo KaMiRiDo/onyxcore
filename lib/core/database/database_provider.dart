@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'app_database.dart';
+import 'package:onyxcore/core/database/app_database.dart';
 
 /// Global singleton provider for the [AppDatabase].
 ///

@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart' show PlaylistSidebarBase;
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 
 // ── Shared Favorites Notifier ────────────────────────────────────────────────
@@ -17,12 +18,12 @@ enum MediaType { audio, video, image }
 /// [_mediaType]. The Drift [AppDatabase] is accessed via the Riverpod ref
 /// stored in [_ref].
 abstract class MediaFavoritesNotifier extends StateNotifier<Set<String>> {
-  final MediaType _mediaType;
-  Ref? _ref;
 
   MediaFavoritesNotifier(this._mediaType) : super({}) {
     // _ref is injected by the factory provider immediately after construction.
   }
+  final MediaType _mediaType;
+  Ref? _ref;
 
   void setRef(Ref ref) {
     _ref = ref;
@@ -36,13 +37,10 @@ abstract class MediaFavoritesNotifier extends StateNotifier<Set<String>> {
     switch (_mediaType) {
       case MediaType.audio:
         favs = await _db.getAudioFavorites();
-        break;
       case MediaType.video:
         favs = await _db.getVideoFavorites();
-        break;
       case MediaType.image:
         favs = await _db.getImageFavorites();
-        break;
     }
     if (mounted) state = favs;
   }
@@ -53,26 +51,20 @@ abstract class MediaFavoritesNotifier extends StateNotifier<Set<String>> {
       switch (_mediaType) {
         case MediaType.audio:
           _db.removeAudioFavorite(path);
-          break;
         case MediaType.video:
           _db.removeVideoFavorite(path);
-          break;
         case MediaType.image:
           _db.removeImageFavorite(path);
-          break;
       }
     } else {
       state = {...state, path};
       switch (_mediaType) {
         case MediaType.audio:
           _db.addAudioFavorite(path);
-          break;
         case MediaType.video:
           _db.addVideoFavorite(path);
-          break;
         case MediaType.image:
           _db.addImageFavorite(path);
-          break;
       }
     }
   }
@@ -109,10 +101,12 @@ List<FileItem> sortAndFilterQueue({
     result = List.from(result);
     result.sort((a, b) {
       if (sortOption != SortOption.filesFirst) {
-        if (a.type == FileItemType.folder && b.type != FileItemType.folder)
+        if (a.type == FileItemType.folder && b.type != FileItemType.folder) {
           return -1;
-        if (a.type != FileItemType.folder && b.type == FileItemType.folder)
+        }
+        if (a.type != FileItemType.folder && b.type == FileItemType.folder) {
           return 1;
+        }
       }
 
       switch (sortOption) {
@@ -129,10 +123,12 @@ List<FileItem> sortAndFilterQueue({
         case SortOption.sizeLargeToSmall:
           return (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
         case SortOption.filesFirst:
-          if (a.type == FileItemType.folder && b.type != FileItemType.folder)
+          if (a.type == FileItemType.folder && b.type != FileItemType.folder) {
             return 1;
-          if (a.type != FileItemType.folder && b.type == FileItemType.folder)
+          }
+          if (a.type != FileItemType.folder && b.type == FileItemType.folder) {
             return -1;
+          }
           return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       }
     });
@@ -149,6 +145,23 @@ List<FileItem> sortAndFilterQueue({
 /// This avoids virtual dispatch overhead on every `ref.watch` call by using
 /// a concrete data object instead of abstract getters.
 class PlaylistProviderConfig {
+
+  const PlaylistProviderConfig({
+    required this.currentPathProvider,
+    required this.rootPathProvider,
+    required this.pathHistoryProvider,
+    required this.pathForwardHistoryProvider,
+    required this.showHiddenProvider,
+    required this.selectionProvider,
+    required this.selectionAnchorProvider,
+    required this.queueProvider,
+    required this.isReloadingProvider,
+    required this.sortOptionProvider,
+    required this.searchQueryProvider,
+    required this.filteredAndSortedQueueProvider,
+    required this.viewModeProvider,
+    required this.favoritesValue,
+  });
   final StateProvider<String> currentPathProvider;
   final StateProvider<String> rootPathProvider;
   final StateProvider<List<String>> pathHistoryProvider;
@@ -168,21 +181,4 @@ class PlaylistProviderConfig {
 
   /// The favorites mode enum value to compare against viewModeProvider.
   final dynamic favoritesValue;
-
-  const PlaylistProviderConfig({
-    required this.currentPathProvider,
-    required this.rootPathProvider,
-    required this.pathHistoryProvider,
-    required this.pathForwardHistoryProvider,
-    required this.showHiddenProvider,
-    required this.selectionProvider,
-    required this.selectionAnchorProvider,
-    required this.queueProvider,
-    required this.isReloadingProvider,
-    required this.sortOptionProvider,
-    required this.searchQueryProvider,
-    required this.filteredAndSortedQueueProvider,
-    required this.viewModeProvider,
-    required this.favoritesValue,
-  });
 }

@@ -13,7 +13,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: ImageZoomIndicator(scale: 1.0),
+            body: ImageZoomIndicator(scale: 1),
           ),
         ),
       );

@@ -1,23 +1,23 @@
-import "package:onyxcore/features/video_player/presentation/widgets/menu_tooltip.dart";
 import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:onyxcore/core/database/app_database.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/video_player/presentation/overlays/video_bottom_controls.dart';
-import 'package:onyxcore/features/video_player/presentation/state/video_player_state.dart';
-import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
-import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
-import 'package:onyxcore/core/database/database_provider.dart';
-import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
+import 'package:onyxcore/features/video_player/presentation/overlays/video_bottom_controls.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
+import 'package:onyxcore/features/video_player/presentation/state/video_player_state.dart';
 
 class MockPlayer extends Mock implements Player {}
 class FakePlayerState extends Fake implements PlayerState {}
@@ -52,7 +52,7 @@ class MockVideoFavoritesNotifier extends VideoFavoritesNotifier {
 
 void main() {
   setUpAll(() {
-    registerFallbackValue(const Duration());
+    registerFallbackValue(Duration.zero);
   });
 
   group('VideoBottomControls', () {
@@ -78,15 +78,12 @@ void main() {
     late ValueNotifier<bool> playingNotifier;
     late double playbackSpeed;
 
-    late bool onResolutionChangedCalled;
-    late bool onInteractionCalled;
-    late bool onShowSeekIndicatorCalled;
+
     late bool onToggleMuteCalled;
     late bool onToggleFullscreenCalled;
     late bool onNavigateMediaCalled;
     late bool onShowMenuCalled;
-    late bool onOpenMarkerEditorCalled;
-    late bool onMarkerMenuVisibilityChangedCalled;
+
     late bool onStepSeekCalled;
     late bool onStartFastSeekCalled;
     late bool onStopFastSeekCalled;
@@ -109,7 +106,7 @@ void main() {
       when(() => mockPlayerState.position).thenReturn(const Duration(minutes: 1));
       when(() => mockPlayerState.buffer).thenReturn(const Duration(minutes: 1));
       when(() => mockPlayerState.playing).thenReturn(true);
-      when(() => mockPlayerState.volume).thenReturn(100.0);
+      when(() => mockPlayerState.volume).thenReturn(100);
       when(() => mockPlayer.platform).thenReturn(null);
 
       displayState = MockVideoPlayerDisplayState();
@@ -151,15 +148,12 @@ void main() {
       playingNotifier = ValueNotifier<bool>(true);
       playbackSpeed = 1.0;
 
-      onResolutionChangedCalled = false;
-      onInteractionCalled = false;
-      onShowSeekIndicatorCalled = false;
+
       onToggleMuteCalled = false;
       onToggleFullscreenCalled = false;
       onNavigateMediaCalled = false;
       onShowMenuCalled = false;
-      onOpenMarkerEditorCalled = false;
-      onMarkerMenuVisibilityChangedCalled = false;
+
       onStepSeekCalled = false;
       onStartFastSeekCalled = false;
       onStopFastSeekCalled = false;
@@ -174,7 +168,7 @@ void main() {
 
       return ProviderScope(
         overrides: [
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
           databaseProvider.overrideWithValue(MockAppDatabase()),
           videoPlaylistSidebarVisibleProvider.overrideWith((ref) => false),
           videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
@@ -195,9 +189,9 @@ void main() {
                   displayPosition: displayPosition,
                   availableFormats: availableFormats,
                   selectedFormatId: selectedFormatId,
-                  onResolutionChanged: (f) => onResolutionChangedCalled = true,
-                  onInteraction: () => onInteractionCalled = true,
-                  onShowSeekIndicator: () => onShowSeekIndicatorCalled = true,
+                  onResolutionChanged: (f) {},
+                  onInteraction: () {},
+                  onShowSeekIndicator: () {},
                   onToggleMute: () => onToggleMuteCalled = true,
                   onToggleFullscreen: () => onToggleFullscreenCalled = true,
                   onNavigateMedia: (v) => onNavigateMediaCalled = true,
@@ -207,12 +201,12 @@ void main() {
                       menuNotifier.value = child;
                     });
                   },
-                  onOpenMarkerEditor: (m) => onOpenMarkerEditorCalled = true,
+                  onOpenMarkerEditor: (m) {},
                   audioKey: GlobalKey(),
                   subtitleKey: GlobalKey(),
                   speedKey: GlobalKey(),
                   resolutionKey: GlobalKey(),
-                  onMarkerMenuVisibilityChanged: (v) => onMarkerMenuVisibilityChangedCalled = true,
+                  onMarkerMenuVisibilityChanged: (v) {},
                   onStepSeek: ({required isForward}) => onStepSeekCalled = true,
                   onStartFastSeek: ({required isForward}) => onStartFastSeekCalled = true,
                   onStopFastSeek: () => onStopFastSeekCalled = true,
@@ -393,8 +387,8 @@ void main() {
       await tester.tap(gesture);
       await tester.pumpAndSettle();
 
-      expect(settingsNotifier.updateCalled, isTrue, reason: "Toggling time text should update settings");
-      expect(settingsNotifier.lastSettings.videoShowRemainingTime, isTrue, reason: "Settings should reflect new state");
+      expect(settingsNotifier.updateCalled, isTrue, reason: 'Toggling time text should update settings');
+      expect(settingsNotifier.lastSettings.videoShowRemainingTime, isTrue, reason: 'Settings should reflect new state');
     });
     
     testWidgets('progress bar updates immediately on seek', (tester) async {
@@ -460,7 +454,7 @@ void main() {
       await tester.pump(); // Pump once, not pumpAndSettle, because timers might be running!
 
       final newSlider = tester.widget<Slider>(find.byType(Slider).first);
-      expect(newSlider.value, isNot(initialValue), reason: "Slider value should update immediately on tap");
+      expect(newSlider.value, isNot(initialValue), reason: 'Slider value should update immediately on tap');
     });
 
     testWidgets('renders all HUD controls even if hasError is true', (tester) async {
@@ -665,7 +659,7 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
       
-      final IconButton button = tester.widget(find.ancestor(of: find.byIcon(Icons.subtitles_outlined), matching: find.byType(IconButton)).first);
+      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.subtitles_outlined), matching: find.byType(IconButton)).first);
       button.onPressed!();
       await tester.pumpAndSettle();
       
@@ -690,7 +684,7 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
       
-      final IconButton button = tester.widget(find.ancestor(of: find.byIcon(Icons.audiotrack_rounded), matching: find.byType(IconButton)).first);
+      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.audiotrack_rounded), matching: find.byType(IconButton)).first);
       button.onPressed!();
       await tester.pumpAndSettle();
       
@@ -701,7 +695,7 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
       
-      final TextButton button = tester.widget(find.byType(TextButton).first);
+      final button = tester.widget<TextButton>(find.byType(TextButton).first);
       button.onPressed!();
       await tester.pumpAndSettle();
       
@@ -712,12 +706,12 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
       
-      final IconButton nextBtn = tester.widget(find.ancestor(of: find.byTooltip('Next Video'), matching: find.byType(IconButton)).first);
+      final nextBtn = tester.widget<IconButton>(find.ancestor(of: find.byTooltip('Next Video'), matching: find.byType(IconButton)).first);
       nextBtn.onPressed!();
       expect(onNavigateMediaCalled, isTrue);
       
       onNavigateMediaCalled = false;
-      final IconButton prevBtn = tester.widget(find.ancestor(of: find.byTooltip('Previous Video'), matching: find.byType(IconButton)).first);
+      final prevBtn = tester.widget<IconButton>(find.ancestor(of: find.byTooltip('Previous Video'), matching: find.byType(IconButton)).first);
       prevBtn.onPressed!();
       expect(onNavigateMediaCalled, isTrue);
     });
@@ -735,7 +729,7 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
 
-      final IconButton button = tester.widget(find.ancestor(of: find.byIcon(Icons.subtitles_outlined), matching: find.byType(IconButton)).first);
+      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.subtitles_outlined), matching: find.byType(IconButton)).first);
       button.onPressed!();
       await tester.pumpAndSettle();
 
@@ -757,7 +751,7 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
 
-      final IconButton button = tester.widget(find.ancestor(of: find.byIcon(Icons.audiotrack_rounded), matching: find.byType(IconButton)).first);
+      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.audiotrack_rounded), matching: find.byType(IconButton)).first);
       button.onPressed!();
       await tester.pumpAndSettle();
 
@@ -772,7 +766,7 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
 
-      final TextButton button = tester.widget(find.byType(TextButton).first);
+      final button = tester.widget<TextButton>(find.byType(TextButton).first);
       button.onPressed!();
       await tester.pumpAndSettle();
 
@@ -789,9 +783,9 @@ void main() {
 
       final sliders = find.byType(Slider);
       final volumeSlider = tester.widget<Slider>(sliders.last);
-      volumeSlider.onChanged!(150.0);
+      volumeSlider.onChanged!(150);
 
-      verify(() => mockPlayer.setVolume(150.0)).called(1);
+      verify(() => mockPlayer.setVolume(150)).called(1);
     });
   });
 }

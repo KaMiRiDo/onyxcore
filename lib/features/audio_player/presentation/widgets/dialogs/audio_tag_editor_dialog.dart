@@ -1,26 +1,27 @@
 import 'dart:io';
+
+import 'package:audiotags/audiotags.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
-import 'package:audiotags/audiotags.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:path/path.dart' as p;
-import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:flutter/foundation.dart';
-import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:path/path.dart' as p;
 
 class AudioTagEditorDialog extends ConsumerStatefulWidget {
+
+  const AudioTagEditorDialog({required this.paths, super.key, this.onRename});
   final List<String> paths;
   final void Function(String oldPath, String newPath)? onRename;
-
-  const AudioTagEditorDialog({super.key, required this.paths, this.onRename});
 
   static Future<void> show(
     BuildContext context,
@@ -93,7 +94,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
       final tag = await AudioMetadataUtils.readTags(widget.paths.first);
       if (tag != null) {
         _initialTag = tag;
-        _titleController.text = tag.title?.isNotEmpty == true
+        _titleController.text = tag.title?.isNotEmpty ?? false
             ? tag.title!
             : p.basenameWithoutExtension(widget.paths.first);
         _artistController.text = tag.trackArtist ?? tag.albumArtist ?? '';
@@ -110,7 +111,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
         if (commonPrefix == null) {
           commonPrefix = basename;
         } else {
-          int i = 0;
+          var i = 0;
           while (i < commonPrefix.length &&
               i < basename.length &&
               commonPrefix[i] == basename[i]) {
@@ -185,7 +186,6 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
               ? p.basename(widget.paths.first)
               : '${widget.paths.length} items',
           totalCount: widget.paths.length,
-          isLight: false, // Make it heavy so it respects concurrency limit
         );
 
     // Capture the ProviderContainer before the widget unmounts
@@ -204,7 +204,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
     String genre,
   ) async {
     final notifier = container.read(taskProvider.notifier);
-    int processed = 0;
+    var processed = 0;
 
     Future<void> processFile(String path) async {
       if (notifier.isTaskCancelled(taskId)) return;
@@ -213,7 +213,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
         final oldTag =
             await AudioMetadataUtils.readTags(path) ?? const Tag(pictures: []);
 
-        List<Picture> newPictures = oldTag.pictures;
+        var newPictures = oldTag.pictures;
         if (_newCoverArt != null) {
           newPictures = [
             Picture(
@@ -262,7 +262,6 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
                 type: item.type,
                 modified: item.modified,
                 sizeBytes: item.sizeBytes,
-                thumbnailPath: null, // Explicitly clear
                 imageAspectRatio: item.imageAspectRatio,
                 itemCount: item.itemCount,
                 isExecutable: item.isExecutable,
@@ -285,7 +284,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
         // the asynchronous image decodes of files that were updated in previous iterations!
 
         // Determine the ultimate path
-        String ultimatePath = path;
+        var ultimatePath = path;
 
         if (widget.paths.length == 1 && title.isNotEmpty) {
           final dir = p.dirname(path);
@@ -311,7 +310,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           final ext = p.extension(path);
           final renameValue = _bulkRenameController.text.trim();
 
-          String newFileName = p.basenameWithoutExtension(path);
+          var newFileName = p.basenameWithoutExtension(path);
           if (_renameMode == BulkRenameMode.baseName) {
             if (renameValue.isNotEmpty) {
               final fileIndex = widget.paths.indexOf(path);
@@ -366,7 +365,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
     }
 
     // Run with max concurrency 1 to prevent native audiotags race conditions
-    int index = 0;
+    var index = 0;
     Future<void> worker() async {
       while (index < widget.paths.length) {
         if (notifier.isTaskCancelled(taskId)) break;
@@ -409,12 +408,12 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           child: Container(
             width: 500,
             decoration: BoxDecoration(
-              color: const Color(0xFF161616).withOpacity(0.98),
+              color: const Color(0xFF161616).withValues(alpha: 0.98),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   blurRadius: 40,
                   offset: const Offset(0, 20),
                 ),
@@ -490,7 +489,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -501,9 +500,9 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
                 ? 'EDIT TAGS'
                 : 'BULK EDIT TAGS (${widget.paths.length})',
             style: AppTheme.labelStyle.copyWith(
-              letterSpacing: 2.0,
+              letterSpacing: 2,
               fontSize: 14,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -541,7 +540,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
             decoration: BoxDecoration(
               color: Colors.black26,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               image: imageProvider != null && !_isProcessingImage
                   ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
                   : null,
@@ -657,18 +656,18 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           ),
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.black.withOpacity(0.3),
+            fillColor: Colors.black.withValues(alpha: 0.3),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -715,24 +714,24 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
   List<Map<String, String>> _getPreviews() {
     // Show up to 20 previews so it is meaningfully scrollable without hanging on massive lists
     final limit = widget.paths.length > 20 ? 20 : widget.paths.length;
-    List<Map<String, String>> previews = [];
+    final previews = <Map<String, String>>[];
     final value = _bulkRenameController.text.trim();
 
-    for (int i = 0; i < limit; i++) {
+    for (var i = 0; i < limit; i++) {
       final original = p.basename(widget.paths[i]);
-      String newName = original;
+      var newName = original;
 
       final ext = p.extension(original);
       if (_renameMode == BulkRenameMode.baseName) {
         if (value.isNotEmpty) {
-          newName = "${value}_${i + 1}$ext";
+          newName = '${value}_${i + 1}$ext';
         }
       } else if (_renameMode == BulkRenameMode.prefix) {
-        String base = p.basenameWithoutExtension(original);
+        var base = p.basenameWithoutExtension(original);
         if (_commonPrefix.isNotEmpty && base.startsWith(_commonPrefix)) {
           base = base.substring(_commonPrefix.length);
         }
-        newName = "$value$base$ext";
+        newName = '$value$base$ext';
       }
 
       previews.add({
@@ -749,7 +748,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "PREVIEW",
+          'PREVIEW',
           style: GoogleFonts.manrope(
             color: Colors.white24,
             fontSize: 10,
@@ -763,7 +762,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           decoration: BoxDecoration(
             color: Colors.black12,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
@@ -862,8 +861,8 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.1),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+        color: Colors.black.withValues(alpha: 0.1),
+        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       ),
       child: Row(
         children: [
@@ -872,7 +871,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
               onPressed: () => Navigator.of(context).pop(),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white70,
-                side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

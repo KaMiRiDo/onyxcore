@@ -1,23 +1,21 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/database/app_database.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:media_kit_video/media_kit_video.dart';
-import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
-import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
+import 'package:onyxcore/core/database/database_provider.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
-import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/video_player/presentation/overlays/video_bottom_controls.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 
 class MockPlayer extends Mock implements Player {}
 
@@ -33,14 +31,11 @@ class MockSettingsNotifier extends SettingsNotifier {
 }
 
 class MockVideoFavoritesNotifier extends VideoFavoritesNotifier {
-  @override
   Set<String> build() => <String>{};
 }
 
 void main() {
-  setUpAll(() {
-    MediaKit.ensureInitialized();
-  });
+  setUpAll(MediaKit.ensureInitialized);
 
   group('VideoPreviewWidget Core Integration', () {
     late MockPlayer mockPlayer;
@@ -70,8 +65,8 @@ void main() {
         () => mockPlayerState.position,
       ).thenReturn(const Duration(minutes: 1));
       when(() => mockPlayerState.playing).thenReturn(true);
-      when(() => mockPlayerState.volume).thenReturn(100.0);
-      when(() => mockPlayerState.rate).thenReturn(1.0);
+      when(() => mockPlayerState.volume).thenReturn(100);
+      when(() => mockPlayerState.rate).thenReturn(1);
       when(() => mockPlayerState.buffering).thenReturn(false);
 
       when(
@@ -82,8 +77,8 @@ void main() {
       ).thenAnswer((_) => Stream.value(const Duration(minutes: 2)));
       when(
         () => mockPlayerStream.volume,
-      ).thenAnswer((_) => Stream.value(100.0));
-      when(() => mockPlayerStream.rate).thenAnswer((_) => Stream.value(1.0));
+      ).thenAnswer((_) => Stream.value(100));
+      when(() => mockPlayerStream.rate).thenAnswer((_) => Stream.value(1));
       when(
         () => mockPlayerStream.playing,
       ).thenAnswer((_) => Stream.value(true));
@@ -113,7 +108,6 @@ void main() {
           modified: now,
           type: FileItemType.video,
         ),
-        isStandalone: false,
       );
     }
 
@@ -128,7 +122,7 @@ void main() {
         ProviderScope(
           overrides: [
             databaseProvider.overrideWithValue(mockAppDatabase),
-            settingsProvider.overrideWith(() => MockSettingsNotifier()),
+            settingsProvider.overrideWith(MockSettingsNotifier.new),
             videoPlaylistSidebarVisibleProvider.overrideWith((ref) => false),
             videoFavoritesProvider.overrideWith(
               (ref) => MockVideoFavoritesNotifier(),
@@ -173,7 +167,7 @@ void main() {
           ProviderScope(
             overrides: [
               databaseProvider.overrideWithValue(mockAppDatabase),
-              settingsProvider.overrideWith(() => MockSettingsNotifier()),
+              settingsProvider.overrideWith(MockSettingsNotifier.new),
               videoPlaylistSidebarVisibleProvider.overrideWith((ref) => false),
               videoFavoritesProvider.overrideWith(
                 (ref) => MockVideoFavoritesNotifier(),
@@ -255,7 +249,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           databaseProvider.overrideWithValue(mockAppDatabase),
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
           videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
           videoMarkersProvider('/mock/video.mp4').overrideWith((ref) => []),
           videoQueueProvider.overrideWith((ref) => [
@@ -292,7 +286,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           databaseProvider.overrideWithValue(mockAppDatabase),
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
           videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
           videoMarkersProvider('/mock/video1.mp4').overrideWith((ref) => []),
           videoMarkersProvider('/mock/video2.mp4').overrideWith((ref) => []),

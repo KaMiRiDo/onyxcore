@@ -1,7 +1,8 @@
 import 'dart:io';
-import 'package:path/path.dart' as p;
+
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:path/path.dart' as p;
 
 /// Generic isolate function that filters a directory listing to only media items
 /// of a specific [FileItemType] and folders containing those media items.
@@ -18,7 +19,7 @@ List<FileItem> processMediaQueueIsolate(Map<String, dynamic> args) {
       .map((e) => FileItem.fromJson(Map<String, dynamic>.from(e as Map)))
       .toList();
 
-  final List<FileItem> result = [];
+  final result = <FileItem>[];
   for (final item in items) {
     if (!showHidden && item.name.startsWith('.')) continue;
 
@@ -28,8 +29,8 @@ List<FileItem> processMediaQueueIsolate(Map<String, dynamic> args) {
       try {
         final dir = Directory(item.path);
         if (dir.existsSync()) {
-          int mediaCount = 0;
-          for (final sub in dir.listSync(recursive: false)) {
+          var mediaCount = 0;
+          for (final sub in dir.listSync()) {
             final subName = p.basename(sub.path);
 
             // Skip hidden sub-files if we are not showing hidden items

@@ -7,16 +7,6 @@ import 'package:onyxcore/features/image_viewer/presentation/providers/image_play
 import 'package:path/path.dart' as p;
 
 class ImageViewerLifecycle {
-  final String? windowId;
-  final bool isStandalone;
-  final FocusNode focusNode;
-  final AnimationController zoomAnimationController;
-  final void Function() onWindowFocus;
-  final void Function() onReadyForInteraction;
-  final void Function() onFirstFrame;
-
-  final Completer<void> _firstFrameCompleter = Completer<void>();
-  Future<void> get firstFrame => _firstFrameCompleter.future;
 
   ImageViewerLifecycle({
     required this.windowId,
@@ -27,6 +17,16 @@ class ImageViewerLifecycle {
     required this.onReadyForInteraction,
     required this.onFirstFrame,
   });
+  final String? windowId;
+  final bool isStandalone;
+  final FocusNode focusNode;
+  final AnimationController zoomAnimationController;
+  final void Function() onWindowFocus;
+  final void Function() onReadyForInteraction;
+  final void Function() onFirstFrame;
+
+  final Completer<void> _firstFrameCompleter = Completer<void>();
+  Future<void> get firstFrame => _firstFrameCompleter.future;
 
   Future<void> initialize({
     required BuildContext context,

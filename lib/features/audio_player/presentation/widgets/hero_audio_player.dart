@@ -1,20 +1,17 @@
-import 'dart:ui';
+import 'dart:async';
 import 'dart:typed_data';
+
+import 'package:audiotags/audiotags.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:async';
-import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:audiotags/audiotags.dart';
-import '../providers/audio_player_providers.dart';
-import 'waveform_scrubber.dart';
-import 'audio_controls_bar.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/audio_controls_bar.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/waveform_scrubber.dart';
+import 'package:path/path.dart' as p;
 
 class HeroAudioPlayer extends ConsumerWidget {
-  final VoidCallback? onNextPressed;
-  final VoidCallback? onPreviousPressed;
-  final bool isAudioPlayOnly;
 
   const HeroAudioPlayer({
     super.key,
@@ -22,6 +19,9 @@ class HeroAudioPlayer extends ConsumerWidget {
     this.onPreviousPressed,
     this.isAudioPlayOnly = false,
   });
+  final VoidCallback? onNextPressed;
+  final VoidCallback? onPreviousPressed;
+  final bool isAudioPlayOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,7 +41,7 @@ class HeroAudioPlayer extends ConsumerWidget {
     if (overrideTag != null) {
       tag = overrideTag;
     } else if (tagAsync.hasValue && tagAsync.value != null) {
-      tag = tagAsync.value!;
+      tag = tagAsync.value;
     }
 
     if (tag != null) {
@@ -69,10 +69,10 @@ class HeroAudioPlayer extends ConsumerWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.white.withOpacity(0.15),
+                      Colors.white.withValues(alpha: 0.15),
                       Colors.transparent,
                       Colors.transparent,
-                      Colors.black.withOpacity(0.4),
+                      Colors.black.withValues(alpha: 0.4),
                     ],
                     stops: const [0.0, 0.3, 0.7, 1.0],
                   ),
@@ -84,15 +84,15 @@ class HeroAudioPlayer extends ConsumerWidget {
       }
     }
 
-    String subtitle = '';
+    var subtitle = '';
     if (artistText != null && albumText != null) {
-      subtitle = "$artistText | $albumText";
+      subtitle = '$artistText | $albumText';
     } else if (artistText != null) {
       subtitle = artistText;
     } else if (albumText != null) {
       subtitle = albumText;
     } else {
-      subtitle = "Audio File";
+      subtitle = 'Audio File';
     }
 
     return Stack(
@@ -112,7 +112,7 @@ class HeroAudioPlayer extends ConsumerWidget {
                     maxHeight: 380,
                   ),
                   child: AspectRatio(
-                    aspectRatio: 1.0,
+                    aspectRatio: 1,
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
@@ -121,22 +121,22 @@ class HeroAudioPlayer extends ConsumerWidget {
                           end: Alignment.bottomRight,
                           colors: [
                             Color.alphaBlend(
-                              AppColors.magenta.withOpacity(0.08),
+                              AppColors.magenta.withValues(alpha: 0.08),
                               const Color(0xFF181818),
                             ),
                             Color.alphaBlend(
-                              AppColors.violet.withOpacity(0.03),
+                              AppColors.violet.withValues(alpha: 0.03),
                               const Color(0xFF181818),
                             ),
                           ],
                         ),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.04),
+                          color: Colors.white.withValues(alpha: 0.04),
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
+                            color: Colors.black.withValues(alpha: 0.5),
                             blurRadius: 40,
                             spreadRadius: 10,
                             offset: const Offset(0, 10),
@@ -194,7 +194,7 @@ class HeroAudioPlayer extends ConsumerWidget {
               // Waveform
               WaveformScrubber(fileName: currentTrack.name),
 
-              const Spacer(flex: 1),
+              const Spacer(),
 
               // Controls
               AudioControlsBar(
@@ -215,10 +215,10 @@ class HeroAudioPlayer extends ConsumerWidget {
 }
 
 class AutoScrollingText extends StatefulWidget {
+
+  const AutoScrollingText({required this.text, required this.style, super.key});
   final String text;
   final TextStyle style;
-
-  const AutoScrollingText({super.key, required this.text, required this.style});
 
   @override
   State<AutoScrollingText> createState() => _AutoScrollingTextState();
@@ -228,7 +228,7 @@ class _AutoScrollingTextState extends State<AutoScrollingText>
     with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   Ticker? _ticker;
-  double _offset = 0.0;
+  double _offset = 0;
   Timer? _delayTimer;
 
   void _initTicker() {
@@ -259,7 +259,7 @@ class _AutoScrollingTextState extends State<AutoScrollingText>
     if (oldWidget.text != widget.text) {
       _offset = 0.0;
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(0.0);
+        _scrollController.jumpTo(0);
       }
       _ticker?.stop();
       _delayTimer?.cancel();
@@ -290,7 +290,7 @@ class _AutoScrollingTextState extends State<AutoScrollingText>
         itemBuilder: (context, index) {
           return Container(
             alignment: Alignment.center,
-            padding: const EdgeInsets.only(right: 64.0),
+            padding: const EdgeInsets.only(right: 64),
             child: Text(
               widget.text,
               style: widget.style,

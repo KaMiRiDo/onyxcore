@@ -20,7 +20,7 @@ class ProcessUtils {
         }
         // Phase 1: Graceful termination
         try {
-          Process.killPid(pid, ProcessSignal.sigterm);
+          Process.killPid(pid);
         } catch (_) {
           return; // Process already dead
         }

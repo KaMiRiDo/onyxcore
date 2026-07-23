@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -41,7 +40,7 @@ void main() {
       videoPath = p.join(tempDir.path, 'video.mp4');
       sidecarPath = p.join(tempDir.path, '.onyxcore', '.video.mp4.markers.json');
       
-      final safeName = videoPath.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final safeName = videoPath.replaceAll(RegExp('[^a-zA-Z0-9]'), '_');
       fallbackPath = p.join(appSupportDir.path, 'markers', '$safeName.markers.json');
     });
 

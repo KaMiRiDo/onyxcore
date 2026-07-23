@@ -43,17 +43,15 @@ void main() {
 
     late bool showSeekIndicatorCalled;
     late bool onInteractionCalled;
-    late bool isSeekLoading;
-    late Duration? preSeekPosition;
-    late DateTime? lastSeekTime;
+
 
     late VideoSeekCallbacks callbacks;
     late VideoSeekController controller;
 
-    Widget buildTestApp(WidgetTester tester, Function(WidgetRef) onBuild) {
+    Widget buildTestApp(WidgetTester tester, void Function(WidgetRef) onBuild) {
       return ProviderScope(
         overrides: [
-          settingsProvider.overrideWith(() => MockSettingsNotifier()),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -100,9 +98,7 @@ void main() {
 
       showSeekIndicatorCalled = false;
       onInteractionCalled = false;
-      isSeekLoading = false;
-      preSeekPosition = null;
-      lastSeekTime = null;
+
 
       callbacks = VideoSeekCallbacks(
         getPlayer: () => mockPlayer,
@@ -140,9 +136,9 @@ void main() {
         setFastSeekTimer: (t) => fastSeekTimer = t,
         getSeekLoaderTimer: () => seekLoaderTimer,
         setSeekLoaderTimer: (t) => seekLoaderTimer = t,
-        setIsSeekLoading: (v) => isSeekLoading = v,
-        setPreSeekPosition: (v) => preSeekPosition = v,
-        setLastSeekTime: (t) => lastSeekTime = t,
+        setIsSeekLoading: (v) {},
+        setPreSeekPosition: (v) {},
+        setLastSeekTime: (t) {},
         showSeekIndicator: () => showSeekIndicatorCalled = true,
         onInteraction: () => onInteractionCalled = true,
         setStateCallback: (cb) => cb(),
@@ -152,15 +148,13 @@ void main() {
     }
     
     setUpAll(() {
-      registerFallbackValue(const Duration(seconds: 0));
+      registerFallbackValue(Duration.zero);
     });
 
     testWidgets('requestEngineSeek updates virtual position instantly and throttles', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
-      final target = const Duration(seconds: 20);
+      const target = Duration(seconds: 20);
       controller.requestEngineSeek(target);
 
       expect(virtualSeekPosition, equals(target));
@@ -172,9 +166,7 @@ void main() {
     });
 
     testWidgets('startFastSeek starts fast seek timer and performs step', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       controller.startFastSeek(isForward: true);
 
@@ -191,9 +183,7 @@ void main() {
     });
 
     testWidgets('slider handlers update scrub state and perform seek', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       // Start
       controller.handleSliderChangeStart();
@@ -215,9 +205,7 @@ void main() {
     });
 
     testWidgets('cleanupVirtualSeeking resets all temporary seek state', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       isFastSeeking = true;
       virtualSeekPosition = const Duration(seconds: 5);
@@ -237,12 +225,10 @@ void main() {
     });
 
     testWidgets('requestEngineSeek uses debounce timer if called rapidly', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       lastEngineSeekTime = DateTime.now(); // Simulate a seek just happened
-      final target = const Duration(seconds: 25);
+      const target = Duration(seconds: 25);
       
       controller.requestEngineSeek(target);
 
@@ -259,9 +245,7 @@ void main() {
     });
 
     testWidgets('scheduleVirtualStateCleanup retries if engineSeekTimer active', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       // Start engine timer to simulate active debouncing
       engineSeekTimer = Timer(const Duration(seconds: 10), () {});
@@ -285,9 +269,7 @@ void main() {
     });
 
     testWidgets('startFastSeek periodic timer continues to seek', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       controller.startFastSeek(isForward: true);
 
@@ -308,9 +290,7 @@ void main() {
     });
 
     testWidgets('performStepSeek resets scrub state if scrub was active', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       virtualScrubPosition = const Duration(seconds: 50);
       isFastSeeking = true;
@@ -327,9 +307,7 @@ void main() {
     });
 
     testWidgets('stopFastSeek forces engine timer to fire immediately', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       // Setup a pending debounced seek
       engineSeekTimer = Timer(const Duration(seconds: 5), () {});

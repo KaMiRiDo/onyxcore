@@ -1,41 +1,37 @@
-import 'dart:io';
 import 'dart:async';
-import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:onyxcore/features/audio_player/domain/utils/audio_queue_isolate.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_properties_dialog.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/core/utils/string_utils.dart';
-import 'package:onyxcore/core/utils/media_uri_helper.dart';
-import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
+import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/core/utils/media_uri_helper.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
 // import removed
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/audio_player/domain/utils/audio_queue_isolate.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_properties_dialog.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/hero_audio_player.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/playlist_sidebar.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import '../providers/audio_player_providers.dart';
-import '../widgets/playlist_sidebar.dart';
-import '../widgets/hero_audio_player.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
+import 'package:path/path.dart' as p;
+import 'package:window_manager/window_manager.dart';
 
 class AudioPlayerView extends ConsumerStatefulWidget {
-  final FileItem item;
-  final bool isStandalone;
-  final String? windowId;
-  final String? parentWindowId;
-  final Map<String, dynamic>? initParams;
 
   const AudioPlayerView({
     required this.item,
@@ -45,6 +41,11 @@ class AudioPlayerView extends ConsumerStatefulWidget {
     this.initParams,
     super.key,
   });
+  final FileItem item;
+  final bool isStandalone;
+  final String? windowId;
+  final String? parentWindowId;
+  final Map<String, dynamic>? initParams;
 
   @override
   ConsumerState<AudioPlayerView> createState() => _AudioPlayerViewState();
@@ -132,7 +133,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       return [];
     }
 
-    return await compute(processAudioQueueIsolate, {
+    return compute(processAudioQueueIsolate, {
       'items': items.map((e) => e.toJson()).toList(),
       'showHidden': showHidden,
     });
@@ -149,7 +150,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       final repo = ref.read(directoryRepositoryProvider);
       repo.invalidateCache(currentDir);
 
-      List<FileItem> audioFiles = await _fetchAudioQueue(currentDir);
+      var audioFiles = await _fetchAudioQueue(currentDir);
 
       if (audioFiles.isEmpty) {
         audioFiles = [widget.item];
@@ -171,12 +172,12 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     }
   }
 
-  void _initializePlayer() async {
+  Future<void> _initializePlayer() async {
     await MediaUriHelper.ensureLocalProxy();
     debugPrint('[AudioPlayer] Initializing for: ${widget.item.path}');
 
     final currentDir = ref.read(audioCurrentPathProvider);
-    List<FileItem> audioFiles = await _fetchAudioQueue(currentDir);
+    var audioFiles = await _fetchAudioQueue(currentDir);
 
     if (audioFiles.isEmpty) {
       audioFiles = [widget.item];
@@ -317,7 +318,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     final settings = ref.read(settingsProvider).value;
     final needConfirm = settings?.confirmDeleteAudio ?? true;
 
-    List<String> targetPaths = paths ?? [];
+    var targetPaths = paths ?? [];
     if (targetPaths.isEmpty) {
       final selection = ref.read(audioSelectionProvider);
       if (selection.isNotEmpty) {
@@ -329,7 +330,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       }
     }
 
-    bool shouldConfirm = needConfirm;
+    var shouldConfirm = needConfirm;
     if (_sessionSkipConfirm) {
       shouldConfirm = false;
     }
@@ -339,7 +340,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
             context: context,
             builder: (context) {
               if (permanent) {
-                int size = 0;
+                var size = 0;
                 for (final p in targetPaths) {
                   try {
                     size += File(p).lengthSync();
@@ -376,7 +377,6 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     final currentTrack = ref.read(currentTrackProvider);
     final isPlayingTrackDeleted =
         currentTrack != null && targetPaths.contains(currentTrack.path);
-    final queue = ref.read(audioPlayingQueueProvider);
     final currentIndex = ref.read(activeTrackIndexProvider);
     if (isPlayingTrackDeleted) {
       _player.pause();
@@ -429,7 +429,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       if (isPlayingTrackDeleted) {
         if (updatedPlayingQueue.isNotEmpty) {
           // Safe index for the new queue
-          int safeIndex = currentIndex >= updatedPlayingQueue.length
+          var safeIndex = currentIndex >= updatedPlayingQueue.length
               ? updatedPlayingQueue.length - 1
               : currentIndex;
           if (safeIndex < 0) safeIndex = 0;
@@ -459,7 +459,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     }
   }
 
-  void _handleItemsMoved(List<String> paths) async {
+  Future<void> _handleItemsMoved(List<String> paths) async {
     // 1. Update global queues unconditionally so UI reflects the move
     final currentQueue = ref.read(audioQueueProvider);
     final updatedQueue = currentQueue
@@ -487,7 +487,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       await _player.pause();
       
       if (updatedPlayingQueue.isNotEmpty) {
-        int safeIndex = currentIndex >= updatedPlayingQueue.length
+        var safeIndex = currentIndex >= updatedPlayingQueue.length
             ? updatedPlayingQueue.length - 1
             : currentIndex;
         if (safeIndex < 0) safeIndex = 0;
@@ -540,14 +540,14 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     final seekSeconds = settings?.audioSeekSeconds ?? 5;
 
     final screenWidth = MediaQuery.of(context).size.width;
-    final minWidth = 240.0;
+    const minWidth = 240.0;
     final maxWidth = screenWidth * 0.40;
 
-    double? savedWidth = ref.watch(audioPlaylistSidebarWidthProvider);
-    double panelWidth = savedWidth ?? (screenWidth * 0.25);
+    final savedWidth = ref.watch(audioPlaylistSidebarWidthProvider);
+    var panelWidth = savedWidth ?? (screenWidth * 0.25);
     panelWidth = panelWidth.clamp(minWidth, maxWidth);
 
-    String topBarMetadata = "Audio Player";
+    var topBarMetadata = 'Audio Player';
     if (currentTrack != null) {
       final queue = ref.watch(filteredAndSortedAudioQueueProvider).where((i) => i.type == FileItemType.audio).toList();
       final total = queue.length;
@@ -558,7 +558,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           ? StringUtils.formatBytes(currentTrack.sizeBytes!)
           : '';
 
-      String bitrateStr = '';
+      var bitrateStr = '';
       if (_bitrate != null && _bitrate! > 0) {
         bitrateStr = '${(_bitrate! / 1000).round()} kbps';
       }
@@ -723,7 +723,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         if (key == LogicalKeyboardKey.f2) {
           final selection = ref.read(audioSelectionProvider);
           final current = ref.read(currentTrackProvider);
-          final List<String> targetPaths = [];
+          final targetPaths = <String>[];
 
           if (selection.isNotEmpty) {
             targetPaths.addAll(selection);
@@ -748,7 +748,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                       .toList();
                   ref.read(audioQueueProvider.notifier).state = updatedQueue;
                 } else {
-                  bool found = false;
+                  var found = false;
                   final updatedQueue = currentQueue.map((item) {
                     if (item.path == oldPath) {
                       found = true;
@@ -798,8 +798,8 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                   if (player != null) {
                     final playlist = player.state.playlist;
                     final currentMedias = List<Media>.from(playlist.medias);
-                    bool replaced = false;
-                    for (int i = 0; i < currentMedias.length; i++) {
+                    var replaced = false;
+                    for (var i = 0; i < currentMedias.length; i++) {
                       if (currentMedias[i].uri == oldPath ||
                           currentMedias[i].uri == 'file://$oldPath' ||
                           currentMedias[i].uri ==
@@ -906,7 +906,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                               },
                               onPanUpdate: (details) {
                                 if (!mounted || !context.mounted) return;
-                                double newWidth = details.globalPosition.dx;
+                                var newWidth = details.globalPosition.dx;
                                 newWidth = newWidth.clamp(minWidth, maxWidth);
                                 ref
                                         .read(
@@ -1010,7 +1010,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                               // Settings button
                               Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: IconButton(
@@ -1035,13 +1035,13 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                               if (currentTrack != null)
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
+                                    color: Colors.white.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: IconButton(
                                     icon: Icon(
                                       Icons.edit_rounded,
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                       size: 20,
                                     ),
                                     onPressed: null, // Placeholder — disabled
@@ -1083,7 +1083,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                             child: AnimatedOpacity(
                               duration: const Duration(milliseconds: 300),
                               opacity: (_isOpening || _isBuffering) ? 1.0 : 0.0,
-                              child: const BubbleLoader(size: 80),
+                              child: const BubbleLoader(),
                             ),
                           ),
                         ),
@@ -1122,7 +1122,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
   }
 
   Widget _buildEmptyState() {
-    return Container(
+    return ColoredBox(
       color: const Color(0xFF121212),
       child: Center(
         child: Column(
@@ -1131,7 +1131,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
             Icon(
               Icons.music_off_rounded,
               size: 64,
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -1180,7 +1180,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     }
   }
 
-  void _openPlaylistFolder(WidgetRef ref, String path) async {
+  Future<void> _openPlaylistFolder(WidgetRef ref, String path) async {
     final repo = ref.read(directoryRepositoryProvider);
     final showHidden = ref.read(audioShowHiddenProvider);
     try {
@@ -1195,7 +1195,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       ref.read(audioSelectionProvider.notifier).state = {};
       ref.read(audioSelectionAnchorProvider.notifier).state = null;
     } catch (e) {
-      debugPrint("Error opening folder: $e");
+      debugPrint('Error opening folder: $e');
     }
   }
 }

@@ -1,43 +1,42 @@
 import 'package:flutter/material.dart';
 
 class MarkdownSyntaxHighlighter extends TextEditingController {
+
+  MarkdownSyntaxHighlighter({
+    super.text,
+    this.searchQuery = '',
+    this.caseSensitive = false,
+    this.useRegex = false,
+    this.currentMatchIndex = -1,
+  });
   String searchQuery;
   bool caseSensitive;
   bool useRegex;
   int currentMatchIndex;
 
-  MarkdownSyntaxHighlighter({
-    String? text,
-    this.searchQuery = '',
-    this.caseSensitive = false,
-    this.useRegex = false,
-    this.currentMatchIndex = -1,
-  }) : super(text: text);
-
   @override
   TextSpan buildTextSpan({
     required BuildContext context,
-    TextStyle? style,
-    required bool withComposing,
+    required bool withComposing, TextStyle? style,
   }) {
-    final List<TextSpan> children = [];
-    final String source = text;
+    final children = <TextSpan>[];
+    final source = text;
 
     // Updated Regex for cleaner Markdown styling and HTML tags
-    final RegExp exp = RegExp(
+    final exp = RegExp(
       r'(```[\s\S]*?```)|' // 1: Fenced Code Blocks
       r'(^---+$)|' // 2: Dividers / Frontmatter
       r'(^(#{1,6})\s.*$)|' // 3 & 4: Headings
       r'(\*\*.*?\*\*)|' // 5: Bold
       r'(\*.*?\*|_.*?_)|' // 6: Italic
-      r'(`.*?`)|' // 7: Inline Code
+      '(`.*?`)|' // 7: Inline Code
       r'(\[.*?\])(\(.*?\))|' // 8 & 9: Link Text, Link URL
       r'(^\s*>.*$)|' // 10: Blockquotes
       r'(<)(\/?[a-zA-Z0-9\-]+)([^>]*?)(\/?>)', // 11, 12, 13, 14: HTML Tags
       multiLine: true,
     );
 
-    int lastMatchEnd = 0;
+    var lastMatchEnd = 0;
 
     for (final Match match in exp.allMatches(source)) {
       if (match.start > lastMatchEnd) {
@@ -108,8 +107,8 @@ class MarkdownSyntaxHighlighter extends TextEditingController {
             text: match.group(9),
             style: style?.copyWith(
               color:
-                  style.color?.withOpacity(0.6) ??
-                  const Color(0xFFABB2BF).withOpacity(0.6),
+                  style.color?.withValues(alpha: 0.6) ??
+                  const Color(0xFFABB2BF).withValues(alpha: 0.6),
               fontStyle: FontStyle.italic,
               decoration: TextDecoration.underline,
             ),
@@ -139,7 +138,7 @@ class MarkdownSyntaxHighlighter extends TextEditingController {
           final attrRegex = RegExp(
             r'''(\s+)([a-zA-Z0-9\-]+)(?:(=)(".*?"|'.*?'|[^\s>]+))?''',
           );
-          int lastAttrEnd = 0;
+          var lastAttrEnd = 0;
           for (final attrMatch in attrRegex.allMatches(attributesString)) {
             if (attrMatch.start > lastAttrEnd) {
               children.add(
@@ -221,8 +220,8 @@ class MarkdownSyntaxHighlighter extends TextEditingController {
       return originalChildren;
     }
 
-    final List<TextSpan> highlightedChildren = [];
-    int globalMatchCounter = 0;
+    final highlightedChildren = <TextSpan>[];
+    var globalMatchCounter = 0;
 
     for (final span in originalChildren) {
       final text = span.text;
@@ -231,7 +230,7 @@ class MarkdownSyntaxHighlighter extends TextEditingController {
         continue;
       }
 
-      int lastMatchEnd = 0;
+      var lastMatchEnd = 0;
       for (final match in searchExp.allMatches(text)) {
         if (match.start > lastMatchEnd) {
           highlightedChildren.add(
@@ -242,7 +241,7 @@ class MarkdownSyntaxHighlighter extends TextEditingController {
           );
         }
 
-        final bool isCurrentMatch = globalMatchCounter == currentMatchIndex;
+        final isCurrentMatch = globalMatchCounter == currentMatchIndex;
 
         highlightedChildren.add(
           TextSpan(

@@ -44,9 +44,9 @@ void main() {
         0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
       ]);
       
-      final stdoutController = StreamController<List<int>>();
-      stdoutController.add(fakeImage);
-      stdoutController.close();
+      final stdoutController = StreamController<List<int>>()
+        ..add(fakeImage);
+      stdoutController.close().ignore();
 
       return MockProcess(
         stdoutStream: stdoutController.stream,
@@ -78,7 +78,7 @@ void main() {
     notifier.value = 50.0;
     
     // The pump will fire the microtask that executes mockProcessStart
-    for (int i = 0; i < 5; i++) {
+    for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
     
@@ -92,7 +92,7 @@ void main() {
     notifier
       ..value = 60.0
       ..value = 70.0;
-    for (int i = 0; i < 5; i++) {
+    for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
     
@@ -122,9 +122,9 @@ void main() {
   testWidgets('HoverPreview handles ffmpeg error gracefully', (WidgetTester tester) async {
     final notifier = ValueNotifier<double?>(null);
     Future<Process> mockProcessStart(String exec, List<String> args) async {
-      final stdoutController = StreamController<List<int>>();
-      stdoutController.add([]);
-      stdoutController.close();
+      final stdoutController = StreamController<List<int>>()
+        ..add([]);
+      stdoutController.close().ignore();
 
       return MockProcess(
         stdoutStream: stdoutController.stream,
@@ -148,7 +148,7 @@ void main() {
     );
 
     notifier.value = 10.0; // Trigger
-    for (int i = 0; i < 5; i++) {
+    for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 10));
     }
 

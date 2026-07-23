@@ -60,7 +60,7 @@ class MediaUriHelper {
         path.startsWith('rtsp://')) {
       return path;
     }
-    if (!path.contains('\\')) {
+    if (!path.contains(r'\')) {
       return Uri.file(path).toString();
     }
 

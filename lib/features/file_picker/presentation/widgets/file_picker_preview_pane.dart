@@ -6,12 +6,12 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:path/path.dart' as p;
 
 class FilePickerPreviewPane extends StatefulWidget {
-  final List<String> selectedPaths;
 
   const FilePickerPreviewPane({
     required this.selectedPaths,
     super.key,
   });
+  final List<String> selectedPaths;
 
   @override
   State<FilePickerPreviewPane> createState() => _FilePickerPreviewPaneState();
@@ -47,7 +47,7 @@ class _FilePickerPreviewPaneState extends State<FilePickerPreviewPane> {
   Widget build(BuildContext context) {
     return Container(
       width: 280,
-      color: Colors.black.withOpacity(0.2),
+      color: Colors.black.withValues(alpha: 0.2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -69,7 +69,6 @@ class _FilePickerPreviewPaneState extends State<FilePickerPreviewPane> {
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
-                      vertical: 0,
                     ),
                     itemCount: widget.selectedPaths.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 20),
@@ -91,7 +90,7 @@ class _FilePickerPreviewPaneState extends State<FilePickerPreviewPane> {
           Icon(
             Icons.remove_red_eye_rounded,
             size: 40,
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
           ),
           const SizedBox(height: 12),
           Text(
@@ -105,9 +104,9 @@ class _FilePickerPreviewPaneState extends State<FilePickerPreviewPane> {
 }
 
 class _PreviewItem extends StatelessWidget {
-  final String path;
 
   const _PreviewItem({required this.path});
+  final String path;
 
   bool _isImage(String path) {
     final ext = p.extension(path).toLowerCase();
@@ -120,10 +119,12 @@ class _PreviewItem extends StatelessWidget {
       if (file.existsSync()) {
         final bytes = file.lengthSync();
         if (bytes < 1024) return '$bytes B';
-        if (bytes < 1024 * 1024)
+        if (bytes < 1024 * 1024) {
           return '${(bytes / 1024).toStringAsFixed(1)} KB';
-        if (bytes < 1024 * 1024 * 1024)
+        }
+        if (bytes < 1024 * 1024 * 1024) {
           return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+        }
         return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
       }
     } catch (_) {}
@@ -143,8 +144,8 @@ class _PreviewItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: AspectRatio(
             aspectRatio: 16 / 9,
-            child: Container(
-              color: Colors.white.withOpacity(0.03),
+            child: ColoredBox(
+              color: Colors.white.withValues(alpha: 0.03),
               child: isImg
                   ? Image.file(
                       File(path),
@@ -198,7 +199,7 @@ class _PreviewItem extends StatelessWidget {
     }
 
     return Center(
-      child: Icon(icon, size: 32, color: color.withOpacity(0.5)),
+      child: Icon(icon, size: 32, color: color.withValues(alpha: 0.5)),
     );
   }
 }

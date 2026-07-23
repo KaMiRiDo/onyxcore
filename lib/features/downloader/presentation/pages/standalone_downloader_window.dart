@@ -1,20 +1,18 @@
-import "dart:math" as math;
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
-
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-
+import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
@@ -22,19 +20,15 @@ import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/core/window_management/window_params.dart';
-
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_active_downloads.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_header.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_location_bar.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_grid.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_list.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_header.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_list.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_active_downloads.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_grid.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_location_bar.dart';
 import 'package:path/path.dart' as p;
 
 class StandaloneDownloaderWindow extends ConsumerStatefulWidget {
@@ -256,7 +250,7 @@ class _StandaloneDownloaderWindowState
     try {
       final config =
           _controller.cache.configs[configIndex] ??
-          DownloadConfig(engine: 'auto');
+          DownloadConfig();
 
       final downloadToCurrent =
           ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
@@ -485,7 +479,7 @@ class _StandaloneDownloaderWindowState
         final rootIndex = parsedItems.indexOf(_currentGroup!);
         await _startDownload(_currentGroup!, rootIndex);
         setState(() {
-          parsedItems.remove(_currentGroup!);
+          parsedItems.remove(_currentGroup);
           _currentGroup = null;
           _historyIndex = 0;
           _navigationHistory.clear();
@@ -497,9 +491,7 @@ class _StandaloneDownloaderWindowState
         for (var i = 0; i < itemsToDownload.length; i++) {
           await _startDownload(itemsToDownload[i], i);
         }
-        setState(() {
-          parsedItems.clear();
-        });
+        setState(parsedItems.clear);
       }
 
       _controller.cache.isListChanged = true;
@@ -551,8 +543,8 @@ class _StandaloneDownloaderWindowState
   }
 
   Map<String, String>? _calculateNearestTag() {
-    int currentIndex = 0;
-    int lastVisibleIndex = 0;
+    var currentIndex = 0;
+    var lastVisibleIndex = 0;
     if (_mediaGridScrollController.hasClients) {
       final offset = _mediaGridScrollController.offset;
       final height = MediaQuery.of(context).size.height;
@@ -564,18 +556,18 @@ class _StandaloneDownloaderWindowState
       lastVisibleIndex = currentIndex + (visibleRows * crossAxisCount);
     }
 
-    List<Map<String, dynamic>> allTags = [];
-    for (int i = 0; i < _currentVisibleGroups.length; i++) {
+    final allTags = <Map<String, dynamic>>[];
+    for (var i = 0; i < _currentVisibleGroups.length; i++) {
       final group = _currentVisibleGroups[i];
       if (_currentGroup == null) {
         if (group.tag != null && group.tag!.isNotEmpty) {
-           allTags.add({'index': i, 'tag': group.tag!, 'url': group.originalUrl, 'sort': group.tagSortOrder ?? 'added_desc'});
+           allTags.add({'index': i, 'tag': group.tag, 'url': group.originalUrl, 'sort': group.tagSortOrder ?? 'added_desc'});
         }
       } else {
         if (group.items.isNotEmpty) {
           final item = group.items.first;
           if (item.tag != null && item.tag!.isNotEmpty) {
-             allTags.add({'index': i, 'tag': item.tag!, 'url': item.id, 'sort': item.tagSortOrder ?? 'added_desc'});
+             allTags.add({'index': i, 'tag': item.tag, 'url': item.id, 'sort': item.tagSortOrder ?? 'added_desc'});
           }
         }
       }
@@ -658,7 +650,7 @@ class _StandaloneDownloaderWindowState
           _controller.cache.invalidateCache(path);
           _tabStates.remove(path);
 
-          String newPath = 'default';
+          var newPath = 'default';
           if (_controller.cache.customLists.isNotEmpty) {
             final nextIndex = index < _controller.cache.customLists.length
                 ? index
@@ -854,7 +846,7 @@ class _StandaloneDownloaderWindowState
           _controller.selectedEngine = engine;
         });
       },
-      onFetch: () => _fetchUrl(),
+      onFetch: _fetchUrl,
     );
   }
 
@@ -944,7 +936,7 @@ class _StandaloneDownloaderWindowState
           final file = File(path.first);
           if (file.existsSync()) {
             final content = await file.readAsString();
-            final Map<String, dynamic> data =
+            final data =
                 jsonDecode(content) as Map<String, dynamic>;
             final items = (data['items'] as List)
                 .map((e) => MediaGroup.fromMap(e as Map<String, dynamic>))
@@ -1204,7 +1196,7 @@ class _StandaloneDownloaderWindowState
       if (parsedItems == null) return;
 
       if (_currentGroup == null) {
-        for (int i = 0; i < parsedItems.length; i++) {
+        for (var i = 0; i < parsedItems.length; i++) {
           parsedItems[i] = parsedItems[i].copyWith(clearTag: true);
         }
       } else {
@@ -1212,7 +1204,7 @@ class _StandaloneDownloaderWindowState
         if (rootIndex != -1) {
           final oldRoot = parsedItems[rootIndex];
           final items = List<MediaInfo>.from(oldRoot.items);
-          for (int i = 0; i < items.length; i++) {
+          for (var i = 0; i < items.length; i++) {
             items[i] = items[i].copyWith(clearTag: true);
           }
           _currentGroup = _currentGroup!.copyWith(items: items);
@@ -1229,11 +1221,11 @@ class _StandaloneDownloaderWindowState
   }
 
   Widget _buildActionBar() {
-    bool hasImages = false;
-    bool hasVideos = false;
-    bool hasPlaylists = false;
-    bool hasProfiles = false;
-    bool hasGroups = false;
+    var hasImages = false;
+    var hasVideos = false;
+    var hasPlaylists = false;
+    var hasProfiles = false;
+    var hasGroups = false;
 
     if (_controller.cache.parsedItems != null) {
       for (final group in _controller.cache.parsedItems!) {
@@ -1247,17 +1239,18 @@ class _StandaloneDownloaderWindowState
           if (group.items.any((i) => !i.isVideo)) hasImages = true;
           if (group.items.any((i) => i.isVideo)) hasVideos = true;
         } else {
-          if (first.isVideo)
+          if (first.isVideo) {
             hasVideos = true;
-          else
+          } else {
             hasImages = true;
+          }
         }
       }
     }
 
-    int rootIndex = -1;
+    var rootIndex = -1;
     if (_currentGroup != null &&
-        _controller.cache.parsedItems?.isNotEmpty == true) {
+        (_controller.cache.parsedItems?.isNotEmpty ?? false)) {
       rootIndex = _controller.cache.parsedItems!.indexWhere(
         (g) => g.originalUrl == _currentGroup!.originalUrl,
       );
@@ -1317,9 +1310,7 @@ class _StandaloneDownloaderWindowState
         });
       },
       activeTagNotifier: _activeTagNotifier,
-      onTagTap: (url, sort) {
-        _scrollToTag(url, sort);
-      },
+      onTagTap: _scrollToTag,
       onTagSecondaryTapDown: _showTagHeaderContextMenu,
     );
   }
@@ -1364,7 +1355,7 @@ class _StandaloneDownloaderWindowState
 
   void _scrollToTag(String url, String sortOrder) {
     OverlayEntry? scrollLoaderEntry;
-    bool cancelled = false;
+    var cancelled = false;
 
     void cancelScroll() {
       cancelled = true;
@@ -1381,7 +1372,7 @@ class _StandaloneDownloaderWindowState
         top: 0,
         right: 0,
         bottom: 0,
-        child: Container(
+        child: ColoredBox(
           color: Colors.black54,
           child: Center(
             child: Column(
@@ -1430,7 +1421,7 @@ class _StandaloneDownloaderWindowState
 
     void executeScroll() {
       if (cancelled) return;
-      int itemIndex = -1;
+      var itemIndex = -1;
       if (_currentGroup == null) {
         itemIndex = _currentVisibleGroups.indexWhere((g) => g.originalUrl == url);
       } else {
@@ -1508,7 +1499,7 @@ class _StandaloneDownloaderWindowState
         final start = math.min(_lastSelectedIndex, index);
         final end = math.max(_lastSelectedIndex, index);
         _selectedIndices.clear();
-        for (int i = start; i <= end; i++) {
+        for (var i = start; i <= end; i++) {
           _selectedIndices.add(i);
         }
       } else if (isCtrl) {
@@ -1527,7 +1518,7 @@ class _StandaloneDownloaderWindowState
   }
 
   Widget _buildMediaGrid() {
-    List<MediaGroup> mappedGroups = [];
+    var mappedGroups = <MediaGroup>[];
     final searchTerm = _searchController.text.trim().toLowerCase();
 
     if (_isTrashView) {
@@ -1548,9 +1539,7 @@ class _StandaloneDownloaderWindowState
       }).toList();
       if (searchTerm.isNotEmpty) {
         mappedGroups = mappedGroups.where((group) {
-          final titleMatch = group.items.isNotEmpty
-              ? group.items.first.title.toLowerCase().contains(searchTerm)
-              : false;
+          final titleMatch = group.items.isNotEmpty && group.items.first.title.toLowerCase().contains(searchTerm);
           final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
           return titleMatch || urlMatch;
         }).toList();
@@ -1595,9 +1584,7 @@ class _StandaloneDownloaderWindowState
 
       if (searchTerm.isNotEmpty) {
         mappedGroups = mappedGroups.where((group) {
-          final titleMatch = group.items.isNotEmpty
-              ? group.items.first.title.toLowerCase().contains(searchTerm)
-              : false;
+          final titleMatch = group.items.isNotEmpty && group.items.first.title.toLowerCase().contains(searchTerm);
           final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
           return titleMatch || urlMatch;
         }).toList();
@@ -1613,12 +1600,15 @@ class _StandaloneDownloaderWindowState
         final filteredItems = _currentGroup!.items.where((item) {
           if (item.isError) return false;
           if (_currentGroup!.first.isProfile &&
-              item == _currentGroup!.items.first)
+              item == _currentGroup!.items.first) {
             return false;
-          if (config?.groupFilter == GroupDownloadType.images && item.isVideo)
+          }
+          if (config?.groupFilter == GroupDownloadType.images && item.isVideo) {
             return false;
-          if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo)
+          }
+          if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo) {
             return false;
+          }
           if (searchTerm.isNotEmpty &&
               !item.title.toLowerCase().contains(searchTerm)) {
             return false;
@@ -1659,9 +1649,7 @@ class _StandaloneDownloaderWindowState
         );
         return idx != -1 ? _controller.cache.configs[idx] : null;
       },
-      getFormatBytes: (info, format, config) {
-        return getFormatBytes(info, format, config);
-      },
+      getFormatBytes: getFormatBytes,
       scrollController: _mediaGridScrollController,
       tagKeys: _tagKeys,
       onTagItem: _handleTagItem,
@@ -1698,7 +1686,7 @@ class _StandaloneDownloaderWindowState
               : null;
           final isAudioOnly =
               config != null &&
-              config.itemFormats[firstItem.id]?.isAudioOnly == true;
+              (config.itemFormats[firstItem.id]?.isAudioOnly ?? false);
           final selectedFormat =
               config?.itemFormats[firstItem.id] ?? config?.format;
 
@@ -1982,7 +1970,7 @@ class _StandaloneDownloaderWindowState
       // We keep the selectedFormat's formatId so that the video player can set
       // ytdl-format to the right stream. We do NOT override it with a "best URL
       // format" — that would silently ignore the user's resolution choice.
-      var effectiveFormat = resolveEffectiveFormat(item, selectedFormat: selectedFormat);
+      final effectiveFormat = resolveEffectiveFormat(item, selectedFormat: selectedFormat);
 
       if (effectiveFormat != null && effectiveFormat.audioCodec == 'none') {
         final audioFormats = item.formats.where((f) => f.videoCodec == 'none').toList();
@@ -2052,7 +2040,7 @@ class _StandaloneDownloaderWindowState
     required String errorMessage,
     String? details,
   }) {
-    bool logsExpanded = false;
+    var logsExpanded = false;
 
     showDialog<void>(
       context: context,
@@ -2063,7 +2051,6 @@ class _StandaloneDownloaderWindowState
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
               color: Colors.redAccent.withValues(alpha: 0.3),
-              width: 1,
             ),
           ),
           title: Row(
@@ -2199,6 +2186,7 @@ class _StandaloneDownloaderWindowState
     );
   }
 
+  @override
   @visibleForTesting
   int getHeightForTesting(String res) => _getHeight(res);
 
@@ -2263,9 +2251,9 @@ class _StandaloneDownloaderWindowState
 
   @visibleForTesting
   void onFormatChangedForTesting(MediaFormat val) {
-    int rootIndex = -1;
+    var rootIndex = -1;
     if (_currentGroup != null &&
-        _controller.cache.parsedItems?.isNotEmpty == true) {
+        (_controller.cache.parsedItems?.isNotEmpty ?? false)) {
       rootIndex = _controller.cache.parsedItems!.indexWhere(
         (g) => g.originalUrl == _currentGroup!.originalUrl,
       );
@@ -2301,9 +2289,9 @@ MediaFormat? resolveEffectiveFormat(MediaInfo item, {MediaFormat? selectedFormat
   int getH(String res) {
     final parts = res.toLowerCase().split('x');
     if (parts.length == 2) {
-      return int.tryParse(parts[1].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      return int.tryParse(parts[1].replaceAll(RegExp('[^0-9]'), '')) ?? 0;
     }
-    return int.tryParse(res.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    return int.tryParse(res.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
   }
 
   final validFormats = item.formats.toList();
@@ -2408,7 +2396,7 @@ int _parseResolutionHeight(String resolution) {
   if (lower.contains('240')) return 240;
   final parts = lower.split('x');
   if (parts.length == 2) return int.tryParse(parts[1]) ?? 0;
-  return int.tryParse(lower.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+  return int.tryParse(lower.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
 }
 
 class _TrashItem {

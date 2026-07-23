@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/video_player/domain/entities/video_marker.dart';
 import 'package:onyxcore/features/video_player/presentation/controllers/marker_controller.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
@@ -40,7 +39,7 @@ void main() {
       when(() => mockMarkerActions.updateMarker(any(), any())).thenAnswer((_) async {});
     });
 
-    Widget buildTestApp(WidgetTester tester, Function(WidgetRef) onBuild) {
+    Widget buildTestApp(WidgetTester tester, void Function(WidgetRef) onBuild) {
       return ProviderScope(
         overrides: [
           markerActionsProvider.overrideWithValue(mockMarkerActions),
@@ -103,18 +102,16 @@ void main() {
     }
 
     setUpAll(() {
-      registerFallbackValue(const Duration(seconds: 0));
+      registerFallbackValue(Duration.zero);
       registerFallbackValue(VideoMarker(
         id: '1',
-        timestamp: const Duration(seconds: 0),
+        timestamp: Duration.zero,
         content: '',
       ));
     });
 
     testWidgets('openMarkerEditor without existing marker pauses and positions anchor', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       controller.openMarkerEditor();
 
@@ -124,13 +121,11 @@ void main() {
       verify(() => mockPlayer.pause()).called(1);
       
       // 50s / 100s = 0.5 fraction. Width is 800. 0.5 * 800 = 400
-      expect(markerEditorAnchor, equals(const Offset(400.0, 0)));
+      expect(markerEditorAnchor, equals(const Offset(400, 0)));
     });
 
     testWidgets('openMarkerEditor with existing marker uses marker timestamp', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       final marker = VideoMarker(id: '1', timestamp: const Duration(seconds: 25), content: 'Test');
       controller.openMarkerEditor(marker: marker);
@@ -138,13 +133,11 @@ void main() {
       expect(editingMarker, equals(marker));
       
       // 25s / 100s = 0.25 fraction. Width is 800. 0.25 * 800 = 200
-      expect(markerEditorAnchor, equals(const Offset(200.0, 0)));
+      expect(markerEditorAnchor, equals(const Offset(200, 0)));
     });
 
     testWidgets('saveMarker creates new marker when editingMarker is null', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       await controller.saveMarker('New Content', 'test-icon');
 
@@ -159,9 +152,7 @@ void main() {
     });
 
     testWidgets('saveMarker updates marker when editingMarker is not null', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       final marker = VideoMarker(id: '1', timestamp: const Duration(seconds: 25), content: 'Test');
       editingMarker = marker;
@@ -177,12 +168,10 @@ void main() {
     });
 
     testWidgets('closeMarkerEditor resets state and resumes if requested', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupController(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupController));
 
       isMarkerEditorActive = true;
-      editingMarker = VideoMarker(id: '1', timestamp: const Duration(seconds: 0), content: '');
+      editingMarker = VideoMarker(id: '1', timestamp: Duration.zero, content: '');
       markerEditorAnchor = const Offset(10, 10);
 
       controller.closeMarkerEditor(resume: true);

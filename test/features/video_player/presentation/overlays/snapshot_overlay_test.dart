@@ -17,7 +17,7 @@ void main() {
       expect(find.byType(SnapshotFlash), findsOneWidget);
       
       // Check opacity
-      final AnimatedOpacity opacityWidget = tester.widget(find.byType(AnimatedOpacity));
+      final opacityWidget = tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
       expect(opacityWidget.opacity, 0.3);
 
       await tester.pumpWidget(
@@ -28,7 +28,7 @@ void main() {
         ),
       );
 
-      final AnimatedOpacity hiddenOpacityWidget = tester.widget(find.byType(AnimatedOpacity));
+      final hiddenOpacityWidget = tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
       expect(hiddenOpacityWidget.opacity, 0.0);
     });
 
@@ -45,7 +45,7 @@ void main() {
       expect(find.byIcon(Icons.camera_alt_rounded), findsOneWidget);
       expect(find.text('Snapshot saved to Snapshots/'), findsOneWidget);
 
-      final AnimatedOpacity opacityWidget = tester.widget(find.byType(AnimatedOpacity));
+      final opacityWidget = tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
       expect(opacityWidget.opacity, 1.0);
     });
 

@@ -54,9 +54,9 @@ class _CacheState {
 }
 
 class CustomListInfo {
+  CustomListInfo({required this.path, required this.name});
   final String path;
   final String name;
-  CustomListInfo({required this.path, required this.name});
 }
 
 class DownloadsListCache extends ChangeNotifier {

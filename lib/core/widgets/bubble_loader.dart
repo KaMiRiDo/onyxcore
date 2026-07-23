@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 
 class BubbleLoader extends StatefulWidget {
+  const BubbleLoader({super.key, this.size = 80, this.color});
   final double size;
   final Color? color;
-  const BubbleLoader({super.key, this.size = 80, this.color});
 
   @override
   State<BubbleLoader> createState() => _BubbleLoaderState();
@@ -57,17 +58,17 @@ class _BubbleLoaderState extends State<BubbleLoader>
 }
 
 class BubblePainter extends CustomPainter {
-  final double progress;
-  final Color color;
 
   BubblePainter({required this.progress, required this.color});
+  final double progress;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    for (int i = 0; i < 8; i++) {
+    for (var i = 0; i < 8; i++) {
       final angle = (i * math.pi / 4) + (progress * math.pi * 2);
       final bubbleProgress = (progress + (i * 0.125)) % 1.0;
       final offsetDist = radius * 0.6 * math.sin(bubbleProgress * math.pi);

@@ -1,14 +1,13 @@
+import 'package:audiotags/audiotags.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:onyxcore/core/playlist/playlist_providers.dart';
+import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
-
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:audiotags/audiotags.dart';
-import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
 
 final audioTagsOverridesProvider = StateProvider.family<Tag?, String>(
   (ref, path) => null,
@@ -22,7 +21,7 @@ final audioTagsProvider = FutureProvider.family<Tag?, String>((
   if (overrideTag != null) {
     return overrideTag;
   }
-  return await AudioMetadataUtils.readTags(path);
+  return AudioMetadataUtils.readTags(path);
 });
 
 enum AudioViewMode { home, favorites }

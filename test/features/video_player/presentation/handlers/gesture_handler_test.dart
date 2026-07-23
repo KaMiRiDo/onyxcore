@@ -13,8 +13,8 @@ class MockPlayer extends Mock implements Player {}
 class MockPlayerState extends Mock implements PlayerState {}
 
 class MockSettingsNotifier extends SettingsNotifier {
-  final AppSettings settings;
   MockSettingsNotifier({this.settings = const AppSettings()});
+  final AppSettings settings;
   
   @override
   Future<AppSettings> build() async => settings;
@@ -49,13 +49,12 @@ void main() {
     late bool showVolumeOverlayCalled;
     late bool showSpeedOverlayCalled;
     late bool showSeekIndicatorCalled;
-    late bool onInteractionCalled;
-    late bool cleanupVirtualSeekingCalled;
+
 
     late VideoGestureCallbacks callbacks;
     late VideoGestureHandler handler;
 
-    Widget buildTestApp(WidgetTester tester, Function(WidgetRef) onBuild, {AppSettings? settings}) {
+    Widget buildTestApp(WidgetTester tester, void Function(WidgetRef) onBuild, {AppSettings? settings}) {
       return ProviderScope(
         overrides: [
           settingsProvider.overrideWith(() => MockSettingsNotifier(settings: settings ?? const AppSettings())),
@@ -81,8 +80,8 @@ void main() {
       when(() => mockPlayerState.duration).thenReturn(const Duration(seconds: 100));
       when(() => mockPlayerState.position).thenReturn(const Duration(seconds: 10));
       when(() => mockPlayerState.playing).thenReturn(true);
-      when(() => mockPlayerState.volume).thenReturn(100.0);
-      when(() => mockPlayerState.rate).thenReturn(1.0);
+      when(() => mockPlayerState.volume).thenReturn(100);
+      when(() => mockPlayerState.rate).thenReturn(1);
       when(() => mockPlayer.pause()).thenAnswer((_) async {});
       when(() => mockPlayer.play()).thenAnswer((_) async {});
       when(() => mockPlayer.seek(any())).thenAnswer((_) async {});
@@ -113,8 +112,7 @@ void main() {
       showVolumeOverlayCalled = false;
       showSpeedOverlayCalled = false;
       showSeekIndicatorCalled = false;
-      onInteractionCalled = false;
-      cleanupVirtualSeekingCalled = false;
+
 
       callbacks = VideoGestureCallbacks(
         getPlayer: () => mockPlayer,
@@ -156,8 +154,8 @@ void main() {
         showVolumeOverlay: () => showVolumeOverlayCalled = true,
         showSpeedOverlay: () => showSpeedOverlayCalled = true,
         showSeekIndicator: () => showSeekIndicatorCalled = true,
-        onInteraction: () => onInteractionCalled = true,
-        cleanupVirtualSeeking: () => cleanupVirtualSeekingCalled = true,
+        onInteraction: () {},
+        cleanupVirtualSeeking: () {},
         setStateCallback: (cb) => cb(),
       );
 
@@ -165,16 +163,14 @@ void main() {
     }
     
     setUpAll(() {
-      registerFallbackValue(const Duration(seconds: 0));
+      registerFallbackValue(Duration.zero);
     });
 
     testWidgets('handlePointerPanZoomUpdate horizontal starts scrubbing', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupHandler));
 
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(10.0, 0.0),
+        panDelta: Offset(10, 0),
         position: Offset(100, 100),
       ));
 
@@ -189,12 +185,10 @@ void main() {
     });
 
     testWidgets('handlePointerPanZoomUpdate vertical starts volume change', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupHandler));
 
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(0.0, 10.0),
+        panDelta: Offset(0, 10),
         position: Offset(100, 100),
       ));
 
@@ -206,12 +200,10 @@ void main() {
     });
 
     testWidgets('handlePointerPanZoomEnd resets trackpad gesture', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupHandler));
 
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(10.0, 0.0),
+        panDelta: Offset(10, 0),
         position: Offset(100, 100),
       ));
       
@@ -228,12 +220,10 @@ void main() {
     });
 
     testWidgets('handlePointerScroll starts discrete scrubbing', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupHandler));
 
       handler.handlePointerScroll(const PointerScrollEvent(
-        scrollDelta: Offset(10.0, 0.0),
+        scrollDelta: Offset(10, 0),
         position: Offset(100, 100),
       ));
 
@@ -246,14 +236,12 @@ void main() {
     });
 
     testWidgets('vertical scroll on left half triggers speed control when enabled', (tester) async {
-      final settings = const AppSettings(trackpadSpeedControl: SpeedControlOption.releaseToFix);
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }, settings: settings));
+      const settings = AppSettings(trackpadSpeedControl: SpeedControlOption.releaseToFix);
+      await tester.pumpWidget(buildTestApp(tester, setupHandler, settings: settings));
       await tester.pumpAndSettle(); // Wait for settings to load
 
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(0.0, 10.0),
+        panDelta: Offset(0, 10),
         position: Offset(100, 100), // width is 800, 100 is left half
       ));
 
@@ -265,14 +253,12 @@ void main() {
     });
 
     testWidgets('speed control resets to normal if option is releaseToNormal', (tester) async {
-      final settings = const AppSettings(trackpadSpeedControl: SpeedControlOption.releaseToNormal);
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }, settings: settings));
+      const settings = AppSettings(trackpadSpeedControl: SpeedControlOption.releaseToNormal);
+      await tester.pumpWidget(buildTestApp(tester, setupHandler, settings: settings));
       await tester.pumpAndSettle(); // Wait for settings to load
 
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(0.0, -10.0), // increase speed
+        panDelta: Offset(0, -10), // increase speed
         position: Offset(100, 100),
       ));
       
@@ -280,19 +266,17 @@ void main() {
       
       handler.handlePointerPanZoomEnd(const PointerPanZoomEndEvent());
       
-      verify(() => mockPlayer.setRate(1.0)).called(1);
+      verify(() => mockPlayer.setRate(1)).called(1);
       expect(scrollLockAxis, isNull);
       
       await tester.pump(const Duration(seconds: 2));
     });
 
     testWidgets('blip rejection delays trackpad reset if key recently pressed', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupHandler));
 
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(10.0, 0.0),
+        panDelta: Offset(10, 0),
         position: Offset(100, 100),
       ));
       
@@ -320,13 +304,11 @@ void main() {
     });
 
     testWidgets('volume scroll correctly bounds volume between 0.0 and 200.0', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupHandler));
 
       // Simulate aggressive scroll down (decrease volume below 0)
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(0.0, 5000.0), 
+        panDelta: Offset(0, 5000), 
         position: Offset(700, 100), // Right side, triggers volume
       ));
       
@@ -337,7 +319,7 @@ void main() {
       // Reset and test aggressive scroll up (increase volume above 200)
       virtualVolume = 100.0;
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(0.0, -5000.0), 
+        panDelta: Offset(0, -5000), 
         position: Offset(700, 100),
       ));
       
@@ -348,15 +330,13 @@ void main() {
     });
 
     testWidgets('speed scroll correctly bounds speed between 0.25 and 4.0', (tester) async {
-      final settings = const AppSettings(trackpadSpeedControl: SpeedControlOption.releaseToFix);
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }, settings: settings));
+      const settings = AppSettings(trackpadSpeedControl: SpeedControlOption.releaseToFix);
+      await tester.pumpWidget(buildTestApp(tester, setupHandler, settings: settings));
       await tester.pumpAndSettle();
 
       // Simulate aggressive scroll down (decrease speed below 0.25)
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(0.0, 5000.0), 
+        panDelta: Offset(0, 5000), 
         position: Offset(100, 100), // Left side, triggers speed
       ));
       
@@ -367,7 +347,7 @@ void main() {
       // Reset and test aggressive scroll up (increase speed above 4.0)
       virtualSpeed = 1.0;
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(0.0, -5000.0), 
+        panDelta: Offset(0, -5000), 
         position: Offset(100, 100),
       ));
       
@@ -378,13 +358,11 @@ void main() {
     });
 
     testWidgets('scrubbing throttles player seek calls', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, (ref) {
-        setupHandler(ref);
-      }));
+      await tester.pumpWidget(buildTestApp(tester, setupHandler));
 
       // Initialize scrub
       handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-        panDelta: Offset(10.0, 0.0),
+        panDelta: Offset(10, 0),
         position: Offset(100, 100),
       ));
 
@@ -392,9 +370,9 @@ void main() {
       expect(scrubThrottleTimer!.isActive, isTrue);
       
       // Fire a ton of events quickly to ensure throttling
-      for(int i = 0; i < 50; i++) {
+      for(var i = 0; i < 50; i++) {
         handler.handlePointerPanZoomUpdate(const PointerPanZoomUpdateEvent(
-          panDelta: Offset(10.0, 0.0),
+          panDelta: Offset(10, 0),
           position: Offset(100, 100),
         ));
       }

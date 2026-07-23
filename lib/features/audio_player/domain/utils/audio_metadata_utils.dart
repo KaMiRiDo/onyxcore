@@ -1,19 +1,20 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:audiotags/audiotags.dart';
 import 'package:image/image.dart' as img;
 
 class AudioProperties {
-  final String duration;
-  final String bitrate;
-  final String sampleRate;
 
   AudioProperties({
     required this.duration,
     required this.bitrate,
     required this.sampleRate,
   });
+  final String duration;
+  final String bitrate;
+  final String sampleRate;
 }
 
 class AudioMetadataUtils {
@@ -48,9 +49,9 @@ class AudioMetadataUtils {
       if (image == null) return null;
 
       // Crop to square
-      final int size = image.width < image.height ? image.width : image.height;
-      final int x = (image.width - size) ~/ 2;
-      final int y = (image.height - size) ~/ 2;
+      final size = image.width < image.height ? image.width : image.height;
+      final x = (image.width - size) ~/ 2;
+      final y = (image.height - size) ~/ 2;
       final cropped = img.copyCrop(
         image,
         x: x,
@@ -89,16 +90,16 @@ class AudioMetadataUtils {
           final stream = data['streams']?[0] ?? <String, dynamic>{};
           final format = data['format'] ?? <String, dynamic>{};
 
-          final double durationSec =
+          final durationSec =
               double.tryParse(format['duration']?.toString() ?? '0') ?? 0;
-          final int bitrateInt =
+          final bitrateInt =
               int.tryParse(
                 format['bit_rate']?.toString() ??
                     stream['bit_rate']?.toString() ??
                     '0',
               ) ??
               0;
-          final int sampleRateInt =
+          final sampleRateInt =
               int.tryParse(stream['sample_rate']?.toString() ?? '0') ?? 0;
 
           return AudioProperties(
@@ -106,7 +107,7 @@ class AudioMetadataUtils {
             bitrate: bitrateInt > 0
                 ? '${(bitrateInt / 1000).round()} kbps'
                 : 'Unknown',
-            sampleRate: sampleRateInt > 0 ? '${sampleRateInt} Hz' : 'Unknown',
+            sampleRate: sampleRateInt > 0 ? '$sampleRateInt Hz' : 'Unknown',
           );
         }
       }

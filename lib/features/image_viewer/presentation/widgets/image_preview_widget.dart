@@ -3,10 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
@@ -18,17 +16,18 @@ import 'package:onyxcore/features/image_viewer/presentation/controllers/image_ge
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_hud_controller.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_keyboard_handler.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_navigation_controller.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/image_preparation_controller.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_viewer_lifecycle.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_zoom_controller.dart';
 import 'package:onyxcore/features/image_viewer/presentation/engines/zoom_animation_engine.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/services/image_metadata_loader.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_canvas.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_editing_panel.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_empty_state.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_zoom_indicator.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/interactive_image_viewport.dart';
-import 'package:onyxcore/features/image_viewer/utils/special_image_converter.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:path/path.dart' as p;
@@ -62,8 +61,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   bool get _isNetworkStream => widget.initParams?['is_network_stream'] == true;
 
   String? _metadata;
-  bool _isConvertingHeic = false;
-  String? _convertedHeicPath;
+  late final ImagePreparationController _preparationController;
 
   final FocusNode _focusNode = FocusNode();
   Offset _mousePosition = Offset.zero;
@@ -88,37 +86,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   late FileItem _currentItem;
 
-  Future<void> _loadSpecialImageIfNecessary() async {
-    final ext = _currentItem.path.toLowerCase();
-    final isSpecial =
-        ext.endsWith('.heic') ||
-        ext.endsWith('.heif') ||
-        ext.endsWith('.avif') ||
-        ext.endsWith('.dng') ||
-        ext.endsWith('.raw');
 
-    if (isSpecial) {
-      setState(() => _isConvertingHeic = true);
-
-      final resultPath = await SpecialImageConverter.convertIfNecessary(
-        _currentItem.path,
-      );
-
-      if (mounted) {
-        setState(() {
-          _convertedHeicPath = resultPath;
-          _isConvertingHeic = false;
-        });
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _convertedHeicPath = null;
-          _isConvertingHeic = false;
-        });
-      }
-    }
-  }
 
   void _onWindowFocus() {
     if (mounted) _focusNode.requestFocus();
@@ -130,6 +98,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _hudController = ImageHudController()
       ..addListener(() {
         if (mounted) setState(() {});
+      });
+    _preparationController = ImagePreparationController()
+      ..addListener(() {
+        if (mounted) {
+          setState(() {});
+          if (!_preparationController.isConverting && _preparationController.preparedPath != null) {
+            _loadMetadata();
+          }
+        }
       });
     _navigationController =
         ImageNavigationController(
@@ -229,7 +206,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _loadMetadata();
     _navigationController.updateIndexData(_currentItem);
     _hudController.startHideTimer();
-    _loadSpecialImageIfNecessary();
+    _preparationController.prepare(_currentItem.path);
 
     if (widget.isStandalone) {
       _navigationController.initStandalonePlaylist(_currentItem);
@@ -327,7 +304,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   Future<void> _loadMetadata() async {
-    final path = _convertedHeicPath ?? _currentItem.path;
+    final path = _preparationController.preparedPath ?? _currentItem.path;
     final result = await ImageMetadataLoader.load(
       path,
       context,
@@ -358,6 +335,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _zoomAnimationController.dispose();
     _imageZoomController.dispose();
     _focusNode.dispose();
+    _preparationController.dispose();
     super.dispose();
   }
 
@@ -399,9 +377,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         ref.read(previewFileProvider.notifier).state = item;
       }
     });
+    _preparationController.prepare(item.path);
     _loadMetadata();
     _navigationController.updateIndexData(item);
-    _loadSpecialImageIfNecessary();
     if (mounted) {
       _focusNode.requestFocus();
       final parentPath = p.dirname(item.path);
@@ -525,6 +503,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         ref.read(taskProvider.notifier).addLog(taskId, 'Error: $e');
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
       } finally {
+        // Evict from flutter image cache to prevent stale views
+        final provider = _currentItem.path.startsWith('http') 
+            ? NetworkImage(_currentItem.path) 
+            : FileImage(File(_currentItem.path)) as ImageProvider;
+        await provider.evict();
+        await ResizeImage(provider, width: 3840).evict();
+
         repo.invalidateCache(currentPath);
         ref.read(refreshCountProvider.notifier).state =
             ref.read(refreshCountProvider) + 1;
@@ -640,146 +625,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 onDoubleTapPopOut: _openInNewWindow,
                                 focusNode: _focusNode,
                                 isReadyForInteraction: _isReadyForInteraction,
-                                child: Builder(
-                                  builder: (context) {
-                                    Widget buildImageWidget() {
-                                      if (_isConvertingHeic) {
-                                        return const Center(
-                                          child: BubbleLoader(size: 60),
-                                        );
-                                      }
-
-                                      final imagePath =
-                                          _convertedHeicPath ??
-                                          _currentItem.path;
-                                      final isNetwork =
-                                          imagePath.startsWith('http://') ||
-                                          imagePath.startsWith('https://');
-
-                                      if (imagePath.toLowerCase().endsWith(
-                                        '.svg',
-                                      )) {
-                                        return isNetwork
-                                            ? SvgPicture.network(
-                                                imagePath,
-                                                placeholderBuilder: (_) =>
-                                                    const Center(
-                                                      child: BubbleLoader(
-                                                        size: 60,
-                                                      ),
-                                                    ),
-                                              )
-                                            : SvgPicture.file(
-                                                File(imagePath),
-                                                placeholderBuilder: (_) =>
-                                                    const Center(
-                                                      child: BubbleLoader(
-                                                        size: 60,
-                                                      ),
-                                                    ),
-                                              );
-                                      } else {
-                                        return isNetwork
-                                            ? Image.network(
-                                                imagePath,
-                                                fit: BoxFit.contain,
-                                                cacheWidth: 3840,
-                                                filterQuality:
-                                                    (_imageZoomController
-                                                            .isInteracting ||
-                                                        _imageZoomController
-                                                            .isPanZoomGesture ||
-                                                        _zoomAnimationController
-                                                            .isAnimating)
-                                                    ? FilterQuality.low
-                                                    : FilterQuality.high,
-                                                frameBuilder:
-                                                    (
-                                                      context,
-                                                      child,
-                                                      frame,
-                                                      wasSynchronouslyLoaded,
-                                                    ) {
-                                                      if (wasSynchronouslyLoaded ||
-                                                          frame != null)
-                                                        return child;
-                                                      return const Center(
-                                                        child: BubbleLoader(
-                                                          size: 60,
-                                                        ),
-                                                      );
-                                                    },
-                                              )
-                                            : Image.file(
-                                                File(imagePath),
-                                                fit: BoxFit.contain,
-                                                cacheWidth: 3840,
-                                                filterQuality:
-                                                    (_imageZoomController
-                                                            .isInteracting ||
-                                                        _imageZoomController
-                                                            .isPanZoomGesture ||
-                                                        _zoomAnimationController
-                                                            .isAnimating)
-                                                    ? FilterQuality.low
-                                                    : FilterQuality.high,
-                                                frameBuilder:
-                                                    (
-                                                      context,
-                                                      child,
-                                                      frame,
-                                                      wasSynchronouslyLoaded,
-                                                    ) {
-                                                      if (wasSynchronouslyLoaded ||
-                                                          frame != null)
-                                                        return child;
-                                                      return const Center(
-                                                        child: BubbleLoader(
-                                                          size: 60,
-                                                        ),
-                                                      );
-                                                    },
-                                              );
-                                      }
-                                    }
-
-                                    return Center(
-                                      child: Hero(
-                                        tag: _currentItem.path,
-                                        child: Transform.rotate(
-                                          angle: _rotationAngle * 3.14159 / 180,
-                                          child: _brightness != 0.0
-                                              ? ColorFiltered(
-                                                  colorFilter:
-                                                      ColorFilter.matrix([
-                                                        1,
-                                                        0,
-                                                        0,
-                                                        0,
-                                                        _brightness * 255,
-                                                        0,
-                                                        1,
-                                                        0,
-                                                        0,
-                                                        _brightness * 255,
-                                                        0,
-                                                        0,
-                                                        1,
-                                                        0,
-                                                        _brightness * 255,
-                                                        0,
-                                                        0,
-                                                        0,
-                                                        1,
-                                                        0,
-                                                      ]),
-                                                  child: buildImageWidget(),
-                                                )
-                                              : buildImageWidget(),
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                child: ImageCanvas(
+                                  imagePath: _preparationController.preparedPath ?? _currentItem.path,
+                                  heroTag: _currentItem.path,
+                                  isConverting: _preparationController.isConverting,
+                                  rotationAngle: _rotationAngle,
+                                  brightness: _brightness,
+                                  isHighFrequencyInteractionActive: _imageZoomController.isInteracting ||
+                                      _imageZoomController.isPanZoomGesture ||
+                                      _zoomAnimationController.isAnimating,
                                 ),
                               ),
                             ),

@@ -1,6 +1,5 @@
+import 'package:onyxcore/core/utils/formatters.dart';
 import 'package:path/path.dart' as p;
-
-import 'formatters.dart';
 
 /// Extension methods on [int] for human-readable conversions.
 extension IntExtensions on int {

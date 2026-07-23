@@ -1,20 +1,21 @@
 import 'dart:io';
+
+import 'package:audiotags/audiotags.dart';
 import 'package:flutter/foundation.dart';
-import 'package:onyxcore/core/utils/media_uri_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:audiotags/audiotags.dart';
-import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/core/playlist/playlist_providers.dart';
 import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart';
+import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/core/utils/media_uri_helper.dart';
+import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_properties_dialog.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
+import 'package:onyxcore/features/audio_player/presentation/widgets/playing_eq_animation.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
-import '../providers/audio_player_providers.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/playing_eq_animation.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_tag_editor_dialog.dart';
-import 'package:onyxcore/features/audio_player/presentation/widgets/dialogs/audio_properties_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/context_menu.dart';
 import 'package:path/path.dart' as p;
 
@@ -121,7 +122,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
                       .toList();
                   ref.read(audioQueueProvider.notifier).state = updatedQueue;
                 } else {
-                  bool found = false;
+                  var found = false;
                   final updatedQueue = currentQueue.map((queueItem) {
                     if (queueItem.path == oldPath) {
                       found = true;
@@ -232,7 +233,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
     if (item.type == FileItemType.folder) {
       return item.itemCount != null
           ? "${item.itemCount} Audio File${item.itemCount == 1 ? '' : 's'}"
-          : "Folder";
+          : 'Folder';
     }
 
     // Read audio tags for subtitle
@@ -246,7 +247,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
     } else {
       final tagAsync = ref.read(audioTagsProvider(item.path));
       if (tagAsync.hasValue && tagAsync.value != null) {
-        tag = tagAsync.value!;
+        tag = tagAsync.value;
       }
     }
 
@@ -261,18 +262,18 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
 
     String subtitle;
     if (artistText != null && albumText != null) {
-      subtitle = "$artistText | $albumText";
+      subtitle = '$artistText | $albumText';
     } else if (artistText != null) {
       subtitle = artistText;
     } else if (albumText != null) {
       subtitle = albumText;
     } else {
-      subtitle = "Audio File";
+      subtitle = 'Audio File';
     }
 
     if (item.sizeBytes != null && item.sizeBytes! > 0) {
       final sizeMB = (item.sizeBytes! / (1024 * 1024)).toStringAsFixed(1);
-      subtitle += " • $sizeMB MB";
+      subtitle += ' • $sizeMB MB';
     }
     return subtitle;
   }
@@ -288,7 +289,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
     } else {
       final tagAsync = ref.watch(audioTagsProvider(item.path));
       if (tagAsync.hasValue && tagAsync.value != null) {
-        tag = tagAsync.value!;
+        tag = tagAsync.value;
       }
     }
 
@@ -317,7 +318,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
       fit: StackFit.expand,
       children: [
         Container(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
         ),
         Center(
           child: ShaderMask(
@@ -339,10 +340,10 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withOpacity(0.15),
+                Colors.white.withValues(alpha: 0.15),
                 Colors.transparent,
                 Colors.transparent,
-                Colors.black.withOpacity(0.4),
+                Colors.black.withValues(alpha: 0.4),
               ],
               stops: const [0.0, 0.3, 0.7, 1.0],
             ),

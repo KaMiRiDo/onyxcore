@@ -45,7 +45,7 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
 
     // Subscribe to the Drift watch stream so we rebuild when any setting row changes.
     final db = ref.watch(databaseProvider);
-    bool isFirst = true;
+    var isFirst = true;
     final sub = db.watchAllSettings().listen((_) {
       if (isFirst) {
         isFirst = false;
@@ -149,7 +149,7 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     // Update local state by removing matching paths
     if (state.hasValue && state.value != null) {
       final newSorts = Map<String, String>.from(state.value!.gallerySortSettings);
-      bool changed = false;
+      var changed = false;
       for (final path in paths) {
         final toRemove = newSorts.keys.where((k) => k == path || k.startsWith('$path/')).toList();
         for (final k in toRemove) {

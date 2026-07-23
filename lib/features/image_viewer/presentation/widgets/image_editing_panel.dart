@@ -3,10 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Reusable widget for image editing controls (brightness, rotation).
 class ImageEditingPanel extends StatelessWidget {
-  final double rotationAngle;
-  final double brightness;
-  final ValueChanged<double> onRotationChanged;
-  final ValueChanged<double> onBrightnessChanged;
 
   const ImageEditingPanel({
     required this.rotationAngle,
@@ -15,6 +11,10 @@ class ImageEditingPanel extends StatelessWidget {
     required this.onBrightnessChanged,
     super.key,
   });
+  final double rotationAngle;
+  final double brightness;
+  final ValueChanged<double> onRotationChanged;
+  final ValueChanged<double> onBrightnessChanged;
 
   Widget _buildControlLabel(IconData icon, String label) {
     return Row(
@@ -66,7 +66,6 @@ class ImageEditingPanel extends StatelessWidget {
             Slider(
               value: brightness,
               min: -1,
-              max: 1, // Max needs to be defined if default is 0.0 to 1.0, wait, the original code had min: -1, and what was max?
               // The original slider didn't specify max, which defaults to 1.0. Let's make it 1.0 explicitly.
               activeColor: const Color(0xFF00E5FF),
               inactiveColor: Colors.white10,

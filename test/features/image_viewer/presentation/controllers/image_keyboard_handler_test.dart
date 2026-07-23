@@ -6,7 +6,7 @@ import 'package:onyxcore/features/image_viewer/presentation/controllers/image_ke
 void main() {
   late ImageKeyboardHandler handler;
   
-  bool onCloseCalled = false;
+  var onCloseCalled = false;
   bool? onDeletePermanent;
 
   setUp(() {

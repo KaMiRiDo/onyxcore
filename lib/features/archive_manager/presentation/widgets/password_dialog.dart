@@ -5,8 +5,6 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 
 class PasswordDialog extends StatefulWidget {
-  final String title;
-  final String message;
 
   const PasswordDialog({
     super.key,
@@ -14,6 +12,8 @@ class PasswordDialog extends StatefulWidget {
     this.message =
         'This archive is encrypted and requires a password to extract.',
   });
+  final String title;
+  final String message;
 
   static Future<String?> show(
     BuildContext context, {
@@ -65,12 +65,12 @@ class _PasswordDialogState extends State<PasswordDialog> {
           child: Container(
             width: 420,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E).withOpacity(0.85),
+              color: const Color(0xFF1E1E1E).withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 40,
                   offset: const Offset(0, 20),
                 ),
@@ -96,7 +96,7 @@ class _PasswordDialogState extends State<PasswordDialog> {
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        "PASSWORD",
+                        'PASSWORD',
                         style: GoogleFonts.manrope(
                           color: Colors.white24,
                           fontSize: 10,
@@ -129,7 +129,7 @@ class _PasswordDialogState extends State<PasswordDialog> {
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient.withOpacity(0.2),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.violet.withOpacity(0.3)),
+              border: Border.all(color: AppColors.violet.withValues(alpha: 0.3)),
             ),
             child: const Icon(
               Icons.lock_rounded,
@@ -159,7 +159,7 @@ class _PasswordDialogState extends State<PasswordDialog> {
       decoration: BoxDecoration(
         color: Colors.black26,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.violet.withOpacity(0.2)),
+        border: Border.all(color: AppColors.violet.withValues(alpha: 0.2)),
       ),
       child: TextField(
         controller: _controller,
@@ -173,7 +173,7 @@ class _PasswordDialogState extends State<PasswordDialog> {
             vertical: 18,
           ),
           border: InputBorder.none,
-          hintText: "Enter password",
+          hintText: 'Enter password',
           hintStyle: const TextStyle(color: Colors.white12),
           suffixIcon: IconButton(
             icon: Icon(
@@ -216,7 +216,7 @@ class _PasswordDialogState extends State<PasswordDialog> {
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: AppColors.violet.withOpacity(0.3),
+                color: AppColors.violet.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),

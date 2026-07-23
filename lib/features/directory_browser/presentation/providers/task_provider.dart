@@ -205,6 +205,7 @@ class TaskNotifier extends Notifier<List<FileTask>> {
         .toList();
     if (active.isEmpty) return 0;
 
+    // ignore: omit_local_variable_types, prefer_int_literals
     double sum = 0.0;
     for (final t in active) {
       sum += t.progress;

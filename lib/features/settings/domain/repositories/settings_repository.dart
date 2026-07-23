@@ -1,5 +1,5 @@
-import '../entities/app_settings.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 
 /// Abstract interface for settings persistence.
 ///

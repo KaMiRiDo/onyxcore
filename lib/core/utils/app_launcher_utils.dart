@@ -1,9 +1,17 @@
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 class AppInfo {
+
+  AppInfo({
+    required this.id,
+    required this.name,
+    required this.exec,
+    required this.mimeTypes, required this.desktopFilePath, this.icon,
+  });
   final String id;
   final String name;
   final String exec;
@@ -11,21 +19,12 @@ class AppInfo {
   final List<String> mimeTypes;
   final String desktopFilePath;
 
-  AppInfo({
-    required this.id,
-    required this.name,
-    required this.exec,
-    this.icon,
-    required this.mimeTypes,
-    required this.desktopFilePath,
-  });
-
   @override
   String toString() => 'AppInfo(name: $name, id: $id)';
 }
 
 class AppLauncherUtils {
-  static Map<String, String> _iconCache = {};
+  static final Map<String, String> _iconCache = {};
   static bool _iconsScanned = false;
   static List<AppInfo> _cachedApps = [];
   static bool _isScanning = false;
@@ -53,7 +52,7 @@ class AppLauncherUtils {
 
   static Future<List<AppInfo>> scanApps() async {
     _isScanning = true;
-    final List<AppInfo> apps = [];
+    final apps = <AppInfo>[];
     final scanPaths = [
       '/usr/share/applications',
       '/usr/local/share/applications',
@@ -67,7 +66,7 @@ class AppLauncherUtils {
       '/var/lib/snapd/desktop/applications', // Double check
     ];
 
-    final Set<String> processedIds = {};
+    final processedIds = <String>{};
 
     for (final path in scanPaths) {
       final dir = Directory(path);
@@ -114,7 +113,7 @@ class AppLauncherUtils {
       p.join(Platform.environment['HOME'] ?? '', '.local/share/icons'),
     ];
 
-    int iconCount = 0;
+    var iconCount = 0;
     for (final rootPath in iconPaths) {
       final root = Directory(rootPath);
       if (!root.existsSync()) continue;
@@ -127,8 +126,9 @@ class AppLauncherUtils {
             // We only care about icons in 'apps', 'mimetypes', or pixmaps
             if (!path.contains('/apps/') &&
                 !path.contains('/mimetypes/') &&
-                !path.contains('pixmaps'))
+                !path.contains('pixmaps')) {
               continue;
+            }
 
             final ext = p.extension(path).toLowerCase();
             if (['.png', '.svg', '.xpm', '.jpg', '.jpeg'].contains(ext)) {
@@ -137,7 +137,7 @@ class AppLauncherUtils {
               final name = basename.substring(0, basename.length - ext.length);
 
               // Priority: Scalable > High Res > Medium Res
-              bool shouldUpdate = !_iconCache.containsKey(name);
+              var shouldUpdate = !_iconCache.containsKey(name);
               if (!shouldUpdate) {
                 final currentPath = _iconCache[name]!;
                 final isNewScalable = path.contains('scalable');
@@ -146,9 +146,9 @@ class AppLauncherUtils {
                 if (isNewScalable && !isCurrentScalable) {
                   shouldUpdate = true;
                 } else if (!isCurrentScalable) {
-                  if (path.contains('256x256') || path.contains('512x512'))
+                  if (path.contains('256x256') || path.contains('512x512')) {
                     shouldUpdate = true;
-                  else if (path.contains('128x128') &&
+                  } else if (path.contains('128x128') &&
                       !currentPath.contains('256x256'))
                     shouldUpdate = true;
                   else if (path.contains('64x64') &&
@@ -178,13 +178,13 @@ class AppLauncherUtils {
 
   static Future<AppInfo?> _parseDesktopFile(File file) async {
     try {
-      final List<String> lines = await file.readAsLines();
+      final lines = await file.readAsLines();
       String? name;
       String? exec;
       String? icon;
-      final List<String> mimeTypes = [];
-      bool isNoDisplay = false;
-      bool inDesktopEntry = false;
+      final mimeTypes = <String>[];
+      var isNoDisplay = false;
+      var inDesktopEntry = false;
 
       for (final line in lines) {
         final trimmed = line.trim();
@@ -207,7 +207,7 @@ class AppLauncherUtils {
           name = value;
         } else if (key == 'Exec') {
           // Remove %f, %F, %u, %U etc
-          exec = value.replaceAll(RegExp(r'%[fFuU]'), '').trim();
+          exec = value.replaceAll(RegExp('%[fFuU]'), '').trim();
         } else if (key == 'Icon') {
           icon = value;
         } else if (key == 'MimeType') {
@@ -365,9 +365,9 @@ class AppLauncherUtils {
   }
 
   static List<String> _parseGioMimeOutput(String output) {
-    final List<String> ids = [];
+    final ids = <String>[];
     final lines = output.split('\n');
-    bool inRecommended = false;
+    var inRecommended = false;
 
     for (final line in lines) {
       if (line.contains('Recommended applications:')) {
@@ -385,7 +385,7 @@ class AppLauncherUtils {
 
   static Future<void> launchApp(AppInfo app, String filePath) async {
     // Replace %u, %U, %f, %F with file path
-    String exec = app.exec;
+    var exec = app.exec;
     final path = '"$filePath"';
 
     if (exec.contains('%u') ||

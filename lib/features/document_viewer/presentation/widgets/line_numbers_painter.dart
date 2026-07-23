@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 class LineNumbersPainter extends CustomPainter {
-  final GlobalKey editorKey;
-  final TextEditingController controller;
-  final TextStyle textStyle;
 
   LineNumbersPainter({
     required this.editorKey,
@@ -12,10 +9,13 @@ class LineNumbersPainter extends CustomPainter {
     required this.textStyle,
     required Listenable repaint,
   }) : super(repaint: repaint);
+  final GlobalKey editorKey;
+  final TextEditingController controller;
+  final TextStyle textStyle;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final RenderBox? renderTextField =
+    final renderTextField =
         editorKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderTextField == null) return;
 
@@ -32,18 +32,18 @@ class LineNumbersPainter extends CustomPainter {
 
     if (renderEditable == null) return;
 
-    final Offset offset = renderEditable!.localToGlobal(
+    final offset = renderEditable!.localToGlobal(
       Offset.zero,
       ancestor: renderTextField,
     );
-    final double dyOffset = offset.dy;
+    final dyOffset = offset.dy;
 
     final text = controller.text;
     final lines = text.split('\n');
-    int currentOffset = 0;
-    double lastDy = dyOffset;
+    var currentOffset = 0;
+    var lastDy = dyOffset;
 
-    for (int i = 0; i < lines.length; i++) {
+    for (var i = 0; i < lines.length; i++) {
       final selection = TextSelection.collapsed(offset: currentOffset);
       final endpoints = renderEditable!.getEndpointsForSelection(selection);
 

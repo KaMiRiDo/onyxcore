@@ -19,7 +19,7 @@ void main() {
       expect(find.text('1.50x'), findsOneWidget);
       expect(find.byIcon(Icons.speed), findsOneWidget);
 
-      controller.add(2.0);
+      controller.add(2);
       await tester.pumpAndSettle();
       expect(find.text('2.00x'), findsOneWidget);
 
@@ -53,7 +53,7 @@ void main() {
         home: Scaffold(
           body: SpeedIndicator(
             rateStream: controller.stream,
-            currentRate: 1.0,
+            currentRate: 1,
           ),
         ),
       ));
@@ -62,7 +62,7 @@ void main() {
       expect(find.byIcon(Icons.speed), findsNothing);
       
       // Update with exact 1.0
-      controller.add(1.0);
+      controller.add(1);
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.speed), findsNothing);
       

@@ -4,10 +4,10 @@ import 'package:file/local.dart';
 /// Service that abstracts file system operations using the 'file' package.
 /// This allows for easy swapping of the file system (e.g., MemoryFileSystem for tests).
 class FileSystemService {
-  final FileSystem _fileSystem;
 
   FileSystemService([FileSystem? fileSystem])
     : _fileSystem = fileSystem ?? const LocalFileSystem();
+  final FileSystem _fileSystem;
 
   FileSystem get fileSystem => _fileSystem;
 
@@ -19,10 +19,10 @@ class FileSystemService {
 
   /// Checks if a path exists and is a directory.
   Future<bool> isDirectory(String path) async =>
-      await _fileSystem.isDirectory(path);
+      _fileSystem.isDirectory(path);
 
   /// Checks if a path exists and is a file.
-  Future<bool> isFile(String path) async => await _fileSystem.isFile(path);
+  Future<bool> isFile(String path) async => _fileSystem.isFile(path);
 
   /// Lists the contents of a directory.
   Future<List<FileSystemEntity>> listDirectory(

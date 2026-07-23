@@ -4,12 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Reusable widget for displaying the current zoom level percentage.
 class ImageZoomIndicator extends StatelessWidget {
-  final double scale;
 
   const ImageZoomIndicator({
     required this.scale,
     super.key,
   });
+  final double scale;
 
   @override
   Widget build(BuildContext context) {

@@ -1,3 +1,6 @@
+import 'package:onyxcore/core/platform/directory_watcher.dart' show DirectoryWatcher;
+
+
 /// In-memory LRU cache for directory listings.
 ///
 /// Provides instant re-loading of previously visited directories
@@ -43,7 +46,7 @@ class DirectoryCache<T> {
 
   /// Invalidate a key and all its descendants.
   void invalidateRecursive(String key) {
-    _cache.removeWhere((k, _) => k == key || k.startsWith(key + '/'));
+    _cache.removeWhere((k, _) => k == key || k.startsWith('$key/'));
   }
 
   /// Invalidate all cache entries.

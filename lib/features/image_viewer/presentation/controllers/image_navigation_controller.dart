@@ -1,17 +1,28 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
+import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/image_viewer/utils/special_image_converter.dart';
-import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
+import 'package:path/path.dart' as p;
 
 class ImageNavigationController extends ChangeNotifier {
+
+  ImageNavigationController({
+    required this.isStandalone,
+    required this.initParams,
+    required this.windowId,
+    required this.ref,
+    required this.onNavigate,
+    required this.onClearNavigation,
+  });
   final bool isStandalone;
   final Map<String, dynamic>? initParams;
   final String? windowId;
@@ -29,15 +40,6 @@ class ImageNavigationController extends ChangeNotifier {
   bool get isEmptyAtEnd => _isEmptyAtEnd;
   String? get indexString => _indexString;
   List<FileItem> get standalonePlaylist => _standalonePlaylist;
-
-  ImageNavigationController({
-    required this.isStandalone,
-    required this.initParams,
-    required this.windowId,
-    required this.ref,
-    required this.onNavigate,
-    required this.onClearNavigation,
-  });
 
   @override
   void dispose() {
@@ -192,33 +194,40 @@ class ImageNavigationController extends ChangeNotifier {
         final parentDir = File(absolutePath).parent;
         if (!parentDir.existsSync()) return;
 
-        final entities = await parentDir.list().toList();
+        final imagesResult = await Isolate.run(() {
+          final result = <FileItem>[];
+          final dir = Directory(parentDir.path);
+          final entities = dir.listSync();
 
-        for (final entity in entities) {
-          if (FileSystemEntity.isFileSync(entity.path)) {
-            final name = p.basename(entity.path);
-            if (classifyFileType(name) == FileItemType.image) {
-              try {
-                final stat = await entity.stat();
-                images.add(
-                  FileItem(
-                    name: name,
-                    path: entity.path,
-                    type: FileItemType.image,
-                    sizeBytes: stat.size,
-                    modified: stat.modified,
-                  ),
-                );
-              } catch (e) {
-                debugPrint('Error stating file ${entity.path}: $e');
+          for (final entity in entities) {
+            if (FileSystemEntity.isFileSync(entity.path)) {
+              final name = p.basename(entity.path);
+              if (classifyFileType(name) == FileItemType.image) {
+                try {
+                  final stat = entity.statSync();
+                  result.add(
+                    FileItem(
+                      name: name,
+                      path: entity.path,
+                      type: FileItemType.image,
+                      sizeBytes: stat.size,
+                      modified: stat.modified,
+                    ),
+                  );
+                } catch (e) {
+                  debugPrint('Error stating file ${entity.path}: $e');
+                }
               }
             }
           }
-        }
 
-        images.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
+          result.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
+          return result;
+        });
+        
+        images.addAll(imagesResult);
       }
 
       debugPrint('Added ${images.length} images to standalone playlist');
@@ -243,7 +252,7 @@ class ImageNavigationController extends ChangeNotifier {
       if (mediaItems.isNotEmpty) {
         final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path);
         if (currentIndex != -1) {
-          for (var i = 1; i <= 2; i++) {
+          for (var i = 1; i <= 1; i++) {
             pathsToPreload.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
             pathsToPreload.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
           }
@@ -261,7 +270,7 @@ class ImageNavigationController extends ChangeNotifier {
             SpecialImageConverter.convertIfNecessary(path).then((convertedPath) {
               if (convertedPath != null && context.mounted) {
                 precacheImage(
-                  FileImage(File(convertedPath)),
+                  ResizeImage(FileImage(File(convertedPath)), width: 3840),
                   context,
                   onError: (e, s) => debugPrint('Failed to precache converted image $convertedPath: $e'),
                 );
@@ -269,8 +278,11 @@ class ImageNavigationController extends ChangeNotifier {
             }),
           );
         } else {
+          final provider = path.startsWith('http') 
+              ? NetworkImage(path) 
+              : FileImage(File(path)) as ImageProvider;
           precacheImage(
-            path.startsWith('http') ? NetworkImage(path) : FileImage(File(path)) as ImageProvider,
+            ResizeImage(provider, width: 3840),
             context,
             onError: (e, s) {
               debugPrint('Failed to precache image $path: $e');

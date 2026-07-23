@@ -1,4 +1,5 @@
 /// Utility functions for string manipulation.
+library;
 import 'package:flutter/widgets.dart';
 
 class StringUtils {
@@ -9,9 +10,9 @@ class StringUtils {
   static String truncateMiddle(String text, {int maxLength = 24}) {
     if (text.characters.length <= maxLength) return text;
 
-    final int partLen = (maxLength - 3) ~/ 2;
-    final String start = text.characters.take(partLen).toString();
-    final String end = text.characters.takeLast(partLen).toString();
+    final partLen = (maxLength - 3) ~/ 2;
+    final start = text.characters.take(partLen).toString();
+    final end = text.characters.takeLast(partLen).toString();
 
     return '$start...$end';
   }

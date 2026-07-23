@@ -1,30 +1,23 @@
 import 'dart:io' as io;
 import 'dart:ui';
+
 import 'package:file/file.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path/path.dart' as p;
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
-import 'package:onyxcore/core/widgets/onyx_switch.dart';
-import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
-import '../providers/file_picker_notifier.dart';
-import 'file_entity_tile.dart';
-import 'file_picker_preview_pane.dart';
-import 'file_picker_new_folder_dialog.dart';
+import 'package:onyxcore/core/widgets/onyx_switch.dart';
+import 'package:onyxcore/features/file_picker/presentation/providers/file_picker_notifier.dart';
+import 'package:onyxcore/features/file_picker/presentation/widgets/file_entity_tile.dart';
+import 'package:onyxcore/features/file_picker/presentation/widgets/file_picker_new_folder_dialog.dart';
+import 'package:onyxcore/features/file_picker/presentation/widgets/file_picker_preview_pane.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:path/path.dart' as p;
 
 class CustomFilePickerDialog extends ConsumerStatefulWidget {
-  final String? title;
-  final bool allowMultiple;
-  final List<String>? allowedExtensions;
-  final bool saveMode;
-  final String? actionText;
-  final String? initialFileName;
-  final String? initialDirectory;
-  final bool pickDirectory;
 
   const CustomFilePickerDialog({
     this.title,
@@ -37,6 +30,14 @@ class CustomFilePickerDialog extends ConsumerStatefulWidget {
     this.pickDirectory = false,
     super.key,
   });
+  final String? title;
+  final bool allowMultiple;
+  final List<String>? allowedExtensions;
+  final bool saveMode;
+  final String? actionText;
+  final String? initialFileName;
+  final String? initialDirectory;
+  final bool pickDirectory;
 
   static String? _lastSelectedDirectory;
 
@@ -53,7 +54,7 @@ class CustomFilePickerDialog extends ConsumerStatefulWidget {
   }) async {
     final result = await showDialog<List<String>>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (context) => CustomFilePickerDialog(
         title: title,
         allowMultiple: allowMultiple,
@@ -87,7 +88,6 @@ class _CustomFilePickerDialogState
   final ScrollController _scrollController = ScrollController();
   late double _width;
   late double _height;
-  bool _isResizing = false;
   final TextEditingController _fileNameController = TextEditingController();
   final FocusNode _fileNameFocusNode = FocusNode();
 
@@ -201,14 +201,14 @@ class _CustomFilePickerDialogState
                     filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF161616).withOpacity(0.98),
+                        color: const Color(0xFF161616).withValues(alpha: 0.98),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.black.withValues(alpha: 0.6),
                             blurRadius: 60,
                             offset: const Offset(0, 30),
                           ),
@@ -229,7 +229,7 @@ class _CustomFilePickerDialogState
                                 // Divider
                                 Container(
                                   width: 1,
-                                  color: Colors.white.withOpacity(0.05),
+                                  color: Colors.white.withValues(alpha: 0.05),
                                 ),
 
                                 // Main List
@@ -241,7 +241,7 @@ class _CustomFilePickerDialogState
                                   // Preview Pane
                                   Container(
                                     width: 1,
-                                    color: Colors.white.withOpacity(0.05),
+                                    color: Colors.white.withValues(alpha: 0.05),
                                   ),
                                   FilePickerPreviewPane(
                                     selectedPaths:
@@ -268,7 +268,7 @@ class _CustomFilePickerDialogState
                   child: MouseRegion(
                     cursor: SystemMouseCursors.click,
                     child: GestureDetector(
-                      onPanStart: (_) => setState(() => _isResizing = true),
+                      onPanStart: (_) {},
                       onPanUpdate: (details) {
                         setState(() {
                           _width = (_width + details.delta.dx).clamp(600, 1600);
@@ -279,7 +279,6 @@ class _CustomFilePickerDialogState
                         });
                       },
                       onPanEnd: (_) {
-                        setState(() => _isResizing = false);
                         ref
                             .read(settingsProvider.notifier)
                             .setFilePickerDimensions(_width, _height);
@@ -306,7 +305,7 @@ class _CustomFilePickerDialogState
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -342,7 +341,7 @@ class _CustomFilePickerDialogState
                   color: AppColors.textMuted,
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 1.0,
+                  letterSpacing: 1,
                 ),
               ),
               const SizedBox(width: 8),
@@ -377,7 +376,7 @@ class _CustomFilePickerDialogState
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 18, color: Colors.white70),
@@ -447,7 +446,7 @@ class _CustomFilePickerDialogState
 
   String _getHomeDirectory() {
     if (io.Platform.isWindows) {
-      return io.Platform.environment['USERPROFILE'] ?? 'C:\\';
+      return io.Platform.environment['USERPROFILE'] ?? r'C:\';
     }
     return io.Platform.environment['HOME'] ?? '/';
   }
@@ -456,7 +455,7 @@ class _CustomFilePickerDialogState
     final home = _getHomeDirectory();
     return Container(
       width: 200,
-      color: Colors.black.withOpacity(0.1),
+      color: Colors.black.withValues(alpha: 0.1),
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
@@ -502,7 +501,7 @@ class _CustomFilePickerDialogState
               width: 3,
             ),
           ),
-          color: isSelected ? AppColors.magenta.withOpacity(0.05) : null,
+          color: isSelected ? AppColors.magenta.withValues(alpha: 0.05) : null,
         ),
         child: Row(
           children: [
@@ -551,7 +550,7 @@ class _CustomFilePickerDialogState
                 Icon(
                   Icons.folder_open_rounded,
                   size: 48,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -679,15 +678,15 @@ class _CustomFilePickerDialogState
   Widget _buildFooter(FilePickerState? state) {
     final hasSelection = widget.saveMode
         ? _fileNameController.text.isNotEmpty
-        : (widget.pickDirectory ? true : (state?.selection.isNotEmpty ?? false));
+        : (widget.pickDirectory || (state?.selection.isNotEmpty ?? false));
     final selectionCount = state?.selection.length ?? 0;
     final isValid = _isSelectionValid(state);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.2),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+        color: Colors.black.withValues(alpha: 0.2),
+        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
       ),
       child: Row(
         children: [
@@ -713,13 +712,13 @@ class _CustomFilePickerDialogState
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
                       borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
                       borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
@@ -758,7 +757,7 @@ class _CustomFilePickerDialogState
             const Spacer(),
           ],
           TextButton(
-            onPressed: () => Navigator.pop(context, null),
+            onPressed: () => Navigator.pop(context),
             child: Text(
               'CANCEL',
               style: GoogleFonts.manrope(

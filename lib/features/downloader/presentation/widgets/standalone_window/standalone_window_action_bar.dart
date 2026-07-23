@@ -1,33 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
 
 class StandaloneWindowActionBar extends StatelessWidget {
   const StandaloneWindowActionBar({
-    super.key,
-    required this.isTrashView,
-    required this.trashNotEmpty,
-    required this.hasItems,
-    required this.currentGroup,
-    required this.importedListName,
-    required this.config,
-    required this.rootIndex,
-    required this.onRestoreAll,
-    required this.onEmptyTrash,
-    required this.onBackToRoot,
-    required this.onClear,
-    required this.onFormatChanged,
-    required this.onFilterChanged,
-    required this.matchTargetFormat,
-    required this.getHeight,
-    required this.searchController,
-    required this.searchFocusNode,
-    required this.isSearchVisible,
-    required this.listFilter,
-    required this.onListFilterChanged,
+    required this.isTrashView, required this.trashNotEmpty, required this.hasItems, required this.currentGroup, required this.importedListName, required this.config, required this.rootIndex, required this.onRestoreAll, required this.onEmptyTrash, required this.onBackToRoot, required this.onClear, required this.onFormatChanged, required this.onFilterChanged, required this.matchTargetFormat, required this.getHeight, required this.searchController, required this.searchFocusNode, required this.isSearchVisible, required this.listFilter, required this.onListFilterChanged, super.key,
     this.hasImages = true,
     this.hasVideos = true,
     this.hasPlaylists = true,

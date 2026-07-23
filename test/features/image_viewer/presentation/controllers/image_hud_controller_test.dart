@@ -4,7 +4,7 @@ import 'package:onyxcore/features/image_viewer/presentation/controllers/image_hu
 void main() {
   group('ImageHudController', () {
     late ImageHudController controller;
-    int listenerCount = 0;
+    var listenerCount = 0;
 
     setUp(() {
       controller = ImageHudController();
