@@ -32,7 +32,7 @@ class ImageViewerLifecycle {
     required BuildContext context,
     required WidgetRef ref,
     required FileItem item,
-    required bool isMounted,
+    required bool Function() isMountedCheck,
   }) async {
     if (isStandalone && windowId != null) {
       PersistentViewerManager.getFocusTrigger(int.parse(windowId!))
@@ -40,7 +40,7 @@ class ImageViewerLifecycle {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!isMounted) return;
+      if (!isMountedCheck()) return;
 
       ref.read(imageIsEmptyProvider.notifier).state = false;
       final parentPath = p.dirname(item.path);
@@ -58,7 +58,7 @@ class ImageViewerLifecycle {
     });
 
     Future.delayed(const Duration(milliseconds: 350), () {
-      if (isMounted) {
+      if (isMountedCheck()) {
         onReadyForInteraction();
       }
     });
@@ -67,7 +67,7 @@ class ImageViewerLifecycle {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Future.delayed(const Duration(milliseconds: 150), () {
           PersistentViewerManager.presentWindow(int.parse(windowId!));
-          if (isMounted) {
+          if (isMountedCheck()) {
             focusNode.requestFocus();
           }
         });

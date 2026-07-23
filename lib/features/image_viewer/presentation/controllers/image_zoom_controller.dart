@@ -7,15 +7,14 @@ class ImageZoomController extends ChangeNotifier {
   
   ImageZoomController({
     required this.animationEngine,
-    required this.onZoomChanged,
   }) {
     transformationController.addListener(_onTransformationChanged);
   }
   final TransformationController transformationController = TransformationController();
   final ZoomAnimationEngine animationEngine;
   
-  double _currentScale = 1;
   double _initialScale = 1;
+  final ValueNotifier<double> scaleNotifier = ValueNotifier(1.0);
   Matrix4 _gestureStartMatrix = Matrix4.identity();
   double _scrubAccumulatedScale = 1;
   
@@ -23,11 +22,10 @@ class ImageZoomController extends ChangeNotifier {
   bool _isInteracting = false;
   
   Size _viewportSize = Size.zero;
+  Size get viewportSize => _viewportSize;
   Size? _imageSize;
-  
-  final VoidCallback onZoomChanged;
 
-  double get currentScale => _currentScale;
+  double get currentScale => scaleNotifier.value;
   bool get isPanZoomGesture => _isPanZoomGesture;
   bool get isInteracting => _isInteracting;
   bool get isAnimating => animationEngine.isAnimating;
@@ -47,7 +45,7 @@ class ImageZoomController extends ChangeNotifier {
   }
 
   void startPanZoomGesture(Offset initialPosition) {
-    _initialScale = _currentScale;
+    _initialScale = scaleNotifier.value;
     _gestureStartMatrix = transformationController.value.clone();
     _scrubAccumulatedScale = 1.0;
     _isPanZoomGesture = true;
@@ -130,18 +128,15 @@ class ImageZoomController extends ChangeNotifier {
     }
 
     final scale = transformationController.value.getMaxScaleOnAxis();
-    if (scale != _currentScale) {
-      _currentScale = scale;
-      notifyListeners();
+    if (scale != scaleNotifier.value) {
+      scaleNotifier.value = scale;
+      // No longer notifyListeners() on every scale tick for the controller itself, the ValueNotifier does it!
     }
-    
-    // Always trigger onZoomChanged to allow consumer to save state (e.g. for panning)
-    onZoomChanged();
   }
   
   void reset() {
     transformationController.value = Matrix4.identity();
-    _currentScale = 1.0;
+    scaleNotifier.value = 1.0;
     _isPanZoomGesture = false;
     _isInteracting = false;
     notifyListeners();
@@ -151,6 +146,7 @@ class ImageZoomController extends ChangeNotifier {
   void dispose() {
     transformationController.removeListener(_onTransformationChanged);
     transformationController.dispose();
+    scaleNotifier.dispose();
     super.dispose();
   }
 }

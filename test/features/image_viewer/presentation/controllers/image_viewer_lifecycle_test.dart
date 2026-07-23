@@ -39,7 +39,7 @@ void main() {
             context: context,
             ref: widgetRef,
             item: item,
-            isMounted: true,
+            isMountedCheck: () => true,
           );
           return const SizedBox();
         },

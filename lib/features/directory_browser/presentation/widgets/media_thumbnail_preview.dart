@@ -57,7 +57,7 @@ class _QueueEntry {
 class ThumbnailGenerationQueue {
   static final List<_QueueEntry> _queue = [];
   static int _activeCount = 0;
-  static const int _maxConcurrent = 4;
+  static const int _maxConcurrent = 1;
 
   /// Enqueue a thumbnail generation task.
   ///
@@ -241,12 +241,14 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
           }
 
           // 2. Try heif-thumbnailer for HEIC/HEIF/AVIF
+          final isUnix = Platform.isLinux || Platform.isMacOS;
           if (!generated && (ext.endsWith('.heic') || ext.endsWith('.heif') || ext.endsWith('.avif'))) {
-            final process = await Process.start('heif-thumbnailer', [
-              '-s', '320',
-              filePath,
-              tempThumbPath,
-            ]);
+            final process = await Process.start(
+              isUnix ? 'nice' : 'heif-thumbnailer',
+              isUnix 
+                  ? ['-n', '19', 'heif-thumbnailer', '-s', '320', filePath, tempThumbPath]
+                  : ['-s', '320', filePath, tempThumbPath],
+            );
             await process.exitCode;
             final file = File(tempThumbPath);
             // ignore: avoid_slow_async_io
@@ -276,7 +278,10 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
               tempThumbPath,
             ];
 
-            final process = await Process.start('ffmpeg', ffmpegArgs);
+            final process = await Process.start(
+              isUnix ? 'nice' : 'ffmpeg',
+              isUnix ? ['-n', '19', 'ffmpeg', ...ffmpegArgs] : ffmpegArgs,
+            );
             final exitCode = await process.exitCode;
             debugPrint(
               'MediaThumbnailPreview: FFmpeg exit code: $exitCode for $tempThumbPath',

@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'dart:isolate';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as img;
 class ImageMetadata {
 
   const ImageMetadata({
@@ -43,22 +42,11 @@ class ImageMetadataLoader {
 
       if (!context.mounted) return const ImageMetadata();
 
-      // Read image header in a background isolate to prevent main thread blocking
-      final size = await Isolate.run(() {
-        final bytes = file.readAsBytesSync();
-        final decoder = img.findDecoderForNamedImage(filePath);
-        if (decoder != null) {
-          final info = decoder.startDecode(bytes);
-          if (info != null) {
-            return Size(info.width.toDouble(), info.height.toDouble());
-          }
-        }
-        return null;
-      });
-
-      if (size == null) {
-        return const ImageMetadata();
-      }
+      final buffer = await ui.ImmutableBuffer.fromFilePath(filePath);
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final size = Size(descriptor.width.toDouble(), descriptor.height.toDouble());
+      descriptor.dispose();
+      buffer.dispose();
 
       final mp = (size.width * size.height / 1000000).toStringAsFixed(1);
       final metadataString = '${size.width.toInt()}x${size.height.toInt()} px • $mp MP';
@@ -71,8 +59,8 @@ class ImageMetadataLoader {
       // Silently catch timeouts to prevent log spam for very slow images
       return const ImageMetadata();
     } catch (e) {
-      if (e.toString().contains('Invalid image data')) {
-        // Silently catch unsupported formats (e.g. attempting to read a video or raw file as an image)
+      if (e.toString().contains('Invalid image data') || e.toString().contains('Exception: Exception')) {
+        // Silently catch unsupported formats
         return const ImageMetadata();
       }
       debugPrint('Error loading image metadata: $e');

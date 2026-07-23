@@ -16,7 +16,6 @@ void main() {
     );
     final zoomController = ImageZoomController(
       animationEngine: animationEngine,
-      onZoomChanged: () {},
     );
     final gestureHandler = ImageGestureHandler(zoomController: zoomController);
     final focusNode = FocusNode();

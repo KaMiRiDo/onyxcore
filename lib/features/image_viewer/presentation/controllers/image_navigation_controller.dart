@@ -260,37 +260,40 @@ class ImageNavigationController extends ChangeNotifier {
       }
     }
 
-    for (final path in pathsToPreload) {
-      if (path != currentItem.path && !path.toLowerCase().endsWith('.svg')) {
-        final pLower = path.toLowerCase();
-        final isSpecial = pLower.endsWith('.heic') || pLower.endsWith('.heif') || pLower.endsWith('.avif') || pLower.endsWith('.dng') || pLower.endsWith('.raw');
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (!context.mounted) return;
+      for (final path in pathsToPreload) {
+        if (path != currentItem.path && !path.toLowerCase().endsWith('.svg')) {
+          final pLower = path.toLowerCase();
+          final isSpecial = pLower.endsWith('.heic') || pLower.endsWith('.heif') || pLower.endsWith('.avif') || pLower.endsWith('.dng') || pLower.endsWith('.raw');
 
-        if (isSpecial) {
-          unawaited(
-            SpecialImageConverter.convertIfNecessary(path).then((convertedPath) {
-              if (convertedPath != null && context.mounted) {
-                precacheImage(
-                  ResizeImage(FileImage(File(convertedPath)), width: 3840),
-                  context,
-                  onError: (e, s) => debugPrint('Failed to precache converted image $convertedPath: $e'),
-                );
-              }
-            }),
-          );
-        } else {
-          final provider = path.startsWith('http') 
-              ? NetworkImage(path) 
-              : FileImage(File(path)) as ImageProvider;
-          precacheImage(
-            ResizeImage(provider, width: 3840),
-            context,
-            onError: (e, s) {
-              debugPrint('Failed to precache image $path: $e');
-            },
-          );
+          if (isSpecial) {
+            unawaited(
+              SpecialImageConverter.convertIfNecessary(path).then((convertedPath) {
+                if (convertedPath != null && context.mounted) {
+                  precacheImage(
+                    FileImage(File(convertedPath)),
+                    context,
+                    onError: (e, s) => debugPrint('Failed to precache converted image $convertedPath: $e'),
+                  );
+                }
+              }),
+            );
+          } else {
+            final provider = path.startsWith('http') 
+                ? NetworkImage(path) 
+                : FileImage(File(path)) as ImageProvider;
+            precacheImage(
+              provider,
+              context,
+              onError: (e, s) {
+                debugPrint('Failed to precache image $path: $e');
+              },
+            );
+          }
         }
       }
-    }
+    });
   }
 
   void navigatePlaylistHistoryBack() {

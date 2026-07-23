@@ -56,11 +56,15 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
 class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     with WindowListener, TickerProviderStateMixin {
   late final ImageHudController _hudController;
-  bool _isEmpty = false;
+  final ValueNotifier<bool> _isEmptyNotifier = ValueNotifier(false);
+  bool get _isEmpty => _isEmptyNotifier.value;
+  set _isEmpty(bool value) => _isEmptyNotifier.value = value;
 
   bool get _isNetworkStream => widget.initParams?['is_network_stream'] == true;
 
   String? _metadata;
+  ProviderSubscription? _restartSignalSub;
+  ProviderSubscription? _hudVisibleSub;
   late final ImagePreparationController _preparationController;
 
   final FocusNode _focusNode = FocusNode();
@@ -77,12 +81,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   Size? _imageSize;
 
   // Image Edit State
-  double _rotationAngle = 0;
-  double _brightness = 0;
+  final ValueNotifier<double> _rotationNotifier = ValueNotifier(0);
+  final ValueNotifier<double> _brightnessNotifier = ValueNotifier(0);
 
   bool _isGlobalHudVisible = true;
   Offset? _lastMousePos;
-  bool _isReadyForInteraction = false;
+  final ValueNotifier<bool> _isReadyForInteraction = ValueNotifier(false);
 
   late FileItem _currentItem;
 
@@ -95,14 +99,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   @override
   void initState() {
     super.initState();
-    _hudController = ImageHudController()
-      ..addListener(() {
-        if (mounted) setState(() {});
-      });
+    _hudController = ImageHudController();
     _preparationController = ImagePreparationController()
       ..addListener(() {
         if (mounted) {
-          setState(() {});
           if (!_preparationController.isConverting && _preparationController.preparedPath != null) {
             _loadMetadata();
           }
@@ -118,9 +118,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           onClearNavigation: _onClearNavigation,
         )..addListener(() {
           if (mounted) {
-            setState(() {
-              _isEmpty = _navigationController.isEmpty;
-            });
+            _isEmpty = _navigationController.isEmpty;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 ref.read(imageIsEmptyProvider.notifier).state = _isEmpty;
@@ -174,8 +172,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
     _imageZoomController = ImageZoomController(
       animationEngine: _zoomAnimationEngine,
-      onZoomChanged: _onZoomChanged,
     );
+    _imageZoomController.scaleNotifier.addListener(_onZoomChanged);
 
     _imageGestureHandler = ImageGestureHandler(
       zoomController: _imageZoomController,
@@ -189,9 +187,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       onWindowFocus: _onWindowFocus,
       onReadyForInteraction: () {
         if (mounted) {
-          setState(() {
-            _isReadyForInteraction = true;
-          });
+          _isReadyForInteraction.value = true;
         }
       },
       onFirstFrame: () {
@@ -219,19 +215,29 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       context: context,
       ref: ref,
       item: _currentItem,
-      isMounted: mounted,
+      isMountedCheck: () => mounted,
     );
+
+    _restartSignalSub = ref.listenManual(imageRestartSignalProvider, (previous, next) {
+      _navigationController.resetEmptyState();
+    });
+
+    if (widget.windowId == null && !widget.isStandalone) {
+      _hudVisibleSub = ref.listenManual(previewHudVisibleProvider, (previous, next) {
+        if (mounted) {
+          setState(() => _isGlobalHudVisible = next as bool);
+        }
+      });
+    }
   }
 
   void _onZoomChanged() {
     if (!mounted) return;
-    setState(() {
-      if (_imageZoomController.currentScale > 1.0) {
-        _hudController
-          ..showZoomIndicatorForDuration()
-          ..hideControls();
-      }
-    });
+    if (_imageZoomController.currentScale > 1.0) {
+      _hudController
+        ..showZoomIndicatorForDuration()
+        ..hideControls();
+    }
   }
 
   Offset _getFocalPoint() {
@@ -318,11 +324,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         }
         if (result.imageSize != null) {
           _imageSize = result.imageSize;
+          _imageZoomController.updateConstraints(_imageZoomController.viewportSize, _imageSize);
         }
       });
-      if (mounted) {
-        setState(() {});
-      }
     }
   }
 
@@ -336,6 +340,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _imageZoomController.dispose();
     _focusNode.dispose();
     _preparationController.dispose();
+    _isEmptyNotifier.dispose();
+    _rotationNotifier.dispose();
+    _brightnessNotifier.dispose();
+    _isReadyForInteraction.dispose();
+    _restartSignalSub?.close();
+    _hudVisibleSub?.close();
     super.dispose();
   }
 
@@ -363,11 +373,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   void _loadMedia(FileItem item) {
     _imageZoomController.reset();
+    _rotationNotifier.value = 0.0;
+    _brightnessNotifier.value = 0.0;
+    _isReadyForInteraction.value = false;
     setState(() {
       _currentItem = item;
       _isEmpty = false;
-      _rotationAngle = 0.0;
-      _brightness = 0.0;
       _mousePosition = Offset.zero;
       _hudController.hideControls();
     });
@@ -390,6 +401,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       ref.read(imageCurrentPathProvider.notifier).state = parentPath;
     }
     _navigationController.precacheAdjacentImages(context, item);
+    // Re-arm the interaction delay for the new image
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (mounted) {
+        _isReadyForInteraction.value = true;
+      }
+    });
   }
 
   void _openFile(FileItem item) {
@@ -416,7 +433,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           (i) => i.path == _currentItem.path,
         );
         if (currentIndex != -1) {
-          for (var i = 1; i <= 2; i++) {
+          for (var i = 1; i <= 1; i++) {
             preloadPaths
               ..add(mediaItems[(currentIndex + i) % mediaItems.length].path)
               ..add(
@@ -527,27 +544,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   @override
   Widget build(BuildContext context) {
-    _imageZoomController.updateConstraints(
-      MediaQuery.of(context).size,
-      _imageSize,
-    );
-
-    ref.listen(imageRestartSignalProvider, (previous, next) {
-      _navigationController.resetEmptyState();
-    });
-
-    if (widget.windowId == null && !widget.isStandalone) {
-      ref.listen(previewHudVisibleProvider, (previous, next) {
-        if (mounted) {
-          setState(() => _isGlobalHudVisible = next);
-        }
-      });
-    }
-
-    final isVisible =
-        _hudController.isControlsVisible &&
-        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
-
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -608,190 +604,251 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                           : const SizedBox.shrink(),
                     ),
                     Expanded(
-                      child: Stack(
-                        children: [
-                          if (_isEmpty)
-                            Positioned.fill(child: const ImageEmptyState())
-                          else
-                            Positioned.fill(
-                              child: InteractiveImageViewport(
-                                zoomController: _imageZoomController,
-                                gestureHandler: _imageGestureHandler,
-                                hudController: _hudController,
-                                isStandalone: widget.isStandalone,
-                                windowId: widget.windowId == null
-                                    ? null
-                                    : int.tryParse(widget.windowId!),
-                                onDoubleTapPopOut: _openInNewWindow,
-                                focusNode: _focusNode,
-                                isReadyForInteraction: _isReadyForInteraction,
-                                child: ImageCanvas(
-                                  imagePath: _preparationController.preparedPath ?? _currentItem.path,
-                                  heroTag: _currentItem.path,
-                                  isConverting: _preparationController.isConverting,
-                                  rotationAngle: _rotationAngle,
-                                  brightness: _brightness,
-                                  isHighFrequencyInteractionActive: _imageZoomController.isInteracting ||
-                                      _imageZoomController.isPanZoomGesture ||
-                                      _zoomAnimationController.isAnimating,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          _imageZoomController.updateConstraints(
+                            constraints.biggest,
+                            _imageSize,
+                          );
+                          return Stack(
+                            children: [
+                              Positioned.fill(
+                                child: ValueListenableBuilder<bool>(
+                                  valueListenable: _isEmptyNotifier,
+                                  builder: (context, isEmpty, child) {
+                                    if (isEmpty) {
+                                      return const ImageEmptyState();
+                                    }
+                                    return ValueListenableBuilder<bool>(
+                                      valueListenable: _isReadyForInteraction,
+                                      builder: (context, isReady, child) {
+                                        return InteractiveImageViewport(
+                                          zoomController: _imageZoomController,
+                                          gestureHandler: _imageGestureHandler,
+                                          hudController: _hudController,
+                                          isStandalone: widget.isStandalone,
+                                          windowId: widget.windowId == null
+                                              ? null
+                                              : int.tryParse(widget.windowId!),
+                                          onDoubleTapPopOut: _openInNewWindow,
+                                          focusNode: _focusNode,
+                                          isReadyForInteraction: isReady,
+                                          child: RepaintBoundary(
+                                            child: ListenableBuilder(
+                                              listenable: Listenable.merge([
+                                                _preparationController,
+                                                _rotationNotifier,
+                                                _brightnessNotifier,
+                                              ]),
+                                              builder: (context, child) {
+                                                return ImageCanvas(
+                                                  imagePath: _preparationController.preparedPath ?? _currentItem.path,
+                                                  heroTag: _currentItem.path,
+                                                  isConverting: _preparationController.isConverting,
+                                                  rotationAngle: _rotationNotifier.value,
+                                                  brightness: _brightnessNotifier.value,
+                                                  isHighFrequencyInteractionActive: _imageZoomController.isInteracting ||
+                                                      _imageZoomController.isPanZoomGesture ||
+                                                      _zoomAnimationController.isAnimating,
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
                                 ),
                               ),
-                            ),
 
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 300),
-                              opacity: isVisible ? 1.0 : 0.0,
-                              child: ViewerTopBar(
-                                title: _currentItem.name,
-                                metadata:
-                                    _navigationController.indexString != null
-                                    ? '${_navigationController.indexString} • ${_metadata ?? ''}'
-                                    : _metadata,
-                                isStandalone:
-                                    widget.isStandalone ||
-                                    widget.windowId != null,
-                                onPopOut: _openInNewWindow,
-                                onClose: () =>
-                                    ref
-                                            .read(previewFileProvider.notifier)
-                                            .state =
-                                        null,
-                                extraActions: [
-                                  if (!_isEmpty) ...[
-                                    if (!_isNetworkStream)
-                                      Consumer(
-                                        builder: (context, ref, _) {
-                                          final favorites = ref.watch(
-                                            imageFavoritesProvider,
-                                          );
-                                          final isFavorite = favorites.contains(
-                                            _currentItem.path,
-                                          );
-                                          return _buildTopBarButton(
-                                            icon: isFavorite
-                                                ? Icons.favorite_rounded
-                                                : Icons.favorite_border_rounded,
-                                            onPressed: () {
-                                              ref
-                                                  .read(
-                                                    imageFavoritesProvider
-                                                        .notifier,
-                                                  )
-                                                  .toggleFavorite(
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: ListenableBuilder(
+                                  listenable: _hudController,
+                                  builder: (context, child) {
+                                    final isVisible = _hudController.isControlsVisible &&
+                                        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
+                                    return AnimatedOpacity(
+                                      duration: const Duration(milliseconds: 300),
+                                      opacity: isVisible ? 1.0 : 0.0,
+                                      child: ViewerTopBar(
+                                        title: _currentItem.name,
+                                        metadata:
+                                            _navigationController.indexString != null
+                                            ? '${_navigationController.indexString} • ${_metadata ?? ''}'
+                                            : _metadata,
+                                        isStandalone:
+                                            widget.isStandalone ||
+                                            widget.windowId != null,
+                                        onPopOut: _openInNewWindow,
+                                        onClose: () =>
+                                            ref
+                                                    .read(previewFileProvider.notifier)
+                                                    .state =
+                                                null,
+                                        extraActions: [
+                                          if (!_isEmpty) ...[
+                                            if (!_isNetworkStream)
+                                              Consumer(
+                                                builder: (context, ref, _) {
+                                                  final favorites = ref.watch(
+                                                    imageFavoritesProvider,
+                                                  );
+                                                  final isFavorite = favorites.contains(
                                                     _currentItem.path,
                                                   );
-                                            },
-                                            tooltip: 'Toggle Favorite',
-                                            active: isFavorite,
-                                          );
-                                        },
+                                                  return _buildTopBarButton(
+                                                    icon: isFavorite
+                                                        ? Icons.favorite_rounded
+                                                        : Icons.favorite_border_rounded,
+                                                    onPressed: () {
+                                                      ref
+                                                          .read(
+                                                            imageFavoritesProvider
+                                                                .notifier,
+                                                          )
+                                                          .toggleFavorite(
+                                                            _currentItem.path,
+                                                          );
+                                                    },
+                                                    tooltip: 'Toggle Favorite',
+                                                    active: isFavorite,
+                                                  );
+                                                },
+                                              ),
+                                            if (!_isNetworkStream)
+                                              const SizedBox(width: 8),
+                                            if (!_isNetworkStream)
+                                              _buildTopBarButton(
+                                                icon: _hudController.isEditing
+                                                    ? Icons.edit_rounded
+                                                    : Icons.edit_outlined,
+                                                onPressed: _hudController.toggleEditing,
+                                                tooltip: 'Edit Image',
+                                                active: _hudController.isEditing,
+                                              ),
+                                            if (!_isNetworkStream)
+                                              const SizedBox(width: 8),
+                                            _buildTopBarButton(
+                                              icon: Icons.settings_rounded,
+                                              onPressed: () => SettingsDialog.show(
+                                                context,
+                                                initialTab: 1,
+                                                section: 'Image',
+                                              ),
+                                              tooltip: 'Image Settings',
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                        ],
                                       ),
-                                    if (!_isNetworkStream)
-                                      const SizedBox(width: 8),
-                                    if (!_isNetworkStream)
-                                      _buildTopBarButton(
-                                        icon: _hudController.isEditing
-                                            ? Icons.edit_rounded
-                                            : Icons.edit_outlined,
-                                        onPressed: _hudController.toggleEditing,
-                                        tooltip: 'Edit Image',
-                                        active: _hudController.isEditing,
-                                      ),
-                                    if (!_isNetworkStream)
-                                      const SizedBox(width: 8),
-                                    _buildTopBarButton(
-                                      icon: Icons.settings_rounded,
-                                      onPressed: () => SettingsDialog.show(
-                                        context,
-                                        initialTab: 1,
-                                        section: 'Image',
-                                      ),
-                                      tooltip: 'Image Settings',
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          if (_hudController.isEditing && isVisible)
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: ImageEditingPanel(
-                                rotationAngle: _rotationAngle,
-                                brightness: _brightness,
-                                onRotationChanged: (val) =>
-                                    setState(() => _rotationAngle = val),
-                                onBrightnessChanged: (val) =>
-                                    setState(() => _brightness = val),
-                              ),
-                            ),
-
-                          if (isVisible)
-                            Positioned(
-                              bottom: 32,
-                              left: 32,
-                              child: Consumer(
-                                builder: (context, sidebarRef, _) {
-                                  final isSidebarOpen = sidebarRef.watch(
-                                    imagePlaylistSidebarVisibleProvider,
-                                  );
-                                  return AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 200),
-                                    opacity: isVisible ? 1.0 : 0.0,
-                                    child: IconButton(
-                                      icon: const Icon(
-                                        Icons.playlist_play,
-                                        size: 24,
-                                      ),
-                                      color: _isNetworkStream
-                                          ? Colors.white30
-                                          : (isSidebarOpen
-                                                ? AppColors.magenta
-                                                : Colors.white),
-                                      onPressed: _isNetworkStream
-                                          ? null
-                                          : () {
-                                              sidebarRef
-                                                      .read(
-                                                        imagePlaylistSidebarVisibleProvider
-                                                            .notifier,
-                                                      )
-                                                      .state =
-                                                  !isSidebarOpen;
-                                            },
-                                      tooltip: 'Playlist',
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-
-                          if (_hudController.showZoomIndicator)
-                            Positioned(
-                              bottom: 32,
-                              right: 32,
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 200),
-                                opacity: _hudController.showZoomIndicator
-                                    ? 1.0
-                                    : 0.0,
-                                child: ImageZoomIndicator(
-                                  scale: _imageZoomController.currentScale,
+                                    );
+                                  },
                                 ),
                               ),
-                            ),
+
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: ListenableBuilder(
+                                  listenable: _hudController,
+                                  builder: (context, child) {
+                                    final isVisible = _hudController.isControlsVisible &&
+                                        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
+                                    if (!_hudController.isEditing || !isVisible) return const SizedBox.shrink();
+                                    return ValueListenableBuilder<double>(
+                                      valueListenable: _rotationNotifier,
+                                      builder: (context, rotation, child) {
+                                        return ValueListenableBuilder<double>(
+                                          valueListenable: _brightnessNotifier,
+                                          builder: (context, brightness, child) {
+                                            return ImageEditingPanel(
+                                              rotationAngle: rotation,
+                                              brightness: brightness,
+                                              onRotationChanged: (val) => _rotationNotifier.value = val,
+                                              onBrightnessChanged: (val) => _brightnessNotifier.value = val,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+
+                              Positioned(
+                                bottom: 32,
+                                left: 32,
+                                child: ListenableBuilder(
+                                  listenable: _hudController,
+                                  builder: (context, child) {
+                                    final isVisible = _hudController.isControlsVisible &&
+                                        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
+                                    if (!isVisible) return const SizedBox.shrink();
+                                    return Consumer(
+                                      builder: (context, sidebarRef, _) {
+                                        final isSidebarOpen = sidebarRef.watch(
+                                          imagePlaylistSidebarVisibleProvider,
+                                        );
+                                        return AnimatedOpacity(
+                                          duration: const Duration(milliseconds: 200),
+                                          opacity: isVisible ? 1.0 : 0.0,
+                                          child: IconButton(
+                                            icon: const Icon(
+                                              Icons.playlist_play,
+                                              size: 24,
+                                            ),
+                                            color: _isNetworkStream
+                                                ? Colors.white30
+                                                : (isSidebarOpen
+                                                      ? AppColors.magenta
+                                                      : Colors.white),
+                                            onPressed: _isNetworkStream
+                                                ? null
+                                                : () {
+                                                    sidebarRef
+                                                            .read(
+                                                              imagePlaylistSidebarVisibleProvider
+                                                                  .notifier,
+                                                            )
+                                                            .state =
+                                                        !isSidebarOpen;
+                                                  },
+                                            tooltip: 'Playlist',
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+
+                              Positioned(
+                                bottom: 32,
+                                right: 32,
+                                child: ListenableBuilder(
+                                  listenable: _hudController,
+                                  builder: (context, child) {
+                                    if (!_hudController.showZoomIndicator) return const SizedBox.shrink();
+                                    return AnimatedOpacity(
+                                      duration: const Duration(milliseconds: 200),
+                                      opacity: 1,
+                                      child: ImageZoomIndicator(
+                                        scale: _imageZoomController.currentScale,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                         ],
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                   ),
+                  ),
+                 ],
                 );
               },
             ),

@@ -272,7 +272,7 @@ class _FileGridState extends ConsumerState<FileGrid>
            if (mediaItems.isNotEmpty) {
              final currentIndex = mediaItems.indexWhere((i) => i.path == item.path);
              if (currentIndex != -1) {
-               for (var i = 1; i <= 2; i++) {
+               for (var i = 1; i <= 1; i++) {
                  preloadPaths.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
                  preloadPaths.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
                }

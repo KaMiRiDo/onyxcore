@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 class SpecialImageConverter {
+  static final _conversionQueue = <Future<void>>[];
+
   static Future<bool> _convertDngToJpgPreview(List<String> args) async {
     final sourcePath = args[0];
     final destPath = args[1];
@@ -37,33 +40,38 @@ class SpecialImageConverter {
       return tempPath;
     }
 
+    final completer = Completer<void>();
+    final previousTasks = List<Future<void>>.from(_conversionQueue);
+    _conversionQueue.add(completer.future);
+
+    try {
+      if (previousTasks.isNotEmpty) {
+        await Future.wait(previousTasks);
+      }
+    } catch (_) {}
+
     final uniqueTempPath =
         '${Directory.systemTemp.path}/onyx_special_${sourcePath.hashCode}_${DateTime.now().microsecondsSinceEpoch}.jpg';
 
     try {
       if (isHeic) {
-        final process = await Process.start('heif-thumbnailer', [
-          '-s',
-          '10000',
-          sourcePath,
-          uniqueTempPath,
-        ]);
+        final isUnix = Platform.isLinux || Platform.isMacOS;
+        final process = await Process.start(
+          isUnix ? 'nice' : 'heif-thumbnailer',
+          isUnix 
+              ? ['-n', '19', 'heif-thumbnailer', '-s', '1920', sourcePath, uniqueTempPath]
+              : ['-s', '1920', sourcePath, uniqueTempPath],
+        );
         await process.exitCode;
 
         final file = File(uniqueTempPath);
         if (!file.existsSync() || file.lengthSync() == 0) {
-          final fallbackProcess = await Process.start('ffmpeg', [
-            '-y',
-            '-i',
-            sourcePath,
-            '-vframes',
-            '1',
-            '-q:v',
-            '2',
-            '-update',
-            '1',
-            uniqueTempPath,
-          ]);
+          final fallbackProcess = await Process.start(
+            isUnix ? 'nice' : 'ffmpeg',
+            isUnix 
+                ? ['-n', '19', 'ffmpeg', '-y', '-i', sourcePath, '-vframes', '1', '-q:v', '2', '-update', '1', uniqueTempPath]
+                : ['-y', '-i', sourcePath, '-vframes', '1', '-q:v', '2', '-update', '1', uniqueTempPath],
+          );
           await fallbackProcess.exitCode;
         }
       } else if (isDng) {
@@ -77,6 +85,9 @@ class SpecialImageConverter {
       }
     } catch (e) {
       debugPrint('Failed to convert special image: $e');
+    } finally {
+      completer.complete();
+      _conversionQueue.remove(completer.future);
     }
 
     final finalFile = File(tempPath);

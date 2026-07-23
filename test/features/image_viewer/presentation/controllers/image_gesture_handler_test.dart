@@ -11,8 +11,7 @@ class MockZoomAnimationEngine extends ZoomAnimationEngine {
 
 class MockImageZoomController extends ImageZoomController {
   MockImageZoomController() : super(
-    animationEngine: MockZoomAnimationEngine(), // Properly mock ZoomAnimationEngine
-    onZoomChanged: () {},
+    animationEngine: MockZoomAnimationEngine(),
   );
   
   double _mockCurrentScale = 1;

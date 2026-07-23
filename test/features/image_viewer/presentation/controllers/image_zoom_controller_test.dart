@@ -8,7 +8,7 @@ void main() {
     late AnimationController animationController;
     late ZoomAnimationEngine animationEngine;
     late ImageZoomController zoomController;
-    var zoomChangedCalled = false;
+
 
     setUp(() {
       TestWidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +17,7 @@ void main() {
         duration: const Duration(milliseconds: 200),
       );
       
-      zoomChangedCalled = false;
+
       
       animationEngine = ZoomAnimationEngine(
         animationController: animationController,
@@ -28,9 +28,6 @@ void main() {
       
       zoomController = ImageZoomController(
         animationEngine: animationEngine,
-        onZoomChanged: () {
-          zoomChangedCalled = true;
-        },
       )..updateConstraints(const Size(1000, 1000), const Size(500, 500));
     });
 
@@ -58,7 +55,6 @@ void main() {
     test('setZoom without animation immediately updates transformation', () {
       zoomController.setZoom(2, focalPoint: const Offset(500, 500), animate: false);
       expect(zoomController.currentScale, equals(2.0));
-      expect(zoomChangedCalled, isTrue);
     });
 
     test('startPanZoomGesture and endPanZoomGesture updates state', () {

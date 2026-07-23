@@ -37,15 +37,15 @@ class ImageCanvas extends StatelessWidget {
                     0, 0, 1, 0, brightness * 255,
                     0, 0, 0, 1, 0,
                   ]),
-                  child: _buildImageWidget(),
+                  child: _buildImageWidget(context),
                 )
-              : _buildImageWidget(),
+              : _buildImageWidget(context),
         ),
       ),
     );
   }
 
-  Widget _buildImageWidget() {
+  Widget _buildImageWidget(BuildContext context) {
     if (isConverting) {
       return const Center(
         child: BubbleLoader(size: 60),
@@ -95,7 +95,6 @@ class ImageCanvas extends StatelessWidget {
       return Image.network(
         imagePath,
         fit: BoxFit.contain,
-        cacheWidth: 3840,
         filterQuality: filterQuality,
         frameBuilder: frameBuilder,
       );
@@ -103,7 +102,6 @@ class ImageCanvas extends StatelessWidget {
       return Image.file(
         File(imagePath),
         fit: BoxFit.contain,
-        cacheWidth: 3840,
         filterQuality: filterQuality,
         frameBuilder: frameBuilder,
       );

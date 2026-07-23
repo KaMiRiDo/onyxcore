@@ -112,11 +112,10 @@ void main() {
       // After settling, the loader should be gone
       expect(find.byType(BubbleLoader), findsNothing, reason: 'Loader should disappear after image is loaded');
 
-      // Verify that cacheWidth is applied to prevent main thread freezing
+      // Verify that the image is rendered correctly
       final imageWidget = tester.widget<Image>(find.byType(Image));
       final imageProvider = imageWidget.image;
-      expect(imageProvider, isA<ResizeImage>());
-      expect((imageProvider as ResizeImage).width, 3840, reason: 'Should apply cacheWidth to avoid UI thread freezes with large images');
+      expect(imageProvider, isA<FileImage>());
     });
 
     testWidgets('loads and displays SVG metadata', (WidgetTester tester) async {
@@ -480,6 +479,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     });
+
+
 
   });
 }
