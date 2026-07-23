@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:onyxcore/core/theme/app_colors.dart';
 
@@ -21,7 +22,10 @@ class _BubbleLoaderState extends State<BubbleLoader>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
-    )..repeat();
+    );
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _controller.repeat();
+    }
   }
 
   @override

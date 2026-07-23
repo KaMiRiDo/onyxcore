@@ -5,7 +5,6 @@ import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
@@ -127,6 +126,12 @@ void main() {
       expect(find.text('folder1'), findsOneWidget);
       expect(find.text('Image File • 2.0 MB'), findsOneWidget);
       expect(find.text('5 Image Files'), findsOneWidget);
+
+      await tester.tap(find.text('image1.jpg'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('image1.jpg'));
+      await tester.pumpAndSettle();
+      expect(tappedItem, dummyImage);
     });
 
       });

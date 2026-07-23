@@ -4,11 +4,9 @@ import 'package:onyxcore/features/image_viewer/presentation/providers/image_play
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/core/playlist/playlist_providers.dart';
-
 class TestImageFavoritesNotifier extends ImageFavoritesNotifier {
   // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
-  void setFavorites(Set<String> favs) => state = favs;
+  void updateFavorites(Set<String> favs) => state = favs;
 }
 
 void main() {
@@ -20,12 +18,12 @@ void main() {
       expect(container.read(imageViewModeProvider), ImageViewMode.home);
       expect(container.read(imageCurrentPathProvider), '');
       expect(container.read(imageRootPathProvider), '');
-      expect(container.read(imagePathHistoryProvider), []);
-      expect(container.read(imagePathForwardHistoryProvider), []);
+      expect(container.read(imagePathHistoryProvider), <String>[]);
+      expect(container.read(imagePathForwardHistoryProvider), <String>[]);
       expect(container.read(imageSelectionProvider), <String>{});
       expect(container.read(imageSelectionAnchorProvider), null);
-      expect(container.read(imageQueueProvider), []);
-      expect(container.read(imagePlayingQueueProvider), []);
+      expect(container.read(imageQueueProvider), <FileItem>[]);
+      expect(container.read(imagePlayingQueueProvider), <FileItem>[]);
       expect(container.read(activeImageIndexProvider), 0);
       expect(container.read(imageIsReloadingProvider), false);
       expect(container.read(imagePlaylistSidebarVisibleProvider), false);
@@ -80,7 +78,7 @@ void main() {
       container.read(imageSortOptionProvider.notifier).state = SortOption.aToZ;
       expect(container.read(filteredAndSortedImageQueueProvider), [item1, item2, item3]);
 
-      (container.read(imageFavoritesProvider.notifier) as TestImageFavoritesNotifier).setFavorites({'/test/b.jpg'});
+      (container.read(imageFavoritesProvider.notifier) as TestImageFavoritesNotifier).updateFavorites({'/test/b.jpg'});
       container.read(imageViewModeProvider.notifier).state = ImageViewMode.favorites;
       expect(container.read(filteredAndSortedImageQueueProvider), [item2]);
     });

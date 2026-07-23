@@ -181,10 +181,6 @@ class _ImagePlaylistSidebarState
     final isEmpty = ref.watch(imageIsEmptyProvider);
     final currentPreviewTrack = ref.watch(previewFileProvider);
 
-    debugPrint(
-      '[ImageSidebar] isItemActive check for ${item.name}: isEmpty=$isEmpty, currentPreview=${currentPreviewTrack?.name}',
-    );
-
     if (isEmpty) return false;
     if (currentPreviewTrack == null) return false;
 

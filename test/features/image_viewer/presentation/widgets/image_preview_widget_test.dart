@@ -11,6 +11,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:path/path.dart' as p;
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -101,11 +102,21 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        // The first frame should show a BubbleLoader while the image is decoding
+        expect(find.byType(BubbleLoader), findsOneWidget, reason: 'Should show loader during image decode');
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
       
       expect(find.byType(ImagePreviewWidget), findsOneWidget);
+      // After settling, the loader should be gone
+      expect(find.byType(BubbleLoader), findsNothing, reason: 'Loader should disappear after image is loaded');
+
+      // Verify that cacheWidth is applied to prevent main thread freezing
+      final imageWidget = tester.widget<Image>(find.byType(Image));
+      final imageProvider = imageWidget.image;
+      expect(imageProvider, isA<ResizeImage>());
+      expect((imageProvider as ResizeImage).width, 3840, reason: 'Should apply cacheWidth to avoid UI thread freezes with large images');
     });
 
     testWidgets('loads and displays SVG metadata', (WidgetTester tester) async {
@@ -125,7 +136,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
       
@@ -149,7 +160,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
       
@@ -177,7 +188,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
 
@@ -208,7 +219,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
 
@@ -240,7 +251,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       });
       await tester.pumpAndSettle();
 
@@ -271,7 +282,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
 
@@ -309,7 +320,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
 
@@ -376,7 +387,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
 
@@ -423,7 +434,7 @@ void main() {
             ),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
 

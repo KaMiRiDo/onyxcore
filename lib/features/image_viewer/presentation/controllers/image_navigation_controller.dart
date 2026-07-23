@@ -1,0 +1,325 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/image_viewer/utils/special_image_converter.dart';
+import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
+
+class ImageNavigationController extends ChangeNotifier {
+  final bool isStandalone;
+  final Map<String, dynamic>? initParams;
+  final String? windowId;
+  final WidgetRef ref;
+  final void Function(FileItem nextItem) onNavigate;
+  final VoidCallback onClearNavigation;
+
+  Timer? _navigationThrottleTimer;
+  bool _isEmpty = false;
+  bool _isEmptyAtEnd = false;
+  String? _indexString;
+  List<FileItem> _standalonePlaylist = [];
+
+  bool get isEmpty => _isEmpty;
+  bool get isEmptyAtEnd => _isEmptyAtEnd;
+  String? get indexString => _indexString;
+  List<FileItem> get standalonePlaylist => _standalonePlaylist;
+
+  ImageNavigationController({
+    required this.isStandalone,
+    required this.initParams,
+    required this.windowId,
+    required this.ref,
+    required this.onNavigate,
+    required this.onClearNavigation,
+  });
+
+  @override
+  void dispose() {
+    _navigationThrottleTimer?.cancel();
+    super.dispose();
+  }
+
+  void resetEmptyState() {
+    if (_isEmpty) {
+      _isEmpty = false;
+      notifyListeners();
+    }
+  }
+
+  List<FileItem> getPlaylist() {
+    if (isStandalone) {
+      return _standalonePlaylist;
+    }
+    
+    var mediaItems = ref
+        .read(filteredAndSortedImageQueueProvider)
+        .where((i) => i.type == FileItemType.image)
+        .toList();
+    if (mediaItems.isEmpty) {
+      final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+      mediaItems = items.where((i) => i.type == FileItemType.image).toList();
+    }
+    return mediaItems;
+  }
+
+  void navigateForward(FileItem currentItem) {
+    _navigateMedia(currentItem, forward: true);
+  }
+
+  void navigateBackward(FileItem currentItem) {
+    _navigateMedia(currentItem, forward: false);
+  }
+
+  void _navigateMedia(FileItem currentItem, {required bool forward}) {
+    if (_navigationThrottleTimer?.isActive ?? false) return;
+    _navigationThrottleTimer = Timer(const Duration(milliseconds: 300), () {});
+
+    final mediaItems = getPlaylist();
+    if (mediaItems.isEmpty) return;
+
+    final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path);
+
+    if (currentIndex == -1) {
+      _isEmpty = true;
+      _isEmptyAtEnd = true;
+      notifyListeners();
+      return;
+    }
+
+    if (_isEmpty) {
+      if (_isEmptyAtEnd && forward) return;
+      if (!_isEmptyAtEnd && !forward) return;
+
+      _isEmpty = false;
+      notifyListeners();
+      onNavigate(mediaItems[currentIndex]);
+      return;
+    }
+
+    int nextIndex;
+    if (forward) {
+      if (currentIndex == mediaItems.length - 1) {
+        _isEmpty = true;
+        _isEmptyAtEnd = true;
+        notifyListeners();
+        return;
+      }
+      nextIndex = currentIndex + 1;
+    } else {
+      if (currentIndex == 0) {
+        _isEmpty = true;
+        _isEmptyAtEnd = false;
+        notifyListeners();
+        return;
+      }
+      nextIndex = currentIndex - 1;
+    }
+
+    onNavigate(mediaItems[nextIndex]);
+  }
+
+  void navigateAfterDeletion(FileItem currentItem) {
+    final mediaItems = getPlaylist();
+    
+    if (mediaItems.length > 1) {
+      final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path);
+      if (currentIndex != -1) {
+        final nextIndex = (currentIndex + 1) % mediaItems.length;
+        onNavigate(mediaItems[nextIndex]);
+      } else {
+        onClearNavigation();
+      }
+    } else {
+      onClearNavigation();
+    }
+  }
+
+  Future<void> updateIndexData(FileItem currentItem) async {
+    final useInitParams =
+        windowId != null &&
+        initParams != null &&
+        initParams!['currentIndex'] != null &&
+        !(isStandalone && _standalonePlaylist.isNotEmpty);
+
+    if (useInitParams) {
+      _indexString = '${initParams!['currentIndex']}/${initParams!['totalCount']}';
+      notifyListeners();
+    } else {
+      final mediaItems = getPlaylist();
+      final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path) + 1;
+      final totalCount = mediaItems.length;
+      if (currentIndex > 0) {
+        _indexString = '$currentIndex/$totalCount';
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> initStandalonePlaylist(FileItem currentItem) async {
+    try {
+      final images = <FileItem>[];
+
+      if (initParams != null && initParams!['playlistPaths'] != null) {
+        final paths = List<String>.from(initParams!['playlistPaths'] as Iterable);
+        for (final path in paths) {
+          final file = File(path);
+          if (file.existsSync()) {
+            final name = p.basename(path);
+            try {
+              final stat = await file.stat();
+              images.add(
+                FileItem(
+                  name: name,
+                  path: path,
+                  type: FileItemType.image,
+                  sizeBytes: stat.size,
+                  modified: stat.modified,
+                ),
+              );
+            } catch (e) {
+              debugPrint('Error stating file $path: $e');
+            }
+          }
+        }
+      } else {
+        final absolutePath = File(currentItem.path).absolute.path;
+        final parentDir = File(absolutePath).parent;
+        if (!parentDir.existsSync()) return;
+
+        final entities = await parentDir.list().toList();
+
+        for (final entity in entities) {
+          if (FileSystemEntity.isFileSync(entity.path)) {
+            final name = p.basename(entity.path);
+            if (classifyFileType(name) == FileItemType.image) {
+              try {
+                final stat = await entity.stat();
+                images.add(
+                  FileItem(
+                    name: name,
+                    path: entity.path,
+                    type: FileItemType.image,
+                    sizeBytes: stat.size,
+                    modified: stat.modified,
+                  ),
+                );
+              } catch (e) {
+                debugPrint('Error stating file ${entity.path}: $e');
+              }
+            }
+          }
+        }
+
+        images.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+      }
+
+      debugPrint('Added ${images.length} images to standalone playlist');
+      _standalonePlaylist = images;
+      notifyListeners();
+      
+      ref.read(imageQueueProvider.notifier).state = _standalonePlaylist;
+      unawaited(updateIndexData(currentItem));
+    } catch (e) {
+      debugPrint('[ImageNavigationController] Error in initStandalonePlaylist: $e');
+    }
+  }
+
+  void precacheAdjacentImages(BuildContext context, FileItem currentItem) {
+    var pathsToPreload = <String>[];
+
+    if (isStandalone && initParams != null && initParams!['preloadPaths'] != null) {
+      final preloadList = initParams!['preloadPaths'] as List<dynamic>;
+      pathsToPreload = preloadList.map((e) => e.toString()).toList();
+    } else if (!isStandalone && windowId == null) {
+      final mediaItems = getPlaylist();
+      if (mediaItems.isNotEmpty) {
+        final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path);
+        if (currentIndex != -1) {
+          for (var i = 1; i <= 2; i++) {
+            pathsToPreload.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
+            pathsToPreload.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
+          }
+        }
+      }
+    }
+
+    for (final path in pathsToPreload) {
+      if (path != currentItem.path && !path.toLowerCase().endsWith('.svg')) {
+        final pLower = path.toLowerCase();
+        final isSpecial = pLower.endsWith('.heic') || pLower.endsWith('.heif') || pLower.endsWith('.avif') || pLower.endsWith('.dng') || pLower.endsWith('.raw');
+
+        if (isSpecial) {
+          unawaited(
+            SpecialImageConverter.convertIfNecessary(path).then((convertedPath) {
+              if (convertedPath != null && context.mounted) {
+                precacheImage(
+                  FileImage(File(convertedPath)),
+                  context,
+                  onError: (e, s) => debugPrint('Failed to precache converted image $convertedPath: $e'),
+                );
+              }
+            }),
+          );
+        } else {
+          precacheImage(
+            path.startsWith('http') ? NetworkImage(path) : FileImage(File(path)) as ImageProvider,
+            context,
+            onError: (e, s) {
+              debugPrint('Failed to precache image $path: $e');
+            },
+          );
+        }
+      }
+    }
+  }
+
+  void navigatePlaylistHistoryBack() {
+    final history = ref.read(imagePathHistoryProvider);
+    if (history.isNotEmpty) {
+      final newPath = history.last;
+      final currentPath = ref.read(imageCurrentPathProvider);
+
+      ref.read(imagePathHistoryProvider.notifier).state = history.sublist(0, history.length - 1);
+      ref.read(imagePathForwardHistoryProvider.notifier).update((state) => [...state, currentPath]);
+
+      _openPlaylistFolder(newPath);
+    }
+  }
+
+  void navigatePlaylistHistoryForward() {
+    final forwardHistory = ref.read(imagePathForwardHistoryProvider);
+    if (forwardHistory.isNotEmpty) {
+      final newPath = forwardHistory.last;
+      final currentPath = ref.read(imageCurrentPathProvider);
+
+      ref.read(imagePathForwardHistoryProvider.notifier).state = forwardHistory.sublist(0, forwardHistory.length - 1);
+      ref.read(imagePathHistoryProvider.notifier).update((state) => [...state, currentPath]);
+
+      _openPlaylistFolder(newPath);
+    }
+  }
+
+  Future<void> _openPlaylistFolder(String path) async {
+    final repo = ref.read(directoryRepositoryProvider);
+    final showHidden = ref.read(imageShowHiddenProvider);
+    try {
+      final items = await repo.listDirectory(path);
+      final mediaFiles = await compute(processMediaQueueIsolate, {
+        'items': items.map((e) => e.toJson()).toList(),
+        'showHidden': showHidden,
+        'targetType': FileItemType.image.index,
+      });
+
+      ref.read(imageQueueProvider.notifier).state = mediaFiles;
+      ref.read(imageCurrentPathProvider.notifier).state = path;
+    } catch (_) {}
+  }
+}
