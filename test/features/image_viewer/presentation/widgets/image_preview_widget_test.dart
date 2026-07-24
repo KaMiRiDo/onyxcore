@@ -640,9 +640,20 @@ void main() {
       // Still interacting, timer should have been cancelled, so no promotion
       expect(tester.takeException(), isNull);
       
+      // Assert actual render state during active interaction
+      final activeImages = tester.widgetList<Image>(find.byType(Image)).toList();
+      expect(activeImages.length, 1, reason: 'Only low-res image should be visible during interaction');
+      expect(activeImages.first.filterQuality, FilterQuality.low, reason: 'Quality must be low during interaction');
+      
       // End interaction
       await gesture.up();
       await tester.pump();
+      
+      // Right after interaction ends, the interaction notifier is in "settling" phase (200ms delay)
+      // So highRes is still hidden (1 Image), and quality is still low.
+      final images = tester.widgetList<Image>(find.byType(Image)).toList();
+      expect(images.length, 1, reason: 'High-res image should not be promoted yet');
+      expect(images.first.filterQuality, FilterQuality.low);
       
       // Wait for 100ms (not fully settled, which is 200ms)
       await tester.pump(const Duration(milliseconds: 100));
@@ -658,11 +669,16 @@ void main() {
       await gesture2.up();
       await tester.pump();
       
-      // Now fully settle
+      // Now fully settle (> 300ms since last interaction ended)
       await tester.pumpAndSettle(const Duration(milliseconds: 600));
       
       // Should have successfully promoted without errors
       expect(tester.takeException(), isNull);
+      
+      // Assert actual render state after settling
+      final finalImages = tester.widgetList<Image>(find.byType(Image)).toList();
+      expect(finalImages.length, 2, reason: 'Both low-res and high-res images should be rendered after promotion');
+      expect(finalImages.last.filterQuality, FilterQuality.high, reason: 'High-res image should have high quality');
     });
   });
 }

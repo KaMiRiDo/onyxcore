@@ -72,7 +72,7 @@ class _ImageCanvasState extends State<ImageCanvas> {
   void _startHighResTimer() {
     _timer?.cancel();
     _timer = Timer(const Duration(milliseconds: 300), () {
-      if (mounted) {
+      if (mounted && !widget.isHighFrequencyInteractionActive && !_showHighRes) {
         setState(() {
           _showHighRes = true;
         });
