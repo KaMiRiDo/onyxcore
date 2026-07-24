@@ -68,6 +68,13 @@ class FakeThumbnailCacheService implements ThumbnailCacheService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class FakeImageFavoritesNotifier extends ImageFavoritesNotifier {
+  @override
+  void setRef(Ref ref) {
+    // No-op
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -118,6 +125,7 @@ void main() {
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageQueueProvider.overrideWith((ref) => []),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
+              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
               thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
               directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([])),
             ],
@@ -145,6 +153,7 @@ void main() {
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageQueueProvider.overrideWith((ref) => [dummyImage, dummyFolder]),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
+              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
               thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
               directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage, dummyFolder])),
             ],

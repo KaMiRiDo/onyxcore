@@ -36,9 +36,36 @@ class _ImageCanvasState extends State<ImageCanvas> {
   @override
   void didUpdateWidget(ImageCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.imagePath != widget.imagePath) {
-      _showHighRes = false;
-      _startHighResTimer();
+    
+    final pathChanged = oldWidget.imagePath != widget.imagePath;
+    final interactionChanged = oldWidget.isHighFrequencyInteractionActive != widget.isHighFrequencyInteractionActive;
+
+    if (pathChanged) {
+      _timer?.cancel();
+      if (_showHighRes) {
+        setState(() {
+          _showHighRes = false;
+        });
+      } else {
+        _showHighRes = false;
+      }
+      
+      if (!widget.isHighFrequencyInteractionActive) {
+        _startHighResTimer();
+      }
+    } else if (interactionChanged) {
+      if (widget.isHighFrequencyInteractionActive) {
+        _timer?.cancel();
+        if (_showHighRes) {
+          setState(() {
+            _showHighRes = false;
+          });
+        }
+      } else {
+        if (!_showHighRes) {
+          _startHighResTimer();
+        }
+      }
     }
   }
 

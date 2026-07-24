@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_gesture_handler.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_zoom_controller.dart';
@@ -24,10 +25,12 @@ class MockImageZoomController extends ImageZoomController {
   int endPanZoomGestureCalls = 0;
   int updateScrubGestureCalls = 0;
   int updatePinchGestureCalls = 0;
+  bool lastSetZoomAnimate = true;
 
   @override
   void setZoom(double newScale, {required Offset focalPoint, bool animate = true}) {
     setZoomCalls++;
+    lastSetZoomAnimate = animate;
   }
 
   @override
@@ -106,6 +109,19 @@ void main() {
       final eventTranslate = PointerPanZoomUpdateEvent(panDelta: const Offset(10, 10));
       handler.handlePanZoomUpdate(eventTranslate);
       expect(mockController.applyTranslationCalls, equals(1));
+    });
+
+    testWidgets('continuous wheel input does not restart zoom animations', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: Text('test'))));
+      await simulateKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      
+      final event = PointerScrollEvent(scrollDelta: const Offset(0, 10));
+      handler.handlePointerSignal(event);
+      
+      expect(mockController.setZoomCalls, equals(1));
+      expect(mockController.lastSetZoomAnimate, equals(false), reason: 'Continuous scroll should not restart animation');
+      
+      await simulateKeyUpEvent(LogicalKeyboardKey.controlLeft);
     });
   });
 }

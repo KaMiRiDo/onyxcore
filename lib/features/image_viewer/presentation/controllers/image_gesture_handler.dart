@@ -22,6 +22,7 @@ class ImageGestureHandler {
           zoomController.setZoom(
             zoomController.currentScale * zoomFactor,
             focalPoint: event.localPosition,
+            animate: false,
           );
         }
       } else if (zoomController.currentScale > 1.05) {

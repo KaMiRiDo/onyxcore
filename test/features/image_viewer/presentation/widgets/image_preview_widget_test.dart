@@ -14,6 +14,13 @@ import 'package:onyxcore/features/image_viewer/presentation/providers/image_play
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:path/path.dart' as p;
 
+class FakeImageFavoritesNotifier extends ImageFavoritesNotifier {
+  @override
+  void setRef(Ref ref) {
+    // No-op
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tempDir;
@@ -24,11 +31,11 @@ void main() {
   setUpAll(() {
     tempDir = Directory.systemTemp.createTempSync('image_preview_test_');
     final resourcesDir = Directory('test/features/image_viewer/resources');
-    
+
     pngPath = p.join(resourcesDir.path, 'test_image.png');
     heicPath = p.join(resourcesDir.path, 'test_image.heic');
     svgPath = p.join(resourcesDir.path, 'test_image.svg');
-    
+
     File(pngPath).copySync(p.join(tempDir.path, 'test_image.png'));
     File(heicPath).copySync(p.join(tempDir.path, 'test_image.heic'));
     File(svgPath).copySync(p.join(tempDir.path, 'test_image.svg'));
@@ -69,51 +76,59 @@ void main() {
     Future<void> setupMethodChannels(List<MethodCall> logs) async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('onyxcore/window_manager'),
-        (MethodCall methodCall) async {
-          logs.add(methodCall);
-          return null;
-        },
-      );
-      
+            const MethodChannel('onyxcore/window_manager'),
+            (MethodCall methodCall) async {
+              logs.add(methodCall);
+              return null;
+            },
+          );
+
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        SystemChannels.platform,
-        (MethodCall methodCall) async {
-          logs.add(methodCall);
-          return null;
-        },
-      );
+          .setMockMethodCallHandler(SystemChannels.platform, (
+            MethodCall methodCall,
+          ) async {
+            logs.add(methodCall);
+            return null;
+          });
     }
 
-    testWidgets('loads and displays standard image metadata', (WidgetTester tester) async {
+    testWidgets('loads and displays standard image metadata', (
+      WidgetTester tester,
+    ) async {
       await tester.runAsync(() async {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
               imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummyPng,
-                ),
-              ),
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
             ),
           ),
         );
         // The first frame should show a BubbleLoader while the image is decoding
-        expect(find.byType(BubbleLoader), findsOneWidget, reason: 'Should show loader during image decode');
+        expect(
+          find.byType(BubbleLoader),
+          findsOneWidget,
+          reason: 'Should show loader during image decode',
+        );
         await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
-      
+
       expect(find.byType(ImagePreviewWidget), findsOneWidget);
       // After settling, the loader should be gone
-      expect(find.byType(BubbleLoader), findsNothing, reason: 'Loader should disappear after image is loaded');
+      expect(
+        find.byType(BubbleLoader),
+        findsNothing,
+        reason: 'Loader should disappear after image is loaded',
+      );
 
       // Verify that the image is rendered correctly
-      final imageWidget = tester.widget<Image>(find.byType(Image));
+      final imageWidget = tester.widget<Image>(find.byType(Image).last);
       final imageProvider = imageWidget.image;
       expect(imageProvider, isA<FileImage>());
     });
@@ -124,63 +139,65 @@ void main() {
           ProviderScope(
             overrides: [
               imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummySvg,
-                ),
-              ),
+              home: Scaffold(body: ImagePreviewWidget(item: dummySvg)),
             ),
           ),
         );
         await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
-      
+
       expect(find.byType(ImagePreviewWidget), findsOneWidget);
     });
 
-    testWidgets('handles special image fallback properly (HEIC)', (WidgetTester tester) async {
+    testWidgets('handles special image fallback properly (HEIC)', (
+      WidgetTester tester,
+    ) async {
       await tester.runAsync(() async {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
               imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummyHeic,
-                ),
-              ),
+              home: Scaffold(body: ImagePreviewWidget(item: dummyHeic)),
             ),
           ),
         );
         await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
-      
+
       expect(find.byType(ImagePreviewWidget), findsOneWidget);
     });
 
-    testWidgets('updates image path in providers when standalone is true', (WidgetTester tester) async {
+    testWidgets('updates image path in providers when standalone is true', (
+      WidgetTester tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           imageShowHiddenProvider.overrideWith((ref) => false),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
         ],
       );
-      
+
       await tester.runAsync(() async {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
             child: MaterialApp(
               home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummyPng,
-                  isStandalone: true,
-                ),
+                body: ImagePreviewWidget(item: dummyPng, isStandalone: true),
               ),
             ),
           ),
@@ -192,13 +209,18 @@ void main() {
       expect(container.read(imageCurrentPathProvider), tempDir.path);
     });
 
-    testWidgets('loads standalone playlist from initParams', (WidgetTester tester) async {
+    testWidgets('loads standalone playlist from initParams', (
+      WidgetTester tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           imageShowHiddenProvider.overrideWith((ref) => false),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
         ],
       );
-      
+
       await tester.runAsync(() async {
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -209,7 +231,11 @@ void main() {
                   item: dummyPng,
                   isStandalone: true,
                   initParams: {
-                    'playlistPaths': [dummyPng.path, dummyHeic.path, 'invalid_path.jpg']
+                    'playlistPaths': [
+                      dummyPng.path,
+                      dummyHeic.path,
+                      'invalid_path.jpg',
+                    ],
                   },
                 ),
               ),
@@ -225,12 +251,17 @@ void main() {
       expect(queue[0].path, dummyPng.path);
       expect(queue[1].path, dummyHeic.path);
     });
-  
-    testWidgets('closes preview on Backspace in inline mode', (WidgetTester tester) async {
+
+    testWidgets('closes preview on Backspace in inline mode', (
+      WidgetTester tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           previewFileProvider.overrideWith((ref) => dummyPng),
           imageShowHiddenProvider.overrideWith((ref) => false),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
         ],
       );
 
@@ -239,11 +270,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummyPng,
-                ),
-              ),
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
             ),
           ),
         );
@@ -257,7 +284,9 @@ void main() {
       expect(container.read(previewFileProvider), isNull);
     });
 
-    testWidgets('requests focus and triggers presentWindow when standalone', (WidgetTester tester) async {
+    testWidgets('requests focus and triggers presentWindow when standalone', (
+      WidgetTester tester,
+    ) async {
       final logs = <MethodCall>[];
       await setupMethodChannels(logs);
 
@@ -266,6 +295,9 @@ void main() {
           ProviderScope(
             overrides: [
               imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
               home: Scaffold(
@@ -285,13 +317,16 @@ void main() {
       expect(
         logs,
         contains(
-          isA<MethodCall>().having((call) => call.method, 'method', 'present_window')
-                           .having((call) => call.arguments['view_id'], 'view_id', 400),
+          isA<MethodCall>()
+              .having((call) => call.method, 'method', 'present_window')
+              .having((call) => call.arguments['view_id'], 'view_id', 400),
         ),
       );
     });
 
-    testWidgets('tests all keyboard shortcuts and pointer events', (WidgetTester tester) async {
+    testWidgets('tests all keyboard shortcuts and pointer events', (
+      WidgetTester tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -305,13 +340,12 @@ void main() {
           ProviderScope(
             overrides: [
               imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummyPng,
-                ),
-              ),
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
             ),
           ),
         );
@@ -334,7 +368,7 @@ void main() {
         LogicalKeyboardKey.digit0,
         LogicalKeyboardKey.keyC, // copy
       ];
-      
+
       for (final key in keys) {
         await tester.sendKeyEvent(key);
         await tester.pumpAndSettle();
@@ -356,10 +390,11 @@ void main() {
         if (btn.evaluate().isNotEmpty) {
           await tester.tap(btn.first);
           await tester.pumpAndSettle();
-          
-          if (find.byType(Dialog).evaluate().isNotEmpty || find.byType(AlertDialog).evaluate().isNotEmpty) {
-             await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-             await tester.pumpAndSettle();
+
+          if (find.byType(Dialog).evaluate().isNotEmpty ||
+              find.byType(AlertDialog).evaluate().isNotEmpty) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+            await tester.pumpAndSettle();
           }
         }
       }
@@ -371,13 +406,13 @@ void main() {
           ProviderScope(
             overrides: [
               imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
               home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummyPng,
-                  isStandalone: true,
-                ),
+                body: ImagePreviewWidget(item: dummyPng, isStandalone: true),
               ),
             ),
           ),
@@ -390,7 +425,7 @@ void main() {
       expect(viewer, findsOneWidget);
 
       final center = tester.getCenter(viewer);
-      
+
       // Double tap to zoom in
       await tester.tapAt(center);
       await tester.pump(const Duration(milliseconds: 50));
@@ -408,23 +443,95 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('tests explicit zoom logic (keyboard, mouse scroll, pinch gesture)', (WidgetTester tester) async {
+    testWidgets(
+      'tests explicit zoom logic (keyboard, mouse scroll, pinch gesture)',
+      (WidgetTester tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            imageShowHiddenProvider.overrideWith((ref) => false),
+            imageFavoritesProvider.overrideWith(
+              (ref) => FakeImageFavoritesNotifier(),
+            ),
+          ],
+        );
+
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
+              ),
+            ),
+          );
+          await Future<void>.delayed(const Duration(seconds: 1));
+        });
+        await tester.pumpAndSettle();
+
+        final viewer = find.byType(InteractiveViewer);
+        expect(viewer, findsOneWidget);
+
+        final center = tester.getCenter(viewer);
+
+        // 1. Zoom with Ctrl + Scroll (Mouse Scroll)
+        // Simulating a pointer signal for scrolling
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        await gesture.addPointer(location: center);
+        await tester.pump();
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+
+        // We simulate a scroll event. flutter_test has sendEventToBinding for PointerScrollEvent
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: center,
+            scrollDelta: const Offset(0, -100), // Scroll up to zoom in
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // 2. Zoom with keyboard shortcuts (Ctrl + Equal, Ctrl + Minus, Ctrl + 0)
+        await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+        await tester.pumpAndSettle();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+        await tester.pumpAndSettle();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
+        await tester.pumpAndSettle();
+
+        // 3. Pinch-to-zoom simulation (Ctrl + Drag triggers _setZoomFromGesture)
+        await tester.drag(viewer, const Offset(0, 100));
+        await tester.pumpAndSettle();
+
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+        // 4. Test sidebar offset logic
+        container.read(imagePlaylistSidebarVisibleProvider.notifier).state =
+            true;
+        await tester.pumpAndSettle();
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+        await tester.pumpAndSettle();
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      },
+    );
+
+    testWidgets('Disabled Edit Button Regression Test', (WidgetTester tester) async {
       final container = ProviderContainer(
         overrides: [
-          imageShowHiddenProvider.overrideWith((ref) => false),
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
         ],
       );
-
       await tester.runAsync(() async {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
             child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummyPng,
-                ),
-              ),
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
             ),
           ),
         );
@@ -432,55 +539,130 @@ void main() {
       });
       await tester.pumpAndSettle();
 
-      final viewer = find.byType(InteractiveViewer);
-      expect(viewer, findsOneWidget);
-
-      final center = tester.getCenter(viewer);
-
-      // 1. Zoom with Ctrl + Scroll (Mouse Scroll)
-      // Simulating a pointer signal for scrolling
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: center);
-      await tester.pump();
+      final editIcon = find.byIcon(Icons.edit_outlined);
+      expect(editIcon, findsOneWidget);
       
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      
-      // We simulate a scroll event. flutter_test has sendEventToBinding for PointerScrollEvent
-      await tester.sendEventToBinding(
-        PointerScrollEvent(
-          position: center,
-          scrollDelta: const Offset(0, -100), // Scroll up to zoom in
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // 2. Zoom with keyboard shortcuts (Ctrl + Equal, Ctrl + Minus, Ctrl + 0)
-      await tester.sendKeyEvent(LogicalKeyboardKey.equal);
-      await tester.pumpAndSettle();
-      
-      await tester.sendKeyEvent(LogicalKeyboardKey.minus);
-      await tester.pumpAndSettle();
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
-      await tester.pumpAndSettle();
-
-      // 3. Pinch-to-zoom simulation (Ctrl + Drag triggers _setZoomFromGesture)
-      await tester.drag(viewer, const Offset(0, 100));
-      await tester.pumpAndSettle();
-      
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      
-      // 4. Test sidebar offset logic
-      container.read(imagePlaylistSidebarVisibleProvider.notifier).state = true;
-      await tester.pumpAndSettle();
-      
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.equal);
-      await tester.pumpAndSettle();
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      final buttonFinder = find.ancestor(of: editIcon, matching: find.byType(IconButton));
+      final buttonWidget = tester.widget<IconButton>(buttonFinder);
+      expect(buttonWidget.onPressed, isNull); // Edit button is disabled
     });
 
+    testWidgets('Zoom → Pan Real-Image Regression Test', (WidgetTester tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+        ],
+      );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
 
+      // Ensure ImageCanvas is mounted
+      expect(find.byType(Image), findsWidgets);
+      
+      // Zoom
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendEventToBinding(
+        PointerScrollEvent(
+          position: tester.getCenter(find.byType(InteractiveViewer)),
+          scrollDelta: const Offset(0, -100),
+        ),
+      );
+      await tester.pump();
+      
+      // Scrub/Pan immediately
+      final gesture = await tester.startGesture(tester.getCenter(find.byType(InteractiveViewer)));
+      await gesture.moveBy(const Offset(50, 50));
+      await tester.pump();
+      
+      // Verify image is still rendered
+      expect(find.byType(Image), findsWidgets);
+      expect(tester.takeException(), isNull);
+      
+      await gesture.up();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+    });
 
+    testWidgets('High-Resolution Promotion and Cancellation Test', (WidgetTester tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+        ],
+      );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+      
+      expect(find.byType(Image), findsWidgets);
+
+      // Start interaction (pan)
+      final viewer = find.byType(InteractiveViewer);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendEventToBinding(
+        PointerScrollEvent(
+          position: tester.getCenter(viewer),
+          scrollDelta: const Offset(0, -100), // Zoom in so we can pan
+        ),
+      );
+      await tester.pump(); // Zoom ticks
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      
+      final gesture = await tester.startGesture(tester.getCenter(viewer));
+      await tester.pump(); // Starts interaction
+      
+      // During active interaction, highRes image is hidden.
+      await gesture.moveBy(const Offset(10, 10));
+      await tester.pump(const Duration(milliseconds: 100)); // Advance time during interaction
+      
+      // Still interacting -> no promotion
+      await gesture.moveBy(const Offset(10, 10));
+      await tester.pump(const Duration(milliseconds: 250)); // Advance time again, > 300ms total
+      
+      // Still interacting, timer should have been cancelled, so no promotion
+      expect(tester.takeException(), isNull);
+      
+      // End interaction
+      await gesture.up();
+      await tester.pump();
+      
+      // Wait for 100ms (not fully settled, which is 200ms)
+      await tester.pump(const Duration(milliseconds: 100));
+      
+      // Start another interaction before settle
+      final gesture2 = await tester.startGesture(tester.getCenter(viewer));
+      await tester.pump();
+      
+      // Wait > 300ms, should STILL not promote
+      await tester.pump(const Duration(milliseconds: 350));
+      
+      // End final interaction
+      await gesture2.up();
+      await tester.pump();
+      
+      // Now fully settle
+      await tester.pumpAndSettle(const Duration(milliseconds: 600));
+      
+      // Should have successfully promoted without errors
+      expect(tester.takeException(), isNull);
+    });
   });
 }

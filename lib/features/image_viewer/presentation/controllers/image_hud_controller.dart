@@ -48,13 +48,17 @@ class ImageHudController extends ChangeNotifier {
   }
 
   void showZoomIndicatorForDuration() {
-    _showZoomIndicator = true;
-    notifyListeners();
+    if (!_showZoomIndicator) {
+      _showZoomIndicator = true;
+      notifyListeners();
+    }
 
     _zoomTimer?.cancel();
     _zoomTimer = Timer(const Duration(seconds: 2), () {
-      _showZoomIndicator = false;
-      notifyListeners();
+      if (_showZoomIndicator) {
+        _showZoomIndicator = false;
+        notifyListeners();
+      }
     });
   }
 

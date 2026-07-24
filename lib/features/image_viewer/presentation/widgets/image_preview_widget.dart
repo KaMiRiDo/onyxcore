@@ -207,7 +207,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _preparationController.prepare(_currentItem.path);
 
     if (widget.isStandalone) {
-      _navigationController.initStandalonePlaylist(_currentItem);
+      Future.microtask(() {
+        _navigationController.initStandalonePlaylist(_currentItem);
+      });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(previewFileProvider.notifier).state = _currentItem;
       });

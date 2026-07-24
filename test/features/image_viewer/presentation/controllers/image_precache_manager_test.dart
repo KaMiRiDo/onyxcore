@@ -7,6 +7,7 @@ void main() {
     late ImagePrecacheManager manager;
 
     setUp(() {
+      TestWidgetsFlutterBinding.ensureInitialized();
       manager = ImagePrecacheManager();
     });
 
@@ -14,7 +15,7 @@ void main() {
       manager.clearSession();
     });
 
-    testWidgets('enqueues and processes items sequentially', (tester) async {
+    test('enqueues and processes items sequentially', () async {
       final processed = <String>[];
       
       Future<void> dummyPrecache(String path, BuildContext? context) async {
@@ -40,7 +41,7 @@ void main() {
       expect(processed, ['image1.jpg', 'image2.jpg']);
     });
 
-    testWidgets('prioritizes level 1 over level 2', (tester) async {
+    test('prioritizes level 1 over level 2', () async {
       final processed = <String>[];
       
       Future<void> dummyPrecache(String path, BuildContext? context) async {
@@ -74,7 +75,7 @@ void main() {
       expect(processed, ['blocker.jpg', 'level1.jpg', 'level2.jpg']);
     });
 
-    testWidgets('tracks LRU eviction based on item count to prevent memory bloat', (tester) async {
+    test('tracks LRU eviction based on item count to prevent memory bloat', () async {
       // Assuming a max items cap for simplicity in unit test logic.
       // In practice, we will use a soft limit on the number of items or estimated bytes.
       manager.maxCachedItems = 3;
@@ -100,7 +101,7 @@ void main() {
       expect(manager.cachedPaths.contains('image5.jpg'), isTrue);
     });
 
-    testWidgets('clearSession empties queue and cache tracking', (tester) async {
+    test('clearSession empties queue and cache tracking', () async {
       Future<void> dummyPrecache(String path, BuildContext? context) async {}
 
       manager.enqueuePrecache(
