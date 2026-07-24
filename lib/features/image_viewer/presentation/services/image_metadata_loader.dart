@@ -18,7 +18,7 @@ class ImageMetadata {
 /// metadata string. Used by ImagePreviewWidget to populate the top bar subtitle.
 class ImageMetadataLoader {
   /// Loads metadata for [filePath].
-  /// Returns an [ImageMetadata] record with [metadataString] and [imageSize].
+  /// Returns an [ImageMetadata] record with `metadataString` and `imageSize`.
   /// Returns null values on error or missing file.
   static Future<ImageMetadata> load(
     String filePath,

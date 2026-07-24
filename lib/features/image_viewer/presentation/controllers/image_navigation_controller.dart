@@ -9,6 +9,7 @@ import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/image_precache_manager.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/image_viewer/utils/special_image_converter.dart';
 import 'package:path/path.dart' as p;
@@ -174,7 +175,7 @@ class ImageNavigationController extends ChangeNotifier {
           if (file.existsSync()) {
             final name = p.basename(path);
             try {
-              final stat = await file.stat();
+              final stat = file.statSync();
               images.add(
                 FileItem(
                   name: name,
@@ -241,59 +242,89 @@ class ImageNavigationController extends ChangeNotifier {
     }
   }
 
-  void precacheAdjacentImages(BuildContext context, FileItem currentItem) {
-    var pathsToPreload = <String>[];
+  Future<void> _doPrecache(String path) async {
+    final pLower = path.toLowerCase();
+    final isSpecial = pLower.endsWith('.heic') || pLower.endsWith('.heif') || pLower.endsWith('.avif') || pLower.endsWith('.dng') || pLower.endsWith('.raw');
 
+    if (isSpecial) {
+      final convertedPath = await SpecialImageConverter.convertIfNecessary(path);
+      if (convertedPath != null) {
+        await _resolveProvider(FileImage(File(convertedPath)));
+      }
+    } else {
+      final provider = path.startsWith('http') 
+          ? NetworkImage(path) 
+          : FileImage(File(path)) as ImageProvider;
+      await _resolveProvider(provider);
+    }
+  }
+
+  Future<void> _resolveProvider(ImageProvider provider) async {
+    final completer = Completer<void>();
+    final stream = ResizeImage(provider, width: 1920, height: 1920, policy: ResizeImagePolicy.fit)
+        .resolve(ImageConfiguration.empty);
+        
+    late ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (info, sync) {
+        stream.removeListener(listener);
+        if (!completer.isCompleted) completer.complete();
+      },
+      onError: (e, s) {
+        stream.removeListener(listener);
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
+    stream.addListener(listener);
+    return completer.future;
+  }
+
+  void precacheAdjacentImages(BuildContext context, FileItem currentItem) {
     if (isStandalone && initParams != null && initParams!['preloadPaths'] != null) {
       final preloadList = initParams!['preloadPaths'] as List<dynamic>;
-      pathsToPreload = preloadList.map((e) => e.toString()).toList();
+      for (final p in preloadList) {
+        final path = p.toString();
+        if (path != currentItem.path && !path.toLowerCase().endsWith('.svg')) {
+          ImagePrecacheManager.instance.enqueuePrecache(
+            path: path,
+            level: 1,
+            precacheAction: (_) => _doPrecache(path),
+          );
+        }
+      }
     } else if (!isStandalone && windowId == null) {
       final mediaItems = getPlaylist();
       if (mediaItems.isNotEmpty) {
         final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path);
         if (currentIndex != -1) {
-          for (var i = 1; i <= 1; i++) {
-            pathsToPreload.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
-            pathsToPreload.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
+          
+          void enqueueLevel(int level) {
+            final nextPath = mediaItems[(currentIndex + level) % mediaItems.length].path;
+            final prevPath = mediaItems[(currentIndex - level + mediaItems.length) % mediaItems.length].path;
+            
+            if (nextPath != currentItem.path && !nextPath.toLowerCase().endsWith('.svg')) {
+              ImagePrecacheManager.instance.enqueuePrecache(
+                path: nextPath,
+                level: level,
+                precacheAction: (_) => _doPrecache(nextPath),
+              );
+            }
+            
+            // Only precache previous for level 1
+            if (level == 1 && prevPath != currentItem.path && prevPath != nextPath && !prevPath.toLowerCase().endsWith('.svg')) {
+              ImagePrecacheManager.instance.enqueuePrecache(
+                path: prevPath,
+                level: level,
+                precacheAction: (_) => _doPrecache(prevPath),
+              );
+            }
           }
+
+          enqueueLevel(1);
+          if (mediaItems.length > 2) enqueueLevel(2);
         }
       }
     }
-
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (!context.mounted) return;
-      for (final path in pathsToPreload) {
-        if (path != currentItem.path && !path.toLowerCase().endsWith('.svg')) {
-          final pLower = path.toLowerCase();
-          final isSpecial = pLower.endsWith('.heic') || pLower.endsWith('.heif') || pLower.endsWith('.avif') || pLower.endsWith('.dng') || pLower.endsWith('.raw');
-
-          if (isSpecial) {
-            unawaited(
-              SpecialImageConverter.convertIfNecessary(path).then((convertedPath) {
-                if (convertedPath != null && context.mounted) {
-                  precacheImage(
-                    FileImage(File(convertedPath)),
-                    context,
-                    onError: (e, s) => debugPrint('Failed to precache converted image $convertedPath: $e'),
-                  );
-                }
-              }),
-            );
-          } else {
-            final provider = path.startsWith('http') 
-                ? NetworkImage(path) 
-                : FileImage(File(path)) as ImageProvider;
-            precacheImage(
-              provider,
-              context,
-              onError: (e, s) {
-                debugPrint('Failed to precache image $path: $e');
-              },
-            );
-          }
-        }
-      }
-    });
   }
 
   void navigatePlaylistHistoryBack() {

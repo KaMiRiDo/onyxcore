@@ -13,8 +13,8 @@ import 'package:window_manager/window_manager.dart';
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Increase image cache to 500MB to support pre-caching of high-res files without compromising resolution
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 500;
+  // Increase image cache to 300MB to support pre-caching of high-res files without compromising resolution
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 300;
 
   // Unified initialization
   await windowManager.ensureInitialized();

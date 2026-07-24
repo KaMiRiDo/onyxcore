@@ -22,7 +22,7 @@ void main() {
       animationEngine = ZoomAnimationEngine(
         animationController: animationController,
         onTick: (matrix) {
-          zoomController.onAnimationTick(matrix);
+          zoomController.animationTick = matrix;
         },
       );
       
@@ -47,7 +47,7 @@ void main() {
       zoomController.setZoom(2, focalPoint: const Offset(500, 500));
       expect(animationEngine.isAnimating, isTrue);
       
-      zoomController.setIsInteracting(true);
+      zoomController.isInteracting = true;
       expect(zoomController.isInteracting, isTrue);
       expect(animationEngine.isAnimating, isFalse);
     });
@@ -84,7 +84,7 @@ void main() {
     test('reset clears all state', () {
       zoomController
         ..setZoom(2, focalPoint: const Offset(500, 500), animate: false)
-        ..setIsInteracting(true)
+        ..isInteracting = true
         ..startPanZoomGesture(Offset.zero)
         ..reset();
       

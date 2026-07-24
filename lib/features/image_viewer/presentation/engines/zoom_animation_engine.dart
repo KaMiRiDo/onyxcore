@@ -1,20 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/interaction_quality_notifier.dart';
 
 class ZoomAnimationEngine {
 
   ZoomAnimationEngine({
     required AnimationController animationController,
     required this.onTick,
+    this.qualityNotifier,
   }) : _animationController = animationController {
-    _animationController.addListener(_onAnimationTick);
+    _animationController
+      ..addListener(_onAnimationTick)
+      ..addStatusListener(_onAnimationStatusChanged);
   }
   final AnimationController _animationController;
   final void Function(Matrix4) onTick;
+  final InteractionQualityNotifier? qualityNotifier;
   Animation<Matrix4>? _zoomAnimation;
 
   void _onAnimationTick() {
     if (_zoomAnimation != null) {
       onTick(_zoomAnimation!.value);
+    }
+  }
+
+  void _onAnimationStatusChanged(AnimationStatus status) {
+    if (status == AnimationStatus.forward || status == AnimationStatus.reverse) {
+      qualityNotifier?.onInteractionStart();
+    } else if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
+      qualityNotifier?.onInteractionEnd();
     }
   }
 
@@ -38,6 +51,8 @@ class ZoomAnimationEngine {
   }
 
   void dispose() {
-    _animationController.removeListener(_onAnimationTick);
+    _animationController
+      ..removeListener(_onAnimationTick)
+      ..removeStatusListener(_onAnimationStatusChanged);
   }
 }

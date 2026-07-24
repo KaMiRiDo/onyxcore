@@ -1,13 +1,10 @@
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_canvas.dart';
-
-
-
-import 'dart:io';
 
 class _FakeHttpOverrides extends HttpOverrides {
   @override
@@ -55,6 +52,12 @@ void main() {
       final image = tester.widget<Image>(imageFinder);
       expect(image.fit, equals(BoxFit.contain));
       expect(image.filterQuality, equals(FilterQuality.high));
+      
+      expect(image.image, isA<ResizeImage>());
+      final resizeImage = image.image as ResizeImage;
+      expect(resizeImage.width, equals(1920));
+      expect(resizeImage.height, equals(1920));
+      expect(resizeImage.policy, equals(ResizeImagePolicy.fit));
     });
 
     testWidgets('renders local raster image with low filter quality during interaction', (tester) async {
@@ -98,6 +101,12 @@ void main() {
         final image = tester.widget<Image>(imageFinder);
         expect(image.fit, equals(BoxFit.contain));
         expect(image.filterQuality, equals(FilterQuality.high));
+
+        expect(image.image, isA<ResizeImage>());
+        final resizeImage = image.image as ResizeImage;
+        expect(resizeImage.width, equals(1920));
+        expect(resizeImage.height, equals(1920));
+        expect(resizeImage.policy, equals(ResizeImagePolicy.fit));
       } finally {
         HttpOverrides.global = null;
       }
@@ -140,7 +149,7 @@ void main() {
       expect(hero.tag, equals('test-hero'));
     });
 
-    testWidgets('applies Transform.rotate correctly', (tester) async {
+    testWidgets('progressively loads high resolution image after 300ms delay', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -148,56 +157,31 @@ void main() {
               imagePath: '/path/to/image.jpg',
               heroTag: 'test-hero',
               isConverting: false,
-              rotationAngle: 90,
             ),
           ),
         ),
       );
 
-      final transformFinder = find.byType(Transform);
-      expect(transformFinder, findsWidgets);
+      // Initially, only the resized image should be present
+      final images = tester.widgetList<Image>(find.byType(Image)).toList();
+      expect(images.length, equals(1));
+      expect(images.first.image, isA<ResizeImage>());
+
+      // Wait for the 300ms timer
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(); // Allow state to update
+
+      // Now, both images should be present in a Stack (low-res and high-res)
+      final allImages = tester.widgetList<Image>(find.byType(Image)).toList();
+      expect(allImages.length, equals(2));
       
-      var foundRotation = false;
-      for (final widget in tester.widgetList<Transform>(transformFinder)) {
-        if (widget.transform.storage[0] < 0.001 && widget.transform.storage[0] > -0.001) {
-          // cos(90 deg) is approx 0, checking for rotation matrix
-          foundRotation = true;
-        }
-      }
-      expect(foundRotation, isTrue, reason: 'Should find a Transform with rotation');
+      // Bottom layer should be the low-res
+      expect(allImages[0].image, isA<ResizeImage>());
+      
+      // Top layer should be the full-res (not a ResizeImage)
+      expect(allImages[1].image, isNot(isA<ResizeImage>()));
     });
 
-    testWidgets('applies ColorFiltered when brightness is non-zero', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: ImageCanvas(
-              imagePath: '/path/to/image.jpg',
-              heroTag: 'test-hero',
-              isConverting: false,
-              brightness: 0.5,
-            ),
-          ),
-        ),
-      );
 
-      expect(find.byType(ColorFiltered), findsOneWidget);
-    });
-
-    testWidgets('does NOT apply ColorFiltered when brightness is zero', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: ImageCanvas(
-              imagePath: '/path/to/image.jpg',
-              heroTag: 'test-hero',
-              isConverting: false,
-            ),
-          ),
-        ),
-      );
-
-      expect(find.byType(ColorFiltered), findsNothing);
-    });
   });
 }

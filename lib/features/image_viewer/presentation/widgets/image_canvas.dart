@@ -1,16 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 
-class ImageCanvas extends StatelessWidget {
+class ImageCanvas extends StatefulWidget {
   const ImageCanvas({
     required this.imagePath,
     required this.heroTag,
     required this.isConverting,
-    this.rotationAngle = 0.0,
-    this.brightness = 0.0,
     this.isHighFrequencyInteractionActive = false,
     super.key,
   });
@@ -18,55 +17,80 @@ class ImageCanvas extends StatelessWidget {
   final String imagePath;
   final String heroTag;
   final bool isConverting;
-  final double rotationAngle;
-  final double brightness;
   final bool isHighFrequencyInteractionActive;
+
+  @override
+  State<ImageCanvas> createState() => _ImageCanvasState();
+}
+
+class _ImageCanvasState extends State<ImageCanvas> {
+  Timer? _timer;
+  bool _showHighRes = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startHighResTimer();
+  }
+
+  @override
+  void didUpdateWidget(ImageCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imagePath != widget.imagePath) {
+      _showHighRes = false;
+      _startHighResTimer();
+    }
+  }
+
+  void _startHighResTimer() {
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _showHighRes = true;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Hero(
-        tag: heroTag,
-        child: Transform.rotate(
-          angle: rotationAngle * 3.14159 / 180,
-          child: brightness != 0.0
-              ? ColorFiltered(
-                  colorFilter: ColorFilter.matrix([
-                    1, 0, 0, 0, brightness * 255,
-                    0, 1, 0, 0, brightness * 255,
-                    0, 0, 1, 0, brightness * 255,
-                    0, 0, 0, 1, 0,
-                  ]),
-                  child: _buildImageWidget(context),
-                )
-              : _buildImageWidget(context),
-        ),
+        tag: widget.heroTag,
+        child: _buildImageWidget(context),
       ),
     );
   }
 
   Widget _buildImageWidget(BuildContext context) {
-    if (isConverting) {
+    if (widget.isConverting) {
       return const Center(
         child: BubbleLoader(size: 60),
       );
     }
 
     final isNetwork =
-        imagePath.startsWith('http://') || imagePath.startsWith('https://');
-    final isSvg = imagePath.toLowerCase().endsWith('.svg');
+        widget.imagePath.startsWith('http://') || widget.imagePath.startsWith('https://');
+    final isSvg = widget.imagePath.toLowerCase().endsWith('.svg');
 
     if (isSvg) {
       if (isNetwork) {
         return SvgPicture.network(
-          imagePath,
+          widget.imagePath,
           placeholderBuilder: (_) => const Center(
             child: BubbleLoader(size: 60),
           ),
         );
       } else {
         return SvgPicture.file(
-          File(imagePath),
+          File(widget.imagePath),
           placeholderBuilder: (_) => const Center(
             child: BubbleLoader(size: 60),
           ),
@@ -74,7 +98,7 @@ class ImageCanvas extends StatelessWidget {
       }
     }
 
-    final filterQuality = isHighFrequencyInteractionActive
+    final filterQuality = widget.isHighFrequencyInteractionActive
         ? FilterQuality.low
         : FilterQuality.high;
 
@@ -91,20 +115,48 @@ class ImageCanvas extends StatelessWidget {
       );
     }
 
-    if (isNetwork) {
-      return Image.network(
-        imagePath,
-        fit: BoxFit.contain,
-        filterQuality: filterQuality,
-        frameBuilder: frameBuilder,
-      );
-    } else {
-      return Image.file(
-        File(imagePath),
-        fit: BoxFit.contain,
-        filterQuality: filterQuality,
-        frameBuilder: frameBuilder,
-      );
+    final baseProvider = isNetwork
+        ? NetworkImage(widget.imagePath)
+        : FileImage(File(widget.imagePath)) as ImageProvider;
+
+    final lowResImage = Image(
+      image: ResizeImage(
+        baseProvider,
+        width: 1920,
+        height: 1920,
+        policy: ResizeImagePolicy.fit,
+      ),
+      fit: BoxFit.contain,
+      filterQuality: filterQuality,
+      frameBuilder: frameBuilder,
+    );
+
+    if (!_showHighRes) {
+      return lowResImage;
     }
+
+    final highResImage = Image(
+      image: baseProvider,
+      fit: BoxFit.contain,
+      filterQuality: filterQuality,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded) return child;
+        return AnimatedOpacity(
+          opacity: frame == null ? 0 : 1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          child: child,
+        );
+      },
+    );
+
+    return Stack(
+      fit: StackFit.passthrough,
+      alignment: Alignment.center,
+      children: [
+        lowResImage,
+        highResImage,
+      ],
+    );
   }
 }

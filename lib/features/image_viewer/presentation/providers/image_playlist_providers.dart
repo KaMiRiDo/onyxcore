@@ -15,7 +15,7 @@ class ImageFavoritesNotifier extends MediaFavoritesNotifier {
 
 final imageFavoritesProvider =
     StateNotifierProvider<ImageFavoritesNotifier, Set<String>>((ref) {
-      return ImageFavoritesNotifier();
+      return ImageFavoritesNotifier()..setRef(ref);
     });
 
 final imageViewModeProvider = StateProvider<ImageViewMode>(

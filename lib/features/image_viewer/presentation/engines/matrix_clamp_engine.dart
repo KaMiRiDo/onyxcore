@@ -43,8 +43,6 @@ class MatrixClampEngine {
     final clampedTx = matrix.getTranslation().x.clamp(minTx, maxTx);
     final clampedTy = matrix.getTranslation().y.clamp(minTy, maxTy);
 
-    final clampedMatrix = matrix.clone();
-    clampedMatrix.setTranslationRaw(clampedTx, clampedTy, 0);
-    return clampedMatrix;
+    return matrix.clone()..setTranslationRaw(clampedTx, clampedTy, 0);
   }
 }

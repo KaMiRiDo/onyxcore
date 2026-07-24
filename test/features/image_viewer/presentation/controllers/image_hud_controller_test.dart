@@ -20,7 +20,6 @@ void main() {
 
     test('initial state is correct', () {
       expect(controller.isControlsVisible, false);
-      expect(controller.isEditing, false);
       expect(controller.isClosing, false);
       expect(controller.showZoomIndicator, false);
     });
@@ -49,18 +48,7 @@ void main() {
       expect(listenerCount, 2);
     });
 
-    test('toggleEditing prevents auto-hide', () async {
-      controller.showControls();
-      controller.toggleEditing(); // editing = true
-      expect(controller.isEditing, true);
 
-      // Start hide timer explicitly (simulating interaction)
-      controller.startHideTimer();
-
-      await Future<void>.delayed(const Duration(seconds: 4));
-      // Controls should still be visible because we are editing
-      expect(controller.isControlsVisible, true);
-    });
 
     test('startHideTimer hides controls after 3 seconds', () async {
       controller.showControls();

@@ -16,14 +16,15 @@ import 'package:onyxcore/features/image_viewer/presentation/controllers/image_ge
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_hud_controller.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_keyboard_handler.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_navigation_controller.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/image_precache_manager.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_preparation_controller.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_viewer_lifecycle.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_zoom_controller.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/interaction_quality_notifier.dart';
 import 'package:onyxcore/features/image_viewer/presentation/engines/zoom_animation_engine.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/services/image_metadata_loader.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_canvas.dart';
-import 'package:onyxcore/features/image_viewer/presentation/widgets/image_editing_panel.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_empty_state.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_zoom_indicator.dart';
@@ -80,9 +81,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   late ImageViewerLifecycle _lifecycle;
   Size? _imageSize;
 
-  // Image Edit State
-  final ValueNotifier<double> _rotationNotifier = ValueNotifier(0);
-  final ValueNotifier<double> _brightnessNotifier = ValueNotifier(0);
+  // Interaction Quality State
+  final InteractionQualityNotifier _interactionQualityNotifier = InteractionQualityNotifier();
 
   bool _isGlobalHudVisible = true;
   Offset? _lastMousePos;
@@ -166,12 +166,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _zoomAnimationEngine = ZoomAnimationEngine(
       animationController: _zoomAnimationController,
       onTick: (matrix) {
-        _imageZoomController.onAnimationTick(matrix);
+        _imageZoomController.animationTick = matrix;
       },
+      qualityNotifier: _interactionQualityNotifier,
     );
 
     _imageZoomController = ImageZoomController(
       animationEngine: _zoomAnimationEngine,
+      qualityNotifier: _interactionQualityNotifier,
     );
     _imageZoomController.scaleNotifier.addListener(_onZoomChanged);
 
@@ -341,9 +343,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _focusNode.dispose();
     _preparationController.dispose();
     _isEmptyNotifier.dispose();
-    _rotationNotifier.dispose();
-    _brightnessNotifier.dispose();
+    _interactionQualityNotifier.dispose();
     _isReadyForInteraction.dispose();
+    
+    // Clear the precache session entirely on window close
+    ImagePrecacheManager.instance.clearSession();
+
     _restartSignalSub?.close();
     _hudVisibleSub?.close();
     super.dispose();
@@ -373,8 +378,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   void _loadMedia(FileItem item) {
     _imageZoomController.reset();
-    _rotationNotifier.value = 0.0;
-    _brightnessNotifier.value = 0.0;
     _isReadyForInteraction.value = false;
     setState(() {
       _currentItem = item;
@@ -400,7 +403,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       }
       ref.read(imageCurrentPathProvider.notifier).state = parentPath;
     }
-    _navigationController.precacheAdjacentImages(context, item);
+    // Delay precaching to prevent choking the main image decode (especially on first load)
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        _navigationController.precacheAdjacentImages(context, item);
+      }
+    });
     // Re-arm the interaction delay for the new image
     Future.delayed(const Duration(milliseconds: 350), () {
       if (mounted) {
@@ -568,10 +576,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           child: Listener(
             onPointerDown: (event) {
               _mousePosition = event.localPosition;
-              _imageZoomController.setIsInteracting(true);
+              _imageZoomController.isInteracting = true;
             },
             onPointerUp: (event) {
-              _imageZoomController.setIsInteracting(false);
+              _imageZoomController.isInteracting = false;
             },
             onPointerMove: (event) {
               _mousePosition = event.localPosition;
@@ -637,19 +645,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                             child: ListenableBuilder(
                                               listenable: Listenable.merge([
                                                 _preparationController,
-                                                _rotationNotifier,
-                                                _brightnessNotifier,
+                                                _interactionQualityNotifier,
                                               ]),
                                               builder: (context, child) {
                                                 return ImageCanvas(
                                                   imagePath: _preparationController.preparedPath ?? _currentItem.path,
                                                   heroTag: _currentItem.path,
                                                   isConverting: _preparationController.isConverting,
-                                                  rotationAngle: _rotationNotifier.value,
-                                                  brightness: _brightnessNotifier.value,
-                                                  isHighFrequencyInteractionActive: _imageZoomController.isInteracting ||
-                                                      _imageZoomController.isPanZoomGesture ||
-                                                      _zoomAnimationController.isAnimating,
+                                                  isHighFrequencyInteractionActive: _interactionQualityNotifier.isActive,
                                                 );
                                               },
                                             ),
@@ -722,12 +725,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                               const SizedBox(width: 8),
                                             if (!_isNetworkStream)
                                               _buildTopBarButton(
-                                                icon: _hudController.isEditing
-                                                    ? Icons.edit_rounded
-                                                    : Icons.edit_outlined,
-                                                onPressed: _hudController.toggleEditing,
+                                                icon: Icons.edit_outlined,
+                                                onPressed: null, // intentional no-op to disable but keep visible
                                                 tooltip: 'Edit Image',
-                                                active: _hudController.isEditing,
                                               ),
                                             if (!_isNetworkStream)
                                               const SizedBox(width: 8),
@@ -749,35 +749,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 ),
                               ),
 
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                child: ListenableBuilder(
-                                  listenable: _hudController,
-                                  builder: (context, child) {
-                                    final isVisible = _hudController.isControlsVisible &&
-                                        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
-                                    if (!_hudController.isEditing || !isVisible) return const SizedBox.shrink();
-                                    return ValueListenableBuilder<double>(
-                                      valueListenable: _rotationNotifier,
-                                      builder: (context, rotation, child) {
-                                        return ValueListenableBuilder<double>(
-                                          valueListenable: _brightnessNotifier,
-                                          builder: (context, brightness, child) {
-                                            return ImageEditingPanel(
-                                              rotationAngle: rotation,
-                                              brightness: brightness,
-                                              onRotationChanged: (val) => _rotationNotifier.value = val,
-                                              onBrightnessChanged: (val) => _brightnessNotifier.value = val,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                              ),
+
 
                               Positioned(
                                 bottom: 32,
@@ -860,7 +832,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   Widget _buildTopBarButton({
     required IconData icon,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
     required String tooltip,
     bool active = false,
   }) {
@@ -877,7 +849,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       child: IconButton(
         icon: Icon(
           icon,
-          color: active ? const Color(0xFF00E5FF) : Colors.white,
+          color: active ? const Color(0xFF00E5FF) : Colors.white.withValues(alpha: onPressed == null ? 0.3 : 1.0),
           size: 20,
         ),
         onPressed: onPressed,

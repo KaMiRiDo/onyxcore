@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:onyxcore/features/image_viewer/presentation/controllers/interaction_quality_notifier.dart';
 import 'package:onyxcore/features/image_viewer/presentation/engines/matrix_clamp_engine.dart';
 import 'package:onyxcore/features/image_viewer/presentation/engines/transformation_engine.dart';
 import 'package:onyxcore/features/image_viewer/presentation/engines/zoom_animation_engine.dart';
@@ -7,14 +8,16 @@ class ImageZoomController extends ChangeNotifier {
   
   ImageZoomController({
     required this.animationEngine,
+    this.qualityNotifier,
   }) {
     transformationController.addListener(_onTransformationChanged);
   }
   final TransformationController transformationController = TransformationController();
   final ZoomAnimationEngine animationEngine;
+  final InteractionQualityNotifier? qualityNotifier;
   
   double _initialScale = 1;
-  final ValueNotifier<double> scaleNotifier = ValueNotifier(1.0);
+  final ValueNotifier<double> scaleNotifier = ValueNotifier(1);
   Matrix4 _gestureStartMatrix = Matrix4.identity();
   double _scrubAccumulatedScale = 1;
   
@@ -35,11 +38,16 @@ class ImageZoomController extends ChangeNotifier {
     _imageSize = imageSize;
   }
 
-  void setIsInteracting(bool interacting) {
+  set isInteracting(bool interacting) {
     if (_isInteracting == interacting) return;
     _isInteracting = interacting;
-    if (interacting && animationEngine.isAnimating) {
-      animationEngine.stop();
+    if (interacting) {
+      if (animationEngine.isAnimating) {
+        animationEngine.stop();
+      }
+      qualityNotifier?.onInteractionStart();
+    } else {
+      qualityNotifier?.onInteractionEnd();
     }
     notifyListeners();
   }
@@ -49,11 +57,13 @@ class ImageZoomController extends ChangeNotifier {
     _gestureStartMatrix = transformationController.value.clone();
     _scrubAccumulatedScale = 1.0;
     _isPanZoomGesture = true;
+    qualityNotifier?.onInteractionStart();
     notifyListeners();
   }
 
   void endPanZoomGesture() {
     _isPanZoomGesture = false;
+    qualityNotifier?.onInteractionEnd();
     notifyListeners();
   }
 
@@ -103,7 +113,8 @@ class ImageZoomController extends ChangeNotifier {
     transformationController.value = nextMatrix;
   }
 
-  void onAnimationTick(Matrix4 value) {
+  // ignore: avoid_setters_without_getters
+  set animationTick(Matrix4 value) {
     transformationController.value = value;
   }
 
@@ -144,8 +155,9 @@ class ImageZoomController extends ChangeNotifier {
 
   @override
   void dispose() {
-    transformationController.removeListener(_onTransformationChanged);
-    transformationController.dispose();
+    transformationController
+      ..removeListener(_onTransformationChanged)
+      ..dispose();
     scaleNotifier.dispose();
     super.dispose();
   }

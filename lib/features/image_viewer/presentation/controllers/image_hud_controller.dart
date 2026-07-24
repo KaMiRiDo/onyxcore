@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 /// Handles auto-hide timers, zoom indicator visibility, and edit mode state.
 class ImageHudController extends ChangeNotifier {
   bool _isControlsVisible = false;
-  bool _isEditing = false;
   bool _isClosing = false;
   bool _showZoomIndicator = false;
 
@@ -13,7 +12,6 @@ class ImageHudController extends ChangeNotifier {
   Timer? _zoomTimer;
 
   bool get isControlsVisible => _isControlsVisible;
-  bool get isEditing => _isEditing;
   bool get isClosing => _isClosing;
   bool get showZoomIndicator => _showZoomIndicator;
 
@@ -39,20 +37,10 @@ class ImageHudController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleEditing() {
-    _isEditing = !_isEditing;
-    if (_isEditing) {
-      _hideTimer?.cancel(); // Don't auto-hide while editing
-    } else {
-      startHideTimer();
-    }
-    notifyListeners();
-  }
-
   void startHideTimer() {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (!_isEditing && _isControlsVisible) {
+      if (_isControlsVisible) {
         _isControlsVisible = false;
         notifyListeners();
       }

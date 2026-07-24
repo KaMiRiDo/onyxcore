@@ -5,8 +5,8 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 class TestImageFavoritesNotifier extends ImageFavoritesNotifier {
-  // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
-  void updateFavorites(Set<String> favs) => state = favs;
+  // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, avoid_setters_without_getters
+  set updateFavorites(Set<String> favs) => state = favs;
 }
 
 void main() {
@@ -78,7 +78,7 @@ void main() {
       container.read(imageSortOptionProvider.notifier).state = SortOption.aToZ;
       expect(container.read(filteredAndSortedImageQueueProvider), [item1, item2, item3]);
 
-      (container.read(imageFavoritesProvider.notifier) as TestImageFavoritesNotifier).updateFavorites({'/test/b.jpg'});
+      (container.read(imageFavoritesProvider.notifier) as TestImageFavoritesNotifier).updateFavorites = {'/test/b.jpg'};
       container.read(imageViewModeProvider.notifier).state = ImageViewMode.favorites;
       expect(container.read(filteredAndSortedImageQueueProvider), [item2]);
     });

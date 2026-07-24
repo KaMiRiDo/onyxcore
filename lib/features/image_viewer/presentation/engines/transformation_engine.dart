@@ -20,9 +20,9 @@ class TransformationEngine {
       final scenePoint = MatrixUtils.transformPoint(inverseMatrix, focalPoint);
 
       final newMatrix = currentMatrix.clone()
-        ..translate(scenePoint.dx, scenePoint.dy)
-        ..scale(scaleRatio, scaleRatio)
-        ..translate(-scenePoint.dx, -scenePoint.dy);
+        ..multiply(Matrix4.translationValues(scenePoint.dx, scenePoint.dy, 0))
+        ..multiply(Matrix4.diagonal3Values(scaleRatio, scaleRatio, 1))
+        ..multiply(Matrix4.translationValues(-scenePoint.dx, -scenePoint.dy, 0));
 
       if (newMatrix.storage.any((v) => !v.isFinite)) {
         return null;
@@ -55,9 +55,9 @@ class TransformationEngine {
       );
 
       final newMatrix = gestureStartMatrix.clone()
-        ..translate(scenePoint.dx, scenePoint.dy)
-        ..scale(scaleRatio, scaleRatio)
-        ..translate(-scenePoint.dx, -scenePoint.dy);
+        ..multiply(Matrix4.translationValues(scenePoint.dx, scenePoint.dy, 0))
+        ..multiply(Matrix4.diagonal3Values(scaleRatio, scaleRatio, 1))
+        ..multiply(Matrix4.translationValues(-scenePoint.dx, -scenePoint.dy, 0));
 
       if (newMatrix.storage.any((v) => !v.isFinite)) return null;
 

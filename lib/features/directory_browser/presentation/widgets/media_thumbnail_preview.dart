@@ -235,8 +235,10 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
 
           var generated = false;
 
-          // 1. Try Dart image package for common image formats
-          if (isCommonImage) {
+          // 1. Try Dart image package for common image formats (only if < 1MB)
+          // For massive JPEGs, the Dart image package allocates hundreds of MBs in memory.
+          // Falling back to ffmpeg is vastly faster and memory-efficient.
+          if (isCommonImage && widget.item.sizeBytes != null && widget.item.sizeBytes! < 1024 * 1024) {
             generated = await compute(_generateImageThumbnail, [filePath, tempThumbPath]);
           }
 
