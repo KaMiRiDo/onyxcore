@@ -258,7 +258,6 @@ void main() {
       await tester.pumpWidget(createTestableWidget(isLoading: true));
       await tester.pump(); // Pump once for the loading state to render
 
-      debugDumpApp();
       expect(find.text('Analysis in progress ...'), findsOneWidget);
       final cancelFinder = find.byType(TextButton);
       expect(cancelFinder, findsOneWidget);

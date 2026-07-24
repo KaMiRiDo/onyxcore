@@ -15,7 +15,9 @@ void main() {
     });
 
     test('returns null for non-special images', () async {
-      final result = await SpecialImageConverter.convertIfNecessary('/test/image.jpg');
+      final result = await SpecialImageConverter.convertIfNecessary(
+        '/test/image.jpg',
+      );
       expect(result, isNull);
     });
 
@@ -24,28 +26,53 @@ void main() {
       // test_image.heic is generated in a way that ffmpeg can process it.
       final result = await SpecialImageConverter.convertIfNecessary(heicPath);
       expect(result, isNotNull);
-      
+
       final file = File(result!);
       expect(file.existsSync(), isTrue);
       expect(file.lengthSync(), greaterThan(0));
     });
 
     test('converts dng using compute isolate', () async {
-      // test_image.dng is generated such that package:image can decode it.
       final result = await SpecialImageConverter.convertIfNecessary(dngPath);
       expect(result, isNotNull);
-      
+
       final file = File(result!);
       expect(file.existsSync(), isTrue);
       expect(file.lengthSync(), greaterThan(0));
     });
-    
+
+    test('handles invalid dng gracefully', () async {
+      final invalidDng = File(p.join(Directory.systemTemp.path, 'invalid.dng'))
+        ..writeAsBytesSync([0x00, 0x01]); // Invalid image data
+      
+      final result = await SpecialImageConverter.convertIfNecessary(invalidDng.path);
+      expect(result, isNull);
+      
+      invalidDng.deleteSync();
+    });
+
+    test('queues concurrent conversions', () async {
+      // Create a copy of the heic file to ensure it's not cached from previous tests
+      final concurrentHeic = File(p.join(Directory.systemTemp.path, 'concurrent.heic'));
+      File(heicPath).copySync(concurrentHeic.path);
+      
+      final futures = [
+        SpecialImageConverter.convertIfNecessary(concurrentHeic.path),
+        SpecialImageConverter.convertIfNecessary(concurrentHeic.path),
+      ];
+      
+      final results = await Future.wait(futures);
+      
+      expect(results[0], isNotNull);
+      expect(results[1], results[0]);
+      
+      concurrentHeic.deleteSync();
+    });
+
     test('returns existing cached file immediately if it exists', () async {
-      // Run once to cache
       final firstResult = await SpecialImageConverter.convertIfNecessary(heicPath);
       expect(firstResult, isNotNull);
-      
-      // Run again, should return immediately the same path
+
       final secondResult = await SpecialImageConverter.convertIfNecessary(heicPath);
       expect(secondResult, firstResult);
     });

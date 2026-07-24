@@ -131,7 +131,6 @@ void main() {
 
       // MockGroupedEngine now returns a mix of video and image, so the filter dropdown
       // is enabled. It should show 'All' initially.
-      debugDumpApp();
       expect(find.text('All'), findsOneWidget);
 
       // Call onSelected directly to bypass overlay tap issues
