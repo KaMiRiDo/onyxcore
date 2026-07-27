@@ -150,9 +150,9 @@ class _CustomFilePickerDialogState
     if (folderName != null && folderName.isNotEmpty) {
       final newFolderPath = p.join(currentPath, folderName);
       try {
-        await io.Directory(newFolderPath).create();
+        await ref.read(fileSystemServiceProvider).getDirectory(newFolderPath).create();
         // navigate into new directory
-        ref.read(filePickerProvider.notifier).goToDirectory(newFolderPath);
+        await ref.read(filePickerProvider.notifier).goToDirectory(newFolderPath);
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -838,21 +838,22 @@ class _ResizeHandlePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Draw three diagonal lines for the handle
-    canvas.drawLine(
-      Offset(size.width * 0.7, size.height * 0.9),
-      Offset(size.width * 0.9, size.height * 0.7),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.4, size.height * 0.9),
-      Offset(size.width * 0.9, size.height * 0.4),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.1, size.height * 0.9),
-      Offset(size.width * 0.9, size.height * 0.1),
-      paint,
-    );
+    canvas
+      ..drawLine(
+        Offset(size.width * 0.7, size.height * 0.9),
+        Offset(size.width * 0.9, size.height * 0.7),
+        paint,
+      )
+      ..drawLine(
+        Offset(size.width * 0.4, size.height * 0.9),
+        Offset(size.width * 0.9, size.height * 0.4),
+        paint,
+      )
+      ..drawLine(
+        Offset(size.width * 0.1, size.height * 0.9),
+        Offset(size.width * 0.9, size.height * 0.1),
+        paint,
+      );
   }
 
   @override
