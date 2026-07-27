@@ -98,7 +98,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: CustomScrollView(
         // ignore: deprecated_member_use
-        cacheExtent: 1000.0, controller: scrollController,
+        cacheExtent: 1000, controller: scrollController,
         key: PageStorageKey<String>(isTrashView ? 'trash_$listPath' : listPath),
         slivers: [
           SliverPadding(

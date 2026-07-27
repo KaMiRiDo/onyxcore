@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
@@ -27,10 +26,10 @@ import 'package:onyxcore/features/image_viewer/presentation/services/image_metad
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_canvas.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_empty_state.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_playlist_sidebar.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_viewer_top_bar.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_zoom_indicator.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/interactive_image_viewport.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
-import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 import 'package:path/path.dart' as p;
 import 'package:window_manager/window_manager.dart';
 
@@ -391,6 +390,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       if (mounted) {
         ref.read(imageIsEmptyProvider.notifier).state = false;
         ref.read(previewFileProvider.notifier).state = item;
+        
+        final parentPath = p.dirname(item.path);
+        final currentRoot = ref.read(imageRootPathProvider);
+        if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
+          ref.read(imageRootPathProvider.notifier).state = parentPath;
+        }
+        ref.read(imageCurrentPathProvider.notifier).state = parentPath;
       }
     });
     _preparationController.prepare(item.path);
@@ -398,12 +404,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _navigationController.updateIndexData(item);
     if (mounted) {
       _focusNode.requestFocus();
-      final parentPath = p.dirname(item.path);
-      final currentRoot = ref.read(imageRootPathProvider);
-      if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
-        ref.read(imageRootPathProvider.notifier).state = parentPath;
-      }
-      ref.read(imageCurrentPathProvider.notifier).state = parentPath;
     }
     // Delay precaching to prevent choking the main image decode (especially on first load)
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -671,80 +671,25 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 left: 0,
                                 right: 0,
                                 child: ListenableBuilder(
-                                  listenable: _hudController,
+                                  listenable: Listenable.merge([_hudController, _navigationController]),
                                   builder: (context, child) {
                                     final isVisible = _hudController.isControlsVisible &&
                                         (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
                                     return AnimatedOpacity(
                                       duration: const Duration(milliseconds: 300),
                                       opacity: isVisible ? 1.0 : 0.0,
-                                      child: ViewerTopBar(
+                                      child: ImageViewerTopBar(
                                         title: _currentItem.name,
                                         metadata:
                                             _navigationController.indexString != null
-                                            ? '${_navigationController.indexString} • ${_metadata ?? ''}'
+                                            ? '${_navigationController.indexString}${_metadata != null ? ' • $_metadata' : ''}'
                                             : _metadata,
-                                        isStandalone:
-                                            widget.isStandalone ||
-                                            widget.windowId != null,
+                                        isStandalone: widget.isStandalone || widget.windowId != null,
+                                        isEmpty: _isEmpty,
+                                        isNetworkStream: _isNetworkStream,
+                                        itemPath: _currentItem.path,
                                         onPopOut: _openInNewWindow,
-                                        onClose: () =>
-                                            ref
-                                                    .read(previewFileProvider.notifier)
-                                                    .state =
-                                                null,
-                                        extraActions: [
-                                          if (!_isEmpty) ...[
-                                            if (!_isNetworkStream)
-                                              Consumer(
-                                                builder: (context, ref, _) {
-                                                  final favorites = ref.watch(
-                                                    imageFavoritesProvider,
-                                                  );
-                                                  final isFavorite = favorites.contains(
-                                                    _currentItem.path,
-                                                  );
-                                                  return _buildTopBarButton(
-                                                    icon: isFavorite
-                                                        ? Icons.favorite_rounded
-                                                        : Icons.favorite_border_rounded,
-                                                    onPressed: () {
-                                                      ref
-                                                          .read(
-                                                            imageFavoritesProvider
-                                                                .notifier,
-                                                          )
-                                                          .toggleFavorite(
-                                                            _currentItem.path,
-                                                          );
-                                                    },
-                                                    tooltip: 'Toggle Favorite',
-                                                    active: isFavorite,
-                                                  );
-                                                },
-                                              ),
-                                            if (!_isNetworkStream)
-                                              const SizedBox(width: 8),
-                                            if (!_isNetworkStream)
-                                              _buildTopBarButton(
-                                                icon: Icons.edit_outlined,
-                                                onPressed: null, // intentional no-op to disable but keep visible
-                                                tooltip: 'Edit Image',
-                                              ),
-                                            if (!_isNetworkStream)
-                                              const SizedBox(width: 8),
-                                            _buildTopBarButton(
-                                              icon: Icons.settings_rounded,
-                                              onPressed: () => SettingsDialog.show(
-                                                context,
-                                                initialTab: 1,
-                                                section: 'Image',
-                                              ),
-                                              tooltip: 'Image Settings',
-                                            ),
-                                            const SizedBox(width: 8),
-                                          ],
-                                        ],
+                                        onClose: () => ref.read(previewFileProvider.notifier).state = null,
                                       ),
                                     );
                                   },
@@ -828,35 +773,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTopBarButton({
-    required IconData icon,
-    required VoidCallback? onPressed,
-    required String tooltip,
-    bool active = false,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: active
-            ? const Color(0xFF00E5FF).withValues(alpha: 0.2)
-            : Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: active
-            ? Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.5))
-            : null,
-      ),
-      child: IconButton(
-        icon: Icon(
-          icon,
-          color: active ? const Color(0xFF00E5FF) : Colors.white.withValues(alpha: onPressed == null ? 0.3 : 1.0),
-          size: 20,
-        ),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        splashRadius: 24,
       ),
     );
   }

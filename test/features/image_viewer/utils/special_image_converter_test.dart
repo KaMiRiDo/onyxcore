@@ -76,5 +76,24 @@ void main() {
       final secondResult = await SpecialImageConverter.convertIfNecessary(heicPath);
       expect(secondResult, firstResult);
     });
+
+    test('handles non-existent heic gracefully', () async {
+      final result = await SpecialImageConverter.convertIfNecessary('/nonexistent/file.heic');
+      expect(result, isNull);
+    });
+
+    test('handles non-existent dng gracefully', () async {
+      final result = await SpecialImageConverter.convertIfNecessary('/nonexistent/file.dng');
+      expect(result, isNull);
+    });
+
+    test('continues conversion even if previous queued conversion failed', () async {
+      final failedFuture = SpecialImageConverter.convertIfNecessary('/nonexistent/file.heic');
+      final successFuture = SpecialImageConverter.convertIfNecessary(heicPath);
+
+      final results = await Future.wait([failedFuture, successFuture]);
+      expect(results[0], isNull);
+      expect(results[1], isNotNull);
+    });
   });
 }

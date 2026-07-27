@@ -54,6 +54,13 @@ class PersistentViewerManager {
     return _focusTriggers.putIfAbsent(viewId, () => ValueNotifier(0));
   }
 
+  @visibleForTesting
+  static void reset() {
+    _viewParams.clear();
+    _activeWindowsByType.clear();
+    _focusTriggers.clear();
+  }
+
   static Future<void> openMedia(WindowParams params) async {
     try {
       final type = params.viewerType;

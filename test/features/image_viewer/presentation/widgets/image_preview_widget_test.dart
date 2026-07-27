@@ -6,13 +6,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:path/path.dart' as p;
+
+class FakeDirectoryRepository implements DirectoryRepository {
+  FakeDirectoryRepository(this.initialItems);
+  final List<FileItem> initialItems;
+  List<String>? deletedPaths;
+
+  @override
+  void invalidateCache(String path, {bool recursive = false}) {}
+
+  @override
+  Stream<FileChangeEvent> watchDirectory(String path) => const Stream.empty();
+
+  @override
+  Future<List<FileItem>> listDirectory(String path) async => initialItems;
+
+  @override
+  Future<void> moveToTrash(
+    List<String> paths, {
+    String? taskId,
+    void Function(int processed, int total)? onProgress,
+    void Function(String message)? onLog,
+  }) async {
+    deletedPaths = paths;
+  }
+  
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class FakeImageFavoritesNotifier extends ImageFavoritesNotifier {
   @override
@@ -71,6 +103,7 @@ void main() {
         type: FileItemType.image,
         modified: DateTime.now(),
       );
+      PersistentViewerManager.reset();
     });
 
     Future<void> setupMethodChannels(List<MethodCall> logs) async {
@@ -79,6 +112,9 @@ void main() {
             const MethodChannel('onyxcore/window_manager'),
             (MethodCall methodCall) async {
               logs.add(methodCall);
+              if (methodCall.method == 'create_window') {
+                return 400;
+              }
               return null;
             },
           );
@@ -679,6 +715,380 @@ void main() {
       final finalImages = tester.widgetList<Image>(find.byType(Image)).toList();
       expect(finalImages.length, 2, reason: 'Both low-res and high-res images should be rendered after promotion');
       expect(finalImages.last.filterQuality, FilterQuality.high, reason: 'High-res image should have high quality');
+    });
+
+
+
+
+    testWidgets('top bar title, metadata, and standalone differences', (tester) async {
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              imageQueueProvider.overrideWith((ref) => [dummyPng]),
+              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+            ],
+            child: MaterialApp(home: Scaffold(body: ImagePreviewWidget(item: dummyPng, isStandalone: true))),
+          ),
+        );
+        // wait for initialization finish
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      // Show HUD by interacting
+      await tester.tap(find.byType(InteractiveViewer));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300)); // wait for fade in
+
+      // Title should be visible
+      expect(find.text('test_image.png'), findsOneWidget);
+
+      // Metadata string should be visible (e.g. "1/3" or "2/3")
+      expect(find.byWidgetPredicate((widget) => widget is Text && widget.data != null && RegExp(r'\d+/\d+').hasMatch(widget.data!)), findsOneWidget);
+
+      // Popout/close buttons are hidden in standalone mode
+      expect(find.byTooltip('Pop Out'), findsNothing);
+      expect(find.byTooltip('Close'), findsNothing);
+    });
+
+    testWidgets('network stream mode hides edit/favorite and disables playlist button', (tester) async {
+      final streamItem = FileItem(
+        path: 'http://example.com/stream.jpg',
+        name: 'stream.jpg',
+        type: FileItemType.image,
+        modified: DateTime.now(),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+        ],
+      );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(home: Scaffold(body: ImagePreviewWidget(item: streamItem, isStandalone: true, initParams: const {'is_network_stream': true}))),
+          ),
+        );
+        // wait for initialization
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+      tester.takeException(); // consume NetworkImageLoadException
+
+      // Show HUD
+      await tester.tap(find.byType(InteractiveViewer));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300)); // wait for fade in
+
+      // Edit and Favorite should be hidden for network streams
+      expect(find.byIcon(Icons.edit_outlined), findsNothing);
+      expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+
+      // Playlist button is disabled (its onPressed is null)
+      final playlistBtnIcon = find.byIcon(Icons.playlist_play);
+      expect(playlistBtnIcon, findsOneWidget);
+      final playlistBtn = tester.widget<IconButton>(find.ancestor(of: playlistBtnIcon, matching: find.byType(IconButton)).first);
+      expect(playlistBtn.onPressed, isNull);
+    });
+
+    testWidgets('didUpdateWidget loads new image when path changes', (tester) async {
+      final img1 = dummyPng;
+      final img2 = dummyHeic;
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(body: ImagePreviewWidget(item: img1)),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      expect(find.text('test_image.png'), findsWidgets);
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(body: ImagePreviewWidget(item: img2)),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      expect(find.text('test_image.heic'), findsWidgets);
+    });
+
+    testWidgets('responds to on_window_focus channel event by requesting focus', (tester) async {
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: ImagePreviewWidget(
+                  item: dummyPng,
+                  isStandalone: true,
+                  windowId: '400',
+                ),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      final focusNodeFinder = find.byType(Focus);
+      expect(focusNodeFinder, findsWidgets);
+
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            'onyxcore/window_manager',
+            const StandardMethodCodec().encodeMethodCall(
+              const MethodCall('on_window_focus', {'view_id': 400}),
+            ),
+            (data) {},
+          );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('handles interaction delta and focal point calculation with sidebar open', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          imageShowHiddenProvider.overrideWith((ref) => false),
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+        ],
+      );
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: ImagePreviewWidget(item: dummyPng),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      container.read(imagePlaylistSidebarVisibleProvider.notifier).state = true;
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      await tester.pump();
+
+      await gesture.moveTo(const Offset(10, 10));
+      await tester.pump();
+
+      await tester.sendEventToBinding(
+        const PointerHoverEvent(
+          position: Offset(10, 10),
+        ),
+      );
+      await tester.pump();
+      
+      await gesture.removePointer();
+    });
+
+    testWidgets('toggles fullscreen in standalone window mode via F11', (tester) async {
+      final logs = <MethodCall>[];
+      await setupMethodChannels(logs);
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: ImagePreviewWidget(
+                  item: dummyPng,
+                  isStandalone: true,
+                  windowId: '400',
+                ),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+      await tester.pumpAndSettle();
+
+      expect(
+        logs,
+        contains(
+          isA<MethodCall>()
+              .having((call) => call.method, 'method', 'set_fullscreen')
+              .having((call) => call.arguments['view_id'], 'view_id', 400)
+              .having((call) => call.arguments['is_fullscreen'], 'is_fullscreen', true),
+        ),
+      );
+    });
+
+    testWidgets('pops out image in a new window and clears inline navigation', (tester) async {
+      final logs = <MethodCall>[];
+      await setupMethodChannels(logs);
+
+      final container = ProviderContainer(
+        overrides: [
+          previewFileProvider.overrideWith((ref) => dummyPng),
+          imageShowHiddenProvider.overrideWith((ref) => false),
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+        ],
+      );
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: ImagePreviewWidget(item: dummyPng),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(InteractiveViewer));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final popOutBtn = find.byTooltip('Pop Out');
+      expect(popOutBtn, findsOneWidget);
+      await tester.tap(popOutBtn);
+      await tester.pumpAndSettle();
+
+      expect(
+        logs,
+        contains(
+          isA<MethodCall>()
+              .having((call) => call.method, 'method', 'create_window'),
+        ),
+      );
+
+      expect(container.read(previewFileProvider), isNull);
+    });
+
+    testWidgets('handles window close channel event', (tester) async {
+      final logs = <MethodCall>[];
+      await setupMethodChannels(logs);
+      PersistentViewerManager.init();
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              imageShowHiddenProvider.overrideWith((ref) => false),
+              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: ImagePreviewWidget(
+                  item: dummyPng,
+                  isStandalone: true,
+                  windowId: '400',
+                ),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() async {
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+              'onyxcore/window_manager',
+              const StandardMethodCodec().encodeMethodCall(
+                const MethodCall('on_window_close', {'view_id': 400}),
+              ),
+              (data) {},
+            );
+        await Future<void>.delayed(const Duration(milliseconds: 1800));
+      });
+
+      expect(
+        logs,
+        contains(
+          isA<MethodCall>()
+              .having((call) => call.method, 'method', 'close_window')
+              .having((call) => call.arguments['view_id'], 'view_id', 400),
+        ),
+      );
+    });
+
+    testWidgets('handles deletion with confirmation dialog', (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final fakeRepo = FakeDirectoryRepository([dummyPng]);
+
+      final container = ProviderContainer(
+        overrides: [
+          previewFileProvider.overrideWith((ref) => dummyPng),
+          imageShowHiddenProvider.overrideWith((ref) => false),
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+          directoryRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+      );
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: ImagePreviewWidget(item: dummyPng),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ViewerDeleteDialog), findsOneWidget);
+
+      await tester.tap(find.text('Yes, Trash'));
+      await tester.pumpAndSettle(const Duration(seconds: 5));
     });
   });
 }

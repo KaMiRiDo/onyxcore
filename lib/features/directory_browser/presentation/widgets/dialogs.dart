@@ -601,17 +601,19 @@ class ViewerDeleteDialog extends StatelessWidget {
                       size: 14,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      permanent
-                          ? 'This action cannot be undone'
-                          : 'You can restore it from system Trash',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        color: permanent
-                            ? AppColors.error.withValues(alpha: 0.6)
-                            : AppColors.violet.withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.1,
+                    Flexible(
+                      child: Text(
+                        permanent
+                            ? 'This action cannot be undone'
+                            : 'You can restore it from system Trash',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          color: permanent
+                              ? AppColors.error.withValues(alpha: 0.6)
+                              : AppColors.violet.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.1,
+                        ),
                       ),
                     ),
                   ],

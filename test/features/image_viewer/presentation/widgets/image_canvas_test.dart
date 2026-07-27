@@ -1,18 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_canvas.dart';
-
-class _FakeHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-  }
-}
 
 void main() {
   group('ImageCanvas', () {
@@ -52,7 +42,7 @@ void main() {
       final image = tester.widget<Image>(imageFinder);
       expect(image.fit, equals(BoxFit.contain));
       expect(image.filterQuality, equals(FilterQuality.high));
-      
+
       expect(image.image, isA<ResizeImage>());
       final resizeImage = image.image as ResizeImage;
       expect(resizeImage.width, equals(1920));
@@ -60,7 +50,8 @@ void main() {
       expect(resizeImage.policy, equals(ResizeImagePolicy.fit));
     });
 
-    testWidgets('renders local raster image with low filter quality during interaction', (tester) async {
+    testWidgets('renders local raster image with low filter quality during interaction',
+        (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -80,36 +71,38 @@ void main() {
       expect(image.filterQuality, equals(FilterQuality.low));
     });
 
-    testWidgets('renders network raster image correctly', skip: true, (tester) async {
-      // Temporarily override HTTP client so network image doesn't throw
-      HttpOverrides.global = _FakeHttpOverrides();
-      try {
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: Scaffold(
-              body: ImageCanvas(
-                imagePath: 'https://example.com/image.jpg',
-                heroTag: 'test-hero',
-                isConverting: false,
-              ),
+    testWidgets('renders network raster image using NetworkImage provider', (tester) async {
+      // ImageCanvas selects NetworkImage for http(s) URLs.
+      // We verify the widget-tree structure synchronously — no actual HTTP request
+      // is made because the image provider is only resolved when the Image widget
+      // first tries to decode, which does not happen in this synchronous pump.
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: ImageCanvas(
+              imagePath: 'https://example.com/image.jpg',
+              heroTag: 'test-hero',
+              isConverting: false,
             ),
           ),
-        );
+        ),
+      );
 
-        final imageFinder = find.byType(Image);
-        expect(imageFinder, findsOneWidget);
-        final image = tester.widget<Image>(imageFinder);
-        expect(image.fit, equals(BoxFit.contain));
-        expect(image.filterQuality, equals(FilterQuality.high));
+      // Widget tree should contain an Image (low-res slot before 300 ms timer fires)
+      final imageFinder = find.byType(Image);
+      expect(imageFinder, findsOneWidget);
 
-        expect(image.image, isA<ResizeImage>());
-        final resizeImage = image.image as ResizeImage;
-        expect(resizeImage.width, equals(1920));
-        expect(resizeImage.height, equals(1920));
-        expect(resizeImage.policy, equals(ResizeImagePolicy.fit));
-      } finally {
-        HttpOverrides.global = null;
-      }
+      final image = tester.widget<Image>(imageFinder);
+      expect(image.fit, equals(BoxFit.contain));
+      expect(image.filterQuality, equals(FilterQuality.high));
+
+      // Provider must be a ResizeImage wrapping a NetworkImage
+      expect(image.image, isA<ResizeImage>());
+      final resizeImage = image.image as ResizeImage;
+      expect(resizeImage.imageProvider, isA<NetworkImage>());
+      expect(resizeImage.width, equals(1920));
+      expect(resizeImage.height, equals(1920));
+      expect(resizeImage.policy, equals(ResizeImagePolicy.fit));
     });
 
     testWidgets('renders local SVG image correctly', (tester) async {
@@ -127,8 +120,6 @@ void main() {
 
       expect(find.byType(SvgPicture), findsOneWidget);
     });
-
-
 
     testWidgets('applies Hero tag correctly', (tester) async {
       await tester.pumpWidget(
@@ -149,7 +140,8 @@ void main() {
       expect(hero.tag, equals('test-hero'));
     });
 
-    testWidgets('progressively loads high resolution image after 300ms delay', (tester) async {
+    testWidgets('progressively loads high resolution image after 300ms delay',
+        (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -174,14 +166,12 @@ void main() {
       // Now, both images should be present in a Stack (low-res and high-res)
       final allImages = tester.widgetList<Image>(find.byType(Image)).toList();
       expect(allImages.length, equals(2));
-      
+
       // Bottom layer should be the low-res
       expect(allImages[0].image, isA<ResizeImage>());
-      
+
       // Top layer should be the full-res (not a ResizeImage)
       expect(allImages[1].image, isNot(isA<ResizeImage>()));
     });
-
-
   });
 }
