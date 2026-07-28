@@ -4,6 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/task_tile.dart';
 
+class MockTaskNotifier extends TaskNotifier {
+  final List<String> cancelledTaskIds = [];
+
+  @override
+  List<FileTask> build() => [];
+
+  @override
+  Future<void> cancelTask(String id) async {
+    cancelledTaskIds.add(id);
+  }
+}
+
 void main() {
   testWidgets('TaskTile renders complete state correctly', (tester) async {
     final task = FileTask(
@@ -64,7 +76,8 @@ void main() {
     expect(find.text('Error'), findsOneWidget);
   });
 
-  testWidgets('TaskTile renders running state correctly', (tester) async {
+  testWidgets('TaskTile renders running state correctly and supports logs/cancel', (tester) async {
+    final mockNotifier = MockTaskNotifier();
     final task = FileTask(
       id: '3',
       title: 'Delete Files',
@@ -75,10 +88,14 @@ void main() {
       totalCount: 5,
       totalSizeBytes: 1024,
       sourcePaths: ['/a/b.txt'],
+      logs: ['Delete start', 'Deleting first file'],
     );
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [
+          taskProvider.overrideWith(() => mockNotifier),
+        ],
         child: MaterialApp(
           home: Scaffold(
             body: TaskTile(task: task),
@@ -87,10 +104,27 @@ void main() {
       ),
     );
 
-    // Don't pump and settle for running animation
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Delete Files'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
+
+    // Expand logs
+    await tester.tap(find.text('Logs'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete start'), findsOneWidget);
+
+    // Click Cancel Button
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+
+    // Verify cancel confirmation overlay
+    expect(find.text('Cancel this task?'), findsOneWidget);
+
+    // Confirm cancel
+    await tester.tap(find.text('Yes, Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(mockNotifier.cancelledTaskIds, contains('3'));
   });
 }

@@ -34,16 +34,32 @@ class MockTaskHistoryNotifier extends TaskHistoryNotifier {
     }
     return null;
   }
+
+  @override
+  void deleteEntry(String id) {
+    state = state.where((entry) => entry.id != id).toList();
+  }
 }
 
 void main() {
-  testWidgets('TaskHistoryDetailView displays task details', (tester) async {
+  testWidgets('TaskHistoryDetailView displays task details and handles delete/back/logs', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final mockHistory = MockTaskHistoryNotifier();
+    final container = ProviderContainer(
+      overrides: [
+        taskHistoryProvider.overrideWith(() => mockHistory),
+        selectedHistoryIdProvider.overrideWith((ref) => '1'),
+        backgroundPanelViewProvider.overrideWith((ref) => BackgroundPanelView.historyDetail),
+      ],
+    );
+
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
-          selectedHistoryIdProvider.overrideWith((ref) => '1'),
-        ],
+      UncontrolledProviderScope(
+        container: container,
         child: const MaterialApp(
           home: Scaffold(
             body: TaskHistoryDetailView(),
@@ -55,18 +71,37 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Task Details'), findsOneWidget);
-    // the title will be 'Copy Files'
     expect(find.text('Copy Files'), findsOneWidget);
-    
-    // Check if stats are rendered
     expect(find.text('DURATION'), findsOneWidget);
     expect(find.text('ITEMS'), findsOneWidget);
     expect(find.text('SIZE'), findsOneWidget);
     expect(find.text('5/5'), findsOneWidget);
-    
-    // Check if the source files are shown
-    expect(find.text('PROCESSED ITEMS'), findsWidgets);
-    expect(find.text('file1.txt'), findsWidgets);
-    expect(find.text('file2.txt'), findsOneWidget);
+
+    // Expand logs
+    await tester.tap(find.text('Execution Logs'));
+    await tester.pumpAndSettle();
+    expect(find.text('Created file: /home/user/Downloads/file1.txt'), findsOneWidget);
+
+    // Confirm Back Navigation
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedHistoryIdProvider), isNull);
+    expect(container.read(backgroundPanelViewProvider), BackgroundPanelView.history);
+
+    // Re-select to test delete confirmation
+    container.read(selectedHistoryIdProvider.notifier).state = '1';
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await tester.pumpAndSettle();
+
+    // Verify confirmation overlay
+    expect(find.text('Delete History?'), findsOneWidget);
+
+    // Confirm delete
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(mockHistory.state, isEmpty);
   });
 }

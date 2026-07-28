@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,8 +12,18 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 class MockThumbnailCacheService extends Mock implements ThumbnailCacheService {}
 
 void main() {
+  late Directory tempDir;
+
   setUpAll(() {
     registerFallbackValue(ThumbnailSize.normal);
+    registerFallbackValue(File(''));
+    tempDir = Directory('./test_temp_thumbnails')..createSync(recursive: true);
+  });
+
+  tearDownAll(() {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
   });
 
   testWidgets('MediaThumbnailPreview handles unplayable video gracefully', (tester) async {
@@ -25,6 +34,12 @@ void main() {
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
         )).thenAnswer((_) async => ThumbnailLookupResult.failed);
+    when(() => mockCacheService.markFailed(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+          kind: any(named: 'kind'),
+        )).thenAnswer((_) async {});
 
     final item = FileItem(
       path: '/path/to/nonexistent/video.mp4',
@@ -61,7 +76,7 @@ void main() {
           sizeBytes: any(named: 'sizeBytes'),
         )).thenAnswer((_) async => ThumbnailLookupResult.hit);
     
-    final tempVideoThumb = File('/tmp/cached_video_test.jpg')..createSync();
+    final tempVideoThumb = File('${tempDir.path}/cached_video_test.jpg')..createSync();
     addTearDown(tempVideoThumb.deleteSync);
 
     when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => tempVideoThumb.path);
@@ -105,7 +120,7 @@ void main() {
           sizeBytes: any(named: 'sizeBytes'),
         )).thenAnswer((_) async => ThumbnailLookupResult.hit);
         
-    final tempImageThumb = File('/tmp/cached_image_test.jpg')..createSync();
+    final tempImageThumb = File('${tempDir.path}/cached_image_test.jpg')..createSync();
     addTearDown(tempImageThumb.deleteSync);
 
     when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => tempImageThumb.path);
@@ -138,5 +153,121 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ClipRRect), findsWidgets);
+  });
+
+  testWidgets('MediaThumbnailPreview runs fallback thumbnail generation and didUpdateWidget', (tester) async {
+    final mockCacheService = MockThumbnailCacheService();
+    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+    
+    // For item1, return miss to trigger enqueueing
+    when(() => mockCacheService.lookupAsync(
+          filePath: '/path/to/test_image.xyz',
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenAnswer((_) async => ThumbnailLookupResult.miss);
+
+    // For item2, return hit to avoid triggering a second enqueueing that would clog the queue
+    when(() => mockCacheService.lookupAsync(
+          filePath: '/path/to/another_image.xyz',
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
+
+    final tempImageThumb = File('${tempDir.path}/cached_another_test.jpg')..createSync();
+    addTearDown(tempImageThumb.deleteSync);
+    when(() => mockCacheService.getCachedPathAsync('/path/to/another_image.xyz')).thenAnswer((_) async => tempImageThumb.path);
+
+    when(() => mockCacheService.markFailed(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+          kind: any(named: 'kind'),
+        )).thenAnswer((_) async {});
+    when(() => mockCacheService.storeThumbnail(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+          kind: any(named: 'kind'),
+          thumbnailFile: any(named: 'thumbnailFile'),
+        )).thenAnswer((_) async {});
+
+    final item1 = FileItem(
+      path: '/path/to/test_image.xyz',
+      name: 'test_image.xyz',
+      type: FileItemType.image,
+      sizeBytes: 1024,
+      modified: DateTime.now(),
+    );
+
+    final item2 = FileItem(
+      path: '/path/to/another_image.xyz',
+      name: 'another_image.xyz',
+      type: FileItemType.image,
+      sizeBytes: 1024,
+      modified: DateTime.now(),
+    );
+
+    var tapped = false;
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) {
+                  return Column(
+                    children: [
+                      MediaThumbnailPreview(
+                        item: tapped ? item2 : item1,
+                        zoom: 1,
+                      ),
+                      ElevatedButton(
+                        onPressed: () => setState(() => tapped = true),
+                        child: const Text('Change'),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    });
+
+    await tester.pumpAndSettle();
+
+    // Trigger didUpdateWidget
+    await tester.tap(find.text('Change'));
+    await tester.pumpAndSettle();
+  });
+
+  test('ThumbnailGenerationQueue order and reprioritization', () async {
+    final order = <int>[];
+
+    final f1 = ThumbnailGenerationQueue.enqueue(() async {
+      order.add(1);
+    }, filePath: 'file1.mp4', priority: 10);
+
+    final f2 = ThumbnailGenerationQueue.enqueue(() async {
+      order.add(2);
+    }, filePath: 'file2.mp4', priority: 20);
+
+    final f3 = ThumbnailGenerationQueue.enqueue(() async {
+      order.add(3);
+    }, filePath: 'file3.mp4', priority: 30);
+
+    // Reprioritize file3 so it runs before file2 (gets priority 0)
+    ThumbnailGenerationQueue.reprioritize({'file3.mp4'});
+
+    await Future.wait([f1, f2, f3]);
+
+    expect(order.first, 1);
+    expect(order, containsAllInOrder([1, 3, 2]));
   });
 }

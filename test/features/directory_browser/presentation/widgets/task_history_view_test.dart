@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/background_panel_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_history_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/task_history_view.dart';
 
@@ -132,5 +133,62 @@ void main() {
 
     // Should show confirm dialog
     expect(find.text('Clear History'), findsOneWidget);
+  });
+
+  testWidgets('TaskHistoryView click entry navigates to detail view', (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
+      ],
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: TaskHistoryView(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Tap Copy Files entry
+    await tester.tap(find.text('Copy Files'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(selectedHistoryIdProvider), '1');
+    expect(container.read(backgroundPanelViewProvider), BackgroundPanelView.historyDetail);
+  });
+
+  testWidgets('TaskHistoryView filter overlay interaction', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: TaskHistoryView(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Open filter box
+    await tester.tap(find.byIcon(Icons.filter_list_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('FILTER'), findsOneWidget);
+
+    // Cancel filter box
+    await tester.tap(find.text('CANCEL'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('FILTER'), findsNothing);
   });
 }
