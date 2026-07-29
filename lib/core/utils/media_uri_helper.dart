@@ -13,8 +13,8 @@ class MediaUriHelper {
         final targetPath = _proxyMap[request.uri.path];
         if (targetPath != null) {
           final file = File(targetPath);
-          if (await file.exists()) {
-            final length = await file.length();
+          if (file.existsSync()) {
+            final length = file.lengthSync();
             final rangeHeader = request.headers.value('range');
             if (rangeHeader != null && rangeHeader.startsWith('bytes=')) {
               final parts = rangeHeader.substring(6).split('-');

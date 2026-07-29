@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class BrowserDetector {
   static const List<String> _knownBrowsers = [
@@ -16,6 +17,12 @@ class BrowserDetector {
 
   static List<String>? _cachedBrowsers;
   static String? _cachedDefault;
+
+  @visibleForTesting
+  static void reset() {
+    _cachedBrowsers = null;
+    _cachedDefault = null;
+  }
 
   /// Returns a list of supported browsers installed on the Linux system.
   static Future<List<String>> getInstalledBrowsers() async {

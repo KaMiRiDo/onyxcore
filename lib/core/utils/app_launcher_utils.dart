@@ -31,6 +31,15 @@ class AppLauncherUtils {
   static final Map<String, String> _extensionMimeCache = {};
   static final Map<String, List<String>> _mimeRecommendedCache = {};
 
+  @visibleForTesting
+  static Map<String, String> get extensionMimeCache => _extensionMimeCache;
+
+  @visibleForTesting
+  static Map<String, List<String>> get mimeRecommendedCache => _mimeRecommendedCache;
+
+  @visibleForTesting
+  static Future<ProcessResult> Function(String, List<String>) runProcess = Process.run;
+
   static List<AppInfo> get cachedApps => _cachedApps;
   static bool get isScanning => _isScanning;
 
@@ -70,7 +79,7 @@ class AppLauncherUtils {
 
     for (final path in scanPaths) {
       final dir = Directory(path);
-      if (await dir.exists()) {
+      if (dir.existsSync()) {
         try {
           final entities = await dir.list().toList();
           for (final entity in entities) {
@@ -149,15 +158,16 @@ class AppLauncherUtils {
                   if (path.contains('256x256') || path.contains('512x512')) {
                     shouldUpdate = true;
                   } else if (path.contains('128x128') &&
-                      !currentPath.contains('256x256'))
+                      !currentPath.contains('256x256')) {
                     shouldUpdate = true;
-                  else if (path.contains('64x64') &&
+                  } else if (path.contains('64x64') &&
                       !currentPath.contains('128x128') &&
-                      !currentPath.contains('256x256'))
+                      !currentPath.contains('256x256')) {
                     shouldUpdate = true;
-                  else if (path.contains('48x48') &&
-                      !currentPath.contains('64x64'))
+                  } else if (path.contains('48x48') &&
+                      !currentPath.contains('64x64')) {
                     shouldUpdate = true;
+                  }
                 }
               }
 
@@ -284,7 +294,7 @@ class AppLauncherUtils {
     }
 
     try {
-      final result = await Process.run('gio', ['mime', mimeType]);
+      final result = await runProcess('gio', ['mime', mimeType]);
       if (result.exitCode == 0) {
         final output = result.stdout as String;
         final recommendedIds = _parseGioMimeOutput(output);
@@ -298,7 +308,7 @@ class AppLauncherUtils {
             .toList();
       }
     } catch (e) {
-      print('Error getting recommended apps: $e');
+      debugPrint('Error getting recommended apps: $e');
     }
 
     // Fallback: search by mime type in cached apps
@@ -312,7 +322,7 @@ class AppLauncherUtils {
     if (mimeType == null) return null;
 
     try {
-      final result = await Process.run('gio', ['mime', mimeType]);
+      final result = await runProcess('gio', ['mime', mimeType]);
       if (result.exitCode == 0) {
         final output = result.stdout as String;
         final lines = output.split('\n');
@@ -333,7 +343,7 @@ class AppLauncherUtils {
         }
       }
     } catch (e) {
-      print('Error getting default app: $e');
+      debugPrint('Error getting default app: $e');
     }
     return null;
   }
@@ -343,7 +353,7 @@ class AppLauncherUtils {
     if (_extensionMimeCache.containsKey(ext)) return _extensionMimeCache[ext];
 
     try {
-      final result = await Process.run('gio', [
+      final result = await runProcess('gio', [
         'info',
         '-a',
         'standard::content-type',
@@ -360,7 +370,9 @@ class AppLauncherUtils {
         }
         return mimeType;
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore process exception
+    }
     return null;
   }
 
@@ -403,6 +415,6 @@ class AppLauncherUtils {
 
     // Run as background process
     // We use /bin/sh to handle the command properly
-    Process.start('sh', ['-c', exec]);
+    await Process.start('sh', ['-c', exec]);
   }
 }

@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 /// Represents a progress update from the directory size calculation isolate.
 class DirectorySizeUpdate {
 
@@ -76,7 +78,7 @@ Future<void> _processDirectoryAsync(DirectorySizeArgs args) async {
       }
     }
   } catch (e) {
-    print('Background sizing error (permissions): $e');
+    debugPrint('Background sizing error (permissions): $e');
   }
 
   // Send final update

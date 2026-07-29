@@ -117,7 +117,8 @@ class FileTypeClassifier {
         return kDocumentExtensions;
       case FileItemType.archive:
         return kArchiveExtensions;
-      default:
+      case FileItemType.folder:
+      case FileItemType.other:
         return [];
     }
   }
