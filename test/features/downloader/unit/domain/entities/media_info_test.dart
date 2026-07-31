@@ -669,7 +669,7 @@ void main() {
         expect(group.totalFilesize, 24 * 1024 * 1024);
       });
 
-      test('U-DL-GRP-13: includes error items in total size (no exclusion in current implementation)', () {
+      test('U-DL-GRP-13: excludes error items from total size', () {
         const group = MediaGroup(
           originalUrl: 'U',
           items: [
@@ -677,7 +677,7 @@ void main() {
             MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: 200, isError: true),
           ],
         );
-        expect(group.totalFilesize, 300);
+        expect(group.totalFilesize, 100);
       });
 
       test('U-DL-GRP-14: returns 0 for empty group total size', () {

@@ -20,6 +20,7 @@ import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/properties_dialog.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_active_downloads.dart';
@@ -73,7 +74,9 @@ class _StandaloneDownloaderWindowState
   late AnimationController _gradientController;
   final ScrollController _mediaGridScrollController = ScrollController();
   final Map<String, GlobalKey> _tagKeys = {};
-  final ValueNotifier<Map<String, String>?> _activeTagNotifier = ValueNotifier(null);
+  final ValueNotifier<Map<String, String>?> _activeTagNotifier = ValueNotifier(
+    null,
+  );
   List<MediaGroup> _currentVisibleGroups = [];
   String _currentPath = '';
   MediaGroup? _currentGroup;
@@ -102,7 +105,6 @@ class _StandaloneDownloaderWindowState
       ..listFilter = _listFilter;
   }
 
-
   void _restoreTabState(String path) {
     final state = _tabStates[path] ?? _StandaloneTabState();
     _currentGroup = state.currentGroup;
@@ -116,6 +118,85 @@ class _StandaloneDownloaderWindowState
     _searchController.text = state.searchQuery;
     _isSearchVisible = state.isSearchVisible;
     _listFilter = state.listFilter;
+  }
+
+  void _showPropertiesDialog([dynamic itemOverride]) {
+    final items = <dynamic>[];
+    if (itemOverride != null) {
+      items.add(itemOverride);
+    } else {
+      if (_selectedIndices.isEmpty) return;
+      if (_currentGroup == null) {
+        for (final index in _selectedIndices) {
+          if (index < (_controller.cache.parsedItems?.length ?? 0)) {
+            items.add(_controller.cache.parsedItems![index]);
+          }
+        }
+      } else {
+        for (final index in _selectedIndices) {
+          if (index < _currentGroup!.items.length) {
+            items.add(_currentGroup!.items[index]);
+          }
+        }
+      }
+    }
+
+    if (items.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (context) => PropertiesDialog(
+        selectedItems: items,
+        onClose: () => Navigator.of(context).pop(),
+        onDownload: () {
+          final sortedIndices = _selectedIndices.toList()
+            ..sort((a, b) => b.compareTo(a));
+          if (sortedIndices.isNotEmpty) {
+            _handleDownloadSelected(sortedIndices);
+          } else if (itemOverride != null) {
+            // If invoked via itemOverride, handle downloading that specific item
+            // For now, if no selection, we select the item and then download it
+            if (itemOverride is MediaGroup) {
+              final idx =
+                  _controller.cache.parsedItems?.indexOf(itemOverride) ?? -1;
+              if (idx != -1) _handleDownloadSelected([idx]);
+            } else if (itemOverride is MediaInfo && _currentGroup != null) {
+              final idx = _currentGroup!.items.indexOf(itemOverride);
+              if (idx != -1) _handleDownloadSelected([idx]);
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  void _handleDownloadSelected(List<int> sortedIndices) {
+    setState(() {
+      for (final index in sortedIndices) {
+        if (_currentGroup == null) {
+          if (index < (_controller.cache.parsedItems?.length ?? 0)) {
+            final group = _controller.cache.parsedItems![index];
+            _startDownload(group, index);
+            _controller.cache.parsedItems!.removeAt(index);
+          }
+        } else {
+          if (index < _currentGroup!.items.length) {
+            final item = _currentGroup!.items[index];
+            final group = MediaGroup(
+              originalUrl: item.originalUrl,
+              items: [item],
+            );
+            final rootIndex = _controller.cache.parsedItems!.indexOf(
+              _currentGroup!,
+            );
+            _startDownload(group, rootIndex);
+            _currentGroup!.items.removeAt(index);
+          }
+        }
+      }
+      _selectedIndices.clear();
+      _lastSelectedIndex = -1;
+    });
   }
 
   void _handleDelete(bool isShiftPressed) {
@@ -248,9 +329,7 @@ class _StandaloneDownloaderWindowState
 
   Future<void> _startDownload(MediaGroup group, int configIndex) async {
     try {
-      final config =
-          _controller.cache.configs[configIndex] ??
-          DownloadConfig();
+      final config = _controller.cache.configs[configIndex] ?? DownloadConfig();
 
       final downloadToCurrent =
           ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
@@ -561,13 +640,23 @@ class _StandaloneDownloaderWindowState
       final group = _currentVisibleGroups[i];
       if (_currentGroup == null) {
         if (group.tag != null && group.tag!.isNotEmpty) {
-           allTags.add({'index': i, 'tag': group.tag, 'url': group.originalUrl, 'sort': group.tagSortOrder ?? 'added_desc'});
+          allTags.add({
+            'index': i,
+            'tag': group.tag,
+            'url': group.originalUrl,
+            'sort': group.tagSortOrder ?? 'added_desc',
+          });
         }
       } else {
         if (group.items.isNotEmpty) {
           final item = group.items.first;
           if (item.tag != null && item.tag!.isNotEmpty) {
-             allTags.add({'index': i, 'tag': item.tag, 'url': item.id, 'sort': item.tagSortOrder ?? 'added_desc'});
+            allTags.add({
+              'index': i,
+              'tag': item.tag,
+              'url': item.id,
+              'sort': item.tagSortOrder ?? 'added_desc',
+            });
           }
         }
       }
@@ -575,15 +664,21 @@ class _StandaloneDownloaderWindowState
 
     if (allTags.isEmpty) return null;
 
-    final upcomingTags = allTags.where((t) => (t['index'] as int) >= currentIndex).toList();
+    final upcomingTags = allTags
+        .where((t) => (t['index'] as int) >= currentIndex)
+        .toList();
 
     if (upcomingTags.isEmpty) {
       final last = allTags.last;
-      return {'tag': last['tag'] as String, 'url': last['url'] as String, 'sort': last['sort'] as String};
+      return {
+        'tag': last['tag'] as String,
+        'url': last['url'] as String,
+        'sort': last['sort'] as String,
+      };
     }
 
     var targetTag = upcomingTags.first;
-    
+
     if ((targetTag['index'] as int) <= lastVisibleIndex) {
       final targetIndexInAll = allTags.indexOf(targetTag);
       if (targetIndexInAll < allTags.length - 1) {
@@ -591,7 +686,11 @@ class _StandaloneDownloaderWindowState
       }
     }
 
-    return {'tag': targetTag['tag'] as String, 'url': targetTag['url'] as String, 'sort': targetTag['sort'] as String};
+    return {
+      'tag': targetTag['tag'] as String,
+      'url': targetTag['url'] as String,
+      'sort': targetTag['sort'] as String,
+    };
   }
 
   @override
@@ -759,7 +858,6 @@ class _StandaloneDownloaderWindowState
                 }
               }
 
-
               if (HardwareKeyboard.instance.isAltPressed) {
                 if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
                   if (_historyIndex > 0) {
@@ -781,54 +879,65 @@ class _StandaloneDownloaderWindowState
                     });
                   }
                   return KeyEventResult.handled;
+                } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+                  if (_selectedIndices.isNotEmpty) {
+                    _showPropertiesDialog();
+                  }
+                  return KeyEventResult.handled;
                 }
               }
             }
             return KeyEventResult.ignored;
           },
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left Sidebar
-              Container(
-                width: 380,
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceBase,
-                  border: Border(right: BorderSide(color: Colors.white10)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Media List Section
-                    Expanded(child: _buildMediaListSection()),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final sidebarWidth = (constraints.maxWidth * 0.25).clamp(200.0, 340.0);
 
-                    const Divider(height: 1, color: Colors.white10),
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Left Sidebar
+                  Container(
+                    width: sidebarWidth,
+                    decoration: const BoxDecoration(
+                      color: AppColors.surfaceBase,
+                      border: Border(right: BorderSide(color: Colors.white10)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Media List Section
+                        Expanded(child: _buildMediaListSection()),
 
-                    // Active Downloads Section
-                    Expanded(child: _buildActiveDownloadsSection()),
-                  ],
-                ),
-              ),
+                        const Divider(height: 1, color: Colors.white10),
 
-              // Right Main Content
-              Expanded(
-                child: Column(
-                  children: [
-                    // Header
-                    _buildHeader(),
+                        // Active Downloads Section
+                        Expanded(child: _buildActiveDownloadsSection()),
+                      ],
+                    ),
+                  ),
 
-                    // Contextual Action Bar
-                    _buildActionBar(),
+                  // Right Main Content
+                  Expanded(
+                    child: Column(
+                      children: [
+                        // Header
+                        _buildHeader(),
 
-                    // Media Grid
-                    Expanded(child: _buildMediaGrid()),
+                        // Contextual Action Bar
+                        _buildActionBar(),
 
-                    // Location Bar
-                    _buildLocationBar(),
-                  ],
-                ),
-              ),
-            ],
+                        // Media Grid
+                        Expanded(child: _buildMediaGrid()),
+
+                        // Location Bar
+                        _buildLocationBar(),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -913,6 +1022,7 @@ class _StandaloneDownloaderWindowState
         setState(() {
           _controller.cache.switchList(path);
           _restoreTabState(path);
+          _isTrashView = false;
         });
       },
       onTrashTap: () {
@@ -936,8 +1046,7 @@ class _StandaloneDownloaderWindowState
           final file = File(path.first);
           if (file.existsSync()) {
             final content = await file.readAsString();
-            final data =
-                jsonDecode(content) as Map<String, dynamic>;
+            final data = jsonDecode(content) as Map<String, dynamic>;
             final items = (data['items'] as List)
                 .map((e) => MediaGroup.fromMap(e as Map<String, dynamic>))
                 .toList();
@@ -1115,12 +1224,21 @@ class _StandaloneDownloaderWindowState
                         entry.remove();
                       },
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         child: Row(
                           children: [
                             Icon(Icons.delete, size: 14, color: Colors.white70),
                             SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.white, fontSize: 12)),
+                            Text(
+                              'Delete',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1132,12 +1250,25 @@ class _StandaloneDownloaderWindowState
                         entry.remove();
                       },
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         child: Row(
                           children: [
-                            Icon(Icons.delete_sweep, size: 14, color: Colors.redAccent),
+                            Icon(
+                              Icons.delete_sweep,
+                              size: 14,
+                              color: Colors.redAccent,
+                            ),
                             SizedBox(width: 8),
-                            Text('Clear All', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                            Text(
+                              'Clear All',
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1168,8 +1299,10 @@ class _StandaloneDownloaderWindowState
         if (idx != -1) {
           final oldItem = _currentGroup!.items[idx];
           _currentGroup!.items[idx] = oldItem.copyWith(clearTag: true);
-          
-          final rootIndex = parsedItems.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl);
+
+          final rootIndex = parsedItems.indexWhere(
+            (g) => g.originalUrl == _currentGroup!.originalUrl,
+          );
           if (rootIndex != -1) {
             final oldRoot = parsedItems[rootIndex];
             final items = List<MediaInfo>.from(oldRoot.items);
@@ -1200,7 +1333,9 @@ class _StandaloneDownloaderWindowState
           parsedItems[i] = parsedItems[i].copyWith(clearTag: true);
         }
       } else {
-        final rootIndex = parsedItems.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl);
+        final rootIndex = parsedItems.indexWhere(
+          (g) => g.originalUrl == _currentGroup!.originalUrl,
+        );
         if (rootIndex != -1) {
           final oldRoot = parsedItems[rootIndex];
           final items = List<MediaInfo>.from(oldRoot.items);
@@ -1324,15 +1459,23 @@ class _StandaloneDownloaderWindowState
         final idx = parsedItems.indexWhere((g) => g.originalUrl == url);
         if (idx != -1) {
           final oldGroup = parsedItems[idx];
-          parsedItems[idx] = oldGroup.copyWith(tag: tag, tagSortOrder: _listFilter);
+          parsedItems[idx] = oldGroup.copyWith(
+            tag: tag,
+            tagSortOrder: _listFilter,
+          );
         }
       } else {
         final idx = _currentGroup!.items.indexWhere((i) => i.id == url);
         if (idx != -1) {
           final oldItem = _currentGroup!.items[idx];
-          _currentGroup!.items[idx] = oldItem.copyWith(tag: tag, tagSortOrder: _listFilter);
-          
-          final rootIndex = parsedItems.indexWhere((g) => g.originalUrl == _currentGroup!.originalUrl);
+          _currentGroup!.items[idx] = oldItem.copyWith(
+            tag: tag,
+            tagSortOrder: _listFilter,
+          );
+
+          final rootIndex = parsedItems.indexWhere(
+            (g) => g.originalUrl == _currentGroup!.originalUrl,
+          );
           if (rootIndex != -1) {
             final oldRoot = parsedItems[rootIndex];
             final items = List<MediaInfo>.from(oldRoot.items);
@@ -1385,9 +1528,14 @@ class _StandaloneDownloaderWindowState
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),
@@ -1423,26 +1571,33 @@ class _StandaloneDownloaderWindowState
       if (cancelled) return;
       var itemIndex = -1;
       if (_currentGroup == null) {
-        itemIndex = _currentVisibleGroups.indexWhere((g) => g.originalUrl == url);
+        itemIndex = _currentVisibleGroups.indexWhere(
+          (g) => g.originalUrl == url,
+        );
       } else {
-        itemIndex = _currentVisibleGroups.indexWhere((g) => g.items.isNotEmpty && g.items.first.id == url);
+        itemIndex = _currentVisibleGroups.indexWhere(
+          (g) => g.items.isNotEmpty && g.items.first.id == url,
+        );
       }
 
       if (itemIndex != -1 && _mediaGridScrollController.hasClients) {
-        final width = MediaQuery.of(context).size.width - 380; // approximate grid width
+        final width =
+            MediaQuery.of(context).size.width - 380; // approximate grid width
         final crossAxisCount = (width / 236).floor().clamp(1, 10);
         final row = itemIndex ~/ crossAxisCount;
         final estimatedOffset = row * 300.0;
-        
-        _mediaGridScrollController.animateTo(
-          estimatedOffset,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        ).then((_) {
-          if (!cancelled) {
-            Future.delayed(const Duration(milliseconds: 100), scrollToKey);
-          }
-        });
+
+        _mediaGridScrollController
+            .animateTo(
+              estimatedOffset,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            )
+            .then((_) {
+              if (!cancelled) {
+                Future.delayed(const Duration(milliseconds: 100), scrollToKey);
+              }
+            });
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) => scrollToKey());
       }
@@ -1468,9 +1623,22 @@ class _StandaloneDownloaderWindowState
                 color: const Color(0xFF1E1E1E),
                 border: Border.all(color: Colors.amber, width: 1.5),
                 borderRadius: BorderRadius.circular(8),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
-              child: const Text('Sort order updated to match tag', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13)),
+              child: const Text(
+                'Sort order updated to match tag',
+                style: TextStyle(
+                  color: Colors.amber,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
             ),
           ),
         ),
@@ -1486,7 +1654,7 @@ class _StandaloneDownloaderWindowState
     }
   }
 
-  void _toggleSelection(int index, bool isCtrl, bool isShift) {
+  void _toggleSelection(int index, {bool isCtrl = false, bool isShift = false}) {
     if (index == -1) {
       setState(() {
         _selectedIndices.clear();
@@ -1539,7 +1707,9 @@ class _StandaloneDownloaderWindowState
       }).toList();
       if (searchTerm.isNotEmpty) {
         mappedGroups = mappedGroups.where((group) {
-          final titleMatch = group.items.isNotEmpty && group.items.first.title.toLowerCase().contains(searchTerm);
+          final titleMatch =
+              group.items.isNotEmpty &&
+              group.items.first.title.toLowerCase().contains(searchTerm);
           final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
           return titleMatch || urlMatch;
         }).toList();
@@ -1584,7 +1754,9 @@ class _StandaloneDownloaderWindowState
 
       if (searchTerm.isNotEmpty) {
         mappedGroups = mappedGroups.where((group) {
-          final titleMatch = group.items.isNotEmpty && group.items.first.title.toLowerCase().contains(searchTerm);
+          final titleMatch =
+              group.items.isNotEmpty &&
+              group.items.first.title.toLowerCase().contains(searchTerm);
           final urlMatch = group.originalUrl.toLowerCase().contains(searchTerm);
           return titleMatch || urlMatch;
         }).toList();
@@ -1606,7 +1778,8 @@ class _StandaloneDownloaderWindowState
           if (config?.groupFilter == GroupDownloadType.images && item.isVideo) {
             return false;
           }
-          if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo) {
+          if (config?.groupFilter == GroupDownloadType.videos &&
+              !item.isVideo) {
             return false;
           }
           if (searchTerm.isNotEmpty &&
@@ -1621,7 +1794,7 @@ class _StandaloneDownloaderWindowState
         }).toList();
       }
     }
-    
+
     _currentVisibleGroups = mappedGroups;
 
     final listPath = _controller.cache.importedListPath ?? 'default';
@@ -1639,6 +1812,7 @@ class _StandaloneDownloaderWindowState
       isTrashView: _isTrashView,
       groups: mappedGroups,
       currentGroup: _currentGroup,
+      onShowProperties: _showPropertiesDialog,
       currentGroupRootIndex: currentGroupRootIndex,
       selectedIndices: _selectedIndices,
       downloadingImageIndices: _downloadingImageIndices,
@@ -1970,14 +2144,23 @@ class _StandaloneDownloaderWindowState
       // We keep the selectedFormat's formatId so that the video player can set
       // ytdl-format to the right stream. We do NOT override it with a "best URL
       // format" — that would silently ignore the user's resolution choice.
-      final effectiveFormat = resolveEffectiveFormat(item, selectedFormat: selectedFormat);
+      final effectiveFormat = resolveEffectiveFormat(
+        item,
+        selectedFormat: selectedFormat,
+      );
 
       if (effectiveFormat != null && effectiveFormat.audioCodec == 'none') {
-        final audioFormats = item.formats.where((f) => f.videoCodec == 'none').toList();
+        final audioFormats = item.formats
+            .where((f) => f.videoCodec == 'none')
+            .toList();
         if (audioFormats.isNotEmpty) {
-          audioFormats.sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+          audioFormats.sort(
+            (a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0),
+          );
           final bestAudio = audioFormats.first;
-          audioUrl = (bestAudio.url != null && bestAudio.url!.isNotEmpty) ? bestAudio.url : bestAudio.formatString;
+          audioUrl = (bestAudio.url != null && bestAudio.url!.isNotEmpty)
+              ? bestAudio.url
+              : bestAudio.formatString;
         }
       }
 
@@ -2049,9 +2232,7 @@ class _StandaloneDownloaderWindowState
           backgroundColor: const Color(0xFF2A1515),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: Colors.redAccent.withValues(alpha: 0.3),
-            ),
+            side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.3)),
           ),
           title: Row(
             children: [
@@ -2282,7 +2463,10 @@ class _StandaloneDownloaderWindowState
 ///   4. [MediaInfo.originalUrl]      — last resort
 ///   5. null                         — no usable URL found
 @visibleForTesting
-MediaFormat? resolveEffectiveFormat(MediaInfo item, {MediaFormat? selectedFormat}) {
+MediaFormat? resolveEffectiveFormat(
+  MediaInfo item, {
+  MediaFormat? selectedFormat,
+}) {
   if (selectedFormat != null) return selectedFormat;
   if (item.formats.isEmpty) return null;
 
@@ -2300,13 +2484,10 @@ MediaFormat? resolveEffectiveFormat(MediaInfo item, {MediaFormat? selectedFormat
     return getH(b.resolution).compareTo(getH(a.resolution));
   });
 
-  return validFormats.firstWhere(
-    (f) {
-      final h = getH(f.resolution);
-      return h > 0 && h <= 1080;
-    },
-    orElse: () => validFormats.first,
-  );
+  return validFormats.firstWhere((f) {
+    final h = getH(f.resolution);
+    return h > 0 && h <= 1080;
+  }, orElse: () => validFormats.first);
 }
 
 @visibleForTesting

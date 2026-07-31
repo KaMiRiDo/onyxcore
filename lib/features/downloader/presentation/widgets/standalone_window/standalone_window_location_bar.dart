@@ -33,74 +33,82 @@ class StandaloneWindowLocationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallWindow = MediaQuery.of(context).size.width < 1100;
+    
     final sizeStr = '${(totalSize / 1024 / 1024).toStringAsFixed(1)} MB';
-    final statsTextBase = '$totalVideos Videos • $totalImages Images • ';
     final isExportDisabled = isTrashView || (isCustom && !isChanged) || (!isCustom && totalVideos == 0 && totalImages == 0);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.white10)),
-      ),
-      child: Row(
-        children: [
-          Text(
-            'Location : ',
-            style: GoogleFonts.outfit(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Colors.white10)),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.black38,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white10),
+          child: Row(
+            children: [
+          if (constraints.maxWidth > 550) ...[
+            Text(
+              'Location : ',
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: isSmallWindow ? 11 : 13,
               ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Row(
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, innerConstraints) {
+                return Container(
+                  height: isSmallWindow ? 24 : 36,
+                  decoration: BoxDecoration(
+                    color: Colors.black38,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Row(
                     children: [
-                      if (constraints.maxWidth > 30) const SizedBox(width: 12),
-                      Expanded(
-                        child: currentPath.isEmpty
-                            ? Text(
-                                'Select a folder',
+                      if (innerConstraints.maxWidth > 100) const SizedBox(width: 12),
+                  Expanded(
+                    child: currentPath.isEmpty
+                        ? Text(
+                            'Select a folder',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white70,
+                              fontSize: isSmallWindow ? 11 : 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        : ShaderMask(
+                            blendMode: BlendMode.srcIn,
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [
+                                AppColors.magenta,
+                                AppColors.violet,
+                                AppColors.indigo,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ).createShader(bounds),
+                            child: Padding(
+                              padding: EdgeInsets.only(left: constraints.maxWidth <= 400 ? 8.0 : 0),
+                              child: Text(
+                                currentPath,
                                 style: GoogleFonts.outfit(
-                                  color: Colors.white70,
-                                  fontSize: 13,
+                                  color: Colors.white,
+                                  fontSize: isSmallWindow ? 11 : 13,
+                                  fontWeight: FontWeight.bold,
                                 ),
                                 overflow: TextOverflow.ellipsis,
-                              )
-                            : ShaderMask(
-                                blendMode: BlendMode.srcIn,
-                                shaderCallback: (bounds) => const LinearGradient(
-                                  colors: [
-                                    AppColors.magenta,
-                                    AppColors.violet,
-                                    AppColors.indigo,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ).createShader(bounds),
-                                child: Text(
-                                  currentPath,
-                                  style: GoogleFonts.outfit(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
                               ),
-                      ),
-                      if (constraints.maxWidth > 120)
+                            ),
+                          ),
+                  ),
+                      if (innerConstraints.maxWidth > 150)
                         SizedBox(
-                          height: 36,
+                          height: isSmallWindow ? 24 : 36,
                           child: ElevatedButton(
                             onPressed: onChangeLocation,
                             style: ElevatedButton.styleFrom(
@@ -122,53 +130,68 @@ class StandaloneWindowLocationBar extends StatelessWidget {
                               'Change',
                               style: GoogleFonts.outfit(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: isSmallWindow ? 11 : 12,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                         ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(width: 16),
-          Expanded(
-            flex: 2, // 2/3 of the flex space
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text.rich(
-                    TextSpan(
-                      text: statsTextBase,
-                      style: GoogleFonts.outfit(
-                        color: Colors.white70,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: sizeStr,
-                          style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    overflow: TextOverflow.ellipsis,
+          if (constraints.maxWidth > 650)
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.movie_outlined, 
+                    size: isSmallWindow ? 12 : 16, 
+                    color: Colors.white70,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Text(
+                    '$totalVideos',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white70,
+                      fontSize: isSmallWindow ? 11 : 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.image_outlined, 
+                    size: isSmallWindow ? 12 : 16, 
+                    color: Colors.white70,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$totalImages',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white70,
+                      fontSize: isSmallWindow ? 11 : 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '•  $sizeStr',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: isSmallWindow ? 11 : 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           const SizedBox(width: 12),
           Container(
-            height: 36,
+            height: isSmallWindow ? 24 : 36,
             decoration: BoxDecoration(
               gradient: isExportDisabled
                   ? null
@@ -197,7 +220,7 @@ class StandaloneWindowLocationBar extends StatelessWidget {
                   : onExport,
               icon: Icon(
                 Icons.file_upload_outlined,
-                size: 16,
+                size: isSmallWindow ? 12 : 16,
                 color: isExportDisabled
                     ? Colors.white30
                     : Colors.white,
@@ -209,7 +232,7 @@ class StandaloneWindowLocationBar extends StatelessWidget {
                       ? Colors.white30
                       : Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: isSmallWindow ? 11 : 13,
                 ),
               ),
               style: ElevatedButton.styleFrom(
@@ -226,7 +249,7 @@ class StandaloneWindowLocationBar extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Container(
-            height: 36,
+            height: isSmallWindow ? 24 : 36,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [AppColors.magenta, AppColors.violet, AppColors.indigo],
@@ -252,13 +275,15 @@ class StandaloneWindowLocationBar extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: isSmallWindow ? 11 : 13,
                 ),
               ),
             ),
           ),
         ],
       ),
+    );
+      },
     );
   }
 }

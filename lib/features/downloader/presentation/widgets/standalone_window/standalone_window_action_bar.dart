@@ -50,9 +50,11 @@ class StandaloneWindowActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallWindow = MediaQuery.of(context).size.width < 1100;
+    
     if (isTrashView) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: isSmallWindow ? 8 : 12),
         decoration: BoxDecoration(
           color: AppColors.background,
           border: Border(bottom: BorderSide(color: AppColors.borderColor)),
@@ -64,7 +66,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
                 'Trash',
                 style: GoogleFonts.outfit(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: isSmallWindow ? 14 : 18,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -98,7 +100,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: isSmallWindow ? 8 : 12),
       decoration: BoxDecoration(
         color: AppColors.background,
         border: Border(bottom: BorderSide(color: AppColors.borderColor)),
@@ -129,7 +131,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
                               importedListName ?? 'Default List',
                               style: GoogleFonts.outfit(
                                 color: Colors.white54,
-                                fontSize: 16,
+                                fontSize: isSmallWindow ? 13 : 16,
                               ),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
@@ -148,7 +150,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
                               : 'Group',
                           style: GoogleFonts.outfit(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: isSmallWindow ? 14 : 18,
                             fontWeight: FontWeight.w600,
                           ),
                           maxLines: 1,
@@ -161,7 +163,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
                           importedListName ?? 'Default List',
                           style: GoogleFonts.outfit(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: isSmallWindow ? 14 : 18,
                             fontWeight: FontWeight.w600,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -227,7 +229,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
                     final isActive = value.text.isNotEmpty;
                     final isFocused = searchFocusNode.hasFocus;
                     return Container(
-                      height: 36,
+                      height: isSmallWindow ? 28 : 36,
                       padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1.5),
                       decoration: BoxDecoration(
                         color: isActive || isFocused
@@ -244,21 +246,22 @@ class StandaloneWindowActionBar extends StatelessWidget {
                         focusNode: searchFocusNode,
                         style: GoogleFonts.outfit(
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: isSmallWindow ? 11 : 12,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search...',
                           hintStyle: GoogleFonts.outfit(
                             color: Colors.white30,
+                            fontSize: isSmallWindow ? 11 : 12,
                           ),
                           prefixIcon: Icon(
                             Icons.search,
                             color: isActive || isFocused ? AppColors.magenta : Colors.white30,
-                            size: 16,
+                            size: isSmallWindow ? 14 : 16,
                           ),
                           suffixIcon: isActive
                               ? IconButton(
-                                  icon: const Icon(Icons.close, size: 16, color: Colors.white54),
+                                  icon: Icon(Icons.close, size: isSmallWindow ? 14 : 16, color: Colors.white54),
                                   onPressed: () {
                                     searchController.clear();
                                     searchFocusNode.unfocus();
@@ -267,7 +270,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
                                   constraints: const BoxConstraints(),
                                 )
                               : null,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: isSmallWindow ? 4 : 11),
                           border: InputBorder.none,
                           isDense: true,
                         ),

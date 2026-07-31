@@ -58,6 +58,8 @@ MediaInfo makeInfo({
   String? thumbnail,
   bool isError = false,
   List<MediaFormat> formats = const [],
+  String? fetchLogs,
+  String? engineId,
 }) {
   return MediaInfo(
     id: id,
@@ -76,6 +78,8 @@ MediaInfo makeInfo({
     thumbnail: thumbnail,
     isError: isError,
     formats: formats,
+    fetchLogs: fetchLogs,
+    engineId: engineId,
   );
 }
 
@@ -449,48 +453,74 @@ void main() {
       expect(state.getHeightForTesting('garbage'), 0);
     });
 
-    testWidgets('W-SDW-015: changing global format clears individual itemFormats', (tester) async {
-      final controller = RecordingDownloadsSharedController();
-      final taskNotifier = RecordingDownloadTaskNotifier();
-      final container = createContainer(
-        controller: controller,
-        taskNotifier: taskNotifier,
-        currentPath: tempDir.path,
-      );
-      addTearDown(container.dispose);
+    testWidgets(
+      'W-SDW-015: changing global format clears individual itemFormats',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
 
-      final group = makeGroup(
-        originalUrl: 'https://playlist.example',
-        items: [
-          makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://playlist.example/v1', isPlaylist: true, formats: []),
-          makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://playlist.example/v2', isPlaylist: true, formats: []),
-        ],
-      );
-      
-      controller.cache.parsedItems = [group];
-      final config = DownloadConfig();
-      config.format = makeFormat(formatId: '1080', resolution: '1080p', filesize: 100);
-      config.itemFormats['v1'] = makeFormat(formatId: '720', resolution: '720p', filesize: 50);
-      controller.cache.configs[0] = config;
+        final group = makeGroup(
+          originalUrl: 'https://playlist.example',
+          items: [
+            makeInfo(
+              id: 'v1',
+              title: 'Video 1',
+              originalUrl: 'https://playlist.example/v1',
+              isPlaylist: true,
+              formats: [],
+            ),
+            makeInfo(
+              id: 'v2',
+              title: 'Video 2',
+              originalUrl: 'https://playlist.example/v2',
+              isPlaylist: true,
+              formats: [],
+            ),
+          ],
+        );
 
-      await pumpWindow(tester, container: container);
-      
-      final state = standaloneState(tester);
-      // Simulate double tap to enter group
-      state.onDoubleTapItemForTesting(0, group);
-      await tester.pump();
-      
-      // Simulate onFormatChanged from action bar
-      final newFormat = makeFormat(formatId: '4k', resolution: '2160p', filesize: 200);
-      
-      // Find the FormatSelectionDropdown and change value or directly call method if exposed.
-      // We know `rootIndex` is 0 when inside the group
-      state.onFormatChangedForTesting(newFormat);
-      
-      expect(controller.cache.configs[0]?.format?.resolution, '2160p');
-      expect(controller.cache.configs[0]?.itemFormats, isEmpty);
-    });
+        controller.cache.parsedItems = [group];
+        final config = DownloadConfig();
+        config.format = makeFormat(
+          formatId: '1080',
+          resolution: '1080p',
+          filesize: 100,
+        );
+        config.itemFormats['v1'] = makeFormat(
+          formatId: '720',
+          resolution: '720p',
+          filesize: 50,
+        );
+        controller.cache.configs[0] = config;
 
+        await pumpWindow(tester, container: container);
+
+        final state = standaloneState(tester);
+        // Simulate double tap to enter group
+        state.onDoubleTapItemForTesting(0, group);
+        await tester.pump();
+
+        // Simulate onFormatChanged from action bar
+        final newFormat = makeFormat(
+          formatId: '4k',
+          resolution: '2160p',
+          filesize: 200,
+        );
+
+        // Find the FormatSelectionDropdown and change value or directly call method if exposed.
+        // We know `rootIndex` is 0 when inside the group
+        state.onFormatChangedForTesting(newFormat);
+
+        expect(controller.cache.configs[0]?.format?.resolution, '2160p');
+        expect(controller.cache.configs[0]?.itemFormats, isEmpty);
+      },
+    );
 
     // ═══════════════════════════════════════════════════════════════
     // W-SDW-001: Init, Update, Present Window
@@ -1145,98 +1175,134 @@ void main() {
         expect(createImageWindowCall.arguments['height'], 800);
       },
     );
-    testWidgets('W-SDW-017: audio format shows audio icon and playlist suppresses root thumbnail', (tester) async {
-      final controller = RecordingDownloadsSharedController();
-      final taskNotifier = RecordingDownloadTaskNotifier();
-      final container = createContainer(
-        controller: controller,
-        taskNotifier: taskNotifier,
-        currentPath: '/tmp/test',
-      );
-      addTearDown(container.dispose);
+    testWidgets(
+      'W-SDW-017: audio format shows audio icon and playlist suppresses root thumbnail',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: '/tmp/test',
+        );
+        addTearDown(container.dispose);
 
-      final group = makeGroup(
-        originalUrl: 'https://playlist.example',
-        items: [
-          makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://playlist.example/v1', isPlaylist: true, thumbnail: 'https://thumb.example', formats: [
-            makeFormat(formatId: 'a1', resolution: 'audio only', filesize: 100, videoCodec: 'none'),
-          ]),
-          makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://playlist.example/v2', isPlaylist: true, thumbnail: 'https://thumb.example', formats: []),
-        ],
-      );
-      controller.cache.parsedItems = [group];
-      final config = DownloadConfig();
-      config.format = group.first.formats.first;
-      config.itemFormats['v1'] = group.first.formats.first;
-      controller.cache.configs[0] = config;
+        final group = makeGroup(
+          originalUrl: 'https://playlist.example',
+          items: [
+            makeInfo(
+              id: 'v1',
+              title: 'Video 1',
+              originalUrl: 'https://playlist.example/v1',
+              isPlaylist: true,
+              thumbnail: 'https://thumb.example',
+              formats: [
+                makeFormat(
+                  formatId: 'a1',
+                  resolution: 'audio only',
+                  filesize: 100,
+                  videoCodec: 'none',
+                ),
+              ],
+            ),
+            makeInfo(
+              id: 'v2',
+              title: 'Video 2',
+              originalUrl: 'https://playlist.example/v2',
+              isPlaylist: true,
+              thumbnail: 'https://thumb.example',
+              formats: [],
+            ),
+          ],
+        );
+        controller.cache.parsedItems = [group];
+        final config = DownloadConfig();
+        config.format = group.first.formats.first;
+        config.itemFormats['v1'] = group.first.formats.first;
+        controller.cache.configs[0] = config;
 
-      await pumpWindow(tester, container: container);
+        await pumpWindow(tester, container: container);
 
-      final state = standaloneState(tester);
+        final state = standaloneState(tester);
 
-      // Open playlist
-      state.onDoubleTapItemForTesting(0, group);
-      await tester.pump();
+        // Open playlist
+        state.onDoubleTapItemForTesting(0, group);
+        await tester.pump();
 
-      // First item v1 has audio format selected in config.itemFormats
-      expect(find.byIcon(Icons.audiotrack_rounded), findsOneWidget);
+        // First item v1 has audio format selected in config.itemFormats
+        expect(find.byIcon(Icons.audiotrack_rounded), findsOneWidget);
 
-      // Thumbnail is the same as root, so it should be suppressed for both items since both have the same thumbnail.
-      expect(find.byIcon(Icons.image), findsWidgets);
-    });
+        // Thumbnail is the same as root, so it should be suppressed for both items since both have the same thumbnail.
+        expect(find.byIcon(Icons.image), findsWidgets);
+      },
+    );
 
-    testWidgets('W-SDW-018: global hotkeys function correctly after tapping on the media grid', (tester) async {
-      final controller = RecordingDownloadsSharedController();
-      final taskNotifier = RecordingDownloadTaskNotifier();
-      final container = createContainer(
-        controller: controller,
-        taskNotifier: taskNotifier,
-        currentPath: '/tmp/test',
-      );
-      addTearDown(container.dispose);
+    testWidgets(
+      'W-SDW-018: global hotkeys function correctly after tapping on the media grid',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: '/tmp/test',
+        );
+        addTearDown(container.dispose);
 
-      final group = makeGroup(
-        originalUrl: 'https://video.example',
-        items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video.example/v1')],
-      );
-      controller.cache.parsedItems = [group];
-      controller.cache.configs[0] = DownloadConfig();
+        final group = makeGroup(
+          originalUrl: 'https://video.example',
+          items: [
+            makeInfo(
+              id: 'v1',
+              title: 'Video 1',
+              originalUrl: 'https://video.example/v1',
+            ),
+          ],
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
 
-      await pumpWindow(tester, container: container);
+        await pumpWindow(tester, container: container);
 
-      // Tap on the media grid explicitly to transfer focus
-      await tester.tap(find.byType(CustomScrollView));
-      await tester.pump(const Duration(milliseconds: 50));
+        // Tap on the media grid explicitly to transfer focus
+        await tester.tap(find.byType(CustomScrollView));
+        await tester.pump(const Duration(milliseconds: 50));
 
-      final textFields = find.byType(TextField);
-      final urlField = textFields.first;
-      final searchField = textFields.at(1);
+        final textFields = find.byType(TextField);
+        final urlField = textFields.first;
+        final searchField = textFields.at(1);
 
-      // Trigger Ctrl+F
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump(const Duration(milliseconds: 50));
+        // Trigger Ctrl+F
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump(const Duration(milliseconds: 50));
 
-      // Verify search is focused
-      expect(tester.widget<TextField>(searchField).focusNode?.hasFocus, isTrue);
-      expect(standaloneState(tester).isSearchVisibleForTesting, isTrue);
+        // Verify search is focused
+        expect(
+          tester.widget<TextField>(searchField).focusNode?.hasFocus,
+          isTrue,
+        );
+        expect(standaloneState(tester).isSearchVisibleForTesting, isTrue);
 
-      // Tap on the media grid again
-      await tester.tap(find.byType(CustomScrollView));
-      await tester.pump(const Duration(milliseconds: 50));
+        // Tap on the media grid again
+        await tester.tap(find.byType(CustomScrollView));
+        await tester.pump(const Duration(milliseconds: 50));
 
-      // Trigger Ctrl+D
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump(const Duration(milliseconds: 50));
+        // Trigger Ctrl+D
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump(const Duration(milliseconds: 50));
 
-      // Verify URL is focused
-      expect(tester.widget<TextField>(urlField).focusNode?.hasFocus, isTrue);
-    });
+        // Verify URL is focused
+        expect(tester.widget<TextField>(urlField).focusNode?.hasFocus, isTrue);
+      },
+    );
 
-    testWidgets('W-SDW-019: tagging functionality updates the grid and header', (tester) async {
+    testWidgets('W-SDW-019: tagging functionality updates the grid and header', (
+      tester,
+    ) async {
       final controller = RecordingDownloadsSharedController();
       final taskNotifier = RecordingDownloadTaskNotifier();
       final container = createContainer(
@@ -1248,11 +1314,23 @@ void main() {
 
       final group1 = makeGroup(
         originalUrl: 'https://video1.example',
-        items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video1.example')],
+        items: [
+          makeInfo(
+            id: 'v1',
+            title: 'Video 1',
+            originalUrl: 'https://video1.example',
+          ),
+        ],
       );
       final group2 = makeGroup(
         originalUrl: 'https://video2.example',
-        items: [makeInfo(id: 'v2', title: 'Video 2', originalUrl: 'https://video2.example')],
+        items: [
+          makeInfo(
+            id: 'v2',
+            title: 'Video 2',
+            originalUrl: 'https://video2.example',
+          ),
+        ],
       );
       controller.cache.parsedItems = [group1, group2];
       controller.cache.configs[0] = DownloadConfig();
@@ -1265,13 +1343,19 @@ void main() {
 
       // Simulate right-click on the first item to add a tag
       final item = find.text('Video 1');
-      final gesture = await tester.startGesture(tester.getCenter(item), buttons: 2);
+      final gesture = await tester.startGesture(
+        tester.getCenter(item),
+        buttons: 2,
+      );
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 50));
 
       // Find tag input text field in overlay
       final tagFields = find.byType(TextField);
-      expect(tagFields.evaluate().length, greaterThanOrEqualTo(3)); // URL, Search, Tag
+      expect(
+        tagFields.evaluate().length,
+        greaterThanOrEqualTo(3),
+      ); // URL, Search, Tag
       final tagField = tagFields.last;
 
       await tester.enterText(tagField, 'Favorites');
@@ -1286,7 +1370,10 @@ void main() {
       expect(find.text('Favorites'), findsOneWidget);
 
       // Trigger right-click on the first item again to clear the tag
-      final gesture2 = await tester.startGesture(tester.getCenter(item), buttons: 2);
+      final gesture2 = await tester.startGesture(
+        tester.getCenter(item),
+        buttons: 2,
+      );
       await gesture2.up();
       await tester.pump(const Duration(milliseconds: 50));
 
@@ -1303,5 +1390,246 @@ void main() {
       expect(controller.cache.parsedItems!.first.tag, 'NewTag');
     });
 
+    testWidgets('W-SDW-020: clicking a list from sidebar exits trash view', (
+      tester,
+    ) async {
+      final controller = RecordingDownloadsSharedController();
+      final taskNotifier = RecordingDownloadTaskNotifier();
+      final container = createContainer(
+        controller: controller,
+        taskNotifier: taskNotifier,
+        currentPath: tempDir.path,
+      );
+      addTearDown(container.dispose);
+
+      controller.cache.parsedItems = [];
+      await pumpWindow(tester, container: container);
+
+      // Enter trash view
+      await tester.tap(find.text('Trash'));
+      await tester.pump();
+
+      final state = standaloneState(tester);
+      expect(state.isTrashViewForTesting, isTrue);
+
+      // Tap default list
+      await tester.tap(find.text('Default List'));
+      await tester.pump();
+    });
+
+    testWidgets(
+      'W-SDW-021: error items show error styling and disabled download button, and opens properties dialog on icon click',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final errorGroup = makeGroup(
+          originalUrl: 'https://error.example',
+          items: [
+            makeInfo(
+              id: 'e1',
+              title: 'Error Video',
+              originalUrl: 'https://error.example',
+              isError: true,
+              fetchLogs: 'Failed to fetch',
+            ),
+          ],
+        );
+        controller.cache.parsedItems = [errorGroup];
+        controller.cache.configs[0] = DownloadConfig(engine: 'yt_dlp');
+
+        await pumpWindow(tester, container: container);
+
+        // Verify the download button is disabled. Since it's an IconButton, we can check if it's pressed.
+        // A disabled IconButton will not trigger its onPressed. We can verify if the button exists and then tap it to see if a download starts.
+        await tester.tap(find.byIcon(Icons.download_rounded).first);
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(
+          taskNotifier.calls,
+          isEmpty,
+          reason: 'Download should not start for error items',
+        );
+
+        // Select the item
+        final state = standaloneState(tester);
+        state.selectedIndicesForTesting.add(0);
+
+        // Press Alt + Enter to open properties dialog
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        // Dialog should be open
+        expect(find.byType(Dialog), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.text('Error Video'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Failed to fetch'),
+          findsNothing,
+        ); // Logs should be closed by default
+
+        // Open logs accordion
+        await tester.tap(find.text('Extraction Logs'));
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.text('Failed to fetch'), findsOneWidget);
+
+        // Close dialog via Esc key
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byType(Dialog), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'W-SDW-022: Alt + Enter opens properties dialog and shows correctly formatted data for single and multiple items',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final group1 = makeGroup(
+          originalUrl: 'https://video1.example',
+          items: [
+            makeInfo(
+              id: 'v1',
+              title: 'Video 1',
+              originalUrl: 'https://video1.example',
+              filesize: 50 * 1024 * 1024,
+              engineId: 'yt_dlp',
+            ),
+          ],
+        );
+        final group2 = makeGroup(
+          originalUrl: 'https://video2.example',
+          items: [
+            makeInfo(
+              id: 'v2',
+              title: 'Video 2',
+              originalUrl: 'https://video2.example',
+              isVideo: false,
+              filesize: 10 * 1024 * 1024,
+              engineId: 'gallery_dl',
+            ),
+          ],
+        );
+        controller.cache.parsedItems = [group1, group2];
+        controller.cache.configs[0] = DownloadConfig(engine: 'yt_dlp');
+        controller.cache.configs[1] = DownloadConfig(engine: 'gallery_dl');
+
+        await pumpWindow(tester, container: container);
+
+        // Select both items
+        final state = standaloneState(tester);
+        state.selectedIndicesForTesting.addAll([0, 1]);
+
+        // Press Alt + Enter
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+
+        // Pump manually to avoid pumpAndSettle timeout (due to blinking cursor etc.)
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        // Properties dialog should open
+        expect(find.byType(Dialog), findsOneWidget);
+        expect(find.text('Video 1, Video 2'), findsOneWidget);
+        expect(find.text('Size: 60.00 MB'), findsOneWidget);
+        expect(find.text('1'), findsNWidgets(2)); // 1 Video, 1 Image
+        expect(find.byIcon(Icons.videocam_rounded), findsWidgets);
+        expect(find.byIcon(Icons.image_rounded), findsWidgets);
+
+        // Ensure logs are NOT visible for multiple items
+        expect(find.text('Extraction Logs'), findsNothing);
+
+        // Tap Download All button inside dialog
+        final downloadAllBtn = find.descendant(
+          of: find.byType(Dialog),
+          matching: find.widgetWithText(ElevatedButton, 'Download All'),
+        );
+        await tester.tap(downloadAllBtn);
+
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        // Dialog should close and downloads should start
+        expect(find.byType(Dialog), findsNothing);
+        expect(taskNotifier.calls, hasLength(2));
+      },
+    );
+
+    testWidgets(
+      'W-SDW-023: sidebar width is 380 in max window and dynamic in small screen',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        // Max window
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await pumpWindow(tester, container: container);
+
+        // The sidebar is the first Container in the Row. We can find it by looking for the 
+        // Media List Section which is inside it.
+        final mediaListFinder = find.text('Media List');
+        expect(mediaListFinder, findsOneWidget);
+        
+        final maxSidebarContainer = find.ancestor(
+          of: mediaListFinder,
+          matching: find.byType(Container),
+        ).first;
+        
+        final maxContainerSize = tester.getSize(maxSidebarContainer);
+        expect(maxContainerSize.width, 340.0);
+
+        // Small window
+        tester.view.physicalSize = const Size(700, 600);
+        await tester.pump();
+
+        final smallSidebarContainer = find.ancestor(
+          of: mediaListFinder,
+          matching: find.byType(Container),
+        ).first;
+
+        final smallContainerSize = tester.getSize(smallSidebarContainer);
+        expect(smallContainerSize.width, 200.0);
+      },
+    );
   });
 }

@@ -13,6 +13,8 @@ class StandaloneWindowActiveDownloads extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallWindow = MediaQuery.of(context).size.width < 1100;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -22,7 +24,7 @@ class StandaloneWindowActiveDownloads extends StatelessWidget {
             'Active Downloads',
             style: GoogleFonts.outfit(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: isSmallWindow ? 13 : 16,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -69,6 +71,7 @@ class StandaloneWindowActiveDownloads extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: SizedBox(
               width: double.infinity,
+              height: isSmallWindow ? 24 : null,
               child: TextButton(
                 onPressed: onCancelAll,
                 style: TextButton.styleFrom(
@@ -82,6 +85,7 @@ class StandaloneWindowActiveDownloads extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
+                    fontSize: isSmallWindow ? 11 : 14,
                   ),
                 ),
               ),

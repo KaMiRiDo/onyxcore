@@ -41,6 +41,8 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar
 import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/unified_side_panel.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:path/path.dart' as p;
 
@@ -693,6 +695,26 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
             ref.read(downloadsPanelOpenProvider.notifier).state = false;
           }
         }
+      },
+      const SingleActivator(LogicalKeyboardKey.keyD, control: true, shift: true): () {
+        final currentPath = ref.read(currentPathProvider);
+        PersistentViewerManager.openMedia(
+          WindowParams(
+            viewerType: ViewerType.downloader,
+            file: FileItem(
+              name: 'Downloader',
+              path: currentPath,
+              type: FileItemType.other,
+              modified: DateTime.now(),
+              sizeBytes: 0,
+            ),
+            initParams: {
+              'currentPath': currentPath,
+              'width': max(950, ref.read(settingsProvider).value?.downloaderWidth.toInt() ?? 950),
+              'height': max(700, ref.read(settingsProvider).value?.downloaderHeight.toInt() ?? 700),
+            },
+          ),
+        );
       },
       const SingleActivator(LogicalKeyboardKey.keyD, alt: true): () {
         if (!isSearchActive) {

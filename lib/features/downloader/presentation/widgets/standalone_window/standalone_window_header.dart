@@ -7,7 +7,13 @@ import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.
 
 class StandaloneWindowHeader extends StatelessWidget {
   const StandaloneWindowHeader({
-    required this.urlController, required this.urlFocusNode, required this.gradientController, required this.onFetch, required this.selectedEngine, required this.onEngineChanged, super.key,
+    required this.urlController,
+    required this.urlFocusNode,
+    required this.gradientController,
+    required this.onFetch,
+    required this.selectedEngine,
+    required this.onEngineChanged,
+    super.key,
   });
 
   final TextEditingController urlController;
@@ -19,27 +25,53 @@ class StandaloneWindowHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallWindow = MediaQuery.of(context).size.width < 1100;
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
         color: AppColors.background,
         border: Border(bottom: BorderSide(color: AppColors.borderColor)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Input Box
-          Expanded(
-            child: AnimatedBuilder(
-              animation: gradientController,
-              builder: (context, child) {
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return constraints.maxWidth < 650 
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildInputBox(isSmallWindow),
+                  const SizedBox(height: 12),
+                  _buildFetchRow(context, isSmallWindow),
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _buildInputBox(isSmallWindow)),
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    width: isSmallWindow ? 140 : 200,
+                    height: isSmallWindow ? 56 : 84, // matching input box height
+                    child: _buildFetchRow(context, isSmallWindow),
+                  ),
+                ],
+              );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInputBox(bool isSmallWindow) {
+    return AnimatedBuilder(
+      animation: gradientController,
+      builder: (context, child) {
                 final isFocused = urlFocusNode.hasFocus;
                 return CustomPaint(
                   painter: isFocused
                       ? _GradientBorderPainter(gradientController.value)
                       : null,
                   child: Container(
-                    height: 84, // Reduced to accommodate ~2 lines comfortably
+                    height: isSmallWindow ? 56 : 84, // Reduced to accommodate ~2 lines comfortably
                     padding: const EdgeInsets.all(1.5),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.05),
@@ -62,15 +94,16 @@ class StandaloneWindowHeader extends StatelessWidget {
                         expands: true,
                         style: GoogleFonts.firaCode(
                           color: Colors.white,
-                          fontSize: 13,
+                          fontSize: isSmallWindow ? 10 : 13,
                         ),
                         decoration: InputDecoration(
                           hintText:
                               'https://youtube.com/watch?v=...\nhttps://instagram.com/...',
                           hintStyle: GoogleFonts.firaCode(
                             color: Colors.white24,
+                            fontSize: isSmallWindow ? 10 : 13,
                           ),
-                          contentPadding: const EdgeInsets.all(16),
+                          contentPadding: EdgeInsets.all(isSmallWindow ? 10 : 16),
                           border: InputBorder.none,
                         ),
                       ),
@@ -78,20 +111,17 @@ class StandaloneWindowHeader extends StatelessWidget {
                   ),
                 );
               },
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Fetch Button & Optionslumn
-          SizedBox(
-            width: 200,
-            height: 84, // Reduced to match input box exactly
-            child: Column(
+    );
+  }
+
+  Widget _buildFetchRow(BuildContext context, bool isSmallWindow) {
+    return Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Fetch Button
                   Container(
-                    height: 38,
+                    height: isSmallWindow ? 24 : 38,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [
@@ -102,7 +132,7 @@ class StandaloneWindowHeader extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
                     ),
                     child: ElevatedButton(
                       onPressed: onFetch,
@@ -111,14 +141,14 @@ class StandaloneWindowHeader extends StatelessWidget {
                         shadowColor: Colors.transparent,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
                         ),
                       ),
                       child: Text(
                         'Fetch',
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                          fontSize: isSmallWindow ? 11 : 15,
                         ),
                       ),
                     ),
@@ -128,9 +158,14 @@ class StandaloneWindowHeader extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      EngineSelectorDropdown(
-                        selectedEngine: selectedEngine,
-                        onChanged: onEngineChanged,
+                      Expanded(
+                        child: SizedBox(
+                          height: isSmallWindow ? 24 : null,
+                          child: EngineSelectorDropdown(
+                            selectedEngine: selectedEngine,
+                            onChanged: onEngineChanged,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Tooltip(
@@ -143,16 +178,16 @@ class StandaloneWindowHeader extends StatelessWidget {
                               section: 'Download Manager',
                             ),
                             child: Container(
-                              width: 36,
-                              height: 36,
+                              width: isSmallWindow ? 24 : 36,
+                              height: isSmallWindow ? 24 : 36,
                               decoration: BoxDecoration(
                                 color: AppColors.surfaceBase,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.white10),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.settings_outlined,
-                                size: 18,
+                                size: isSmallWindow ? 14 : 18,
                                 color: Colors.white70,
                               ),
                             ),
@@ -161,11 +196,7 @@ class StandaloneWindowHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 }

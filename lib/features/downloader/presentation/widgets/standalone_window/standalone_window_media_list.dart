@@ -23,28 +23,36 @@ class StandaloneWindowMediaList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallWindow = MediaQuery.of(context).size.width < 1100;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Media List',
-                  style: GoogleFonts.outfit(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+          child: SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: isSmallWindow ? WrapAlignment.start : WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+              Text(
+                'Media List',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: isSmallWindow ? 13 : 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   SizedBox(
-                    height: 28,
+                    height: isSmallWindow ? 20 : 28,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -52,14 +60,14 @@ class StandaloneWindowMediaList extends StatelessWidget {
                           onPressed: onTrashTap,
                           icon: Icon(
                             Icons.delete_outline,
-                            size: 14,
+                            size: isSmallWindow ? 10 : 14,
                             color: isTrashView || trashCount > 0 ? Colors.redAccent : Colors.white70,
                           ),
                           label: Text(
                             'Trash',
                             style: GoogleFonts.outfit(
                               color: isTrashView || trashCount > 0 ? Colors.redAccent : Colors.white70,
-                              fontSize: 11,
+                              fontSize: isSmallWindow ? 10 : 11,
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -83,16 +91,16 @@ class StandaloneWindowMediaList extends StatelessWidget {
                             top: -4,
                             right: -4,
                             child: Container(
-                              padding: const EdgeInsets.all(4),
+                              padding: EdgeInsets.all(isSmallWindow ? 2 : 4),
                               decoration: const BoxDecoration(
                                 color: Colors.redAccent,
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
                                 '$trashCount',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: isSmallWindow ? 8 : 10,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -101,21 +109,20 @@ class StandaloneWindowMediaList extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
                   SizedBox(
-                    height: 28,
+                    height: isSmallWindow ? 20 : 28,
                     child: ElevatedButton.icon(
                       onPressed: onImportTap,
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.file_download_outlined,
-                        size: 14,
+                        size: isSmallWindow ? 10 : 14,
                         color: Colors.white,
                       ),
                       label: Text(
                         'Import',
                         style: GoogleFonts.outfit(
                           color: Colors.white,
-                          fontSize: 11,
+                          fontSize: isSmallWindow ? 10 : 11,
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -134,6 +141,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
               ),
             ],
           ),
+         ),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -149,6 +157,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
                     isCustom: false,
                     path: 'default',
                     isActive: activeListPath == 'default' && !isTrashView,
+                    isSmallWindow: isSmallWindow,
                   ),
                 ),
                 for (final list in customLists)
@@ -161,6 +170,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
                       path: list.path,
                       isChanged: isListChanged(list.path),
                       isActive: activeListPath == list.path && !isTrashView,
+                      isSmallWindow: isSmallWindow,
                     ),
                   ),
               ],
@@ -178,6 +188,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
     required String path,
     bool isChanged = false,
     bool isActive = false,
+    bool isSmallWindow = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -234,7 +245,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
                             name,
                             style: GoogleFonts.outfit(
                                 color: Colors.white,
-                                fontSize: 13,
+                                fontSize: isSmallWindow ? 11 : 13,
                                 fontWeight: FontWeight.bold),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -242,7 +253,7 @@ class StandaloneWindowMediaList extends StatelessWidget {
                       : Text(
                           name,
                           style: GoogleFonts.outfit(
-                              color: Colors.white70, fontSize: 13),
+                              color: Colors.white70, fontSize: isSmallWindow ? 11 : 13),
                           overflow: TextOverflow.ellipsis,
                         ),
                 ),

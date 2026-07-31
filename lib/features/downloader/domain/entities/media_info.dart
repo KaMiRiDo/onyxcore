@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+
+@immutable
 class MediaFormat {
   const MediaFormat({
     required this.formatId,
@@ -70,6 +73,7 @@ class MediaFormat {
   }
 }
 
+@immutable
 class MediaInfo {
   const MediaInfo({
     required this.id,
@@ -161,7 +165,7 @@ class MediaInfo {
       thumbnail:
           json['thumbnail']?.toString() ??
           (json['thumbnails'] is List && (json['thumbnails'] as List).isNotEmpty
-              ? (json['thumbnails'] as List).last['url']?.toString()
+              ? ((json['thumbnails'] as List).last as Map<String, dynamic>)['url']?.toString()
               : null),
       duration: (json['duration'] as num?)?.toInt(),
       filesize:
@@ -325,6 +329,7 @@ class MediaInfo {
   }
 }
 
+@immutable
 class MediaGroup {
   const MediaGroup({
     required this.originalUrl,
@@ -389,6 +394,7 @@ class MediaGroup {
     var imageWithoutSize = 0;
 
     for (final item in items) {
+      if (item.isError) continue;
       final bytes = item.filesize;
       if (item.isVideo) {
         if (bytes != null && bytes > 0) {
@@ -425,4 +431,6 @@ class MediaGroup {
 
     return totalVideo + totalImage;
   }
+
+  bool get isError => items.isNotEmpty && items.every((i) => i.isError);
 }

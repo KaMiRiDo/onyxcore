@@ -15,6 +15,8 @@ class EngineSelectorDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallWindow = MediaQuery.of(context).size.width < 1100;
+    
     final engines = EngineRegistry.allEngines;
     final options = [
       {
@@ -58,7 +60,7 @@ class EngineSelectorDropdown extends StatelessWidget {
         return PopupMenuItem<String>(
           value: opt['key']! as String,
           enabled: isInstalled,
-          height: 38,
+          height: isSmallWindow ? 28 : 38,
           padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Container(
             width: double.infinity,
@@ -74,7 +76,7 @@ class EngineSelectorDropdown extends StatelessWidget {
               children: [
                 Icon(
                   opt['icon']! as IconData,
-                  size: 16,
+                  size: isSmallWindow ? 12 : 16,
                   color: isInstalled
                       ? (opt['color']! as Color)
                       : (opt['color']! as Color).withValues(alpha: 0.3),
@@ -83,7 +85,7 @@ class EngineSelectorDropdown extends StatelessWidget {
                 Text(
                   opt['label']! as String,
                   style: GoogleFonts.manrope(
-                    fontSize: 13,
+                    fontSize: isSmallWindow ? 11 : 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                     color: isInstalled
                         ? (isSelected
@@ -98,8 +100,8 @@ class EngineSelectorDropdown extends StatelessWidget {
         );
       }).toList(),
       child: Container(
-        height: 38,
-        width: 155,
+        height: isSmallWindow ? 24 : 38,
+        width: isSmallWindow ? 108 : 155,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: Colors.black26,
@@ -115,7 +117,7 @@ class EngineSelectorDropdown extends StatelessWidget {
                 children: [
                   Icon(
                     selected['icon']! as IconData,
-                    size: 16,
+                    size: isSmallWindow ? 12 : 16,
                     color: selected['color']! as Color,
                   ),
                   const SizedBox(width: 8),
@@ -124,7 +126,7 @@ class EngineSelectorDropdown extends StatelessWidget {
                       selected['label']! as String,
                       style: GoogleFonts.manrope(
                         color: Colors.white,
-                        fontSize: 13,
+                        fontSize: isSmallWindow ? 11 : 13,
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
@@ -134,10 +136,10 @@ class EngineSelectorDropdown extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.keyboard_arrow_down,
               color: Colors.white54,
-              size: 16,
+              size: isSmallWindow ? 12 : 16,
             ),
           ],
         ),
