@@ -44,7 +44,7 @@ class MockCustomEngine extends DownloadEngine {
   @override
   Future<List<MediaInfo>> fetchMetadata({required String url, String? browser, bool fetchDeep = false, bool isPlaylist = false, void Function(MediaInfo info)? onProgress, void Function(int pid)? onProcessStarted}) async => [];
   @override
-  Future<Process> startDownload({required String url, required String destination, String? title, MediaFormat? format, bool audioOnly = false, bool mute = false, int? galleryIndex, bool isPlaylist = false, bool isProfile = false, String? browser, bool isZip = false, String? filterType, int? totalItems, String? singleItemId, String? directUrl}) async => throw UnimplementedError();
+  Future<Process> startDownload({required String url, required String destination, String? title, MediaFormat? format, bool audioOnly = false, bool mute = false, int? galleryIndex, bool isPlaylist = false, bool isProfile = false, String? browser, bool isZip = false, String? filterType, int? totalItems, String? singleItemId, String? directUrl, String? itemsRange}) async => throw UnimplementedError();
 }
 
 class TestGalleryDlEngine extends GalleryDlEngine {

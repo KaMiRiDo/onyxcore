@@ -142,6 +142,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   Future<void> _processQueue() async {
+    if (!ref.mounted) return;
     final runningCount = state
         .where((t) => t.status == DownloadStatus.running)
         .length;
@@ -157,7 +158,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         .toList();
 
     for (final task in tasksToStart) {
-      _startProcessForTask(task.id);
+      if (!ref.mounted) return;
+      unawaited(_startProcessForTask(task.id));
     }
   }
 
@@ -187,12 +189,14 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         totalItems: args['totalItems'] as int?,
         singleItemId: args['singleItemId'] as String?,
         directUrl: args['directUrl'] as String?,
+        itemsRange: args['itemsRange'] as String?,
       );
 
       _updateTask(id, process: process);
 
       if ((args['isProfile'] as bool? ?? false) ||
-          (args['isPlaylist'] as bool? ?? false)) {
+          (args['isPlaylist'] as bool? ?? false) ||
+          (args['isCarousel'] as bool? ?? false)) {
         _startFolderSizeMonitor(id, args['destination'] as String);
       }
 
@@ -207,8 +211,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
       stderrSub = process.stderr
           .transform(utf8.decoder)
+          .map((s) => s.replaceAll('\r', '\n'))
           .transform(const LineSplitter())
           .listen((data) {
+            _parseProgress(id, data);
             _appendLog(id, data);
           });
 
@@ -244,11 +250,11 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         completedAt: DateTime.now(),
       );
     } finally {
-      stdoutSub?.cancel();
-      stderrSub?.cancel();
+      if (stdoutSub != null) unawaited(stdoutSub.cancel());
+      if (stderrSub != null) unawaited(stderrSub.cancel());
       _liveMonitors[id]?.cancel();
       _liveMonitors.remove(id);
-      _processQueue();
+      unawaited(_processQueue());
     }
   }
 
@@ -273,6 +279,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     String? singleItemId,
     String? directUrl,
     int expectedBytes = 0,
+    bool isCarousel = false,
+    String? itemsRange,
   }) {
     if (!_mounted) return;
     final id = _uuid.v4();
@@ -304,6 +312,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       'totalItems': totalItems,
       'singleItemId': singleItemId,
       'directUrl': directUrl,
+      'isCarousel': isCarousel,
+      'itemsRange': itemsRange,
     };
 
     if (totalItems != null) {
@@ -321,7 +331,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   ) async {
     try {
       final dir = Directory(destination);
-      if (await dir.exists()) {
+      if (dir.existsSync()) {
         final files = dir
             .listSync(); // non-recursive to avoid deleting files in subfolders
         final safeTitle = title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
@@ -400,6 +410,15 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
         completedAt: DateTime.now(),
       );
     } catch (_) {}
+  }
+
+  void cancelAll() {
+    for (final t in state) {
+      if (t.status == DownloadStatus.running ||
+          t.status == DownloadStatus.pending) {
+        cancelDownload(t.id);
+      }
+    }
   }
 
   void removeTask(String id) {
@@ -521,6 +540,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   void _appendLog(String id, String data) {
+    if (!_mounted) return;
     state = state.map((task) {
       if (task.id == id) {
         final newLogs = List<String>.from(task.logs);
@@ -537,6 +557,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
   }
 
   void _parseProgress(String id, String rawData) {
+    if (!_mounted) return;
     // Strip ANSI escape codes (colors, clear lines) before parsing
     final data = rawData.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
 
@@ -772,11 +793,11 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     final currentTotal = _taskArgs[id]?['totalItems'] as int?;
     final engine = _taskArgs[id]?['engine'] as String?;
 
-    if (engine == 'gallery-dl') {
+    if (engine == 'gallery-dl' || engine == 'auto' || engine == null) {
       // Check if it's not a log message
       if (!data.trim().startsWith('[') && data.trim().isNotEmpty) {
         final extRegExp = RegExp(
-          r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv|ts)$',
+          r'\.(mp4|webm|jpg|jpeg|png|webp|gif|mov|mkv|ts|m4a|mp3)$',
           caseSensitive: false,
         );
         if (extRegExp.hasMatch(data.trim()) ||
@@ -843,29 +864,58 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     });
   }
 
+  Future<void> _checkFolderSize(String id, String destination) async {
+    try {
+      final dir = Directory(destination);
+      if (dir.existsSync()) {
+        var size = 0;
+        await for (final entity
+            in dir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            try {
+              size += entity.statSync().size;
+            } catch (_) {}
+          }
+        }
+        final task = state.where((t) => t.id == id).firstOrNull;
+        if (task != null &&
+            (task.status == DownloadStatus.running ||
+                task.status == DownloadStatus.pending)) {
+          // Avoid redundant rebuilds if size hasn't changed
+          if (size == task.downloadedBytes && task.downloadedBytes > 0) return;
+
+          final elapsed = DateTime.now().difference(task.createdAt);
+          final speedBps =
+              elapsed.inSeconds > 0 ? size ~/ elapsed.inSeconds : size;
+          final speedStr =
+              speedBps > 0 ? '${StringUtils.formatBytes(speedBps)}/s' : null;
+
+          // Compute progress from bytes ratio when possible
+          double? bytesProgress;
+          if (task.expectedBytes > 0 && size > 0) {
+            bytesProgress = (size / task.expectedBytes).clamp(0.0, 1.0);
+          }
+          _updateTask(
+            id,
+            downloadedBytes: size,
+            speed: speedStr,
+            // Only update progress from bytes if the yt-dlp/gallery-dl parser
+            // hasn't provided a better value yet, or if bytes-based is higher
+            progress: (bytesProgress != null &&
+                    (task.progress == 0.0 || bytesProgress > task.progress))
+                ? bytesProgress
+                : null,
+          );
+        }
+      }
+    } catch (_) {}
+  }
+
   void _startFolderSizeMonitor(String id, String destination) {
     if (_liveMonitors.containsKey(id)) return;
 
     _liveMonitors[id] = Timer.periodic(const Duration(seconds: 1), (_) {
-      try {
-        final dir = Directory(destination);
-        if (dir.existsSync()) {
-          var size = 0;
-          for (final entity in dir.listSync(recursive: true)) {
-            if (entity is File) {
-              size += entity.lengthSync();
-            }
-          }
-          final task = state.where((t) => t.id == id).firstOrNull;
-          if (task != null && task.status == DownloadStatus.running) {
-            // Only track downloaded bytes — progress is driven by yt-dlp/aria2c parser
-            _updateTask(
-              id,
-              downloadedBytes: size,
-            );
-          }
-        }
-      } catch (_) {}
+      _checkFolderSize(id, destination);
     });
   }
 
@@ -881,6 +931,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
 
   @visibleForTesting
   void startProcessForTaskForTesting(String id) => _startProcessForTask(id);
+
+  @visibleForTesting
+  Future<void> checkFolderSizeForTesting(String id, String destination) =>
+      _checkFolderSize(id, destination);
 }
 
 final downloadTaskProvider =

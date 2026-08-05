@@ -199,7 +199,8 @@ void main() {
       expect(find.text('image1.jpg'), findsOneWidget);
       expect(find.text('folder1'), findsOneWidget);
       expect(find.text('Image File • 2.0 MB'), findsOneWidget);
-      expect(find.text('1 Image File'), findsOneWidget);
+      expect(find.text('5 Image Files'), findsOneWidget);
+
 
       await tester.tap(find.text('image1.jpg'));
       await tester.pump(const Duration(milliseconds: 50));
@@ -610,5 +611,37 @@ void main() {
       await tester.tap(find.text('Rename Item'));
       await tester.pumpAndSettle();
     });
+
+    testWidgets('hides bottom navigation and favorites when isNetworkStream is true', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          imageQueueProvider.overrideWith((ref) => [dummyImage]),
+          imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
+          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
+        ],
+      );
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: Scaffold(
+                body: ImagePlaylistSidebar(isNetworkStream: true),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await tester.pumpAndSettle();
+
+      expect(find.text('Favorites'), findsNothing);
+      expect(find.text('Home'), findsNothing);
+      expect(find.text('Playlist'), findsOneWidget);
+    });
   });
 }
+

@@ -1815,7 +1815,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                   width: sidebarWidth,
                   child: isSidebarOpen
                       ? VideoPlaylistSidebar(
+                          isNetworkStream: _isNetworkStream,
                           onVideoSelected: (video) {
+
                             if (widget.isStandalone) {
                               _loadMedia(video);
                             } else {

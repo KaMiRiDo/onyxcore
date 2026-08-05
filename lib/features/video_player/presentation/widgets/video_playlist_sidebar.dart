@@ -15,8 +15,10 @@ class VideoPlaylistSidebar extends PlaylistSidebarBase {
     super.onDelete,
     super.onMove,
     super.onReload,
+    super.isNetworkStream = false,
     this.onVideoSelected,
   });
+
   final void Function(FileItem)? onVideoSelected;
 
   @override

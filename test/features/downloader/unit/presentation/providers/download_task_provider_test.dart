@@ -59,6 +59,7 @@ class DummyEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     // Return a dummy process that exits immediately
     return Process.start('echo', ['dummy']);
@@ -495,6 +496,38 @@ void main() {
           DownloadTask(id: '1', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
         ];
         expect(() => notifier.onWindowClose(), returnsNormally);
+      });
+
+      test('U-DL-TSK-71: startFolderSizeMonitor calculates progress from expectedBytes and updates speed', () async {
+        final tempDir = Directory.systemTemp.createTempSync('folder_monitor_test_');
+        addTearDown(() => tempDir.deleteSync(recursive: true));
+
+        const taskId = 'task_folder_monitor_1';
+        notifier.state = [
+          DownloadTask(
+            id: taskId,
+            url: 'https://test.com/album',
+            destination: tempDir.path,
+            title: 'Album',
+            createdAt: DateTime.now().subtract(const Duration(seconds: 2)),
+            status: DownloadStatus.running,
+            expectedBytes: 1000000,
+            totalItems: 5,
+            downloadType: 'carousel',
+          ),
+        ];
+
+        // Create a 500,000 byte file in the directory
+        final testFile = File('${tempDir.path}/item1.jpg');
+        testFile.writeAsBytesSync(List.filled(500000, 0));
+
+        // Trigger folder size check
+        await notifier.checkFolderSizeForTesting(taskId, tempDir.path);
+
+        final task = notifier.state.firstWhere((t) => t.id == taskId);
+        expect(task.downloadedBytes, 500000);
+        expect(task.progress, closeTo(0.5, 0.05));
+        expect(task.speed, isNotEmpty);
       });
     });
   });

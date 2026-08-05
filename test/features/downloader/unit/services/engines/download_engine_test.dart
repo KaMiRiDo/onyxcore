@@ -63,6 +63,7 @@ class _MockEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     throw UnimplementedError();
   }

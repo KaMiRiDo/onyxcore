@@ -15,6 +15,21 @@ class MediaFormat {
   });
 
   factory MediaFormat.fromJson(Map<String, dynamic> json) {
+    var parsedFilesize = (json['filesize'] as num?)?.toInt() ??
+        (json['filesize_approx'] as num?)?.toInt() ??
+        (json['file_size'] as num?)?.toInt() ??
+        (json['size'] as num?)?.toInt();
+
+    if (parsedFilesize == null) {
+      final tbr = (json['tbr'] as num?)?.toDouble() ??
+          (((json['vbr'] as num?)?.toDouble() ?? 0) +
+              ((json['abr'] as num?)?.toDouble() ?? 0));
+      final duration = (json['duration'] as num?)?.toDouble();
+      if (tbr > 0 && duration != null && duration > 0) {
+        parsedFilesize = ((tbr * 1000 / 8) * duration).round();
+      }
+    }
+
     return MediaFormat(
       formatId: json['format_id']?.toString() ?? '',
       extension: json['ext']?.toString() ?? '',
@@ -25,9 +40,7 @@ class MediaFormat {
               : 'audio only'),
       videoCodec: json['vcodec']?.toString(),
       audioCodec: json['acodec']?.toString(),
-      filesize:
-          (json['filesize'] as num?)?.toInt() ??
-          (json['filesize_approx'] as num?)?.toInt(),
+      filesize: parsedFilesize,
       formatNote: json['format_note']?.toString(),
       formatString: json['format']?.toString() ?? '',
       url: json['url']?.toString(),
@@ -73,6 +86,143 @@ class MediaFormat {
   }
 }
 
+DateTime? _parseUploadDate(Map<String, dynamic> json, [int depth = 0]) {
+  if (depth > 3) return null;
+
+  if (json['uploadDate'] != null) {
+    if (json['uploadDate'] is DateTime) return json['uploadDate'] as DateTime;
+    final dt = DateTime.tryParse(json['uploadDate'].toString());
+    if (dt != null) return dt;
+  }
+  for (final key in [
+    'timestamp',
+    'release_timestamp',
+    'taken_at_timestamp',
+    'taken_at',
+    'created_utc',
+    'created',
+    'epoch',
+    'date_utc',
+    'datetime_utc',
+    'post_timestamp',
+    'published_timestamp',
+    'pubdate_timestamp',
+    'timestamp_ms',
+    'time',
+  ]) {
+    if (json[key] != null) {
+      final ts = num.tryParse(json[key].toString());
+      if (ts != null && ts > 0) {
+        final ms = ts > 100000000000 ? ts.toInt() : (ts * 1000).toInt();
+        return DateTime.fromMillisecondsSinceEpoch(ms);
+      }
+    }
+  }
+  for (final key in [
+    'upload_date',
+    'datetime',
+    'date',
+    'created_at',
+    'post_date',
+    'pubdate',
+    'published_at',
+    'publish_date',
+    'published',
+    'release_date',
+    'date_taken',
+    'modified',
+    'updated',
+  ]) {
+    if (json[key] != null) {
+      final parsed = _parseDateString(json[key].toString());
+      if (parsed != null) return parsed;
+    }
+  }
+
+  if (depth < 3) {
+    for (final entry in json.entries) {
+      if (entry.value is Map<String, dynamic>) {
+        final res = _parseUploadDate(entry.value as Map<String, dynamic>, depth + 1);
+        if (res != null) return res;
+      } else if (entry.value is Map) {
+        try {
+          final map = Map<String, dynamic>.from(entry.value as Map);
+          final res = _parseUploadDate(map, depth + 1);
+          if (res != null) return res;
+        } catch (_) {}
+      }
+    }
+  }
+  return null;
+}
+
+DateTime? _parseDateString(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+
+  final numTs = num.tryParse(trimmed);
+  if (numTs != null && numTs > 100000000) {
+    final ms = numTs > 100000000000 ? numTs.toInt() : (numTs * 1000).toInt();
+    return DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  if (RegExp(r'^\d{8}$').hasMatch(trimmed)) {
+    final y = int.tryParse(trimmed.substring(0, 4));
+    final m = int.tryParse(trimmed.substring(4, 6));
+    final d = int.tryParse(trimmed.substring(6, 8));
+    if (y != null && m != null && d != null) {
+      return DateTime(y, m, d);
+    }
+  }
+
+  if (RegExp(r'^\d{4}:\d{2}:\d{2}').hasMatch(trimmed)) {
+    final formatted = trimmed.replaceRange(4, 5, '-').replaceRange(7, 8, '-');
+    final dt = DateTime.tryParse(formatted);
+    if (dt != null) return dt;
+  }
+
+  final isoDt = DateTime.tryParse(trimmed);
+  if (isoDt != null) return isoDt;
+
+  final twitterMatch = RegExp(
+    r'^[A-Za-z]{3}\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s*(?:([+-]\d{4})\s*)?(\d{4})$',
+  ).firstMatch(trimmed);
+  if (twitterMatch != null) {
+    const months = {
+      'Jan': 1,
+      'Feb': 2,
+      'Mar': 3,
+      'Apr': 4,
+      'May': 5,
+      'Jun': 6,
+      'Jul': 7,
+      'Aug': 8,
+      'Sep': 9,
+      'Oct': 10,
+      'Nov': 11,
+      'Dec': 12,
+    };
+    final monthStr = twitterMatch.group(1);
+    final month = months[monthStr];
+    final day = int.tryParse(twitterMatch.group(2) ?? '');
+    final hour = int.tryParse(twitterMatch.group(3) ?? '');
+    final minute = int.tryParse(twitterMatch.group(4) ?? '');
+    final second = int.tryParse(twitterMatch.group(5) ?? '');
+    final year = int.tryParse(twitterMatch.group(7) ?? '');
+
+    if (year != null &&
+        month != null &&
+        day != null &&
+        hour != null &&
+        minute != null &&
+        second != null) {
+      return DateTime.utc(year, month, day, hour, minute, second);
+    }
+  }
+
+  return null;
+}
+
 @immutable
 class MediaInfo {
   const MediaInfo({
@@ -100,6 +250,7 @@ class MediaInfo {
     this.isLive = false,
     this.tag,
     this.tagSortOrder,
+    this.uploadDate,
   });
 
   factory MediaInfo.fromJson(
@@ -124,17 +275,42 @@ class MediaInfo {
       itemCount = (json['entries'] as List).length;
     }
 
-    var parsedTitle = json['title']?.toString() ?? '';
+    var parsedTitle = json['title']?.toString().trim() ?? '';
+    if (parsedTitle.isEmpty && json['description'] != null) {
+      final desc = json['description'].toString().trim();
+      if (desc.isNotEmpty) {
+        parsedTitle = desc;
+      }
+    }
     if (parsedTitle.isEmpty && originalUrl.isNotEmpty) {
       try {
         final uri = Uri.parse(originalUrl);
         final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
         if (segments.isNotEmpty) {
-          parsedTitle = segments.first;
-          if (originalUrl.contains('instagram.com') ||
-              originalUrl.contains('x.com') ||
-              originalUrl.contains('twitter.com')) {
-            parsedTitle = '@$parsedTitle';
+          if (originalUrl.contains('reddit.com')) {
+            if (segments.length >= 2 && segments[0] == 'r') {
+              if (segments.length >= 5 && segments[2] == 'comments') {
+                final slug = segments[4].replaceAll('_', ' ').replaceAll('-', ' ').trim();
+                if (slug.isNotEmpty) {
+                  parsedTitle = slug[0].toUpperCase() + slug.substring(1);
+                } else {
+                  parsedTitle = 'r/${segments[1]} Post';
+                }
+              } else {
+                parsedTitle = 'r/${segments[1]}';
+              }
+            } else if (segments.length >= 2 && segments[0] == 'user') {
+              parsedTitle = 'u/${segments[1]}';
+            } else {
+              parsedTitle = segments.first;
+            }
+          } else {
+            parsedTitle = segments.first;
+            if (originalUrl.contains('instagram.com') ||
+                originalUrl.contains('x.com') ||
+                originalUrl.contains('twitter.com')) {
+              parsedTitle = '@$parsedTitle';
+            }
           }
         }
       } catch (_) {}
@@ -168,18 +344,78 @@ class MediaInfo {
               ? ((json['thumbnails'] as List).last as Map<String, dynamic>)['url']?.toString()
               : null),
       duration: (json['duration'] as num?)?.toInt(),
-      filesize:
-          (json['filesize'] as num?)?.toInt() ??
-          (json['filesize_approx'] as num?)?.toInt() ??
-          (json['file_size'] as num?)?.toInt() ??
-          (json['size'] as num?)?.toInt(),
+      filesize: () {
+        var size = (json['filesize'] as num?)?.toInt() ??
+            (json['filesize_approx'] as num?)?.toInt() ??
+            (json['file_size'] as num?)?.toInt() ??
+            (json['size'] as num?)?.toInt();
+
+        if (size == null && json['requested_formats'] is List) {
+          final rf = json['requested_formats'] as List;
+          var sum = 0;
+          var hasAny = false;
+          for (final f in rf) {
+            if (f is Map<String, dynamic>) {
+              final s = (f['filesize'] as num?)?.toInt() ??
+                  (f['filesize_approx'] as num?)?.toInt() ??
+                  (f['file_size'] as num?)?.toInt();
+              if (s != null && s > 0) {
+                sum += s;
+                hasAny = true;
+              }
+            }
+          }
+          if (hasAny) size = sum;
+        }
+
+        if (size == null && json['requested_downloads'] is List) {
+          final rd = json['requested_downloads'] as List;
+          var sum = 0;
+          var hasAny = false;
+          for (final d in rd) {
+            if (d is Map<String, dynamic>) {
+              final s = (d['filesize'] as num?)?.toInt() ??
+                  (d['filesize_approx'] as num?)?.toInt() ??
+                  (d['file_size'] as num?)?.toInt();
+              if (s != null && s > 0) {
+                sum += s;
+                hasAny = true;
+              }
+            }
+          }
+          if (hasAny) size = sum;
+        }
+
+        if (size == null) {
+          final tbr = (json['tbr'] as num?)?.toDouble();
+          final dur = (json['duration'] as num?)?.toDouble();
+          if (tbr != null && tbr > 0 && dur != null && dur > 0) {
+            size = ((tbr * 1000 / 8) * dur).round();
+          }
+        }
+
+        if (size == null && parsedFormats.isNotEmpty) {
+          for (final f in parsedFormats) {
+            if (f.filesize != null && f.filesize! > 0) {
+              size = f.filesize;
+              break;
+            }
+          }
+        }
+
+        return size;
+      }(),
       extractor: json['extractor']?.toString() ?? json['category']?.toString(),
       engineId: json['engineId']?.toString(),
       formats: parsedFormats,
       isVideo: isVid,
       isPlaylist: isPlaylist,
       itemCount: itemCount,
-      galleryIndex: json['galleryIndex'] as int?,
+      galleryIndex: json['galleryIndex'] as int? ??
+          json['playlist_index'] as int? ??
+          (json['num'] is int
+              ? json['num'] as int
+              : int.tryParse(json['num']?.toString() ?? '')),
       width: json['width'] as int?,
       height: json['height'] as int?,
       originalUrl: originalUrl.isNotEmpty
@@ -190,6 +426,7 @@ class MediaInfo {
       isLive: json['is_live'] == true,
       tag: json['tag']?.toString(),
       tagSortOrder: json['tagSortOrder']?.toString(),
+      uploadDate: _parseUploadDate(json),
     );
   }
 
@@ -223,6 +460,9 @@ class MediaInfo {
       fetchLogs: map['fetchLogs']?.toString(),
       tag: map['tag']?.toString(),
       tagSortOrder: map['tagSortOrder']?.toString(),
+      uploadDate: map['uploadDate'] != null
+          ? DateTime.tryParse(map['uploadDate'].toString())
+          : null,
     );
   }
   final String id;
@@ -249,6 +489,7 @@ class MediaInfo {
   final bool isLive;
   final String? tag;
   final String? tagSortOrder;
+  final DateTime? uploadDate;
 
   MediaInfo copyWith({
     String? id,
@@ -271,6 +512,7 @@ class MediaInfo {
     String? tag,
     String? tagSortOrder,
     bool clearTag = false,
+    DateTime? uploadDate,
   }) {
     return MediaInfo(
       id: id ?? this.id,
@@ -296,6 +538,7 @@ class MediaInfo {
       fetchLogs: fetchLogs ?? this.fetchLogs,
       tag: clearTag ? null : (tag ?? this.tag),
       tagSortOrder: clearTag ? null : (tagSortOrder ?? this.tagSortOrder),
+      uploadDate: uploadDate ?? this.uploadDate,
     );
   }
 
@@ -325,6 +568,7 @@ class MediaInfo {
       if (fetchLogs != null) 'fetchLogs': fetchLogs,
       if (tag != null) 'tag': tag,
       if (tagSortOrder != null) 'tagSortOrder': tagSortOrder,
+      if (uploadDate != null) 'uploadDate': uploadDate!.toIso8601String(),
     };
   }
 }
@@ -381,6 +625,12 @@ class MediaGroup {
 
   bool get isSingle => items.length <= 1;
   MediaInfo get first => items.first;
+  DateTime? get uploadDate {
+    for (final item in items) {
+      if (item.uploadDate != null) return item.uploadDate;
+    }
+    return null;
+  }
 
   int get imageCount => items.where((i) => !i.isVideo).length;
   int get videoCount => items.where((i) => i.isVideo).length;

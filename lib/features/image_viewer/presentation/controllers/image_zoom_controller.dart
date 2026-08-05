@@ -36,6 +36,9 @@ class ImageZoomController extends ChangeNotifier {
   void updateConstraints(Size viewportSize, Size? imageSize) {
     _viewportSize = viewportSize;
     _imageSize = imageSize;
+    if (_viewportSize != Size.zero && _imageSize != null) {
+      _onTransformationChanged();
+    }
   }
 
   set isInteracting(bool interacting) {

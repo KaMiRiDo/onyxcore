@@ -16,7 +16,9 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/direc
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
+import 'package:onyxcore/features/image_viewer/presentation/widgets/image_zoom_indicator.dart';
 import 'package:path/path.dart' as p;
+
 
 class FakeDirectoryRepository implements DirectoryRepository {
   FakeDirectoryRepository(this.initialItems);
@@ -752,7 +754,7 @@ void main() {
       expect(find.byTooltip('Close'), findsNothing);
     });
 
-    testWidgets('network stream mode hides edit/favorite and disables playlist button', (tester) async {
+    testWidgets('network stream mode hides edit/favorite and enables playlist button', (tester) async {
       final streamItem = FileItem(
         path: 'http://example.com/stream.jpg',
         name: 'stream.jpg',
@@ -786,12 +788,13 @@ void main() {
       expect(find.byIcon(Icons.edit_outlined), findsNothing);
       expect(find.byIcon(Icons.favorite_rounded), findsNothing);
 
-      // Playlist button is disabled (its onPressed is null)
+      // Playlist button is enabled (its onPressed is not null)
       final playlistBtnIcon = find.byIcon(Icons.playlist_play);
       expect(playlistBtnIcon, findsOneWidget);
       final playlistBtn = tester.widget<IconButton>(find.ancestor(of: playlistBtnIcon, matching: find.byType(IconButton)).first);
-      expect(playlistBtn.onPressed, isNull);
+      expect(playlistBtn.onPressed, isNotNull);
     });
+
 
     testWidgets('didUpdateWidget loads new image when path changes', (tester) async {
       final img1 = dummyPng;
@@ -1090,5 +1093,112 @@ void main() {
       await tester.tap(find.text('Yes, Trash'));
       await tester.pumpAndSettle(const Duration(seconds: 5));
     });
+
+    testWidgets('zoom indicator updates percentage dynamically when zoom scale changes', (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final container = ProviderContainer(
+        overrides: [
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+        ],
+      );
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      final viewer = find.byType(InteractiveViewer);
+      final center = tester.getCenter(viewer);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+
+      // Scroll with positive delta to zoom in
+      await tester.sendEventToBinding(
+        PointerScrollEvent(
+          position: center,
+          scrollDelta: const Offset(0, 100),
+        ),
+      );
+      await tester.pump();
+
+      // Scroll again to zoom in further
+      await tester.sendEventToBinding(
+        PointerScrollEvent(
+          position: center,
+          scrollDelta: const Offset(0, 100),
+        ),
+      );
+      await tester.pump();
+
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+
+      // Verify ImageZoomIndicator is rendered and reflects scale (1.0 * 1.05 * 1.05 = 110%)
+      expect(find.byType(ImageZoomIndicator), findsOneWidget);
+      expect(find.text('110%'), findsOneWidget);
+    });
+
+
+
+
+    testWidgets('playlist button is enabled when is_network_stream is true', (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final container = ProviderContainer(
+        overrides: [
+          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+        ],
+      );
+
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: Scaffold(
+                body: ImagePreviewWidget(
+                  item: dummyPng,
+                  initParams: const {'is_network_stream': true},
+                ),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pumpAndSettle();
+
+      // Tap viewer to reveal HUD
+      await tester.tap(find.byType(InteractiveViewer));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Find playlist IconButton tooltip 'Playlist'
+      final playlistBtn = find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Playlist',
+      );
+      expect(playlistBtn, findsOneWidget);
+      final iconButton = tester.widget<IconButton>(playlistBtn);
+      expect(iconButton.onPressed, isNotNull);
+    });
+
+
   });
 }
+

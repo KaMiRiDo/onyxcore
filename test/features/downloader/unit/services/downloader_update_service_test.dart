@@ -196,7 +196,7 @@ class MockEngine extends DownloadEngine {
     required String url, required String destination, String? title, MediaFormat? format,
     bool audioOnly = false, bool mute = false, int? galleryIndex, bool isPlaylist = false,
     bool isProfile = false, String? browser, bool isZip = false, String? filterType,
-    int? totalItems, String? singleItemId, String? directUrl,
+    int? totalItems, String? singleItemId, String? directUrl, String? itemsRange,
   }) => Process.start('echo', []);
 }
 

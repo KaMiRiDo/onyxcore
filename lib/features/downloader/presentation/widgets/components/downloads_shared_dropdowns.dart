@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/downloader_filter_settings.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 
@@ -259,6 +260,217 @@ class GroupFilterDropdown extends StatelessWidget {
                 Icons.keyboard_arrow_down,
                 color: Colors.white54,
                 size: 16,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DownloaderFilterButton extends StatelessWidget {
+  const DownloaderFilterButton({
+    required this.filterSettings,
+    required this.onPressed,
+    super.key,
+  });
+
+  final DownloaderFilterSettings filterSettings;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCustom = !filterSettings.isDefault;
+    final totalActive =
+        filterSettings.selectedTypes.length + filterSettings.selectedDates.length;
+
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: isCustom
+              ? AppColors.violet.withValues(alpha: 0.12)
+              : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isCustom
+                ? AppColors.violet.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.filter_list_rounded,
+              size: 16,
+              color: isCustom ? AppColors.violet : Colors.white70,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Filter',
+              style: GoogleFonts.manrope(
+                color: isCustom ? AppColors.violet : Colors.white,
+                fontSize: 13,
+                fontWeight: isCustom ? FontWeight.bold : FontWeight.w600,
+              ),
+            ),
+            if (isCustom) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppColors.violet,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$totalActive',
+                  style: GoogleFonts.manrope(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DownloaderSortDropdown extends StatelessWidget {
+  const DownloaderSortDropdown({
+    required this.selectedSort,
+    required this.onChanged,
+    super.key,
+  });
+
+  final String selectedSort;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const sortOptions = <Map<String, dynamic>>[
+      {
+        'value': 'added_desc',
+        'label': 'Added',
+        'icon': Icons.arrow_upward_rounded,
+      },
+      {
+        'value': 'added_asc',
+        'label': 'Added',
+        'icon': Icons.arrow_downward_rounded,
+      },
+      {
+        'value': 'size_desc',
+        'label': 'Size',
+        'icon': Icons.arrow_upward_rounded,
+      },
+      {
+        'value': 'size_asc',
+        'label': 'Size',
+        'icon': Icons.arrow_downward_rounded,
+      },
+    ];
+
+    final activeSortOpt = sortOptions.firstWhere(
+      (opt) => opt['value'] == selectedSort,
+      orElse: () => sortOptions.first,
+    );
+
+    final isCustom = selectedSort != 'added_desc';
+
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: isCustom
+            ? AppColors.violet.withValues(alpha: 0.12)
+            : Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isCustom
+              ? AppColors.violet.withValues(alpha: 0.5)
+              : Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        offset: const Offset(0, 40),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        color: const Color(0xFF2A2A35),
+        elevation: 24,
+        tooltip: '',
+        padding: EdgeInsets.zero,
+        onSelected: onChanged,
+        itemBuilder: (context) {
+          return sortOptions.map((opt) {
+            final isSelected = selectedSort == opt['value'];
+            return PopupMenuItem<String>(
+              value: opt['value']! as String,
+              height: 40,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    opt['icon']! as IconData,
+                    size: 16,
+                    color: isSelected ? AppColors.violet : Colors.white70,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    opt['label']! as String,
+                    style: GoogleFonts.manrope(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontSize: 13,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList();
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              activeSortOpt['icon']! as IconData,
+              size: 16,
+              color: isCustom ? AppColors.violet : Colors.white70,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              activeSortOpt['label']! as String,
+              style: GoogleFonts.manrope(
+                color: isCustom ? AppColors.violet : Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 4),
+            if (isCustom)
+              GestureDetector(
+                onTap: () => onChanged('added_desc'),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: Colors.white70,
+                ),
+              )
+            else
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16,
+                color: Colors.white54,
               ),
           ],
         ),

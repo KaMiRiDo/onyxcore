@@ -302,6 +302,7 @@ class StreamlinkEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     final safeTitle =
         title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ??

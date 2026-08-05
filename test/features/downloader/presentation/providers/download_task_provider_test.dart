@@ -738,5 +738,48 @@ void main() {
       expect(completed.length, 1);
       expect(completed.first.url, 'completed');
     });
+
+    test('U-DL-TSK-38: _parseProgress updates progress for completed files when engine is auto', () async {
+      final container = await createContainer();
+      final notifier = container.read(downloadTaskProvider.notifier);
+
+      notifier.startDownload(
+        url: 'https://example.com/gallery',
+        destination: '/downloads',
+        title: 'gallery',
+        totalItems: 2,
+      );
+
+      final task = container.read(downloadTaskProvider).first;
+      notifier.parseProgressForTesting(task.id, '/downloads/image1.jpg');
+
+      final updatedTask = container.read(downloadTaskProvider).first;
+      expect(updatedTask.completedItems, 1);
+      expect(updatedTask.progress, 0.5);
+    });
+
+    test('U-DL-TSK-39: _parseProgress tracks single item yt-dlp progress accurately', () async {
+      final container = await createContainer();
+      final notifier = container.read(downloadTaskProvider.notifier);
+
+      notifier.startDownload(
+        url: 'https://youtube.com/watch?v=123',
+        destination: '/downloads',
+        title: 'single video',
+        totalItems: 1,
+      );
+
+      final task = container.read(downloadTaskProvider).first;
+      notifier.parseProgressForTesting(
+        task.id,
+        '[download]  45.0% of 100.00MiB at 10.00MiB/s ETA 00:05',
+      );
+
+      final updatedTask = container.read(downloadTaskProvider).first;
+      expect(updatedTask.progress, 0.45);
+      expect(updatedTask.totalSize, '100.00MiB');
+      expect(updatedTask.speed, '10.00MiB/s');
+      expect(updatedTask.eta, '00:05');
+    });
   });
 }

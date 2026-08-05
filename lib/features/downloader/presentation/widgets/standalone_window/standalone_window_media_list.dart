@@ -6,7 +6,19 @@ import 'package:onyxcore/features/downloader/presentation/providers/downloads_pa
 
 class StandaloneWindowMediaList extends StatelessWidget {
   const StandaloneWindowMediaList({
-    required this.isTrashView, required this.trashCount, required this.activeListPath, required this.customLists, required this.isListChanged, required this.onTrashTap, required this.onImportTap, required this.onListTap, required this.onCustomListClose, required this.onCustomListSave, super.key,
+    required this.isTrashView,
+    required this.trashCount,
+    required this.activeListPath,
+    required this.customLists,
+    required this.isListChanged,
+    required this.onTrashTap,
+    required this.onImportTap,
+    required this.onListTap,
+    required this.onCustomListClose,
+    required this.onCustomListSave,
+    this.onDefaultExport,
+    this.isDefaultExportDisabled = false,
+    super.key,
   });
 
   final bool isTrashView;
@@ -20,6 +32,8 @@ class StandaloneWindowMediaList extends StatelessWidget {
   final void Function(String path) onListTap;
   final void Function(String path) onCustomListClose;
   final void Function(String path) onCustomListSave;
+  final VoidCallback? onDefaultExport;
+  final bool isDefaultExportDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -190,6 +204,10 @@ class StandaloneWindowMediaList extends StatelessWidget {
     bool isActive = false,
     bool isSmallWindow = false,
   }) {
+    final isBtnDisabled = isCustom
+        ? !isChanged
+        : (isDefaultExportDisabled || onDefaultExport == null);
+
     return Container(
       decoration: BoxDecoration(
         color: isActive ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
@@ -257,8 +275,71 @@ class StandaloneWindowMediaList extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                 ),
+                const SizedBox(width: 8),
+                Container(
+                  height: isSmallWindow ? 20 : 24,
+                  decoration: BoxDecoration(
+                    gradient: isBtnDisabled
+                        ? null
+                        : const LinearGradient(
+                            colors: [
+                              AppColors.magenta,
+                              AppColors.violet,
+                              AppColors.indigo,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                    color: isBtnDisabled
+                        ? const Color(0xFF1E1E1E).withValues(alpha: 0.5)
+                        : null,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: isBtnDisabled
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.transparent,
+                    ),
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: isBtnDisabled
+                        ? null
+                        : () {
+                            if (isCustom) {
+                              onCustomListSave(path);
+                            } else {
+                              onDefaultExport?.call();
+                            }
+                          },
+                    icon: Icon(
+                      Icons.file_upload_outlined,
+                      size: isSmallWindow ? 10 : 12,
+                      color: isBtnDisabled ? Colors.white30 : Colors.white,
+                    ),
+                    label: Text(
+                      isCustom ? 'Update' : 'Export',
+                      style: GoogleFonts.outfit(
+                        color: isBtnDisabled ? Colors.white30 : Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isSmallWindow ? 9 : 10,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      disabledBackgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSmallWindow ? 6 : 8,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
                 if (isCustom) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   IconButton(
                     onPressed: () {
                       if (isChanged) {

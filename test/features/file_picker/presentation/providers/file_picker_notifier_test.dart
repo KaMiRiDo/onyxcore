@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:file/file.dart' as file_pkg;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

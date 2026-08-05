@@ -24,8 +24,10 @@ class PersistentViewerManager {
   static final Map<ViewerType, int> _activeWindowsByType = {};
 
   static final ValueNotifier<int> updates = ValueNotifier(0);
+  static final ValueNotifier<int> mainWindowFocusTrigger = ValueNotifier(0);
 
   static final Map<int, ValueNotifier<int>> _focusTriggers = {};
+  static final Map<int, ValueNotifier<int>> _urlFocusTriggers = {};
 
   static void init() {
     _channel.setMethodCallHandler((call) async {
@@ -37,9 +39,9 @@ class PersistentViewerManager {
         if (_activeWindowsByType.containsValue(viewId)) {
           _focusTriggers[viewId]?.value++;
         } else {
-          // If an untracked window (the main window) regains OS focus (e.g. via Alt+Tab),
-          // clear the global primary focus so keystrokes don't leak to the secondary window!
-          FocusManager.instance.primaryFocus?.unfocus();
+          // If the main window regains OS focus (e.g. via Alt+Tab or clicking),
+          // notify main window focus listeners so mainFocusNode regains focus!
+          mainWindowFocusTrigger.value++;
         }
       } else if (call.method == 'on_window_close') {
         final args = call.arguments as Map;
@@ -54,11 +56,29 @@ class PersistentViewerManager {
     return _focusTriggers.putIfAbsent(viewId, () => ValueNotifier(0));
   }
 
+  static ValueNotifier<int> getUrlFocusTrigger(int viewId) {
+    return _urlFocusTriggers.putIfAbsent(viewId, () => ValueNotifier(0));
+  }
+
+  /// Checks if a window of the given ViewerType is currently open and active
+  static bool isWindowOpen(ViewerType type) {
+    _activeWindowsByType.removeWhere((k, v) => !isViewActive(v));
+    return _activeWindowsByType.containsKey(type);
+  }
+
+  /// Returns the active view ID for a ViewerType if open, or null
+  static int? getActiveWindowId(ViewerType type) {
+    _activeWindowsByType.removeWhere((k, v) => !isViewActive(v));
+    return _activeWindowsByType[type];
+  }
+
   @visibleForTesting
   static void reset() {
     _viewParams.clear();
     _activeWindowsByType.clear();
     _focusTriggers.clear();
+    _urlFocusTriggers.clear();
+    mainWindowFocusTrigger.value = 0;
   }
 
   static Future<void> openMedia(WindowParams params) async {
@@ -138,6 +158,8 @@ class PersistentViewerManager {
       // Remove from tracking so Flutter doesn't try to render it during destruction
       _viewParams.remove(viewId);
       _activeWindowsByType.removeWhere((k, v) => v == viewId);
+      _focusTriggers.remove(viewId);
+      _urlFocusTriggers.remove(viewId);
       updates.value++;
       
       // Wait for Flutter to unmount the widget and for media_kit to release GL contexts.
@@ -170,6 +192,12 @@ class PersistentViewerManager {
     } catch (e) {
       debugPrint('[PersistentViewerManager] Error presenting window: $e');
     }
+  }
+
+  /// Brings a specific view ID window to foreground, forces OS focus, and triggers URL input focus
+  static Future<void> presentAndFocusUrl(int viewId) async {
+    await presentWindow(viewId);
+    _urlFocusTriggers[viewId]?.value++;
   }
 
   static bool isViewActive(int viewId) {

@@ -42,11 +42,14 @@ abstract class PlaylistSidebarBase extends ConsumerStatefulWidget {
     this.onDelete,
     this.onMove,
     this.onReload,
+    this.isNetworkStream = false,
   });
   final void Function(List<String> paths)? onDelete;
   final void Function(List<String> paths)? onMove;
   final VoidCallback? onReload;
+  final bool isNetworkStream;
 }
+
 
 abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     extends ConsumerState<T> {
@@ -147,6 +150,11 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
 
   void setupWatcher() {
     final currentPath = ref.read(config.currentPathProvider);
+    if (currentPath.isEmpty ||
+        currentPath.startsWith('http://') ||
+        currentPath.startsWith('https://')) {
+      return;
+    }
     if (_watchedPath == currentPath) return;
 
     _watcherSub?.cancel();
@@ -161,6 +169,11 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
 
   void refreshQueue() {
     final currentPath = ref.read(config.currentPathProvider);
+    if (currentPath.isEmpty ||
+        currentPath.startsWith('http://') ||
+        currentPath.startsWith('https://')) {
+      return;
+    }
     final repo = ref.read(directoryRepositoryProvider);
     final showHidden = ref.read(config.showHiddenProvider);
 
@@ -766,13 +779,16 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isFavoritesMode ? favoritesTitle : homeTitle,
+                    widget.isNetworkStream
+                        ? 'Playlist'
+                        : (isFavoritesMode ? favoritesTitle : homeTitle),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                   Row(
                     children: [
                       Builder(
@@ -1027,8 +1043,10 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
           ),
 
             // Bottom Navigation Bar
-            buildBottomNavBar(isFavoritesMode),
+            if (!widget.isNetworkStream)
+              buildBottomNavBar(isFavoritesMode),
           ],
+
         ),
       ),
     );

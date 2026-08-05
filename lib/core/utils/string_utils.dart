@@ -29,4 +29,31 @@ class StringUtils {
     }
     return '${count.toStringAsFixed(1)} ${suffixes[i]}';
   }
+
+  /// Parses a human-readable speed string (e.g. "1.5 MB/s", "500 KB/s", "2 GiB/s")
+  /// into bytes per second. Returns 0 if the string cannot be parsed.
+  static double parseBytesPerSecond(String speed) {
+    if (speed.isEmpty) return 0;
+    // Match patterns like "1.5 MB/s", "500KB/s", "2 GiB/s", "1024 B/s"
+    final regex = RegExp(
+      r'([\d.]+)\s*(B|KB|KiB|MB|MiB|GB|GiB|TB|TiB)\s*/\s*s',
+      caseSensitive: false,
+    );
+    final m = regex.firstMatch(speed);
+    if (m == null) return 0;
+    final value = double.tryParse(m.group(1)!) ?? 0;
+    final unit = m.group(2)!.toLowerCase();
+    const multipliers = <String, double>{
+      'b': 1,
+      'kb': 1024,
+      'kib': 1024,
+      'mb': 1024 * 1024,
+      'mib': 1024 * 1024,
+      'gb': 1024 * 1024 * 1024,
+      'gib': 1024 * 1024 * 1024,
+      'tb': 1024.0 * 1024 * 1024 * 1024,
+      'tib': 1024.0 * 1024 * 1024 * 1024,
+    };
+    return value * (multipliers[unit] ?? 0);
+  }
 }

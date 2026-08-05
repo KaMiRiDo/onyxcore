@@ -43,12 +43,18 @@ class ImageViewerLifecycle {
       if (!isMountedCheck()) return;
 
       ref.read(imageIsEmptyProvider.notifier).state = false;
-      final parentPath = p.dirname(item.path);
-      final currentRoot = ref.read(imageRootPathProvider);
-      if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
-        ref.read(imageRootPathProvider.notifier).state = parentPath;
+      final isNetwork = item.path.startsWith('http://') ||
+          item.path.startsWith('https://') ||
+          item.path.startsWith('http:/') ||
+          item.path.startsWith('https:/');
+      if (!isNetwork) {
+        final parentPath = p.dirname(item.path);
+        final currentRoot = ref.read(imageRootPathProvider);
+        if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
+          ref.read(imageRootPathProvider.notifier).state = parentPath;
+        }
+        ref.read(imageCurrentPathProvider.notifier).state = parentPath;
       }
-      ref.read(imageCurrentPathProvider.notifier).state = parentPath;
 
       onFirstFrame();
 

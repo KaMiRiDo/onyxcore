@@ -117,6 +117,7 @@ class MockEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     startDownloadCalled = true;
     lastArgs = {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel_helpers.dart';
 
 class DummyWidget extends StatefulWidget {
   const DummyWidget({super.key});

@@ -28,9 +28,13 @@ class MockProcess extends Fake implements Process {
 }
 
 class TestPlaywrightEngine extends PlaywrightEngine {
-  TestPlaywrightEngine(this.testPath);
+  TestPlaywrightEngine(this.testPath, {this.testCacheDir});
   MockProcess? mockPythonProcess;
   final String testPath;
+  final Directory? testCacheDir;
+
+  @override
+  Directory get chromiumCacheDir => testCacheDir ?? super.chromiumCacheDir;
 
   @override
   String? get binaryPath => testPath;
@@ -40,12 +44,6 @@ class TestPlaywrightEngine extends PlaywrightEngine {
     if (mockPythonProcess != null) return mockPythonProcess!;
     return super.startPythonProcess(url);
   }
-
-  @override
-  Future<Process>? install() async => MockProcess(0, '', '');
-
-  @override
-  Future<Process>? uninstall() async => MockProcess(0, '', '');
 }
 
 void main() {
@@ -69,14 +67,52 @@ void main() {
 
   group('PlaywrightEngine Unit Tests', () {
     group('1. Python Environment & Script Setup', () {
-      test('U-DL-PLW-01: Return Python executable', () {
-        // We verify the binary path for the script is correct
+      test('U-DL-PLW-01: Return Python executable and optionality', () {
         expect(engine.binaryPath, contains('intercept_media.py'));
+        expect(engine.isOptional, isTrue);
+        expect(engine.priority, 0);
+        expect(engine.urlPatterns, isEmpty);
       });
 
-      test('U-DL-PLW-02: Install playwright via PIP', () async {
-        final installCmd = engine.install();
+      test('U-DL-PLW-02: Install playwright returns valid process', () async {
+        final rawEngine = PlaywrightEngine();
+        final installCmd = rawEngine.install();
         expect(installCmd, isNotNull);
+      });
+
+      test('U-DL-PLW-03: Uninstall playwright cleanly returns valid process', () async {
+        final rawEngine = PlaywrightEngine();
+        final uninstallCmd = rawEngine.uninstall();
+        expect(uninstallCmd, isNotNull);
+      });
+
+      test('U-DL-PLW-03b: isInstalled returns false if no chromium directory', () {
+        final nonExistentDir = Directory('${tempDir.path}/non_existent_cache');
+        final testEngine = TestPlaywrightEngine(
+          '${tempDir.path}/script.py',
+          testCacheDir: nonExistentDir,
+        );
+        expect(testEngine.isInstalled, isFalse);
+      });
+
+      test('U-DL-PLW-03c: isInstalled returns false if cache dir has no chromium folders', () {
+        final emptyCacheDir = Directory('${tempDir.path}/empty_cache')..createSync();
+        Directory('${emptyCacheDir.path}/.links').createSync();
+        final testEngine = TestPlaywrightEngine(
+          '${tempDir.path}/script.py',
+          testCacheDir: emptyCacheDir,
+        );
+        expect(testEngine.isInstalled, isFalse);
+      });
+
+      test('U-DL-PLW-03d: isInstalled returns true when chromium browser directory exists', () {
+        final validCacheDir = Directory('${tempDir.path}/valid_cache')..createSync();
+        Directory('${validCacheDir.path}/chromium-1097').createSync();
+        final testEngine = TestPlaywrightEngine(
+          '${tempDir.path}/script.py',
+          testCacheDir: validCacheDir,
+        );
+        expect(testEngine.isInstalled, isTrue);
       });
 
       test('U-DL-PLW-04: Generate transient python script', () async {
@@ -88,6 +124,7 @@ void main() {
         expect(script.existsSync(), isTrue);
       });
     });
+
 
     group('2. Scraping & Metadata Fetching', () {
       test('U-DL-PLW-05: Execute Python script to extract direct video URL', () async {

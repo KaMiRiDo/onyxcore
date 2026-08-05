@@ -16,8 +16,10 @@ class ImagePlaylistSidebar extends PlaylistSidebarBase {
     super.onDelete,
     super.onMove,
     super.onReload,
+    super.isNetworkStream = false,
     this.onImageSelected,
   });
+
   final void Function(FileItem)? onImageSelected;
 
   @override

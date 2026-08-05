@@ -50,6 +50,8 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
     String? singleItemId,
     String? directUrl,
     int expectedBytes = 0,
+    bool isCarousel = false,
+    String? itemsRange,
   }) {
     // Do nothing for tests
   }
@@ -116,6 +118,7 @@ class MockYtDlpEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     throw UnimplementedError();
   }
@@ -188,6 +191,7 @@ class MockGroupedEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     throw UnimplementedError();
   }

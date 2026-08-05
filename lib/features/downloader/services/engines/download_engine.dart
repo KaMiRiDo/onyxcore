@@ -112,6 +112,7 @@ abstract class DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   });
 
   /// Whether the engine binary is installed and ready to use.

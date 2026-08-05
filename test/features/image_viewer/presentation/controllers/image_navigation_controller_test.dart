@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -298,6 +299,50 @@ void main() {
     expect(actualRef.read(imagePathForwardHistoryProvider), <String>[]);
     expect(actualRef.read(imageCurrentPathProvider), '/current');
     
+    controller.dispose();
+  });
+
+  testWidgets('initStandalonePlaylist loads network playlist from playlistJson', (
+    tester,
+  ) async {
+    final netItem1 = FileItem(
+      path: 'https://example.com/img1.jpg',
+      sizeBytes: 1024,
+      modified: DateTime(2025),
+      name: 'img1.jpg',
+      type: FileItemType.image,
+    );
+    final netItem2 = FileItem(
+      path: 'https://example.com/img2.jpg',
+      sizeBytes: 2048,
+      modified: DateTime(2025, 1, 2),
+      name: 'img2.jpg',
+      type: FileItemType.image,
+    );
+
+    final playlistJson = jsonEncode([netItem1.toJson(), netItem2.toJson()]);
+
+    await pumpController(
+      tester,
+      isStandalone: true,
+      initParams: {
+        'playlistJson': playlistJson,
+        'playlistPath': netItem1.path,
+      },
+    );
+
+    await tester.runAsync(() async {
+      await controller.initStandalonePlaylist(netItem1);
+    });
+
+    expect(controller.standalonePlaylist.length, equals(2));
+    expect(controller.standalonePlaylist[0].path, equals(netItem1.path));
+    expect(controller.standalonePlaylist[1].path, equals(netItem2.path));
+    expect(actualRef.read(imageQueueProvider).length, equals(2));
+
+    controller.navigateForward(netItem1);
+    expect(navigatedItem?.path, equals(netItem2.path));
+
     controller.dispose();
   });
 }

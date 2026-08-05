@@ -426,7 +426,8 @@ void main() {
     await tester.ensureVisible(copyButton);
     await tester.tap(copyButton);
     await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
     
     // Test passes if it pumps successfully without crashing
-  }, skip: true);
+  });
 }

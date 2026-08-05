@@ -7,7 +7,6 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
@@ -42,21 +41,27 @@ class DownloadsHeader extends ConsumerWidget {
             child: IconButton(
               icon: Icon(Icons.open_in_new_rounded, size: 18, color: Colors.white70),
               onPressed: () {
-                final currentPath = ref.read(currentPathProvider);
                 PersistentViewerManager.openMedia(
                   WindowParams(
                     viewerType: ViewerType.downloader,
                     file: FileItem(
                       name: 'Downloader',
-                      path: currentPath,
+                      path: '',
                       type: FileItemType.other,
                       modified: DateTime.now(),
                       sizeBytes: 0,
                     ),
                     initParams: {
-                      'currentPath': currentPath,
-                      'width': math.max(950, ref.read(settingsProvider).value?.downloaderWidth.toInt() ?? 950),
-                      'height': math.max(700, ref.read(settingsProvider).value?.downloaderHeight.toInt() ?? 700),
+                      'width': math.max(
+                        950,
+                        ref.read(settingsProvider).value?.downloaderWidth.toInt() ??
+                            950,
+                      ),
+                      'height': math.max(
+                        700,
+                        ref.read(settingsProvider).value?.downloaderHeight.toInt() ??
+                            700,
+                      ),
                     },
                   ),
                 );

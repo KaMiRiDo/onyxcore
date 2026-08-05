@@ -14,14 +14,15 @@ import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/conflict_provider.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/downloader_filter_settings.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
+import 'package:onyxcore/features/downloader/presentation/services/thumbnail_aspect_resolver.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/properties_dialog.dart';
-import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel_helpers.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_active_downloads.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_header.dart';
@@ -56,6 +57,7 @@ class _StandaloneTabState {
   String searchQuery = '';
   bool isSearchVisible = false;
   String listFilter = 'added_desc';
+  Map<String, DownloaderViewPreferences> viewPreferences = {};
 }
 
 class _StandaloneDownloaderWindowState
@@ -70,6 +72,7 @@ class _StandaloneDownloaderWindowState
   final FocusNode _searchFocusNode = FocusNode();
   final FocusNode _mainFocusNode = FocusNode();
   ValueNotifier<int>? _focusTrigger;
+  ValueNotifier<int>? _urlFocusTrigger;
   Timer? _searchDebounce;
   late AnimationController _gradientController;
   final ScrollController _mediaGridScrollController = ScrollController();
@@ -89,8 +92,37 @@ class _StandaloneDownloaderWindowState
   bool _isTrashView = false;
   bool _isSearchVisible = false;
   String _listFilter = 'added_desc';
+  final Map<String, DownloaderViewPreferences> _viewPreferences = {};
 
   final Map<String, _StandaloneTabState> _tabStates = {};
+
+  String _getCurrentViewKey() {
+    if (_isTrashView) return 'trash';
+    if (_currentGroup != null) return 'group_${_currentGroup!.originalUrl}';
+    return 'root';
+  }
+
+  DownloaderViewPreferences _getPreferencesForCurrentView() {
+    final key = _getCurrentViewKey();
+    return _viewPreferences[key] ?? const DownloaderViewPreferences();
+  }
+
+  void _updateViewSort(String sortOrder) {
+    final key = _getCurrentViewKey();
+    final current = _getPreferencesForCurrentView();
+    setState(() {
+      _viewPreferences[key] = current.copyWith(sortOrder: sortOrder);
+      _listFilter = sortOrder;
+    });
+  }
+
+  void _updateViewFilter(DownloaderFilterSettings filterSettings) {
+    final key = _getCurrentViewKey();
+    final current = _getPreferencesForCurrentView();
+    setState(() {
+      _viewPreferences[key] = current.copyWith(filterSettings: filterSettings);
+    });
+  }
 
   void _saveCurrentTabState(String path) {
     _tabStates[path] = _StandaloneTabState()
@@ -102,7 +134,8 @@ class _StandaloneDownloaderWindowState
       ..isTrashView = _isTrashView
       ..searchQuery = _searchController.text
       ..isSearchVisible = _isSearchVisible
-      ..listFilter = _listFilter;
+      ..listFilter = _listFilter
+      ..viewPreferences = Map.from(_viewPreferences);
   }
 
   void _restoreTabState(String path) {
@@ -118,6 +151,8 @@ class _StandaloneDownloaderWindowState
     _searchController.text = state.searchQuery;
     _isSearchVisible = state.isSearchVisible;
     _listFilter = state.listFilter;
+    _viewPreferences.clear();
+    _viewPreferences.addAll(state.viewPreferences);
   }
 
   void _showPropertiesDialog([dynamic itemOverride]) {
@@ -143,61 +178,37 @@ class _StandaloneDownloaderWindowState
 
     if (items.isEmpty) return;
 
+    DownloadConfig? itemConfig;
+    if (_currentGroup != null && _controller.cache.parsedItems != null) {
+      final rootIndex = _controller.cache.parsedItems!.indexWhere(
+        (g) => g.originalUrl == _currentGroup!.originalUrl,
+      );
+      if (rootIndex != -1) {
+        itemConfig = _controller.cache.configs[rootIndex];
+      }
+    } else if (items.length == 1 && _controller.cache.parsedItems != null) {
+      final item = items.first;
+      final targetUrl = item is MediaGroup ? item.originalUrl : (item as MediaInfo).originalUrl;
+      final rootIndex = _controller.cache.parsedItems!.indexWhere(
+        (g) => g.originalUrl == targetUrl,
+      );
+      if (rootIndex != -1) {
+        itemConfig = _controller.cache.configs[rootIndex];
+      }
+    }
+
     showDialog<void>(
       context: context,
       builder: (context) => PropertiesDialog(
         selectedItems: items,
+        config: itemConfig,
+        getFormatBytes: getFormatBytes,
         onClose: () => Navigator.of(context).pop(),
-        onDownload: () {
-          final sortedIndices = _selectedIndices.toList()
-            ..sort((a, b) => b.compareTo(a));
-          if (sortedIndices.isNotEmpty) {
-            _handleDownloadSelected(sortedIndices);
-          } else if (itemOverride != null) {
-            // If invoked via itemOverride, handle downloading that specific item
-            // For now, if no selection, we select the item and then download it
-            if (itemOverride is MediaGroup) {
-              final idx =
-                  _controller.cache.parsedItems?.indexOf(itemOverride) ?? -1;
-              if (idx != -1) _handleDownloadSelected([idx]);
-            } else if (itemOverride is MediaInfo && _currentGroup != null) {
-              final idx = _currentGroup!.items.indexOf(itemOverride);
-              if (idx != -1) _handleDownloadSelected([idx]);
-            }
-          }
-        },
       ),
     );
   }
 
-  void _handleDownloadSelected(List<int> sortedIndices) {
-    setState(() {
-      for (final index in sortedIndices) {
-        if (_currentGroup == null) {
-          if (index < (_controller.cache.parsedItems?.length ?? 0)) {
-            final group = _controller.cache.parsedItems![index];
-            _startDownload(group, index);
-            _controller.cache.parsedItems!.removeAt(index);
-          }
-        } else {
-          if (index < _currentGroup!.items.length) {
-            final item = _currentGroup!.items[index];
-            final group = MediaGroup(
-              originalUrl: item.originalUrl,
-              items: [item],
-            );
-            final rootIndex = _controller.cache.parsedItems!.indexOf(
-              _currentGroup!,
-            );
-            _startDownload(group, rootIndex);
-            _currentGroup!.items.removeAt(index);
-          }
-        }
-      }
-      _selectedIndices.clear();
-      _lastSelectedIndex = -1;
-    });
-  }
+
 
   void _handleDelete(bool isShiftPressed) {
     if (_selectedIndices.isEmpty) return;
@@ -261,6 +272,7 @@ class _StandaloneDownloaderWindowState
         for (final index in sortedIndices) {
           if (index < (_controller.cache.parsedItems?.length ?? 0)) {
             final item = _controller.cache.parsedItems!.removeAt(index);
+            _controller.cancelHydration(item.originalUrl);
             final config = _controller.cache.configs.remove(index);
             // Re-index configs
             final newConfigs = <int, DownloadConfig>{};
@@ -297,6 +309,9 @@ class _StandaloneDownloaderWindowState
             }
           }
         }
+        if (_currentGroup!.items.isEmpty) {
+          _controller.cancelHydration(_currentGroup!.originalUrl);
+        }
       }
 
       _selectedIndices.clear();
@@ -325,88 +340,90 @@ class _StandaloneDownloaderWindowState
     }
   }
 
-  int _getGroupBytes(MediaGroup group, DownloadConfig config) => 0;
+  static String _getDefaultDownloadsPath() {
+    final home = Platform.isWindows
+        ? (Platform.environment['USERPROFILE'] ?? r'C:\')
+        : (Platform.environment['HOME'] ?? '/');
+    return p.join(home, 'Downloads');
+  }
 
   Future<void> _startDownload(MediaGroup group, int configIndex) async {
     try {
       final config = _controller.cache.configs[configIndex] ?? DownloadConfig();
 
-      final downloadToCurrent =
-          ref.read(settingsProvider).value?.downloadToCurrentFolder ?? true;
-      final dest = downloadToCurrent
-          ? ref.read(currentPathProvider)
-          : '${Platform.environment['HOME']}/Downloads';
+      final dest = _currentPath.isNotEmpty
+          ? _currentPath
+          : _getDefaultDownloadsPath();
+      if (!Directory(dest).existsSync()) {
+        try {
+          Directory(dest).createSync(recursive: true);
+        } catch (_) {}
+      }
 
       final itemsToDownload = List<MediaInfo>.from(group.items);
 
+      // If group has multiple items, create a single enclosing folder in dest
+      var groupDest = dest;
+      final isGrouped =
+          group.items.length > 1 ||
+          group.first.isProfile ||
+          group.first.isPlaylist;
+
+      if (isGrouped) {
+        // Replace newlines, tabs, carriage returns with a space first, then strip invalid FS chars
+        var safeGroupName = group.first.title
+            .replaceAll(RegExp(r'[\r\n\t]+'), ' ')
+            .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+            .trim();
+        // Collapse multiple spaces into one
+        safeGroupName = safeGroupName.replaceAll(RegExp('  +'), ' ');
+        if (safeGroupName.isEmpty) safeGroupName = 'media_group';
+        groupDest = p.join(dest, safeGroupName);
+        if (!Directory(groupDest).existsSync()) {
+          try {
+            Directory(groupDest).createSync(recursive: true);
+          } catch (_) {}
+        }
+      }
+
+      // For playlists and profiles:
       if (group.first.isProfile || group.first.isPlaylist) {
-        var safeName = group.first.title.replaceAll(
-          RegExp(r'[\\/:*?"<>|]'),
-          '_',
-        );
-        final isProfileOrPlaylist =
-            group.first.isProfile || group.first.isPlaylist;
-        final itemDest = isProfileOrPlaylist ? p.join(dest, safeName) : dest;
-        if (isProfileOrPlaylist && !Directory(itemDest).existsSync()) {
-          Directory(itemDest).createSync(recursive: true);
-        }
+        final folderName = p.basename(groupDest);
+        final isSocialProfile = group.first.isProfile;
 
-        if (!isProfileOrPlaylist) {
-          final dir = Directory(itemDest);
-          var existingFiles = <File>[];
-          if (dir.existsSync()) {
-            existingFiles = dir.listSync().whereType<File>().toList();
-          }
-          final groupExists = existingFiles.any((f) {
-            final base = p.basenameWithoutExtension(f.path);
-            return base.startsWith('${safeName}_') || base == safeName;
-          });
-          if (groupExists) {
-            var conflictCounter = 1;
-            while (existingFiles.any((f) {
-              final base = p.basenameWithoutExtension(f.path);
-              return base.startsWith('$safeName ($conflictCounter)_') ||
-                  base == '$safeName ($conflictCounter)';
-            })) {
-              conflictCounter++;
-            }
-            safeName = '$safeName ($conflictCounter)';
-          }
-        }
-
+        // Apply media filter for profiles
+        var totalFilteredItems = itemsToDownload.length;
         String? filterType;
-        int? totalFilteredItems;
-        if (config.groupFilter == GroupDownloadType.images) {
-          filterType = 'images';
+        if (isSocialProfile &&
+            config.groupFilter != GroupDownloadType.all) {
+          final isImages = config.groupFilter == GroupDownloadType.images;
+          filterType = isImages ? 'images' : 'videos';
           totalFilteredItems = itemsToDownload
-              .where(
-                (item) => !item.isVideo && !item.isProfile && !item.isPlaylist,
-              )
-              .length;
-        } else if (config.groupFilter == GroupDownloadType.videos) {
-          filterType = 'videos';
-          totalFilteredItems = itemsToDownload
-              .where(
-                (item) => item.isVideo && !item.isProfile && !item.isPlaylist,
-              )
-              .length;
-        } else {
-          totalFilteredItems = itemsToDownload
-              .where((item) => !item.isProfile && !item.isPlaylist)
+              .where((item) => isImages ? !item.isVideo : item.isVideo)
               .length;
         }
 
-        final expectedBytes = _getGroupBytes(
-          MediaGroup(originalUrl: group.originalUrl, items: itemsToDownload),
-          config,
-        );
+        final isFiltered = (filterType != null) || (itemsToDownload.length < group.items.length);
+        final indices = itemsToDownload
+            .map((item) => item.galleryIndex ?? (group.items.indexOf(item) + 1))
+            .where((idx) => idx > 0)
+            .toList();
+        final isIntact = !isFiltered &&
+            itemsToDownload.length == group.items.length &&
+            indices.length == group.items.length &&
+            List.generate(indices.length, (i) => i + 1).join(',') == indices.join(',');
+        final itemsRange = (!isIntact &&
+                indices.isNotEmpty &&
+                indices.length == itemsToDownload.length)
+            ? (indices.toSet().toList()..sort()).join(',')
+            : null;
 
         ref
             .read(downloadTaskProvider.notifier)
             .startDownload(
               url: group.originalUrl,
-              destination: itemDest,
-              title: group.first.isProfile ? '$safeName Profile' : safeName,
+              destination: groupDest,
+              title: group.first.isProfile ? '$folderName Profile' : folderName,
               downloadType: group.first.isProfile
                   ? 'profile'
                   : (group.first.isPlaylist ? 'playlist' : 'generic'),
@@ -419,107 +436,246 @@ class _StandaloneDownloaderWindowState
               browser: ref.read(settingsProvider).value?.downloadBrowser,
               filterType: filterType,
               totalItems: totalFilteredItems,
-              expectedBytes: expectedBytes,
+              expectedBytes: _controller.getGroupBytes(
+                MediaGroup(originalUrl: group.originalUrl, items: itemsToDownload),
+                config,
+              ),
+              itemsRange: itemsRange,
             );
 
         return;
       }
 
-      final dirCache = <String, List<File>>{};
-      var count = 0;
-      final sessionNames = <String>{};
+      // For non-profile/non-playlist grouped items (carousels / multi-photo posts):
+      // Create ONE download task that runs gallery-dl on the group's originalUrl and
+      // targets the single groupDest folder. This appears as a single tile in active
+      // downloads with combined progress.
+      if (isGrouped) {
+        final folderName = p.basename(groupDest);
 
-      for (final info in itemsToDownload) {
-        if (count++ % 20 == 0) await Future<void>.delayed(Duration.zero);
-        if (config.groupFilter == GroupDownloadType.images && info.isVideo) {
-          continue;
-        }
-        if (config.groupFilter == GroupDownloadType.videos && !info.isVideo) {
-          continue;
-        }
-
-        final format = config.itemFormats[info.id] ?? config.format;
-        var itemDest = dest;
-
-        if (group.first.isPlaylist || group.first.isProfile) {
-          final safeName = group.first.title.replaceAll(
-            RegExp(r'[\\/:*?"<>|]'),
-            '_',
-          );
-          itemDest = p.join(dest, safeName);
-          if (!Directory(itemDest).existsSync()) {
-            Directory(itemDest).createSync(recursive: true);
+        // Count items that pass the active filter
+        final filteredItems = itemsToDownload.where((item) {
+          if (config.groupFilter == GroupDownloadType.images && item.isVideo) {
+            return false;
           }
-        }
-
-        var finalTitle = info.title;
-        var suffix = '';
-        final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
-        if (match != null) {
-          suffix = ' - ${match.group(1)}';
-          finalTitle = finalTitle.replaceAll(RegExp(r' \(\d+\)$'), '');
-        } else if (info.galleryIndex != null) {
-          suffix = ' - ${info.galleryIndex}';
-        }
-
-        if (finalTitle.runes.length > 80) {
-          finalTitle = String.fromCharCodes(finalTitle.runes.take(80)).trim();
-        }
-        finalTitle = '$finalTitle$suffix';
-
-        if (!info.isPlaylist) {
-          final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-          if (!dirCache.containsKey(itemDest)) {
-            final dir = Directory(itemDest);
-            if (dir.existsSync()) {
-              dirCache[itemDest] = dir.listSync().whereType<File>().toList();
-            } else {
-              dirCache[itemDest] = [];
-            }
+          if (config.groupFilter == GroupDownloadType.videos && !item.isVideo) {
+            return false;
           }
-          final existingFiles = dirCache[itemDest]!;
-          final exists = existingFiles.any(
-            (f) => p.basenameWithoutExtension(f.path) == safeName,
-          );
-          if (exists || sessionNames.contains(safeName)) {
-            var conflictCounter = 1;
-            while (existingFiles.any(
-                  (f) =>
-                      p.basenameWithoutExtension(f.path) ==
-                      '$safeName ($conflictCounter)',
-                ) ||
-                sessionNames.contains('$safeName ($conflictCounter)')) {
-              conflictCounter++;
-            }
-            finalTitle = '$finalTitle ($conflictCounter)';
-          }
+          return !item.isProfile && !item.isPlaylist;
+        }).toList();
+
+        final totalFilteredItems = filteredItems.length;
+
+        // Sum expected bytes for the group
+        final expectedBytes = _controller.getGroupBytes(
+          MediaGroup(originalUrl: group.originalUrl, items: itemsToDownload),
+          config,
+        );
+
+        String? filterType;
+        if (config.groupFilter == GroupDownloadType.images) {
+          filterType = 'images';
+        } else if (config.groupFilter == GroupDownloadType.videos) {
+          filterType = 'videos';
         }
 
-        sessionNames.add(finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_'));
+        final isFiltered = (filterType != null) || (filteredItems.length < group.items.length);
+        final indices = filteredItems
+            .map((item) => item.galleryIndex ?? (group.items.indexOf(item) + 1))
+            .where((idx) => idx > 0)
+            .toList();
+        final isIntact = !isFiltered &&
+            filteredItems.length == group.items.length &&
+            indices.length == group.items.length &&
+            List.generate(indices.length, (i) => i + 1).join(',') == indices.join(',');
+        final itemsRange = (!isIntact &&
+                indices.isNotEmpty &&
+                indices.length == filteredItems.length)
+            ? (indices.toSet().toList()..sort()).join(',')
+            : null;
 
         ref
             .read(downloadTaskProvider.notifier)
             .startDownload(
-              url: info.webpageUrl ?? info.directUrl ?? info.originalUrl,
-              destination: itemDest,
-              title: finalTitle,
-              downloadType: info.isPlaylist
-                  ? 'playlist'
-                  : (info.isProfile
-                        ? 'profile'
-                        : (info.isVideo ? 'video' : 'image')),
-              format: format,
+              url: group.originalUrl,
+              destination: groupDest,
+              title: folderName,
+              downloadType: 'carousel',
+              format: config.format,
               audioOnly: config.mode == DownloadMode.audioOnly,
               mute: config.mode == DownloadMode.mute,
-              galleryIndex: info.galleryIndex,
               engine: config.engine,
               browser: ref.read(settingsProvider).value?.downloadBrowser,
-              totalItems: 1,
-              directUrl: info.directUrl,
+              filterType: filterType,
+              totalItems: totalFilteredItems,
+              expectedBytes: expectedBytes,
+              isCarousel: true,
+              itemsRange: itemsRange,
             );
+
+        return;
       }
+
+      // Single item (isGrouped == false) — download directly into dest root
+      final info = itemsToDownload.first;
+      final format = config.itemFormats[info.id] ?? config.format;
+      var finalTitle = info.title;
+      var suffix = '';
+      final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
+      if (match != null) {
+        suffix = ' - ${match.group(1)}';
+        finalTitle = finalTitle.replaceAll(RegExp(r' \(\d+\)$'), '');
+      } else if (info.galleryIndex != null) {
+        suffix = ' - ${info.galleryIndex}';
+      }
+      if (finalTitle.runes.length > 80) {
+        finalTitle = String.fromCharCodes(finalTitle.runes.take(80)).trim();
+      }
+      finalTitle = '$finalTitle$suffix';
+
+      final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final dir = Directory(dest);
+      if (dir.existsSync()) {
+        final existingFiles = dir.listSync().whereType<File>().toList();
+        if (existingFiles.any(
+          (f) => p.basenameWithoutExtension(f.path) == safeName,
+        )) {
+          var conflictCounter = 1;
+          while (existingFiles.any(
+            (f) =>
+                p.basenameWithoutExtension(f.path) ==
+                '$safeName ($conflictCounter)',
+          )) {
+            conflictCounter++;
+          }
+          finalTitle = '$finalTitle ($conflictCounter)';
+        }
+      }
+
+      String downloadUrl;
+      if (info.directUrl != null && info.directUrl!.isNotEmpty) {
+        downloadUrl = info.directUrl!;
+      } else if (info.webpageUrl != null && info.webpageUrl!.isNotEmpty) {
+        downloadUrl = info.webpageUrl!;
+      } else if (info.id.isNotEmpty &&
+          (info.originalUrl.contains('youtu') ||
+              info.originalUrl.contains('youtube.com'))) {
+        downloadUrl = 'https://www.youtube.com/watch?v=${info.id}';
+      } else {
+        downloadUrl = info.originalUrl;
+      }
+
+      ref
+          .read(downloadTaskProvider.notifier)
+          .startDownload(
+            url: downloadUrl,
+            destination: dest,
+            title: finalTitle,
+            downloadType: info.isVideo ? 'video' : 'image',
+            format: format,
+            audioOnly: config.mode == DownloadMode.audioOnly,
+            mute: config.mode == DownloadMode.mute,
+            galleryIndex: info.galleryIndex,
+            engine: config.engine,
+            browser: ref.read(settingsProvider).value?.downloadBrowser,
+            totalItems: 1,
+            singleItemId: info.id.isNotEmpty ? info.id : null,
+            directUrl: info.directUrl,
+            expectedBytes: info.filesize ?? 0,
+          );
     } catch (e) {
       debugPrint('Error starting download: $e');
+    }
+  }
+
+
+  Future<void> _startDownloadSingleItem(
+    MediaInfo info,
+    int configIndex,
+  ) async {
+    try {
+      final dest = _currentPath.isNotEmpty
+          ? _currentPath
+          : _getDefaultDownloadsPath();
+      if (!Directory(dest).existsSync()) {
+        try {
+          Directory(dest).createSync(recursive: true);
+        } catch (_) {}
+      }
+
+      final itemDest = dest;
+
+      final config =
+          _controller.cache.configs[configIndex] ?? DownloadConfig();
+      final format = config.itemFormats[info.id] ?? config.format;
+
+      var finalTitle = info.title;
+      var suffix = '';
+      final match = RegExp(r' \((\d+)\)$').firstMatch(finalTitle);
+      if (match != null) {
+        suffix = ' - ${match.group(1)}';
+        finalTitle = finalTitle.replaceAll(RegExp(r' \(\d+\)$'), '');
+      } else if (info.galleryIndex != null) {
+        suffix = ' - ${info.galleryIndex}';
+      }
+
+      if (finalTitle.runes.length > 80) {
+        finalTitle = String.fromCharCodes(finalTitle.runes.take(80)).trim();
+      }
+      finalTitle = '$finalTitle$suffix';
+
+      final safeName = finalTitle.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final dir = Directory(itemDest);
+      if (dir.existsSync()) {
+        final existingFiles = dir.listSync().whereType<File>().toList();
+        if (existingFiles.any(
+          (f) => p.basenameWithoutExtension(f.path) == safeName,
+        )) {
+          var conflictCounter = 1;
+          while (existingFiles.any(
+            (f) =>
+                p.basenameWithoutExtension(f.path) ==
+                '$safeName ($conflictCounter)',
+          )) {
+            conflictCounter++;
+          }
+          finalTitle = '$finalTitle ($conflictCounter)';
+        }
+      }
+
+      String downloadUrl;
+      if (info.directUrl != null && info.directUrl!.isNotEmpty) {
+        downloadUrl = info.directUrl!;
+      } else if (info.webpageUrl != null && info.webpageUrl!.isNotEmpty) {
+        downloadUrl = info.webpageUrl!;
+      } else if (info.id.isNotEmpty &&
+          (info.originalUrl.contains('youtu') ||
+              info.originalUrl.contains('youtube.com'))) {
+        downloadUrl = 'https://www.youtube.com/watch?v=${info.id}';
+      } else {
+        downloadUrl = info.originalUrl;
+      }
+
+      ref
+          .read(downloadTaskProvider.notifier)
+          .startDownload(
+            url: downloadUrl,
+            destination: itemDest,
+            title: finalTitle,
+            downloadType: info.isVideo ? 'video' : 'image',
+            format: format,
+            audioOnly: config.mode == DownloadMode.audioOnly,
+            mute: config.mode == DownloadMode.mute,
+            galleryIndex: info.galleryIndex,
+            engine: config.engine,
+            browser: ref.read(settingsProvider).value?.downloadBrowser,
+            totalItems: 1,
+            singleItemId: info.id.isNotEmpty ? info.id : null,
+            directUrl: info.directUrl,
+            expectedBytes: info.filesize ?? 0,
+          );
+    } catch (e) {
+      debugPrint('Error starting single download: $e');
     }
   }
 
@@ -540,11 +696,12 @@ class _StandaloneDownloaderWindowState
           }
         } else {
           final rootIndex = parsedItems.indexOf(_currentGroup!);
+          final actualRootIndex = rootIndex >= 0 ? rootIndex : 0;
           for (final i in sortedIndices) {
             final item = _currentGroup!.items[i];
-            await _startDownload(
-              MediaGroup(originalUrl: item.originalUrl, items: [item]),
-              rootIndex,
+            await _startDownloadSingleItem(
+              item,
+              actualRootIndex,
             );
             _currentGroup!.items.removeAt(i);
           }
@@ -561,8 +718,9 @@ class _StandaloneDownloaderWindowState
           parsedItems.remove(_currentGroup);
           _currentGroup = null;
           _historyIndex = 0;
-          _navigationHistory.clear();
-          _navigationHistory.add(null);
+          _navigationHistory
+            ..clear()
+            ..add(null);
         });
       } else {
         // Main list scenario
@@ -586,12 +744,24 @@ class _StandaloneDownloaderWindowState
     }
   }
 
+  void _onUrlFocusTrigger() {
+    if (mounted && _urlFocusNode.canRequestFocus) {
+      FocusScope.of(context).requestFocus(_urlFocusNode);
+      _urlController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _urlController.text.length,
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _searchDebounce = null;
     _focusTrigger = PersistentViewerManager.getFocusTrigger(widget.windowId);
     _focusTrigger?.addListener(_onWindowFocus);
+    _urlFocusTrigger = PersistentViewerManager.getUrlFocusTrigger(widget.windowId);
+    _urlFocusTrigger?.addListener(_onUrlFocusTrigger);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -599,7 +769,10 @@ class _StandaloneDownloaderWindowState
       }
     });
 
-    _currentPath = widget.initParams['currentPath'] as String? ?? '';
+    final initialPath = widget.initParams['currentPath'] as String?;
+    _currentPath = (initialPath != null && initialPath.isNotEmpty)
+        ? initialPath
+        : _getDefaultDownloadsPath();
 
     _gradientController = AnimationController(
       vsync: this,
@@ -698,9 +871,12 @@ class _StandaloneDownloaderWindowState
     super.didUpdateWidget(oldWidget);
     if (widget.initParams['currentPath'] !=
         oldWidget.initParams['currentPath']) {
-      setState(() {
-        _currentPath = widget.initParams['currentPath'] as String? ?? '';
-      });
+      final newPath = widget.initParams['currentPath'] as String?;
+      if (newPath != null && newPath.isNotEmpty) {
+        setState(() {
+          _currentPath = newPath;
+        });
+      }
     }
   }
 
@@ -796,8 +972,12 @@ class _StandaloneDownloaderWindowState
 
   @override
   void dispose() {
+    ThumbnailAspectResolver.reset();
+    _viewPreferences.clear();
+    _tabStates.clear();
     _searchController.removeListener(_onSearchChanged);
     _focusTrigger?.removeListener(_onWindowFocus);
+    _urlFocusTrigger?.removeListener(_onUrlFocusTrigger);
     _gradientController.dispose();
     _mainFocusNode.dispose();
     _urlController.dispose();
@@ -1097,6 +1277,23 @@ class _StandaloneDownloaderWindowState
           });
         }
       },
+      onDefaultExport: () async {
+        final currentPath = _controller.cache.importedListPath ?? 'default';
+        if (currentPath != 'default') {
+          _saveCurrentTabState(currentPath);
+          setState(() {
+            _controller.cache.switchList('default');
+            _restoreTabState('default');
+            _isTrashView = false;
+          });
+        }
+        await _exportCurrentList();
+      },
+      isDefaultExportDisabled: _isTrashView ||
+          (_controller.cache.importedListPath == 'default' ||
+                  _controller.cache.importedListPath == null
+              ? (_controller.cache.parsedItems?.isEmpty ?? true)
+              : (_controller.cache.getItemsForPath('default')?.isEmpty ?? true)),
     );
   }
 
@@ -1383,6 +1580,65 @@ class _StandaloneDownloaderWindowState
       }
     }
 
+    final viewPrefs = _getPreferencesForCurrentView();
+
+    final availableTypes = <DownloaderItemType>{};
+    final availableDates = <DateTime>{};
+    final availableDatesByType = <DownloaderItemType, Set<DateTime>>{};
+
+    void addTypeAndDate(DownloaderItemType type, DateTime? date) {
+      availableTypes.add(type);
+      if (date != null) {
+        final d = DateTime(date.year, date.month, date.day);
+        availableDates.add(d);
+        availableDatesByType.putIfAbsent(type, () => <DateTime>{}).add(d);
+      }
+    }
+
+    if (_isTrashView) {
+      final currentListPath = _controller.cache.importedListPath ?? 'default';
+      final currentTrash = _trash.where((t) => t.listPath == currentListPath);
+      for (final t in currentTrash) {
+        if (t.item is MediaGroup) {
+          final g = t.item as MediaGroup;
+          final type = DownloaderItemClassifier.classify(g);
+          final gDate = DownloaderItemClassifier.extractDate(g);
+          addTypeAndDate(type, gDate);
+          for (final item in g.items) {
+            if (item.uploadDate != null) {
+              addTypeAndDate(type, item.uploadDate);
+            }
+          }
+        } else if (t.item is MediaInfo) {
+          final info = t.item as MediaInfo;
+          if (info.isError) continue;
+          final type = DownloaderItemClassifier.classifyItem(info);
+          addTypeAndDate(type, info.uploadDate);
+        }
+      }
+    } else if (_currentGroup != null) {
+      for (final item in _currentGroup!.items) {
+        if (item.isError) continue;
+        if (_currentGroup!.first.isProfile &&
+            item == _currentGroup!.items.first) {
+          continue;
+        }
+        final type = DownloaderItemClassifier.classifyItem(item);
+        addTypeAndDate(type, item.uploadDate);
+      }
+    } else if (_controller.cache.parsedItems != null) {
+      for (final group in _controller.cache.parsedItems!) {
+        final type = DownloaderItemClassifier.classify(group);
+        final gDate = DownloaderItemClassifier.extractDate(group);
+        addTypeAndDate(type, gDate);
+        for (final item in group.items) {
+          if (item.uploadDate != null) {
+            addTypeAndDate(type, item.uploadDate);
+          }
+        }
+      }
+    }
+
     var rootIndex = -1;
     if (_currentGroup != null &&
         (_controller.cache.parsedItems?.isNotEmpty ?? false)) {
@@ -1433,17 +1689,20 @@ class _StandaloneDownloaderWindowState
       searchController: _searchController,
       searchFocusNode: _searchFocusNode,
       isSearchVisible: _isSearchVisible,
-      listFilter: _listFilter,
+      listFilter: viewPrefs.sortOrder,
+      sortOrder: viewPrefs.sortOrder,
+      onSortChanged: _updateViewSort,
+      filterSettings: viewPrefs.filterSettings,
+      onFilterSettingsChanged: _updateViewFilter,
+      availableTypes: availableTypes,
+      availableDates: availableDates,
+      availableDatesByType: availableDatesByType,
       hasImages: hasImages,
       hasVideos: hasVideos,
       hasPlaylists: hasPlaylists,
       hasProfiles: hasProfiles,
       hasGroups: hasGroups,
-      onListFilterChanged: (val) {
-        setState(() {
-          _listFilter = val;
-        });
-      },
+      onListFilterChanged: _updateViewSort,
       activeTagNotifier: _activeTagNotifier,
       onTagTap: _scrollToTag,
       onTagSecondaryTapDown: _showTagHeaderContextMenu,
@@ -1455,13 +1714,14 @@ class _StandaloneDownloaderWindowState
       final parsedItems = _controller.cache.parsedItems;
       if (parsedItems == null) return;
 
+      final currentSort = _getPreferencesForCurrentView().sortOrder;
       if (_currentGroup == null) {
         final idx = parsedItems.indexWhere((g) => g.originalUrl == url);
         if (idx != -1) {
           final oldGroup = parsedItems[idx];
           parsedItems[idx] = oldGroup.copyWith(
             tag: tag,
-            tagSortOrder: _listFilter,
+            tagSortOrder: currentSort,
           );
         }
       } else {
@@ -1470,7 +1730,7 @@ class _StandaloneDownloaderWindowState
           final oldItem = _currentGroup!.items[idx];
           _currentGroup!.items[idx] = oldItem.copyWith(
             tag: tag,
-            tagSortOrder: _listFilter,
+            tagSortOrder: currentSort,
           );
 
           final rootIndex = parsedItems.indexWhere(
@@ -1604,10 +1864,9 @@ class _StandaloneDownloaderWindowState
     }
 
     // 1. Revert Sort Order
-    if (_listFilter != sortOrder) {
-      setState(() {
-        _listFilter = sortOrder;
-      });
+    final currentSort = _getPreferencesForCurrentView().sortOrder;
+    if (currentSort != sortOrder) {
+      _updateViewSort(sortOrder);
       // Show Toast
       final overlay = Overlay.of(context);
       late OverlayEntry toastEntry;
@@ -1685,9 +1944,12 @@ class _StandaloneDownloaderWindowState
     });
   }
 
-  Widget _buildMediaGrid() {
+  List<MediaGroup> _getVisibleGroups() {
     var mappedGroups = <MediaGroup>[];
     final searchTerm = _searchController.text.trim().toLowerCase();
+    final viewPrefs = _getPreferencesForCurrentView();
+    final filterSettings = viewPrefs.filterSettings;
+    final sortOrder = viewPrefs.sortOrder;
 
     if (_isTrashView) {
       final currentListPath = _controller.cache.importedListPath ?? 'default';
@@ -1705,6 +1967,40 @@ class _StandaloneDownloaderWindowState
           return MediaGroup(items: [info], originalUrl: info.originalUrl);
         }
       }).toList();
+
+      if (filterSettings.selectedTypes.isNotEmpty) {
+        mappedGroups = mappedGroups
+            .where(
+              (g) => filterSettings.selectedTypes.contains(
+                DownloaderItemClassifier.classify(g),
+              ),
+            )
+            .toList();
+      }
+
+      if (filterSettings.selectedDates.isNotEmpty) {
+        mappedGroups = mappedGroups
+            .where(
+              (g) => DownloaderItemClassifier.matchesDateFilter(
+                g,
+                filterSettings.selectedDates,
+              ),
+            )
+            .toList();
+      }
+
+      if (sortOrder == 'added_asc') {
+        mappedGroups = mappedGroups.reversed.toList();
+      } else if (sortOrder == 'size_asc' || sortOrder == 'size_desc') {
+        mappedGroups.sort((a, b) {
+          final aSize = a.totalFilesize;
+          final bSize = b.totalFilesize;
+          return sortOrder == 'size_asc'
+              ? aSize.compareTo(bSize)
+              : bSize.compareTo(aSize);
+        });
+      }
+
       if (searchTerm.isNotEmpty) {
         mappedGroups = mappedGroups.where((group) {
           final titleMatch =
@@ -1717,35 +2013,34 @@ class _StandaloneDownloaderWindowState
     } else if (_currentGroup == null) {
       var entries = _controller.cache.parsedItems?.toList() ?? [];
 
-      if (_listFilter == 'image') {
+      if (filterSettings.selectedTypes.isNotEmpty) {
         entries = entries
             .where(
-              (e) =>
-                  !e.first.isVideo && !e.first.isPlaylist && !e.first.isProfile,
+              (g) => filterSettings.selectedTypes.contains(
+                DownloaderItemClassifier.classify(g),
+              ),
             )
             .toList();
-      } else if (_listFilter == 'video') {
-        entries = entries
-            .where(
-              (e) =>
-                  e.first.isVideo && !e.first.isPlaylist && !e.first.isProfile,
-            )
-            .toList();
-      } else if (_listFilter == 'playlist') {
-        entries = entries
-            .where((e) => e.first.isPlaylist && !e.first.isProfile)
-            .toList();
-      } else if (_listFilter == 'profile') {
-        entries = entries.where((e) => e.first.isProfile).toList();
       }
 
-      if (_listFilter == 'added_asc') {
+      if (filterSettings.selectedDates.isNotEmpty) {
+        entries = entries
+            .where(
+              (g) => DownloaderItemClassifier.matchesDateFilter(
+                g,
+                filterSettings.selectedDates,
+              ),
+            )
+            .toList();
+      }
+
+      if (sortOrder == 'added_asc') {
         entries = entries.reversed.toList();
-      } else if (_listFilter == 'size_asc' || _listFilter == 'size_desc') {
+      } else if (sortOrder == 'size_asc' || sortOrder == 'size_desc') {
         entries.sort((a, b) {
           final aSize = a.totalFilesize;
           final bSize = b.totalFilesize;
-          return _listFilter == 'size_asc'
+          return sortOrder == 'size_asc'
               ? aSize.compareTo(bSize)
               : bSize.compareTo(aSize);
         });
@@ -1769,7 +2064,7 @@ class _StandaloneDownloaderWindowState
           -1;
       if (rootIndex != -1) {
         final config = _controller.cache.configs[rootIndex];
-        final filteredItems = _currentGroup!.items.where((item) {
+        var filteredItems = _currentGroup!.items.where((item) {
           if (item.isError) return false;
           if (_currentGroup!.first.isProfile &&
               item == _currentGroup!.items.first) {
@@ -1782,19 +2077,160 @@ class _StandaloneDownloaderWindowState
               !item.isVideo) {
             return false;
           }
-          if (searchTerm.isNotEmpty &&
-              !item.title.toLowerCase().contains(searchTerm)) {
-            return false;
-          }
           return true;
         }).toList();
+
+        if (filterSettings.selectedTypes.isNotEmpty) {
+          filteredItems = filteredItems
+              .where(
+                (item) => filterSettings.selectedTypes.contains(
+                  DownloaderItemClassifier.classifyItem(item),
+                ),
+              )
+              .toList();
+        }
+
+        if (filterSettings.selectedDates.isNotEmpty) {
+          filteredItems = filteredItems.where((item) {
+            if (item.uploadDate == null) return false;
+            final d = DateTime(
+              item.uploadDate!.year,
+              item.uploadDate!.month,
+              item.uploadDate!.day,
+            );
+            return filterSettings.selectedDates.any(
+              (DateTime sd) => sd.year == d.year && sd.month == d.month && sd.day == d.day,
+            );
+          }).toList();
+        }
+
+        if (sortOrder == 'added_asc') {
+          filteredItems = filteredItems.reversed.toList();
+        } else if (sortOrder == 'size_asc' || sortOrder == 'size_desc') {
+          filteredItems.sort((a, b) {
+            final aSize = a.filesize ?? 0;
+            final bSize = b.filesize ?? 0;
+            return sortOrder == 'size_asc'
+                ? aSize.compareTo(bSize)
+                : bSize.compareTo(aSize);
+          });
+        }
+
+        if (searchTerm.isNotEmpty) {
+          filteredItems = filteredItems
+              .where((item) => item.title.toLowerCase().contains(searchTerm))
+              .toList();
+        }
 
         mappedGroups = filteredItems.map((info) {
           return MediaGroup(items: [info], originalUrl: info.originalUrl);
         }).toList();
       }
     }
+    return mappedGroups;
+  }
 
+  ({int videos, int images, int size}) _computeVisibleStats() {
+    final visibleGroups = _getVisibleGroups();
+    var videos = 0;
+    var images = 0;
+    var size = 0;
+
+    if (_isTrashView) {
+      for (final group in visibleGroups) {
+        for (final item in group.items) {
+          if (item.isVideo) {
+            videos++;
+          } else if (!item.isPlaylist && !item.isProfile) {
+            images++;
+          }
+          size += item.filesize ?? 0;
+        }
+      }
+      return (videos: videos, images: images, size: size);
+    }
+
+    if (_currentGroup != null) {
+      final rootIndex =
+          _controller.cache.parsedItems?.indexWhere(
+            (g) => g.originalUrl == _currentGroup!.originalUrl,
+          ) ??
+          -1;
+      final config =
+          rootIndex != -1 ? _controller.cache.configs[rootIndex] : null;
+
+      for (final group in visibleGroups) {
+        for (final item in group.items) {
+          if (item.isError ||
+              item.id == 'fetch_loading' ||
+              item.id == 'hydration_loading') {
+            continue;
+          }
+          if (item.isVideo) {
+            videos++;
+          } else if (!item.isPlaylist && !item.isProfile) {
+            images++;
+          }
+
+          if (config != null) {
+            if (config.itemFormats.containsKey(item.id) &&
+                config.itemFormats[item.id]?.filesize != null) {
+              size += config.itemFormats[item.id]!.filesize!;
+            } else if (config.format != null) {
+              final b = getFormatBytes(item, config.format, config);
+              size += b ?? item.filesize ?? 0;
+            } else {
+              size += item.filesize ?? 0;
+            }
+          } else {
+            size += item.filesize ?? 0;
+          }
+        }
+      }
+      return (videos: videos, images: images, size: size);
+    }
+
+    // Root view: calculate from visible groups
+    for (final group in visibleGroups) {
+      final rootIndex =
+          _controller.cache.parsedItems?.indexWhere(
+            (g) => g.originalUrl == group.originalUrl,
+          ) ??
+          -1;
+      final config =
+          rootIndex != -1 ? _controller.cache.configs[rootIndex] : null;
+
+      for (final item in group.items) {
+        if (item.isError ||
+            item.id == 'fetch_loading' ||
+            item.id == 'hydration_loading') {
+          continue;
+        }
+        if (config?.groupFilter == GroupDownloadType.images && item.isVideo) {
+          continue;
+        }
+        if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo) {
+          continue;
+        }
+        if (item.isVideo) {
+          videos++;
+        } else if (!item.isPlaylist && !item.isProfile) {
+          images++;
+        }
+      }
+
+      if (config != null) {
+        size += _controller.getGroupBytes(group, config);
+      } else {
+        size += group.totalFilesize;
+      }
+    }
+
+    return (videos: videos, images: images, size: size);
+  }
+
+  Widget _buildMediaGrid() {
+    final mappedGroups = _getVisibleGroups();
     _currentVisibleGroups = mappedGroups;
 
     final listPath = _controller.cache.importedListPath ?? 'default';
@@ -1829,6 +2265,10 @@ class _StandaloneDownloaderWindowState
       onTagItem: _handleTagItem,
       isHydratingItem: (url) =>
           _controller.activeHydrationPids.containsKey(url),
+      onCancelHydration: (url) async {
+        await _controller.cancelHydration(url);
+        if (mounted) setState(() {});
+      },
       onTapItem: _toggleSelection,
       onDoubleTapItem: (index, group) {
         if (_currentGroup == null && group.items.length > 1) {
@@ -1924,14 +2364,13 @@ class _StandaloneDownloaderWindowState
           });
         } else {
           final item = _currentGroup!.items[index];
-          final group = MediaGroup(
-            originalUrl: item.originalUrl,
-            items: [item],
-          );
           final rootIndex = _controller.cache.parsedItems!.indexOf(
             _currentGroup!,
           );
-          _startDownload(group, rootIndex);
+          _startDownloadSingleItem(
+            item,
+            rootIndex >= 0 ? rootIndex : 0,
+          );
           setState(() {
             _currentGroup!.items.removeAt(index);
           });
@@ -1949,30 +2388,10 @@ class _StandaloneDownloaderWindowState
   }
 
   Widget _buildLocationBar() {
-    var videos = 0;
-    var images = 0;
-    var size = 0;
-
-    if (_isTrashView) {
-      for (final t in _trash) {
-        if (t.item is MediaGroup) {
-          final g = t.item as MediaGroup;
-          videos += g.items.where((i) => i.isVideo).length;
-          images += g.items.where((i) => !i.isVideo).length;
-        } else {
-          final i = t.item as MediaInfo;
-          if (i.isVideo) {
-            videos++;
-          } else {
-            images++;
-          }
-        }
-      }
-    } else {
-      videos = _controller.totalListVideos;
-      images = _controller.totalListImages;
-      size = _controller.totalListSize;
-    }
+    final stats = _computeVisibleStats();
+    final videos = stats.videos;
+    final images = stats.images;
+    final size = stats.size;
 
     return StandaloneWindowLocationBar(
       isTrashView: _isTrashView,
@@ -2033,6 +2452,66 @@ class _StandaloneDownloaderWindowState
     );
   }
 
+  List<FileItem> _collectImagePlaylist() {
+    final groups = _currentVisibleGroups.isNotEmpty
+        ? _currentVisibleGroups
+        : (_currentGroup != null
+            ? [_currentGroup!]
+            : (_controller.cache.parsedItems ?? []));
+
+    final items = <FileItem>[];
+    for (final group in groups) {
+      for (final item in group.items) {
+        if (!item.isVideo && !item.isError) {
+          final url = item.directUrl ?? item.thumbnail ?? item.originalUrl;
+          if (url.isNotEmpty) {
+            items.add(
+              FileItem(
+                name: item.title.isNotEmpty ? item.title : p.basename(url),
+                path: url,
+                sizeBytes: item.filesize,
+                modified: DateTime.now(),
+                type: FileItemType.image,
+                thumbnailPath: item.thumbnail,
+              ),
+            );
+          }
+        }
+      }
+    }
+    return items;
+  }
+
+  List<FileItem> _collectVideoPlaylist() {
+    final groups = _currentVisibleGroups.isNotEmpty
+        ? _currentVisibleGroups
+        : (_currentGroup != null
+            ? [_currentGroup!]
+            : (_controller.cache.parsedItems ?? []));
+
+    final items = <FileItem>[];
+    for (final group in groups) {
+      for (final item in group.items) {
+        if (item.isVideo && !item.isError) {
+          final url = resolvePlaybackUrl(item);
+          if (url.isNotEmpty) {
+            items.add(
+              FileItem(
+                name: item.title.isNotEmpty ? item.title : p.basename(url),
+                path: url,
+                sizeBytes: item.filesize,
+                modified: DateTime.now(),
+                type: FileItemType.video,
+                thumbnailPath: item.thumbnail,
+              ),
+            );
+          }
+        }
+      }
+    }
+    return items;
+  }
+
   Future<void> _openImageInViewer(MediaInfo item, int index) async {
     final url = item.directUrl ?? item.thumbnail ?? item.originalUrl;
     if (url.isEmpty) return;
@@ -2053,16 +2532,22 @@ class _StandaloneDownloaderWindowState
         sizeBytes: item.filesize,
         modified: DateTime.now(),
         type: FileItemType.image,
+        thumbnailPath: item.thumbnail,
       );
+
+      final playlist = _collectImagePlaylist();
+      final playlistJson = jsonEncode(playlist.map((e) => e.toJson()).toList());
 
       final windowParams = WindowParams(
         viewerType: ViewerType.image,
         file: fileItem,
-        initParams: const {
+        initParams: {
           'width': 600,
           'height': 800,
           'is_minimal': true,
           'is_network_stream': true,
+          'playlistJson': playlistJson,
+          'playlistPath': url,
         },
       );
 
@@ -2175,6 +2660,9 @@ class _StandaloneDownloaderWindowState
         thumbnailPath: item.thumbnail,
       );
 
+      final playlist = _collectVideoPlaylist();
+      final playlistJson = jsonEncode(playlist.map((e) => e.toJson()).toList());
+
       final windowParams = WindowParams(
         viewerType: ViewerType.video,
         file: fileItemForPlayer,
@@ -2182,6 +2670,8 @@ class _StandaloneDownloaderWindowState
           'width': 1280,
           'height': 720,
           'is_network_stream': true,
+          'playlistJson': playlistJson,
+          'playlistPath': playbackUrl,
           'formats': item.formats.map((f) => f.toJson()).toList(),
           'selectedFormatId': effectiveFormat?.formatId,
           if (audioUrl != null) 'audioUrl': audioUrl,
@@ -2375,6 +2865,9 @@ class _StandaloneDownloaderWindowState
   String get currentPathForTesting => _currentPath;
 
   @visibleForTesting
+  set currentPathForTesting(String val) => _currentPath = val;
+
+  @visibleForTesting
   TextEditingController get searchControllerForTesting => _searchController;
 
   @visibleForTesting
@@ -2391,6 +2884,19 @@ class _StandaloneDownloaderWindowState
 
   @visibleForTesting
   Set<int> get selectedIndicesForTesting => _selectedIndices;
+
+  @visibleForTesting
+  void onItemTapForTesting(
+    int index, {
+    bool isCtrl = false,
+    bool isShift = false,
+  }) => _toggleSelection(index, isCtrl: isCtrl, isShift: isShift);
+
+  @visibleForTesting
+  MediaGroup? get currentGroupForTesting => _currentGroup;
+
+  @visibleForTesting
+  set currentGroupForTesting(MediaGroup? g) => _currentGroup = g;
 
   @visibleForTesting
   bool get isTrashViewForTesting => _isTrashView;

@@ -84,7 +84,9 @@ class GalleryDlEngine extends DownloadEngine {
       ]);
       if (res.exitCode == 0) {
         final json = jsonDecode(res.stdout as String);
-        return json['tag_name']?.toString().replaceFirst('v', '');
+        if (json is Map<String, dynamic>) {
+          return json['tag_name']?.toString().replaceFirst('v', '');
+        }
       }
     } catch (_) {}
     return null;
@@ -139,17 +141,18 @@ class GalleryDlEngine extends DownloadEngine {
     void Function(MediaInfo info)? onProgress,
     void Function(int pid)? onProcessStarted,
   }) async {
-    if ((url.contains('twitter.com') || url.contains('x.com')) &&
-        isSocialProfile(url)) {
-      final uri = Uri.tryParse(url);
+    var effectiveUrl = url;
+    if ((effectiveUrl.contains('twitter.com') || effectiveUrl.contains('x.com')) &&
+        isSocialProfile(effectiveUrl)) {
+      final uri = Uri.tryParse(effectiveUrl);
       if (uri != null &&
           uri.pathSegments.isNotEmpty &&
           uri.pathSegments.length == 1) {
-        url = url.endsWith('/') ? '${url}media' : '$url/media';
+        effectiveUrl = effectiveUrl.endsWith('/') ? '${effectiveUrl}media' : '$effectiveUrl/media';
       }
     }
 
-    final isSocialProfileVar = isSocialProfile(url);
+    final isSocialProfileVar = isSocialProfile(effectiveUrl);
 
     var actualBrowser = browser;
     if (actualBrowser == null) {
@@ -454,14 +457,16 @@ class GalleryDlEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
-    if ((url.contains('twitter.com') || url.contains('x.com')) &&
-        isSocialProfile(url)) {
-      final uri = Uri.tryParse(url);
+    var effectiveUrl = url;
+    if ((effectiveUrl.contains('twitter.com') || effectiveUrl.contains('x.com')) &&
+        isSocialProfile(effectiveUrl)) {
+      final uri = Uri.tryParse(effectiveUrl);
       if (uri != null &&
           uri.pathSegments.isNotEmpty &&
           uri.pathSegments.length == 1) {
-        url = url.endsWith('/') ? '${url}media' : '$url/media';
+        effectiveUrl = effectiveUrl.endsWith('/') ? '${effectiveUrl}media' : '$effectiveUrl/media';
       }
     }
 
@@ -485,8 +490,16 @@ class GalleryDlEngine extends DownloadEngine {
     if (title != null) {
       final safeTitle = title.replaceAll(RegExp(r'[\\/:*?"<>|\{\}]'), '_');
       if (galleryIndex != null) {
-        args.addAll(['--filename', '$safeTitle.{extension}']);
-        args.addAll(['--range', galleryIndex.toString()]);
+        args
+          ..addAll(['--filename', '$safeTitle.{extension}'])
+          ..addAll(['--range', galleryIndex.toString()]);
+      } else if (itemsRange != null && itemsRange.isNotEmpty) {
+        if (totalItems == 1) {
+          args.addAll(['--filename', '$safeTitle.{extension}']);
+        } else {
+          args.addAll(['--filename', '${safeTitle}_{num}.{extension}']);
+        }
+        args.addAll(['--range', itemsRange]);
       } else if (!isProfile) {
         if (totalItems == 1) {
           args.addAll(['--filename', '$safeTitle.{extension}']);
@@ -497,6 +510,9 @@ class GalleryDlEngine extends DownloadEngine {
       args.addAll(['-o', 'directory=[]']);
     } else {
       // All items will download directly to the base profile folder as requested
+      if (itemsRange != null && itemsRange.isNotEmpty) {
+        args.addAll(['--range', itemsRange]);
+      }
       args.addAll(['-o', 'directory=[]']);
     }
 
@@ -593,6 +609,7 @@ class GalleryDlEngine extends DownloadEngine {
                   as List<dynamic>? ??
               [];
           for (final edge in edges) {
+            if (edge is! Map) continue;
             final node = edge['node'] as Map<String, dynamic>?;
             if (node == null) continue;
 
@@ -628,6 +645,7 @@ class GalleryDlEngine extends DownloadEngine {
                 duration: node['video_duration'] != null
                     ? (node['video_duration'] as num).toInt()
                     : null,
+                uploadDate: MediaInfo.fromJson(node).uploadDate,
               ),
             );
           }
@@ -647,9 +665,11 @@ class GalleryDlEngine extends DownloadEngine {
   Future<List<MediaInfo>> parseGalleryDlJsonBlock(
     String block,
     String url,
+    // ignore: avoid_positional_boolean_parameters
     bool isSocialProfile,
     String? browser,
     int existingCount,
+    // ignore: avoid_positional_boolean_parameters
     bool fetchDeep,
   ) async {
     final parsedInfos = <MediaInfo>[];
@@ -661,7 +681,7 @@ class GalleryDlEngine extends DownloadEngine {
         final events = isListOfEvents ? json : [json];
 
         final sharedMeta = <String, dynamic>{};
-        var fileCount = 0;
+        var fileCount = existingCount;
 
         for (final event in events) {
           if (event is List && event.isNotEmpty) {
@@ -744,18 +764,20 @@ class GalleryDlEngine extends DownloadEngine {
               }
 
               String? title;
-              if (sharedMeta['subreddit'] != null) {
+              final rawTitle = sharedMeta['title']?.toString().trim();
+              final rawDesc = sharedMeta['description']?.toString().trim();
+              if (rawTitle != null && rawTitle.isNotEmpty) {
+                title = rawTitle;
+              } else if (rawDesc != null && rawDesc.isNotEmpty) {
+                title = rawDesc;
+              } else if (sharedMeta['subreddit'] != null) {
                 final sub = sharedMeta['subreddit'].toString();
-                final author = sharedMeta['author']?.toString() ?? 'unknown';
-                final postTitle =
-                    sharedMeta['title']?.toString() ??
-                    sharedMeta['description']?.toString() ??
-                    'Post';
-                title = 'r/$sub - $postTitle (@$author)';
-              } else {
-                title =
-                    sharedMeta['title']?.toString() ??
-                    sharedMeta['description']?.toString();
+                final author = sharedMeta['author']?.toString();
+                if (author != null && author.isNotEmpty) {
+                  title = 'r/$sub Post by @$author';
+                } else {
+                  title = 'r/$sub Post';
+                }
               }
               if (title == null || title.isEmpty) title = 'Item';
 
@@ -793,8 +815,10 @@ class GalleryDlEngine extends DownloadEngine {
               if (thumb == null && sharedMeta['preview'] is Map) {
                 try {
                   final images = (sharedMeta['preview'] as Map)['images'] as List;
-                  if (images.isNotEmpty) {
-                    thumb = (images.first as Map)['source']['url'].toString().replaceAll(
+                  if (images.isNotEmpty && images.first is Map) {
+                    final firstImg = images.first as Map;
+                    final source = firstImg['source'] as Map?;
+                    thumb = source?['url']?.toString().replaceAll(
                       '&amp;',
                       '&',
                     );

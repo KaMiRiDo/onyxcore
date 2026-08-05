@@ -31,22 +31,23 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
       spans.add(TextSpan(text: '${task.completedItems}/${task.totalItems}'));
     }
 
-    // For multi-item downloads (playlists/profiles), show folder downloaded size
-    if (task.totalItems > 1 && task.downloadedBytes > 0) {
+    // Show size ratio whenever we know both current and expected bytes
+    if (task.downloadedBytes > 0 && task.expectedBytes > 0) {
       if (spans.isNotEmpty) spans.add(separator);
-      final expectedStr = task.expectedBytes > 0
-          ? StringUtils.formatBytes(task.expectedBytes)
-          : '?';
       spans.add(
         TextSpan(
           text:
-              '${StringUtils.formatBytes(task.downloadedBytes)} / $expectedStr',
+              '${StringUtils.formatBytes(task.downloadedBytes)} / ${StringUtils.formatBytes(task.expectedBytes)}',
         ),
       );
-    } else if (task.totalSize.isNotEmpty) {
-      // For single downloads, show the per-item size from yt-dlp/aria2c
+    } else if (task.totalItems <= 1 && task.totalSize.isNotEmpty) {
+      // For single downloads without known byte counts, show the per-item size from yt-dlp/aria2c
       if (spans.isNotEmpty) spans.add(separator);
       spans.add(TextSpan(text: task.totalSize));
+    } else if (task.totalItems > 1 && task.downloadedBytes > 0) {
+      // Multi-item with bytes but no expectedBytes — show downloaded size only
+      if (spans.isNotEmpty) spans.add(separator);
+      spans.add(TextSpan(text: StringUtils.formatBytes(task.downloadedBytes)));
     }
 
     if (task.speed.isNotEmpty) {
@@ -75,15 +76,30 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
   }
 
   /// Computes the best ETA string to display.
-  /// For multi-item downloads: estimates total remaining based on elapsed time and progress.
-  /// For single downloads: uses the per-item ETA from yt-dlp/aria2c.
+  /// Priority:
+  ///   1. bytes-based ETA: (remaining bytes / speed in bytes per second)
+  ///   2. time-based ETA from elapsed / progress ratio
+  ///   3. per-item ETA from yt-dlp/aria2c engine
   String _computeEta(DownloadTask task) {
+    // Bytes-based ETA: only when we have real speed and expected bytes
+    if (task.expectedBytes > 0 &&
+        task.downloadedBytes > 0 &&
+        task.speed.isNotEmpty) {
+      final speedBytesPerSec = StringUtils.parseBytesPerSecond(task.speed);
+      if (speedBytesPerSec > 0) {
+        final remainingBytes = task.expectedBytes - task.downloadedBytes;
+        if (remainingBytes > 0) {
+          final remainingSecs = (remainingBytes / speedBytesPerSec).round();
+          return _formatDuration(remainingSecs);
+        }
+      }
+    }
+
+    // Progress + elapsed time ETA (for multi-item playlists)
     if (task.totalItems > 1 && task.completedItems > 0) {
-      // Estimate total ETA from elapsed time and items completed
       final elapsed = DateTime.now().difference(task.createdAt);
       final elapsedSecs = elapsed.inSeconds;
       if (elapsedSecs > 0) {
-        // Use progress-based estimate: remaining = elapsed * (1 - progress) / progress
         if (task.progress > 0.0 && task.progress < 1.0) {
           final remainingSecs =
               (elapsedSecs * (1.0 - task.progress) / task.progress).round();
@@ -91,6 +107,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
         }
       }
     }
+
     // Fall back to per-item ETA from the engine
     return task.eta;
   }
@@ -263,33 +280,38 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                     Colors.orange.withValues(alpha: 0.6),
                                   ),
                                 )
-                              : TweenAnimationBuilder<double>(
-                                  tween: Tween<double>(
-                                    end: task.status == DownloadStatus.pending
-                                        ? 0.0
-                                        : task.progress,
-                                  ),
-                                  duration: const Duration(milliseconds: 500),
-                                  builder: (context, animatedProgress, _) {
-                                    return LinearProgressIndicator(
-                                      value:
-                                          task.progress == 0.0 &&
-                                              task.totalSize.isEmpty &&
-                                              task.status ==
-                                                  DownloadStatus.running
-                                          ? null
-                                          : animatedProgress,
+                              : (task.status == DownloadStatus.running &&
+                                      task.progress == 0.0 &&
+                                      task.totalSize.isEmpty)
+                                  ? LinearProgressIndicator(
                                       backgroundColor: Colors.white.withValues(
                                         alpha: 0.06,
                                       ),
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        task.status == DownloadStatus.pending
-                                            ? Colors.white.withValues(alpha: 0.1)
-                                            : AppColors.violet.withValues(alpha: 0.8),
+                                        AppColors.violet.withValues(alpha: 0.8),
                                       ),
-                                    );
-                                  },
-                                ),
+                                    )
+                                  : TweenAnimationBuilder<double>(
+                                      tween: Tween<double>(
+                                        end: task.status == DownloadStatus.pending
+                                            ? 0.0
+                                            : task.progress,
+                                      ),
+                                      duration: const Duration(milliseconds: 300),
+                                      builder: (context, animatedProgress, _) {
+                                        return LinearProgressIndicator(
+                                          value: animatedProgress,
+                                          backgroundColor: Colors.white.withValues(
+                                            alpha: 0.06,
+                                          ),
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            task.status == DownloadStatus.pending
+                                                ? Colors.white.withValues(alpha: 0.1)
+                                                : AppColors.violet.withValues(alpha: 0.8),
+                                          ),
+                                        );
+                                      },
+                                    ),
                         ),
                       ),
                     ],

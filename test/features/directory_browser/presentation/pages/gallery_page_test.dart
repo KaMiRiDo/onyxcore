@@ -113,8 +113,14 @@ Widget createWidgetUnderTest(
       mediaMetadataDatasourceProvider.overrideWithValue(mockMediaMetadataDatasource),
       downloadsPanelWidthProvider.overrideWith(MockDownloadsPanelWidthNotifier.new),
     ],
-    child: const MaterialApp(
-      home: Scaffold(
+    child: MaterialApp(
+      actions: {
+        ...WidgetsApp.defaultActions,
+        DismissIntent: CallbackAction<DismissIntent>(
+          onInvoke: (intent) => null,
+        ),
+      },
+      home: const Scaffold(
         body: SizedBox(
           width: 800,
           height: 600,
@@ -972,9 +978,44 @@ void main() {
 
   group('DragTarget Callbacks (Additional)', () {
     testWidgets('W-GAL-23, W-GAL-24: DragTarget callbacks', (tester) async {
-      // Skipping due to real OS drag-and-drop complexity in headless tests as per doc recommendations
-      expect(true, isTrue);
-    }, skip: true);
+      final db = getMockDb();
+      final mockSettingsRepository = MockSettingsRepository();
+      when(mockSettingsRepository.load).thenAnswer((_) async => AppSettings());
+
+      final mockDirectoryRepository = MockDirectoryRepository();
+      when(() => mockDirectoryRepository.listDirectory(any())).thenAnswer((_) async => [
+        FileItem(
+          path: '/mock/path/file.txt',
+          name: 'file.txt',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+        )
+      ]);
+      when(() => mockDirectoryRepository.watchDirectory(any())).thenAnswer((_) => const Stream.empty());
+
+      final mockMediaMetadataDatasource = MockMediaMetadataDatasource();
+      when(() => mockMediaMetadataDatasource.extractAspectRatio(any())).thenAnswer((_) async => null);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          directoryRepositoryProvider.overrideWithValue(mockDirectoryRepository),
+          settingsRepositoryProvider.overrideWithValue(mockSettingsRepository),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+          pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
+          deviceProvider.overrideWith((ref) => Stream.value([])),
+          mediaMetadataDatasourceProvider.overrideWithValue(mockMediaMetadataDatasource),
+          downloadsPanelWidthProvider.overrideWith(MockDownloadsPanelWidthNotifier.new),
+          isDraggingProvider.overrideWith((ref) => true),
+          previewFileProvider.overrideWith((ref) => null),
+        ],
+        child: const MaterialApp(home: Scaffold(body: GalleryPage())),
+      ));
+
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(DragTarget<List<String>>), findsWidgets);
+    });
   });
 
   group('Search Field Interaction (Additional)', () {

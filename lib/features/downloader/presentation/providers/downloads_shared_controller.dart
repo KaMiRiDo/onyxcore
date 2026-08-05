@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
@@ -27,6 +28,12 @@ class DownloadsSharedController extends ChangeNotifier {
   void dispose() {
     if (_isDisposed) return;
     _isDisposed = true;
+    for (final pids in activeHydrationPids.values) {
+      for (final pid in pids) {
+        ProcessUtils.killProcessTreeSync(pid);
+      }
+    }
+    activeHydrationPids.clear();
     super.dispose();
   }
 
@@ -55,11 +62,12 @@ class DownloadsSharedController extends ChangeNotifier {
 
     for (var i = 0; i < parsedItems.length; i++) {
       final itemGrp = parsedItems[i];
+      if (itemGrp.items.isEmpty) continue;
       final config = cache.configs[i];
 
       var groupSize = 0;
       if (config != null) {
-        groupSize = _getGroupBytes(itemGrp, config);
+        groupSize = getGroupBytes(itemGrp, config);
       } else {
         groupSize = itemGrp.totalFilesize;
       }
@@ -80,7 +88,7 @@ class DownloadsSharedController extends ChangeNotifier {
         }
       }
       
-      if (itemGrp.first.isPlaylist || itemGrp.first.isProfile) {
+      if (itemGrp.items.isNotEmpty && (itemGrp.first.isPlaylist || itemGrp.first.isProfile)) {
         hasUnderestimatedSize = true;
       }
 
@@ -91,7 +99,7 @@ class DownloadsSharedController extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
-  int _getGroupBytes(MediaGroup group, DownloadConfig config) {
+  int getGroupBytes(MediaGroup group, DownloadConfig config) {
     if (config.mode == DownloadMode.normal) {
       if (config.groupFilter == GroupDownloadType.images) {
         return group.items.where((i) => !i.isVideo).fold(0, (sum, item) => sum + (item.filesize ?? 0));
@@ -314,8 +322,40 @@ class DownloadsSharedController extends ChangeNotifier {
       if (!_isDisposed) notifyListeners();
     } catch (e) {
       backgroundLoadingProfiles.remove(url);
+      activeHydrationPids.remove(url);
+      if (cache.parsedItems != null) {
+        final groupIndex = cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
+        if (groupIndex != -1) {
+          final group = cache.parsedItems![groupIndex];
+          group.items.removeWhere((e) => e.id == 'hydration_loading');
+          cache.notify();
+          recalculateFilteredStatistics();
+          hydrationNotifier.value++;
+        }
+      }
       if (!_isDisposed) notifyListeners();
     }
+  }
+
+  Future<void> cancelHydration(String url) async {
+    final pids = activeHydrationPids.remove(url);
+    if (pids != null) {
+      for (final pid in pids) {
+        await ProcessUtils.killProcessTree(pid);
+      }
+    }
+    backgroundLoadingProfiles.remove(url);
+    if (cache.parsedItems != null) {
+      final groupIndex = cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
+      if (groupIndex != -1) {
+        final group = cache.parsedItems![groupIndex];
+        group.items.removeWhere((e) => e.id == 'hydration_loading');
+        cache.notify();
+        recalculateFilteredStatistics();
+        hydrationNotifier.value++;
+      }
+    }
+    if (!_isDisposed) notifyListeners();
   }
 
   Future<void> importListFromFile(String path, String fileName) async {

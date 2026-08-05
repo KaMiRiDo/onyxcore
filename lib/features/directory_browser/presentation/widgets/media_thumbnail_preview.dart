@@ -168,6 +168,9 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
   Future<void> _loadThumbnail() async {
     final cacheService = ref.read(thumbnailCacheServiceProvider);
     final filePath = widget.item.path;
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return;
+    }
 
     final mtime = widget.item.modified.millisecondsSinceEpoch;
     final sizeBytes = widget.item.sizeBytes ?? 0;
@@ -470,6 +473,34 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final netUrl = (widget.item.thumbnailPath?.isNotEmpty == true &&
+            (widget.item.thumbnailPath!.startsWith('http://') ||
+                widget.item.thumbnailPath!.startsWith('https://')))
+        ? widget.item.thumbnailPath
+        : ((widget.item.type == FileItemType.image &&
+                (widget.item.path.startsWith('http://') ||
+                    widget.item.path.startsWith('https://')))
+            ? widget.item.path
+            : null);
+
+    if (netUrl != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox.expand(
+          child: Image.network(
+            netUrl,
+            fit: BoxFit.cover,
+            cacheWidth: 300,
+            errorBuilder: (c, e, s) => _buildSvgIcon(
+              widget.item.type == FileItemType.image
+                  ? 'assets/icons/image.svg'
+                  : 'assets/icons/video.svg',
             ),
           ),
         ),

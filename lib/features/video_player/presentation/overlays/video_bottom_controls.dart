@@ -651,24 +651,21 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                         );
                         return IconButton(
                           icon: const Icon(Icons.playlist_play, size: 24),
-                          color: widget.displayState.isNetworkStream
-                              ? Colors.white30
-                              : (isOpen ? AppColors.magenta : Colors.white),
-                          onPressed: widget.displayState.isNetworkStream
-                              ? null
-                              : () {
-                                  sidebarRef
-                                          .read(
-                                            videoPlaylistSidebarVisibleProvider
-                                                .notifier,
-                                          )
-                                          .state =
-                                      !isOpen;
-                                },
+                          color: isOpen ? AppColors.magenta : Colors.white,
+                          onPressed: () {
+                            sidebarRef
+                                    .read(
+                                      videoPlaylistSidebarVisibleProvider
+                                          .notifier,
+                                    )
+                                    .state =
+                                !isOpen;
+                          },
                           tooltip: 'Playlist',
                         );
                       },
                     ),
+
 
                     // All remaining left/center/right controls hidden in empty state
                     if (!widget.displayState.isEmpty) ...[

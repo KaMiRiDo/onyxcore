@@ -81,6 +81,30 @@ void main() {
       expect(matrix.getTranslation().x, isNot(equals(0.0)));
     });
 
+    test('updateConstraints clamps transformation when imageSize becomes non-null', () {
+      // Initialize with imageSize = null
+      final controller = ImageZoomController(
+        animationEngine: animationEngine,
+      )..updateConstraints(const Size(1000, 1000), null);
+
+      // Set zoom and translate far out of bounds (allowed when imageSize == null)
+      controller
+        ..setZoom(2, focalPoint: const Offset(500, 500), animate: false)
+        ..applyTranslation(const Offset(5000, 5000));
+
+      final unconstrainedTx = controller.transformationController.value.getTranslation().x;
+      expect(unconstrainedTx, isNot(equals(0.0)));
+
+      // Now resolve imageSize and update constraints
+      controller.updateConstraints(const Size(1000, 1000), const Size(500, 500));
+
+      final constrainedTx = controller.transformationController.value.getTranslation().x;
+      // It should be clamped within bounds
+      expect(constrainedTx.abs(), lessThan(1000.0));
+
+      controller.dispose();
+    });
+
     test('reset clears all state', () {
       zoomController
         ..setZoom(2, focalPoint: const Offset(500, 500), animate: false)
@@ -95,3 +119,4 @@ void main() {
     });
   });
 }
+

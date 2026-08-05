@@ -25,6 +25,67 @@ class ImageMetadataLoader {
     BuildContext context,
     Future<void> firstFrame,
   ) async {
+    final isNetwork =
+        filePath.startsWith('http://') || filePath.startsWith('https://');
+
+    if (isNetwork) {
+      try {
+        final isSvg = filePath.toLowerCase().endsWith('.svg');
+        if (isSvg) {
+          return const ImageMetadata(
+            metadataString: 'Vector Graphic • Scalable',
+          );
+        }
+
+        await firstFrame;
+        if (!context.mounted) return const ImageMetadata();
+
+        final completer = Completer<Size>();
+        final stream = NetworkImage(
+          filePath,
+          headers: const {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept':
+                'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          },
+        ).resolve(ImageConfiguration.empty);
+        late ImageStreamListener listener;
+
+        listener = ImageStreamListener(
+          (imageInfo, synchronousCall) {
+            final size = Size(
+              imageInfo.image.width.toDouble(),
+              imageInfo.image.height.toDouble(),
+            );
+            if (!completer.isCompleted) {
+              completer.complete(size);
+            }
+            stream.removeListener(listener);
+          },
+          onError: (exception, stackTrace) {
+            if (!completer.isCompleted) {
+              completer.completeError(exception);
+            }
+          },
+        );
+        stream.addListener(listener);
+
+        final size =
+            await completer.future.timeout(const Duration(seconds: 10));
+        final mp = (size.width * size.height / 1000000).toStringAsFixed(1);
+        final metadataString =
+            '${size.width.toInt()}x${size.height.toInt()} px • $mp MP';
+
+        return ImageMetadata(
+          metadataString: metadataString,
+          imageSize: size,
+        );
+      } catch (e) {
+        return const ImageMetadata();
+      }
+    }
+
     final file = File(filePath);
     if (!file.existsSync()) {
       return const ImageMetadata();

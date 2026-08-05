@@ -276,6 +276,12 @@ class YtDlpEngine extends DownloadEngine {
                 json as Map<String, dynamic>,
                 originalUrl: url,
               );
+              if (info.galleryIndex == null) {
+                final idx = json['playlist_index'] as int? ??
+                    json['n_entries'] as int? ??
+                    (parsedInfos.length + 1);
+                info = info.copyWith(galleryIndex: idx);
+              }
               info = await _probeSize(json, info);
               parsedInfos.add(info);
               hydrationLogsBuffer.writeln(
@@ -429,6 +435,7 @@ class YtDlpEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     final args = <String>[
       '--newline',
@@ -472,6 +479,8 @@ class YtDlpEngine extends DownloadEngine {
       args.addAll(['--match-filter', 'id = $singleItemId']);
     } else if (galleryIndex != null) {
       args.addAll(['--playlist-items', galleryIndex.toString()]);
+    } else if (itemsRange != null && itemsRange.isNotEmpty) {
+      args.addAll(['--playlist-items', itemsRange]);
     } else if (!isPlaylist) {
       args.addAll(['--no-playlist']);
     }

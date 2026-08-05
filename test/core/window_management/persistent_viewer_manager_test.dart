@@ -164,6 +164,53 @@ void main() {
       expect(trigger.value, 0);
     });
 
+    test('getUrlFocusTrigger returns ValueNotifier and retains instance per viewId', () {
+      final trigger1 = PersistentViewerManager.getUrlFocusTrigger(123);
+      final trigger2 = PersistentViewerManager.getUrlFocusTrigger(123);
+      expect(trigger1, isNotNull);
+      expect(trigger1.value, 0);
+      expect(identical(trigger1, trigger2), isTrue);
+    });
+
+    test('presentAndFocusUrl invokes present_window and increments urlFocusTrigger', () async {
+      final trigger = PersistentViewerManager.getUrlFocusTrigger(456);
+      final initialVal = trigger.value;
+
+      await PersistentViewerManager.presentAndFocusUrl(456);
+
+      expect(
+        log.any((call) =>
+            call.method == 'present_window' &&
+            call.arguments['view_id'] == 456),
+        isTrue,
+      );
+      expect(trigger.value, initialVal + 1);
+    });
+
+    test('isWindowOpen and getActiveWindowId correctly check active windows', () async {
+      PersistentViewerManager.reset();
+      expect(PersistentViewerManager.isWindowOpen(ViewerType.downloader), isFalse);
+      expect(PersistentViewerManager.getActiveWindowId(ViewerType.downloader), isNull);
+
+      final file = FileItem(
+        path: '/test.ext',
+        name: 'test.ext',
+        type: FileItemType.other,
+        modified: DateTime.now(),
+        sizeBytes: 100,
+      );
+      final params = WindowParams(
+        viewerType: ViewerType.downloader,
+        file: file,
+        initParams: {},
+      );
+      await PersistentViewerManager.openMedia(params);
+
+      final viewId = WidgetsBinding.instance.platformDispatcher.views.first.viewId;
+      expect(PersistentViewerManager.isWindowOpen(ViewerType.downloader), isTrue);
+      expect(PersistentViewerManager.getActiveWindowId(ViewerType.downloader), equals(viewId));
+    });
+
     testWidgets('buildView branches', (tester) async {
       await tester.pumpWidget(Container());
       final ctx = tester.element(find.byType(Container));
@@ -207,3 +254,4 @@ void main() {
     });
   });
 }
+

@@ -47,16 +47,8 @@ void main() {
         expect(container.read(selectedDownloadHistoryIdProvider), isNull);
       });
 
-      test('U-DL-PNL-04: isDownloadInputFocusedProvider defaults to false', () {
-        expect(container.read(isDownloadInputFocusedProvider), isFalse);
-      });
-
       test('U-DL-PNL-05: isDownloadsPanelFocusedProvider defaults to false', () {
         expect(container.read(isDownloadsPanelFocusedProvider), isFalse);
-      });
-
-      test('U-DL-PNL-06: downloadUrlFocusRequestProvider defaults to 0', () {
-        expect(container.read(downloadUrlFocusRequestProvider), 0);
       });
 
       test('U-DL-PNL-07: isDownloadsPanelDraggingProvider defaults to false', () {

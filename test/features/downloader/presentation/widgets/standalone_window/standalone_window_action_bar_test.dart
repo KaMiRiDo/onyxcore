@@ -44,8 +44,8 @@ void main() {
     );
 
     expect(find.text('Default List'), findsOneWidget);
-    expect(find.text('Clear List'), findsOneWidget);
-    await tester.tap(find.text('Clear List'));
+    expect(find.text('Clear'), findsOneWidget);
+    await tester.tap(find.text('Clear'));
     expect(clearTapped, isTrue);
   });
 

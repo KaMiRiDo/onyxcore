@@ -288,6 +288,7 @@ class LuxEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     final args = <String>[
       '-o',

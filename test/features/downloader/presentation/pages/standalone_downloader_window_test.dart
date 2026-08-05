@@ -13,6 +13,7 @@ import 'package:onyxcore/features/downloader/presentation/pages/standalone_downl
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_location_bar.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:path/path.dart' as p;
@@ -148,6 +149,8 @@ class RecordingDownloadTaskNotifier extends DownloadTaskNotifier {
     String? singleItemId,
     String? directUrl,
     int expectedBytes = 0,
+    bool isCarousel = false,
+    String? itemsRange,
   }) {
     calls.add(<String, dynamic>{
       'action': 'start',
@@ -165,8 +168,11 @@ class RecordingDownloadTaskNotifier extends DownloadTaskNotifier {
       'browser': browser,
       'filterType': filterType,
       'totalItems': totalItems,
+      'singleItemId': singleItemId,
       'directUrl': directUrl,
       'expectedBytes': expectedBytes,
+      'isCarousel': isCarousel,
+      'itemsRange': itemsRange,
     });
   }
 
@@ -253,12 +259,28 @@ class RecordingDownloadsSharedController extends ChangeNotifier
         totalListSize += item.filesize ?? 0;
       }
 
-      if (group.first.isPlaylist || group.first.isProfile) {
+      if (group.items.isNotEmpty &&
+          (group.first.isPlaylist || group.first.isProfile)) {
         hasUnderestimatedSize = true;
       }
     }
 
     notifyListeners();
+  }
+
+  @override
+  int getGroupBytes(MediaGroup group, DownloadConfig config) {
+    if (config.mode == DownloadMode.normal) {
+      if (config.groupFilter == GroupDownloadType.images) {
+        return group.items.where((i) => !i.isVideo).fold(0, (sum, item) => sum + (item.filesize ?? 0));
+      } else if (config.groupFilter == GroupDownloadType.videos) {
+        return group.items.where((i) => i.isVideo).fold(0, (sum, item) => sum + (item.filesize ?? 0));
+      }
+      return group.totalFilesize;
+    } else {
+      if (config.itemFormats.isEmpty) return 0;
+      return config.itemFormats.values.fold(0, (sum, fmt) => sum + (fmt?.filesize ?? 0));
+    }
   }
 
   @override
@@ -268,6 +290,13 @@ class RecordingDownloadsSharedController extends ChangeNotifier
 
   @override
   Future<void> hydrateProfile(String url) async {}
+
+  @override
+  Future<void> cancelHydration(String url) async {
+    backgroundLoadingProfiles.remove(url);
+    activeHydrationPids.remove(url);
+    notifyListeners();
+  }
 
   @override
   Future<void> exportListToFile(String path) async {
@@ -341,6 +370,8 @@ Future<void> pumpWindow(
   required ProviderContainer container,
   Map<String, dynamic> initParams = const <String, dynamic>{},
 }) async {
+  tester.view.physicalSize = const Size(1920, 1080);
+  tester.view.devicePixelRatio = 1.0;
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -1232,8 +1263,8 @@ void main() {
         // First item v1 has audio format selected in config.itemFormats
         expect(find.byIcon(Icons.audiotrack_rounded), findsOneWidget);
 
-        // Thumbnail is the same as root, so it should be suppressed for both items since both have the same thumbnail.
-        expect(find.byIcon(Icons.image), findsWidgets);
+        // Thumbnails are rendered properly for playlist items
+        expect(find.byType(Image), findsWidgets);
       },
     );
 
@@ -1479,15 +1510,8 @@ void main() {
         );
         expect(
           find.text('Failed to fetch'),
-          findsNothing,
-        ); // Logs should be closed by default
-
-        // Open logs accordion
-        await tester.tap(find.text('Extraction Logs'));
-        for (var i = 0; i < 5; i++) {
-          await tester.pump(const Duration(milliseconds: 100));
-        }
-        expect(find.text('Failed to fetch'), findsOneWidget);
+          findsOneWidget,
+        ); // Logs should be initially expanded for error items
 
         // Close dialog via Esc key
         await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
@@ -1561,27 +1585,32 @@ void main() {
         expect(find.byType(Dialog), findsOneWidget);
         expect(find.text('Video 1, Video 2'), findsOneWidget);
         expect(find.text('Size: 60.00 MB'), findsOneWidget);
-        expect(find.text('1'), findsNWidgets(2)); // 1 Video, 1 Image
+        expect(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.text('1'),
+          ),
+          findsNWidgets(2),
+        ); // 1 Video, 1 Image
         expect(find.byIcon(Icons.videocam_rounded), findsWidgets);
         expect(find.byIcon(Icons.image_rounded), findsWidgets);
 
         // Ensure logs are NOT visible for multiple items
         expect(find.text('Extraction Logs'), findsNothing);
 
-        // Tap Download All button inside dialog
-        final downloadAllBtn = find.descendant(
+        // Tap close button inside dialog
+        final closeBtn = find.descendant(
           of: find.byType(Dialog),
-          matching: find.widgetWithText(ElevatedButton, 'Download All'),
+          matching: find.byIcon(Icons.close),
         );
-        await tester.tap(downloadAllBtn);
+        await tester.tap(closeBtn);
 
         for (var i = 0; i < 5; i++) {
           await tester.pump(const Duration(milliseconds: 100));
         }
 
-        // Dialog should close and downloads should start
+        // Dialog should close
         expect(find.byType(Dialog), findsNothing);
-        expect(taskNotifier.calls, hasLength(2));
       },
     );
 
@@ -1629,6 +1658,1008 @@ void main() {
 
         final smallContainerSize = tester.getSize(smallSidebarContainer);
         expect(smallContainerSize.width, 200.0);
+      },
+    );
+
+    testWidgets(
+      'W-SDW-024: bottom location bar statistics reflect root visible items and dynamically switch to subgroup-only stats when opening a playlist',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        // Group 0: Standalone video (10 MB)
+        final video1 = makeInfo(
+          id: 'v1',
+          title: 'Solo Video',
+          originalUrl: 'https://example.com/video1',
+          filesize: 10 * 1024 * 1024,
+        );
+        // Group 1: Standalone image (2 MB)
+        final img1 = makeInfo(
+          id: 'i1',
+          title: 'Solo Image',
+          originalUrl: 'https://example.com/img1',
+          isVideo: false,
+          filesize: 2 * 1024 * 1024,
+        );
+        // Group 2: Playlist (3 videos of 5MB, 2 images of 1MB = 17 MB)
+        final playlistItem1 = makeInfo(
+          id: 'pv1',
+          title: 'Playlist Video 1',
+          originalUrl: 'https://example.com/playlist',
+          isPlaylist: true,
+          filesize: 5 * 1024 * 1024,
+        );
+        final playlistItem2 = makeInfo(
+          id: 'pv2',
+          title: 'Playlist Video 2',
+          originalUrl: 'https://example.com/playlist',
+          filesize: 5 * 1024 * 1024,
+        );
+        final playlistItem3 = makeInfo(
+          id: 'pv3',
+          title: 'Playlist Video 3',
+          originalUrl: 'https://example.com/playlist',
+          filesize: 5 * 1024 * 1024,
+        );
+        final playlistImg1 = makeInfo(
+          id: 'pi1',
+          title: 'Playlist Image 1',
+          originalUrl: 'https://example.com/playlist',
+          isVideo: false,
+          filesize: 1 * 1024 * 1024,
+        );
+        final playlistImg2 = makeInfo(
+          id: 'pi2',
+          title: 'Playlist Image 2',
+          originalUrl: 'https://example.com/playlist',
+          isVideo: false,
+          filesize: 1 * 1024 * 1024,
+        );
+
+        final group0 = MediaGroup(items: [video1], originalUrl: video1.originalUrl);
+        final group1 = MediaGroup(items: [img1], originalUrl: img1.originalUrl);
+        final playlistGroup = MediaGroup(
+          items: [playlistItem1, playlistItem2, playlistItem3, playlistImg1, playlistImg2],
+          originalUrl: 'https://example.com/playlist',
+        );
+
+        controller.cache.parsedItems = [group0, group1, playlistGroup];
+        controller.cache.configs.addAll({
+          0: DownloadConfig(),
+          1: DownloadConfig(),
+          2: DownloadConfig(),
+        });
+        controller.recalculateFilteredStatistics();
+
+        await pumpWindow(tester, container: container);
+
+        // 1. In Root View:
+        // Total videos: 1 (solo) + 3 (playlist) = 4
+        // Total images: 1 (solo) + 2 (playlist) = 3
+        // Total size: 10MB + 2MB + 17MB = 29MB (30408704 bytes)
+        var locationBar = tester.widget<StandaloneWindowLocationBar>(
+          find.byType(StandaloneWindowLocationBar),
+        );
+        expect(locationBar.totalVideos, 4);
+        expect(locationBar.totalImages, 3);
+        expect(locationBar.totalSize, 29 * 1024 * 1024);
+
+        // 2. Open Playlist (double tap the playlist card)
+        final playlistFinder = find.text('Playlist Video 1');
+        expect(playlistFinder, findsOneWidget);
+        await doubleTapFinder(tester, playlistFinder);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        // In Subgroup View:
+        // Stats must be ONLY for that playlist:
+        // 3 videos, 2 images, 17MB (17825792 bytes)
+        locationBar = tester.widget<StandaloneWindowLocationBar>(
+          find.byType(StandaloneWindowLocationBar),
+        );
+        expect(locationBar.totalVideos, 3);
+        expect(locationBar.totalImages, 2);
+        expect(locationBar.totalSize, 17 * 1024 * 1024);
+
+        // 3. Navigate back to Root View by tapping back in breadcrumb
+        final backButton = find.byIcon(Icons.arrow_back);
+        expect(backButton, findsOneWidget);
+        await tester.tap(backButton);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        // In Root View again:
+        locationBar = tester.widget<StandaloneWindowLocationBar>(
+          find.byType(StandaloneWindowLocationBar),
+        );
+        expect(locationBar.totalVideos, 4);
+        expect(locationBar.totalImages, 3);
+        expect(locationBar.totalSize, 29 * 1024 * 1024);
+      },
+    );
+
+    testWidgets(
+      'W-SDW-025: bottom location bar statistics update according to search filter in root and subgroup views',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final video1 = makeInfo(
+          id: 'v1',
+          title: 'Nature Video',
+          originalUrl: 'https://example.com/video1',
+          filesize: 10 * 1024 * 1024,
+        );
+        final img1 = makeInfo(
+          id: 'i1',
+          title: 'Urban Image',
+          originalUrl: 'https://example.com/img1',
+          isVideo: false,
+          filesize: 2 * 1024 * 1024,
+        );
+        final playlistItem1 = makeInfo(
+          id: 'pv1',
+          title: 'Nature Playlist',
+          originalUrl: 'https://example.com/playlist',
+          isPlaylist: true,
+          filesize: 4 * 1024 * 1024,
+        );
+        final playlistItem2 = makeInfo(
+          id: 'pv2',
+          title: 'Mountain Clip',
+          originalUrl: 'https://example.com/playlist',
+          filesize: 6 * 1024 * 1024,
+        );
+
+        final group0 = MediaGroup(items: [video1], originalUrl: video1.originalUrl);
+        final group1 = MediaGroup(items: [img1], originalUrl: img1.originalUrl);
+        final playlistGroup = MediaGroup(
+          items: [playlistItem1, playlistItem2],
+          originalUrl: 'https://example.com/playlist',
+        );
+
+        controller.cache.parsedItems = [group0, group1, playlistGroup];
+        controller.cache.configs.addAll({
+          0: DownloadConfig(),
+          1: DownloadConfig(),
+          2: DownloadConfig(),
+        });
+        controller.recalculateFilteredStatistics();
+
+        await pumpWindow(tester, container: container);
+
+        // Search for "Urban" in root
+        final state = standaloneState(tester);
+        state.searchControllerForTesting.text = 'Urban';
+        state.onSearchChangedForTesting();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        // Only "Urban Image" visible -> 0 videos, 1 image, 2MB
+        var locationBar = tester.widget<StandaloneWindowLocationBar>(
+          find.byType(StandaloneWindowLocationBar),
+        );
+        expect(locationBar.totalVideos, 0);
+        expect(locationBar.totalImages, 1);
+        expect(locationBar.totalSize, 2 * 1024 * 1024);
+
+        // Clear search
+        state.searchControllerForTesting.text = '';
+        state.onSearchChangedForTesting();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        // Open Nature Playlist
+        final playlistFinder = find.text('Nature Playlist');
+        await doubleTapFinder(tester, playlistFinder);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        // Filter within playlist for "Mountain"
+        state.searchControllerForTesting.text = 'Mountain';
+        state.onSearchChangedForTesting();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        // Only Mountain Clip visible -> 1 video, 0 images, 6MB
+        locationBar = tester.widget<StandaloneWindowLocationBar>(
+          find.byType(StandaloneWindowLocationBar),
+        );
+        expect(locationBar.totalVideos, 1);
+        expect(locationBar.totalImages, 0);
+        expect(locationBar.totalSize, 6 * 1024 * 1024);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-026: Default download location to Downloads & downloads to location section path
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-026: defaults download location to Downloads and downloads to footer location',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final home = Platform.isWindows
+            ? (Platform.environment['USERPROFILE'] ?? r'C:\')
+            : (Platform.environment['HOME'] ?? '/');
+        final defaultDownloads = p.join(home, 'Downloads');
+
+        final item = makeInfo(
+          id: 'item-dl',
+          title: 'Download Target Item',
+          originalUrl: 'https://example.com/target.mp4',
+          filesize: 5 * 1024 * 1024,
+        );
+        final group = MediaGroup(items: [item], originalUrl: item.originalUrl);
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        // Pump window without explicit currentPath in initParams
+        await pumpWindow(tester, container: container);
+
+        final state = standaloneState(tester);
+        // Should default to Downloads directory
+        expect(state.currentPathForTesting, defaultDownloads);
+
+        // Location bar displays the default Downloads path
+        final locationBarFinder = find.byType(StandaloneWindowLocationBar);
+        expect(locationBarFinder, findsOneWidget);
+        final locationBar = tester.widget<StandaloneWindowLocationBar>(
+          locationBarFinder,
+        );
+        expect(locationBar.currentPath, defaultDownloads);
+
+        // User changes the location in footer
+        final customDest = p.join(tempDir.path, 'MyCustomDownloads');
+        state.currentPathForTesting = customDest;
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // Start download by tapping download button
+        await tester.tap(find.byIcon(Icons.download_rounded).first);
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(taskNotifier.calls, hasLength(1));
+        expect(taskNotifier.calls.first['destination'], customDest);
+        expect(taskNotifier.calls.first['title'], 'Download Target Item');
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-027: Clicking download on an item inside a group (playlist/profile) downloads only that single item
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-027: clicking download button of one item in grouped items downloads only that item',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final item1 = makeInfo(
+          id: 'vid-101',
+          title: 'First Group Video',
+          originalUrl: 'https://www.youtube.com/playlist?list=PL123',
+          webpageUrl: 'https://www.youtube.com/watch?v=vid-101',
+          filesize: 10 * 1024 * 1024,
+          isPlaylist: true, // Group item might inherit isPlaylist flag
+        );
+        final item2 = makeInfo(
+          id: 'vid-102',
+          title: 'Second Group Video',
+          originalUrl: 'https://www.youtube.com/playlist?list=PL123',
+          webpageUrl: 'https://www.youtube.com/watch?v=vid-102',
+          filesize: 20 * 1024 * 1024,
+          isPlaylist: true,
+        );
+        final group = MediaGroup(
+          items: [item1, item2],
+          originalUrl: 'https://www.youtube.com/playlist?list=PL123',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        // Double tap playlist to open grouped view
+        final playlistFinder = find.text('First Group Video');
+        await doubleTapFinder(tester, playlistFinder);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        final state = standaloneState(tester);
+        expect(state.currentGroupForTesting, isNotNull);
+        expect(state.currentGroupForTesting!.items.length, 2);
+
+        // Tap download button on the first item
+        final downloadButtons = find.byIcon(Icons.download_rounded);
+        expect(downloadButtons, findsWidgets);
+        await tester.tap(downloadButtons.first);
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // Must trigger ONLY ONE download task for that single item!
+        expect(taskNotifier.calls, hasLength(1));
+        final call = taskNotifier.calls.first;
+        expect(call['action'], 'start');
+        expect(call['url'], 'https://www.youtube.com/watch?v=vid-101');
+        expect(call['title'], 'First Group Video');
+        expect(
+          call['destination'],
+          tempDir.path,
+          reason:
+              'Single item download from group must go directly to destination root without subfolder',
+        );
+        expect(
+          call['isPlaylist'],
+          isFalse,
+          reason: 'Single item must not be marked as playlist',
+        );
+        expect(
+          call['isProfile'],
+          isFalse,
+          reason: 'Single item must not be marked as profile',
+        );
+        expect(
+          call['totalItems'],
+          1,
+          reason: 'Single item must have totalItems = 1',
+        );
+        expect(call['singleItemId'], 'vid-101');
+        expect(call['downloadType'], 'video');
+
+        // Item must be removed from the active group view
+        expect(state.currentGroupForTesting!.items.length, 1);
+        expect(state.currentGroupForTesting!.items.first.id, 'vid-102');
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-028: Downloading selected items in a grouped item downloads only selected items as single items
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-028: downloading selected items in a group downloads only selected items as single items directly to dest',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final item1 = makeInfo(
+          id: 'photo-1',
+          title: 'Photo One',
+          originalUrl: 'https://instagram.com/user',
+          directUrl: 'https://instagram.com/photo1.jpg',
+          isVideo: false,
+          isProfile: true,
+        );
+        final item2 = makeInfo(
+          id: 'photo-2',
+          title: 'Photo Two',
+          originalUrl: 'https://instagram.com/user',
+          directUrl: 'https://instagram.com/photo2.jpg',
+          isVideo: false,
+          isProfile: true,
+        );
+        final item3 = makeInfo(
+          id: 'photo-3',
+          title: 'Photo Three',
+          originalUrl: 'https://instagram.com/user',
+          directUrl: 'https://instagram.com/photo3.jpg',
+          isVideo: false,
+          isProfile: true,
+        );
+        final group = MediaGroup(
+          items: [item1, item2, item3],
+          originalUrl: 'https://instagram.com/user',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        // Open profile group
+        await doubleTapFinder(tester, find.text('Photo One'));
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+
+        final state = standaloneState(tester);
+        // Select item 0 and item 1
+        state.onItemTapForTesting(0);
+        state.onItemTapForTesting(1, isCtrl: true);
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // Tap Download 2 in footer location bar
+        final downloadSelectedFinder = find.text('Download 2');
+        expect(downloadSelectedFinder, findsOneWidget);
+        await tester.tap(downloadSelectedFinder);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Expect 2 downloads triggered, each for single item directly to dest
+        expect(taskNotifier.calls, hasLength(2));
+        for (final call in taskNotifier.calls) {
+          expect(call['isPlaylist'], isFalse);
+          expect(call['isProfile'], isFalse);
+          expect(call['totalItems'], 1);
+          expect(call['downloadType'], 'image');
+          expect(
+            call['destination'],
+            tempDir.path,
+            reason:
+                'Selected item downloads must go directly to destination root',
+          );
+        }
+        expect(
+          taskNotifier.calls[0]['url'],
+          'https://instagram.com/photo2.jpg',
+        );
+        expect(
+          taskNotifier.calls[1]['url'],
+          'https://instagram.com/photo1.jpg',
+        );
+        expect(state.currentGroupForTesting!.items.length, 1);
+        expect(state.currentGroupForTesting!.items.first.id, 'photo-3');
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-029: Downloading entire grouped item creates a single enclosing folder
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-029: downloading entire grouped item creates a single enclosing folder for all files',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final item1 = makeInfo(
+          id: 'item-1',
+          title: 'Carousel Item 1',
+          originalUrl: 'https://instagram.com/p/123',
+          directUrl: 'https://instagram.com/p/123/item1.jpg',
+          isVideo: false,
+        );
+        final item2 = makeInfo(
+          id: 'item-2',
+          title: 'Carousel Item 2',
+          originalUrl: 'https://instagram.com/p/123',
+          directUrl: 'https://instagram.com/p/123/item2.mp4',
+        );
+        final group = MediaGroup(
+          items: [item1, item2],
+          originalUrl: 'https://instagram.com/p/123',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        // Tap download on group card in root view
+        final downloadButtons = find.byIcon(Icons.download_rounded);
+        expect(downloadButtons, findsWidgets);
+        await tester.tap(downloadButtons.first);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Expect 1 single download task triggered for the entire carousel group into a single subfolder
+        expect(taskNotifier.calls, hasLength(1));
+        final expectedFolder = p.join(tempDir.path, 'Carousel Item 1');
+        expect(Directory(expectedFolder).existsSync(), isTrue);
+        final call = taskNotifier.calls.first;
+        expect(call['destination'], expectedFolder);
+        expect(call['totalItems'], 2);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-030: Single root item downloads directly to destination root without creating a subfolder
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-030: single root item downloads directly to destination root without creating subfolder',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final singleItem = makeInfo(
+          id: 'single-vid',
+          title: 'Single Standalone Video',
+          originalUrl: 'https://youtube.com/watch?v=single-vid',
+        );
+        final group = MediaGroup(
+          items: [singleItem],
+          originalUrl: 'https://youtube.com/watch?v=single-vid',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        // Tap download on single card in root view
+        final downloadButtons = find.byIcon(Icons.download_rounded);
+        expect(downloadButtons, findsWidgets);
+        await tester.tap(downloadButtons.first);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(taskNotifier.calls, hasLength(1));
+        final call = taskNotifier.calls.first;
+        expect(call['destination'], tempDir.path);
+        expect(call['totalItems'], 1);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-031: Grouped item download reuses existing folder without creating (1)/(2) numbered folders
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-031: downloading grouped item when destination folder already exists reuses folder and does not create duplicate numbered folders',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        // Pre-create the directory to simulate existing folder
+        final existingFolder = Directory(p.join(tempDir.path, 'Photo Album'));
+        existingFolder.createSync(recursive: true);
+
+        final item1 = makeInfo(
+          id: 'photo-1',
+          title: 'Photo Album',
+          originalUrl: 'https://instagram.com/p/album',
+          directUrl: 'https://instagram.com/p/album/1.jpg',
+          isVideo: false,
+        );
+        final item2 = makeInfo(
+          id: 'photo-2',
+          title: 'Photo Album',
+          originalUrl: 'https://instagram.com/p/album',
+          directUrl: 'https://instagram.com/p/album/2.jpg',
+          isVideo: false,
+        );
+        final group = MediaGroup(
+          items: [item1, item2],
+          originalUrl: 'https://instagram.com/p/album',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        final downloadButtons = find.byIcon(Icons.download_rounded);
+        expect(downloadButtons, findsWidgets);
+        await tester.tap(downloadButtons.first);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(taskNotifier.calls, hasLength(1));
+        final call = taskNotifier.calls.first;
+        expect(call['destination'], existingFolder.path);
+        expect(call['totalItems'], 2);
+
+        // Verify no duplicate numbered folders were created in tempDir
+        expect(Directory(p.join(tempDir.path, 'Photo Album (1)')).existsSync(), isFalse);
+        expect(Directory(p.join(tempDir.path, 'Photo Album (2)')).existsSync(), isFalse);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-032: Profile/playlist grouped download creates a single enclosing directory and routes all items there
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-032: profile and playlist grouped downloads create a single enclosing directory and do not create duplicate subfolders',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final profileItem = makeInfo(
+          id: 'prof-root',
+          title: 'User Profile',
+          originalUrl: 'https://instagram.com/user',
+          isProfile: true,
+        );
+        final subItem1 = makeInfo(
+          id: 'sub-1',
+          title: 'User Profile',
+          originalUrl: 'https://instagram.com/user',
+          directUrl: 'https://instagram.com/media1.jpg',
+        );
+        final subItem2 = makeInfo(
+          id: 'sub-2',
+          title: 'User Profile',
+          originalUrl: 'https://instagram.com/user',
+          directUrl: 'https://instagram.com/media2.jpg',
+        );
+        final group = MediaGroup(
+          items: [profileItem, subItem1, subItem2],
+          originalUrl: 'https://instagram.com/user',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        final downloadButtons = find.byIcon(Icons.download_rounded);
+        expect(downloadButtons, findsWidgets);
+        await tester.tap(downloadButtons.first);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(taskNotifier.calls, hasLength(1));
+        final call = taskNotifier.calls.first;
+        final expectedFolder = p.join(tempDir.path, 'User Profile');
+        expect(call['destination'], expectedFolder);
+        expect(call['isProfile'], isTrue);
+        expect(Directory(expectedFolder).existsSync(), isTrue);
+        expect(Directory(p.join(tempDir.path, 'User Profile (1)')).existsSync(), isFalse);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-033: Download All across multiple groups creates only one folder per multi-item group
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-033: Download All across multiple groups creates only one folder per multi-item group without conflict-numbered folders',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        // Group 1: 2 items named "Collection Alpha"
+        final g1i1 = makeInfo(
+          id: 'g1-1',
+          title: 'Collection Alpha',
+          originalUrl: 'https://example.com/g1',
+          directUrl: 'https://example.com/g1-1.jpg',
+        );
+        final g1i2 = makeInfo(
+          id: 'g1-2',
+          title: 'Collection Alpha',
+          originalUrl: 'https://example.com/g1',
+          directUrl: 'https://example.com/g1-2.jpg',
+        );
+        final group1 = MediaGroup(
+          items: [g1i1, g1i2],
+          originalUrl: 'https://example.com/g1',
+        );
+
+        // Group 2: Single item named "Single Beta"
+        final g2i1 = makeInfo(
+          id: 'g2-1',
+          title: 'Single Beta',
+          originalUrl: 'https://example.com/g2',
+          directUrl: 'https://example.com/g2-1.mp4',
+        );
+        final group2 = MediaGroup(
+          items: [g2i1],
+          originalUrl: 'https://example.com/g2',
+        );
+
+        controller.cache.parsedItems = [group1, group2];
+        controller.cache.configs[0] = DownloadConfig();
+        controller.cache.configs[1] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        // Tap Download All on the location bar
+        final downloadAllFinder = find.text('Download All');
+        expect(downloadAllFinder, findsOneWidget);
+        await tester.tap(downloadAllFinder);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Expect 1 single call for group 1 (into Collection Alpha) and 1 call for group 2 (into root tempDir)
+        expect(taskNotifier.calls, hasLength(2));
+        final g1Dest = p.join(tempDir.path, 'Collection Alpha');
+        expect(taskNotifier.calls[0]['destination'], g1Dest);
+        expect(taskNotifier.calls[0]['totalItems'], 2);
+        expect(taskNotifier.calls[1]['destination'], tempDir.path);
+        expect(taskNotifier.calls[1]['totalItems'], 1);
+
+        // Verify folder structure
+        expect(Directory(g1Dest).existsSync(), isTrue);
+        expect(Directory(p.join(tempDir.path, 'Collection Alpha (1)')).existsSync(), isFalse);
+        expect(Directory(p.join(tempDir.path, 'Single Beta')).existsSync(), isFalse);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-035: Group title with newlines/tabs sanitizes cleanly into a single folder
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-035: group title with newlines/tabs sanitizes cleanly into a single folder without multiple folders',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final item1 = makeInfo(
+          id: 'multiline-1',
+          title: "You wouldn't get it😌\n#newpost",
+          originalUrl: 'https://instagram.com/p/multiline',
+          directUrl: 'https://instagram.com/p/multiline/1.jpg',
+        );
+        final item2 = makeInfo(
+          id: 'multiline-2',
+          title: "You wouldn't get it😌\n#newpost",
+          originalUrl: 'https://instagram.com/p/multiline',
+          directUrl: 'https://instagram.com/p/multiline/2.jpg',
+        );
+        final group = MediaGroup(
+          items: [item1, item2],
+          originalUrl: 'https://instagram.com/p/multiline',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        final downloadButtons = find.byIcon(Icons.download_rounded);
+        expect(downloadButtons, findsWidgets);
+        await tester.tap(downloadButtons.first);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(taskNotifier.calls, hasLength(1));
+        final call = taskNotifier.calls.first;
+        final expectedFolder = p.join(tempDir.path, "You wouldn't get it😌 #newpost");
+        expect(call['destination'], expectedFolder);
+        expect(Directory(expectedFolder).existsSync(), isTrue);
+
+        // Verify NO newline folder or duplicate folders were created
+        expect(Directory(p.join(tempDir.path, "You wouldn't get it😌\n#newpost")).existsSync(), isFalse);
+        expect(Directory(p.join(tempDir.path, "You wouldn't get it😌")).existsSync(), isFalse);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-015: Group Download with Deleted Items passes exact range
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-015: group download after deleting items passes surviving itemsRange and expectedBytes',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final item1 = makeInfo(
+          id: 'item-1',
+          title: 'Carousel Item 1',
+          galleryIndex: 1,
+          filesize: 1000,
+          originalUrl: 'https://instagram.com/p/carousel123',
+        );
+        final item4 = makeInfo(
+          id: 'item-4',
+          title: 'Carousel Item 4',
+          galleryIndex: 4,
+          filesize: 4000,
+          originalUrl: 'https://instagram.com/p/carousel123',
+        );
+        // Suppose items 2 and 3 were deleted, leaving only items 1 and 4 in the group
+        final group = MediaGroup(
+          items: [item1, item4],
+          originalUrl: 'https://instagram.com/p/carousel123',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        final downloadButtons = find.byIcon(Icons.download_rounded);
+        expect(downloadButtons, findsWidgets);
+        await tester.tap(downloadButtons.first);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(taskNotifier.calls, hasLength(1));
+        final call = taskNotifier.calls.first;
+        expect(call['itemsRange'], '1,4');
+        expect(call['totalItems'], 2);
+        expect(call['expectedBytes'], 5000);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-016: Intact Group Download passes null itemsRange
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-016: intact group download (all items present) passes itemsRange as null',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        final item1 = makeInfo(
+          id: 'item-1',
+          title: 'Carousel Item 1',
+          galleryIndex: 1,
+          filesize: 1000,
+          originalUrl: 'https://instagram.com/p/carousel123',
+        );
+        final item2 = makeInfo(
+          id: 'item-2',
+          title: 'Carousel Item 2',
+          galleryIndex: 2,
+          filesize: 2000,
+          originalUrl: 'https://instagram.com/p/carousel123',
+        );
+        final item3 = makeInfo(
+          id: 'item-3',
+          title: 'Carousel Item 3',
+          galleryIndex: 3,
+          filesize: 3000,
+          originalUrl: 'https://instagram.com/p/carousel123',
+        );
+        final group = MediaGroup(
+          items: [item1, item2, item3],
+          originalUrl: 'https://instagram.com/p/carousel123',
+        );
+        controller.cache.parsedItems = [group];
+        controller.cache.configs[0] = DownloadConfig();
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        final downloadButtons = find.byIcon(Icons.download_rounded);
+        expect(downloadButtons, findsWidgets);
+        await tester.tap(downloadButtons.first);
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(taskNotifier.calls, hasLength(1));
+        final call = taskNotifier.calls.first;
+        expect(call['itemsRange'], isNull);
+        expect(call['totalItems'], 3);
+        expect(call['expectedBytes'], 6000);
+      },
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // W-SDW-021: Deleting a hydrating root item calls cancelHydration
+    // ═══════════════════════════════════════════════════════════════
+    testWidgets(
+      'W-SDW-021: deleting a hydrating root item cancels hydration on controller',
+      (tester) async {
+        final controller = RecordingDownloadsSharedController();
+        final taskNotifier = RecordingDownloadTaskNotifier();
+        final container = createContainer(
+          controller: controller,
+          taskNotifier: taskNotifier,
+          currentPath: tempDir.path,
+        );
+        addTearDown(container.dispose);
+
+        const testUrl = 'https://instagram.com/p/hydrating_post';
+        final loadingItem = makeInfo(
+          id: 'hydration_loading',
+          title: 'Loading...',
+          originalUrl: testUrl,
+        );
+        final group = MediaGroup(
+          items: [loadingItem],
+          originalUrl: testUrl,
+        );
+
+        controller.cache.parsedItems = <MediaGroup>[group];
+        controller.backgroundLoadingProfiles.add(testUrl);
+        controller.activeHydrationPids[testUrl] = <int>[12345];
+
+        await pumpWindow(
+          tester,
+          container: container,
+          initParams: <String, dynamic>{'currentPath': tempDir.path},
+        );
+
+        expect(controller.backgroundLoadingProfiles.contains(testUrl), isTrue);
+
+        standaloneState(tester).selectedIndicesForTesting.add(0);
+        standaloneState(tester).handleDeleteForTesting(false);
+        await tester.pump();
+
+        expect(controller.backgroundLoadingProfiles.contains(testUrl), isFalse);
+        expect(controller.activeHydrationPids.containsKey(testUrl), isFalse);
+        expect(controller.cache.parsedItems, isEmpty);
       },
     );
   });

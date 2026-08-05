@@ -66,13 +66,23 @@ class PlaywrightEngine extends DownloadEngine {
     // Users must explicitly select it from the engine dropdown.
   ];
 
+  /// Directory where Playwright downloads Chromium browser binaries.
+  @visibleForTesting
+  Directory get chromiumCacheDir {
+    final home = Platform.environment['HOME'] ?? '';
+    return Directory(p.join(home, '.cache', 'ms-playwright'));
+  }
+
   @override
   bool get isInstalled {
-    // Only check the Chromium browser directory for fast synchronous evaluation.
-    // Running python3 -c import synchronously blocks the UI thread heavily.
-    final home = Platform.environment['HOME'] ?? '';
-    final chromiumDir = Directory(p.join(home, '.cache', 'ms-playwright'));
-    return chromiumDir.existsSync();
+    final dir = chromiumCacheDir;
+    if (!dir.existsSync()) return false;
+    try {
+      final entries = dir.listSync();
+      return entries.any((e) => p.basename(e.path).startsWith('chromium'));
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -83,7 +93,7 @@ class PlaywrightEngine extends DownloadEngine {
     // Install playwright Python package + Chromium browser binary
     return Process.start('bash', [
       '-c',
-      'pip3 install playwright --break-system-packages && playwright install chromium',
+      'pip3 install playwright --break-system-packages && python3 -m playwright install chromium',
     ]);
   }
 
@@ -92,7 +102,7 @@ class PlaywrightEngine extends DownloadEngine {
     // Remove Chromium browser + uninstall Python package to reclaim ~300 MB
     return Process.start('bash', [
       '-c',
-      'python3 -m playwright uninstall --all && pip3 uninstall playwright -y --break-system-packages',
+      'python3 -m playwright uninstall --all && pip3 uninstall playwright -y --break-system-packages && rm -rf "\$HOME/.cache/ms-playwright"',
     ]);
   }
 
@@ -100,7 +110,7 @@ class PlaywrightEngine extends DownloadEngine {
   Future<String?> getInstalledVersion() async {
     if (!isInstalled) return null;
     try {
-      final res = await Process.run('playwright', ['--version']);
+      final res = await Process.run('python3', ['-m', 'playwright', '--version']);
       if (res.exitCode == 0) {
         final out = (res.stdout as String).trim();
         // Version 1.43.0 -> 1.43.0
@@ -113,6 +123,7 @@ class PlaywrightEngine extends DownloadEngine {
   }
 
   @override
+
   Future<String?> getLatestVersion() async {
     try {
       final res = await Process.run('curl', [
@@ -331,6 +342,7 @@ class PlaywrightEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     final safeTitle =
         title?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_') ??

@@ -6,6 +6,8 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/services/thumbnail_aspect_resolver.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_empty_state.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_components.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
 
@@ -36,6 +38,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
     this.tagKeys = const {},
     this.trash = const [],
     this.onShowProperties,
+    this.onCancelHydration,
   });
 
   final String listPath;
@@ -47,6 +50,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
   final DownloadConfig? Function(MediaGroup) getConfig;
   final int? currentGroupRootIndex;
   final bool Function(String) isHydratingItem;
+  final void Function(String url)? onCancelHydration;
 
   final void Function(int index, {bool isCtrl, bool isShift}) onTapItem;
   final void Function(int index, MediaGroup group) onDoubleTapItem;
@@ -87,23 +91,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
           ),
         );
       } else {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.inbox,
-                size: 48,
-                color: Colors.white.withValues(alpha: 0.2),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'List is empty',
-                style: TextStyle(color: Colors.white54),
-              ),
-            ],
-          ),
-        );
+        return const DownloadsEmptyState();
       }
     }
 
@@ -112,170 +100,178 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
       displayIndices.add(i);
     }
 
-    return GestureDetector(
-      onTap: () {
-        mainFocusNode.requestFocus();
-        onTapItem(-1, isCtrl: false, isShift: false); // Signify clear selection
-      },
-      behavior: HitTestBehavior.opaque,
-      child: CustomScrollView(
-        // ignore: deprecated_member_use
-        cacheExtent: 1000,
-        controller: scrollController,
-        key: PageStorageKey<String>(isTrashView ? 'trash_$listPath' : listPath),
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverMasonryGrid.extent(
-              maxCrossAxisExtent: 220,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childCount: displayIndices.length,
-              itemBuilder: (context, gridIndex) {
-                final index = displayIndices[gridIndex];
-                final group = groups[index];
-                final isHydrating = isHydratingItem(group.originalUrl);
-                final firstItem = group.items.isNotEmpty
-                    ? group.items.first
-                    : null;
+    return ListenableBuilder(
+      listenable: ThumbnailAspectResolver.updates,
+      builder: (context, _) {
+        return GestureDetector(
+          onTap: () {
+            mainFocusNode.requestFocus();
+            onTapItem(-1, isCtrl: false, isShift: false); // Signify clear selection
+          },
+          behavior: HitTestBehavior.opaque,
+          child: CustomScrollView(
+            // ignore: deprecated_member_use
+            cacheExtent: 1000,
+            controller: scrollController,
+            key: PageStorageKey<String>(isTrashView ? 'trash_$listPath' : listPath),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverMasonryGrid.extent(
+                  maxCrossAxisExtent: 220,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childCount: displayIndices.length,
+                  itemBuilder: (context, gridIndex) {
+                    final index = displayIndices[gridIndex];
+                    final group = groups[index];
+                    final isHydrating = isHydratingItem(group.originalUrl);
+                    final firstItem = group.items.isNotEmpty
+                        ? group.items.first
+                        : null;
 
-                DownloadConfig? config;
-                if (currentGroup == null) {
-                  config = getConfig(group);
-                } else if (currentGroupRootIndex != null) {
-                  config = getConfig(currentGroup!);
-                }
+                    DownloadConfig? config;
+                    if (currentGroup == null) {
+                      config = getConfig(group);
+                    } else if (currentGroupRootIndex != null) {
+                      config = getConfig(currentGroup!);
+                    }
 
-                var typeIcon = Icons.image_rounded;
-                final isAudioFormat =
-                    config != null &&
-                    firstItem != null &&
-                    (config.itemFormats[firstItem.id]?.isAudioOnly ?? false);
+                    var typeIcon = Icons.image_rounded;
+                    final isAudioFormat =
+                        config != null &&
+                        firstItem != null &&
+                        (config.itemFormats[firstItem.id]?.isAudioOnly ?? false);
 
-                if (isAudioFormat) {
-                  typeIcon = Icons.audiotrack_rounded;
-                } else if (group.first.isProfile) {
-                  typeIcon = Icons.account_circle_rounded;
-                } else if (group.first.isPlaylist) {
-                  typeIcon = Icons.video_library_rounded;
-                } else if (group.items.length > 1) {
-                  typeIcon = Icons.filter_none_rounded;
-                } else if (firstItem?.isVideo ?? false) {
-                  typeIcon = Icons.videocam_rounded;
-                }
+                    if (isAudioFormat) {
+                      typeIcon = Icons.audiotrack_rounded;
+                    } else if (group.first.isProfile) {
+                      typeIcon = Icons.account_circle_rounded;
+                    } else if (group.first.isPlaylist) {
+                      typeIcon = Icons.video_library_rounded;
+                    } else if (group.items.length > 1) {
+                      typeIcon = Icons.filter_none_rounded;
+                    } else if (firstItem?.isVideo ?? false) {
+                      typeIcon = Icons.videocam_rounded;
+                    }
 
-                final isSelected = selectedIndices.contains(index);
-                final tag = currentGroup == null ? group.tag : firstItem?.tag;
-                final isTagged = tag != null && tag.isNotEmpty;
-                final itemUrl = currentGroup == null
-                    ? group.originalUrl
-                    : (firstItem?.id ?? '');
-                final globalKey = isTagged
-                    ? (tagKeys[itemUrl] ??= GlobalKey())
-                    : null;
+                    final isSelected = selectedIndices.contains(index);
+                    final tag = currentGroup == null ? group.tag : firstItem?.tag;
+                    final isTagged = tag != null && tag.isNotEmpty;
+                    final itemUrl = currentGroup == null
+                        ? group.originalUrl
+                        : (firstItem?.id ?? '');
+                    final globalKey = isTagged
+                        ? (tagKeys[itemUrl] ??= GlobalKey())
+                        : null;
 
-                double aspectRatio = 1;
-                if (firstItem != null) {
-                  if (firstItem.width != null &&
-                      firstItem.height != null &&
-                      firstItem.width! > 0 &&
-                      firstItem.height! > 0) {
-                    aspectRatio = firstItem.width! / firstItem.height!;
-                  } else if (firstItem.isVideo) {
-                    aspectRatio = 16 / 9;
-                  }
-                }
+                    final thumbUrl = (firstItem?.thumbnail != null && firstItem!.thumbnail!.isNotEmpty)
+                        ? firstItem.thumbnail
+                        : (!(firstItem?.isVideo ?? true) && (firstItem?.directUrl != null && firstItem!.directUrl!.isNotEmpty)
+                            ? firstItem.directUrl
+                            : (!(firstItem?.isVideo ?? true) &&
+                                    (firstItem != null && firstItem.originalUrl.isNotEmpty) &&
+                                    (firstItem.originalUrl.startsWith('http://') ||
+                                        firstItem.originalUrl.startsWith('https://'))
+                                ? firstItem.originalUrl
+                                : null));
 
-                final isItemError = currentGroup == null
-                    ? group.isError
-                    : (firstItem?.isError ?? false);
+                    double aspectRatio = 1;
+                    if (firstItem != null) {
+                      if (firstItem.width != null &&
+                          firstItem.height != null &&
+                          firstItem.width! > 0 &&
+                          firstItem.height! > 0) {
+                        aspectRatio = firstItem.width! / firstItem.height!;
+                      } else if (firstItem.isVideo) {
+                        aspectRatio = 16 / 9;
+                      } else if (thumbUrl != null) {
+                        final resolvedRatio = ThumbnailAspectResolver.getAspectRatio(thumbUrl);
+                        if (resolvedRatio != null && resolvedRatio > 0) {
+                          aspectRatio = resolvedRatio;
+                        } else {
+                          ThumbnailAspectResolver.probe(thumbUrl);
+                        }
+                      }
+                    }
+                    aspectRatio = aspectRatio.clamp(0.56, 1.8);
 
-                final Widget itemCard = RepaintBoundary(
-                  key: globalKey,
-                  child: GestureDetector(
-                    onSecondaryTapDown: (details) {
-                      final url = currentGroup == null
-                          ? group.originalUrl
-                          : (group.items.first.id);
-                      _showTagInput(context, details.globalPosition, url);
-                    },
-                    onTap: () {
-                      mainFocusNode.requestFocus();
-                      final isCtrl = HardwareKeyboard.instance.isControlPressed;
-                      final isShift = HardwareKeyboard.instance.isShiftPressed;
-                      onTapItem(index, isCtrl: isCtrl, isShift: isShift);
-                    },
-                    onDoubleTap: () {
-                      onDoubleTapItem(index, group);
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceBase,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isItemError
-                              ? AppColors.error
-                              : (isTagged
-                                    ? Colors.amber
-                                    : (isSelected
-                                          ? AppColors.violet
+                    final isItemError = currentGroup == null
+                        ? (group.isError || (firstItem?.isError ?? false) || (firstItem?.errorMessage?.isNotEmpty ?? false))
+                        : ((firstItem?.isError ?? false) || (firstItem?.errorMessage?.isNotEmpty ?? false));
+
+                    final Widget itemCard = RepaintBoundary(
+                      key: globalKey,
+                      child: GestureDetector(
+                        onSecondaryTapDown: (details) {
+                          final url = currentGroup == null
+                              ? group.originalUrl
+                              : (group.items.first.id);
+                          _showTagInput(context, details.globalPosition, url);
+                        },
+                        onTap: () {
+                          mainFocusNode.requestFocus();
+                          final isCtrl = HardwareKeyboard.instance.isControlPressed;
+                          final isShift = HardwareKeyboard.instance.isShiftPressed;
+                          onTapItem(index, isCtrl: isCtrl, isShift: isShift);
+                        },
+                        onDoubleTap: () {
+                          onDoubleTapItem(index, group);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceBase,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.violet
+                                  : (isItemError
+                                      ? AppColors.error
+                                      : (isTagged
+                                          ? Colors.amber
                                           : AppColors.borderColor)),
-                          width: isItemError || isTagged || isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Builder(
-                            builder: (context) {
-                              var showThumbnail = firstItem?.thumbnail != null;
-                              if (showThumbnail &&
-                                  currentGroup != null &&
-                                  currentGroup!.items.isNotEmpty &&
-                                  (currentGroup!.first.isProfile ||
-                                      currentGroup!.first.isPlaylist)) {
-                                if (firstItem!.thumbnail ==
-                                    currentGroup!.first.thumbnail) {
-                                  showThumbnail = false;
-                                }
-                              }
-
-                              if (showThumbnail) {
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    firstItem!.thumbnail!,
-                                    fit: BoxFit.cover,
-                                    cacheWidth: 300,
-                                    errorBuilder: (c, e, s) => const Icon(
-                                      Icons.broken_image,
-                                      color: Colors.white24,
-                                    ),
-                                  ),
-                                );
-                              } else {
-                                return const Center(
-                                  child: Icon(
-                                    Icons.image,
-                                    size: 48,
-                                    color: Colors.white10,
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-
-                          if (isHydrating ||
-                              firstItem?.id == 'fetch_loading' ||
-                              firstItem?.id == 'hydration_loading' ||
-                              downloadingImageIndices.contains(index))
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.54),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Center(child: BubbleLoader()),
+                              width: isSelected || isItemError || isTagged ? 2 : 1,
                             ),
+                          ),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Builder(
+                                builder: (context) {
+                                  final showThumbnail =
+                                      thumbUrl != null && thumbUrl.isNotEmpty;
+
+                                  if (showThumbnail) {
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        thumbUrl,
+                                        headers: const {
+                                          'User-Agent':
+                                              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                                        },
+                                        fit: BoxFit.cover,
+                                        cacheWidth: 300,
+                                        errorBuilder: (c, e, s) => const Center(
+                                          child: Icon(
+                                            Icons.broken_image_rounded,
+                                            color: Colors.white24,
+                                            size: 36,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    return const Center(
+                                      child: Icon(
+                                        Icons.image,
+                                        size: 48,
+                                        color: Colors.white10,
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
 
                           Positioned(
                             top: 8,
@@ -328,33 +324,6 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                               ),
                             ),
 
-                          if (isItemError)
-                            Positioned(
-                              top: 8,
-                              right: 36,
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  onShowProperties?.call(
-                                    currentGroup == null ? group : firstItem,
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error.withValues(
-                                      alpha: 0.9,
-                                    ),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Icon(
-                                    Icons.error_outline,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
 
                           Positioned(
                             top: 8,
@@ -380,6 +349,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                         group.totalFilesize / (1024 * 1024);
                                     hasSize = sizeInMB > 0;
                                   } else if (firstItem != null) {
+                                    int? bytes;
                                     if (firstItem.formats.isNotEmpty) {
                                       MediaFormat? selectedFormat;
                                       if (currentGroup != null) {
@@ -407,7 +377,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                               ) ??
                                           firstItem.formats.first;
 
-                                      final bytes =
+                                      bytes =
                                           getFormatBytes != null &&
                                               config != null
                                           ? getFormatBytes!(
@@ -416,15 +386,23 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                               config,
                                             )
                                           : selectedFormat.filesize;
+                                    }
 
-                                      if (bytes != null && bytes > 0) {
-                                        sizeInMB = bytes / (1024 * 1024);
-                                        hasSize = true;
+                                    bytes ??= firstItem.filesize;
+
+                                    if (bytes == null &&
+                                        firstItem.formats.isNotEmpty) {
+                                      for (final f in firstItem.formats) {
+                                        if (f.filesize != null &&
+                                            f.filesize! > 0) {
+                                          bytes = f.filesize;
+                                          break;
+                                        }
                                       }
-                                    } else if (firstItem.filesize != null &&
-                                        firstItem.filesize! > 0) {
-                                      sizeInMB =
-                                          firstItem.filesize! / (1024 * 1024);
+                                    }
+
+                                    if (bytes != null && bytes > 0) {
+                                      sizeInMB = bytes / (1024 * 1024);
                                       hasSize = true;
                                     }
                                   }
@@ -432,26 +410,6 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                   if (hasSize) {
                                     return Text(
                                       '${sizeInMB.toStringAsFixed(2)}MB',
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    );
-                                  } else if (firstItem?.isVideo == false &&
-                                      firstItem?.width != null) {
-                                    return Text(
-                                      '${firstItem!.width}x${firstItem.height}',
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    );
-                                  } else if ((firstItem?.isVideo ?? false) &&
-                                      firstItem?.duration != null) {
-                                    return Text(
-                                      '${firstItem!.duration! ~/ 60}:${(firstItem.duration! % 60).toString().padLeft(2, '0')}',
                                       style: GoogleFonts.outfit(
                                         color: Colors.white,
                                         fontSize: 10,
@@ -489,7 +447,39 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (isItemError)
+                            Center(
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTapDown: (_) {
+                                    onShowProperties?.call(
+                                      currentGroup == null ? group : firstItem,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.6),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppColors.error,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.error_outline,
+                                      color: AppColors.error,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
                           Positioned(
+
                             bottom: 8,
                             left: 8,
                             right: 8,
@@ -570,6 +560,81 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                               ],
                             ),
                           ),
+                          if (isHydrating ||
+                              firstItem?.id == 'fetch_loading' ||
+                              firstItem?.id == 'hydration_loading' ||
+                              downloadingImageIndices.contains(index))
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.54),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const BubbleLoader(size: 48),
+                                    if ((isHydrating ||
+                                            firstItem?.id ==
+                                                'hydration_loading') &&
+                                        onCancelHydration != null) ...[
+                                      const SizedBox(height: 6),
+                                      MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () {
+                                            final targetUrl =
+                                                currentGroup != null
+                                                    ? currentGroup!.originalUrl
+                                                    : group.originalUrl;
+                                            onCancelHydration!(targetUrl);
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.violet,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: AppColors.violet
+                                                      .withValues(alpha: 0.4),
+                                                  blurRadius: 6,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.close_rounded,
+                                                  size: 13,
+                                                  color: Colors.white,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Cancel',
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -577,122 +642,107 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                 );
 
                 return Column(
+                  key: ValueKey('${group.originalUrl}_${firstItem?.id ?? index}'),
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     AspectRatio(aspectRatio: aspectRatio, child: itemCard),
                     const SizedBox(height: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
+                    Row(
                       children: [
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            if (isTrashView)
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {},
-                                  child: ElevatedButton.icon(
-                                    icon: const Icon(Icons.restore, size: 14),
-                                    label: const Text('Restore'),
-                                    onPressed: () => onRestoreTrashItem(index),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.violet,
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      minimumSize: const Size.fromHeight(32),
-                                      padding: EdgeInsets.zero,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                    ),
-                                  ),
+                        if (isTrashView)
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.restore, size: 14),
+                              label: const Text('Restore'),
+                              onPressed: () => onRestoreTrashItem(index),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.violet,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                minimumSize: const Size.fromHeight(32),
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                              )
-                            else ...[
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {},
-                                  child: Builder(
-                                    builder: (context) {
-                                      if (currentGroup == null &&
-                                          (group.first.isProfile ||
-                                              group.first.isPlaylist ||
-                                              group.items.length > 1)) {
-                                        final hasImages = group.items.any(
-                                          (i) => !i.isVideo,
-                                        );
-                                        final hasVideos = group.items.any(
-                                          (i) => i.isVideo,
-                                        );
+                              ),
+                            ),
+                          )
+                        else ...[
+                          Expanded(
+                            child: Builder(
+                              builder: (context) {
+                                if (currentGroup == null &&
+                                    (group.first.isProfile ||
+                                        group.first.isPlaylist ||
+                                        group.items.length > 1)) {
+                                  final hasImages = group.items.any(
+                                    (i) => !i.isVideo,
+                                  );
+                                  final hasVideos = group.items.any(
+                                    (i) => i.isVideo,
+                                  );
 
-                                        return SizedBox(
-                                          height: 32,
-                                          child: GroupFilterDropdown(
-                                            selectedFilter:
-                                                config?.groupFilter ??
-                                                GroupDownloadType.all,
-                                            isEnabled: true,
-                                            hasImages: hasImages,
-                                            hasVideos: hasVideos,
-                                            onChanged: (val) =>
-                                                onFilterChanged(group, val),
-                                          ),
-                                        );
-                                      } else {
-                                        return SizedBox(
-                                          height: 32,
-                                          child: FormatSelectionDropdown(
-                                            item: firstItem!,
-                                            config: config ?? DownloadConfig(),
-                                            index: index,
-                                            group: group,
-                                            isItemLevel: currentGroup != null,
-                                            getHeight: getHeight,
-                                            getFormatBytes: getFormatBytes,
-                                            matchTargetFormat:
-                                                matchTargetFormat,
-                                            onChanged: (val) =>
-                                                onFormatChanged(group, val),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () {},
-                                child: Container(
-                                  height: 32,
-                                  width: 32,
-                                  decoration: BoxDecoration(
-                                    color: isItemError
-                                        ? AppColors.surfaceBase
-                                        : AppColors.violet.withValues(
-                                            alpha: 0.2,
-                                          ),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(
-                                      Icons.download_rounded,
-                                      size: 16,
-                                      color: isItemError
-                                          ? Colors.white38
-                                          : AppColors.violet,
+                                  return SizedBox(
+                                    height: 32,
+                                    child: GroupFilterDropdown(
+                                      selectedFilter:
+                                          config?.groupFilter ??
+                                          GroupDownloadType.all,
+                                      isEnabled: true,
+                                      hasImages: hasImages,
+                                      hasVideos: hasVideos,
+                                      onChanged: (val) =>
+                                          onFilterChanged(group, val),
                                     ),
-                                    padding: EdgeInsets.zero,
-                                    onPressed: isItemError
-                                        ? null
-                                        : () => onStartDownload(index),
-                                  ),
-                                ),
+                                  );
+                                } else {
+                                  return SizedBox(
+                                    height: 32,
+                                    child: FormatSelectionDropdown(
+                                      item: firstItem!,
+                                      config: config ?? DownloadConfig(),
+                                      index: index,
+                                      group: group,
+                                      isItemLevel: currentGroup != null,
+                                      getHeight: getHeight,
+                                      getFormatBytes: getFormatBytes,
+                                      matchTargetFormat:
+                                          matchTargetFormat,
+                                      onChanged: (val) =>
+                                          onFormatChanged(group, val),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            height: 32,
+                            width: 32,
+                            decoration: BoxDecoration(
+                              color: isItemError
+                                  ? AppColors.surfaceBase
+                                  : AppColors.violet.withValues(
+                                      alpha: 0.2,
+                                    ),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.download_rounded,
+                                size: 16,
+                                color: isItemError
+                                    ? Colors.white38
+                                    : AppColors.violet,
                               ),
-                            ],
-                          ],
-                        ),
+                              padding: EdgeInsets.zero,
+                              onPressed: isItemError
+                                  ? null
+                                  : () => onStartDownload(index),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -702,6 +752,8 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
           ),
         ],
       ),
+    );
+      },
     );
   }
 

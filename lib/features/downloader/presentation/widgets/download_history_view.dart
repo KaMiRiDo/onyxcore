@@ -36,8 +36,9 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -781,10 +782,11 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
     var statusColor = Colors.white54;
     if (isSuccess) {
       statusColor = Colors.greenAccent;
-    } else if (isError)
+    } else if (isError) {
       statusColor = Colors.redAccent;
-    else if (isCancelled)
+    } else if (isCancelled) {
       statusColor = Colors.orangeAccent;
+    }
 
     var typeIcon = Icons.file_download_rounded;
     var typeColor = Colors.white54;

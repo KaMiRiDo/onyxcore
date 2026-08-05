@@ -2,12 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/downloader_filter_settings.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloader_filter_overlay.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
 
 class StandaloneWindowActionBar extends StatelessWidget {
   const StandaloneWindowActionBar({
-    required this.isTrashView, required this.trashNotEmpty, required this.hasItems, required this.currentGroup, required this.importedListName, required this.config, required this.rootIndex, required this.onRestoreAll, required this.onEmptyTrash, required this.onBackToRoot, required this.onClear, required this.onFormatChanged, required this.onFilterChanged, required this.matchTargetFormat, required this.getHeight, required this.searchController, required this.searchFocusNode, required this.isSearchVisible, required this.listFilter, required this.onListFilterChanged, super.key,
+    required this.isTrashView,
+    required this.trashNotEmpty,
+    required this.hasItems,
+    required this.currentGroup,
+    required this.importedListName,
+    required this.config,
+    required this.rootIndex,
+    required this.onRestoreAll,
+    required this.onEmptyTrash,
+    required this.onBackToRoot,
+    required this.onClear,
+    required this.onFormatChanged,
+    required this.onFilterChanged,
+    required this.matchTargetFormat,
+    required this.getHeight,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.isSearchVisible,
+    this.listFilter = 'added_desc',
+    this.onListFilterChanged,
+    this.sortOrder = 'added_desc',
+    this.onSortChanged,
+    this.filterSettings = const DownloaderFilterSettings(),
+    this.onFilterSettingsChanged,
+    this.availableTypes = const {},
+    this.availableDates = const {},
+    this.availableDatesByType = const {},
     this.hasImages = true,
     this.hasVideos = true,
     this.hasPlaylists = true,
@@ -16,6 +44,7 @@ class StandaloneWindowActionBar extends StatelessWidget {
     this.activeTagNotifier,
     this.onTagTap,
     this.onTagSecondaryTapDown,
+    super.key,
   });
 
   final bool isTrashView;
@@ -38,7 +67,14 @@ class StandaloneWindowActionBar extends StatelessWidget {
   final FocusNode searchFocusNode;
   final bool isSearchVisible;
   final String listFilter;
-  final ValueChanged<String> onListFilterChanged;
+  final ValueChanged<String>? onListFilterChanged;
+  final String sortOrder;
+  final ValueChanged<String>? onSortChanged;
+  final DownloaderFilterSettings filterSettings;
+  final ValueChanged<DownloaderFilterSettings>? onFilterSettingsChanged;
+  final Set<DownloaderItemType> availableTypes;
+  final Set<DateTime> availableDates;
+  final Map<DownloaderItemType, Set<DateTime>> availableDatesByType;
   final bool hasImages;
   final bool hasVideos;
   final bool hasPlaylists;
@@ -283,8 +319,43 @@ class StandaloneWindowActionBar extends StatelessWidget {
               ),
               const Spacer(),
               if (hasItems) ...[
+                Builder(
+                  builder: (btnContext) {
+                    return DownloaderFilterButton(
+                      filterSettings: filterSettings,
+                      onPressed: () {
+                        final renderBox =
+                            btnContext.findRenderObject() as RenderBox?;
+                        final offset =
+                            renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+                        DownloaderFilterOverlay.show(
+                          context: btnContext,
+                          position: offset,
+                          initialSettings: filterSettings,
+                          availableTypes: availableTypes,
+                          availableDates: availableDates,
+                          availableDatesByType: availableDatesByType,
+                          onFilterChanged: (newSettings) {
+                            onFilterSettingsChanged?.call(newSettings);
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(width: 10),
+                DownloaderSortDropdown(
+                  selectedSort: sortOrder,
+                  onChanged: (val) {
+                    onSortChanged?.call(val);
+                    onListFilterChanged?.call(val);
+                  },
+                ),
+                const SizedBox(width: 10),
                 if (currentGroup != null) ...[
-                  if (currentGroup!.first.isPlaylist && config != null && rootIndex != null)
+                  if (currentGroup!.first.isPlaylist &&
+                      config != null &&
+                      rootIndex != null) ...[
                     SizedBox(
                       width: 140,
                       height: 36,
@@ -297,36 +368,32 @@ class StandaloneWindowActionBar extends StatelessWidget {
                         matchTargetFormat: matchTargetFormat,
                         onChanged: onFormatChanged,
                       ),
-                    )
-                  else
+                    ),
+                    const SizedBox(width: 10),
+                  ] else if (currentGroup!.items
+                          .where((i) => !i.isProfile)
+                          .any((i) => !i.isVideo) &&
+                      currentGroup!.items
+                          .where((i) => !i.isProfile)
+                          .any((i) => i.isVideo)) ...[
                     SizedBox(
                       width: 140,
                       height: 36,
                       child: GroupFilterDropdown(
-                        selectedFilter: config?.groupFilter ?? GroupDownloadType.all,
-                        isEnabled: currentGroup!.items.where((i) => !i.isProfile).any((i) => !i.isVideo) &&
-                                   currentGroup!.items.where((i) => !i.isProfile).any((i) => i.isVideo),
-                        hasVideos: currentGroup!.items.where((i) => !i.isProfile).any((i) => i.isVideo),
-                        hasImages: currentGroup!.items.where((i) => !i.isProfile).any((i) => !i.isVideo),
+                        selectedFilter:
+                            config?.groupFilter ?? GroupDownloadType.all,
+                        isEnabled: true,
+                        hasVideos: currentGroup!.items
+                            .where((i) => !i.isProfile)
+                            .any((i) => i.isVideo),
+                        hasImages: currentGroup!.items
+                            .where((i) => !i.isProfile)
+                            .any((i) => !i.isVideo),
                         onChanged: onFilterChanged,
                       ),
                     ),
-                  const SizedBox(width: 16),
-                ] else ...[
-                  SizedBox(
-                    width: 140,
-                    height: 36,
-                    child: ListSortFilterDropdown(
-                      selectedFilter: listFilter,
-                      onChanged: onListFilterChanged,
-                      hasImages: hasImages,
-                      hasVideos: hasVideos,
-                      hasPlaylists: hasPlaylists,
-                      hasProfiles: hasProfiles,
-                      hasGroups: hasGroups,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
+                    const SizedBox(width: 10),
+                  ],
                 ],
                 SizedBox(
                   height: 36,
@@ -334,13 +401,13 @@ class StandaloneWindowActionBar extends StatelessWidget {
                     onPressed: onClear,
                     style: TextButton.styleFrom(
                       backgroundColor: Colors.white12,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     child: Text(
-                      'Clear List',
+                      'Clear',
                       style: GoogleFonts.outfit(
                         color: Colors.white,
                         fontWeight: FontWeight.w500,

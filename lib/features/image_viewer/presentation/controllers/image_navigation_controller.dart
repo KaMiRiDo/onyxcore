@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -168,7 +169,13 @@ class ImageNavigationController extends ChangeNotifier {
     try {
       final images = <FileItem>[];
 
-      if (initParams != null && initParams!['playlistPaths'] != null) {
+      if (initParams != null && initParams!['playlistJson'] != null) {
+        final list =
+            jsonDecode(initParams!['playlistJson'] as String) as List<dynamic>;
+        images.addAll(
+          list.map((e) => FileItem.fromJson(e as Map<String, dynamic>)),
+        );
+      } else if (initParams != null && initParams!['playlistPaths'] != null) {
         final paths = List<String>.from(initParams!['playlistPaths'] as Iterable);
         for (final path in paths) {
           final file = File(path);

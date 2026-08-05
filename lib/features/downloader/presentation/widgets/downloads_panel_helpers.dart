@@ -1,318 +1,286 @@
-part of 'downloads_panel.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
+import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 
-mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
+mixin DownloadsPanelHelpersMixin {
   final Map<String, int> _resolvedFileSizes = {};
   final Set<String> _fetchingFileSizes = {};
 
-  Future<void> _fetchLazySize(String id, String url) async {
-    try {
-      final req = await HttpClient().headUrl(Uri.parse(url));
-      final res = await req.close();
-      if (res.statusCode == 200 && res.contentLength > 0) {
-        if (mounted) {
-          setState(() {
-            _resolvedFileSizes[id] = res.contentLength;
-          });
-        }
-      }
-    } catch (_) {}
-  }
-
   String _trimMiddle(String text, int maxLength) {
-    if (text.characters.length <= maxLength) return text;
-    final half = (maxLength - 3) ~/ 2;
-    final chars = text.characters;
-    return '${chars.take(half)}...${chars.takeLast(half)}';
+    if (text.length <= maxLength) return text;
+    final partLength = (maxLength - 3) ~/ 2;
+    return '${text.substring(0, partLength)}...${text.substring(text.length - partLength)}';
   }
 
-  String _formatResolution(String res) {
-    if (res.isEmpty) return 'Unknown';
-    if (res == 'audio only' || res.toLowerCase() == 'audio') {
-      return 'Audio Only';
-    }
+  String _formatDuration(int seconds) {
+    final duration = Duration(seconds: seconds);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final remainingSeconds = duration.inSeconds.remainder(60);
 
-    final parts = res.toLowerCase().split('x');
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+    } else {
+      return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+    }
+  }
+
+  String _formatResolution(String resolution) {
+    if (resolution.isEmpty) return 'Unknown';
+    if (resolution.toLowerCase().contains('audio')) return 'Audio Only';
+
+    final parts = resolution.split('x');
     if (parts.length == 2) {
       final height = int.tryParse(parts[1]);
       if (height != null) {
         if (height >= 2160) return '4K';
         if (height >= 1440) return '1440p';
-        return '${height}p';
-      }
-    } else {
-      final height = int.tryParse(res.replaceAll(RegExp('[^0-9]'), ''));
-      if (height != null) {
-        if (height >= 2160) return '4K';
-        if (height >= 1440) return '1440p';
+        if (height >= 1080) return '1080p';
+        if (height >= 720) return '720p';
+        if (height >= 480) return '480p';
+        if (height >= 360) return '360p';
         return '${height}p';
       }
     }
-    return res;
+
+    return resolution;
   }
 
-  int _getHeight(String res) {
-    if (res.isEmpty || res == 'audio only' || res.toLowerCase() == 'audio') {
-      return 0;
-    }
-    final lower = res.toLowerCase();
-    if (lower.contains('4k') || lower.contains('2160')) return 2160;
-    if (lower.contains('1440') || lower.contains('2k')) return 1440;
-    if (lower.contains('1080')) return 1080;
-    if (lower.contains('720')) return 720;
-    if (lower.contains('480')) return 480;
+  int _getHeight(String resolution) {
+    if (resolution.toLowerCase().contains('audio')) return 0;
+    if (resolution.toLowerCase() == '4k') return 2160;
 
-    final parts = lower.split('x');
+    final parts = resolution.split('x');
     if (parts.length == 2) {
       return int.tryParse(parts[1]) ?? 0;
-    } else {
-      return int.tryParse(lower.replaceAll(RegExp('[^0-9]'), '')) ?? 0;
     }
+
+    final cleaned = resolution.replaceAll(RegExp('[^0-9]'), '');
+    return int.tryParse(cleaned) ?? 0;
   }
 
-  String _formatDuration(int seconds) {
-    if (seconds < 60) return '0:${seconds.toString().padLeft(2, '0')}';
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    if (minutes < 60) {
-      return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
-    }
-    final hours = minutes ~/ 60;
-    final remainingMinutes = minutes % 60;
-    return '$hours:${remainingMinutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
+  MediaFormat? matchTargetFormat(MediaInfo item, MediaFormat? target) {
+    if (target == null || item.formats.isEmpty) return null;
 
-  MediaFormat? matchTargetFormat(MediaInfo item, MediaFormat? targetFormat) {
-    if (targetFormat == null) return null;
-    if (item.formats.isEmpty) return null;
-    if (item.formats.contains(targetFormat)) {
-      return item.formats.firstWhere((f) => f == targetFormat);
-    }
+    final exactMatch = item.formats.where(
+      (f) =>
+          f.formatId == target.formatId ||
+          (f.resolution == target.resolution &&
+              f.videoCodec == target.videoCodec &&
+              f.audioCodec == target.audioCodec),
+    );
+    if (exactMatch.isNotEmpty) return exactMatch.first;
 
-    final isAudioOnly =
-        targetFormat.resolution.toLowerCase() == 'audio only' ||
-        targetFormat.resolution.toLowerCase() == 'audio';
-    if (isAudioOnly) {
-      final audios = item.formats
-          .where(
-            (f) =>
-                f.resolution.toLowerCase() == 'audio only' ||
-                f.resolution.toLowerCase() == 'audio' ||
-                f.videoCodec == 'none',
-          )
-          .toList();
-      return audios.isNotEmpty ? audios.first : item.formats.first;
-    } else {
-      final bestVideo = item.formats
-          .where((f) => f.videoCodec != null && f.videoCodec != 'none')
-          .toList();
-      if (bestVideo.isNotEmpty) {
-        bestVideo.sort((a, b) {
-          final hA = _getHeight(a.resolution);
-          final hB = _getHeight(b.resolution);
-          if (hA != hB) return hB.compareTo(hA);
-
-          final noAudioA =
-              a.audioCodec == 'none' ||
-              a.audioCodec == null ||
-              a.audioCodec!.isEmpty ||
-              a.audioCodec == 'video only';
-          final noAudioB =
-              b.audioCodec == 'none' ||
-              b.audioCodec == null ||
-              b.audioCodec!.isEmpty ||
-              b.audioCodec == 'video only';
-
-          if (noAudioA && !noAudioB) return -1;
-          if (!noAudioA && noAudioB) return 1;
-
-          final sizeA = a.filesize ?? 0;
-          final sizeB = b.filesize ?? 0;
-          return sizeB.compareTo(sizeA);
-        });
-        final targetHeight = _getHeight(targetFormat.resolution);
-        MediaFormat? matched;
-        for (final f in bestVideo) {
-          if (_getHeight(f.resolution) <= targetHeight) {
-            matched = f;
-            break;
-          }
-        }
-        return matched ?? bestVideo.first;
-      } else {
-        return item.formats.first;
+    final isAudio = target.resolution.toLowerCase().contains('audio');
+    if (isAudio) {
+      final audioFormats = item.formats.where(
+        (f) => f.resolution.toLowerCase().contains('audio'),
+      );
+      if (audioFormats.isNotEmpty) {
+        final sorted = audioFormats.toList()
+          ..sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+        return sorted.first;
       }
     }
+
+    final targetHeight = _getHeight(target.resolution);
+    final videoFormats = item.formats
+        .where((f) => !f.resolution.toLowerCase().contains('audio'))
+        .toList();
+
+    if (videoFormats.isNotEmpty) {
+      videoFormats.sort((a, b) {
+        final heightA = _getHeight(a.resolution);
+        final heightB = _getHeight(b.resolution);
+        final isUnderOrEqualA = heightA <= targetHeight;
+        final isUnderOrEqualB = heightB <= targetHeight;
+
+        if (isUnderOrEqualA && !isUnderOrEqualB) return -1;
+        if (!isUnderOrEqualA && isUnderOrEqualB) return 1;
+
+        if (heightA != heightB) {
+          return isUnderOrEqualA
+              ? heightB.compareTo(heightA)
+              : heightA.compareTo(heightB);
+        }
+
+        final noAudioA = a.audioCodec == 'none' || a.audioCodec == null;
+        final noAudioB = b.audioCodec == 'none' || b.audioCodec == null;
+        if (noAudioA && !noAudioB) return -1;
+        if (!noAudioA && noAudioB) return 1;
+
+        return (b.filesize ?? 0).compareTo(a.filesize ?? 0);
+      });
+      return videoFormats.first;
+    }
+
+    return null;
+  }
+
+  void _fetchLazySize(MediaInfo item) {
+    if (item.directUrl == null ||
+        _fetchingFileSizes.contains(item.id) ||
+        _resolvedFileSizes.containsKey(item.id)) {
+      return;
+    }
+
+    _fetchingFileSizes.add(item.id);
+
+    Future.microtask(() async {
+      try {
+        final client = HttpClient();
+        final request = await client.headUrl(Uri.parse(item.directUrl!));
+        final response = await request.close();
+        final contentLength = response.contentLength;
+
+        if (contentLength > 0) {
+          _resolvedFileSizes[item.id] = contentLength;
+        }
+      } catch (_) {
+      } finally {
+        _fetchingFileSizes.remove(item.id);
+      }
+    });
   }
 
   int? getFormatBytes(
     MediaInfo item,
     MediaFormat? format,
-    DownloadConfig config,
+    DownloadConfig? config,
   ) {
-    if (format == null) {
-      final size = item.filesize ?? _resolvedFileSizes[item.id];
-      if (size == null &&
-          item.directUrl != null &&
-          !_fetchingFileSizes.contains(item.id)) {
-        _fetchingFileSizes.add(item.id);
-        _fetchLazySize(item.id, item.directUrl!);
+    if (format == null) return null;
+
+    if (format.filesize != null && format.filesize! > 0) {
+      var size = format.filesize!;
+      final noAudio = format.audioCodec == 'none' || format.audioCodec == null;
+      if (noAudio &&
+          !format.resolution.toLowerCase().contains('audio') &&
+          config?.mode != DownloadMode.audioOnly) {
+        final audioFormats = item.formats.where(
+          (f) => f.resolution.toLowerCase().contains('audio'),
+        );
+        if (audioFormats.isNotEmpty) {
+          final sortedAudio = audioFormats.toList()
+            ..sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+          size += sortedAudio.first.filesize ?? 0;
+        }
       }
       return size;
     }
 
-    var bytes = format.filesize ?? _resolvedFileSizes[item.id];
+    if (_resolvedFileSizes.containsKey(item.id)) {
+      return _resolvedFileSizes[item.id];
+    }
 
-    if (config.mode == DownloadMode.normal &&
-        format.resolution != 'audio only' &&
-        format.resolution.toLowerCase() != 'audio') {
-      final noAudio =
-          format.audioCodec == 'none' ||
-          format.audioCodec == null ||
-          format.audioCodec!.isEmpty ||
-          format.audioCodec == 'video only';
-      if (noAudio) {
-        final audioFormats = item.formats
-            .where(
-              (f) =>
-                  (f.resolution == 'audio only' ||
-                      f.resolution.toLowerCase() == 'audio') &&
-                  f.filesize != null,
-            )
-            .toList();
+    if (item.directUrl != null) {
+      _fetchLazySize(item);
+    }
 
-        if (audioFormats.isNotEmpty) {
-          audioFormats.sort((a, b) => b.filesize!.compareTo(a.filesize!));
-          if (bytes != null) {
-            bytes += audioFormats.first.filesize!;
-          }
-        }
-      }
-    } else if (config.mode == DownloadMode.audioOnly) {
-      final audioFormats = item.formats
-          .where(
-            (f) =>
-                (f.resolution == 'audio only' ||
-                    f.resolution.toLowerCase() == 'audio') &&
-                f.filesize != null,
-          )
-          .toList();
+    if (config?.mode == DownloadMode.audioOnly) {
+      final audioFormats = item.formats.where(
+        (f) => f.resolution.toLowerCase().contains('audio'),
+      );
       if (audioFormats.isNotEmpty) {
-        audioFormats.sort((a, b) => b.filesize!.compareTo(a.filesize!));
-        return audioFormats.first.filesize;
-      }
-    }
-
-    // Only fallback to item.filesize if we are selecting the absolute best format
-    // or if the item only has one format anyway.
-    if (bytes == null) {
-      final bestVideo = item.formats
-          .where((f) => f.videoCodec != null && f.videoCodec != 'none')
-          .toList();
-      if (bestVideo.isNotEmpty) {
-        bestVideo.sort(
-          (a, b) =>
-              _getHeight(b.resolution).compareTo(_getHeight(a.resolution)),
-        );
-        if (format.formatId == bestVideo.first.formatId) {
-          bytes = item.filesize;
+        final sortedAudio = audioFormats.toList()
+          ..sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+        if (sortedAudio.first.filesize != null) {
+          return sortedAudio.first.filesize;
         }
-      } else {
-        bytes = item.filesize;
       }
     }
 
-    if (bytes == null &&
-        item.directUrl != null &&
-        !_fetchingFileSizes.contains(item.id)) {
-      _fetchingFileSizes.add(item.id);
-      _fetchLazySize(item.id, item.directUrl!);
-    }
-
-    return bytes;
-  }
-
-  String? _getFileSize(MediaInfo item, DownloadConfig config) {
-    var currentFormat = config.itemFormats[item.id] ?? config.format;
-
-    if (currentFormat != null) {
-      currentFormat = matchTargetFormat(item, currentFormat);
-    }
-
-    final bytes = getFormatBytes(item, currentFormat, config);
-
-    if (bytes != null && bytes > 0) {
-      return StringUtils.formatBytes(bytes);
-    }
     return null;
   }
 
-  int _getGroupBytes(MediaGroup group, DownloadConfig config) {
-    var totalVideo = 0;
-    var videoWithSize = 0;
-    var videoWithoutSize = 0;
-
-    var totalImage = 0;
-    var imageWithSize = 0;
-    var imageWithoutSize = 0;
-
-    for (final item in group.items) {
-      if (item.isProfile || item.isPlaylist) continue;
-      if (config.groupFilter == GroupDownloadType.images && item.isVideo) {
-        continue;
-      }
-      if (config.groupFilter == GroupDownloadType.videos && !item.isVideo) {
-        continue;
-      }
-
-      var currentFormat = config.itemFormats[item.id] ?? config.format;
-
-      if (currentFormat != null) {
-        currentFormat = matchTargetFormat(item, currentFormat);
-      }
-
-      final bytes = getFormatBytes(item, currentFormat, config);
-
-      if (item.isVideo) {
-        if (bytes != null && bytes > 0) {
-          totalVideo += bytes;
-          videoWithSize++;
-        } else {
-          videoWithoutSize++;
-        }
-      } else {
-        if (bytes != null && bytes > 0) {
-          totalImage += bytes;
-          imageWithSize++;
-        } else {
-          imageWithoutSize++;
-        }
-      }
+  String _getFileSize(MediaInfo item, DownloadConfig? config) {
+    var format = config?.format;
+    if (format != null && format.filesize == null && item.formats.isNotEmpty) {
+      format = matchTargetFormat(item, format) ?? format;
     }
-
-    if (videoWithoutSize > 0) {
-      if (videoWithSize > 0) {
-        totalVideo += ((totalVideo / videoWithSize) * videoWithoutSize).round();
-      } else {
-        totalVideo += videoWithoutSize * 15 * 1024 * 1024; // 15MB fallback
-      }
+    final bytes = getFormatBytes(item, format, config);
+    if (bytes != null && bytes > 0) {
+      return StringUtils.formatBytes(bytes);
     }
-
-    if (imageWithoutSize > 0) {
-      if (imageWithSize > 0) {
-        totalImage += ((totalImage / imageWithSize) * imageWithoutSize).round();
-      } else {
-        totalImage += imageWithoutSize * 1 * 1024 * 1024; // 1MB fallback
-      }
+    if (item.filesize != null && item.filesize! > 0) {
+      return StringUtils.formatBytes(item.filesize!);
     }
-
-    return totalVideo + totalImage;
+    return '';
   }
 
-  String _formatBytes(int bytes) => StringUtils.formatBytes(bytes);
+  int _getGroupBytes(MediaGroup group, DownloadConfig config) {
+    if (config.mode == DownloadMode.normal) {
+      if (config.groupFilter == GroupDownloadType.images) {
+        return group.items
+            .where((i) => !i.isVideo && !i.isProfile && !i.isPlaylist)
+            .fold(0, (sum, item) => sum + (item.filesize ?? (1024 * 1024)));
+      } else if (config.groupFilter == GroupDownloadType.videos) {
+        return group.items
+            .where((i) => i.isVideo && !i.isProfile && !i.isPlaylist)
+            .fold(
+              0,
+              (sum, item) => sum + (item.filesize ?? (15 * 1024 * 1024)),
+            );
+      }
+    }
 
+    var total = 0;
+    var knownVideos = 0;
+    var videoSizes = 0;
+    var unknownVideos = 0;
+
+    var knownImages = 0;
+    var imageSizes = 0;
+    var unknownImages = 0;
+
+    for (final item in group.items) {
+      if (item.isProfile || item.isPlaylist || item.isError) continue;
+
+      if (item.isVideo) {
+        if (item.filesize != null && item.filesize! > 0) {
+          knownVideos++;
+          videoSizes += item.filesize!;
+          total += item.filesize!;
+        } else {
+          unknownVideos++;
+        }
+      } else {
+        if (item.filesize != null && item.filesize! > 0) {
+          knownImages++;
+          imageSizes += item.filesize!;
+          total += item.filesize!;
+        } else {
+          unknownImages++;
+        }
+      }
+    }
+
+    if (unknownVideos > 0) {
+      final avgVideo = knownVideos > 0
+          ? videoSizes ~/ knownVideos
+          : (15 * 1024 * 1024);
+      total += unknownVideos * avgVideo;
+    }
+
+    if (unknownImages > 0) {
+      final avgImage = knownImages > 0
+          ? imageSizes ~/ knownImages
+          : (1024 * 1024);
+      total += unknownImages * avgImage;
+    }
+
+    return total;
+  }
+
+  // Testing helpers
   @visibleForTesting
   String trimMiddleForTesting(String text, int maxLength) =>
       _trimMiddle(text, maxLength);
+
+  @visibleForTesting
+  String formatDurationForTesting(int seconds) => _formatDuration(seconds);
 
   @visibleForTesting
   String formatResolutionForTesting(String res) => _formatResolution(res);
@@ -321,17 +289,14 @@ mixin DownloadsPanelHelpersMixin<T extends StatefulWidget> on State<T> {
   int getHeightForTesting(String res) => _getHeight(res);
 
   @visibleForTesting
-  String formatDurationForTesting(int seconds) => _formatDuration(seconds);
-
-  @visibleForTesting
   int? getFormatBytesForTesting(
     MediaInfo item,
-    MediaFormat? format,
+    MediaFormat format,
     DownloadConfig config,
   ) => getFormatBytes(item, format, config);
 
   @visibleForTesting
-  String? getFileSizeForTesting(MediaInfo item, DownloadConfig config) =>
+  String getFileSizeForTesting(MediaInfo item, DownloadConfig config) =>
       _getFileSize(item, config);
 
   @visibleForTesting

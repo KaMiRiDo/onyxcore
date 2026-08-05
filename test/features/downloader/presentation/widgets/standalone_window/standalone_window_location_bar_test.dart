@@ -34,7 +34,9 @@ void main() {
 
     expect(find.text('Location : '), findsOneWidget);
     expect(find.text('/home/user/Downloads'), findsOneWidget);
-    expect(find.text('10 Videos • 5 Images • 1.0 MB'), findsOneWidget);
+    expect(find.text('10'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget);
+    expect(find.text('•  1.0 MB'), findsOneWidget);
     
     expect(find.text('Download All'), findsOneWidget);
     await tester.tap(find.text('Download All'));

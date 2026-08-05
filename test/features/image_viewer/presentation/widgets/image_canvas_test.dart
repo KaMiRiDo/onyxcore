@@ -100,9 +100,31 @@ void main() {
       expect(image.image, isA<ResizeImage>());
       final resizeImage = image.image as ResizeImage;
       expect(resizeImage.imageProvider, isA<NetworkImage>());
+      final networkImage = resizeImage.imageProvider as NetworkImage;
+      expect(networkImage.headers, equals(kNetworkImageHeaders));
+      expect(image.errorBuilder, isNotNull);
       expect(resizeImage.width, equals(1920));
       expect(resizeImage.height, equals(1920));
       expect(resizeImage.policy, equals(ResizeImagePolicy.fit));
+    });
+
+    testWidgets('local raster image has errorBuilder configured', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: ImageCanvas(
+              imagePath: '/path/to/nonexistent.jpg',
+              heroTag: 'test-hero',
+              isConverting: false,
+            ),
+          ),
+        ),
+      );
+
+      final imageFinder = find.byType(Image);
+      expect(imageFinder, findsOneWidget);
+      final image = tester.widget<Image>(imageFinder);
+      expect(image.errorBuilder, isNotNull);
     });
 
     testWidgets('renders local SVG image correctly', (tester) async {
@@ -173,5 +195,28 @@ void main() {
       // Top layer should be the full-res (not a ResizeImage)
       expect(allImages[1].image, isNot(isA<ResizeImage>()));
     });
+
+    testWidgets('accepts onImageSizeResolved callback parameter', (tester) async {
+      var callbackCalled = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ImageCanvas(
+              imagePath: '/path/to/image.jpg',
+              heroTag: 'test-hero',
+              isConverting: false,
+              onImageSizeResolved: (size) {
+                callbackCalled = true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      final canvas = tester.widget<ImageCanvas>(find.byType(ImageCanvas));
+      expect(canvas.onImageSizeResolved, isNotNull);
+      expect(callbackCalled, isFalse);
+    });
   });
 }
+

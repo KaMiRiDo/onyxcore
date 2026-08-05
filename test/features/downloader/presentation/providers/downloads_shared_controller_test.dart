@@ -139,7 +139,7 @@ void main() {
       
       controller.recalculateFilteredStatistics();
       
-      expect(controller.totalListSize, 350);
+      expect(controller.totalListSize, 150);
       expect(controller.totalListVideos, 1);
       expect(controller.totalListImages, 1);
     });
@@ -734,6 +734,28 @@ void main() {
       expect(textContent, contains('url3'));
       
       await tempDir.delete(recursive: true);
+    });
+
+    test('U-DL-SHC-29: cancelHydration removes loading placeholder and preserves already hydrated items', () async {
+      final container = await createContainer();
+      final controller = container.read(downloadsSharedControllerProvider);
+
+      const targetUrl = 'https://youtube.com/playlist?list=test';
+      final item1 = MediaInfo(id: 'item_1', title: 'Video 1', originalUrl: targetUrl, filesize: 500);
+      final loadingItem = MediaInfo(id: 'hydration_loading', title: 'Loading...', originalUrl: targetUrl);
+      final group = MediaGroup(originalUrl: targetUrl, items: [item1, loadingItem]);
+
+      controller.cache.parsedItems = [group];
+      controller.backgroundLoadingProfiles.add(targetUrl);
+      controller.activeHydrationPids[targetUrl] = [999999]; // dummy PID
+
+      await controller.cancelHydration(targetUrl);
+
+      expect(controller.backgroundLoadingProfiles.contains(targetUrl), isFalse);
+      expect(controller.activeHydrationPids.containsKey(targetUrl), isFalse);
+      expect(controller.cache.parsedItems!.first.items.length, 1);
+      expect(controller.cache.parsedItems!.first.items.first.id, 'item_1');
+      expect(controller.cache.parsedItems!.first.items.any((i) => i.id == 'hydration_loading'), isFalse);
     });
   });
 }

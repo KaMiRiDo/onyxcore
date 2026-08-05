@@ -108,41 +108,13 @@ class MediaDownloaderBackend {
           final formattedSuccessLogs =
               '$pipelineLogs[$engineId]:\n$currentLogs';
 
-          if (successfulInfos[i].engineId == null) {
-            successfulInfos[i] = MediaInfo(
-              id: successfulInfos[i].id,
-              title: successfulInfos[i].title,
-              thumbnail: successfulInfos[i].thumbnail,
-              duration: successfulInfos[i].duration,
-              filesize: successfulInfos[i].filesize,
-              extractor: successfulInfos[i].extractor,
-              engineId: successfulEngineId,
-              formats: successfulInfos[i].formats,
-              isVideo: successfulInfos[i].isVideo,
-              isPlaylist: successfulInfos[i].isPlaylist,
-              isProfile: successfulInfos[i].isProfile,
-              itemCount: successfulInfos[i].itemCount,
-              galleryIndex: successfulInfos[i].galleryIndex,
-              width: successfulInfos[i].width,
-              height: successfulInfos[i].height,
-              originalUrl: successfulInfos[i].originalUrl,
-              directUrl: successfulInfos[i].directUrl,
-              webpageUrl: successfulInfos[i].webpageUrl,
-              isError: successfulInfos[i].isError,
-              isLive: successfulInfos[i].isLive,
-              errorMessage:
-                  successfulInfos[i].errorMessage ??
-                  (engineErrors.isNotEmpty ? engineErrors.values.first : null),
-              fetchLogs: formattedSuccessLogs,
-            );
-          } else {
-            successfulInfos[i] = successfulInfos[i].copyWith(
-              errorMessage:
-                  successfulInfos[i].errorMessage ??
-                  (engineErrors.isNotEmpty ? engineErrors.values.first : null),
-              fetchLogs: formattedSuccessLogs,
-            );
-          }
+          successfulInfos[i] = successfulInfos[i].copyWith(
+            engineId: successfulInfos[i].engineId ?? successfulEngineId,
+            errorMessage:
+                successfulInfos[i].errorMessage ??
+                (engineErrors.isNotEmpty ? engineErrors.values.first : null),
+            fetchLogs: formattedSuccessLogs,
+          );
         }
         results.addAll(successfulInfos);
       } else {
@@ -195,6 +167,7 @@ class MediaDownloaderBackend {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     final resolved = EngineRegistry.resolveEngine(url, engine);
     return resolved.startDownload(
@@ -213,6 +186,7 @@ class MediaDownloaderBackend {
       totalItems: totalItems,
       singleItemId: singleItemId,
       directUrl: directUrl,
+      itemsRange: itemsRange,
     );
   }
 }

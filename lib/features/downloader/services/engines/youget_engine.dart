@@ -288,6 +288,7 @@ class YouGetEngine extends DownloadEngine {
     int? totalItems,
     String? singleItemId,
     String? directUrl,
+    String? itemsRange,
   }) async {
     // You-Get doesn't natively support aria2c as an external downloader,
     // so we use a two-phase approach if aria2 is available:

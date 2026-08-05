@@ -61,7 +61,10 @@ class StandaloneWindowActiveDownloads extends StatelessWidget {
                         horizontal: 8,
                         vertical: 4,
                       ),
-                      child: DownloadTaskTile(task: task),
+                      child: DownloadTaskTile(
+                        key: ValueKey(task.id),
+                        task: task,
+                      ),
                     );
                   },
                 ),

@@ -300,5 +300,59 @@ void main() {
       await tester.tap(find.byIcon(Icons.delete_outline_rounded));
       await tester.pumpAndSettle();
     });
+
+    testWidgets('W-DL-TIL-15: Render size ratio and calculated ETA accurately', (tester) async {
+      final task = DownloadTask(
+        id: '1',
+        url: 'http://test',
+        destination: '/test',
+        title: 'Grouped Download',
+        status: DownloadStatus.running,
+        totalItems: 3,
+        completedItems: 1,
+        expectedBytes: 10 * 1024 * 1024, // 10 MB
+        downloadedBytes: 3 * 1024 * 1024, // 3 MB
+        progress: 0.3,
+        speed: '1.5 MB/s',
+        eta: '5s',
+        createdAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(createTestWidget(task));
+
+      final richTextFinder = find.byType(RichText).last;
+      final richText = tester.widget<RichText>(richTextFinder);
+      final text = richText.text.toPlainText();
+
+      expect(text, contains('1/3'));
+      expect(text, contains('3.0 MB / 10.0 MB'));
+      expect(text, contains('1.5 MB/s'));
+      expect(text, contains('ETA 5s'));
+    });
+
+    testWidgets('W-DL-TIL-16: Compute ETA from size ratio when task.eta is empty', (tester) async {
+      final task = DownloadTask(
+        id: '1',
+        url: 'http://test',
+        destination: '/test',
+        title: 'Single Video',
+        status: DownloadStatus.running,
+        expectedBytes: 100 * 1024 * 1024, // 100 MB
+        downloadedBytes: 50 * 1024 * 1024, // 50 MB
+        progress: 0.5,
+        speed: '10 MB/s',
+        createdAt: DateTime.now().subtract(const Duration(seconds: 5)),
+      );
+
+      await tester.pumpWidget(createTestWidget(task));
+
+      final richTextFinder = find.byType(RichText).last;
+      final richText = tester.widget<RichText>(richTextFinder);
+      final text = richText.text.toPlainText();
+
+      expect(text, contains('50.0 MB / 100.0 MB'));
+      expect(text, contains('10 MB/s'));
+      expect(text, contains('ETA 5s'));
+    });
   });
 }

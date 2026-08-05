@@ -333,6 +333,27 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     }
   }
 
+  void _onImageSizeResolved(Size size) {
+    if (!mounted) return;
+    if (_imageSize == null || _imageSize != size) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _imageSize = size;
+          if (_metadata == null || _metadata!.isEmpty) {
+            final mp = (size.width * size.height / 1000000).toStringAsFixed(1);
+            _metadata = '${size.width.toInt()}x${size.height.toInt()} px • $mp MP';
+          }
+          _imageZoomController.updateConstraints(
+            _imageZoomController.viewportSize,
+            _imageSize,
+          );
+        });
+      });
+    }
+  }
+
+
   @override
   void dispose() {
     _lifecycle.dispose();
@@ -472,7 +493,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   void _onClearNavigation() {
     if (widget.isStandalone) {
-      windowManager.hide();
+      if (widget.windowId != null) {
+        PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
+      } else {
+        windowManager.hide();
+      }
     } else {
       ref.read(previewFileProvider.notifier).state = null;
       ref.read(mainFocusNodeProvider).requestFocus();
@@ -607,11 +632,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                       width: sidebarWidth,
                       child: isSidebarOpen
                           ? ImagePlaylistSidebar(
+                              isNetworkStream: _isNetworkStream,
                               onImageSelected: _openFile,
                               onDelete: (paths) =>
                                   _handleDelete(permanent: false),
                             )
                           : const SizedBox.shrink(),
+
                     ),
                     Expanded(
                       child: LayoutBuilder(
@@ -655,6 +682,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                                   heroTag: _currentItem.path,
                                                   isConverting: _preparationController.isConverting,
                                                   isHighFrequencyInteractionActive: _interactionQualityNotifier.isActive,
+                                                  onImageSizeResolved: _onImageSizeResolved,
                                                 );
                                               },
                                             ),
@@ -665,7 +693,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                   },
                                 ),
                               ),
-
                               Positioned(
                                 top: 0,
                                 left: 0,
@@ -696,8 +723,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 ),
                               ),
 
-
-
                               Positioned(
                                 bottom: 32,
                                 left: 32,
@@ -720,22 +745,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                               Icons.playlist_play,
                                               size: 24,
                                             ),
-                                            color: _isNetworkStream
-                                                ? Colors.white30
-                                                : (isSidebarOpen
-                                                      ? AppColors.magenta
-                                                      : Colors.white),
-                                            onPressed: _isNetworkStream
-                                                ? null
-                                                : () {
-                                                    sidebarRef
-                                                            .read(
-                                                              imagePlaylistSidebarVisibleProvider
-                                                                  .notifier,
-                                                            )
-                                                            .state =
-                                                        !isSidebarOpen;
-                                                  },
+                                            color: isSidebarOpen
+                                                ? AppColors.magenta
+                                                : Colors.white,
+                                            onPressed: () {
+                                              sidebarRef
+                                                      .read(
+                                                        imagePlaylistSidebarVisibleProvider
+                                                            .notifier,
+                                                      )
+                                                      .state =
+                                                  !isSidebarOpen;
+                                            },
                                             tooltip: 'Playlist',
                                           ),
                                         );
@@ -745,11 +766,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 ),
                               ),
 
+
                               Positioned(
                                 bottom: 32,
                                 right: 32,
                                 child: ListenableBuilder(
-                                  listenable: _hudController,
+                                  listenable: Listenable.merge([
+                                    _hudController,
+                                    _imageZoomController.transformationController,
+                                  ]),
                                   builder: (context, child) {
                                     if (!_hudController.showZoomIndicator) return const SizedBox.shrink();
                                     return AnimatedOpacity(

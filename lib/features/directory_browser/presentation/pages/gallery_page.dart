@@ -11,6 +11,8 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/directory_size_utils.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
@@ -41,8 +43,6 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar
 import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/unified_side_panel.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
-import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
-import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:path/path.dart' as p;
 
@@ -62,6 +62,8 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    PersistentViewerManager.mainWindowFocusTrigger.addListener(_onMainWindowFocus);
+    HardwareKeyboard.instance.addHandler(_handleGlobalHardwareKey);
     _focusNode = ref.read(mainFocusNodeProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupReverseIpc();
@@ -69,9 +71,99 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
     });
   }
 
+  void _onMainWindowFocus() {
+    if (mounted) {
+      _focusNode.requestFocus();
+    }
+  }
+
+  bool _handleGlobalHardwareKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+
+    final isControl = HardwareKeyboard.instance.isControlPressed;
+    final isShift = HardwareKeyboard.instance.isShiftPressed;
+    final isAlt = HardwareKeyboard.instance.isAltPressed;
+
+    if (event.logicalKey == LogicalKeyboardKey.keyD && isControl) {
+      if (isShift) {
+        _triggerStandaloneDownloader();
+        return true;
+      } else if (!isAlt) {
+        // If an input text field is currently focused, do not intercept plain Ctrl+D
+        final primaryFocus = FocusManager.instance.primaryFocus;
+        if (primaryFocus != null &&
+            primaryFocus.context != null &&
+            (primaryFocus.context!.widget is EditableText ||
+                ref.read(isLocationEditingProvider) ||
+                ref.read(isSearchActiveProvider))) {
+          return false;
+        }
+
+        _toggleDownloadsPanel();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _toggleDownloadsPanel() {
+    final isOpen = ref.read(downloadsPanelOpenProvider);
+    if (!isOpen) {
+      ref.read(downloadsPanelOpenProvider.notifier).state = true;
+      ref.read(backgroundPanelOpenProvider.notifier).state = false;
+      ref.read(downloadsPanelViewProvider.notifier).state =
+          DownloadsPanelView.tasks;
+    } else {
+      if (ref.read(downloadsPanelViewProvider) != DownloadsPanelView.tasks) {
+        ref.read(downloadsPanelViewProvider.notifier).state =
+            DownloadsPanelView.tasks;
+      } else {
+        ref.read(downloadsPanelOpenProvider.notifier).state = false;
+      }
+    }
+    _focusNode.requestFocus();
+  }
+
+  void _triggerStandaloneDownloader() {
+    if (PersistentViewerManager.isWindowOpen(ViewerType.downloader)) {
+      final viewId =
+          PersistentViewerManager.getActiveWindowId(ViewerType.downloader);
+      if (viewId != null) {
+        PersistentViewerManager.presentAndFocusUrl(viewId);
+        return;
+      }
+    }
+    PersistentViewerManager.openMedia(
+      WindowParams(
+        viewerType: ViewerType.downloader,
+        file: FileItem(
+          name: 'Downloader',
+          path: '',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+          sizeBytes: 0,
+        ),
+        initParams: {
+          'width': max(
+            950,
+            ref.read(settingsProvider).value?.downloaderWidth.toInt() ??
+                950,
+          ),
+          'height': max(
+            700,
+            ref.read(settingsProvider).value?.downloaderHeight.toInt() ??
+                700,
+          ),
+        },
+      ),
+    );
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached ||
+    if (state == AppLifecycleState.resumed) {
+      _focusNode.requestFocus();
+    } else if (state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
       ref.read(taskProvider.notifier).cancelAllTasks();
     }
@@ -79,6 +171,8 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleGlobalHardwareKey);
+    PersistentViewerManager.mainWindowFocusTrigger.removeListener(_onMainWindowFocus);
     WidgetsBinding.instance.removeObserver(this);
     _clearReverseIpc();
     _focusNode.dispose();
@@ -100,7 +194,6 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
     final isLocationEditing = ref.watch(isLocationEditingProvider);
     final isMarkerEditorActive = ref.watch(isMarkerEditorActiveProvider);
     final isPreviewActive = ref.watch(previewFileProvider) != null;
-    final isDownloadInputFocused = ref.watch(isDownloadInputFocusedProvider);
     final isDownloadsPanelFocused = ref.watch(isDownloadsPanelFocusedProvider);
 
     return CallbackShortcuts(
@@ -109,7 +202,7 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
         isLocationEditing,
         isMarkerEditorActive,
         isPreviewActive,
-        isDownloadInputFocused || isDownloadsPanelFocused,
+        isDownloadsPanelFocused,
       ),
       child: Focus(
         focusNode: _focusNode,
@@ -676,45 +769,6 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           ref.read(backgroundPanelViewProvider.notifier).state =
               BackgroundPanelView.tasks;
         }
-      },
-      const SingleActivator(LogicalKeyboardKey.keyD, control: true): () {
-        final isOpen = ref.read(downloadsPanelOpenProvider);
-        if (!isOpen) {
-          ref.read(downloadsPanelOpenProvider.notifier).state = true;
-          ref.read(backgroundPanelOpenProvider.notifier).state = false;
-          ref.read(downloadsPanelViewProvider.notifier).state =
-              DownloadsPanelView.tasks;
-          ref.read(downloadUrlFocusRequestProvider.notifier).state++;
-        } else {
-          final isFocused = ref.read(isDownloadInputFocusedProvider);
-          if (!isFocused) {
-            ref.read(downloadsPanelViewProvider.notifier).state =
-                DownloadsPanelView.tasks;
-            ref.read(downloadUrlFocusRequestProvider.notifier).state++;
-          } else {
-            ref.read(downloadsPanelOpenProvider.notifier).state = false;
-          }
-        }
-      },
-      const SingleActivator(LogicalKeyboardKey.keyD, control: true, shift: true): () {
-        final currentPath = ref.read(currentPathProvider);
-        PersistentViewerManager.openMedia(
-          WindowParams(
-            viewerType: ViewerType.downloader,
-            file: FileItem(
-              name: 'Downloader',
-              path: currentPath,
-              type: FileItemType.other,
-              modified: DateTime.now(),
-              sizeBytes: 0,
-            ),
-            initParams: {
-              'currentPath': currentPath,
-              'width': max(950, ref.read(settingsProvider).value?.downloaderWidth.toInt() ?? 950),
-              'height': max(700, ref.read(settingsProvider).value?.downloaderHeight.toInt() ?? 700),
-            },
-          ),
-        );
       },
       const SingleActivator(LogicalKeyboardKey.keyD, alt: true): () {
         if (!isSearchActive) {

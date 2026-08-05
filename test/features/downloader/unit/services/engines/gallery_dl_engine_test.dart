@@ -186,15 +186,47 @@ void main() {
     });
 
     group('5. Platform-Specific Title & Thumbnail Extraction', () {
-      test('U-DL-GAL-14: Extract Reddit titles with Subreddit prefix', () async {
-        final block = jsonEncode([
+      test('U-DL-GAL-14: Extract Reddit post titles cleanly without clutter', () async {
+        final block1 = jsonEncode([
+          [
+            3,
+            {
+              'subreddit': 'InsideMollywood',
+              'title': 'Looks like a warning sign for many 😅',
+              'author': 'Icy_Beach4427',
+              'url': 'http://img.com/1.mp4'
+            }
+          ]
+        ]);
+        final infos1 = await engine.parseGalleryDlJsonBlock(block1, 'http://url.com', false, null, 0, false);
+        expect(infos1.first.title, 'Looks like a warning sign for many 😅');
+
+        final block2 = jsonEncode([
           [
             3,
             {'subreddit': 'pics', 'title': 'Cat', 'author': 'User123', 'url': 'http://img.com/1.jpg'}
           ]
         ]);
-        final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
-        expect(infos.first.title, 'r/pics - Cat (@User123)');
+        final infos2 = await engine.parseGalleryDlJsonBlock(block2, 'http://url.com', false, null, 0, false);
+        expect(infos2.first.title, 'Cat');
+
+        final block3 = jsonEncode([
+          [
+            3,
+            {'subreddit': 'pics', 'description': 'Cat photo', 'author': 'User123', 'url': 'http://img.com/1.jpg'}
+          ]
+        ]);
+        final infos3 = await engine.parseGalleryDlJsonBlock(block3, 'http://url.com', false, null, 0, false);
+        expect(infos3.first.title, 'Cat photo');
+
+        final block4 = jsonEncode([
+          [
+            3,
+            {'subreddit': 'pics', 'author': 'User123', 'url': 'http://img.com/1.jpg'}
+          ]
+        ]);
+        final infos4 = await engine.parseGalleryDlJsonBlock(block4, 'http://url.com', false, null, 0, false);
+        expect(infos4.first.title, 'r/pics Post by @User123');
       });
 
       test('U-DL-GAL-15: Extract Twitter/X item URLs correctly', () async {
@@ -243,6 +275,41 @@ void main() {
         expect(infos.length, 2);
         expect(infos[0].webpageUrl, 'https://www.instagram.com/p/test1234/?img_index=1');
         expect(infos[1].webpageUrl, 'https://www.instagram.com/p/test1234/?img_index=2');
+      });
+
+      test('U-DL-GAL-18: Preserves existingCount across sequential JSON blocks for galleryIndex', () async {
+        final block1 = jsonEncode([
+          [
+            3,
+            {'shortcode': 'test1', 'url': 'http://img.com/1.jpg'},
+            'http://img.com/1.jpg'
+          ],
+          [
+            3,
+            {'shortcode': 'test2', 'url': 'http://img.com/2.jpg'},
+            'http://img.com/2.jpg'
+          ]
+        ]);
+        final block2 = jsonEncode([
+          [
+            3,
+            {'shortcode': 'test3', 'url': 'http://img.com/3.jpg'},
+            'http://img.com/3.jpg'
+          ],
+          [
+            3,
+            {'shortcode': 'test4', 'url': 'http://img.com/4.jpg'},
+            'http://img.com/4.jpg'
+          ]
+        ]);
+
+        final infos1 = await engine.parseGalleryDlJsonBlock(block1, 'https://instagram.com/p/test1', false, null, 0, false);
+        expect(infos1[0].galleryIndex, 1);
+        expect(infos1[1].galleryIndex, 2);
+
+        final infos2 = await engine.parseGalleryDlJsonBlock(block2, 'https://instagram.com/p/test1', false, null, infos1.length, false);
+        expect(infos2[0].galleryIndex, 3);
+        expect(infos2[1].galleryIndex, 4);
       });
     });
   });
