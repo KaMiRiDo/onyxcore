@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:math';
 import 'dart:ui';
 
@@ -8,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
-import 'package:onyxcore/core/utils/directory_size_utils.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
@@ -594,47 +592,108 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
 
 
 
-  /// Same as _buildContent but without the Expanded wrapper (for inline Row layout).
+  /// Content area with synchronized tab flash animation.
   Widget _buildContentInner() {
+    return const _GalleryContentArea();
+  }
+}
+
+class _GalleryContentArea extends ConsumerStatefulWidget {
+  const _GalleryContentArea();
+
+  @override
+  ConsumerState<_GalleryContentArea> createState() =>
+      _GalleryContentAreaState();
+}
+
+class _GalleryContentAreaState extends ConsumerState<_GalleryContentArea>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _flashController;
+  late final Animation<double> _flashAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _flashController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 140),
+      value: 0,
+    );
+    _flashAnimation = CurvedAnimation(
+      parent: _flashController,
+      curve: Curves.easeOutQuad,
+    );
+  }
+
+  void _triggerFlash() {
+    _flashController
+      ..value = 1
+      ..reverse(from: 1);
+  }
+
+  @override
+  void dispose() {
+    _flashController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref
+      ..listen<TabManagerState>(tabManagerProvider, (previous, next) {
+        if (previous == null) return;
+        if (previous.tabs.length != next.tabs.length ||
+            previous.activeTabIndex != next.activeTabIndex) {
+          _triggerFlash();
+        }
+      })
+      ..listen<int>(refreshCountProvider, (previous, next) {
+        if (next > (previous ?? 0)) {
+          _triggerFlash();
+        }
+      });
+
     final tabState = ref.watch(tabManagerProvider);
 
-    return IndexedStack(
-      index: tabState.activeTabIndex,
-      children: tabState.tabs.map((tab) {
-        return ProviderScope(
-          key: ValueKey(tab.id),
-          overrides: [
-            tabIdProvider.overrideWithValue(tab.id),
-            // Override these to ensure they are local to the tab's scope
-            directoryItemsProvider.overrideWith(DirectoryItemsNotifier.new),
-            filteredDirectoryItemsProvider.overrideWith((ref) {
-              final itemsAsync = ref.watch(directoryItemsProvider);
-              final query = ref.watch(searchQueryProvider).toLowerCase();
-              final showHidden = ref.watch(
-                settingsProvider.select(
-                  (s) => s.value?.showHiddenFiles ?? false,
-                ),
-              );
+    return AnimatedBuilder(
+      animation: _flashAnimation,
+      builder: (context, child) {
+        final flashVal = _flashAnimation.value;
+        final flashOpacity = (1.0 - 0.40 * flashVal).clamp(0.60, 1.0);
 
-              return itemsAsync.whenData((items) {
-                var filtered = items;
-                if (!showHidden) {
-                  filtered = filtered
-                      .where((item) => !item.name.startsWith('.'))
-                      .toList();
-                }
-                if (query.isNotEmpty) {
-                  filtered = filtered
-                      .where((item) => item.name.toLowerCase().contains(query))
-                      .toList();
-                }
-                return filtered;
-              });
-            }),
+        return Stack(
+          children: [
+            Opacity(
+              opacity: flashOpacity,
+              child: child,
+            ),
+            if (flashVal > 0.01)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E).withValues(
+                        alpha: 0.30 * flashVal,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
-          child: _TabBody(tabId: tab.id),
         );
-      }).toList(),
+      },
+      child: IndexedStack(
+        index: tabState.activeTabIndex,
+        children: tabState.tabs.map((tab) {
+          return ProviderScope(
+            key: ValueKey(tab.id),
+            overrides: [
+              tabIdProvider.overrideWithValue(tab.id),
+            ],
+            child: _TabBody(tabId: tab.id),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -827,25 +886,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
   }
 
   Future<void> _refresh() async {
-    if (ref.read(isRefreshingProvider)) return;
-    ref.read(isRefreshingProvider.notifier).state = true;
-
     final currentPath = ref.read(currentPathProvider);
     ref.read(directoryRepositoryProvider).invalidateCache(currentPath);
-    ref.read(refreshCountProvider.notifier).state =
-        ref.read(refreshCountProvider) + 1;
-    
-    ref.read(directoryItemsProvider.notifier).refresh();
-    
-    try {
-      // Wait for both the data load and the minimum animation duration
-      await Future.wait([
-        ref.read(directoryItemsProvider.future),
-        Future<void>.delayed(const Duration(milliseconds: 150)),
-      ]);
-    } catch (_) {}
-
-    ref.read(isRefreshingProvider.notifier).state = false;
+    await ref.read(directoryItemsProvider.notifier).refresh();
   }
 
   void _handlePreview() {
@@ -865,9 +908,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (selection.selectedPaths.length != 1) return;
 
     final selectedPath = selection.selectedPaths.first;
-    final itemsAsync = ref.read(filteredDirectoryItemsProvider);
-
-    itemsAsync.whenData((items) {
+    ref.read(filteredDirectoryItemsProvider).whenData((items) {
       try {
         final item = items.firstWhere((i) => i.path == selectedPath);
         _openItem(item);
@@ -933,12 +974,13 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (ref.read(isAnalysisActiveProvider)) {
       ref.read(isAnalysisActiveProvider.notifier).set(false);
       final currentPath = ref.read(currentPathProvider);
-      ref.invalidate(directoryAnalysisProvider(currentPath));
-      ref.invalidate(analysisCurrentPathProvider(currentPath));
-      ref.invalidate(displayedItemsProvider(currentPath));
-      ref.invalidate(typeFilterProvider);
-      ref.invalidate(sizeFilterProvider);
-      ref.invalidate(extensionFilterProvider);
+      ref
+        ..invalidate(directoryAnalysisProvider(currentPath))
+        ..invalidate(analysisCurrentPathProvider(currentPath))
+        ..invalidate(displayedItemsProvider(currentPath))
+        ..invalidate(typeFilterProvider)
+        ..invalidate(sizeFilterProvider)
+        ..invalidate(extensionFilterProvider);
       return;
     }
 
@@ -963,8 +1005,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     final tab = ref
         .read(tabManagerProvider)
         .tabs
-        .firstWhere((t) => t.id == tabId);
-    final currentSort = tab.sortSettings.option;
+        .where((t) => t.id == tabId)
+        .firstOrNull;
+    final currentSort = tab?.sortSettings.option ?? SortOption.aToZ;
     return ContextMenuItem(
       title: title,
       isSelected: currentSort == option,
@@ -1034,46 +1077,53 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
       // 1. Circular reference check
       if (absDest.startsWith(absSource + p.separator)) {
-        await showDialog<dynamic>(
-          context: context,
-          builder: (context) => ErrorDialog(
-            title: 'You cannot copy a $typeStr into itself.',
-            message: 'The destination is inside the source $typeStr.',
-          ),
-        );
+        if (mounted) {
+          await showDialog<dynamic>(
+            context: context,
+            builder: (context) => ErrorDialog(
+              title: 'You cannot copy a $typeStr into itself.',
+              message: 'The destination is inside the source $typeStr.',
+            ),
+          );
+        }
         continue;
       }
 
       // 2. Parent-child overwrite check
       if (absSource.startsWith(absDest + p.separator)) {
-        await showDialog<dynamic>(
-          context: context,
-          builder: (context) => ErrorDialog(
-            title:
-                'You cannot ${clipboard.isCut ? "move" : "copy"} a $typeStr over itself.',
-            message:
-                'The source $typeStr would be overwritten by the destination.',
-          ),
-        );
+        if (mounted) {
+          await showDialog<dynamic>(
+            context: context,
+            builder: (context) => ErrorDialog(
+              title:
+                  'You cannot ${clipboard.isCut ? "move" : "copy"} a $typeStr over itself.',
+              message:
+                  'The source $typeStr would be overwritten by the destination.',
+            ),
+          );
+        }
         continue;
       }
 
       // 3. Same path check
       if (absSource == absDest && clipboard.isCut) {
-        await showDialog<dynamic>(
-          context: context,
-          builder: (context) => ErrorDialog(
-            title: 'You cannot move a $typeStr over itself.',
-            message:
-                'The source $typeStr would be overwritten by the destination.',
-          ),
-        );
+        if (mounted) {
+          await showDialog<dynamic>(
+            context: context,
+            builder: (context) => ErrorDialog(
+              title: 'You cannot move a $typeStr over itself.',
+              message:
+                  'The source $typeStr would be overwritten by the destination.',
+            ),
+          );
+        }
         continue;
       }
 
       // 4. Conflict check
       var finalDestPath = destPath;
       if (File(destPath).existsSync() || Directory(destPath).existsSync()) {
+        if (!mounted) continue;
         final resolution = await ref
             .read(conflictProvider.notifier)
             .resolveConflict(
@@ -1088,14 +1138,16 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         } else if (resolution == ConflictResolution.replace &&
             (absSource == absDest ||
                 absSource.startsWith(absDest + p.separator))) {
-          await showDialog<dynamic>(
-            context: context,
-            builder: (context) => ErrorDialog(
-              title: 'You cannot copy a $typeStr over itself.',
-              message:
-                  'The source $typeStr would be overwritten by the destination.',
-            ),
-          );
+          if (mounted) {
+            await showDialog<dynamic>(
+              context: context,
+              builder: (context) => ErrorDialog(
+                title: 'You cannot copy a $typeStr over itself.',
+                message:
+                    'The source $typeStr would be overwritten by the destination.',
+              ),
+            );
+          }
           continue;
         } else if (resolution == ConflictResolution.rename) {
           final ext = p.extension(name);
@@ -1207,7 +1259,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         } else {
           // Trigger a refresh at the start to show the file as soon as it's created
           if (ref.read(currentPathProvider) == targetDir) {
-            ref.read(directoryItemsProvider.notifier).refresh();
+            unawaited(ref.read(directoryItemsProvider.notifier).refresh());
           }
           await repo.copyItemTo(
             op.source,
@@ -1265,10 +1317,34 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
 
     var confirmed = false;
     if (effectivelyPermanent) {
-      // Calculate detailed stats for the confirmation dialog
-      final stats = await _calculateSelectionStats(
-        selection.selectedPaths.toList(),
-      );
+      final selectedPaths = selection.selectedPaths;
+      final items = ref.read(directoryItemsProvider).value ?? [];
+      final itemMap = {for (final i in items) i.path: i};
+
+      var filesCount = 0;
+      var foldersCount = 0;
+      var totalSize = 0;
+
+      for (final path in selectedPaths) {
+        final item = itemMap[path];
+        if (item != null) {
+          if (item.type == FileItemType.folder) {
+            foldersCount++;
+          } else {
+            filesCount++;
+            totalSize += item.sizeBytes ?? 0;
+          }
+        } else {
+          try {
+            if (FileSystemEntity.isDirectorySync(path)) {
+              foldersCount++;
+            } else {
+              filesCount++;
+              totalSize += File(path).lengthSync();
+            }
+          } catch (_) {}
+        }
+      }
 
       if (!mounted) return;
 
@@ -1276,9 +1352,11 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           await showDialog<bool>(
             context: context,
             builder: (context) => PermanentDeleteDialog(
-              filesCount: stats.filesCount,
-              foldersCount: stats.foldersCount,
-              totalSize: StringUtils.formatBytes(stats.size),
+              filesCount: filesCount,
+              foldersCount: foldersCount,
+              totalSize: StringUtils.formatBytes(totalSize),
+              pathsToCalculateSize:
+                  foldersCount > 0 ? selectedPaths.toList() : null,
             ),
           ) ??
           false;
@@ -1326,21 +1404,23 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           );
         } catch (e) {
           ref.read(taskProvider.notifier).failTask(taskId, e.toString());
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'System trash utility not found. Use Shift+Delete.',
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'System trash utility not found. Use Shift+Delete.',
+                ),
+                backgroundColor: AppColors.error,
               ),
-              backgroundColor: AppColors.error,
-            ),
-          );
+            );
+          }
           return;
         }
       }
       ref.read(taskProvider.notifier).completeTask(taskId);
       ref.read(selectionProvider.notifier).deselectAll();
-      ref.read(directoryItemsProvider.notifier).refresh();
-      ref.read(settingsProvider.notifier).cleanupFolderSorts(paths);
+      unawaited(ref.read(directoryItemsProvider.notifier).refresh());
+      unawaited(ref.read(settingsProvider.notifier).cleanupFolderSorts(paths));
     } catch (e) {
       debugPrint('Delete error: $e');
     }
@@ -1373,7 +1453,18 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (items.isEmpty) return;
 
     final allPaths = items.map((e) => e.path).toList();
-    final stats = await _calculateSelectionStats(allPaths);
+    var filesCount = 0;
+    var foldersCount = 0;
+    var totalSize = 0;
+
+    for (final i in items) {
+      if (i.type == FileItemType.folder) {
+        foldersCount++;
+      } else {
+        filesCount++;
+        totalSize += i.sizeBytes ?? 0;
+      }
+    }
 
     if (!mounted) return;
 
@@ -1381,9 +1472,10 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         await showDialog<bool>(
           context: context,
           builder: (context) => PermanentDeleteDialog(
-            filesCount: stats.filesCount,
-            foldersCount: stats.foldersCount,
-            totalSize: StringUtils.formatBytes(stats.size),
+            filesCount: filesCount,
+            foldersCount: foldersCount,
+            totalSize: StringUtils.formatBytes(totalSize),
+            pathsToCalculateSize: foldersCount > 0 ? allPaths : null,
           ),
         ) ??
         false;
@@ -1399,8 +1491,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           isLight: true,
         );
 
-    final repo = ref.read(directoryRepositoryProvider);
     try {
+      final repo = ref.read(directoryRepositoryProvider);
       await repo.deleteItems(
         allPaths,
         permanent: true,
@@ -1413,10 +1505,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       );
       ref.read(taskProvider.notifier).completeTask(taskId);
       ref.read(selectionProvider.notifier).deselectAll();
-      ref.read(directoryItemsProvider.notifier).refresh();
+      unawaited(ref.read(directoryItemsProvider.notifier).refresh());
     } catch (e) {
       debugPrint('Empty trash error: $e');
-      ref.read(taskProvider.notifier).failTask(taskId, e.toString());
     }
   }
 
@@ -1505,7 +1596,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
                 rethrow;
               }
             }
-            ref.read(directoryItemsProvider.notifier).refresh();
+            unawaited(ref.read(directoryItemsProvider.notifier).refresh());
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(
@@ -1599,7 +1690,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           ref.read(selectionProvider.notifier).deselectAll();
           ref.read(selectionProvider.notifier).selectMultiple(newPaths);
         }
-        ref.read(directoryItemsProvider.notifier).refresh();
+        unawaited(ref.read(directoryItemsProvider.notifier).refresh());
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -1661,28 +1752,6 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       }
     }
     _focusNode.requestFocus();
-  }
-
-  Future<DirectorySizeUpdate> _calculateSelectionStats(
-    List<String> paths,
-  ) async {
-    final receivePort = ReceivePort();
-    try {
-      await Isolate.spawn(
-        calculateDirectorySizeIncremental,
-        DirectorySizeArgs(
-          paths: paths,
-          sendPort: receivePort.sendPort,
-        ),
-      );
-
-      final result = await receivePort.firstWhere(
-        (m) => m is DirectorySizeUpdate && m.isFinished,
-      );
-      return result as DirectorySizeUpdate;
-    } finally {
-      receivePort.close();
-    }
   }
 
   void _zoom(double delta) {

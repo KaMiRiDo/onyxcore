@@ -4,12 +4,28 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/domain/repositories/directory_repository.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/image_navigation_controller.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:path/path.dart' as p;
+
+class FakeDirectoryRepository implements DirectoryRepository {
+  FakeDirectoryRepository(this.initialItems);
+  final List<FileItem> initialItems;
+
+  @override
+  Stream<FileChangeEvent> watchDirectory(String path) => const Stream.empty();
+
+  @override
+  Future<List<FileItem>> listDirectory(String path) async => initialItems;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   late ImageNavigationController controller;
@@ -60,6 +76,9 @@ void main() {
             (ref) => customPlaylist ?? playlist,
           ),
           sortedDirectoryItemsProvider.overrideWith((ref) => <FileItem>[]),
+          directoryRepositoryProvider.overrideWithValue(
+            FakeDirectoryRepository([]),
+          ),
         ],
         child: Consumer(
           builder: (context, ref, child) {

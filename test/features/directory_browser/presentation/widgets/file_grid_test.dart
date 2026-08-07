@@ -347,9 +347,87 @@ void main() {
     await tester.pumpAndSettle();
 
     // Trigger AppLifecycleState change
-    final state = tester.state(find.byType(FileGrid)) as WidgetsBindingObserver;
-    state.didChangeAppLifecycleState(AppLifecycleState.detached);
+    (tester.state(find.byType(FileGrid)) as WidgetsBindingObserver)
+        .didChangeAppLifecycleState(AppLifecycleState.detached);
 
     await tester.pumpAndSettle();
+  });
+
+  group('calculateGridViewportIndices', () {
+    test('computes exact column count and visible range at scroll offset 0', () {
+      final indices = calculateGridViewportIndices(
+        gridWidth: 1200,
+        gridHeight: 800,
+        scrollOffset: 0,
+        itemCount: 100,
+        zoom: 1,
+      );
+
+      // Available width: 1200 - 64 = 1136
+      // (1136 / (180 + 24)).ceil() = ceil(5.568) = 6 columns
+      expect(indices.cols, 6);
+      expect(indices.firstVisibleIndex, 0);
+      expect(indices.lastVisibleIndex, 30); // 5 rows * 6 cols = 30
+      expect(indices.firstBufferIndex, 0);
+      expect(indices.lastBufferIndex, 42); // 7 rows * 6 cols = 42
+    });
+
+    test('computes visible range accurately when scrolled down', () {
+      final indices = calculateGridViewportIndices(
+        gridWidth: 1200,
+        gridHeight: 800,
+        scrollOffset: 462, // 2 rows down (2 * 231)
+        itemCount: 100,
+        zoom: 1,
+      );
+
+      expect(indices.cols, 6);
+      expect(indices.firstVisibleIndex, 6); // Row 1 starts at index 6
+      expect(indices.lastVisibleIndex, 42); // Up to row 6 (7 rows * 6 cols = 42)
+      expect(indices.firstBufferIndex, 0); // 2 rows above clamped to 0
+      expect(indices.lastBufferIndex, 54); // Row 8 * 6 cols = 54
+    });
+
+    test('handles empty item list gracefully', () {
+      final indices = calculateGridViewportIndices(
+        gridWidth: 1200,
+        gridHeight: 800,
+        scrollOffset: 0,
+        itemCount: 0,
+        zoom: 1,
+      );
+
+      expect(indices.firstVisibleIndex, 0);
+      expect(indices.lastVisibleIndex, 0);
+    });
+
+    test('scales columns and item boundaries correctly with zoom', () {
+      final indicesZoomed = calculateGridViewportIndices(
+        gridWidth: 1200,
+        gridHeight: 800,
+        scrollOffset: 0,
+        itemCount: 100,
+        zoom: 1.5,
+      );
+
+      // (1136 / (180*1.5 + 24*1.5)).ceil() = ceil(1136 / 306) = 4 cols
+      expect(indicesZoomed.cols, 4);
+      expect(indicesZoomed.firstVisibleIndex, 0);
+      expect(indicesZoomed.lastVisibleIndex, lessThanOrEqualTo(100));
+    });
+
+    test('clamps indices when total items is smaller than visible capacity', () {
+      final indicesFewItems = calculateGridViewportIndices(
+        gridWidth: 1200,
+        gridHeight: 800,
+        scrollOffset: 0,
+        itemCount: 5,
+        zoom: 1,
+      );
+
+      expect(indicesFewItems.firstVisibleIndex, 0);
+      expect(indicesFewItems.lastVisibleIndex, 5);
+      expect(indicesFewItems.lastBufferIndex, 5);
+    });
   });
 }

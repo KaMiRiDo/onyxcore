@@ -8,8 +8,13 @@ class NavigationNotifier extends Notifier<NavigationState> {
   NavigationState build() {
     final tabId = ref.watch(tabIdProvider);
     final tab = ref.watch(
-      tabManagerProvider.select((s) => s.tabs.firstWhere((t) => t.id == tabId)),
+      tabManagerProvider.select(
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull,
+      ),
     );
+    if (tab == null) {
+      return const NavigationState(history: ['/'], historyIndex: 0);
+    }
     return NavigationState(
       history: tab.history,
       historyIndex: tab.historyIndex,
@@ -45,8 +50,11 @@ class NavigationNotifier extends Notifier<NavigationState> {
     // For now, let's just use current tab.
     final tabId = ref.read(tabIdProvider);
     final tab = ref.read(
-      tabManagerProvider.select((s) => s.tabs.firstWhere((t) => t.id == tabId)),
+      tabManagerProvider.select(
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull,
+      ),
     );
+    if (tab == null) return null;
 
     final history = tab.history;
     var targetIndex = -1;

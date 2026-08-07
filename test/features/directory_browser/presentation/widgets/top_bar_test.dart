@@ -25,11 +25,11 @@ class MockTabManager extends TabManager {
   }
 
   @override
-  void setSearchActive(String tabId, bool value) {
+  void setSearchActive(String tabId, {required bool active}) {
     state = TabManagerState(
       tabs: state.tabs.map((tab) {
         if (tab.id == tabId) {
-          return tab.copyWith(isSearchActive: value);
+          return tab.copyWith(isSearchActive: active);
         }
         return tab;
       }).toList(),

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:onyxcore/core/cache/directory_cache.dart';
+import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/directory_size_datasource.dart';
@@ -49,6 +50,7 @@ final directoryRepositoryProvider = Provider<DirectoryRepository>((ref) {
     datasource: ref.watch(localFileDatasourceProvider),
     cache: ref.watch(directoryCacheProvider),
     watcher: ref.watch(directoryWatcherProvider),
+    thumbnailCacheService: ref.watch(thumbnailCacheServiceProvider),
   );
 });
 
@@ -61,7 +63,7 @@ class CurrentPathNotifier extends Notifier<String> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).currentPath,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.currentPath ?? '/',
       ),
     );
   }
@@ -112,7 +114,7 @@ class SearchQueryNotifier extends Notifier<String> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).searchQuery,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.searchQuery ?? '',
       ),
     );
   }
@@ -135,30 +137,33 @@ class IsSearchActiveNotifier extends Notifier<bool> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ?? false,
       ),
     );
   }
 
+  // ignore: avoid_positional_boolean_parameters
   void set(bool value) {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ?? false,
       ),
     );
     if (current == value) return;
-    ref.read(tabManagerProvider.notifier).setSearchActive(tabId, value);
+    ref.read(tabManagerProvider.notifier).setSearchActive(tabId, active: value);
   }
 
   void toggle() {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isSearchActive,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ?? false,
       ),
     );
-    ref.read(tabManagerProvider.notifier).setSearchActive(tabId, !current);
+    ref
+        .read(tabManagerProvider.notifier)
+        .setSearchActive(tabId, active: !current);
   }
 }
 
@@ -173,30 +178,35 @@ class IsAnalysisActiveNotifier extends Notifier<bool> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ?? false,
       ),
     );
   }
 
+  // ignore: avoid_positional_boolean_parameters
   void set(bool value) {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ?? false,
       ),
     );
     if (current == value) return;
-    ref.read(tabManagerProvider.notifier).setAnalysisActive(tabId, value);
+    ref
+        .read(tabManagerProvider.notifier)
+        .setAnalysisActive(tabId, active: value);
   }
 
   void toggle() {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isAnalysisActive,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ?? false,
       ),
     );
-    ref.read(tabManagerProvider.notifier).setAnalysisActive(tabId, !current);
+    ref
+        .read(tabManagerProvider.notifier)
+        .setAnalysisActive(tabId, active: !current);
   }
 }
 
@@ -212,30 +222,35 @@ class IsLocationEditingNotifier extends Notifier<bool> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ?? false,
       ),
     );
   }
 
+  // ignore: avoid_positional_boolean_parameters
   void set(bool value) {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ?? false,
       ),
     );
     if (current == value) return;
-    ref.read(tabManagerProvider.notifier).setLocationEditing(tabId, value);
+    ref
+        .read(tabManagerProvider.notifier)
+        .setLocationEditing(tabId, active: value);
   }
 
   void toggle() {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isLocationEditing,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ?? false,
       ),
     );
-    ref.read(tabManagerProvider.notifier).setLocationEditing(tabId, !current);
+    ref
+        .read(tabManagerProvider.notifier)
+        .setLocationEditing(tabId, active: !current);
   }
 }
 
@@ -259,7 +274,7 @@ final sortSettingsProvider = Provider<SortSettings>((ref) {
   final tabId = ref.watch(tabIdProvider);
   return ref.watch(
     tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).sortSettings,
+      (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.sortSettings ?? const SortSettings(),
     ),
   );
 });
@@ -268,7 +283,7 @@ final filterSettingsProvider = Provider<FilterSettings>((ref) {
   final tabId = ref.watch(tabIdProvider);
   return ref.watch(
     tabManagerProvider.select(
-      (s) => s.tabs.firstWhere((t) => t.id == tabId).filterSettings,
+      (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.filterSettings ?? const FilterSettings(),
     ),
   );
 });
@@ -278,9 +293,13 @@ final filterSettingsProvider = Provider<FilterSettings>((ref) {
 /// Loads directory items for the current path.
 class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
   StreamSubscription<FileChangeEvent>? _watchSubscription;
+  int _metadataToken = 0;
+  bool _isDisposed = false;
 
   @override
   Future<List<FileItem>> build() async {
+    _isDisposed = false;
+    final currentToken = ++_metadataToken;
     final path = ref.watch(currentPathProvider);
 
     // Wait for user settings to load to avoid UI jumps on startup
@@ -305,6 +324,13 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     final repo = ref.read(directoryRepositoryProvider);
     final items = await repo.listDirectory(path);
 
+    // Clear refreshing state once items are loaded
+    Future.microtask(() {
+      if (!_isDisposed && currentToken == _metadataToken) {
+        ref.read(isRefreshingProvider.notifier).state = false;
+      }
+    });
+
     // Preserve metadata from previous state to prevent UI jumping during refresh
     final previousItems = state.value ?? [];
     if (previousItems.isNotEmpty) {
@@ -326,46 +352,47 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
     final hasMissingSizes = items.any((i) => i.type == FileItemType.folder && i.sizeBytes == null);
 
+    // Start watching for changes
+    _watchSubscription?.cancel().ignore();
+    _watchSubscription = repo.watchDirectory(path).listen((_) {
+      // Invalidate cache and reload on any file change
+      ref.read(directoryCacheProvider).invalidate(path);
+      ref.invalidateSelf();
+    });
+
+    ref.onDispose(() {
+      _isDisposed = true;
+      _metadataToken++;
+      _watchSubscription?.cancel().ignore();
+    });
+
     if (needsMetadataForSort && hasMissingSizes) {
-      // Start watching for changes
-      _watchSubscription?.cancel().ignore();
-      _watchSubscription = repo.watchDirectory(path).listen((_) {
-        // Invalidate cache and reload on any file change
-        ref.read(directoryCacheProvider).invalidate(path);
-        ref.invalidateSelf();
-      });
-
-      ref.onDispose(() {
-        _watchSubscription?.cancel().ignore();
-      });
-
       // Await metadata generation to avoid default sort jump on startup or navigation
-      return _generateMetadataAsync(items, path, returnOnly: true);
+      return _generateMetadataAsync(items, path, currentToken, returnOnly: true);
     } else {
-      // Start watching for changes
-      _watchSubscription?.cancel().ignore();
-      _watchSubscription = repo.watchDirectory(path).listen((_) {
-        // Invalidate cache and reload on any file change
-        ref.read(directoryCacheProvider).invalidate(path);
-        ref.invalidateSelf();
-      });
-
-      ref.onDispose(() {
-        _watchSubscription?.cancel().ignore();
-      });
-
       // Generate metadata async (aspect ratios)
-      _generateMetadataAsync(items, path).ignore();
-
+      _generateMetadataAsync(items, path, currentToken).ignore();
       return items;
     }
   }
 
   /// Generates image aspect ratios and directory sizes in the background.
-  Future<List<FileItem>> _generateMetadataAsync(List<FileItem> items, String originalPath, {bool returnOnly = false}) async {
+  Future<List<FileItem>> _generateMetadataAsync(
+    List<FileItem> items,
+    String originalPath,
+    int token, {
+    bool returnOnly = false,
+  }) async {
     // Defer execution to avoid synchronous state mutation during the build phase
     if (!returnOnly) {
       await Future<void>.delayed(Duration.zero);
+    }
+
+    if (_isDisposed || token != _metadataToken) return items;
+
+    // Do not run background ffprobe/du on thumbnail cache folder
+    if (ThumbnailCacheService.isThumbnailCachePath(originalPath)) {
+      return items;
     }
 
     final mediaDatasource = ref.read(mediaMetadataDatasourceProvider);
@@ -386,6 +413,8 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
     if (folders.isNotEmpty) {
       final sizes = await sizeDatasource.getDirectorySizes(folders);
+      if (_isDisposed || token != _metadataToken) return items;
+
       for (var i = 0; i < updatedItems.length; i++) {
         if (sizes.containsKey(updatedItems[i].path)) {
           updatedItems[i] = updatedItems[i].copyWith(sizeBytes: sizes[updatedItems[i].path]);
@@ -400,9 +429,13 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
       // Chunk the images to avoid running ffprobe on 10,000 files in one isolate run, which could take a long time
       const chunkSize = 100;
       for (var i = 0; i < images.length; i += chunkSize) {
+        if (_isDisposed || token != _metadataToken) return items;
+
         final chunk = images.skip(i).take(chunkSize).toList();
         final ratios = await mediaDatasource.extractAspectRatios(chunk);
         
+        if (_isDisposed || token != _metadataToken) return items;
+
         for (var j = 0; j < updatedItems.length; j++) {
           if (ratios.containsKey(updatedItems[j].path)) {
             updatedItems[j] = updatedItems[j].copyWith(imageAspectRatio: ratios[updatedItems[j].path]);
@@ -414,14 +447,14 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
       }
     }
 
-    if (changed) {
+    if (changed && !_isDisposed && token == _metadataToken) {
       // Cache it for the path we generated metadata for
       ref.read(directoryCacheProvider).put(originalPath, updatedItems);
       
       if (!returnOnly) {
         // Only update the UI state if the user hasn't navigated away
         final currentPath = ref.read(currentPathProvider);
-        if (currentPath == originalPath) {
+        if (currentPath == originalPath && !_isDisposed && token == _metadataToken) {
           state = AsyncValue.data(updatedItems);
         }
       }
@@ -432,8 +465,12 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
   /// Force reload the current directory (invalidates cache).
   Future<void> refresh() async {
+    _metadataToken++;
     final path = ref.read(currentPathProvider);
     ref.read(directoryCacheProvider).invalidate(path);
+    ref.read(isRefreshingProvider.notifier).state = true;
+    ref.read(refreshCountProvider.notifier).state =
+        ref.read(refreshCountProvider) + 1;
     ref.invalidateSelf();
   }
 
@@ -623,7 +660,7 @@ class IsRefreshingNotifier extends Notifier<bool> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).isRefreshing,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isRefreshing ?? false,
       ),
     );
   }
@@ -631,7 +668,7 @@ class IsRefreshingNotifier extends Notifier<bool> {
   @override
   set state(bool value) {
     final tabId = ref.read(tabIdProvider);
-    ref.read(tabManagerProvider.notifier).setRefreshing(tabId, value);
+    ref.read(tabManagerProvider.notifier).setRefreshing(tabId, refreshing: value);
   }
 }
 
@@ -646,7 +683,7 @@ class RefreshCountNotifier extends Notifier<int> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
       ),
     );
   }
@@ -660,7 +697,7 @@ class RefreshCountNotifier extends Notifier<int> {
     // but for compatibility with state = value:
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
       ),
     );
     if (value > current) {
@@ -672,7 +709,7 @@ class RefreshCountNotifier extends Notifier<int> {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.firstWhere((t) => t.id == tabId).refreshCount,
+        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
       ),
     );
     final next = updater(current);
@@ -689,15 +726,17 @@ final mainFocusNodeProvider = Provider<FocusNode>((ref) => FocusNode());
 
 /// Global registry of ItemCard GlobalKeys to find their positions for popovers (like Rename).
 class ItemKeysNotifier extends Notifier<Map<String, GlobalKey>> {
+  final Map<String, GlobalKey> _keys = {};
+
   @override
-  Map<String, GlobalKey> build() => {};
+  Map<String, GlobalKey> build() => _keys;
 
   void update(Map<String, GlobalKey> Function(Map<String, GlobalKey>) updater) {
     state = updater(state);
   }
 
   void register(String path, GlobalKey key) {
-    state = {...state, path: key};
+    _keys[path] = key;
   }
 }
 

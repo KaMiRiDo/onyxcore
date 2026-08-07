@@ -2,15 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/utils/logger.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/device.dart';
 
-/// StreamProvider that polls for connected storage devices every 2 seconds.
+/// StreamProvider that polls for connected storage devices.
 final deviceProvider = StreamProvider<List<Device>>((ref) {
   final controller = StreamController<List<Device>>();
   final attemptedMounts = <String>{};
   var isUpdating = false;
+  List<Device>? lastValidDevices;
 
   Timer? timer;
 
@@ -36,11 +38,14 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
             '-o',
             'NAME,MOUNTPOINT,SIZE,FSUSED,FSSIZE,FSAVAIL,TYPE,LABEL,MODEL,RM,FSTYPE',
           ]).timeout(
-            const Duration(milliseconds: 800),
+            const Duration(milliseconds: 2500),
             onTimeout: () => ProcessResult(0, 1, '', ''),
           );
 
       if (result.exitCode != 0) {
+        if (lastValidDevices != null && !controller.isClosed) {
+          return;
+        }
         if (!controller.isClosed) controller.add([]);
         return;
       }
@@ -50,7 +55,8 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
 
       final currentIds = <String>{};
       void parseDevices(List<dynamic> list) {
-        for (final item in list) {
+        for (final rawItem in list) {
+          final item = rawItem as Map<String, dynamic>;
           final deviceId = item['name']?.toString() ?? '';
           if (deviceId.isNotEmpty) currentIds.add(deviceId);
 
@@ -159,7 +165,7 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
         final idRes = await Process.run('id', ['-u']);
         final uid = idRes.stdout.toString().trim();
         final gvfsDir = Directory('/run/user/$uid/gvfs');
-        if (await gvfsDir.exists()) {
+        if (gvfsDir.existsSync()) {
           final entities = await gvfsDir.list().toList();
           for (final entity in entities) {
             if (entity is Directory) {
@@ -236,10 +242,15 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
         return a.name.compareTo(b.name);
       });
 
-      if (!controller.isClosed) controller.add(devices);
+      if (!listEquals(devices, lastValidDevices)) {
+        lastValidDevices = List<Device>.from(devices);
+        if (!controller.isClosed) controller.add(devices);
+      }
     } catch (e) {
       log('Error detecting devices: $e');
-      if (!controller.isClosed) controller.add([]);
+      if (lastValidDevices == null && !controller.isClosed) {
+        controller.add([]);
+      }
     } finally {
       isUpdating = false;
     }
@@ -248,8 +259,8 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
   // Initial update
   updateDevices();
 
-  // Poll every 1 second for near-instant UI refreshes
-  timer = Timer.periodic(const Duration(seconds: 1), (_) => updateDevices());
+  // Poll every 3 seconds for UI updates
+  timer = Timer.periodic(const Duration(seconds: 3), (_) => updateDevices());
 
   ref.onDispose(() {
     timer?.cancel();
@@ -262,10 +273,11 @@ final deviceProvider = StreamProvider<List<Device>>((ref) {
 String _formatSize(double bytes) {
   if (bytes <= 0) return '0 B';
   const suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  var size = bytes;
   var i = 0;
-  while (bytes >= 1024 && i < suffixes.length - 1) {
-    bytes /= 1024;
+  while (size >= 1024 && i < suffixes.length - 1) {
+    size /= 1024;
     i++;
   }
-  return '${bytes.toStringAsFixed(1)} ${suffixes[i]}';
+  return '${size.toStringAsFixed(1)} ${suffixes[i]}';
 }

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,10 +20,10 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/navig
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_state_view.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_card.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:path/path.dart' as p;
 
@@ -38,6 +40,8 @@ class _FileGridState extends ConsumerState<FileGrid>
   String? _hoveredPath;
   String? _lastLoadedPath;
   final ScrollController _scrollController = ScrollController();
+  Timer? _throttleTimer;
+  BoxConstraints? _lastConstraints;
 
   @override
   void initState() {
@@ -47,6 +51,7 @@ class _FileGridState extends ConsumerState<FileGrid>
 
   @override
   void dispose() {
+    _throttleTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
@@ -68,42 +73,42 @@ class _FileGridState extends ConsumerState<FileGrid>
     final selection = ref.watch(selectionProvider);
     final currentPath = ref.watch(currentPathProvider);
     final isRefreshing = ref.watch(isRefreshingProvider);
-    
+
+    final tabId = ref.watch(tabIdProvider);
+
     final isDataLoading = itemsAsync.isLoading || filteredAsync.isLoading;
 
     if (!isDataLoading && itemsAsync.hasValue) {
       _lastLoadedPath = currentPath;
     }
 
-    final content = AnimatedOpacity(
-      duration: const Duration(milliseconds: 150),
-      opacity: isRefreshing ? 0.2 : 1.0,
-      curve: Curves.easeInOut,
-      child: isDataLoading
-          ? (itemsAsync.hasValue && _lastLoadedPath == currentPath
-              ? AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: _buildGrid(itemsAsync.value!, selection, zoom, currentPath),
-                )
-              : const Center(
-                  child: BubbleLoader(size: 60),
-                ))
-          : itemsAsync.when(
-              loading: () => const Center(
-                child: BubbleLoader(size: 60),
-              ),
-              error: (error, _) => Center(
-                child: Text(
-                  'Error: $error',
-                  style: const TextStyle(color: AppColors.textMuted),
+    Widget contentBody;
+    if (itemsAsync.hasValue && _lastLoadedPath == currentPath) {
+      final items = itemsAsync.value!;
+      final gridWidget = _buildGrid(items, selection, zoom, currentPath, tabId);
+
+      contentBody = isRefreshing
+          ? Stack(
+              children: [
+                Opacity(opacity: 0.6, child: gridWidget),
+                const Positioned.fill(
+                  child: Center(child: BubbleLoader(size: 60)),
                 ),
-              ),
-              data: (items) => AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _buildGrid(items, selection, zoom, currentPath),
-              ),
-            ),
-    );
+              ],
+            )
+          : gridWidget;
+    } else if (itemsAsync.hasError && !itemsAsync.hasValue) {
+      contentBody = Center(
+        child: Text(
+          'Error: ${itemsAsync.error}',
+          style: const TextStyle(color: AppColors.textMuted),
+        ),
+      );
+    } else {
+      contentBody = const Center(child: BubbleLoader(size: 60));
+    }
+
+    final content = contentBody;
 
     if (currentPath.startsWith('virtual:')) return content;
 
@@ -261,52 +266,46 @@ class _FileGridState extends ConsumerState<FileGrid>
         item.type == FileItemType.video ||
         item.type == FileItemType.audio ||
         item.type == FileItemType.document) {
-      
-      final openInStandalone = ref.read(settingsProvider).value?.openInStandaloneMode ?? true;
-      
+      final openInStandalone =
+          ref.read(settingsProvider).value?.openInStandaloneMode ?? true;
       if (openInStandalone) {
-         final preloadPaths = <String>[];
-         final allItems = ref.read(sortedDirectoryItemsProvider).value ?? [];
-         if (item.type == FileItemType.image) {
-           final mediaItems = allItems.where((i) => i.type == FileItemType.image).toList();
-           if (mediaItems.isNotEmpty) {
-             final currentIndex = mediaItems.indexWhere((i) => i.path == item.path);
-             if (currentIndex != -1) {
-               for (var i = 1; i <= 1; i++) {
-                 preloadPaths.add(mediaItems[(currentIndex + i) % mediaItems.length].path);
-                 preloadPaths.add(mediaItems[(currentIndex - i + mediaItems.length) % mediaItems.length].path);
-               }
-             }
-           }
-         }
-         final windowParams = WindowParams(
-           viewerType: item.type == FileItemType.video
-               ? ViewerType.video
-               : (item.type == FileItemType.audio
-                   ? ViewerType.audio
-                   : (item.type == FileItemType.document
-                       ? ViewerType.markdown
-                       : ViewerType.image)),
-           file: item,
-           initParams: {
-             'preloadPaths': preloadPaths,
-             if (item.type == FileItemType.image || item.type == FileItemType.video)
-               'playlistPaths': allItems
-                   .where((i) => i.type == item.type)
-                   .map((i) => i.path)
-                   .toList(),
-             if (item.type == FileItemType.image) ...{
-               'currentIndex': allItems
-                   .where((i) => i.type == FileItemType.image)
-                   .toList()
-                   .indexWhere((i) => i.path == item.path) + 1,
-               'totalCount': allItems
-                   .where((i) => i.type == FileItemType.image)
-                   .length,
-             },
-           },
-         );
-         PersistentViewerManager.openMedia(windowParams);
+        final preloadPaths = <String>[];
+        final allItems = ref.read(sortedDirectoryItemsProvider).value ?? [];
+        final mediaItems = allItems.where((i) => i.type == item.type).toList();
+        final currentIndex = mediaItems.indexWhere((i) => i.path == item.path);
+
+        if (item.type == FileItemType.image && currentIndex != -1 && mediaItems.isNotEmpty) {
+          for (var i = 1; i <= 1; i++) {
+            preloadPaths
+              ..add(mediaItems[(currentIndex + i) % mediaItems.length].path)
+              ..add(
+                mediaItems[(currentIndex - i + mediaItems.length) %
+                        mediaItems.length]
+                    .path,
+              );
+          }
+        }
+        final windowParams = WindowParams(
+          viewerType: item.type == FileItemType.video
+              ? ViewerType.video
+              : (item.type == FileItemType.audio
+                    ? ViewerType.audio
+                    : (item.type == FileItemType.document
+                          ? ViewerType.markdown
+                          : ViewerType.image)),
+          file: item,
+          initParams: {
+            'preloadPaths': preloadPaths,
+            if (item.type == FileItemType.image ||
+                item.type == FileItemType.video)
+              'playlistPaths': mediaItems.map((i) => i.path).toList(),
+            if (item.type == FileItemType.image) ...{
+              'currentIndex': currentIndex != -1 ? currentIndex + 1 : 1,
+              'totalCount': mediaItems.length,
+            },
+          },
+        );
+        PersistentViewerManager.openMedia(windowParams);
       } else {
         ref.read(previewFileProvider.notifier).state = item;
       }
@@ -334,6 +333,7 @@ class _FileGridState extends ConsumerState<FileGrid>
     SelectionState selection,
     double zoom,
     String currentPath,
+    String tabId,
   ) {
     if (items.isEmpty) {
       final isSearchActive = ref.watch(isSearchActiveProvider);
@@ -378,36 +378,50 @@ class _FileGridState extends ConsumerState<FileGrid>
       );
     }
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _reprioritizeThumbnails(items, zoom);
+      }
+    });
+
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
-        if (notification is ScrollEndNotification ||
-            notification is ScrollUpdateNotification) {
+        if (notification is ScrollEndNotification) {
+          _throttleTimer?.cancel();
           _reprioritizeThumbnails(items, zoom);
+        } else if (notification is ScrollUpdateNotification) {
+          _throttledReprioritize(items, zoom);
         }
         return false;
       },
-      child: GridView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 180 * zoom,
-          mainAxisSpacing: 16 * zoom,
-          crossAxisSpacing: 24 * zoom,
-          mainAxisExtent: 215 * zoom,
-        ),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return ItemCard(
-            key: ValueKey(item.path),
-            item: item,
-            zoom: zoom,
-            isSelected: selection.selectedPaths.contains(item.path),
-            isHovered: _hoveredPath == item.path,
-            onTap: () => _handleTap(items, index),
-            onDoubleTap: () => _handleDoubleTap(items, index),
-            onHoverChanged: (hovered) {
-              setState(() => _hoveredPath = hovered ? item.path : null);
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          _lastConstraints = constraints;
+          return GridView.builder(
+            key: PageStorageKey<String>('file_grid_${tabId}_$currentPath'),
+            controller: _scrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 180 * zoom,
+              mainAxisSpacing: 16 * zoom,
+              crossAxisSpacing: 24 * zoom,
+              mainAxisExtent: 215 * zoom,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return ItemCard(
+                key: ValueKey(item.path),
+                item: item,
+                zoom: zoom,
+                isSelected: selection.selectedPaths.contains(item.path),
+                isHovered: _hoveredPath == item.path,
+                onTap: () => _handleTap(items, index),
+                onDoubleTap: () => _handleDoubleTap(items, index),
+                onHoverChanged: (hovered) {
+                  setState(() => _hoveredPath = hovered ? item.path : null);
+                },
+              );
             },
           );
         },
@@ -415,35 +429,145 @@ class _FileGridState extends ConsumerState<FileGrid>
     );
   }
 
-  /// Compute which items are visible on screen and tell the thumbnail
-  /// generation queue to prioritize them.
+  /// Compute which items are visible on screen plus outer buffer rows and tell
+  /// the thumbnail session queue to prioritize viewport items, then buffer rows,
+  /// and progressively generate remaining items in the folder.
   void _reprioritizeThumbnails(List<FileItem> items, double zoom) {
     if (!_scrollController.hasClients) return;
 
-    final viewportHeight = _scrollController.position.viewportDimension;
-    final scrollOffset = _scrollController.offset;
-    final itemExtent = 215 * zoom;
-    final mainAxisSpacing = 16 * zoom;
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final totalWidth = _lastConstraints?.maxWidth ??
+        ((renderBox?.hasSize ?? false)
+            ? renderBox!.size.width
+            : MediaQuery.of(context).size.width);
+    final totalHeight = _lastConstraints?.maxHeight ??
+        ((renderBox?.hasSize ?? false)
+            ? renderBox!.size.height
+            : _scrollController.position.viewportDimension);
 
-    // Estimate visible range
-    final firstVisibleRow = (scrollOffset / (itemExtent + mainAxisSpacing)).floor();
-    final visibleRows = (viewportHeight / (itemExtent + mainAxisSpacing)).ceil() + 1;
+    final scrollOffset = _scrollController.hasClients
+        ? _scrollController.offset.clamp(
+            0.0,
+            _scrollController.position.maxScrollExtent,
+          )
+        : 0.0;
 
-    // We don't know exact columns without layout info, so over-estimate
-    // with a generous cross-axis assumption (6 columns max at min zoom)
-    const maxCols = 8;
-    final firstIndex = (firstVisibleRow * maxCols).clamp(0, items.length);
-    final lastIndex = ((firstVisibleRow + visibleRows) * maxCols).clamp(0, items.length);
+    final indices = calculateGridViewportIndices(
+      gridWidth: totalWidth,
+      gridHeight: totalHeight,
+      scrollOffset: scrollOffset,
+      itemCount: items.length,
+      zoom: zoom,
+    );
 
-    final visiblePaths = <String>{};
-    for (var i = firstIndex; i < lastIndex; i++) {
-      if (items[i].type == FileItemType.video || items[i].type == FileItemType.image) {
-        visiblePaths.add(items[i].path);
+    try {
+      final session = ref.read(activeThumbnailSessionProvider);
+      final cacheService = ref.read(thumbnailCacheServiceProvider);
+      if (session != null && !session.isCancelled && !session.isDisposed) {
+        session.enqueueAllFolderItems(
+          items: items,
+          cacheService: cacheService,
+          firstVisibleIndex: indices.firstVisibleIndex,
+          lastVisibleIndex: indices.lastVisibleIndex,
+          firstBufferIndex: indices.firstBufferIndex,
+          lastBufferIndex: indices.lastBufferIndex,
+        );
       }
-    }
-
-    if (visiblePaths.isNotEmpty) {
-      ThumbnailGenerationQueue.reprioritize(visiblePaths);
+    } catch (_) {
+      // In test environments or uninitialized provider trees
     }
   }
+
+  void _throttledReprioritize(List<FileItem> items, double zoom) {
+    if (_throttleTimer?.isActive ?? false) return;
+    _throttleTimer = Timer(const Duration(milliseconds: 30), () {
+      _reprioritizeThumbnails(items, zoom);
+    });
+  }
+}
+
+class GridViewportIndices {
+  const GridViewportIndices({
+    required this.firstVisibleIndex,
+    required this.lastVisibleIndex,
+    required this.firstBufferIndex,
+    required this.lastBufferIndex,
+    required this.cols,
+  });
+
+  final int firstVisibleIndex;
+  final int lastVisibleIndex;
+  final int firstBufferIndex;
+  final int lastBufferIndex;
+  final int cols;
+}
+
+GridViewportIndices calculateGridViewportIndices({
+  required double gridWidth,
+  required double gridHeight,
+  required double scrollOffset,
+  required int itemCount,
+  required double zoom,
+  double horizontalPadding = 32.0,
+  double verticalPadding = 24.0,
+  double maxCrossAxisExtent = 180.0,
+  double crossAxisSpacing = 24.0,
+  double mainAxisSpacing = 16.0,
+  double mainAxisExtent = 215.0,
+}) {
+  if (itemCount <= 0) {
+    return const GridViewportIndices(
+      firstVisibleIndex: 0,
+      lastVisibleIndex: 0,
+      firstBufferIndex: 0,
+      lastBufferIndex: 0,
+      cols: 1,
+    );
+  }
+
+  final effectiveMaxCrossAxisExtent = maxCrossAxisExtent * zoom;
+  final effectiveCrossAxisSpacing = crossAxisSpacing * zoom;
+  final effectiveMainAxisSpacing = mainAxisSpacing * zoom;
+  final effectiveMainAxisExtent = mainAxisExtent * zoom;
+
+  final availableWidth = math.max(0, gridWidth - (horizontalPadding * 2));
+
+  // Exact Flutter SDK SliverGridDelegateWithMaxCrossAxisExtent formula:
+  // int crossAxisCount = (constraints.crossAxisExtent / (maxCrossAxisExtent + crossAxisSpacing)).ceil();
+  final cols = (availableWidth / (effectiveMaxCrossAxisExtent + effectiveCrossAxisSpacing))
+      .ceil()
+      .clamp(1, 100);
+
+  final rowHeight = effectiveMainAxisExtent + effectiveMainAxisSpacing;
+  final effectiveScrollOffset = math.max(0, scrollOffset);
+
+  // Lowest row visible in [scrollOffset, scrollOffset + gridHeight]
+  final firstVisibleRow = math.max(
+    0,
+    ((effectiveScrollOffset - verticalPadding) / rowHeight).floor(),
+  );
+
+  // Highest row visible in [scrollOffset, scrollOffset + gridHeight]
+  final lastVisibleRow = math.max(
+    firstVisibleRow,
+    ((effectiveScrollOffset + gridHeight - verticalPadding) / rowHeight).ceil(),
+  );
+
+  final firstVisibleIndex = (firstVisibleRow * cols).clamp(0, itemCount);
+  final lastVisibleIndex = ((lastVisibleRow + 1) * cols).clamp(0, itemCount);
+
+  // 2 buffer rows above, 2 buffer rows below
+  final firstBufferRow = math.max(0, firstVisibleRow - 2);
+  final lastBufferRow = lastVisibleRow + 2;
+
+  final firstBufferIndex = (firstBufferRow * cols).clamp(0, itemCount);
+  final lastBufferIndex = ((lastBufferRow + 1) * cols).clamp(0, itemCount);
+
+  return GridViewportIndices(
+    firstVisibleIndex: firstVisibleIndex,
+    lastVisibleIndex: lastVisibleIndex,
+    firstBufferIndex: firstBufferIndex,
+    lastBufferIndex: lastBufferIndex,
+    cols: cols,
+  );
 }

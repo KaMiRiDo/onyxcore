@@ -165,19 +165,19 @@ void main() {
       final tabManager = container.read(tabManagerProvider.notifier);
       final tabId = container.read(tabManagerProvider).activeTab.id;
 
-      tabManager.setSearchActive(tabId, true);
+      tabManager.setSearchActive(tabId, active: true);
       expect(container.read(tabManagerProvider).activeTab.isSearchActive, true);
 
       tabManager.updateSearchQuery(tabId, 'query');
       expect(container.read(tabManagerProvider).activeTab.searchQuery, 'query');
 
-      tabManager.setAnalysisActive(tabId, true);
+      tabManager.setAnalysisActive(tabId, active: true);
       expect(container.read(tabManagerProvider).activeTab.isAnalysisActive, true);
 
-      tabManager.setLocationEditing(tabId, true);
+      tabManager.setLocationEditing(tabId, active: true);
       expect(container.read(tabManagerProvider).activeTab.isLocationEditing, true);
 
-      tabManager.setRefreshing(tabId, true);
+      tabManager.setRefreshing(tabId, refreshing: true);
       expect(container.read(tabManagerProvider).activeTab.isRefreshing, true);
 
       final initialCount = container.read(tabManagerProvider).activeTab.refreshCount;

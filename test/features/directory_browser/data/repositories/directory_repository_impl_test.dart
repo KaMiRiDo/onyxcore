@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/cache/directory_cache.dart';
+import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
@@ -10,11 +11,13 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 class MockLocalFileDatasource extends Mock implements LocalFileDatasource {}
 class MockDirectoryCache extends Mock implements DirectoryCache<List<FileItem>> {}
 class MockDirectoryWatcher extends Mock implements DirectoryWatcher {}
+class MockThumbnailCacheService extends Mock implements ThumbnailCacheService {}
 
 void main() {
   late MockLocalFileDatasource mockDatasource;
   late MockDirectoryCache mockCache;
   late MockDirectoryWatcher mockWatcher;
+  late MockThumbnailCacheService mockThumbnailCacheService;
   late DirectoryRepositoryImpl repository;
 
   const tPath = '/path/to/folder';
@@ -30,11 +33,16 @@ void main() {
     mockDatasource = MockLocalFileDatasource();
     mockCache = MockDirectoryCache();
     mockWatcher = MockDirectoryWatcher();
+    mockThumbnailCacheService = MockThumbnailCacheService();
+
+    when(() => mockThumbnailCacheService.removeEntries(any())).thenAnswer((_) async {});
+    when(() => mockThumbnailCacheService.removeEntriesForFolder(any())).thenAnswer((_) async {});
 
     repository = DirectoryRepositoryImpl(
       datasource: mockDatasource,
       cache: mockCache,
       watcher: mockWatcher,
+      thumbnailCacheService: mockThumbnailCacheService,
     );
   });
 
@@ -264,6 +272,43 @@ void main() {
       await repository.deleteItems(paths, permanent: false);
 
       verify(() => mockCache.invalidate('/')).called(1);
+    });
+
+    test('deleteItems invalidates thumbnail cache and folder entries', () async {
+      final paths = ['/path/to/folder/f1.jpg', '/path/to/folder/subfolder'];
+      when(() => mockDatasource.deleteItemsPermanent(paths)).thenAnswer((_) async {});
+      when(() => mockCache.invalidate('/path/to/folder')).thenReturn(null);
+
+      await repository.deleteItems(paths, permanent: true);
+
+      verify(() => mockThumbnailCacheService.removeEntries(paths)).called(1);
+      verify(() => mockThumbnailCacheService.removeEntriesForFolder('/path/to/folder/f1.jpg')).called(1);
+      verify(() => mockThumbnailCacheService.removeEntriesForFolder('/path/to/folder/subfolder')).called(1);
+    });
+
+    test('moveItemTo invalidates thumbnail cache for source', () async {
+      when(() => mockDatasource.moveItemTo('/src/photo.jpg', '/dst/photo.jpg')).thenAnswer((_) async {});
+      when(() => mockCache.invalidateRecursive('/src/photo.jpg')).thenReturn(null);
+      when(() => mockCache.invalidateRecursive('/dst/photo.jpg')).thenReturn(null);
+      when(() => mockCache.invalidate('/src')).thenReturn(null);
+      when(() => mockCache.invalidate('/dst')).thenReturn(null);
+
+      await repository.moveItemTo('/src/photo.jpg', '/dst/photo.jpg');
+
+      verify(() => mockThumbnailCacheService.removeEntries(['/src/photo.jpg'])).called(1);
+      verify(() => mockThumbnailCacheService.removeEntriesForFolder('/src/photo.jpg')).called(1);
+    });
+
+    test('renameItem invalidates thumbnail cache for old path', () async {
+      when(() => mockDatasource.renameItem('/path/old.png', 'new.png')).thenAnswer((_) async => '/path/new.png');
+      when(() => mockCache.invalidateRecursive('/path/old.png')).thenReturn(null);
+      when(() => mockCache.invalidate('/path')).thenReturn(null);
+
+      final res = await repository.renameItem('/path/old.png', 'new.png');
+
+      expect(res, '/path/new.png');
+      verify(() => mockThumbnailCacheService.removeEntries(['/path/old.png'])).called(1);
+      verify(() => mockThumbnailCacheService.removeEntriesForFolder('/path/old.png')).called(1);
     });
   });
 }

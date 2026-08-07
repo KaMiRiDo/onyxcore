@@ -117,6 +117,60 @@ void main() {
       expect(result, ThumbnailLookupResult.failed);
     });
 
+    test('lookup returns miss when cache files do not exist on disk', () async {
+      final missingFileEntry = ThumbnailCacheEntry(
+        fileHash: AppDatabase.computeFileHash('/missing_thumb.jpg'),
+        filePath: '/missing_thumb.jpg',
+        mtime: 1000,
+        sizeBytes: 2000,
+        cacheFileNormal: '/tmp/does_not_exist_normal.jpg',
+        cacheFileLarge: '/tmp/does_not_exist_large.jpg',
+        kind: 'image',
+        status: 'ready',
+        generatedAt: 123456789,
+      );
+      when(() => mockDb.getAllThumbnailEntries()).thenAnswer((_) async => [missingFileEntry]);
+      await cacheService.load();
+
+      final result = cacheService.lookup(
+        filePath: '/missing_thumb.jpg',
+        mtime: 1000,
+        sizeBytes: 2000,
+      );
+      expect(result, ThumbnailLookupResult.miss);
+
+      final path = cacheService.getCachedPath('/missing_thumb.jpg');
+      expect(path, isNull);
+    });
+
+    test('lookup returns miss when cache file is 0 bytes (corrupt file)', () async {
+      final zeroByteFile = File('/tmp/cache_zero_byte.jpg')..createSync();
+      addTearDown(() {
+        if (zeroByteFile.existsSync()) zeroByteFile.deleteSync();
+      });
+
+      final corruptEntry = ThumbnailCacheEntry(
+        fileHash: AppDatabase.computeFileHash('/zero_byte.jpg'),
+        filePath: '/zero_byte.jpg',
+        mtime: 1000,
+        sizeBytes: 2000,
+        cacheFileNormal: '/tmp/cache_zero_byte.jpg',
+        kind: 'image',
+        status: 'ready',
+        generatedAt: 123456789,
+      );
+      when(() => mockDb.getAllThumbnailEntries()).thenAnswer((_) async => [corruptEntry]);
+      await cacheService.load();
+
+      final result = cacheService.lookup(
+        filePath: '/zero_byte.jpg',
+        mtime: 1000,
+        sizeBytes: 2000,
+      );
+      expect(result, ThumbnailLookupResult.miss);
+      expect(cacheService.getCachedPath('/zero_byte.jpg'), isNull);
+    });
+
     test('getCachedPath returns correct path', () async {
       when(() => mockDb.getAllThumbnailEntries()).thenAnswer((_) async => [mockEntry]);
       await cacheService.load();
@@ -245,6 +299,66 @@ void main() {
       expect(result, ThumbnailLookupResult.miss); // Since it was removed
 
       verify(() => mockDb.deleteThumbnailsForPaths(['/test.jpg'])).called(1);
+    });
+
+    test('removeEntriesForFolder deletes all entries for files inside folder and subfolders', () async {
+      final entry1 = ThumbnailCacheEntry(
+        fileHash: AppDatabase.computeFileHash('/my_folder/pic1.jpg'),
+        filePath: '/my_folder/pic1.jpg',
+        mtime: 1000,
+        sizeBytes: 2000,
+        cacheFileNormal: '/tmp/cache_normal_pic1.jpg',
+        cacheFileLarge: '/tmp/cache_large_pic1.jpg',
+        kind: 'image',
+        status: 'ready',
+        generatedAt: 123456789,
+      );
+      final entry2 = ThumbnailCacheEntry(
+        fileHash: AppDatabase.computeFileHash('/my_folder/sub/pic2.jpg'),
+        filePath: '/my_folder/sub/pic2.jpg',
+        mtime: 1000,
+        sizeBytes: 2000,
+        cacheFileNormal: '/tmp/cache_normal_pic2.jpg',
+        cacheFileLarge: '/tmp/cache_large_pic2.jpg',
+        kind: 'image',
+        status: 'ready',
+        generatedAt: 123456789,
+      );
+      final entry3 = ThumbnailCacheEntry(
+        fileHash: AppDatabase.computeFileHash('/other_folder/pic3.jpg'),
+        filePath: '/other_folder/pic3.jpg',
+        mtime: 1000,
+        sizeBytes: 2000,
+        cacheFileNormal: '/tmp/cache_normal_pic3.jpg',
+        cacheFileLarge: '/tmp/cache_large_pic3.jpg',
+        kind: 'image',
+        status: 'ready',
+        generatedAt: 123456789,
+      );
+
+      when(() => mockDb.getAllThumbnailEntries()).thenAnswer((_) async => [entry1, entry2, entry3]);
+      when(() => mockDb.deleteThumbnailsForPaths(any())).thenAnswer((_) async {});
+
+      await cacheService.load();
+
+      final f1 = File('/tmp/cache_normal_pic1.jpg')..createSync()..writeAsStringSync('dummy');
+      final f2 = File('/tmp/cache_normal_pic2.jpg')..createSync()..writeAsStringSync('dummy');
+      final f3 = File('/tmp/cache_normal_pic3.jpg')..createSync()..writeAsStringSync('dummy');
+      addTearDown(() {
+        if (f1.existsSync()) f1.deleteSync();
+        if (f2.existsSync()) f2.deleteSync();
+        if (f3.existsSync()) f3.deleteSync();
+      });
+
+      await cacheService.removeEntriesForFolder('/my_folder');
+
+      expect(f1.existsSync(), false);
+      expect(f2.existsSync(), false);
+      expect(f3.existsSync(), true);
+
+      expect(cacheService.lookup(filePath: '/my_folder/pic1.jpg', mtime: 1000, sizeBytes: 2000), ThumbnailLookupResult.miss);
+      expect(cacheService.lookup(filePath: '/my_folder/sub/pic2.jpg', mtime: 1000, sizeBytes: 2000), ThumbnailLookupResult.miss);
+      expect(cacheService.lookup(filePath: '/other_folder/pic3.jpg', mtime: 1000, sizeBytes: 2000), ThumbnailLookupResult.hit);
     });
   });
 }

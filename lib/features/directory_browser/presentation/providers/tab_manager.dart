@@ -87,6 +87,7 @@ class TabManager extends Notifier<TabManagerState> {
       currentPath: newPath,
       history: history != null ? List<String>.from(history) : [newPath],
       historyIndex: historyIndex ?? 0,
+      refreshCount: 1,
       sortSettings: SortSettings(option: folderSort),
     );
 
@@ -111,6 +112,12 @@ class TabManager extends Notifier<TabManagerState> {
 
     if (index <= state.activeTabIndex) {
       newActiveIndex = (state.activeTabIndex - 1).clamp(0, newTabs.length - 1);
+    }
+
+    if (newTabs.isNotEmpty && newActiveIndex < newTabs.length) {
+      newTabs[newActiveIndex] = newTabs[newActiveIndex].copyWith(
+        refreshCount: newTabs[newActiveIndex].refreshCount + 1,
+      );
     }
 
     state = state.copyWith(
@@ -233,7 +240,7 @@ class TabManager extends Notifier<TabManagerState> {
     state = state.copyWith(tabs: newTabs);
   }
 
-  void setSearchActive(String tabId, bool active) {
+  void setSearchActive(String tabId, {required bool active}) {
     final index = state.tabs.indexWhere((t) => t.id == tabId);
     if (index == -1) return;
 
@@ -245,7 +252,7 @@ class TabManager extends Notifier<TabManagerState> {
     state = state.copyWith(tabs: newTabs);
   }
 
-  void setAnalysisActive(String tabId, bool active) {
+  void setAnalysisActive(String tabId, {required bool active}) {
     final index = state.tabs.indexWhere((t) => t.id == tabId);
     if (index == -1) return;
 
@@ -254,7 +261,7 @@ class TabManager extends Notifier<TabManagerState> {
     state = state.copyWith(tabs: newTabs);
   }
 
-  void setLocationEditing(String tabId, bool active) {
+  void setLocationEditing(String tabId, {required bool active}) {
     final index = state.tabs.indexWhere((t) => t.id == tabId);
     if (index == -1) return;
 
@@ -263,7 +270,7 @@ class TabManager extends Notifier<TabManagerState> {
     state = state.copyWith(tabs: newTabs);
   }
 
-  void setRefreshing(String tabId, bool refreshing) {
+  void setRefreshing(String tabId, {required bool refreshing}) {
     final index = state.tabs.indexWhere((t) => t.id == tabId);
     if (index == -1) return;
 

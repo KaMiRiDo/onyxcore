@@ -17,7 +17,22 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_zoom_indicator.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:path/path.dart' as p;
+
+class FakeSettingsNotifier extends SettingsNotifier {
+  @override
+  Future<AppSettings> build() async {
+    return const AppSettings();
+  }
+
+  @override
+  Future<void> setSettingsDimensions(double width, double height) async {}
+
+  @override
+  Future<void> saveSettings(AppSettings settings) async {}
+}
 
 
 class FakeDirectoryRepository implements DirectoryRepository {
@@ -137,6 +152,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith(
                 (ref) => FakeImageFavoritesNotifier(),
@@ -176,6 +192,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith(
                 (ref) => FakeImageFavoritesNotifier(),
@@ -200,6 +217,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith(
                 (ref) => FakeImageFavoritesNotifier(),
@@ -222,6 +240,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           imageShowHiddenProvider.overrideWith((ref) => false),
           imageFavoritesProvider.overrideWith(
             (ref) => FakeImageFavoritesNotifier(),
@@ -252,6 +271,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           imageShowHiddenProvider.overrideWith((ref) => false),
           imageFavoritesProvider.overrideWith(
             (ref) => FakeImageFavoritesNotifier(),
@@ -295,6 +315,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           previewFileProvider.overrideWith((ref) => dummyPng),
           imageShowHiddenProvider.overrideWith((ref) => false),
           imageFavoritesProvider.overrideWith(
@@ -332,6 +353,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith(
                 (ref) => FakeImageFavoritesNotifier(),
@@ -377,6 +399,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith(
                 (ref) => FakeImageFavoritesNotifier(),
@@ -443,6 +466,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith(
                 (ref) => FakeImageFavoritesNotifier(),
@@ -486,6 +510,8 @@ void main() {
       (WidgetTester tester) async {
         final container = ProviderContainer(
           overrides: [
+            settingsProvider.overrideWith(FakeSettingsNotifier.new),
+            directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([])),
             imageShowHiddenProvider.overrideWith((ref) => false),
             imageFavoritesProvider.overrideWith(
               (ref) => FakeImageFavoritesNotifier(),
@@ -561,6 +587,7 @@ void main() {
     testWidgets('Disabled Edit Button Regression Test', (WidgetTester tester) async {
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
         ],
       );
@@ -588,6 +615,7 @@ void main() {
     testWidgets('Zoom → Pan Real-Image Regression Test', (WidgetTester tester) async {
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
         ],
       );
@@ -634,6 +662,7 @@ void main() {
     testWidgets('High-Resolution Promotion and Cancellation Test', (WidgetTester tester) async {
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
         ],
       );
@@ -727,6 +756,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageQueueProvider.overrideWith((ref) => [dummyPng]),
               imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
             ],
@@ -763,6 +793,7 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
         ],
       );
@@ -804,6 +835,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
             ],
@@ -822,6 +854,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
             ],
@@ -842,6 +875,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
             ],
@@ -877,6 +911,8 @@ void main() {
     testWidgets('handles interaction delta and focal point calculation with sidebar open', (tester) async {
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
+          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([])),
           imageShowHiddenProvider.overrideWith((ref) => false),
           imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
         ],
@@ -925,6 +961,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
             ],
@@ -963,6 +1000,7 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           previewFileProvider.overrideWith((ref) => dummyPng),
           imageShowHiddenProvider.overrideWith((ref) => false),
           imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
@@ -1013,6 +1051,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
             ],
@@ -1063,9 +1102,12 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           previewFileProvider.overrideWith((ref) => dummyPng),
           imageShowHiddenProvider.overrideWith((ref) => false),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
           directoryRepositoryProvider.overrideWithValue(fakeRepo),
         ],
       );
@@ -1102,6 +1144,7 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
         ],
       );
@@ -1162,6 +1205,7 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          settingsProvider.overrideWith(FakeSettingsNotifier.new),
           imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
         ],
       );

@@ -1,7 +1,11 @@
+import 'dart:isolate';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/utils/directory_size_utils.dart';
+import 'package:onyxcore/core/utils/string_utils.dart';
 
 /// Show a vibrant confirmation dialog — exact same UI as original.
 Future<bool> showVibrantConfirmDialog({
@@ -232,25 +236,90 @@ class ConfirmDialog extends StatelessWidget {
 }
 
 /// A specialized, high-fidelity confirmation dialog for permanent deletions.
-class PermanentDeleteDialog extends StatelessWidget {
-
+class PermanentDeleteDialog extends StatefulWidget {
   const PermanentDeleteDialog({
-    required this.filesCount, required this.foldersCount, required this.totalSize, super.key,
+    required this.filesCount,
+    required this.foldersCount,
+    required this.totalSize,
+    this.pathsToCalculateSize,
     this.onDontAskAgainChanged,
+    super.key,
   });
+
   final int filesCount;
   final int foldersCount;
   final String totalSize;
+  final List<String>? pathsToCalculateSize;
   final ValueChanged<bool>? onDontAskAgainChanged;
 
   @override
+  State<PermanentDeleteDialog> createState() => _PermanentDeleteDialogState();
+}
+
+class _PermanentDeleteDialogState extends State<PermanentDeleteDialog> {
+  late int _filesCount;
+  late int _foldersCount;
+  late String _totalSize;
+  var _dontAskAgain = false;
+  ReceivePort? _receivePort;
+  Isolate? _isolate;
+
+  @override
+  void initState() {
+    super.initState();
+    _filesCount = widget.filesCount;
+    _foldersCount = widget.foldersCount;
+    _totalSize = widget.totalSize;
+
+    if (widget.pathsToCalculateSize != null &&
+        widget.pathsToCalculateSize!.isNotEmpty) {
+      _startBackgroundCalculation(widget.pathsToCalculateSize!);
+    }
+  }
+
+  Future<void> _startBackgroundCalculation(List<String> paths) async {
+    final port = ReceivePort();
+    _receivePort = port;
+    try {
+      _isolate = await Isolate.spawn(
+        calculateDirectorySizeIncremental,
+        DirectorySizeArgs(paths: paths, sendPort: port.sendPort),
+      );
+      port.listen((message) {
+        if (!mounted) return;
+        if (message is DirectorySizeUpdate) {
+          setState(() {
+            _filesCount = message.filesCount;
+            _foldersCount = message.foldersCount;
+            _totalSize = StringUtils.formatBytes(message.size);
+          });
+          if (message.isFinished) {
+            _cleanupIsolate();
+          }
+        }
+      });
+    } catch (_) {}
+  }
+
+  void _cleanupIsolate() {
+    _isolate?.kill(priority: Isolate.immediate);
+    _isolate = null;
+    _receivePort?.close();
+    _receivePort = null;
+  }
+
+  @override
+  void dispose() {
+    _cleanupIsolate();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    var dontAskAgain = false;
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      child: StatefulBuilder(
-        builder: (context, setState) => Container(
+      child: Container(
         width: 420,
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
@@ -307,17 +376,17 @@ class PermanentDeleteDialog extends StatelessWidget {
                 children: [
                   _buildStatItem(
                     label: 'Folders',
-                    value: foldersCount.toString(),
+                    value: _foldersCount.toString(),
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
                   _buildStatItem(
                     label: 'Files',
-                    value: filesCount.toString(),
+                    value: _filesCount.toString(),
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
                   _buildStatItem(
                     label: 'Total Space',
-                    value: totalSize,
+                    value: _totalSize,
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ],
@@ -353,12 +422,12 @@ class PermanentDeleteDialog extends StatelessWidget {
                 ],
               ),
             ),
-            if (onDontAskAgainChanged != null) ...[
+            if (widget.onDontAskAgainChanged != null) ...[
               const SizedBox(height: 24),
               GestureDetector(
                 onTap: () {
                   setState(() {
-                    dontAskAgain = !dontAskAgain;
+                    _dontAskAgain = !_dontAskAgain;
                   });
                 },
                 behavior: HitTestBehavior.opaque,
@@ -369,18 +438,18 @@ class PermanentDeleteDialog extends StatelessWidget {
                       width: 18,
                       height: 18,
                       decoration: BoxDecoration(
-                        color: dontAskAgain
+                        color: _dontAskAgain
                             ? AppColors.error
                             : Colors.transparent,
                         border: Border.all(
-                          color: dontAskAgain
+                          color: _dontAskAgain
                               ? AppColors.error
                               : Colors.white38,
                           width: 1.5,
                         ),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: dontAskAgain
+                      child: _dontAskAgain
                           ? const Icon(
                               Icons.check,
                               size: 14,
@@ -428,9 +497,7 @@ class PermanentDeleteDialog extends StatelessWidget {
                   child: ElevatedButton(
                     autofocus: true,
                     onPressed: () {
-                      if (onDontAskAgainChanged != null) {
-                        onDontAskAgainChanged!(dontAskAgain);
-                      }
+                      widget.onDontAskAgainChanged?.call(_dontAskAgain);
                       Navigator.pop(context, true);
                     },
                     style: ElevatedButton.styleFrom(
@@ -455,7 +522,6 @@ class PermanentDeleteDialog extends StatelessWidget {
             ),
           ],
         ),
-      ),
       ),
     );
   }
@@ -695,9 +761,7 @@ class ViewerDeleteDialog extends StatelessWidget {
                     child: ElevatedButton(
                       autofocus: true,
                       onPressed: () {
-                        if (onDontAskAgainChanged != null) {
-                          onDontAskAgainChanged!(dontAskAgain);
-                        }
+                        onDontAskAgainChanged?.call(dontAskAgain);
                         Navigator.pop(context, true);
                       },
                       style: ElevatedButton.styleFrom(

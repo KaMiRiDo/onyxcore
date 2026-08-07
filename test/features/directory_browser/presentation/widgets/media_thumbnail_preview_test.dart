@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,18 +8,40 @@ import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class MockThumbnailCacheService extends Mock implements ThumbnailCacheService {}
 
+class FakeThumbnailSessionManager extends ThumbnailSessionManager {
+  FakeThumbnailSessionManager(this._session);
+  final ThumbnailSession? _session;
+
+  @override
+  ThumbnailSession? build() => _session;
+}
+
 void main() {
   late Directory tempDir;
+  late ThumbnailSession testSession;
 
   setUpAll(() {
     registerFallbackValue(ThumbnailSize.normal);
     registerFallbackValue(File(''));
     tempDir = Directory('./test_temp_thumbnails')..createSync(recursive: true);
+  });
+
+  setUp(() {
+    testSession = ThumbnailSession(
+      folderPath: '/path/to',
+      tabId: 'test_tab',
+    );
+  });
+
+  tearDown(() {
+    testSession.dispose();
   });
 
   tearDownAll(() {
@@ -52,6 +76,7 @@ void main() {
       ProviderScope(
         overrides: [
           thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -93,6 +118,7 @@ void main() {
         ProviderScope(
           overrides: [
             thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
           ],
           child: MaterialApp(
             home: Scaffold(
@@ -137,6 +163,7 @@ void main() {
         ProviderScope(
           overrides: [
             thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
           ],
           child: MaterialApp(
             home: Scaffold(
@@ -214,6 +241,7 @@ void main() {
         ProviderScope(
           overrides: [
             thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
           ],
           child: MaterialApp(
             home: Scaffold(
@@ -247,27 +275,92 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  test('ThumbnailGenerationQueue order and reprioritization', () async {
+  test('ThumbnailSession order and reprioritization via session', () async {
+    final session = ThumbnailSession(
+      folderPath: '/path/to',
+      tabId: 'tab_test',
+    );
+    addTearDown(session.dispose);
+
     final order = <int>[];
+    final gate = Completer<void>();
 
-    final f1 = ThumbnailGenerationQueue.enqueue(() async {
-      order.add(1);
-    }, filePath: 'file1.mp4', priority: 10);
+    final f1 = session.enqueue(ThumbnailJob(
+      filePath: 'file1.mp4',
+      size: ThumbnailSize.normal,
+      priority: 10,
+      task: () async {
+        await gate.future;
+        order.add(1);
+      },
+    ));
 
-    final f2 = ThumbnailGenerationQueue.enqueue(() async {
-      order.add(2);
-    }, filePath: 'file2.mp4', priority: 20);
+    final f2 = session.enqueue(ThumbnailJob(
+      filePath: 'file2.mp4',
+      size: ThumbnailSize.normal,
+      priority: 20,
+      task: () async {
+        order.add(2);
+      },
+    ));
 
-    final f3 = ThumbnailGenerationQueue.enqueue(() async {
-      order.add(3);
-    }, filePath: 'file3.mp4', priority: 30);
+    final f3 = session.enqueue(ThumbnailJob(
+      filePath: 'file3.mp4',
+      size: ThumbnailSize.normal,
+      priority: 30,
+      task: () async {
+        order.add(3);
+      },
+    ));
 
     // Reprioritize file3 so it runs before file2 (gets priority 0)
-    ThumbnailGenerationQueue.reprioritize({'file3.mp4'});
+    session.reprioritize({'file3.mp4'});
 
+    gate.complete();
     await Future.wait([f1, f2, f3]);
 
     expect(order.first, 1);
     expect(order, containsAllInOrder([1, 3, 2]));
+  });
+
+  testWidgets('MediaThumbnailPreview gracefully handles corrupted or missing cached image without crashing', (tester) async {
+    final mockCacheService = MockThumbnailCacheService();
+    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+    when(() => mockCacheService.lookupAsync(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
+    when(() => mockCacheService.getCachedPathAsync(any(), size: any(named: 'size')))
+        .thenAnswer((_) async => '/tmp/nonexistent_image_thumb.jpg');
+
+    final item = FileItem(
+      path: '/path/to/corrupt.jpg',
+      name: 'corrupt.jpg',
+      type: FileItemType.image,
+      sizeBytes: 1024,
+      modified: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: MediaThumbnailPreview(
+              item: item,
+              zoom: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(MediaThumbnailPreview), findsOneWidget);
   });
 }

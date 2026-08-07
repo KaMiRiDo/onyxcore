@@ -1,6 +1,7 @@
 import 'dart:isolate';
 
 import 'package:onyxcore/core/cache/directory_cache.dart';
+import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
@@ -16,11 +17,13 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
     required this.datasource,
     required this.cache,
     required this.watcher,
+    this.thumbnailCacheService,
   });
 
   final LocalFileDatasource datasource;
   final DirectoryCache<List<FileItem>> cache;
   final DirectoryWatcher watcher;
+  final ThumbnailCacheService? thumbnailCacheService;
 
   @override
   Future<List<FileItem>> listDirectory(String path) async {
@@ -82,6 +85,7 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
     }
 
     _invalidateParents(paths);
+    await _invalidateThumbnailCache(paths);
   }
 
   @override
@@ -98,6 +102,7 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
       onLog: onLog,
     );
     _invalidateParents(paths);
+    await _invalidateThumbnailCache(paths);
   }
 
   @override
@@ -114,6 +119,7 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
       onLog: onLog,
     );
     _invalidateParents(paths);
+    await _invalidateThumbnailCache(paths);
   }
 
   @override
@@ -130,6 +136,7 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
       onLog: onLog,
     );
     _invalidateParents(paths);
+    await _invalidateThumbnailCache(paths);
   }
 
   @override
@@ -155,8 +162,9 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
       taskId: taskId,
       onPort: onPort,
     );
-    cache.invalidateRecursive(destinationPath);
-    cache.invalidate(p.dirname(destinationPath));
+    cache
+      ..invalidateRecursive(destinationPath)
+      ..invalidate(p.dirname(destinationPath));
   }
 
   @override
@@ -167,6 +175,7 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
       cache.invalidateRecursive(source);
     }
     _invalidateParents(sources);
+    await _invalidateThumbnailCache(sources);
   }
 
   @override
@@ -186,10 +195,12 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
       taskId: taskId,
       onPort: onPort,
     );
-    cache.invalidateRecursive(source);
-    cache.invalidateRecursive(destinationPath);
-    cache.invalidate(p.dirname(source));
-    cache.invalidate(p.dirname(destinationPath));
+    cache
+      ..invalidateRecursive(source)
+      ..invalidateRecursive(destinationPath)
+      ..invalidate(p.dirname(source))
+      ..invalidate(p.dirname(destinationPath));
+    await _invalidateThumbnailCache([source]);
   }
 
   @override
@@ -207,6 +218,7 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
     );
     cache.invalidateRecursive(path);
     _invalidateParents([path]);
+    await _invalidateThumbnailCache([path]);
     return newPath;
   }
 
@@ -229,7 +241,16 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
       cache.invalidateRecursive(path);
     }
     _invalidateParents(paths);
+    await _invalidateThumbnailCache(paths);
     return newPaths;
+  }
+
+  Future<void> _invalidateThumbnailCache(List<String> paths) async {
+    if (thumbnailCacheService == null || paths.isEmpty) return;
+    await thumbnailCacheService!.removeEntries(paths);
+    for (final path in paths) {
+      await thumbnailCacheService!.removeEntriesForFolder(path);
+    }
   }
 
   void _invalidateParents(List<String> paths) {

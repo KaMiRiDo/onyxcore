@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:onyxcore/core/database/app_database.dart';
+import 'package:path/path.dart' as p;
 
 /// Size tier for cached thumbnails, matching freedesktop convention.
 enum ThumbnailSize {
@@ -59,6 +60,11 @@ class ThumbnailCacheService {
   static String get _cacheBase {
     final home = Platform.environment['HOME'] ?? '/tmp';
     return '$home/.cache/onyxcore/thumbnails';
+  }
+
+  /// Whether the given [path] is inside the thumbnail cache directory or is the directory itself.
+  static bool isThumbnailCachePath(String path) {
+    return path == _cacheBase || path.startsWith('$_cacheBase/');
   }
 
   /// Get the cache directory for a given size tier.
@@ -129,14 +135,14 @@ class ThumbnailCacheService {
         final f = File(entry.cacheFileNormal!);
         if (f.existsSync() && f.lengthSync() > 0) valid = true;
       }
-      if (entry.cacheFileLarge != null) {
+      if (!valid && entry.cacheFileLarge != null) {
         final f = File(entry.cacheFileLarge!);
         if (f.existsSync() && f.lengthSync() > 0) valid = true;
       }
       if (valid) return ThumbnailLookupResult.hit;
     }
 
-    // 'pending' or unknown status → miss
+    // 'pending' or unknown status or missing disk files → miss
     return ThumbnailLookupResult.miss;
   }
 
@@ -164,7 +170,7 @@ class ThumbnailCacheService {
         // ignore: avoid_slow_async_io
         if (await f.exists() && await f.length() > 0) valid = true;
       }
-      if (entry.cacheFileLarge != null) {
+      if (!valid && entry.cacheFileLarge != null) {
         final f = File(entry.cacheFileLarge!);
         // ignore: avoid_slow_async_io
         if (await f.exists() && await f.length() > 0) valid = true;
@@ -179,7 +185,7 @@ class ThumbnailCacheService {
   /// Get the cached thumbnail path for a file (synchronous, from memory).
   ///
   /// Returns the path for the requested [size], or falls back to any
-  /// available size. Returns null if no cached thumbnail exists.
+  /// available size. Returns null if no cached thumbnail exists on disk.
   String? getCachedPath(String filePath, {ThumbnailSize size = ThumbnailSize.normal}) {
     final hash = AppDatabase.computeFileHash(filePath);
     final entry = _index[hash];
@@ -351,6 +357,25 @@ class ThumbnailCacheService {
       await _db.deleteThumbnailsForPaths(paths);
     } catch (e) {
       debugPrint('ThumbnailCacheService: Failed to delete entries: $e');
+    }
+  }
+
+  /// Remove all cache entries for files within a given folder (and subfolders).
+  Future<void> removeEntriesForFolder(String folderPath) async {
+    final normalizedPrefix = folderPath.endsWith(p.separator)
+        ? folderPath
+        : '$folderPath${p.separator}';
+
+    final matchingPaths = <String>[];
+
+    for (final entry in _index.values) {
+      if (entry.filePath.startsWith(normalizedPrefix) || entry.filePath == folderPath) {
+        matchingPaths.add(entry.filePath);
+      }
+    }
+
+    if (matchingPaths.isNotEmpty) {
+      await removeEntries(matchingPaths);
     }
   }
 }
