@@ -20,6 +20,7 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/navig
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/tab_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/empty_state_view.dart';
@@ -41,6 +42,7 @@ class _FileGridState extends ConsumerState<FileGrid>
   String? _lastLoadedPath;
   final ScrollController _scrollController = ScrollController();
   Timer? _throttleTimer;
+  Timer? _scrollSettleTimer;
   BoxConstraints? _lastConstraints;
 
   @override
@@ -52,6 +54,7 @@ class _FileGridState extends ConsumerState<FileGrid>
   @override
   void dispose() {
     _throttleTimer?.cancel();
+    _scrollSettleTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
@@ -380,7 +383,7 @@ class _FileGridState extends ConsumerState<FileGrid>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _reprioritizeThumbnails(items, zoom);
+        _enqueueFolderThumbnails(items, zoom);
       }
     });
 
@@ -388,7 +391,8 @@ class _FileGridState extends ConsumerState<FileGrid>
       onNotification: (notification) {
         if (notification is ScrollEndNotification) {
           _throttleTimer?.cancel();
-          _reprioritizeThumbnails(items, zoom);
+          _scrollSettleTimer?.cancel();
+          _enqueueFolderThumbnails(items, zoom);
         } else if (notification is ScrollUpdateNotification) {
           _throttledReprioritize(items, zoom);
         }
@@ -429,10 +433,59 @@ class _FileGridState extends ConsumerState<FileGrid>
     );
   }
 
+  /// Calculates visible paths and reprioritizes pending thumbnail queue items during active scroll.
+  void _reprioritizeVisibleThumbnails(List<FileItem> items, double zoom) {
+    if (!_scrollController.hasClients) return;
+
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final totalWidth = _lastConstraints?.maxWidth ??
+        ((renderBox?.hasSize ?? false)
+            ? renderBox!.size.width
+            : MediaQuery.of(context).size.width);
+    final totalHeight = _lastConstraints?.maxHeight ??
+        ((renderBox?.hasSize ?? false)
+            ? renderBox!.size.height
+            : _scrollController.position.viewportDimension);
+
+    final scrollOffset = _scrollController.hasClients
+        ? _scrollController.offset.clamp(
+            0.0,
+            _scrollController.position.maxScrollExtent,
+          )
+        : 0.0;
+
+    final indices = calculateGridViewportIndices(
+      gridWidth: totalWidth,
+      gridHeight: totalHeight,
+      scrollOffset: scrollOffset,
+      itemCount: items.length,
+      zoom: zoom,
+    );
+
+    final visiblePaths = <String>{};
+    for (var i = indices.firstVisibleIndex;
+        i < indices.lastVisibleIndex && i < items.length;
+        i++) {
+      final item = items[i];
+      if (item.type == FileItemType.image || item.type == FileItemType.video) {
+        visiblePaths.add(item.path);
+      }
+    }
+
+    try {
+      final session = ref.read(activeThumbnailSessionProvider);
+      if (session != null && !session.isCancelled && !session.isDisposed) {
+        session.reprioritize(visiblePaths);
+      }
+    } catch (_) {
+      // In test environments or uninitialized provider trees
+    }
+  }
+
   /// Compute which items are visible on screen plus outer buffer rows and tell
   /// the thumbnail session queue to prioritize viewport items, then buffer rows,
   /// and progressively generate remaining items in the folder.
-  void _reprioritizeThumbnails(List<FileItem> items, double zoom) {
+  void _enqueueFolderThumbnails(List<FileItem> items, double zoom) {
     if (!_scrollController.hasClients) return;
 
     final renderBox = context.findRenderObject() as RenderBox?;
@@ -479,10 +532,23 @@ class _FileGridState extends ConsumerState<FileGrid>
   }
 
   void _throttledReprioritize(List<FileItem> items, double zoom) {
-    if (_throttleTimer?.isActive ?? false) return;
-    _throttleTimer = Timer(const Duration(milliseconds: 30), () {
-      _reprioritizeThumbnails(items, zoom);
-    });
+    // 1. Throttled reprioritization of visible items during active scrolling (30ms)
+    if (!(_throttleTimer?.isActive ?? false)) {
+      _throttleTimer = Timer(const Duration(milliseconds: 30), () {
+        _reprioritizeVisibleThumbnails(items, zoom);
+      });
+    }
+
+    // 2. Debounced full-folder scheduling until scrolling settles (150ms)
+    _scrollSettleTimer?.cancel();
+    _scrollSettleTimer = Timer(
+      const Duration(milliseconds: ThumbnailSession.scrollSettleDebounceMillis),
+      () {
+        if (mounted) {
+          _enqueueFolderThumbnails(items, zoom);
+        }
+      },
+    );
   }
 }
 

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
+import 'package:onyxcore/core/platform/process_priority.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
@@ -72,8 +73,10 @@ Future<void> generateMediaThumbnail({
 
     var generated = false;
 
-    // 1. Try Dart image package for common image formats (up to 25MB)
-    if (isCommonImage && sizeBytes > 0 && sizeBytes < 25 * 1024 * 1024) {
+    // 1. Try Dart image package for common image formats (up to 5MB)
+    if (isCommonImage &&
+        sizeBytes > 0 &&
+        sizeBytes <= ThumbnailSession.dartDecodeMaxBytes) {
       generated = await compute(_generateImageThumbnail, [
         filePath,
         tempThumbPath,
@@ -89,6 +92,7 @@ Future<void> generateMediaThumbnail({
         'heif-thumbnailer',
         ['-s', '320', filePath, tempThumbPath],
       );
+      unawaited(setLowProcessPriority(process.pid));
       session.registerRunningProcess(jobKey, process);
       process.stdout.drain<void>().ignore();
       process.stderr.drain<void>().ignore();
@@ -96,11 +100,15 @@ Future<void> generateMediaThumbnail({
       session.unregisterRunningProcess(jobKey);
 
       final file = File(tempThumbPath);
-      // ignore: avoid_slow_async_io
-      generated = file.existsSync() && file.lengthSync() > 0;
+      try {
+        // ignore: avoid_slow_async_io
+        generated = file.existsSync() && file.lengthSync() > 0;
+      } catch (_) {
+        generated = false;
+      }
     }
 
-    // 3. Fallback to FFmpeg for videos and RAW images
+    // 3. Fallback to FFmpeg for videos and RAW/large images
     if (!generated) {
       final ffmpegArgs = isImage
           ? [
@@ -138,6 +146,7 @@ Future<void> generateMediaThumbnail({
             ];
 
       final process = await Process.start('ffmpeg', ffmpegArgs);
+      unawaited(setLowProcessPriority(process.pid));
       session.registerRunningProcess(jobKey, process);
       process.stdout.drain<void>().ignore();
       process.stderr.drain<void>().ignore();
@@ -147,15 +156,24 @@ Future<void> generateMediaThumbnail({
     }
 
     if (session.isCancelled || session.isDisposed) {
-      final partialFile = File(tempThumbPath);
-      if (partialFile.existsSync()) {
-        partialFile.deleteSync();
-      }
+      try {
+        final partialFile = File(tempThumbPath);
+        if (partialFile.existsSync()) {
+          partialFile.deleteSync();
+        }
+      } catch (_) {}
       return;
     }
 
     final thumbFile = File(tempThumbPath);
-    if (generated && thumbFile.existsSync()) {
+    var thumbExists = false;
+    try {
+      thumbExists = thumbFile.existsSync() && thumbFile.lengthSync() > 0;
+    } catch (_) {
+      thumbExists = false;
+    }
+
+    if (generated && thumbExists) {
       await cacheService.storeThumbnail(
         filePath: filePath,
         mtime: mtime,
@@ -190,11 +208,13 @@ class ThumbnailJob {
     required this.size,
     required this.task,
     this.priority = 100,
-  });
+    bool? isVideo,
+  }) : isVideo = isVideo ?? (classifyFileType(filePath) == FileItemType.video);
 
   final String filePath;
   final ThumbnailSize size;
   final Future<void> Function() task;
+  final bool isVideo;
   int priority;
 
   String get key => '$filePath::${size.name}';
@@ -213,17 +233,36 @@ class ThumbnailSession {
     required this.folderPath,
     required this.tabId,
     this.cacheService,
-    int maxConcurrent = 1,
-  }) : _maxConcurrent = maxConcurrent;
+  });
+
+  /// Grace period in milliseconds to allow child process to terminate on SIGTERM
+  /// before escalating to SIGKILL.
+  static const int graceMillis = 300;
+
+  /// Maximum file size in bytes for in-memory Dart image decoding. Images larger than
+  /// this threshold route directly to FFmpeg to preserve memory stability and responsiveness.
+  static const int dartDecodeMaxBytes = 5 * 1024 * 1024;
+
+  /// Maximum concurrent background workers for image thumbnail generation.
+  /// Bounded to 2 to prevent UI stutters and CPU starvation.
+  static const int maxImageWorkers = 2;
+
+  /// Maximum concurrent background workers for video thumbnail generation.
+  /// Bounded to 1 because video demuxing/decoding is compute-heavy.
+  static const int maxVideoWorkers = 1;
+
+  /// Debounce duration in milliseconds before full folder thumbnail queueing triggers
+  /// after user scrolling settles.
+  static const int scrollSettleDebounceMillis = 150;
 
   final String folderPath;
   final String tabId;
   final ThumbnailCacheService? cacheService;
-  final int _maxConcurrent;
 
   bool _isCancelled = false;
   bool _isDisposed = false;
-  int _activeCount = 0;
+  int _activeImageCount = 0;
+  int _activeVideoCount = 0;
 
   final List<_ThumbnailQueueEntry> _queue = [];
   final Map<String, _ThumbnailQueueEntry> _queueMap = {};
@@ -257,6 +296,7 @@ class ThumbnailSession {
       filePath: item.path,
       size: ThumbnailSize.normal,
       priority: priority,
+      isVideo: item.type == FileItemType.video,
       task: () => generateMediaThumbnail(
         item: item,
         cacheService: cacheService,
@@ -403,23 +443,31 @@ class ThumbnailSession {
     if (_isCancelled || _isDisposed) return;
     if (_queue.isEmpty) return;
 
-    final highestPendingPriority = _queue.first.job.priority;
-    if (highestPendingPriority >= 50) return;
+    for (final entry in _queue) {
+      if (entry.job.priority >= 50) break;
 
-    if (_activeCount >= _maxConcurrent) {
-      String? victimKey;
-      var worstPriority = -1;
-      for (final entry in _runningJobs.entries) {
-        if (entry.value.priority >= 50 && entry.value.priority > worstPriority) {
-          worstPriority = entry.value.priority;
-          victimKey = entry.key;
+      final isVideo = entry.job.isVideo;
+      final isPoolFull = isVideo
+          ? _activeVideoCount >= maxVideoWorkers
+          : _activeImageCount >= maxImageWorkers;
+
+      if (isPoolFull) {
+        String? victimKey;
+        var worstPriority = -1;
+        for (final running in _runningJobs.entries) {
+          if (running.value.isVideo == isVideo &&
+              running.value.priority >= 50 &&
+              running.value.priority > worstPriority) {
+            worstPriority = running.value.priority;
+            victimKey = running.key;
+          }
         }
-      }
 
-      if (victimKey != null && _runningProcesses.containsKey(victimKey)) {
-        final proc = _runningProcesses[victimKey];
-        if (proc != null) {
-          _terminateProcess(proc);
+        if (victimKey != null && _runningProcesses.containsKey(victimKey)) {
+          final proc = _runningProcesses[victimKey];
+          if (proc != null) {
+            _terminateProcess(proc);
+          }
         }
       }
     }
@@ -441,13 +489,22 @@ class ThumbnailSession {
 
   void _terminateProcess(Process process) {
     try {
+      var hasExited = false;
+      process.exitCode.then((_) {
+        hasExited = true;
+      }).catchError((dynamic _) => null);
+
+      // 1. Send graceful SIGTERM first
       process.kill();
-      // Wait for a short grace period (300ms) before escalating to SIGKILL
-      Future<void>.delayed(const Duration(milliseconds: 300), () {
-        try {
-          process.kill(ProcessSignal.sigkill);
-        } catch (_) {
-          // Process may have already exited
+
+      // 2. Wait up to graceMillis (300ms) before escalating to SIGKILL
+      Future<void>.delayed(const Duration(milliseconds: graceMillis), () {
+        if (!hasExited) {
+          try {
+            process.kill(ProcessSignal.sigkill);
+          } catch (_) {
+            // Process may have already exited
+          }
         }
       });
     } catch (e) {
@@ -458,14 +515,31 @@ class ThumbnailSession {
   void _processNext() {
     if (_isCancelled || _isDisposed) return;
 
-    while (_activeCount < _maxConcurrent && _queue.isNotEmpty) {
-      final entry = _queue.removeAt(0);
+    for (var i = 0; i < _queue.length;) {
+      final entry = _queue[i];
+      final isVideo = entry.job.isVideo;
+
+      final canRun = isVideo
+          ? _activeVideoCount < maxVideoWorkers
+          : _activeImageCount < maxImageWorkers;
+
+      if (!canRun) {
+        i++;
+        continue;
+      }
+
+      _queue.removeAt(i);
       final key = entry.job.key;
       _queuedKeys.remove(key);
       _queueMap.remove(key);
       _runningKeys.add(key);
       _runningJobs[key] = entry.job;
-      _activeCount++;
+
+      if (isVideo) {
+        _activeVideoCount++;
+      } else {
+        _activeImageCount++;
+      }
 
       () async {
         try {
@@ -483,7 +557,13 @@ class ThumbnailSession {
           if (!_isCancelled && !_isDisposed) {
             _completedKeys.add(key);
           }
-          _activeCount--;
+
+          if (isVideo) {
+            _activeVideoCount--;
+          } else {
+            _activeImageCount--;
+          }
+
           final _ = _inFlightFutures.remove(key);
 
           if (!entry.completer.isCompleted) {
@@ -493,6 +573,7 @@ class ThumbnailSession {
           _processNext();
         }
       }();
+      i = 0;
     }
   }
 

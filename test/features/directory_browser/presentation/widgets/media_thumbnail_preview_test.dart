@@ -323,6 +323,19 @@ void main() {
     expect(order, containsAllInOrder([1, 3, 2]));
   });
 
+  File createSampleJpeg(String path, {required int width, required int height}) {
+    final bytes = <int>[
+      0xFF, 0xD8, // SOI
+      0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, // APP0 JFIF
+      0xFF, 0xC0, 0x00, 0x11, 0x08, // SOF0
+      (height >> 8) & 0xFF, height & 0xFF, // height
+      (width >> 8) & 0xFF, width & 0xFF, // width
+      0x03, 0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01, // components
+      0xFF, 0xD9, // EOI
+    ];
+    return File(path)..writeAsBytesSync(bytes);
+  }
+
   testWidgets('MediaThumbnailPreview gracefully handles corrupted or missing cached image without crashing', (tester) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
@@ -362,5 +375,117 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(MediaThumbnailPreview), findsOneWidget);
+  });
+
+  testWidgets('MediaThumbnailPreview displays portrait video thumbnail with portrait aspect ratio and standard scale', (tester) async {
+    final mockCacheService = MockThumbnailCacheService();
+    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+    when(() => mockCacheService.lookupAsync(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
+
+    // 180 width x 320 height (portrait)
+    final portraitThumb = createSampleJpeg('${tempDir.path}/portrait_video_test.jpg', width: 180, height: 320);
+    addTearDown(portraitThumb.deleteSync);
+
+    when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => portraitThumb.path);
+
+    final item = FileItem(
+      path: '/path/to/portrait_video.mp4',
+      name: 'portrait_video.mp4',
+      type: FileItemType.video,
+      sizeBytes: 1024,
+      modified: DateTime.now(),
+    );
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: MediaThumbnailPreview(
+                item: item,
+                zoom: 1,
+              ),
+            ),
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pumpAndSettle();
+
+    final customPaintFinder = find.byType(CustomPaint);
+    expect(customPaintFinder, findsWidgets);
+
+    final customPaint = tester.widgetList<CustomPaint>(customPaintFinder).firstWhere(
+          (cp) => cp.foregroundPainter is FilmstripHolesPainter,
+        );
+    final painter = customPaint.foregroundPainter! as FilmstripHolesPainter;
+    
+    // For portrait video, scale is unified with landscape at 1.0
+    expect(painter.scale, equals(1.0));
+  });
+
+  testWidgets('MediaThumbnailPreview displays landscape video thumbnail with standard scale', (tester) async {
+    final mockCacheService = MockThumbnailCacheService();
+    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+    when(() => mockCacheService.lookupAsync(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
+
+    // 320 width x 180 height (landscape)
+    final landscapeThumb = createSampleJpeg('${tempDir.path}/landscape_video_test.jpg', width: 320, height: 180);
+    addTearDown(landscapeThumb.deleteSync);
+
+    when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => landscapeThumb.path);
+
+    final item = FileItem(
+      path: '/path/to/landscape_video.mp4',
+      name: 'landscape_video.mp4',
+      type: FileItemType.video,
+      sizeBytes: 1024,
+      modified: DateTime.now(),
+    );
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: MediaThumbnailPreview(
+                item: item,
+                zoom: 1,
+              ),
+            ),
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pumpAndSettle();
+
+    final customPaintFinder = find.byType(CustomPaint);
+    expect(customPaintFinder, findsWidgets);
+
+    final customPaint = tester.widgetList<CustomPaint>(customPaintFinder).firstWhere(
+          (cp) => cp.foregroundPainter is FilmstripHolesPainter,
+        );
+    final painter = customPaint.foregroundPainter! as FilmstripHolesPainter;
+    
+    // For landscape video, scale should be 1.0
+    expect(painter.scale, equals(1.0));
   });
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/archive_manager/services/archive_service.dart';
 import 'package:onyxcore/features/directory_browser/presentation/pages/gallery_page.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session_manager.dart';
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -23,16 +25,16 @@ class _OnyxCoreAppState extends ConsumerState<OnyxCoreApp> with WindowListener {
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
-    // Prevent immediate close to allow for clean process termination
-    windowManager.setPreventClose(true);
+    windowManager
+      ..addListener(this)
+      ..setPreventClose(true);
 
     Future.microtask(() async {
       if (mounted) {
         final notifier = ref.read(downloaderUpdateProvider.notifier);
         await notifier.checkForUpdates();
         if (mounted) {
-          notifier.updateAll(defaultOnly: true);
+          unawaited(notifier.updateAll(defaultOnly: true));
         }
       }
     });
@@ -52,6 +54,9 @@ class _OnyxCoreAppState extends ConsumerState<OnyxCoreApp> with WindowListener {
       Navigator.of(context).pop();
     } else {
       debugPrint('[OnyxCoreApp] Main window closing. Terminating process...');
+      try {
+        ref.read(activeThumbnailSessionProvider.notifier).disposeCurrentSession();
+      } catch (_) {}
       ArchiveService.killZombies(); // Cleanup 7z processes
       // Forcefully kill the entire process tree to clean up all secondary windows.
       exit(0);

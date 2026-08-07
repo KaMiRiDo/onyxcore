@@ -132,18 +132,35 @@ class ThumbnailCacheService {
     if (entry.status == 'ready') {
       var valid = false;
       if (entry.cacheFileNormal != null) {
-        final f = File(entry.cacheFileNormal!);
-        if (f.existsSync() && f.lengthSync() > 0) valid = true;
+        if (_isNonEmptyFile(entry.cacheFileNormal!)) valid = true;
       }
       if (!valid && entry.cacheFileLarge != null) {
-        final f = File(entry.cacheFileLarge!);
-        if (f.existsSync() && f.lengthSync() > 0) valid = true;
+        if (_isNonEmptyFile(entry.cacheFileLarge!)) valid = true;
       }
       if (valid) return ThumbnailLookupResult.hit;
     }
 
     // 'pending' or unknown status or missing disk files → miss
     return ThumbnailLookupResult.miss;
+  }
+
+  bool _isNonEmptyFile(String path) {
+    try {
+      final f = File(path);
+      return f.existsSync() && f.lengthSync() > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _isNonEmptyFileAsync(String path) async {
+    try {
+      final f = File(path);
+      // ignore: avoid_slow_async_io
+      return await f.exists() && await f.length() > 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Look up the thumbnail cache asynchronously to prevent blocking the UI thread.
@@ -166,14 +183,10 @@ class ThumbnailCacheService {
     if (entry.status == 'ready') {
       var valid = false;
       if (entry.cacheFileNormal != null) {
-        final f = File(entry.cacheFileNormal!);
-        // ignore: avoid_slow_async_io
-        if (await f.exists() && await f.length() > 0) valid = true;
+        if (await _isNonEmptyFileAsync(entry.cacheFileNormal!)) valid = true;
       }
       if (!valid && entry.cacheFileLarge != null) {
-        final f = File(entry.cacheFileLarge!);
-        // ignore: avoid_slow_async_io
-        if (await f.exists() && await f.length() > 0) valid = true;
+        if (await _isNonEmptyFileAsync(entry.cacheFileLarge!)) valid = true;
       }
       if (valid) return ThumbnailLookupResult.hit;
     }
@@ -193,17 +206,11 @@ class ThumbnailCacheService {
 
     if (size == ThumbnailSize.normal) {
       final path = entry.cacheFileNormal ?? entry.cacheFileLarge;
-      if (path != null) {
-        final f = File(path);
-        if (f.existsSync() && f.lengthSync() > 0) return path;
-      }
+      if (path != null && _isNonEmptyFile(path)) return path;
       return null;
     } else {
       final path = entry.cacheFileLarge ?? entry.cacheFileNormal;
-      if (path != null) {
-        final f = File(path);
-        if (f.existsSync() && f.lengthSync() > 0) return path;
-      }
+      if (path != null && _isNonEmptyFile(path)) return path;
       return null;
     }
   }
@@ -216,19 +223,11 @@ class ThumbnailCacheService {
 
     if (size == ThumbnailSize.normal) {
       final path = entry.cacheFileNormal ?? entry.cacheFileLarge;
-      if (path != null) {
-        final f = File(path);
-        // ignore: avoid_slow_async_io
-        if (await f.exists() && await f.length() > 0) return path;
-      }
+      if (path != null && await _isNonEmptyFileAsync(path)) return path;
       return null;
     } else {
       final path = entry.cacheFileLarge ?? entry.cacheFileNormal;
-      if (path != null) {
-        final f = File(path);
-        // ignore: avoid_slow_async_io
-        if (await f.exists() && await f.length() > 0) return path;
-      }
+      if (path != null && await _isNonEmptyFileAsync(path)) return path;
       return null;
     }
   }

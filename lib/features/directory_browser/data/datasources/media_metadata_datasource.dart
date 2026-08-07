@@ -40,7 +40,7 @@ class MediaMetadataDatasource {
     final ratios = await Isolate.run(() {
       final resMap = <String, double>{};
       for (final path in missing) {
-        final parsedRatio = _parseImageDimensions(path);
+        final parsedRatio = parseImageDimensions(path);
         resMap[path] = parsedRatio ?? 1.0;
       }
       return resMap;
@@ -56,7 +56,7 @@ class MediaMetadataDatasource {
 
   /// Fast pure-Dart parser for JPEG, PNG, GIF, BMP, and WebP dimensions.
   /// Reads only the first few bytes/segments of the file without decoding pixel data.
-  static double? _parseImageDimensions(String path) {
+  static double? parseImageDimensions(String path) {
     try {
       final file = File(path);
       if (!file.existsSync()) return null;
@@ -185,7 +185,7 @@ class MediaMetadataDatasource {
     final cached = _cache.aspectRatios[path];
     if (cached != null) return cached;
 
-    final parsed = _parseImageDimensions(path);
+    final parsed = parseImageDimensions(path);
     if (parsed != null) {
       await _cache.saveRatio(path, parsed);
       return parsed;

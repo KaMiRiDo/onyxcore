@@ -1,6 +1,7 @@
 import 'dart:isolate';
 
 import 'package:onyxcore/core/cache/directory_cache.dart';
+import 'package:onyxcore/core/cache/metadata_cache.dart';
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/platform/directory_watcher.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
@@ -18,12 +19,14 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
     required this.cache,
     required this.watcher,
     this.thumbnailCacheService,
+    this.metadataCache,
   });
 
   final LocalFileDatasource datasource;
   final DirectoryCache<List<FileItem>> cache;
   final DirectoryWatcher watcher;
   final ThumbnailCacheService? thumbnailCacheService;
+  final MetadataCache? metadataCache;
 
   @override
   Future<List<FileItem>> listDirectory(String path) async {
@@ -246,10 +249,18 @@ class DirectoryRepositoryImpl implements DirectoryRepository {
   }
 
   Future<void> _invalidateThumbnailCache(List<String> paths) async {
-    if (thumbnailCacheService == null || paths.isEmpty) return;
-    await thumbnailCacheService!.removeEntries(paths);
-    for (final path in paths) {
-      await thumbnailCacheService!.removeEntriesForFolder(path);
+    if (paths.isEmpty) return;
+    if (thumbnailCacheService != null) {
+      await thumbnailCacheService!.removeEntries(paths);
+      for (final path in paths) {
+        await thumbnailCacheService!.removeEntriesForFolder(path);
+      }
+    }
+    if (metadataCache != null) {
+      await metadataCache!.removeBatch(paths);
+      for (final path in paths) {
+        await metadataCache!.removeForFolder(path);
+      }
     }
   }
 

@@ -96,6 +96,12 @@ void main() {
       when(
         () => mockAppDatabase.savePlaybackPosition(any(), any()),
       ).thenAnswer((_) async {});
+      when(
+        () => mockAppDatabase.pruneMetadataCache(any()),
+      ).thenAnswer((_) async => []);
+      when(
+        () => mockAppDatabase.getAllMetadataCache(),
+      ).thenAnswer((_) async => []);
     });
 
     Widget buildWidget([WidgetRef? ref]) {

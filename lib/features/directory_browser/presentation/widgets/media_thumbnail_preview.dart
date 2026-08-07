@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session_manager.dart';
@@ -43,6 +44,7 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
     if (ThumbnailCacheService.isThumbnailCachePath(widget.item.path)) {
       if (widget.item.type == FileItemType.image) {
         _cachedThumbPath = widget.item.path;
+        _isLandscape = _checkIsLandscape(widget.item.path);
         return;
       }
     }
@@ -63,6 +65,7 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
         final cachedPath = cacheService.getCachedPath(filePath);
         if (cachedPath != null) {
           _cachedThumbPath = cachedPath;
+          _isLandscape = _checkIsLandscape(cachedPath);
           return;
         }
       }
@@ -79,6 +82,7 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
       if (ThumbnailCacheService.isThumbnailCachePath(widget.item.path)) {
         if (widget.item.type == FileItemType.image) {
           _cachedThumbPath = widget.item.path;
+          _isLandscape = _checkIsLandscape(widget.item.path);
           return;
         }
       }
@@ -98,12 +102,14 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
           final cachedPath = cacheService.getCachedPath(filePath);
           if (cachedPath != null) {
             _cachedThumbPath = cachedPath;
+            _isLandscape = _checkIsLandscape(cachedPath);
             return;
           }
         }
       } catch (_) {}
 
       _cachedThumbPath = null;
+      _isLandscape = true;
       _loadThumbnail();
     }
   }
@@ -115,6 +121,8 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
   }
 
   Future<void> _loadThumbnail() async {
+    if (_disposed || !mounted) return;
+
     final filePath = widget.item.path;
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
       return;
@@ -125,13 +133,16 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
         if (!_disposed && mounted) {
           setState(() {
             _cachedThumbPath = filePath;
+            _isLandscape = _checkIsLandscape(filePath);
           });
         }
         return;
       }
     }
 
+    // Read provider state synchronously before any async gap
     final cacheService = ref.read(thumbnailCacheServiceProvider);
+    final session = ref.read(activeThumbnailSessionProvider);
     final mtime = widget.item.modified.millisecondsSinceEpoch;
     final sizeBytes = widget.item.sizeBytes ?? 0;
 
@@ -144,23 +155,27 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
       mtime: mtime,
       sizeBytes: sizeBytes,
     );
+    if (_disposed || !mounted) return;
 
     switch (result) {
       case ThumbnailLookupResult.hit:
         // Cache hit — use immediately
         final cachedPath = await cacheService.getCachedPathAsync(filePath);
+        if (_disposed || !mounted) return;
         if (cachedPath != null) {
           final file = File(cachedPath);
-          // ignore: avoid_slow_async_io
-          if (await file.exists()) {
-            if (!_disposed && mounted) {
-              setState(() {
-                _isLandscape = _checkIsLandscape();
-                _cachedThumbPath = cachedPath;
-              });
+          try {
+            // ignore: avoid_slow_async_io
+            if (await file.exists()) {
+              if (!_disposed && mounted) {
+                setState(() {
+                  _cachedThumbPath = cachedPath;
+                  _isLandscape = _checkIsLandscape(cachedPath);
+                });
+              }
+              return;
             }
-            return;
-          }
+          } catch (_) {}
         }
       // Cached file missing from disk — fall through to regenerate
 
@@ -173,8 +188,9 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
         break;
     }
 
-    // 2. Obtain the active thumbnail session
-    final session = ref.read(activeThumbnailSessionProvider);
+    if (_disposed || !mounted) return;
+
+    // 2. Enqueue in active thumbnail session
     if (session == null || session.isCancelled || session.isDisposed) {
       return;
     }
@@ -186,27 +202,38 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
     );
 
     await session.enqueue(job);
+    if (_disposed || !mounted) return;
 
-    if (!_disposed && mounted && _cachedThumbPath == null) {
+    if (_cachedThumbPath == null) {
       try {
         final cachedPath = await cacheService.getCachedPathAsync(filePath);
+        if (_disposed || !mounted) return;
         if (cachedPath != null) {
           final file = File(cachedPath);
           // ignore: avoid_slow_async_io
           if (await file.exists()) {
-            setState(() {
-              _isLandscape = _checkIsLandscape();
-              _cachedThumbPath = cachedPath;
-            });
+            if (!_disposed && mounted) {
+              setState(() {
+                _cachedThumbPath = cachedPath;
+                _isLandscape = _checkIsLandscape(cachedPath);
+              });
+            }
           }
         }
       } catch (_) {}
     }
   }
 
-  bool _checkIsLandscape() {
+  bool _checkIsLandscape([String? thumbPath]) {
     if (widget.item.imageAspectRatio != null) {
       return widget.item.imageAspectRatio! >= 1.0;
+    }
+    final path = thumbPath ?? _cachedThumbPath;
+    if (path != null) {
+      final ratio = MediaMetadataDatasource.parseImageDimensions(path);
+      if (ratio != null) {
+        return ratio >= 1.0;
+      }
     }
     return true;
   }
@@ -263,19 +290,23 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
         );
       }
 
-      // 16:9 for landscape, 3:4 for portrait (so it's not too narrow/sleek in the grid)
-      final aspectRatio = _isLandscape ? (16 / 9) : (3 / 4);
-      const innerWidth = 140;
-      final innerHeight = innerWidth / aspectRatio;
-
-      // Because portrait is taller, it gets scaled down more to fit the grid height.
-      // We scale up its borders/holes so they appear the same visual size as landscape on screen.
-      final borderScale = _isLandscape ? 1.0 : (innerHeight / 140.0);
+      // Target dimensions: 16:9 for landscape, 3:4 for portrait.
+      // Sizing them directly ensures filmstrip borders and holes are identical in pixel size on screen.
+      final double targetWidth;
+      final double targetHeight;
+      if (_isLandscape) {
+        targetWidth = 140.0;
+        targetHeight = 140.0 / (16 / 9); // ~78.75
+      } else {
+        targetHeight = 112.0;
+        targetWidth = targetHeight * (3 / 4); // 84.0
+      }
 
       return Center(
         child: FittedBox(
           child: SizedBox(
-            width: innerWidth.toDouble(),
+            width: targetWidth,
+            height: targetHeight,
             child: Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF333333),
@@ -289,19 +320,19 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
                 ],
               ),
               child: CustomPaint(
-                foregroundPainter: FilmstripHolesPainter(scale: borderScale),
+                foregroundPainter: FilmstripHolesPainter(),
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 14.0 * borderScale,
-                    right: 14.0 * borderScale,
-                    top: 4.0 * borderScale,
-                    bottom: 4.0 * borderScale,
+                  padding: const EdgeInsets.only(
+                    left: 14,
+                    right: 14,
+                    top: 4,
+                    bottom: 4,
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4.0 * borderScale),
+                    borderRadius: BorderRadius.circular(4),
                     child: SizedBox(
-                      width: innerWidth - (28.0 * borderScale),
-                      height: innerHeight - (8.0 * borderScale),
+                      width: targetWidth - 28,
+                      height: targetHeight - 8,
                       child: Image.file(
                         File(_cachedThumbPath!),
                         fit: BoxFit.cover,
@@ -311,8 +342,8 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
                               if (wasSynchronouslyLoaded) return child;
                               if (frame == null) {
                                 return SizedBox(
-                                  width: 112,
-                                  height: 63,
+                                  width: targetWidth - 28.0,
+                                  height: targetHeight - 8.0,
                                   child: Center(
                                     child: SvgPicture.asset(
                                       'assets/icons/video.svg',
@@ -325,8 +356,8 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
                               return child;
                             },
                         errorBuilder: (_, __, ___) => SizedBox(
-                          width: 112,
-                          height: 63,
+                          width: targetWidth - 28.0,
+                          height: targetHeight - 8.0,
                           child: Center(
                             child: SvgPicture.asset(
                               'assets/icons/video.svg',

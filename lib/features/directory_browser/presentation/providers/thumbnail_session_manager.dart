@@ -42,7 +42,6 @@ class ThumbnailSessionManager extends Notifier<ThumbnailSession?> {
       folderPath: currentPath,
       tabId: currentTabId,
       cacheService: cacheService,
-      maxConcurrent: 2,
     );
     _currentSession = session;
 
@@ -59,6 +58,13 @@ class ThumbnailSessionManager extends Notifier<ThumbnailSession?> {
   void _cancelCurrentSession() {
     _currentSession?.cancel();
     _currentSession = null;
+  }
+
+  /// Explicitly disposes the current session on application shutdown.
+  void disposeCurrentSession() {
+    _currentSession?.dispose();
+    _currentSession = null;
+    state = null;
   }
 
   static bool isThumbnailCacheDir(String path) {

@@ -51,6 +51,7 @@ final directoryRepositoryProvider = Provider<DirectoryRepository>((ref) {
     cache: ref.watch(directoryCacheProvider),
     watcher: ref.watch(directoryWatcherProvider),
     thumbnailCacheService: ref.watch(thumbnailCacheServiceProvider),
+    metadataCache: ref.watch(metadataCacheProvider),
   );
 });
 
@@ -325,11 +326,13 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     final items = await repo.listDirectory(path);
 
     // Clear refreshing state once items are loaded
-    Future.microtask(() {
-      if (!_isDisposed && currentToken == _metadataToken) {
-        ref.read(isRefreshingProvider.notifier).state = false;
-      }
-    });
+    unawaited(
+      Future.microtask(() {
+        if (!_isDisposed && currentToken == _metadataToken) {
+          ref.read(isRefreshingProvider.notifier).state = false;
+        }
+      }),
+    );
 
     // Preserve metadata from previous state to prevent UI jumping during refresh
     final previousItems = state.value ?? [];

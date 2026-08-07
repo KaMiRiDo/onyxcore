@@ -138,15 +138,27 @@ void main() {
 
     test('reprioritize reorders pending jobs based on visiblePaths', () async {
       final executionOrder = <int>[];
-      final gate = Completer<void>();
+      final gate1 = Completer<void>();
+      final gate2 = Completer<void>();
 
-      // Active running job
+      // Active slot 1
+      final job0 = ThumbnailJob(
+        filePath: '/test/folder/image0.jpg',
+        size: ThumbnailSize.normal,
+        priority: 5,
+        task: () async {
+          await gate1.future;
+          executionOrder.add(0);
+        },
+      );
+
+      // Active slot 2
       final job1 = ThumbnailJob(
         filePath: '/test/folder/image1.jpg',
         size: ThumbnailSize.normal,
         priority: 10,
         task: () async {
-          await gate.future;
+          await gate2.future;
           executionOrder.add(1);
         },
       );
@@ -171,6 +183,7 @@ void main() {
         },
       );
 
+      final f0 = session.enqueue(job0);
       final f1 = session.enqueue(job1);
       final f2 = session.enqueue(job2);
       final f3 = session.enqueue(job3);
@@ -178,22 +191,25 @@ void main() {
       // Reprioritize job3 so it is prioritized ahead of job2
       session.reprioritize({'/test/folder/image3.jpg'});
 
-      gate.complete();
-      await Future.wait([f1, f2, f3]);
+      gate1.complete();
+      gate2.complete();
+      await Future.wait([f0, f1, f2, f3]);
 
-      // Order should be 1, 3, 2
-      expect(executionOrder, [1, 3, 2]);
+      // Job 3 (reprioritized) must execute before Job 2
+      expect(executionOrder.indexOf(3) < executionOrder.indexOf(2), isTrue);
+      expect(executionOrder.toSet(), {0, 1, 2, 3});
     });
 
     test('cancel() stops pending jobs and marks session cancelled', () async {
       final executed = <int>[];
-      final gate = Completer<void>();
+      final gate1 = Completer<void>();
+      final gate2 = Completer<void>();
 
       final job1 = ThumbnailJob(
         filePath: '/test/folder/image1.jpg',
         size: ThumbnailSize.normal,
         task: () async {
-          await gate.future;
+          await gate1.future;
           executed.add(1);
         },
       );
@@ -202,20 +218,33 @@ void main() {
         filePath: '/test/folder/image2.jpg',
         size: ThumbnailSize.normal,
         task: () async {
+          await gate2.future;
           executed.add(2);
+        },
+      );
+
+      final job3 = ThumbnailJob(
+        filePath: '/test/folder/image3.jpg',
+        size: ThumbnailSize.normal,
+        task: () async {
+          executed.add(3);
         },
       );
 
       final f1 = session.enqueue(job1);
       final f2 = session.enqueue(job2);
+      final f3 = session.enqueue(job3);
 
       session.cancel();
 
-      gate.complete();
+      gate1.complete();
+      gate2.complete();
       await f1;
       await f2;
+      await f3;
 
-      expect(executed, [1]); // job2 was never executed
+      expect(executed, containsAll([1, 2]));
+      expect(executed.contains(3), isFalse); // job3 was never executed
       expect(session.isCancelled, isTrue);
     });
 
