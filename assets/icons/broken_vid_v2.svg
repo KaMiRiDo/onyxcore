@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 360" width="100%" height="100%" shape-rendering="geometricPrecision">
+  <defs>
+    <!-- MASK DEFINITION: Mathematically scaled to perfectly match the 512x512 image icon crack -->
+    <mask id="zigzag-crack-mask">
+      <rect x="0" y="0" width="500" height="360" fill="#ffffff" />
+      
+      <!-- Exact shape and angles of the image icon crack, scaled by 0.703125 to fit the 360px height ratio perfectly -->
+      <path d="M 250 35 
+               L 211 111 
+               L 273 188 
+               L 206 250 
+               L 261 323" 
+            stroke="#000000" 
+            stroke-width="22.5" 
+            stroke-linejoin="miter" 
+            stroke-linecap="square" 
+            fill="none" />
+    </mask>
+  </defs>
+
+  <!-- GROUP WITH CRACK MASK APPLIED -->
+  <g mask="url(#zigzag-crack-mask)">
+    
+    <!-- MAIN CAMERA BODY -->
+    <rect x="25" y="45" width="350" height="270" rx="65" fill="#4c6680" />
+
+    <!-- CAMERA LENS / SIDE FLAP -->
+    <path d="M 370 100 
+             L 450 65 
+             C 468 57, 485 70, 485 90 
+             L 485 270 
+             C 485 290, 468 303, 450 295 
+             L 370 260 Z" 
+          fill="#b0c0d0" />
+
+    <!-- CENTER PLAY BUTTON TRIANGLE -->
+    <path d="M 140 105 
+             C 140 93, 153 85, 164 91 
+             L 284 166 
+             C 295 172, 295 188, 284 194 
+             L 164 269 
+             C 153 275, 140 267, 140 255 Z" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="26" 
+          stroke-linejoin="round" 
+          stroke-linecap="round" />
+          
+  </g>
+</svg>

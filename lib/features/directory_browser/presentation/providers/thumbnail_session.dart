@@ -26,13 +26,27 @@ Future<bool> _generateImageThumbnail(List<String> args) async {
   }
 }
 
+/// Represents the outcome of a thumbnail generation job.
+enum ThumbnailJobOutcome {
+  /// The thumbnail was generated and committed to the cache successfully.
+  success,
+
+  /// The job was cancelled due to folder navigation, tab change, or disposal.
+  cancelled,
+
+  /// Generation genuinely failed (corrupt file, unsupported format, error).
+  failed,
+}
+
 /// Generates a media thumbnail file and caches it via [ThumbnailCacheService].
-Future<void> generateMediaThumbnail({
+Future<ThumbnailJobOutcome> generateMediaThumbnail({
   required FileItem item,
   required ThumbnailCacheService cacheService,
   required ThumbnailSession session,
 }) async {
-  if (session.isCancelled || session.isDisposed) return;
+  if (session.isCancelled || session.isDisposed) {
+    return ThumbnailJobOutcome.cancelled;
+  }
 
   final filePath = item.path;
   final mtime = item.modified.millisecondsSinceEpoch;
@@ -44,13 +58,19 @@ Future<void> generateMediaThumbnail({
     sizeBytes: sizeBytes,
   );
 
-  if (lookup == ThumbnailLookupResult.hit ||
-      lookup == ThumbnailLookupResult.failed) {
-    return;
+  if (lookup == ThumbnailLookupResult.hit) {
+    return ThumbnailJobOutcome.success;
+  }
+  if (lookup == ThumbnailLookupResult.failed) {
+    return ThumbnailJobOutcome.failed;
   }
 
   await ThumbnailCacheService.ensureCacheDirs();
-  final tempThumbPath = ThumbnailCacheService.computeCachePath(
+  final tempThumbPath = ThumbnailCacheService.computeTempPath(
+    filePath,
+    ThumbnailSize.normal,
+  );
+  final finalCachePath = ThumbnailCacheService.computeCachePath(
     filePath,
     ThumbnailSize.normal,
   );
@@ -58,18 +78,7 @@ Future<void> generateMediaThumbnail({
 
   try {
     final isImage = item.type == FileItemType.image;
-    final ext = filePath.toLowerCase();
-    final isCommonImage =
-        isImage &&
-        (ext.endsWith('.jpg') ||
-            ext.endsWith('.jpeg') ||
-            ext.endsWith('.png') ||
-            ext.endsWith('.webp') ||
-            ext.endsWith('.gif') ||
-            ext.endsWith('.bmp') ||
-            ext.endsWith('.tiff') ||
-            ext.endsWith('.tif') ||
-            ext.endsWith('.dng'));
+    final isCommonImage = isImage && ThumbnailSession.isCommonImageFormat(filePath);
 
     var generated = false;
 
@@ -83,15 +92,13 @@ Future<void> generateMediaThumbnail({
       ]);
     }
 
-    // 2. Try heif-thumbnailer for HEIC/HEIF/AVIF
-    if (!generated &&
-        (ext.endsWith('.heic') ||
-            ext.endsWith('.heif') ||
-            ext.endsWith('.avif'))) {
-      final process = await Process.start(
-        'heif-thumbnailer',
-        ['-s', '320', filePath, tempThumbPath],
-      );
+    // 2. Fallback to external thumbnailers (heif-thumbnailer, gdk-pixbuf-thumbnailer, FFmpeg)
+    if (!generated) {
+      final command = ThumbnailSession.getThumbnailerCommand(filePath, tempThumbPath, isImage: isImage);
+      final executable = command.first;
+      final args = command.sublist(1);
+
+      final process = await Process.start(executable, args);
       unawaited(setLowProcessPriority(process.pid));
       session.registerRunningProcess(jobKey, process);
       process.stdout.drain<void>().ignore();
@@ -108,53 +115,6 @@ Future<void> generateMediaThumbnail({
       }
     }
 
-    // 3. Fallback to FFmpeg for videos and RAW/large images
-    if (!generated) {
-      final ffmpegArgs = isImage
-          ? [
-              '-y',
-              '-i',
-              filePath,
-              '-vframes',
-              '1',
-              '-update',
-              '1',
-              '-vf',
-              'scale=320:-1',
-              '-q:v',
-              '5',
-              '-loglevel',
-              'error',
-              tempThumbPath,
-            ]
-          : [
-              '-y',
-              '-ss',
-              '00:00:01',
-              '-i',
-              filePath,
-              '-vframes',
-              '1',
-              '-an',
-              '-vf',
-              'scale=320:-1',
-              '-q:v',
-              '5',
-              '-loglevel',
-              'error',
-              tempThumbPath,
-            ];
-
-      final process = await Process.start('ffmpeg', ffmpegArgs);
-      unawaited(setLowProcessPriority(process.pid));
-      session.registerRunningProcess(jobKey, process);
-      process.stdout.drain<void>().ignore();
-      process.stderr.drain<void>().ignore();
-      final exitCode = await process.exitCode;
-      session.unregisterRunningProcess(jobKey);
-      generated = (exitCode == 0);
-    }
-
     if (session.isCancelled || session.isDisposed) {
       try {
         final partialFile = File(tempThumbPath);
@@ -162,7 +122,7 @@ Future<void> generateMediaThumbnail({
           partialFile.deleteSync();
         }
       } catch (_) {}
-      return;
+      return ThumbnailJobOutcome.cancelled;
     }
 
     final thumbFile = File(tempThumbPath);
@@ -174,22 +134,44 @@ Future<void> generateMediaThumbnail({
     }
 
     if (generated && thumbExists) {
+      // Atomic commit: rename temp file to final cache path
+      final committedFile = thumbFile.renameSync(finalCachePath);
       await cacheService.storeThumbnail(
         filePath: filePath,
         mtime: mtime,
         sizeBytes: sizeBytes,
         kind: isImage ? 'image' : 'video',
-        thumbnailFile: thumbFile,
+        thumbnailFile: committedFile,
       );
+      return ThumbnailJobOutcome.success;
     } else {
+      // Clean up incomplete temp file if created
+      try {
+        if (thumbFile.existsSync()) {
+          thumbFile.deleteSync();
+        }
+      } catch (_) {}
+
+      if (session.isCancelled || session.isDisposed) {
+        return ThumbnailJobOutcome.cancelled;
+      }
+
       await cacheService.markFailed(
         filePath: filePath,
         mtime: mtime,
         sizeBytes: sizeBytes,
         kind: isImage ? 'image' : 'video',
       );
+      return ThumbnailJobOutcome.failed;
     }
   } catch (e) {
+    try {
+      final partialFile = File(tempThumbPath);
+      if (partialFile.existsSync()) {
+        partialFile.deleteSync();
+      }
+    } catch (_) {}
+
     if (!session.isCancelled && !session.isDisposed) {
       await cacheService.markFailed(
         filePath: filePath,
@@ -197,9 +179,12 @@ Future<void> generateMediaThumbnail({
         sizeBytes: sizeBytes,
         kind: item.type == FileItemType.image ? 'image' : 'video',
       );
+      return ThumbnailJobOutcome.failed;
     }
+    return ThumbnailJobOutcome.cancelled;
   }
 }
+
 
 /// Represents a single unit of work for thumbnail generation.
 class ThumbnailJob {
@@ -238,6 +223,48 @@ class ThumbnailSession {
   /// Grace period in milliseconds to allow child process to terminate on SIGTERM
   /// before escalating to SIGKILL.
   static const int graceMillis = 300;
+
+  static bool isCommonImageFormat(String filePath) {
+    final ext = filePath.toLowerCase();
+    return ext.endsWith('.jpg') ||
+        ext.endsWith('.jpeg') ||
+        ext.endsWith('.png') ||
+        ext.endsWith('.webp') ||
+        ext.endsWith('.gif') ||
+        ext.endsWith('.bmp') ||
+        ext.endsWith('.tiff') ||
+        ext.endsWith('.tif');
+  }
+
+  static List<String> getThumbnailerCommand(String filePath, String tempThumbPath, {required bool isImage}) {
+    final ext = filePath.toLowerCase();
+    if (ext.endsWith('.heic') || ext.endsWith('.heif') || ext.endsWith('.avif')) {
+      return ['heif-thumbnailer', '-s', '320', filePath, tempThumbPath];
+    }
+    if (ext.endsWith('.dng')) {
+      return ['gdk-pixbuf-thumbnailer', '-s', '320', filePath, tempThumbPath];
+    }
+    
+    // Fallback to FFmpeg
+    return [
+      'ffmpeg',
+      '-y',
+      if (!isImage) ...['-ss', '00:00:01'],
+      '-i',
+      filePath,
+      '-vframes',
+      '1',
+      if (!isImage) '-an',
+      if (isImage) ...['-update', '1'],
+      '-vf',
+      'scale=320:-1',
+      '-q:v',
+      '5',
+      '-loglevel',
+      'error',
+      tempThumbPath,
+    ];
+  }
 
   /// Maximum file size in bytes for in-memory Dart image decoding. Images larger than
   /// this threshold route directly to FFmpeg to preserve memory stability and responsiveness.

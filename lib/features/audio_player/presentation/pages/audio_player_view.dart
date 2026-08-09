@@ -423,7 +423,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       ref.read(audioPlayingQueueProvider.notifier).state = updatedPlayingQueue;
 
       if (!widget.isStandalone) {
-        ref.read(directoryItemsProvider.notifier).refresh();
+        ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
       }
 
       if (isPlayingTrackDeleted) {
@@ -479,7 +479,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     ref.read(audioPlayingQueueProvider.notifier).state = updatedPlayingQueue;
 
     if (!widget.isStandalone) {
-      ref.read(directoryItemsProvider.notifier).refresh();
+      ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
     }
 
     // 2. Handle player state if the currently playing track was moved

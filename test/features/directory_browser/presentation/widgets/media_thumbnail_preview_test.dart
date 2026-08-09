@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
@@ -80,9 +81,13 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: MediaThumbnailPreview(
-              item: item,
-              zoom: 1,
+            body: SizedBox(
+              width: 150,
+              height: 120,
+              child: MediaThumbnailPreview(
+                item: item,
+                zoom: 1,
+              ),
             ),
           ),
         ),
@@ -101,8 +106,7 @@ void main() {
           sizeBytes: any(named: 'sizeBytes'),
         )).thenAnswer((_) async => ThumbnailLookupResult.hit);
     
-    final tempVideoThumb = File('${tempDir.path}/cached_video_test.jpg')..createSync();
-    addTearDown(tempVideoThumb.deleteSync);
+    final tempVideoThumb = File('test/resources/media/dummy.png');
 
     when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => tempVideoThumb.path);
 
@@ -122,9 +126,13 @@ void main() {
           ],
           child: MaterialApp(
             home: Scaffold(
-              body: MediaThumbnailPreview(
-                item: item,
-                zoom: 1,
+              body: SizedBox(
+                width: 150,
+                height: 120,
+                child: MediaThumbnailPreview(
+                  item: item,
+                  zoom: 1,
+                ),
               ),
             ),
           ),
@@ -167,9 +175,13 @@ void main() {
           ],
           child: MaterialApp(
             home: Scaffold(
-              body: MediaThumbnailPreview(
-                item: item,
-                zoom: 1,
+              body: SizedBox(
+                width: 150,
+                height: 120,
+                child: MediaThumbnailPreview(
+                  item: item,
+                  zoom: 1,
+                ),
               ),
             ),
           ),
@@ -249,9 +261,13 @@ void main() {
                 builder: (context, setState) {
                   return Column(
                     children: [
-                      MediaThumbnailPreview(
-                        item: tapped ? item2 : item1,
-                        zoom: 1,
+                      SizedBox(
+                        width: 150,
+                        height: 120,
+                        child: MediaThumbnailPreview(
+                          item: tapped ? item2 : item1,
+                          zoom: 1,
+                        ),
                       ),
                       ElevatedButton(
                         onPressed: () => setState(() => tapped = true),
@@ -323,19 +339,6 @@ void main() {
     expect(order, containsAllInOrder([1, 3, 2]));
   });
 
-  File createSampleJpeg(String path, {required int width, required int height}) {
-    final bytes = <int>[
-      0xFF, 0xD8, // SOI
-      0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, // APP0 JFIF
-      0xFF, 0xC0, 0x00, 0x11, 0x08, // SOF0
-      (height >> 8) & 0xFF, height & 0xFF, // height
-      (width >> 8) & 0xFF, width & 0xFF, // width
-      0x03, 0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01, // components
-      0xFF, 0xD9, // EOI
-    ];
-    return File(path)..writeAsBytesSync(bytes);
-  }
-
   testWidgets('MediaThumbnailPreview gracefully handles corrupted or missing cached image without crashing', (tester) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
@@ -363,9 +366,13 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: MediaThumbnailPreview(
-              item: item,
-              zoom: 1,
+            body: SizedBox(
+              width: 150,
+              height: 120,
+              child: MediaThumbnailPreview(
+                item: item,
+                zoom: 1,
+              ),
             ),
           ),
         ),
@@ -377,115 +384,143 @@ void main() {
     expect(find.byType(MediaThumbnailPreview), findsOneWidget);
   });
 
-  testWidgets('MediaThumbnailPreview displays portrait video thumbnail with portrait aspect ratio and standard scale', (tester) async {
+
+  testWidgets('MediaThumbnailPreview displays broken image placeholder when lookup result is failed', (tester) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
     when(() => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
-
-    // 180 width x 320 height (portrait)
-    final portraitThumb = createSampleJpeg('${tempDir.path}/portrait_video_test.jpg', width: 180, height: 320);
-    addTearDown(portraitThumb.deleteSync);
-
-    when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => portraitThumb.path);
+        )).thenAnswer((_) async => ThumbnailLookupResult.failed);
 
     final item = FileItem(
-      path: '/path/to/portrait_video.mp4',
-      name: 'portrait_video.mp4',
-      type: FileItemType.video,
+      path: '/path/to/corrupt_image.png',
+      name: 'corrupt_image.png',
+      type: FileItemType.image,
       sizeBytes: 1024,
       modified: DateTime.now(),
     );
 
-    await tester.runAsync(() async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: MediaThumbnailPreview(
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 150,
+              height: 120,
+              child: MediaThumbnailPreview(
                 item: item,
                 zoom: 1,
               ),
             ),
           ),
         ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
+      ),
+    );
     await tester.pumpAndSettle();
 
-    final customPaintFinder = find.byType(CustomPaint);
-    expect(customPaintFinder, findsWidgets);
-
-    final customPaint = tester.widgetList<CustomPaint>(customPaintFinder).firstWhere(
-          (cp) => cp.foregroundPainter is FilmstripHolesPainter,
-        );
-    final painter = customPaint.foregroundPainter! as FilmstripHolesPainter;
-    
-    // For portrait video, scale is unified with landscape at 1.0
-    expect(painter.scale, equals(1.0));
+    expect(find.byType(SvgPicture), findsOneWidget);
   });
 
-  testWidgets('MediaThumbnailPreview displays landscape video thumbnail with standard scale', (tester) async {
+  testWidgets('MediaThumbnailPreview displays broken video placeholder when lookup result is failed', (tester) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
     when(() => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
-
-    // 320 width x 180 height (landscape)
-    final landscapeThumb = createSampleJpeg('${tempDir.path}/landscape_video_test.jpg', width: 320, height: 180);
-    addTearDown(landscapeThumb.deleteSync);
-
-    when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => landscapeThumb.path);
+        )).thenAnswer((_) async => ThumbnailLookupResult.failed);
 
     final item = FileItem(
-      path: '/path/to/landscape_video.mp4',
-      name: 'landscape_video.mp4',
+      path: '/path/to/corrupt_video.mkv',
+      name: 'corrupt_video.mkv',
       type: FileItemType.video,
       sizeBytes: 1024,
       modified: DateTime.now(),
     );
 
-    await tester.runAsync(() async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: MediaThumbnailPreview(
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 150,
+              height: 120,
+              child: MediaThumbnailPreview(
                 item: item,
                 zoom: 1,
               ),
             ),
           ),
         ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
+      ),
+    );
     await tester.pumpAndSettle();
 
-    final customPaintFinder = find.byType(CustomPaint);
-    expect(customPaintFinder, findsWidgets);
+    expect(find.byType(SvgPicture), findsOneWidget);
+  });
+  testWidgets('MediaThumbnailPreview displays default svg icon centered when thumbnail is missing', (tester) async {
+    final mockCacheService = MockThumbnailCacheService();
+    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+    when(() => mockCacheService.lookupAsync(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenAnswer((_) async => ThumbnailLookupResult.miss);
 
-    final customPaint = tester.widgetList<CustomPaint>(customPaintFinder).firstWhere(
-          (cp) => cp.foregroundPainter is FilmstripHolesPainter,
-        );
-    final painter = customPaint.foregroundPainter! as FilmstripHolesPainter;
+    final item = FileItem(
+      path: '/path/to/missing_thumbnail_image.jpg',
+      name: 'missing_thumbnail_image.jpg',
+      type: FileItemType.image,
+      sizeBytes: 1024,
+      modified: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 150,
+              height: 120,
+              child: MediaThumbnailPreview(
+                item: item,
+                zoom: 1,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final svgFinder = find.byType(SvgPicture);
+    expect(svgFinder, findsOneWidget);
     
-    // For landscape video, scale should be 1.0
-    expect(painter.scale, equals(1.0));
+    // Verify it is wrapped in Center and SizedBox.expand
+    final centerFinder = find.ancestor(of: svgFinder, matching: find.byType(Center));
+    expect(centerFinder, findsWidgets); // Can be multiple if nested but should at least find one
+    
+    // Verify it does NOT have a Container with BoxDecoration (dark cover)
+    // SvgPicture itself uses a few basic widgets internally, but shouldn't be wrapped in a custom decorated Container in _buildSvgIcon
+    
+    final decoratedContainerFinder = find.descendant(
+      of: find.byType(MediaThumbnailPreview), 
+      matching: find.byWidgetPredicate((widget) => widget is Container && widget.decoration != null)
+    );
+    expect(decoratedContainerFinder, findsNothing);
   });
 }

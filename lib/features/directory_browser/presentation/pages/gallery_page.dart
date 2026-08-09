@@ -1259,7 +1259,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         } else {
           // Trigger a refresh at the start to show the file as soon as it's created
           if (ref.read(currentPathProvider) == targetDir) {
-            unawaited(ref.read(directoryItemsProvider.notifier).refresh());
+            unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
           }
           await repo.copyItemTo(
             op.source,
@@ -1278,9 +1278,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         if (ref.read(currentPathProvider) == targetDir) {
           ref.read(selectionProvider.notifier).select(op.target);
           // Refresh after each item to show progress in the gallery
-          await ref.read(directoryItemsProvider.notifier).refresh();
-          // Force UI rebuild
-          ref.read(refreshCountProvider.notifier).state++;
+          await ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+
         }
 
         ref
@@ -1419,7 +1418,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       }
       ref.read(taskProvider.notifier).completeTask(taskId);
       ref.read(selectionProvider.notifier).deselectAll();
-      unawaited(ref.read(directoryItemsProvider.notifier).refresh());
+      unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
       unawaited(ref.read(settingsProvider.notifier).cleanupFolderSorts(paths));
     } catch (e) {
       debugPrint('Delete error: $e');
@@ -1505,7 +1504,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       );
       ref.read(taskProvider.notifier).completeTask(taskId);
       ref.read(selectionProvider.notifier).deselectAll();
-      unawaited(ref.read(directoryItemsProvider.notifier).refresh());
+      unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
     } catch (e) {
       debugPrint('Empty trash error: $e');
     }
@@ -1596,7 +1595,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
                 rethrow;
               }
             }
-            unawaited(ref.read(directoryItemsProvider.notifier).refresh());
+            unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(
@@ -1690,7 +1689,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           ref.read(selectionProvider.notifier).deselectAll();
           ref.read(selectionProvider.notifier).selectMultiple(newPaths);
         }
-        unawaited(ref.read(directoryItemsProvider.notifier).refresh());
+        unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -1739,7 +1738,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         }
 
         ref.read(taskProvider.notifier).completeTask(taskId);
-        await ref.read(directoryItemsProvider.notifier).refresh();
+        await ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
         // Auto-select the new item
         ref.read(selectionProvider.notifier).selectMultiple([newItemPath]);
       } catch (e) {

@@ -1837,6 +1837,9 @@ void main() {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      
+      final initialRefreshCount = container.read(refreshCountProvider);
+
       await tester.pump(const Duration(milliseconds: 500)); await tester.pump(const Duration(seconds: 4));
       await tester.pump(const Duration(seconds: 4)); // Clear the 3-second timer from TaskNotifier.completeTask
       
@@ -1848,6 +1851,8 @@ void main() {
         taskId: any(named: 'taskId'),
         onPort: any(named: 'onPort'),
       )).called(1);
+
+      expect(container.read(refreshCountProvider), initialRefreshCount, reason: 'Paste should not trigger refresh flash');
     });
 
     testWidgets('W-GAL-188, W-GAL-189, W-GAL-190, W-GAL-191: Rename dialog', (tester) async {

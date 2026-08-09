@@ -2,25 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as img;
 
 class SpecialImageConverter {
   static final _conversionQueue = <Future<void>>[];
-
-  static Future<bool> _convertDngToJpgPreview(List<String> args) async {
-    final sourcePath = args[0];
-    final destPath = args[1];
-    try {
-      final bytes = File(sourcePath).readAsBytesSync();
-      final image = img.decodeImage(bytes);
-      if (image == null) return false;
-      final jpegBytes = img.encodeJpg(image, quality: 90);
-      File(destPath).writeAsBytesSync(jpegBytes);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
 
   static Future<String?> convertIfNecessary(String sourcePath) async {
     final ext = sourcePath.toLowerCase();
@@ -54,8 +38,8 @@ class SpecialImageConverter {
         '${Directory.systemTemp.path}/onyx_special_${sourcePath.hashCode}_${DateTime.now().microsecondsSinceEpoch}.jpg';
 
     try {
+      final isUnix = Platform.isLinux || Platform.isMacOS;
       if (isHeic) {
-        final isUnix = Platform.isLinux || Platform.isMacOS;
         final process = await Process.start(
           isUnix ? 'nice' : 'heif-thumbnailer',
           isUnix 
@@ -75,7 +59,13 @@ class SpecialImageConverter {
           await fallbackProcess.exitCode;
         }
       } else if (isDng) {
-        await compute(_convertDngToJpgPreview, [sourcePath, uniqueTempPath]);
+        final process = await Process.start(
+          isUnix ? 'nice' : 'gdk-pixbuf-thumbnailer',
+          isUnix 
+              ? ['-n', '19', 'gdk-pixbuf-thumbnailer', '-s', '1920', sourcePath, uniqueTempPath]
+              : ['-s', '1920', sourcePath, uniqueTempPath],
+        );
+        await process.exitCode;
       }
 
       final uniqueFile = File(uniqueTempPath);

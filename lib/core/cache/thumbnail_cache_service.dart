@@ -105,6 +105,15 @@ class ThumbnailCacheService {
     return '${_cacheDirForSize(size)}/$hash.jpg';
   }
 
+  /// Compute a temporary write path located in the same directory as the target cache file.
+  ///
+  /// Using the same directory guarantees that `File.rename` is an atomic filesystem
+  /// operation on POSIX/Linux systems without crossing mount points.
+  static String computeTempPath(String absolutePath, ThumbnailSize size) {
+    final hash = AppDatabase.computeFileHash(absolutePath);
+    return '${_cacheDirForSize(size)}/.tmp_$hash.jpg';
+  }
+
   /// Look up the thumbnail cache for a file.
   ///
   /// Returns [ThumbnailLookupResult.hit] if a valid cached thumbnail exists,

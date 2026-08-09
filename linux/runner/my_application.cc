@@ -299,10 +299,10 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
           // FIX: Remove the FlView from its container IMMEDIATELY so the
           // Flutter compositor stops referencing it during the deferred
           // destruction window.  Without this, the compositor's render loop
-          // tries to access the FlView's allocation/scale-factor through
           // stale pointers, producing:
           //   GLib-GObject-CRITICAL: invalid unclassed pointer in cast to 'FlView'
           //   fl_compositor_get_frame_size: assertion 'FL_IS_COMPOSITOR(self)' failed
+          g_object_ref(child_view); // FIX: Keep child_view alive after removal
           gtk_container_remove(GTK_CONTAINER(target_window), child_view);
         }
         
@@ -332,6 +332,17 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
           g_object_unref(data);
           return G_SOURCE_REMOVE;
         }, target_window);
+        
+        if (child_view && GTK_IS_WIDGET(child_view)) {
+          g_timeout_add(500, [](gpointer data) -> gboolean {
+            GtkWidget* view = GTK_WIDGET(data);
+            if (GTK_IS_WIDGET(view)) {
+              gtk_widget_destroy(view);
+            }
+            g_object_unref(data);
+            return G_SOURCE_REMOVE;
+          }, child_view);
+        }
         
         fl_method_call_respond_success(method_call, nullptr, nullptr);
       } else {

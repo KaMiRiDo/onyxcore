@@ -34,6 +34,8 @@ class MediaThumbnailPreview extends ConsumerStatefulWidget {
 class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
   String? _cachedThumbPath;
   bool _isLandscape = true;
+  bool _isBroken = false;
+  bool _hasError = false;
   bool _disposed = false;
 
   @override
@@ -68,6 +70,9 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
           _isLandscape = _checkIsLandscape(cachedPath);
           return;
         }
+      } else if (syncHit == ThumbnailLookupResult.failed) {
+        _isBroken = true;
+        return;
       }
     } catch (_) {}
 
@@ -78,6 +83,8 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
   void didUpdateWidget(MediaThumbnailPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.path != widget.item.path) {
+      _isBroken = false;
+
       // Direct display if browsing inside thumbnail cache folder
       if (ThumbnailCacheService.isThumbnailCachePath(widget.item.path)) {
         if (widget.item.type == FileItemType.image) {
@@ -105,6 +112,9 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
             _isLandscape = _checkIsLandscape(cachedPath);
             return;
           }
+        } else if (syncHit == ThumbnailLookupResult.failed) {
+          _isBroken = true;
+          return;
         }
       } catch (_) {}
 
@@ -180,7 +190,12 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
       // Cached file missing from disk — fall through to regenerate
 
       case ThumbnailLookupResult.failed:
-        // Previously failed — don't retry, show fallback
+        // Genuine failure — show broken placeholder
+        if (!_disposed && mounted) {
+          setState(() {
+            _isBroken = true;
+          });
+        }
         return;
 
       case ThumbnailLookupResult.miss:
@@ -206,6 +221,20 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
 
     if (_cachedThumbPath == null) {
       try {
+        final postLookup = cacheService.lookup(
+          filePath: filePath,
+          mtime: mtime,
+          sizeBytes: sizeBytes,
+        );
+        if (postLookup == ThumbnailLookupResult.failed) {
+          if (!_disposed && mounted) {
+            setState(() {
+              _isBroken = true;
+            });
+          }
+          return;
+        }
+
         final cachedPath = await cacheService.getCachedPathAsync(filePath);
         if (_disposed || !mounted) return;
         if (cachedPath != null) {
@@ -239,16 +268,79 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
   }
 
   Widget _buildSvgIcon(String path) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        color: Colors.white.withValues(alpha: 0.02),
-      ),
+    return SizedBox.expand(
       child: Center(
         child: SvgPicture.asset(
           path,
           width: 42 * widget.zoom,
           height: 42 * widget.zoom,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoContainer(Widget child) {
+    final double targetWidth;
+    final double targetHeight;
+    if (_isLandscape) {
+      targetWidth = 140.0;
+      targetHeight = 140.0 / (16 / 9); // ~78.75
+    } else {
+      targetHeight = 112.0;
+      targetWidth = targetHeight * (3 / 4); // 84.0
+    }
+
+    return Center(
+      child: FittedBox(
+        child: SizedBox(
+          width: targetWidth,
+          height: targetHeight,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF333333),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: CustomPaint(
+              foregroundPainter: FilmstripHolesPainter(),
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: 14,
+                  right: 14,
+                  top: 4,
+                  bottom: 4,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: SizedBox(
+                    width: targetWidth - 28,
+                    height: targetHeight - 8,
+                    child: child,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBrokenPlaceholder() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox.expand(
+        child: SvgPicture.asset(
+          widget.item.type == FileItemType.image
+              ? 'assets/icons/broken_img_v2.svg'
+              : 'assets/icons/broken_vid_v2.svg',
+          fit: BoxFit.cover,
         ),
       ),
     );
@@ -260,10 +352,16 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
       if (next != null &&
           !next.isCancelled &&
           !next.isDisposed &&
-          _cachedThumbPath == null) {
+          _cachedThumbPath == null &&
+          !_isBroken) {
         _loadThumbnail();
       }
     });
+
+    if (_isBroken || _hasError) {
+      return _buildBrokenPlaceholder();
+    }
+
 
     if (_cachedThumbPath != null) {
       if (widget.item.type == FileItemType.image) {
@@ -279,101 +377,37 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
                   : BoxFit.cover,
               cacheWidth: 300,
               errorBuilder: (context, error, stackTrace) {
-                return _buildSvgIcon(
-                  widget.item.type == FileItemType.image
-                      ? 'assets/icons/image.svg'
-                      : 'assets/icons/video.svg',
-                );
+                if (!_hasError) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _hasError = true);
+                  });
+                }
+                return const SizedBox();
               },
             ),
           ),
         );
       }
 
-      // Target dimensions: 16:9 for landscape, 3:4 for portrait.
-      // Sizing them directly ensures filmstrip borders and holes are identical in pixel size on screen.
-      final double targetWidth;
-      final double targetHeight;
-      if (_isLandscape) {
-        targetWidth = 140.0;
-        targetHeight = 140.0 / (16 / 9); // ~78.75
-      } else {
-        targetHeight = 112.0;
-        targetWidth = targetHeight * (3 / 4); // 84.0
-      }
-
-      return Center(
-        child: FittedBox(
-          child: SizedBox(
-            width: targetWidth,
-            height: targetHeight,
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF333333),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: CustomPaint(
-                foregroundPainter: FilmstripHolesPainter(),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: 14,
-                    right: 14,
-                    top: 4,
-                    bottom: 4,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: SizedBox(
-                      width: targetWidth - 28,
-                      height: targetHeight - 8,
-                      child: Image.file(
-                        File(_cachedThumbPath!),
-                        fit: BoxFit.cover,
-                        cacheWidth: 300,
-                        frameBuilder:
-                            (context, child, frame, wasSynchronouslyLoaded) {
-                              if (wasSynchronouslyLoaded) return child;
-                              if (frame == null) {
-                                return SizedBox(
-                                  width: targetWidth - 28.0,
-                                  height: targetHeight - 8.0,
-                                  child: Center(
-                                    child: SvgPicture.asset(
-                                      'assets/icons/video.svg',
-                                      width: 42,
-                                      height: 42,
-                                    ),
-                                  ),
-                                );
-                              }
-                              return child;
-                            },
-                        errorBuilder: (_, __, ___) => SizedBox(
-                          width: targetWidth - 28.0,
-                          height: targetHeight - 8.0,
-                          child: Center(
-                            child: SvgPicture.asset(
-                              'assets/icons/video.svg',
-                              width: 42,
-                              height: 42,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+      return Image.file(
+        File(_cachedThumbPath!),
+        fit: BoxFit.cover,
+        cacheWidth: 300,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) return _buildVideoContainer(child);
+          if (frame == null) {
+            return _buildSvgIcon('assets/icons/video.svg');
+          }
+          return _buildVideoContainer(child);
+        },
+        errorBuilder: (_, __, ___) {
+          if (!_hasError) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _hasError = true);
+            });
+          }
+          return const SizedBox();
+        },
       );
     }
 
@@ -396,11 +430,14 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
             netUrl,
             fit: BoxFit.cover,
             cacheWidth: 300,
-            errorBuilder: (c, e, s) => _buildSvgIcon(
-              widget.item.type == FileItemType.image
-                  ? 'assets/icons/image.svg'
-                  : 'assets/icons/video.svg',
-            ),
+            errorBuilder: (c, e, s) {
+              if (!_hasError) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _hasError = true);
+                });
+              }
+              return const SizedBox();
+            },
           ),
         ),
       );

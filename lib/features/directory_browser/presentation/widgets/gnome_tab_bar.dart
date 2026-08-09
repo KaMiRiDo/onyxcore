@@ -182,7 +182,7 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
         try {
           await repo.moveItems(details.data, targetPath);
           currentRef.read(taskProvider.notifier).completeTask(taskId);
-          currentRef.read(directoryItemsProvider.notifier).refresh();
+          currentRef.read(directoryItemsProvider.notifier).refresh(showLoader: false);
           currentRef.read(selectionProvider.notifier).deselectAll();
         } catch (e) {
           currentRef.read(taskProvider.notifier).failTask(taskId, e.toString());

@@ -194,7 +194,7 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
           try {
             await repo.moveItems(details.data, widget.path);
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref.read(directoryItemsProvider.notifier).refresh();
+            ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
             ref.read(selectionProvider.notifier).deselectAll();
           } catch (e) {
             ref.read(taskProvider.notifier).failTask(taskId, e.toString());

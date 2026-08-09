@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/core/lifecycle/app_cleanup_coordinator.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:onyxcore/features/archive_manager/services/archive_service.dart';
 import 'package:onyxcore/features/directory_browser/presentation/pages/gallery_page.dart';
@@ -54,10 +55,12 @@ class _OnyxCoreAppState extends ConsumerState<OnyxCoreApp> with WindowListener {
       Navigator.of(context).pop();
     } else {
       debugPrint('[OnyxCoreApp] Main window closing. Terminating process...');
-      try {
-        ref.read(activeThumbnailSessionProvider.notifier).disposeCurrentSession();
-      } catch (_) {}
-      ArchiveService.killZombies(); // Cleanup 7z processes
+      AppCleanupCoordinator(
+        thumbnailCleanup: () {
+          ref.read(activeThumbnailSessionProvider.notifier).disposeCurrentSession();
+        },
+        archiveCleanup: ArchiveService.killZombies,
+      ).runAll();
       // Forcefully kill the entire process tree to clean up all secondary windows.
       exit(0);
     }

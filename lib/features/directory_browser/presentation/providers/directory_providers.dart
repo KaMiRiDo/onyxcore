@@ -467,13 +467,15 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
   }
 
   /// Force reload the current directory (invalidates cache).
-  Future<void> refresh() async {
+  Future<void> refresh({bool showLoader = true}) async {
     _metadataToken++;
     final path = ref.read(currentPathProvider);
     ref.read(directoryCacheProvider).invalidate(path);
-    ref.read(isRefreshingProvider.notifier).state = true;
-    ref.read(refreshCountProvider.notifier).state =
-        ref.read(refreshCountProvider) + 1;
+    if (showLoader) {
+      ref.read(isRefreshingProvider.notifier).state = true;
+      ref.read(refreshCountProvider.notifier).state =
+          ref.read(refreshCountProvider) + 1;
+    }
     ref.invalidateSelf();
   }
 

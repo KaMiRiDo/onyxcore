@@ -208,7 +208,7 @@ class _FileGridState extends ConsumerState<FileGrid>
           }
 
           ref.read(taskProvider.notifier).completeTask(taskId);
-          await ref.read(directoryItemsProvider.notifier).refresh();
+          await ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
           ref.read(selectionProvider.notifier).deselectAll();
         } catch (e) {
           ref.read(taskProvider.notifier).addLog(taskId, 'ERROR: $e');

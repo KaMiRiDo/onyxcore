@@ -105,7 +105,7 @@ class ActionBar extends ConsumerWidget {
       try {
         await repo.createFolder(currentPath, name, taskId: taskId);
         ref.read(taskProvider.notifier).completeTask(taskId);
-        await ref.read(directoryItemsProvider.notifier).refresh();
+        await ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
       } catch (e) {
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
         if (context.mounted) {

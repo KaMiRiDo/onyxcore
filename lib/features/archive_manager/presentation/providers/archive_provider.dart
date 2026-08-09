@@ -84,7 +84,7 @@ class ArchiveProviderNotifier extends Notifier<void> {
           icon: Icons.check_circle_rounded,
         );
       }
-      ref.read(directoryItemsProvider.notifier).refresh();
+      ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
     } catch (e) {
       ref.read(taskProvider.notifier).failTask(taskId, e.toString());
       final activeContext = appNavigatorKey.currentContext;
@@ -154,7 +154,7 @@ class ArchiveProviderNotifier extends Notifier<void> {
           icon: Icons.check_circle_rounded,
         );
       }
-      ref.read(directoryItemsProvider.notifier).refresh();
+      ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
     } catch (e) {
       ref.read(taskProvider.notifier).failTask(taskId, e.toString());
       final activeContext = appNavigatorKey.currentContext;

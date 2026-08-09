@@ -563,9 +563,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         await ResizeImage(provider, width: 3840).evict();
 
         repo.invalidateCache(currentPath);
-        ref.read(refreshCountProvider.notifier).state =
-            ref.read(refreshCountProvider) + 1;
-        unawaited(ref.read(directoryItemsProvider.notifier).refresh());
+
+        unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
       }
 
       _navigationController.navigateAfterDeletion(_currentItem);

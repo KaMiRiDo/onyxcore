@@ -124,6 +124,24 @@ void main() {
       expect(smallImageBytes <= ThumbnailSession.dartDecodeMaxBytes, isTrue);
       expect(largeImageBytes > ThumbnailSession.dartDecodeMaxBytes, isTrue);
     });
+
+    test('isCommonImageFormat classifies extensions correctly', () {
+      expect(ThumbnailSession.isCommonImageFormat('image.jpg'), isTrue);
+      expect(ThumbnailSession.isCommonImageFormat('image.png'), isTrue);
+      // DNG should NOT be classified as common image, so it bypasses Dart decoding
+      expect(ThumbnailSession.isCommonImageFormat('image.dng'), isFalse);
+    });
+
+    test('getThumbnailerCommand routes extensions correctly', () {
+      final heicCmd = ThumbnailSession.getThumbnailerCommand('test.heic', '/tmp/out', isImage: true);
+      expect(heicCmd.first, 'heif-thumbnailer');
+      
+      final dngCmd = ThumbnailSession.getThumbnailerCommand('test.dng', '/tmp/out', isImage: true);
+      expect(dngCmd.first, 'gdk-pixbuf-thumbnailer');
+      
+      final otherCmd = ThumbnailSession.getThumbnailerCommand('test.mp4', '/tmp/out', isImage: false);
+      expect(otherCmd.first, 'ffmpeg');
+    });
   });
 
   group('Phase 1.1 Hardening — Patch 5: Bounded Worker Limits', () {
@@ -267,6 +285,19 @@ void main() {
       // Center item 4 is prioritized
       expect(session.isJobActiveOrQueued('/test/folder/pic_4.jpg', ThumbnailSize.normal), isTrue);
       session.dispose();
+    });
+  });
+
+  group('Phase 1.2 Hardening — Patch 3: Atomic Thumbnail Writes', () {
+    test('computeTempPath places temp files in the same directory as computed cache files', () {
+      final cachePath = ThumbnailCacheService.computeCachePath('/path/to/media.mp4', ThumbnailSize.normal);
+      final tempPath = ThumbnailCacheService.computeTempPath('/path/to/media.mp4', ThumbnailSize.normal);
+
+      final cacheDir = File(cachePath).parent.path;
+      final tempDir = File(tempPath).parent.path;
+
+      expect(tempDir, equals(cacheDir), reason: 'Temp files must reside in the exact same directory as the target cache file to allow atomic filesystem rename.');
+      expect(File(tempPath).uri.pathSegments.last.startsWith('.tmp_'), isTrue);
     });
   });
 }

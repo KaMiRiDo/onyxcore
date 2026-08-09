@@ -92,7 +92,7 @@ class MockDirectoryItemsNotifier extends DirectoryItemsNotifier {
   }
 
   @override
-  Future<void> refresh() async {}
+  Future<void> refresh({bool showLoader = true}) async {}
 }
 
 class MockDirectoryRepository implements DirectoryRepository {

@@ -6,10 +6,20 @@ import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session_manager.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/item_preview.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class MockThumbnailCacheService extends Mock implements ThumbnailCacheService {}
+
+class FakeThumbnailSessionManager extends ThumbnailSessionManager {
+  FakeThumbnailSessionManager(this._session);
+  final ThumbnailSession? _session;
+
+  @override
+  ThumbnailSession? build() => _session;
+}
 
 void main() {
   late MockThumbnailCacheService mockCacheService;
@@ -17,17 +27,23 @@ void main() {
   setUp(() {
     mockCacheService = MockThumbnailCacheService();
     when(() => mockCacheService.ensureLoaded()).thenAnswer((_) async {});
+    when(() => mockCacheService.lookup(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenReturn(ThumbnailLookupResult.miss);
     when(() => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.failed);
+        )).thenAnswer((_) async => ThumbnailLookupResult.miss);
   });
 
   Widget buildTestWidget({required FileItem item, double zoom = 1.0}) {
     return ProviderScope(
       overrides: [
         thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+        activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(null)),
       ],
       child: MaterialApp(
         home: Scaffold(

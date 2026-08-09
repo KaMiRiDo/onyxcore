@@ -175,7 +175,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                                   .deselectAll();
                               ref
                                   .read(directoryItemsProvider.notifier)
-                                  .refresh();
+                                  .refresh(showLoader: false);
                             } catch (e) {
                               ref
                                   .read(taskProvider.notifier)
@@ -416,7 +416,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           try {
             await repo.moveItems(details.data, widget.item.path);
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref.read(directoryItemsProvider.notifier).refresh();
+            ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
             ref.read(selectionProvider.notifier).deselectAll();
           } catch (e) {
             ref.read(taskProvider.notifier).failTask(taskId, e.toString());
@@ -498,7 +498,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
               );
               ref.read(taskProvider.notifier).completeTask(taskId);
               ref.read(selectionProvider.notifier).deselectAll();
-              ref.read(directoryItemsProvider.notifier).refresh();
+              ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
             } catch (e) {
               ref.read(taskProvider.notifier).failTask(taskId, e.toString());
               ScaffoldMessenger.of(
@@ -611,7 +611,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                         rethrow;
                       }
                     }
-                    ref.read(directoryItemsProvider.notifier).refresh();
+                    ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Error renaming: $e')),
@@ -705,7 +705,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                   ref.read(selectionProvider.notifier).deselectAll();
                   ref.read(selectionProvider.notifier).selectMultiple(newPaths);
                 }
-                ref.read(directoryItemsProvider.notifier).refresh();
+                ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
               } catch (e) {
                 ScaffoldMessenger.of(
                   context,
@@ -773,7 +773,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
               },
             );
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref.read(directoryItemsProvider.notifier).refresh();
+            ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
           } catch (e) {
             // Rollback: restore optimistically removed items
             ref.read(directoryItemsProvider.notifier).restoreItems(removedItems);

@@ -111,7 +111,7 @@ class FakeDirectoryItemsNotifier extends DirectoryItemsNotifier {
   Future<List<FileItem>> build() async => [];
 
   @override
-  Future<void> refresh() async => calls.add('refresh');
+  Future<void> refresh({bool showLoader = true}) async => calls.add('refresh(showLoader: $showLoader)');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -674,7 +674,7 @@ void main() {
         final n = container.read(directoryItemsProvider.notifier)
             as FakeDirectoryItemsNotifier;
         await n.refresh();
-        expect(n.calls, contains('refresh'));
+        expect(n.calls, contains('refresh(showLoader: true)'));
       });
     });
 
@@ -725,6 +725,7 @@ void main() {
 
       testWidgets('W-ARC-PRV-23: PasswordDialog standalone test (Submit) and extractArchive coverage', (tester) async {
         final fakeTask = FakeTaskNotifier();
+        final fakeDir = FakeDirectoryItemsNotifier();
         late ArchiveProviderNotifier notifier;
         late BuildContext savedCtx;
 
@@ -734,7 +735,7 @@ void main() {
             fakeTask: fakeTask,
             fakeSel: FakeSelectionNotifier(),
             fakePath: FakeCurrentPathNotifier(tmpDir.path),
-            fakeDir: FakeDirectoryItemsNotifier(),
+            fakeDir: fakeDir,
             child: Consumer(
               builder: (ctx, ref, _) {
                 notifier = ref.read(archiveProvider.notifier);
@@ -758,6 +759,7 @@ void main() {
           await extFuture;
         });
         await tester.pump(const Duration(seconds: 4)); // toast
+        expect(fakeDir.calls, contains('refresh(showLoader: false)'));
         expect(fakeTask.calls.any((c) => c.startsWith('addTask:')), isTrue);
 
         // Test encrypted archive path (covers DA:28-33)
@@ -824,6 +826,7 @@ void main() {
 
       testWidgets('W-ARC-PRV-25: compressItems shows CompressDialog and handles success', (tester) async {
         final fakeTask = FakeTaskNotifier();
+        final fakeDir = FakeDirectoryItemsNotifier();
         late ArchiveProviderNotifier notifier;
         late BuildContext savedCtx;
 
@@ -833,7 +836,7 @@ void main() {
             fakeTask: fakeTask,
             fakeSel: FakeSelectionNotifier(),
             fakePath: FakeCurrentPathNotifier(tmpDir.path),
-            fakeDir: FakeDirectoryItemsNotifier(),
+            fakeDir: fakeDir,
             child: Consumer(
               builder: (ctx, ref, _) {
                 notifier = ref.read(archiveProvider.notifier);
@@ -866,6 +869,7 @@ void main() {
 
         // Task started
         expect(fakeTask.calls.any((c) => c.startsWith('addTask:')), isTrue);
+        expect(fakeDir.calls, contains('refresh(showLoader: false)'));
       });
       
       testWidgets('W-ARC-PRV-26: compressItems handles exception and shows error toast', (tester) async {

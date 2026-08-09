@@ -1722,7 +1722,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
 
     if (!widget.isStandalone) {
-      ref.read(directoryItemsProvider.notifier).refresh();
+      ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
       if (targetPaths.contains(_currentItem.path)) {
         final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
         if (!isAutoPlay) {
