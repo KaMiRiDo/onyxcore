@@ -8,7 +8,6 @@ import 'package:onyxcore/features/downloader/services/engines/download_engine.da
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/downloader/services/engines/gallery_dl_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
-import 'package:onyxcore/features/downloader/services/engines/playwright_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/streamlink_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
@@ -86,22 +85,12 @@ class TestYouGetEngine extends YouGetEngine {
   @override
   String? get binaryPath => null;
 }
-
-class TestPlaywrightEngine extends PlaywrightEngine {
-  bool _installed = true;
-  @override
-  bool get isInstalled => _installed;
-  @override
-  String? get binaryPath => null;
-}
-
 void setEngineInstalled(DownloadEngine engine, bool installed) {
   if (engine is TestGalleryDlEngine) engine._installed = installed;
   if (engine is TestYtDlpEngine) engine._installed = installed;
   if (engine is TestStreamlinkEngine) engine._installed = installed;
   if (engine is TestLuxEngine) engine._installed = installed;
   if (engine is TestYouGetEngine) engine._installed = installed;
-  if (engine is TestPlaywrightEngine) engine._installed = installed;
 }
 
 void main() {
@@ -113,7 +102,6 @@ void main() {
       EngineRegistry.register(TestStreamlinkEngine());
       EngineRegistry.register(TestLuxEngine());
       EngineRegistry.register(TestYouGetEngine());
-      EngineRegistry.register(TestPlaywrightEngine());
     });
 
     tearDownAll(EngineRegistry.clearAllEnginesForTesting);
@@ -184,14 +172,12 @@ void main() {
         expect(seq.length, 1);
         expect(seq.first, isA<YtDlpEngine>());
 
-        // Restore mocks
         EngineRegistry.clearAllEnginesForTesting();
         EngineRegistry.register(TestGalleryDlEngine());
         EngineRegistry.register(TestYtDlpEngine());
         EngineRegistry.register(TestStreamlinkEngine());
         EngineRegistry.register(TestLuxEngine());
         EngineRegistry.register(TestYouGetEngine());
-        EngineRegistry.register(TestPlaywrightEngine());
       });
 
       test('U-DL-REG-10: Skip non-matching engines in auto mode', () {
@@ -241,7 +227,7 @@ void main() {
     group('4. Engine Lists & Lookup', () {
       test('U-DL-REG-16: Return unmodifiable list of all engines', () {
         final engines = EngineRegistry.allEngines;
-        expect(engines.length, greaterThanOrEqualTo(6));
+        expect(engines.length, greaterThanOrEqualTo(5));
         expect(() => engines.add(MockCustomEngine()), throwsUnsupportedError);
       });
 
@@ -254,7 +240,7 @@ void main() {
 
       test('U-DL-REG-18: Return unmodifiable list of optional engines', () {
         final opt = EngineRegistry.optionalEngines;
-        expect(opt.length, 4);
+        expect(opt.length, 3);
         expect(() => opt.add(MockCustomEngine()), throwsUnsupportedError);
       });
 

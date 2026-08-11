@@ -55,7 +55,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   // Keys for sections to enable auto-scrolling
   final _generalKeys = {
     'Files & Folders': GlobalKey(),
-    'Download Manager': GlobalKey(),
+    'Downloader': GlobalKey(),
     'Sync': GlobalKey(),
     'Performance': GlobalKey(),
   };
@@ -72,7 +72,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   };
   final _shortcutsKeys = {
     'General': GlobalKey(),
-    'Download Manager': GlobalKey(),
+    'Downloader': GlobalKey(),
     'Image Viewer': GlobalKey(),
     'Video Player': GlobalKey(),
     'Audio Player': GlobalKey(),
@@ -256,7 +256,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                               ],
                             ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _buildHeader(),
                                 _buildTabBarSection(),
@@ -500,7 +500,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     return Row(
       children: [
         _buildSubSidebar(
-          items: ['Files & Folders', 'Download Manager', 'Sync', 'Performance'],
+          items: ['Files & Folders', 'Downloader', 'Sync', 'Performance'],
           activeItem: _activeGeneralSection,
           onSelected: (section) =>
               _scrollToSection(_generalKeys[section]!, section, 'General'),
@@ -574,8 +574,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   ),
                 ),
                 _buildSectionHeader(
-                  'Download Manager',
-                  _generalKeys['Download Manager']!,
+                  'Downloader',
+                  _generalKeys['Downloader']!,
                 ),
                 _buildSettingTile(
                   title: 'Download to current folder',
@@ -1002,7 +1002,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
         _buildSubSidebar(
           items: [
             'General',
-            'Download Manager',
+            'Downloader',
             'Image Viewer',
             'Video Player',
             'Audio Player',
@@ -1057,8 +1057,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                 _buildShortcutTile('Clear Selection', ['Esc']),
 
                 _buildSectionHeader(
-                  'Download Manager',
-                  _shortcutsKeys['Download Manager']!,
+                  'Downloader',
+                  _shortcutsKeys['Downloader']!,
                 ),
                 _buildShortcutTile('Update List (Save)', ['Ctrl', 'S']),
                 _buildShortcutTile('Select All Items', ['Ctrl', 'A']),
@@ -1343,7 +1343,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     required ValueChanged<T> onChanged,
     double minWidth = 100,
   }) {
-    final selectedOption = options.firstWhere((o) => o.key == value);
+    final selectedOption = options.firstWhere(
+      (o) => o.key == value,
+      orElse: () => options.first,
+    );
 
     return PopupMenuButton<T>(
       offset: const Offset(0, 40),
@@ -1641,9 +1644,22 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                       Positioned.fill(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: LinearProgressIndicator(
-                            backgroundColor: Colors.transparent,
-                            color: Colors.green.withValues(alpha: 0.15),
+                          child: TweenAnimationBuilder<double>(
+                            duration: const Duration(seconds: 15),
+                            curve: Curves.easeOutCubic,
+                            tween: Tween<double>(
+                              begin: 0,
+                              end: 0.9,
+                            ),
+                            builder: (context, value, child) {
+                              return FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: value,
+                                child: Container(
+                                  color: Colors.green.withValues(alpha: 0.15),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -1712,9 +1728,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                 engineError != null
                                     ? 'Error'
                                     : isUpdating
-                                    ? (vInst != null
-                                          ? 'Updating...'
-                                          : 'Installing...')
+                                    ? (updateState.removingEngines.contains(engine.id)
+                                          ? 'Removing...'
+                                          : (installed
+                                                ? 'Updating...'
+                                                : 'Installing...'))
                                     : 'Not Installed',
                                 style: GoogleFonts.manrope(
                                   fontSize: 10,
@@ -1769,7 +1787,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                   padding: const EdgeInsets.only(left: 6),
                                   child: _buildEngineActionButton(
                                     label: switch (engine.id) {
-                                      'playwright' => 'Uninstall (~300 MB)',
                                       'streamlink' => 'Uninstall (~25 MB)',
                                       'lux' => 'Uninstall (~15 MB)',
                                       'you-get' => 'Uninstall (~10 MB)',
@@ -1782,9 +1799,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                         context: context,
                                         title:
                                             'Uninstall ${engine.displayName}?',
-                                        message: engine.id == 'playwright'
-                                            ? 'This will remove Playwright and Chromium browser (~300 MB). You can reinstall it later.'
-                                            : 'This will uninstall ${engine.displayName}. You can reinstall it later.',
+                                        message: 'This will uninstall ${engine.displayName}. You can reinstall it later.',
                                         confirmLabel: 'Uninstall',
                                         confirmColor: Colors.redAccent,
                                       );
@@ -1800,6 +1815,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                               .installProcessEngine(
                                                 engine,
                                                 processFuture,
+                                                isRemoving: true,
                                               );
                                         }
                                       }
@@ -1809,9 +1825,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                             ] else ...[
                               // Install button
                               _buildEngineActionButton(
-                                label: engine.updateInfo != null
-                                    ? 'Download'
-                                    : 'Install',
+                                label: 'Install',
                                 icon: Icons.download_rounded,
                                 color: AppColors.violet,
                                 onTap: () {

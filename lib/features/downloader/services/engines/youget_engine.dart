@@ -42,10 +42,13 @@ class YouGetEngine extends DownloadEngine {
   List<String> get systemDependencies => ['python3'];
 
   String? _cachedBinaryPath;
+  bool _binaryPathSearched = false;
 
   @override
   String? get binaryPath {
-    if (_cachedBinaryPath != null) return _cachedBinaryPath;
+    if (_binaryPathSearched) return _cachedBinaryPath;
+    _binaryPathSearched = true;
+    
     final commonPaths = [
       '/usr/bin/you-get',
       '/usr/local/bin/you-get',
@@ -57,14 +60,6 @@ class YouGetEngine extends DownloadEngine {
         return path;
       }
     }
-    // Fallback to which
-    try {
-      final res = Process.runSync('which', ['you-get']);
-      if (res.exitCode == 0) {
-        _cachedBinaryPath = (res.stdout as String).trim();
-        return _cachedBinaryPath;
-      }
-    } catch (_) {}
     return null;
   }
 
@@ -90,12 +85,14 @@ class YouGetEngine extends DownloadEngine {
   Future<Process>? install() {
     return Process.start('bash', [
       '-c',
-      'pip3 install you-get --break-system-packages',
+      'pip3 install --force-reinstall you-get --break-system-packages',
     ]);
   }
 
   @override
   Future<Process>? uninstall() {
+    _cachedBinaryPath = null; 
+    _binaryPathSearched = false;
     return Process.start('bash', [
       '-c',
       'pip3 uninstall you-get -y --break-system-packages',

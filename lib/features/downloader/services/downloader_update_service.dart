@@ -13,6 +13,7 @@ class DownloaderUpdateState {
     this.progress = 0.0,
     this.error,
     this.engineProgress = const {},
+    this.removingEngines = const {},
     this.installedVersions = const {},
     this.latestVersions = const {},
     this.isCheckingForUpdates = false,
@@ -21,6 +22,7 @@ class DownloaderUpdateState {
   final double progress; // 0.0 to 1.0
   final String? error;
   final Map<String, double> engineProgress;
+  final Set<String> removingEngines;
   final Map<String, String> installedVersions;
   final Map<String, String> latestVersions;
   final bool isCheckingForUpdates;
@@ -30,6 +32,7 @@ class DownloaderUpdateState {
     double? progress,
     String? error,
     Map<String, double>? engineProgress,
+    Set<String>? removingEngines,
     Map<String, String>? installedVersions,
     Map<String, String>? latestVersions,
     bool? isCheckingForUpdates,
@@ -40,6 +43,7 @@ class DownloaderUpdateState {
       progress: progress ?? this.progress,
       error: clearError ? null : (error ?? this.error),
       engineProgress: engineProgress ?? this.engineProgress,
+      removingEngines: removingEngines ?? this.removingEngines,
       installedVersions: installedVersions ?? this.installedVersions,
       latestVersions: latestVersions ?? this.latestVersions,
       isCheckingForUpdates: isCheckingForUpdates ?? this.isCheckingForUpdates,
@@ -273,13 +277,22 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
   /// Sets progress to -1 (indeterminate) while running.
   Future<void> installProcessEngine(
     DownloadEngine engine,
-    Future<Process>? processFuture,
-  ) async {
+    Future<Process>? processFuture, {
+    bool isRemoving = false,
+  }) async {
     if (processFuture == null) return;
 
     final newEngineProgress = Map<String, double>.from(state.engineProgress);
     newEngineProgress[engine.id] = -1.0; // -1 represents indeterminate progress
-    state = state.copyWith(engineProgress: newEngineProgress, clearError: true);
+    
+    final newRemoving = Set<String>.from(state.removingEngines);
+    if (isRemoving) newRemoving.add(engine.id);
+
+    state = state.copyWith(
+      engineProgress: newEngineProgress,
+      removingEngines: newRemoving,
+      clearError: true,
+    );
 
     try {
       final process = await processFuture;
@@ -291,21 +304,33 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       final updatedProgress = Map<String, double>.from(state.engineProgress);
       updatedProgress.remove(engine.id);
 
+      final updatedRemoving = Set<String>.from(state.removingEngines);
+      updatedRemoving.remove(engine.id);
+
       if (exitCode != 0) {
         state = state.copyWith(
           error: '${engine.id}:$stderr',
           engineProgress: updatedProgress,
+          removingEngines: updatedRemoving,
         );
       } else {
-        state = state.copyWith(engineProgress: updatedProgress);
+        state = state.copyWith(
+          engineProgress: updatedProgress,
+          removingEngines: updatedRemoving,
+        );
         await checkForUpdates(clearError: false);
       }
     } catch (e) {
       final updatedProgress = Map<String, double>.from(state.engineProgress);
       updatedProgress.remove(engine.id);
+      
+      final updatedRemoving = Set<String>.from(state.removingEngines);
+      updatedRemoving.remove(engine.id);
+
       state = state.copyWith(
-        error: '${engine.displayName} installation failed: $e',
+        error: '${engine.id}:$e',
         engineProgress: updatedProgress,
+        removingEngines: updatedRemoving,
       );
     }
   }

@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/gallery_dl_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
-import 'package:onyxcore/features/downloader/services/engines/playwright_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/streamlink_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
@@ -14,7 +13,7 @@ import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart'
 ///
 /// Engines are classified as **required** or **optional**:
 /// - Required engines (yt-dlp, gallery-dl) block the download panel if missing.
-/// - Optional engines (you-get, lux, streamlink, playwright) can be installed
+/// - Optional engines (you-get, lux, streamlink) can be installed
 ///   and deleted from Settings → Downloads → Installed Engines.
 class EngineRegistry {
   /// Required engines — must be installed for the downloader to function.
@@ -30,7 +29,6 @@ class EngineRegistry {
     StreamlinkEngine(), // priority 7 — live streams
     LuxEngine(), // priority 4 — fast Go binary
     YouGetEngine(), // priority 3 — Asian platform fallback
-    PlaywrightEngine(), // priority 0 — manual URL interceptor
   ];
 
   /// All registered engines (required + optional).

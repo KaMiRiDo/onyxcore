@@ -47,10 +47,13 @@ class StreamlinkEngine extends DownloadEngine {
   List<String> get systemDependencies => ['python3'];
 
   String? _cachedBinaryPath;
+  bool _binaryPathSearched = false;
 
   @override
   String? get binaryPath {
-    if (_cachedBinaryPath != null) return _cachedBinaryPath;
+    if (_binaryPathSearched) return _cachedBinaryPath;
+    _binaryPathSearched = true;
+    
     final commonPaths = [
       '/usr/bin/streamlink',
       '/usr/local/bin/streamlink',
@@ -62,12 +65,6 @@ class StreamlinkEngine extends DownloadEngine {
         return path;
       }
     }
-    try {
-      final res = Process.runSync('which', ['streamlink']);
-      if (res.exitCode == 0) {
-        return _cachedBinaryPath = (res.stdout as String).trim();
-      }
-    } catch (_) {}
     return null;
   }
 
@@ -89,14 +86,18 @@ class StreamlinkEngine extends DownloadEngine {
 
   @override
   Future<Process>? install() {
-    return Process.start('bash', [
-      '-c',
-      'pip3 install streamlink --break-system-packages',
+    return Process.start('pip3', [
+      'install',
+      '--force-reinstall',
+      'streamlink',
+      '--break-system-packages',
     ]);
   }
 
   @override
   Future<Process>? uninstall() {
+    _cachedBinaryPath = null; 
+    _binaryPathSearched = false;
     return Process.start('bash', [
       '-c',
       'pip3 uninstall streamlink -y --break-system-packages',

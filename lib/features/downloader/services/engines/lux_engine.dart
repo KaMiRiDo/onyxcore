@@ -88,6 +88,14 @@ class LuxEngine extends DownloadEngine {
   }
 
   @override
+  Future<Process>? uninstall() {
+    if (binaryPath != null) {
+      return Process.start('rm', ['-f', binaryPath!]);
+    }
+    return null;
+  }
+
+  @override
   Future<String?> getLatestVersion() async {
     try {
       final res = await Process.run('curl', [
