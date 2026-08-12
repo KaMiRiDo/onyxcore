@@ -898,7 +898,7 @@ void main() {
         await pumpWindow(tester, container: container);
 
         standaloneState(tester).selectedIndicesForTesting.add(0);
-        standaloneState(tester).handleDeleteForTesting(false);
+        standaloneState(tester).handleDeleteForTesting(isShiftPressed: false);
         await tester.pump();
 
         expect(find.text('Video Item'), findsNothing);
@@ -922,7 +922,7 @@ void main() {
         expect(find.text('Video Item'), findsOneWidget);
 
         standaloneState(tester).selectedIndicesForTesting.add(0);
-        standaloneState(tester).handleDeleteForTesting(false);
+        standaloneState(tester).handleDeleteForTesting(isShiftPressed: false);
         await tester.pump();
 
         await tester.tap(find.text('Trash'));
@@ -979,7 +979,7 @@ void main() {
         await pumpWindow(tester, container: container);
 
         standaloneState(tester).selectedIndicesForTesting.add(0);
-        standaloneState(tester).handleDeleteForTesting(true);
+        standaloneState(tester).handleDeleteForTesting(isShiftPressed: true);
         await tester.pump();
 
         expect(find.text('Permanently Delete'), findsOneWidget);
@@ -1049,7 +1049,7 @@ void main() {
         expect(find.text('Gallery Clip'), findsOneWidget);
 
         standaloneState(tester).selectedIndicesForTesting.add(1);
-        standaloneState(tester).handleDeleteForTesting(false);
+        standaloneState(tester).handleDeleteForTesting(isShiftPressed: false);
         await tester.pump();
         expect(find.text('Gallery Clip'), findsNothing);
 
@@ -2654,7 +2654,7 @@ void main() {
         expect(controller.backgroundLoadingProfiles.contains(testUrl), isTrue);
 
         standaloneState(tester).selectedIndicesForTesting.add(0);
-        standaloneState(tester).handleDeleteForTesting(false);
+        standaloneState(tester).handleDeleteForTesting(isShiftPressed: false);
         await tester.pump();
 
         expect(controller.backgroundLoadingProfiles.contains(testUrl), isFalse);

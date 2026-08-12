@@ -83,11 +83,11 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
     final isAlt = HardwareKeyboard.instance.isAltPressed;
 
     if (event.logicalKey == LogicalKeyboardKey.keyD && isControl) {
-      if (isShift) {
+      if (!isShift) {
         _triggerStandaloneDownloader();
         return true;
       } else if (!isAlt) {
-        // If an input text field is currently focused, do not intercept plain Ctrl+D
+        // If an input text field is currently focused, do not intercept plain Ctrl+Shift+D
         final primaryFocus = FocusManager.instance.primaryFocus;
         if (primaryFocus != null &&
             primaryFocus.context != null &&

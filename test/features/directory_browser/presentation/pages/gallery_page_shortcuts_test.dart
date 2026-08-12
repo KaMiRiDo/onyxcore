@@ -115,9 +115,11 @@ void main() {
       container.read(mainFocusNodeProvider).requestFocus();
       await tester.pump();
 
-      // First Press: Ctrl+D to open
+      // First Press: Ctrl+Shift+D to open
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -126,9 +128,11 @@ void main() {
       expect(container.read(downloadsPanelOpenProvider), isTrue);
       expect(container.read(downloadsPanelViewProvider), equals(DownloadsPanelView.tasks));
 
-      // Second Press: Ctrl+D immediately without calling requestFocus()
+      // Second Press: Ctrl+Shift+D immediately without calling requestFocus()
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -137,7 +141,7 @@ void main() {
       expect(container.read(downloadsPanelOpenProvider), isFalse);
     });
 
-    testWidgets('Ctrl+D toggles downloads panel even when downloader standalone window is open', (WidgetTester tester) async {
+    testWidgets('Ctrl+Shift+D toggles downloads panel even when downloader standalone window is open', (WidgetTester tester) async {
       final db = getMockDb();
       await tester.pumpWidget(createWidgetUnderTest(db));
       await tester.pump();
@@ -148,9 +152,11 @@ void main() {
       container.read(mainFocusNodeProvider).requestFocus();
       await tester.pump();
 
-      // Press Ctrl+D
+      // Press Ctrl+Shift+D
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -158,7 +164,7 @@ void main() {
       expect(container.read(downloadsPanelOpenProvider), isTrue);
     });
 
-    testWidgets('Ctrl+Shift+D opens standalone window when not open, and focuses when open', (WidgetTester tester) async {
+    testWidgets('Ctrl+D opens standalone window when not open, and focuses when open', (WidgetTester tester) async {
       final db = getMockDb();
       final binding = tester.binding;
       final channelCalls = <MethodCall>[];
@@ -182,11 +188,9 @@ void main() {
       container.read(mainFocusNodeProvider).requestFocus();
       await tester.pump();
 
-      // Press Ctrl+Shift+D to open standalone downloader
+      // Press Ctrl+D to open standalone downloader
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -194,12 +198,10 @@ void main() {
       // Should have called create_window
       expect(channelCalls.any((c) => c.method == 'create_window'), isTrue);
 
-      // Now with window already open, press Ctrl+Shift+D again
+      // Now with window already open, press Ctrl+D again
       channelCalls.clear();
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -225,9 +227,11 @@ void main() {
       PersistentViewerManager.mainWindowFocusTrigger.value++;
       await tester.pump();
 
-      // Press Ctrl+D
+      // Press Ctrl+Shift+D
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));

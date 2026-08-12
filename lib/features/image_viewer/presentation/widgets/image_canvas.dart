@@ -187,15 +187,13 @@ class _ImageCanvasState extends State<ImageCanvas> {
         return SvgPicture.network(
           widget.imagePath,
           placeholderBuilder: (_) => const Center(child: BubbleLoader(size: 60)),
-          errorBuilder: (context, error, stackTrace) =>
-              errorBuilder(context, error, stackTrace),
+          errorBuilder: errorBuilder,
         );
       } else {
         return SvgPicture.file(
           File(widget.imagePath),
           placeholderBuilder: (_) => const Center(child: BubbleLoader(size: 60)),
-          errorBuilder: (context, error, stackTrace) =>
-              errorBuilder(context, error, stackTrace),
+          errorBuilder: errorBuilder,
         );
       }
     }

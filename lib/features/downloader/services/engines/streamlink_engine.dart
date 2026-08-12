@@ -7,6 +7,7 @@ import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
+import 'package:path/path.dart' as p;
 
 /// Concrete [DownloadEngine] implementation for Streamlink.
 ///
@@ -46,27 +47,16 @@ class StreamlinkEngine extends DownloadEngine {
   @override
   List<String> get systemDependencies => ['python3'];
 
-  String? _cachedBinaryPath;
-  bool _binaryPathSearched = false;
-
   @override
-  String? get binaryPath {
-    if (_binaryPathSearched) return _cachedBinaryPath;
-    _binaryPathSearched = true;
-    
-    final commonPaths = [
-      '/usr/bin/streamlink',
-      '/usr/local/bin/streamlink',
-      '${Platform.environment['HOME']}/.local/bin/streamlink',
-    ];
-    for (final path in commonPaths) {
-      if (File(path).existsSync()) {
-        _cachedBinaryPath = path;
-        return path;
-      }
-    }
-    return null;
-  }
+  String? get binaryPath => p.join(
+    Platform.environment['HOME'] ?? '',
+    '.local',
+    'share',
+    'onyxcore',
+    'venv',
+    'bin',
+    'streamlink',
+  );
 
   @override
   List<RegExp> get urlPatterns => [
@@ -86,21 +76,37 @@ class StreamlinkEngine extends DownloadEngine {
 
   @override
   Future<Process>? install() {
-    return Process.start('pip3', [
+    final venvPip = p.join(
+      Platform.environment['HOME'] ?? '',
+      '.local',
+      'share',
+      'onyxcore',
+      'venv',
+      'bin',
+      'pip',
+    );
+    return Process.start(venvPip, [
       'install',
       '--force-reinstall',
       'streamlink',
-      '--break-system-packages',
     ]);
   }
 
   @override
   Future<Process>? uninstall() {
-    _cachedBinaryPath = null; 
-    _binaryPathSearched = false;
-    return Process.start('bash', [
-      '-c',
-      'pip3 uninstall streamlink -y --break-system-packages',
+    final venvPip = p.join(
+      Platform.environment['HOME'] ?? '',
+      '.local',
+      'share',
+      'onyxcore',
+      'venv',
+      'bin',
+      'pip',
+    );
+    return Process.start(venvPip, [
+      'uninstall',
+      '-y',
+      'streamlink',
     ]);
   }
 
@@ -108,7 +114,7 @@ class StreamlinkEngine extends DownloadEngine {
   Future<String?> getInstalledVersion() async {
     if (!isInstalled) return null;
     try {
-      final res = await Process.run('streamlink', ['--version']);
+      final res = await Process.run(binaryPath!, ['--version']);
       if (res.exitCode == 0) {
         final out = (res.stdout as String).trim();
         // streamlink 6.7.3 -> 6.7.3

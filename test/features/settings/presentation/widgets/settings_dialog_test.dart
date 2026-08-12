@@ -35,6 +35,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
 
     expect(find.text('Open in standalone mode'), findsOneWidget);
     expect(find.byType(OnyxSwitch), findsWidgets);

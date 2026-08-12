@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -94,6 +95,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
   List<String> _installedBrowsers = [];
   String? _defaultBrowser;
+  Timer? _initTimer;
 
   @override
   void initState() {
@@ -113,7 +115,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
     // Handle initial section scrolling
     if (widget.initialSection != null) {
-      Future.delayed(const Duration(milliseconds: 200), () {
+      _initTimer = Timer(const Duration(milliseconds: 200), () {
         if (!mounted) return;
         final tabName = widget.initialTab == 0
             ? 'General'
@@ -122,16 +124,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   : (widget.initialTab == 2 ? 'Security' : 'Shortcuts'));
 
         GlobalKey? targetKey;
-        if (tabName == 'General') {
+
+        if (widget.initialTab == 0) {
           targetKey = _generalKeys[widget.initialSection];
-        }
-        if (tabName == 'Viewers/Players') {
+        } else if (widget.initialTab == 1) {
           targetKey = _viewersKeys[widget.initialSection];
-        }
-        if (tabName == 'Security') {
+        } else if (widget.initialTab == 2) {
           targetKey = _securityKeys[widget.initialSection];
-        }
-        if (tabName == 'Shortcuts') {
+        } else if (widget.initialTab == 3) {
           targetKey = _shortcutsKeys[widget.initialSection];
         }
 
@@ -145,8 +145,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   }
 
   Future<void> _loadBrowsers() async {
-    // Wait for the dialog transition animation to finish before starting processes
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    // Wait for the dialog transition animation to completely finish before spawning 14 bash processes
+    await Future<void>.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     
     final installed = await BrowserDetector.getInstalledBrowsers();
@@ -161,6 +161,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
   @override
   void dispose() {
+    _initTimer?.cancel();
     _tabController.dispose();
     _generalScrollController.dispose();
     _viewersScrollController.dispose();
@@ -1515,7 +1516,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   final hasUpdates = EngineRegistry.allEngines.any((e) {
                     final vInst = updateState.installedVersions[e.id];
                     final vLat = updateState.latestVersions[e.id];
-                    return e.isInstalled &&
+                    return updateState.installedVersions.containsKey(e.id) &&
                         vInst != null &&
                         vLat != null &&
                         vInst != vLat;
@@ -1574,8 +1575,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
         ),
         // Engine list
         ...EngineRegistry.allEngines.map((engine) {
-          final installed = engine.isInstalled;
           final updateState = ref.watch(downloaderUpdateProvider);
+          final installed = updateState.installedVersions.containsKey(engine.id);
           final progress = updateState.engineProgress[engine.id];
           final isUpdating =
               progress != null ||
@@ -1807,6 +1808,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                         final processFuture = engine
                                             .uninstall();
                                         if (processFuture != null) {
+                                          // ignore: unawaited_futures
                                           ref
                                               .read(
                                                 downloaderUpdateProvider
@@ -1905,70 +1907,76 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
           );
         }),
         // aria2 accelerator
-        Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.02),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.speed_rounded,
-                size: 18,
-                color: Aria2Accelerator.isAvailable
-                    ? Colors.cyanAccent
-                    : Colors.cyanAccent.withValues(alpha: 0.3),
+        FutureBuilder<bool>(
+          future: Aria2Accelerator.checkIsAvailable(),
+          builder: (context, snapshot) {
+            final isAvailable = snapshot.data ?? false;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.02),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'aria2 — Download Accelerator',
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.speed_rounded,
+                    size: 18,
+                    color: isAvailable
+                        ? Colors.cyanAccent
+                        : Colors.cyanAccent.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'aria2 — Download Accelerator',
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isAvailable
+                                ? Colors.white.withValues(alpha: 0.85)
+                                : Colors.white.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        if (!isAvailable)
+                          Text(
+                            'Install via: sudo apt install aria2',
+                            style: GoogleFonts.manrope(
+                              fontSize: 10,
+                              color: AppColors.textMuted.withValues(alpha: 0.5),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isAvailable
+                          ? Colors.green.withValues(alpha: 0.12)
+                          : Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      isAvailable ? 'Active' : 'Not Found',
                       style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Aria2Accelerator.isAvailable
-                            ? Colors.white.withValues(alpha: 0.85)
-                            : Colors.white.withValues(alpha: 0.4),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: isAvailable
+                            ? Colors.green.shade300
+                            : AppColors.textMuted.withValues(alpha: 0.4),
                       ),
                     ),
-                    if (!Aria2Accelerator.isAvailable)
-                      Text(
-                        'Install via: sudo apt install aria2',
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          color: AppColors.textMuted.withValues(alpha: 0.5),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Aria2Accelerator.isAvailable
-                      ? Colors.green.withValues(alpha: 0.12)
-                      : Colors.white.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  Aria2Accelerator.isAvailable ? 'Active' : 'Not Found',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Aria2Accelerator.isAvailable
-                        ? Colors.green.shade300
-                        : AppColors.textMuted.withValues(alpha: 0.4),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ],
     );
@@ -2104,21 +2112,22 @@ class _ResizeHandlePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Draw three diagonal lines for the handle
-    canvas.drawLine(
-      Offset(size.width * 0.7, size.height * 0.9),
-      Offset(size.width * 0.9, size.height * 0.7),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.4, size.height * 0.9),
-      Offset(size.width * 0.9, size.height * 0.4),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.1, size.height * 0.9),
-      Offset(size.width * 0.9, size.height * 0.1),
-      paint,
-    );
+    canvas
+      ..drawLine(
+        Offset(size.width * 0.7, size.height * 0.9),
+        Offset(size.width * 0.9, size.height * 0.7),
+        paint,
+      )
+      ..drawLine(
+        Offset(size.width * 0.4, size.height * 0.9),
+        Offset(size.width * 0.9, size.height * 0.4),
+        paint,
+      )
+      ..drawLine(
+        Offset(size.width * 0.1, size.height * 0.9),
+        Offset(size.width * 0.9, size.height * 0.1),
+        paint,
+      );
   }
 
   @override

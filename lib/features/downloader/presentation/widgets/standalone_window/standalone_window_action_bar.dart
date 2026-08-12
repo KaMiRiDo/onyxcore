@@ -143,122 +143,246 @@ class StandaloneWindowActionBar extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          return Row(
+          return Stack(
+            alignment: Alignment.center,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    if (currentGroup != null) ...[
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: onBackToRoot,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: InkWell(
-                          onTap: onBackToRoot,
-                          borderRadius: BorderRadius.circular(4),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (currentGroup != null) ...[
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            onPressed: onBackToRoot,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: InkWell(
+                              onTap: onBackToRoot,
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                child: Text(
+                                  importedListName ?? 'Default List',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white54,
+                                    fontSize: isSmallWindow ? 13 : 16,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
                             ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            child: Icon(Icons.chevron_right, color: Colors.white54),
+                          ),
+                          Flexible(
+                            child: Text(
+                              currentGroup!.first.title.isNotEmpty
+                                  ? currentGroup!.first.title
+                                  : 'Group',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: isSmallWindow ? 14 : 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ] else
+                          Flexible(
                             child: Text(
                               importedListName ?? 'Default List',
                               style: GoogleFonts.outfit(
-                                color: Colors.white54,
-                                fontSize: isSmallWindow ? 13 : 16,
+                                color: Colors.white,
+                                fontSize: isSmallWindow ? 14 : 18,
+                                fontWeight: FontWeight.w600,
                               ),
                               overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                            ),
+                          ),
+                        if (activeTagNotifier != null)
+                          ValueListenableBuilder<Map<String, String>?>(
+                            valueListenable: activeTagNotifier!,
+                            builder: (context, activeTag, child) {
+                              if (activeTag == null) return const SizedBox.shrink();
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 8),
+                                    child: Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.white54,
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => onTagTap?.call(
+                                      activeTag['url']!,
+                                      activeTag['sort']!,
+                                    ),
+                                    onSecondaryTapDown: (details) => onTagSecondaryTapDown
+                                        ?.call(details, activeTag['url']!),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.amber.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.sell,
+                                            color: Colors.amber,
+                                            size: 10,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(
+                                              activeTag['tag']!,
+                                              style: GoogleFonts.outfit(
+                                                color: Colors.amber,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (hasItems)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Builder(
+                          builder: (btnContext) {
+                            return DownloaderFilterButton(
+                              filterSettings: filterSettings,
+                              onPressed: () {
+                                final renderBox =
+                                    btnContext.findRenderObject() as RenderBox?;
+                                final offset =
+                                    renderBox?.localToGlobal(Offset.zero) ??
+                                    Offset.zero;
+                                DownloaderFilterOverlay.show(
+                                  context: btnContext,
+                                  position: offset,
+                                  initialSettings: filterSettings,
+                                  availableTypes: availableTypes,
+                                  availableDates: availableDates,
+                                  availableDatesByType: availableDatesByType,
+                                  onFilterChanged: (newSettings) {
+                                    onFilterSettingsChanged?.call(newSettings);
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        DownloaderSortDropdown(
+                          selectedSort: sortOrder,
+                          onChanged: (val) {
+                            onSortChanged?.call(val);
+                            onListFilterChanged?.call(val);
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        if (currentGroup != null) ...[
+                          if (currentGroup!.first.isPlaylist &&
+                              config != null &&
+                              rootIndex != null) ...[
+                            SizedBox(
+                              width: 140,
+                              height: 36,
+                              child: FormatSelectionDropdown(
+                                item: currentGroup!.first,
+                                config: config!,
+                                index: rootIndex!,
+                                group: currentGroup,
+                                getHeight: getHeight,
+                                matchTargetFormat: matchTargetFormat,
+                                onChanged: onFormatChanged,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ] else if (currentGroup!.items
+                                  .where((i) => !i.isProfile)
+                                  .any((i) => !i.isVideo) &&
+                              currentGroup!.items
+                                  .where((i) => !i.isProfile)
+                                  .any((i) => i.isVideo)) ...[
+                            SizedBox(
+                              width: 140,
+                              height: 36,
+                              child: GroupFilterDropdown(
+                                selectedFilter:
+                                    config?.groupFilter ?? GroupDownloadType.all,
+                                isEnabled: true,
+                                hasVideos: currentGroup!.items
+                                    .where((i) => !i.isProfile)
+                                    .any((i) => i.isVideo),
+                                hasImages: currentGroup!.items
+                                    .where((i) => !i.isProfile)
+                                    .any((i) => !i.isVideo),
+                                onChanged: onFilterChanged,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                        ],
+                        SizedBox(
+                          height: 36,
+                          child: TextButton(
+                            onPressed: onClear,
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.white12,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              'Clear',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Icon(Icons.chevron_right, color: Colors.white54),
-                      ),
-                      Expanded(
-                        child: Text(
-                          currentGroup!.first.title.isNotEmpty
-                              ? currentGroup!.first.title
-                              : 'Group',
-                          style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontSize: isSmallWindow ? 14 : 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ] else
-                      Expanded(
-                        child: Text(
-                          importedListName ?? 'Default List',
-                          style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontSize: isSmallWindow ? 14 : 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    if (activeTagNotifier != null)
-                      ValueListenableBuilder<Map<String, String>?>(
-                        valueListenable: activeTagNotifier!,
-                        builder: (context, activeTag, child) {
-                          if (activeTag == null) return const SizedBox.shrink();
-                          return Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Icon(Icons.chevron_right, color: Colors.white54),
-                              ),
-                              GestureDetector(
-                                onTap: () => onTagTap?.call(activeTag['url']!, activeTag['sort']!),
-                                onSecondaryTapDown: (details) => onTagSecondaryTapDown?.call(details, activeTag['url']!),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.sell, color: Colors.amber, size: 10),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          activeTag['tag']!,
-                                          style: GoogleFonts.outfit(
-                                            color: Colors.amber,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                  ],
-                ),
+                      ],
+                    ),
+                ],
               ),
-              const SizedBox(width: 20),
               // Search Box
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 300),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 300),
                 child: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: searchController,
                   builder: (context, value, child) {
@@ -266,14 +390,19 @@ class StandaloneWindowActionBar extends StatelessWidget {
                     final isFocused = searchFocusNode.hasFocus;
                     return Container(
                       height: isSmallWindow ? 28 : 36,
-                      padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 1.5,
+                        vertical: 1.5,
+                      ),
                       decoration: BoxDecoration(
                         color: isActive || isFocused
                             ? AppColors.magenta.withValues(alpha: 0.1)
                             : Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: isActive || isFocused ? AppColors.magenta : Colors.white10,
+                          color: isActive || isFocused
+                              ? AppColors.magenta
+                              : Colors.white10,
                           width: isActive || isFocused ? 1.5 : 1.0,
                         ),
                       ),
@@ -292,12 +421,18 @@ class StandaloneWindowActionBar extends StatelessWidget {
                           ),
                           prefixIcon: Icon(
                             Icons.search,
-                            color: isActive || isFocused ? AppColors.magenta : Colors.white30,
+                            color: isActive || isFocused
+                                ? AppColors.magenta
+                                : Colors.white30,
                             size: isSmallWindow ? 14 : 16,
                           ),
                           suffixIcon: isActive
                               ? IconButton(
-                                  icon: Icon(Icons.close, size: isSmallWindow ? 14 : 16, color: Colors.white54),
+                                  icon: Icon(
+                                    Icons.close,
+                                    size: isSmallWindow ? 14 : 16,
+                                    color: Colors.white54,
+                                  ),
                                   onPressed: () {
                                     searchController.clear();
                                     searchFocusNode.unfocus();
@@ -306,7 +441,10 @@ class StandaloneWindowActionBar extends StatelessWidget {
                                   constraints: const BoxConstraints(),
                                 )
                               : null,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: isSmallWindow ? 4 : 11),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: isSmallWindow ? 4 : 11,
+                          ),
                           border: InputBorder.none,
                           isDense: true,
                         ),
@@ -316,106 +454,6 @@ class StandaloneWindowActionBar extends StatelessWidget {
                   },
                 ),
               ),
-              ),
-              const Spacer(),
-              if (hasItems) ...[
-                Builder(
-                  builder: (btnContext) {
-                    return DownloaderFilterButton(
-                      filterSettings: filterSettings,
-                      onPressed: () {
-                        final renderBox =
-                            btnContext.findRenderObject() as RenderBox?;
-                        final offset =
-                            renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-                        DownloaderFilterOverlay.show(
-                          context: btnContext,
-                          position: offset,
-                          initialSettings: filterSettings,
-                          availableTypes: availableTypes,
-                          availableDates: availableDates,
-                          availableDatesByType: availableDatesByType,
-                          onFilterChanged: (newSettings) {
-                            onFilterSettingsChanged?.call(newSettings);
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(width: 10),
-                DownloaderSortDropdown(
-                  selectedSort: sortOrder,
-                  onChanged: (val) {
-                    onSortChanged?.call(val);
-                    onListFilterChanged?.call(val);
-                  },
-                ),
-                const SizedBox(width: 10),
-                if (currentGroup != null) ...[
-                  if (currentGroup!.first.isPlaylist &&
-                      config != null &&
-                      rootIndex != null) ...[
-                    SizedBox(
-                      width: 140,
-                      height: 36,
-                      child: FormatSelectionDropdown(
-                        item: currentGroup!.first,
-                        config: config!,
-                        index: rootIndex!,
-                        group: currentGroup,
-                        getHeight: getHeight,
-                        matchTargetFormat: matchTargetFormat,
-                        onChanged: onFormatChanged,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                  ] else if (currentGroup!.items
-                          .where((i) => !i.isProfile)
-                          .any((i) => !i.isVideo) &&
-                      currentGroup!.items
-                          .where((i) => !i.isProfile)
-                          .any((i) => i.isVideo)) ...[
-                    SizedBox(
-                      width: 140,
-                      height: 36,
-                      child: GroupFilterDropdown(
-                        selectedFilter:
-                            config?.groupFilter ?? GroupDownloadType.all,
-                        isEnabled: true,
-                        hasVideos: currentGroup!.items
-                            .where((i) => !i.isProfile)
-                            .any((i) => i.isVideo),
-                        hasImages: currentGroup!.items
-                            .where((i) => !i.isProfile)
-                            .any((i) => !i.isVideo),
-                        onChanged: onFilterChanged,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                ],
-                SizedBox(
-                  height: 36,
-                  child: TextButton(
-                    onPressed: onClear,
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.white12,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      'Clear',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ],
           );
         },

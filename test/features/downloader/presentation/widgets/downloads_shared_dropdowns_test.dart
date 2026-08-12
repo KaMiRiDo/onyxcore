@@ -3,7 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
+import 'dart:io';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
+
+class _MockEngine extends DownloadEngine {
+  @override String get id => 'mock_opt';
+  @override String get displayName => 'Mock Optional';
+  @override IconData get icon => Icons.star;
+  @override Color get color => Colors.red;
+  @override EngineType get engineType => EngineType.cli;
+  @override int get priority => 1;
+  @override bool get isOptional => true;
+  @override bool get isInstalled => false;
+  @override String? get binaryPath => null;
+  @override List<RegExp> get urlPatterns => [];
+  @override Future<String?> getInstalledVersion() async => null;
+  @override Future<String?> getLatestVersion() async => null;
+  @override Future<List<MediaInfo>> fetchMetadata({required String url, String? browser, bool fetchDeep = false, bool isPlaylist = false, void Function(MediaInfo info)? onProgress, void Function(int pid)? onProcessStarted}) async => [];
+  @override Future<Process>? install() => null;
+  @override Future<Process> startDownload({required String url, required String destination, String? title, MediaFormat? format, bool audioOnly = false, bool mute = false, int? galleryIndex, bool isPlaylist = false, bool isProfile = false, String? browser, bool isZip = false, String? filterType, int? totalItems, String? singleItemId, String? directUrl, String? itemsRange}) async => throw UnimplementedError();
+  @override Future<Process>? uninstall() => null;
+  @override EngineUpdateInfo? get updateInfo => null;
+}
 
 void main() {
   group('DownloadsSharedDropdowns Tests', () {
@@ -33,6 +56,29 @@ void main() {
          await tester.pumpAndSettle();
          expect(selectedVal, 'yt-dlp');
       }
+    });
+
+    testWidgets('W-DD-05a: EngineSelectorDropdown hides uninstalled optional engines', (WidgetTester tester) async {
+      final originalEngines = EngineRegistry.allEngines;
+      EngineRegistry.clearAllEnginesForTesting();
+      
+      final mock = _MockEngine();
+      EngineRegistry.register(mock);
+
+      await tester.pumpWidget(wrap(
+        EngineSelectorDropdown(
+          selectedEngine: 'auto',
+          onChanged: (val) {},
+        )
+      ));
+
+      await tester.tap(find.byType(PopupMenuButton<String>));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mock Optional'), findsNothing);
+
+      // Restore
+      EngineRegistry.clearRegisteredEngines();
     });
 
     testWidgets('W-DD-06 to W-DD-14: GroupFilterDropdown', (WidgetTester tester) async {

@@ -66,7 +66,11 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     await Future.wait(
       EngineRegistry.allEngines.map((engine) async {
         final vInst = await engine.getInstalledVersion();
-        if (vInst != null) installed[engine.id] = vInst;
+        if (vInst != null) {
+          installed[engine.id] = vInst;
+        } else {
+          installed.remove(engine.id);
+        }
 
         final vLatest = await engine.getLatestVersion();
         if (vLatest != null) latest[engine.id] = vLatest;
@@ -80,8 +84,33 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     );
   }
 
+  Future<void> _ensureGlobalVenv() async {
+    final venvPath = p.join(
+      Platform.environment['HOME'] ?? '',
+      '.local',
+      'share',
+      'onyxcore',
+      'venv',
+    );
+    final venvDir = Directory(venvPath);
+    if (!await venvDir.exists()) {
+      final res = await Process.run('python3', ['-m', 'venv', venvPath]);
+      if (res.exitCode != 0) {
+        throw Exception('Failed to create global virtual environment: ${res.stderr}');
+      }
+    }
+  }
+
   Future<void> updateAll({bool defaultOnly = false}) async {
     if (state.isUpdating) return;
+    
+    try {
+      await _ensureGlobalVenv();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return;
+    }
+    
     state = state.copyWith(
       isUpdating: true,
       progress: 0,
@@ -93,7 +122,9 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       final vInst = state.installedVersions[e.id];
       final vLat = state.latestVersions[e.id];
       final isUpdateAvailable = vInst != vLat && e.isInstalled;
-      if (!isUpdateAvailable) return false;
+      final isMissingRequired = !e.isInstalled && !e.isOptional;
+      
+      if (!isUpdateAvailable && !isMissingRequired) return false;
       if (defaultOnly && e.isOptional) return false;
       return true;
     }).toList();
@@ -295,6 +326,9 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     );
 
     try {
+      if (engine.engineType == EngineType.python && !isRemoving) {
+        await _ensureGlobalVenv();
+      }
       final process = await processFuture;
       process.stdout.drain<void>(); // Consume stdout to prevent pipe deadlock
       final stderrFuture = process.stderr.transform(utf8.decoder).join();

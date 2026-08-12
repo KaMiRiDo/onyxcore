@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_dynamic_calls
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -15,7 +16,7 @@ import 'package:path_provider/path_provider.dart';
 /// **Invariants:**
 /// - Called once per player lifetime, before `player.open(...)`.
 /// - Does not call `setState`. All observable side-effects go through
-///   the passed [player] object.
+///   the passed `player` object.
 /// - Does not create the `Player` — the coordinator always does that.
 class PlayerInitializer {
   const PlayerInitializer._();
@@ -55,7 +56,6 @@ class PlayerInitializer {
         '.local',
         'share',
         'onyxcore',
-        'yt-dlp-venv',
         'bin',
         'yt-dlp',
       );
@@ -154,6 +154,7 @@ class PlayerInitializer {
 
     // ── Volume persistence ────────────────────────────────────────────
     if (settings != null) {
+      // ignore: unawaited_futures
       player.setVolume(settings.videoPlayerVolume);
     }
   }

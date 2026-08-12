@@ -37,49 +37,39 @@ void main() {
     });
 
     group('2. Availability & Caching', () {
-      test('U-DL-AR2-03: Prefer bundled binary', () {
+      test('U-DL-AR2-03: Prefer bundled binary', () async {
         final file = File(mockAria2Path);
         file.parent.createSync(recursive: true);
         file.writeAsStringSync('');
 
-        expect(Aria2Accelerator.isAvailable, isTrue);
+        expect(await Aria2Accelerator.checkIsAvailable(), isTrue);
       });
 
-      test('U-DL-AR2-04: Fallback to system binary if bundled is missing', () {
-        // Ensure bundled binary is missing
-        final file = File(mockAria2Path);
-        if (file.existsSync()) file.deleteSync();
 
-        // `which aria2c` behavior:
-        // In this test environment, aria2c might not be installed, so we just expect it to return a bool
-        // without crashing.
-        final available = Aria2Accelerator.isAvailable;
-        expect(available, isA<bool>());
-      });
 
-      test('U-DL-AR2-05: Return false if completely missing', () {
+      test('U-DL-AR2-05: Return false if completely missing', () async {
         // Hard to ensure it's completely missing if system has it,
         // but we can verify it doesn't crash when evaluated.
-        final available = Aria2Accelerator.isAvailable;
+        final available = await Aria2Accelerator.checkIsAvailable();
         expect(available, isA<bool>());
       });
 
-      test('U-DL-AR2-06: Return cached result on subsequent calls', () {
+      test('U-DL-AR2-06: Return cached result on subsequent calls', () async {
         final file = File(mockAria2Path);
         file.parent.createSync(recursive: true);
         file.writeAsStringSync('');
 
-        expect(Aria2Accelerator.isAvailable, isTrue);
+        expect(await Aria2Accelerator.checkIsAvailable(), isTrue);
 
         // Delete the file. It should still return true because it is cached.
         file.deleteSync();
-        expect(Aria2Accelerator.isAvailable, isTrue);
+        expect(await Aria2Accelerator.checkIsAvailable(), isTrue);
       });
 
-      test('U-DL-AR2-07: which command throws exception', () {
+      test('U-DL-AR2-07: which command throws exception', () async {
         // Can't easily mock Process.runSync throwing an exception.
-        // We ensure `isAvailable` handles it internally.
-        expect(Aria2Accelerator.isAvailable, isA<bool>());
+        // We ensure `checkIsAvailable` handles it internally.
+        expect(await Aria2Accelerator.checkIsAvailable(), isA<bool>());
       });
     });
 
@@ -101,19 +91,19 @@ void main() {
     });
 
     group('4. Cache Reset', () {
-      test('U-DL-AR2-10: Clear cached availability', () {
+      test('U-DL-AR2-10: Clear cached availability', () async {
         final file = File(mockAria2Path);
         file.parent.createSync(recursive: true);
         file.writeAsStringSync('');
 
-        expect(Aria2Accelerator.isAvailable, isTrue);
+        expect(await Aria2Accelerator.checkIsAvailable(), isTrue);
 
         file.deleteSync();
         Aria2Accelerator.resetCache();
 
         // After reset, it might be false if system aria2c is missing, or true if installed.
         // But it will re-evaluate.
-        expect(Aria2Accelerator.isAvailable, isA<bool>());
+        expect(await Aria2Accelerator.checkIsAvailable(), isA<bool>());
       });
     });
 

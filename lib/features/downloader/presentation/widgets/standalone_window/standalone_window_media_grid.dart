@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -106,14 +107,20 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
         return GestureDetector(
           onTap: () {
             mainFocusNode.requestFocus();
-            onTapItem(-1, isCtrl: false, isShift: false); // Signify clear selection
+            onTapItem(
+              -1,
+              isCtrl: false,
+              isShift: false,
+            ); // Signify clear selection
           },
           behavior: HitTestBehavior.opaque,
           child: CustomScrollView(
             // ignore: deprecated_member_use
             cacheExtent: 1000,
             controller: scrollController,
-            key: PageStorageKey<String>(isTrashView ? 'trash_$listPath' : listPath),
+            key: PageStorageKey<String>(
+              isTrashView ? 'trash_$listPath' : listPath,
+            ),
             slivers: [
               SliverPadding(
                 padding: const EdgeInsets.all(16),
@@ -141,7 +148,8 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                     final isAudioFormat =
                         config != null &&
                         firstItem != null &&
-                        (config.itemFormats[firstItem.id]?.isAudioOnly ?? false);
+                        (config.itemFormats[firstItem.id]?.isAudioOnly ??
+                            false);
 
                     if (isAudioFormat) {
                       typeIcon = Icons.audiotrack_rounded;
@@ -156,7 +164,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                     }
 
                     final isSelected = selectedIndices.contains(index);
-                    final tag = currentGroup == null ? group.tag : firstItem?.tag;
+                    final tag = currentGroup == null
+                        ? group.tag
+                        : firstItem?.tag;
                     final isTagged = tag != null && tag.isNotEmpty;
                     final itemUrl = currentGroup == null
                         ? group.originalUrl
@@ -165,17 +175,26 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                         ? (tagKeys[itemUrl] ??= GlobalKey())
                         : null;
 
-                    final thumbUrl = (firstItem?.thumbnail != null && firstItem!.thumbnail!.isNotEmpty)
-                        ? firstItem.thumbnail
-                        : (!(firstItem?.isVideo ?? true) && (firstItem?.directUrl != null && firstItem!.directUrl!.isNotEmpty)
-                            ? firstItem.directUrl
-                            : (!(firstItem?.isVideo ?? true) &&
-                                    (firstItem != null && firstItem.originalUrl.isNotEmpty) &&
-                                    (firstItem.originalUrl.startsWith('http://') ||
-                                        firstItem.originalUrl.startsWith('https://'))
-                                ? firstItem.originalUrl
-                                : null));
-
+                    String? thumbUrl;
+                    final isFetching =
+                        firstItem?.id == 'fetch_loading' ||
+                        firstItem?.id == 'hydration_loading';
+                    if (!isFetching) {
+                      if (firstItem?.thumbnail != null &&
+                          firstItem!.thumbnail!.isNotEmpty) {
+                        thumbUrl = firstItem.thumbnail;
+                      } else if (!(firstItem?.isVideo ?? true) &&
+                          (firstItem?.directUrl != null &&
+                              firstItem!.directUrl!.isNotEmpty)) {
+                        thumbUrl = firstItem.directUrl;
+                      } else if (!(firstItem?.isVideo ?? true) &&
+                          (firstItem != null &&
+                              firstItem.originalUrl.isNotEmpty) &&
+                          (firstItem.originalUrl.startsWith('http://') ||
+                              firstItem.originalUrl.startsWith('https://'))) {
+                        thumbUrl = firstItem.originalUrl;
+                      }
+                    }
                     double aspectRatio = 1;
                     if (firstItem != null) {
                       if (firstItem.width != null &&
@@ -186,7 +205,8 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                       } else if (firstItem.isVideo) {
                         aspectRatio = 16 / 9;
                       } else if (thumbUrl != null) {
-                        final resolvedRatio = ThumbnailAspectResolver.getAspectRatio(thumbUrl);
+                        final resolvedRatio =
+                            ThumbnailAspectResolver.getAspectRatio(thumbUrl);
                         if (resolvedRatio != null && resolvedRatio > 0) {
                           aspectRatio = resolvedRatio;
                         } else {
@@ -197,8 +217,11 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                     aspectRatio = aspectRatio.clamp(0.56, 1.8);
 
                     final isItemError = currentGroup == null
-                        ? (group.isError || (firstItem?.isError ?? false) || (firstItem?.errorMessage?.isNotEmpty ?? false))
-                        : ((firstItem?.isError ?? false) || (firstItem?.errorMessage?.isNotEmpty ?? false));
+                        ? (group.isError ||
+                              (firstItem?.isError ?? false) ||
+                              (firstItem?.errorMessage?.isNotEmpty ?? false))
+                        : ((firstItem?.isError ?? false) ||
+                              (firstItem?.errorMessage?.isNotEmpty ?? false));
 
                     final Widget itemCard = RepaintBoundary(
                       key: globalKey,
@@ -211,8 +234,10 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                         },
                         onTap: () {
                           mainFocusNode.requestFocus();
-                          final isCtrl = HardwareKeyboard.instance.isControlPressed;
-                          final isShift = HardwareKeyboard.instance.isShiftPressed;
+                          final isCtrl =
+                              HardwareKeyboard.instance.isControlPressed;
+                          final isShift =
+                              HardwareKeyboard.instance.isShiftPressed;
                           onTapItem(index, isCtrl: isCtrl, isShift: isShift);
                         },
                         onDoubleTap: () {
@@ -226,11 +251,13 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                               color: isSelected
                                   ? AppColors.violet
                                   : (isItemError
-                                      ? AppColors.error
-                                      : (isTagged
-                                          ? Colors.amber
-                                          : AppColors.borderColor)),
-                              width: isSelected || isItemError || isTagged ? 2 : 1,
+                                        ? AppColors.error
+                                        : (isTagged
+                                              ? Colors.amber
+                                              : AppColors.borderColor)),
+                              width: isSelected || isItemError || isTagged
+                                  ? 2
+                                  : 1,
                             ),
                           ),
                           child: Stack(
@@ -244,22 +271,70 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                   if (showThumbnail) {
                                     return ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(
-                                        thumbUrl,
-                                        headers: const {
-                                          'User-Agent':
-                                              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                                        },
-                                        fit: BoxFit.cover,
-                                        cacheWidth: 300,
-                                        errorBuilder: (c, e, s) => const Center(
-                                          child: Icon(
-                                            Icons.broken_image_rounded,
-                                            color: Colors.white24,
-                                            size: 36,
-                                          ),
-                                        ),
-                                      ),
+                                      child:
+                                          thumbUrl.startsWith('/') ||
+                                              thumbUrl.startsWith('file://') ||
+                                              thumbUrl.startsWith(r'C:\') ||
+                                              thumbUrl.startsWith(r'D:\')
+                                          ? Image.file(
+                                              File(
+                                                thumbUrl.startsWith('file://')
+                                                    ? Uri.parse(
+                                                        thumbUrl,
+                                                      ).toFilePath()
+                                                    : thumbUrl,
+                                              ),
+                                              fit: BoxFit.contain,
+                                              cacheWidth: 300,
+                                              errorBuilder: (c, e, s) =>
+                                                  const Center(
+                                                    child: Icon(
+                                                      Icons.image,
+                                                      color: Colors.white24,
+                                                      size: 36,
+                                                    ),
+                                                  ),
+                                            )
+                                          : Image.network(
+                                              thumbUrl,
+                                              headers: const {
+                                                'User-Agent':
+                                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                                              },
+                                              fit: BoxFit.contain,
+                                              cacheWidth: 300,
+                                              errorBuilder: (c, e, s) =>
+                                                  const Center(
+                                                    child: Icon(
+                                                      Icons.image,
+                                                      color: Colors.white24,
+                                                      size: 36,
+                                                    ),
+                                                  ),
+                                              loadingBuilder:
+                                                  (
+                                                    context,
+                                                    child,
+                                                    loadingProgress,
+                                                  ) {
+                                                    if (loadingProgress ==
+                                                        null) {
+                                                      return child;
+                                                    }
+                                                    return const Center(
+                                                      child: SizedBox(
+                                                        width: 24,
+                                                        height: 24,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                              color: Colors
+                                                                  .white24,
+                                                            ),
+                                                      ),
+                                                    );
+                                                  },
+                                            ),
                                     );
                                   } else {
                                     return const Center(
@@ -273,486 +348,497 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                 },
                               ),
 
-                          Positioned(
-                            top: 8,
-                            left: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.7),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Icon(
-                                typeIcon,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                            ),
-                          ),
-                          if (isTagged)
-                            Positioned(
-                              top: 8,
-                              left: 36,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.sell,
-                                      color: Colors.black,
-                                      size: 12,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      tag,
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.black,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
+                              Positioned(
+                                top: 8,
+                                left: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Icon(
+                                    typeIcon,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
                                 ),
                               ),
-                            ),
-
-
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.7),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Builder(
-                                builder: (context) {
-                                  double sizeInMB = 0;
-                                  var hasSize = false;
-
-                                  if (group.first.isProfile ||
-                                      group.first.isPlaylist ||
-                                      group.items.length > 1) {
-                                    sizeInMB =
-                                        group.totalFilesize / (1024 * 1024);
-                                    hasSize = sizeInMB > 0;
-                                  } else if (firstItem != null) {
-                                    int? bytes;
-                                    if (firstItem.formats.isNotEmpty) {
-                                      MediaFormat? selectedFormat;
-                                      if (currentGroup != null) {
-                                        selectedFormat =
-                                            config?.itemFormats[firstItem.id];
-                                      } else {
-                                        selectedFormat = config?.format;
-                                      }
-                                      selectedFormat ??=
-                                          firstItem.formats
-                                              .where((f) {
-                                                final h = getHeight(
-                                                  f.resolution,
-                                                );
-                                                return h > 0 && h <= 1080;
-                                              })
-                                              .fold<MediaFormat?>(
-                                                null,
-                                                (a, b) => a == null
-                                                    ? b
-                                                    : ((a.filesize ?? 0) >
-                                                              (b.filesize ?? 0)
-                                                          ? a
-                                                          : b),
-                                              ) ??
-                                          firstItem.formats.first;
-
-                                      bytes =
-                                          getFormatBytes != null &&
-                                              config != null
-                                          ? getFormatBytes!(
-                                              firstItem,
-                                              selectedFormat,
-                                              config,
-                                            )
-                                          : selectedFormat.filesize;
-                                    }
-
-                                    bytes ??= firstItem.filesize;
-
-                                    if (bytes == null &&
-                                        firstItem.formats.isNotEmpty) {
-                                      for (final f in firstItem.formats) {
-                                        if (f.filesize != null &&
-                                            f.filesize! > 0) {
-                                          bytes = f.filesize;
-                                          break;
-                                        }
-                                      }
-                                    }
-
-                                    if (bytes != null && bytes > 0) {
-                                      sizeInMB = bytes / (1024 * 1024);
-                                      hasSize = true;
-                                    }
-                                  }
-
-                                  if (hasSize) {
-                                    return Text(
-                                      '${sizeInMB.toStringAsFixed(2)}MB',
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    );
-                                  } else {
-                                    return Text(
-                                      'Unknown',
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.5),
-                                  Colors.transparent,
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.7),
-                                ],
-                                stops: const [0.0, 0.3, 0.7, 1.0],
-                              ),
-                            ),
-                          ),
-                          if (isItemError)
-                            Center(
-                              child: MouseRegion(
-                                cursor: SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTapDown: (_) {
-                                    onShowProperties?.call(
-                                      currentGroup == null ? group : firstItem,
-                                    );
-                                  },
+                              if (isTagged)
+                                Positioned(
+                                  top: 8,
+                                  left: 36,
                                   child: Container(
-                                    padding: const EdgeInsets.all(8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.6),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: AppColors.error,
-                                        width: 1.5,
-                                      ),
+                                      color: Colors.amber,
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: const Icon(
-                                      Icons.error_outline,
-                                      color: AppColors.error,
-                                      size: 32,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                          Positioned(
-
-                            bottom: 8,
-                            left: 8,
-                            right: 8,
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        firstItem?.title ?? group.originalUrl,
-                                        style: GoogleFonts.outfit(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.sell,
+                                          color: Colors.black,
+                                          size: 12,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (group.items.length > 1) ...[
-                                        const SizedBox(height: 2),
-                                        Row(
-                                          children: [
-                                            if (group.videoCount > 0) ...[
-                                              Text(
-                                                '${group.videoCount}',
-                                                style: GoogleFonts.outfit(
-                                                  color: Colors.white70,
-                                                  fontSize: 10,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 2),
-                                              const Icon(
-                                                Icons.videocam_rounded,
-                                                color: Colors.white70,
-                                                size: 10,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              const Text(
-                                                '·',
-                                                style: TextStyle(
-                                                  color: Colors.white70,
-                                                  fontSize: 10,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                            ],
-                                            if (group.imageCount > 0) ...[
-                                              Text(
-                                                '${group.imageCount}',
-                                                style: GoogleFonts.outfit(
-                                                  color: Colors.white70,
-                                                  fontSize: 10,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 2),
-                                              const Icon(
-                                                Icons.image_rounded,
-                                                color: Colors.white70,
-                                                size: 10,
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                CopyUrlButton(
-                                  url:
-                                      firstItem?.webpageUrl ??
-                                      firstItem?.directUrl ??
-                                      firstItem?.originalUrl ??
-                                      group.originalUrl,
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isHydrating ||
-                              firstItem?.id == 'fetch_loading' ||
-                              firstItem?.id == 'hydration_loading' ||
-                              downloadingImageIndices.contains(index))
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.54),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const BubbleLoader(size: 48),
-                                    if ((isHydrating ||
-                                            firstItem?.id ==
-                                                'hydration_loading') &&
-                                        onCancelHydration != null) ...[
-                                      const SizedBox(height: 6),
-                                      MouseRegion(
-                                        cursor: SystemMouseCursors.click,
-                                        child: GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTap: () {
-                                            final targetUrl =
-                                                currentGroup != null
-                                                    ? currentGroup!.originalUrl
-                                                    : group.originalUrl;
-                                            onCancelHydration!(targetUrl);
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.violet,
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: AppColors.violet
-                                                      .withValues(alpha: 0.4),
-                                                  blurRadius: 6,
-                                                  offset: const Offset(0, 2),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(
-                                                  Icons.close_rounded,
-                                                  size: 13,
-                                                  color: Colors.white,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'Cancel',
-                                                  style: GoogleFonts.outfit(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          tag,
+                                          style: GoogleFonts.outfit(
+                                            color: Colors.black,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                      ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Builder(
+                                    builder: (context) {
+                                      double sizeInMB = 0;
+                                      var hasSize = false;
+
+                                      if (group.first.isProfile ||
+                                          group.first.isPlaylist ||
+                                          group.items.length > 1) {
+                                        sizeInMB =
+                                            group.totalFilesize / (1024 * 1024);
+                                        hasSize = sizeInMB > 0;
+                                      } else if (firstItem != null) {
+                                        int? bytes;
+                                        if (firstItem.formats.isNotEmpty) {
+                                          MediaFormat? selectedFormat;
+                                          if (currentGroup != null) {
+                                            selectedFormat = config
+                                                ?.itemFormats[firstItem.id];
+                                          } else {
+                                            selectedFormat = config?.format;
+                                          }
+                                          selectedFormat ??=
+                                              firstItem.formats
+                                                  .where((f) {
+                                                    final h = getHeight(
+                                                      f.resolution,
+                                                    );
+                                                    return h > 0 && h <= 1080;
+                                                  })
+                                                  .fold<MediaFormat?>(
+                                                    null,
+                                                    (a, b) => a == null
+                                                        ? b
+                                                        : ((a.filesize ?? 0) >
+                                                                  (b.filesize ??
+                                                                      0)
+                                                              ? a
+                                                              : b),
+                                                  ) ??
+                                              firstItem.formats.first;
+
+                                          bytes =
+                                              getFormatBytes != null &&
+                                                  config != null
+                                              ? getFormatBytes!(
+                                                  firstItem,
+                                                  selectedFormat,
+                                                  config,
+                                                )
+                                              : selectedFormat.filesize;
+                                        }
+
+                                        bytes ??= firstItem.filesize;
+
+                                        if (bytes == null &&
+                                            firstItem.formats.isNotEmpty) {
+                                          for (final f in firstItem.formats) {
+                                            if (f.filesize != null &&
+                                                f.filesize! > 0) {
+                                              bytes = f.filesize;
+                                              break;
+                                            }
+                                          }
+                                        }
+
+                                        if (bytes != null && bytes > 0) {
+                                          sizeInMB = bytes / (1024 * 1024);
+                                          hasSize = true;
+                                        }
+                                      }
+
+                                      if (hasSize) {
+                                        return Text(
+                                          '${sizeInMB.toStringAsFixed(2)}MB',
+                                          style: GoogleFonts.outfit(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        );
+                                      } else {
+                                        return Text(
+                                          'Unknown',
+                                          style: GoogleFonts.outfit(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black.withValues(alpha: 0.5),
+                                      Colors.transparent,
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: 0.7),
                                     ],
+                                    stops: const [0.0, 0.3, 0.7, 1.0],
+                                  ),
+                                ),
+                              ),
+                              if (isItemError)
+                                Center(
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTapDown: (_) {
+                                        onShowProperties?.call(
+                                          currentGroup == null
+                                              ? group
+                                              : firstItem,
+                                        );
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: AppColors.error,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.error_outline,
+                                          color: AppColors.error,
+                                          size: 32,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              Positioned(
+                                bottom: 8,
+                                left: 8,
+                                right: 8,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            firstItem?.title ??
+                                                group.originalUrl,
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (group.items.length > 1) ...[
+                                            const SizedBox(height: 2),
+                                            Row(
+                                              children: [
+                                                if (group.videoCount > 0) ...[
+                                                  Text(
+                                                    '${group.videoCount}',
+                                                    style: GoogleFonts.outfit(
+                                                      color: Colors.white70,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 2),
+                                                  const Icon(
+                                                    Icons.videocam_rounded,
+                                                    color: Colors.white70,
+                                                    size: 10,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  const Text(
+                                                    '·',
+                                                    style: TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                ],
+                                                if (group.imageCount > 0) ...[
+                                                  Text(
+                                                    '${group.imageCount}',
+                                                    style: GoogleFonts.outfit(
+                                                      color: Colors.white70,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 2),
+                                                  const Icon(
+                                                    Icons.image_rounded,
+                                                    color: Colors.white70,
+                                                    size: 10,
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    CopyUrlButton(
+                                      url:
+                                          firstItem?.webpageUrl ??
+                                          firstItem?.directUrl ??
+                                          firstItem?.originalUrl ??
+                                          group.originalUrl,
+                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-                        ],
+                              if (isHydrating ||
+                                  firstItem?.id == 'fetch_loading' ||
+                                  firstItem?.id == 'hydration_loading' ||
+                                  downloadingImageIndices.contains(index))
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.54),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const BubbleLoader(size: 48),
+                                        if ((isHydrating ||
+                                                firstItem?.id ==
+                                                    'hydration_loading') &&
+                                            onCancelHydration != null) ...[
+                                          const SizedBox(height: 6),
+                                          MouseRegion(
+                                            cursor: SystemMouseCursors.click,
+                                            child: GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: () {
+                                                final targetUrl =
+                                                    currentGroup != null
+                                                    ? currentGroup!.originalUrl
+                                                    : group.originalUrl;
+                                                onCancelHydration!(targetUrl);
+                                              },
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.violet,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: AppColors.violet
+                                                          .withValues(
+                                                            alpha: 0.4,
+                                                          ),
+                                                      blurRadius: 6,
+                                                      offset: const Offset(
+                                                        0,
+                                                        2,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.close_rounded,
+                                                      size: 13,
+                                                      color: Colors.white,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'Cancel',
+                                                      style: GoogleFonts.outfit(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                );
+                    );
 
-                return Column(
-                  key: ValueKey('${group.originalUrl}_${firstItem?.id ?? index}'),
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AspectRatio(aspectRatio: aspectRatio, child: itemCard),
-                    const SizedBox(height: 8),
-                    Row(
+                    return Column(
+                      key: ValueKey(
+                        '${group.originalUrl}_${firstItem?.id ?? index}',
+                      ),
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (isTrashView)
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.restore, size: 14),
-                              label: const Text('Restore'),
-                              onPressed: () => onRestoreTrashItem(index),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.violet,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                minimumSize: const Size.fromHeight(32),
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
+                        AspectRatio(aspectRatio: aspectRatio, child: itemCard),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            if (isTrashView)
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.restore, size: 14),
+                                  label: const Text('Restore'),
+                                  onPressed: () => onRestoreTrashItem(index),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.violet,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    minimumSize: const Size.fromHeight(32),
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else ...[
+                              Expanded(
+                                child: Builder(
+                                  builder: (context) {
+                                    if (currentGroup == null &&
+                                        (group.first.isProfile ||
+                                            group.first.isPlaylist ||
+                                            group.items.length > 1)) {
+                                      final hasImages = group.items.any(
+                                        (i) => !i.isVideo,
+                                      );
+                                      final hasVideos = group.items.any(
+                                        (i) => i.isVideo,
+                                      );
+
+                                      return SizedBox(
+                                        height: 32,
+                                        child: GroupFilterDropdown(
+                                          selectedFilter:
+                                              config?.groupFilter ??
+                                              GroupDownloadType.all,
+                                          isEnabled: true,
+                                          hasImages: hasImages,
+                                          hasVideos: hasVideos,
+                                          onChanged: (val) =>
+                                              onFilterChanged(group, val),
+                                        ),
+                                      );
+                                    } else {
+                                      return SizedBox(
+                                        height: 32,
+                                        child: FormatSelectionDropdown(
+                                          item: firstItem!,
+                                          config: config ?? DownloadConfig(),
+                                          index: index,
+                                          group: group,
+                                          isItemLevel: currentGroup != null,
+                                          getHeight: getHeight,
+                                          getFormatBytes: getFormatBytes,
+                                          matchTargetFormat: matchTargetFormat,
+                                          onChanged: (val) =>
+                                              onFormatChanged(group, val),
+                                        ),
+                                      );
+                                    }
+                                  },
                                 ),
                               ),
-                            ),
-                          )
-                        else ...[
-                          Expanded(
-                            child: Builder(
-                              builder: (context) {
-                                if (currentGroup == null &&
-                                    (group.first.isProfile ||
-                                        group.first.isPlaylist ||
-                                        group.items.length > 1)) {
-                                  final hasImages = group.items.any(
-                                    (i) => !i.isVideo,
-                                  );
-                                  final hasVideos = group.items.any(
-                                    (i) => i.isVideo,
-                                  );
-
-                                  return SizedBox(
-                                    height: 32,
-                                    child: GroupFilterDropdown(
-                                      selectedFilter:
-                                          config?.groupFilter ??
-                                          GroupDownloadType.all,
-                                      isEnabled: true,
-                                      hasImages: hasImages,
-                                      hasVideos: hasVideos,
-                                      onChanged: (val) =>
-                                          onFilterChanged(group, val),
-                                    ),
-                                  );
-                                } else {
-                                  return SizedBox(
-                                    height: 32,
-                                    child: FormatSelectionDropdown(
-                                      item: firstItem!,
-                                      config: config ?? DownloadConfig(),
-                                      index: index,
-                                      group: group,
-                                      isItemLevel: currentGroup != null,
-                                      getHeight: getHeight,
-                                      getFormatBytes: getFormatBytes,
-                                      matchTargetFormat:
-                                          matchTargetFormat,
-                                      onChanged: (val) =>
-                                          onFormatChanged(group, val),
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            height: 32,
-                            width: 32,
-                            decoration: BoxDecoration(
-                              color: isItemError
-                                  ? AppColors.surfaceBase
-                                  : AppColors.violet.withValues(
-                                      alpha: 0.2,
-                                    ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: IconButton(
-                              icon: Icon(
-                                Icons.download_rounded,
-                                size: 16,
-                                color: isItemError
-                                    ? Colors.white38
-                                    : AppColors.violet,
+                              const SizedBox(width: 8),
+                              Container(
+                                height: 32,
+                                width: 32,
+                                decoration: BoxDecoration(
+                                  color: isItemError
+                                      ? AppColors.surfaceBase
+                                      : AppColors.violet.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.download_rounded,
+                                    size: 16,
+                                    color: isItemError
+                                        ? Colors.white38
+                                        : AppColors.violet,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  onPressed: isItemError
+                                      ? null
+                                      : () => onStartDownload(index),
+                                ),
                               ),
-                              padding: EdgeInsets.zero,
-                              onPressed: isItemError
-                                  ? null
-                                  : () => onStartDownload(index),
-                            ),
-                          ),
-                        ],
+                            ],
+                          ],
+                        ),
                       ],
-                    ),
-                  ],
-                );
-              },
-            ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
       },
     );
   }

@@ -48,6 +48,7 @@ dependencies:
   flutter_highlight: ^0.7.0
   flutter_staggered_grid_view: ^0.7.0
 
+  markdown: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

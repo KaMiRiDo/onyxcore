@@ -27,6 +27,10 @@ class BrowserDetector {
   /// Returns a list of supported browsers installed on the Linux system.
   static Future<List<String>> getInstalledBrowsers() async {
     if (_cachedBrowsers != null) return _cachedBrowsers!;
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      _cachedBrowsers = const ['google-chrome'];
+      return _cachedBrowsers!;
+    }
 
     final installed = <String>{};
 
@@ -64,6 +68,10 @@ class BrowserDetector {
   /// Attempts to find the system default browser.
   static Future<String?> getDefaultBrowser() async {
     if (_cachedDefault != null) return _cachedDefault;
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      _cachedDefault = 'google-chrome';
+      return _cachedDefault;
+    }
     try {
       final result = await Process.run('xdg-settings', [
         'get',

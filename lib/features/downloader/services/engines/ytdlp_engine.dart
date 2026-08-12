@@ -29,18 +29,16 @@ class YtDlpEngine extends DownloadEngine {
   Color get color => Colors.redAccent;
 
   @override
-  EngineType get engineType => EngineType.python;
+  EngineType get engineType => EngineType.cli;
 
   @override
-  List<String> get systemDependencies => ['python3', 'python3-venv'];
-
+  List<String> get systemDependencies => ['python3'];
   @override
   String? get binaryPath => p.join(
     Platform.environment['HOME'] ?? '',
     '.local',
     'share',
     'onyxcore',
-    'yt-dlp-venv',
     'bin',
     'yt-dlp',
   );
@@ -57,48 +55,21 @@ class YtDlpEngine extends DownloadEngine {
   bool get isInstalled => binaryPath != null && File(binaryPath!).existsSync();
 
   @override
-  EngineUpdateInfo? get updateInfo => null;
+  EngineUpdateInfo? get updateInfo => const EngineUpdateInfo(
+    apiUrl: 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest',
+    assetName: 'yt-dlp_linux',
+  );
 
-  @override
-  Future<Process>? install() {
-    final venvPath = p.join(
-      Platform.environment['HOME'] ?? '',
-      '.local',
-      'share',
-      'onyxcore',
-      'yt-dlp-venv',
-    );
-    return Process.start(
-      'bash',
-      [
-        '-c',
-        'rm -rf "$venvPath" && python3 -m venv "$venvPath" && "$venvPath/bin/pip" install --upgrade "yt-dlp[default,curl-cffi]"',
-      ],
-      environment: {
-        'PATH':
-            '${Platform.environment['PATH'] ?? ''}:${Platform.environment['HOME']}/.deno/bin:/usr/local/bin:/opt/homebrew/bin',
-      },
-    );
-  }
 
-  @override
-  Future<Process>? uninstall() {
-    final venvPath = p.join(
-      Platform.environment['HOME'] ?? '',
-      '.local',
-      'share',
-      'onyxcore',
-      'yt-dlp-venv',
-    );
-    return Process.start('bash', ['-c', 'rm -rf "$venvPath"']);
-  }
 
   @override
   Future<String?> getInstalledVersion() async {
     if (!isInstalled) return null;
     try {
       final res = await Process.run(binaryPath!, ['--version']);
-      if (res.exitCode == 0) return (res.stdout as String).trim();
+      if (res.exitCode == 0) {
+        return (res.stdout as String).trim();
+      }
     } catch (_) {}
     return null;
   }
@@ -112,7 +83,10 @@ class YtDlpEngine extends DownloadEngine {
       ]);
       if (res.exitCode == 0) {
         final json = jsonDecode(res.stdout as String);
-        return json['tag_name']?.toString();
+        if (json is Map<String, dynamic>) {
+          // yt-dlp tag names are usually something like '2023.11.16'
+          return json['tag_name']?.toString();
+        }
       }
     } catch (_) {}
     return null;
@@ -391,8 +365,7 @@ class YtDlpEngine extends DownloadEngine {
     if (directUrl == null || directUrl.isEmpty) return info;
 
     try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 3);
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
       final req = await client.headUrl(Uri.parse(directUrl));
 
       final headers = json['http_headers'] as Map<String, dynamic>?;
@@ -511,7 +484,7 @@ class YtDlpEngine extends DownloadEngine {
       ]);
     }
 
-    if (Aria2Accelerator.isAvailable) {
+    if (await Aria2Accelerator.checkIsAvailable()) {
       args.addAll([
         '--external-downloader',
         Aria2Accelerator.executable,

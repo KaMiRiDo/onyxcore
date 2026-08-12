@@ -175,7 +175,7 @@ class MockEngine extends DownloadEngine {
   @override final String displayName = 'Mock';
   @override final IconData icon = Icons.code;
 
-  final bool mockIsInstalled;
+  bool mockIsInstalled;
   String? mockInstalledVersion;
   String? mockLatestVersion;
   String? binaryPathOverride;
@@ -477,7 +477,7 @@ void main() {
         final e1 = MockEngine(id: 'py1');
         final processFuture = Future<Process>.error(Exception('Spawn failed'));
         await notifier.installProcessEngine(e1, processFuture);
-        expect(notifier.state.error, contains('Mock installation failed: Exception: Spawn failed'));
+        expect(notifier.state.error, contains('py1:Exception: Spawn failed'));
       });
     });
 
@@ -576,6 +576,34 @@ void main() {
         mockRequestHandler = (url) async { return MockHttpClientRequest(MockHttpClientResponse(200, [])); };
         await notifier.updateEngine(e1);
         expect(true, isTrue);
+      });
+    });
+    
+    group('Uninstall UI Updates', () {
+      test('U-DL-UPD-36: UI updates on engine uninstall', () async {
+        final mockEngine = MockEngine(
+          id: 'test_uninstall',
+          mockIsInstalled: true,
+          mockInstalledVersion: '1.0.0',
+        );
+        EngineRegistry.clearAllEnginesForTesting();
+        EngineRegistry.register(mockEngine);
+        
+        // 1. Initial check updates the state as installed
+        await notifier.checkForUpdates();
+        expect(notifier.state.installedVersions['test_uninstall'], '1.0.0');
+        
+        // 2. Simulate uninstallation (engine.isInstalled returns false)
+        mockEngine.mockIsInstalled = false;
+        mockEngine.mockInstalledVersion = null;
+        
+        // 3. Re-check for updates
+        await notifier.checkForUpdates();
+        
+        // 4. Verify it was removed from the installed list
+        expect(notifier.state.installedVersions.containsKey('test_uninstall'), isFalse);
+        
+        EngineRegistry.clearRegisteredEngines();
       });
     });
   });

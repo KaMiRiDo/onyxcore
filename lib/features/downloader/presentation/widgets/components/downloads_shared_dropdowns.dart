@@ -18,7 +18,9 @@ class EngineSelectorDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSmallWindow = MediaQuery.of(context).size.width < 1100;
     
-    final engines = EngineRegistry.allEngines;
+    final engines = EngineRegistry.allEngines
+        .where((e) => !e.isOptional || e.isInstalled)
+        .toList();
     final options = [
       {
         'key': 'auto',

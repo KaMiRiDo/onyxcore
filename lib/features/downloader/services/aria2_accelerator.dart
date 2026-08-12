@@ -28,7 +28,7 @@ class Aria2Accelerator {
   );
 
   /// Check if aria2c is available (bundled or system-installed).
-  static bool get isAvailable {
+  static Future<bool> checkIsAvailable() async {
     if (_available != null) return _available!;
     if (File(binaryPath).existsSync()) {
       _available = true;
@@ -36,7 +36,7 @@ class Aria2Accelerator {
     }
     // Fallback: check system aria2c
     try {
-      final res = Process.runSync('which', ['aria2c']);
+      final res = await Process.run('which', ['aria2c']);
       _available = res.exitCode == 0;
       return _available!;
     } catch (_) {

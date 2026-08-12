@@ -173,4 +173,55 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     expect(backToRootTapped, isTrue);
   });
+
+  testWidgets('StandaloneWindowActionBar aligns search box to absolute center and buttons to extreme right', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StandaloneWindowActionBar(
+            searchController: TextEditingController(),
+            searchFocusNode: FocusNode(),
+            isSearchVisible: false,
+            listFilter: '',
+            onListFilterChanged: (v) {},
+            isTrashView: false,
+            trashNotEmpty: false,
+            hasItems: true,
+            currentGroup: null,
+            importedListName: null,
+            config: null,
+            rootIndex: null,
+            onRestoreAll: () {},
+            onEmptyTrash: () {},
+            onBackToRoot: () {},
+            onClear: () {},
+            onFormatChanged: (v) {},
+            onFilterChanged: (v) {},
+            matchTargetFormat: (info, format) => format,
+            getHeight: (res) => 1080,
+          ),
+        ),
+      ),
+    );
+
+    // Verify rightmost button is at the right edge
+    final clearButtonFinder = find.widgetWithText(TextButton, 'Clear');
+    expect(clearButtonFinder, findsOneWidget);
+    final clearButtonRect = tester.getRect(clearButtonFinder);
+    expect(clearButtonRect.right, equals(1920.0 - 16.0));
+
+    // Verify search box is absolutely centered
+    final searchBoxFinder = find.byType(TextField);
+    expect(searchBoxFinder, findsOneWidget);
+    final searchBoxRect = tester.getRect(searchBoxFinder);
+    const screenCenter = 1920.0 / 2;
+    expect(searchBoxRect.center.dx, equals(screenCenter));
+  });
 }
