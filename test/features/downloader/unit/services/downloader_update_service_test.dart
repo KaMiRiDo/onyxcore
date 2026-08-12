@@ -583,7 +583,6 @@ void main() {
       test('U-DL-UPD-36: UI updates on engine uninstall', () async {
         final mockEngine = MockEngine(
           id: 'test_uninstall',
-          mockIsInstalled: true,
           mockInstalledVersion: '1.0.0',
         );
         EngineRegistry.clearAllEnginesForTesting();
@@ -594,8 +593,9 @@ void main() {
         expect(notifier.state.installedVersions['test_uninstall'], '1.0.0');
         
         // 2. Simulate uninstallation (engine.isInstalled returns false)
-        mockEngine.mockIsInstalled = false;
-        mockEngine.mockInstalledVersion = null;
+        mockEngine
+          ..mockIsInstalled = false
+          ..mockInstalledVersion = null;
         
         // 3. Re-check for updates
         await notifier.checkForUpdates();

@@ -7,6 +7,7 @@ import 'package:onyxcore/features/downloader/services/engines/engine_registry.da
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'dart:io';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
+import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
 
 class _MockEngine extends DownloadEngine {
   @override String get id => 'mock_opt';
@@ -28,12 +29,20 @@ class _MockEngine extends DownloadEngine {
   @override EngineUpdateInfo? get updateInfo => null;
 }
 
+class _MockYtDlp extends YtDlpEngine {
+  @override
+  bool get isInstalled => true;
+}
+
 void main() {
   group('DownloadsSharedDropdowns Tests', () {
     
     Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
     testWidgets('W-DD-01 to W-DD-05: EngineSelectorDropdown', (WidgetTester tester) async {
+      EngineRegistry.clearAllEnginesForTesting();
+      EngineRegistry.register(_MockYtDlp());
+
       String? selectedVal;
       await tester.pumpWidget(wrap(
         EngineSelectorDropdown(
@@ -56,6 +65,8 @@ void main() {
          await tester.pumpAndSettle();
          expect(selectedVal, 'yt-dlp');
       }
+
+      EngineRegistry.clearRegisteredEngines();
     });
 
     testWidgets('W-DD-05a: EngineSelectorDropdown hides uninstalled optional engines', (WidgetTester tester) async {

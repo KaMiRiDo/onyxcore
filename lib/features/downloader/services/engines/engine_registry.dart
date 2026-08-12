@@ -5,6 +5,7 @@ import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/streamlink_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
+import 'package:onyxcore/features/downloader/services/deno_runtime.dart';
 
 /// Central registry for download engines.
 ///
@@ -21,6 +22,11 @@ class EngineRegistry {
   static final List<DownloadEngine> _requiredEngines = [
     GalleryDlEngine(), // priority 10 — images/galleries
     YtDlpEngine(), // priority 9 — videos/audio (primary)
+  ];
+
+  /// Required runtimes — execution environments required by the engines.
+  static final List<DownloadEngine> _requiredRuntimes = [
+    DenoRuntime.instance,
   ];
 
   /// Optional engines — can be installed/deleted from Settings.
@@ -50,11 +56,15 @@ class EngineRegistry {
         ..._requiredEngines,
         ..._optionalEngines,
       ]);
+    _requiredRuntimes
+      ..clear()
+      ..add(DenoRuntime.instance);
   }
 
   @visibleForTesting
   static void clearAllEnginesForTesting() {
     _engines.clear();
+    _requiredRuntimes.clear();
   }
 
   /// Resolve engine by preference or auto-detect from URL.
@@ -138,9 +148,17 @@ class EngineRegistry {
     return List.unmodifiable(optional);
   }
 
-  /// Missing required engines.
-  static List<DownloadEngine> get missingRequired =>
-      requiredEngines.where((e) => !e.isInstalled).toList();
+  /// Missing required engines (and runtimes).
+  static List<DownloadEngine> get missingRequired {
+    final missingEngines = requiredEngines.where((e) => !e.isInstalled).toList();
+    final missingRuntimes = _requiredRuntimes.where((e) => !e.isInstalled).toList();
+    return [...missingEngines, ...missingRuntimes];
+  }
+
+  /// Whether all required engines and runtimes are fully installed and ready
+  static bool get allRequiredReady {
+    return requiredInstalled && _requiredRuntimes.every((r) => r.isInstalled);
+  }
 
   /// Find an engine by ID.
   static DownloadEngine? findById(String id) {

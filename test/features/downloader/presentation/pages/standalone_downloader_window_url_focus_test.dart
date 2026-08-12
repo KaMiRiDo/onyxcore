@@ -3,6 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/features/downloader/presentation/pages/standalone_downloader_window.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloader_readiness_provider.dart';
+
+class FixedDownloaderReadinessNotifier extends DownloaderReadinessNotifier {
+  @override
+  Future<DownloaderReadinessState> build() async {
+    return const DownloaderReadinessState(isReady: true);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -13,7 +21,10 @@ void main() {
     final urlFocusTrigger = PersistentViewerManager.getUrlFocusTrigger(windowId);
 
     await tester.pumpWidget(
-      const ProviderScope(
+      ProviderScope(
+        overrides: [
+          downloaderReadinessProvider.overrideWith(FixedDownloaderReadinessNotifier.new),
+        ],
         child: MaterialApp(
           home: Scaffold(
             body: StandaloneDownloaderWindow(

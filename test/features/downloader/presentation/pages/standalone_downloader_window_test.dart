@@ -11,6 +11,7 @@ import 'package:onyxcore/features/downloader/domain/entities/download_config.dar
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/pages/standalone_downloader_window.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloader_readiness_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_location_bar.dart';
@@ -117,6 +118,13 @@ class FixedCurrentPathNotifier extends CurrentPathNotifier {
 
   @override
   String build() => path;
+}
+
+class FixedDownloaderReadinessNotifier extends DownloaderReadinessNotifier {
+  @override
+  Future<DownloaderReadinessState> build() async {
+    return const DownloaderReadinessState(isReady: true);
+  }
 }
 
 class RecordingDownloadTaskNotifier extends DownloadTaskNotifier {
@@ -272,14 +280,21 @@ class RecordingDownloadsSharedController extends ChangeNotifier
   int getGroupBytes(MediaGroup group, DownloadConfig config) {
     if (config.mode == DownloadMode.normal) {
       if (config.groupFilter == GroupDownloadType.images) {
-        return group.items.where((i) => !i.isVideo).fold(0, (sum, item) => sum + (item.filesize ?? 0));
+        return group.items
+            .where((i) => !i.isVideo)
+            .fold(0, (sum, item) => sum + (item.filesize ?? 0));
       } else if (config.groupFilter == GroupDownloadType.videos) {
-        return group.items.where((i) => i.isVideo).fold(0, (sum, item) => sum + (item.filesize ?? 0));
+        return group.items
+            .where((i) => i.isVideo)
+            .fold(0, (sum, item) => sum + (item.filesize ?? 0));
       }
       return group.totalFilesize;
     } else {
       if (config.itemFormats.isEmpty) return 0;
-      return config.itemFormats.values.fold(0, (sum, fmt) => sum + (fmt?.filesize ?? 0));
+      return config.itemFormats.values.fold(
+        0,
+        (sum, fmt) => sum + (fmt?.filesize ?? 0),
+      );
     }
   }
 
@@ -361,6 +376,9 @@ ProviderContainer createContainer({
         () => FixedCurrentPathNotifier(currentPath),
       ),
       settingsProvider.overrideWith(() => FixedSettingsNotifier(settings)),
+      downloaderReadinessProvider.overrideWith(
+        FixedDownloaderReadinessNotifier.new,
+      ),
     ],
   );
 }
@@ -1586,10 +1604,7 @@ void main() {
         expect(find.text('Video 1, Video 2'), findsOneWidget);
         expect(find.text('Size: 60.00 MB'), findsOneWidget);
         expect(
-          find.descendant(
-            of: find.byType(Dialog),
-            matching: find.text('1'),
-          ),
+          find.descendant(of: find.byType(Dialog), matching: find.text('1')),
           findsNWidgets(2),
         ); // 1 Video, 1 Image
         expect(find.byIcon(Icons.videocam_rounded), findsWidgets);
@@ -1634,16 +1649,15 @@ void main() {
 
         await pumpWindow(tester, container: container);
 
-        // The sidebar is the first Container in the Row. We can find it by looking for the 
+        // The sidebar is the first Container in the Row. We can find it by looking for the
         // Media List Section which is inside it.
         final mediaListFinder = find.text('Media List');
         expect(mediaListFinder, findsOneWidget);
-        
-        final maxSidebarContainer = find.ancestor(
-          of: mediaListFinder,
-          matching: find.byType(Container),
-        ).first;
-        
+
+        final maxSidebarContainer = find
+            .ancestor(of: mediaListFinder, matching: find.byType(Container))
+            .first;
+
         final maxContainerSize = tester.getSize(maxSidebarContainer);
         expect(maxContainerSize.width, 340.0);
 
@@ -1651,10 +1665,9 @@ void main() {
         tester.view.physicalSize = const Size(700, 600);
         await tester.pump();
 
-        final smallSidebarContainer = find.ancestor(
-          of: mediaListFinder,
-          matching: find.byType(Container),
-        ).first;
+        final smallSidebarContainer = find
+            .ancestor(of: mediaListFinder, matching: find.byType(Container))
+            .first;
 
         final smallContainerSize = tester.getSize(smallSidebarContainer);
         expect(smallContainerSize.width, 200.0);
@@ -1723,10 +1736,19 @@ void main() {
           filesize: 1 * 1024 * 1024,
         );
 
-        final group0 = MediaGroup(items: [video1], originalUrl: video1.originalUrl);
+        final group0 = MediaGroup(
+          items: [video1],
+          originalUrl: video1.originalUrl,
+        );
         final group1 = MediaGroup(items: [img1], originalUrl: img1.originalUrl);
         final playlistGroup = MediaGroup(
-          items: [playlistItem1, playlistItem2, playlistItem3, playlistImg1, playlistImg2],
+          items: [
+            playlistItem1,
+            playlistItem2,
+            playlistItem3,
+            playlistImg1,
+            playlistImg2,
+          ],
           originalUrl: 'https://example.com/playlist',
         );
 
@@ -1826,7 +1848,10 @@ void main() {
           filesize: 6 * 1024 * 1024,
         );
 
-        final group0 = MediaGroup(items: [video1], originalUrl: video1.originalUrl);
+        final group0 = MediaGroup(
+          items: [video1],
+          originalUrl: video1.originalUrl,
+        );
         final group1 = MediaGroup(items: [img1], originalUrl: img1.originalUrl);
         final playlistGroup = MediaGroup(
           items: [playlistItem1, playlistItem2],
@@ -2298,8 +2323,14 @@ void main() {
         expect(call['totalItems'], 2);
 
         // Verify no duplicate numbered folders were created in tempDir
-        expect(Directory(p.join(tempDir.path, 'Photo Album (1)')).existsSync(), isFalse);
-        expect(Directory(p.join(tempDir.path, 'Photo Album (2)')).existsSync(), isFalse);
+        expect(
+          Directory(p.join(tempDir.path, 'Photo Album (1)')).existsSync(),
+          isFalse,
+        );
+        expect(
+          Directory(p.join(tempDir.path, 'Photo Album (2)')).existsSync(),
+          isFalse,
+        );
       },
     );
 
@@ -2360,7 +2391,10 @@ void main() {
         expect(call['destination'], expectedFolder);
         expect(call['isProfile'], isTrue);
         expect(Directory(expectedFolder).existsSync(), isTrue);
-        expect(Directory(p.join(tempDir.path, 'User Profile (1)')).existsSync(), isFalse);
+        expect(
+          Directory(p.join(tempDir.path, 'User Profile (1)')).existsSync(),
+          isFalse,
+        );
       },
     );
 
@@ -2435,8 +2469,14 @@ void main() {
 
         // Verify folder structure
         expect(Directory(g1Dest).existsSync(), isTrue);
-        expect(Directory(p.join(tempDir.path, 'Collection Alpha (1)')).existsSync(), isFalse);
-        expect(Directory(p.join(tempDir.path, 'Single Beta')).existsSync(), isFalse);
+        expect(
+          Directory(p.join(tempDir.path, 'Collection Alpha (1)')).existsSync(),
+          isFalse,
+        );
+        expect(
+          Directory(p.join(tempDir.path, 'Single Beta')).existsSync(),
+          isFalse,
+        );
       },
     );
 
@@ -2487,13 +2527,24 @@ void main() {
 
         expect(taskNotifier.calls, hasLength(1));
         final call = taskNotifier.calls.first;
-        final expectedFolder = p.join(tempDir.path, "You wouldn't get it😌 #newpost");
+        final expectedFolder = p.join(
+          tempDir.path,
+          "You wouldn't get it😌 #newpost",
+        );
         expect(call['destination'], expectedFolder);
         expect(Directory(expectedFolder).existsSync(), isTrue);
 
         // Verify NO newline folder or duplicate folders were created
-        expect(Directory(p.join(tempDir.path, "You wouldn't get it😌\n#newpost")).existsSync(), isFalse);
-        expect(Directory(p.join(tempDir.path, "You wouldn't get it😌")).existsSync(), isFalse);
+        expect(
+          Directory(
+            p.join(tempDir.path, "You wouldn't get it😌\n#newpost"),
+          ).existsSync(),
+          isFalse,
+        );
+        expect(
+          Directory(p.join(tempDir.path, "You wouldn't get it😌")).existsSync(),
+          isFalse,
+        );
       },
     );
 
@@ -2636,10 +2687,7 @@ void main() {
           title: 'Loading...',
           originalUrl: testUrl,
         );
-        final group = MediaGroup(
-          items: [loadingItem],
-          originalUrl: testUrl,
-        );
+        final group = MediaGroup(items: [loadingItem], originalUrl: testUrl);
 
         controller.cache.parsedItems = <MediaGroup>[group];
         controller.backgroundLoadingProfiles.add(testUrl);

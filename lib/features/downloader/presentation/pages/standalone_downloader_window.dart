@@ -18,9 +18,11 @@ import 'package:onyxcore/features/downloader/domain/entities/download_config.dar
 import 'package:onyxcore/features/downloader/domain/entities/downloader_filter_settings.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
+import 'package:onyxcore/features/downloader/presentation/providers/downloader_readiness_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
 import 'package:onyxcore/features/downloader/presentation/services/thumbnail_aspect_resolver.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_missing_binaries_view.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/properties_dialog.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/downloads_panel_helpers.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
@@ -1028,17 +1030,25 @@ class _StandaloneDownloaderWindowState
     _controller = ref.watch(downloadsSharedControllerProvider);
     // Also watch the cache explicitly so UI updates when cache changes
     ref.watch(downloadsListCacheProvider);
+    final readiness = ref.watch(downloaderReadinessProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Listener(
-        onPointerDown: (_) {
-          if (!_searchFocusNode.hasFocus && !_urlFocusNode.hasFocus) {
-            _mainFocusNode.requestFocus();
+      body: readiness.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err')),
+        data: (state) {
+          if (!state.isReady) {
+            return const DownloadsMissingBinariesView();
           }
-        },
-        child: Focus(
-          focusNode: _mainFocusNode,
+          return Listener(
+            onPointerDown: (_) {
+              if (!_searchFocusNode.hasFocus && !_urlFocusNode.hasFocus) {
+                _mainFocusNode.requestFocus();
+              }
+            },
+            child: Focus(
+              focusNode: _mainFocusNode,
           autofocus: true,
           onKeyEvent: (node, event) {
             if (event is KeyDownEvent) {
@@ -1134,6 +1144,8 @@ class _StandaloneDownloaderWindowState
             },
           ),
         ),
+      );
+      },
       ),
     );
   }

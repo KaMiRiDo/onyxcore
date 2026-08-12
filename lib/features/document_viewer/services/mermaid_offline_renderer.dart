@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/browser_detector.dart';
+import 'package:onyxcore/features/downloader/services/deno_runtime.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -132,6 +133,11 @@ class MermaidOfflineRenderer {
       debugPrint('MermaidOfflineRenderer: No Chromium browser found.');
       return null;
     }
+    
+    if (!DenoRuntime.instance.isInstalled) {
+      debugPrint('MermaidOfflineRenderer: Deno runtime is not installed.');
+      return null;
+    }
 
     // 4. Prepare files for deno
     final mmdFile = File(p.join(cacheDir.path, '$cacheKey.mmd'));
@@ -152,7 +158,7 @@ class MermaidOfflineRenderer {
     // 5. Run mermaid-cli via Deno
     // -s 4 ensures high resolution so it's not blurry
     final bgColor = isDarkMode ? 'transparent' : 'transparent';
-    final result = await Process.run('deno', [
+    final result = await Process.run(DenoRuntime.managedPath, [
       'run',
       '-A',
       'npm:@mermaid-js/mermaid-cli@10.6.1',

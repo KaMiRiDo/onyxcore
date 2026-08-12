@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
 import 'package:path/path.dart' as p;
 
@@ -18,12 +19,6 @@ class TestYtDlpEngine extends YtDlpEngine {
 
   @override
   String? get binaryPath => testPath;
-
-  @override
-  Future<Process>? install() async => MockProcess();
-
-  @override
-  Future<Process>? uninstall() async => MockProcess();
 }
 
 void main() {
@@ -92,8 +87,11 @@ exit $exitCode
 
   group('YtDlpEngine Unit Tests', () {
     group('1. Environment & Path Resolution', () {
-      test('U-DL-YTD-01: Return bundled python venv binary', () {
+      test('U-DL-YTD-01: Return standalone binary properties', () {
         expect(engine.binaryPath, mockYtDlpPath);
+        final realEngine = YtDlpEngine();
+        expect(realEngine.engineType, EngineType.cli);
+        expect(realEngine.updateInfo, isNotNull);
       });
 
       test('U-DL-YTD-02: Return true when binary exists', () {

@@ -7,6 +7,7 @@ import 'package:onyxcore/core/utils/browser_detector.dart';
 import 'package:onyxcore/core/utils/process_utils.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
+import 'package:onyxcore/features/downloader/services/deno_runtime.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:path/path.dart' as p;
@@ -31,8 +32,6 @@ class YtDlpEngine extends DownloadEngine {
   @override
   EngineType get engineType => EngineType.cli;
 
-  @override
-  List<String> get systemDependencies => ['python3'];
   @override
   String? get binaryPath => p.join(
     Platform.environment['HOME'] ?? '',
@@ -59,8 +58,6 @@ class YtDlpEngine extends DownloadEngine {
     apiUrl: 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest',
     assetName: 'yt-dlp_linux',
   );
-
-
 
   @override
   Future<String?> getInstalledVersion() async {
@@ -114,10 +111,10 @@ class YtDlpEngine extends DownloadEngine {
     }
 
     // Bypass Cloudflare TLS fingerprinting
-    args.addAll(['--impersonate', 'chrome']);
-    
-    // Force IPv4 to workaround curl-cffi IPv6 connection timeout bugs (curl 28)
-    args.addAll(['-4']);
+    args
+      ..addAll(['--impersonate', 'chrome'])
+      // Force IPv4 to workaround curl-cffi IPv6 connection timeout bugs (curl 28)
+      ..addAll(['-4']);
 
     if (url.contains('instagram.com')) {
       args.addAll(['--sleep-interval', '3', '--max-sleep-interval', '5']);
@@ -147,7 +144,7 @@ class YtDlpEngine extends DownloadEngine {
     final customEnv = {
       'PYTHONUNBUFFERED': '1',
       'PATH':
-          '${Platform.environment['PATH'] ?? ''}:${Platform.environment['HOME']}/.deno/bin:/usr/local/bin:/opt/homebrew/bin',
+          '${Platform.environment['PATH'] ?? ''}:${p.dirname(DenoRuntime.managedPath)}:/usr/local/bin:/opt/homebrew/bin',
     };
 
     final process = await Process.start(
@@ -427,10 +424,10 @@ class YtDlpEngine extends DownloadEngine {
     }
 
     // Bypass Cloudflare TLS fingerprinting
-    args.addAll(['--impersonate', 'chrome']);
-    
-    // Force IPv4 to workaround curl-cffi IPv6 connection timeout bugs (curl 28)
-    args.addAll(['-4']);
+    args
+      ..addAll(['--impersonate', 'chrome'])
+      // Force IPv4 to workaround curl-cffi IPv6 connection timeout bugs (curl 28)
+      ..addAll(['-4']);
 
     if (url.contains('instagram.com')) {
       args.addAll(['--sleep-interval', '3', '--max-sleep-interval', '5']);
@@ -498,7 +495,7 @@ class YtDlpEngine extends DownloadEngine {
     final customEnv = {
       'PYTHONUNBUFFERED': '1',
       'PATH':
-          '${Platform.environment['PATH'] ?? ''}:${Platform.environment['HOME']}/.deno/bin:/usr/local/bin:/opt/homebrew/bin',
+          '${Platform.environment['PATH'] ?? ''}:${p.dirname(DenoRuntime.managedPath)}:/usr/local/bin:/opt/homebrew/bin',
     };
 
     return Process.start(

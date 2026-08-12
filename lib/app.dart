@@ -34,9 +34,6 @@ class _OnyxCoreAppState extends ConsumerState<OnyxCoreApp> with WindowListener {
       if (mounted) {
         final notifier = ref.read(downloaderUpdateProvider.notifier);
         await notifier.checkForUpdates();
-        if (mounted) {
-          unawaited(notifier.updateAll(defaultOnly: true));
-        }
       }
     });
   }
