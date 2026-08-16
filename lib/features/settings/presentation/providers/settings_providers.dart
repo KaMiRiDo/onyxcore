@@ -17,27 +17,23 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
 /// Provider for MetadataCache (image aspect ratio cache).
 final metadataCacheProvider = Provider<MetadataCache>((ref) {
   final db = ref.watch(databaseProvider);
-  final cache = MetadataCache(db);
   // Fire-and-forget: load runs in background via Drift's background isolate.
   // The in-memory map starts empty and fills in as the async query resolves.
-  cache.load();
-  return cache;
+  return MetadataCache(db)..load();
 });
 
 /// Provider for ThumbnailCacheService (global freedesktop-style thumbnail cache).
 final thumbnailCacheServiceProvider = Provider<ThumbnailCacheService>((ref) {
   final db = ref.watch(databaseProvider);
-  final service = ThumbnailCacheService(db);
   // Fire-and-forget: loads the in-memory index from DB.
-  service.load();
-  return service;
+  return ThumbnailCacheService(db)..load();
 });
 
 /// Notifier for app settings state.
 ///
-/// Uses Drift's [watchAllSettings] stream for truly reactive updates —
+/// Uses Drift's watchAllSettings stream for truly reactive updates —
 /// any write to the Settings table automatically pushes a new [AppSettings]
-/// to all listeners without requiring [ref.invalidateSelf].
+/// to all listeners without requiring ref.invalidateSelf.
 class SettingsNotifier extends AsyncNotifier<AppSettings> {
   @override
   Future<AppSettings> build() async {
@@ -128,6 +124,16 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
   Future<void> setDownloadToCurrentFolder({required bool value}) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.setDownloadToCurrentFolder(value: value);
+  }
+
+  Future<void> setCustomExtractorsEnabled({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setCustomExtractorsEnabled(value: value);
+  }
+
+  Future<void> setExtractorBrowser(String? browser) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setExtractorBrowser(browser);
   }
 
   Future<void> setFolderSort(String path, SortOption option) async {

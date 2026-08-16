@@ -101,7 +101,7 @@ class CookieHelper {
         cookies.add('${row['name']}=${row['value']}');
       }
 
-      db.dispose();
+      db.close();
       await tmpFile.delete();
 
       _cachedCookies = cookies.join('; ');

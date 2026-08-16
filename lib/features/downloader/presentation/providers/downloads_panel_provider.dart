@@ -142,7 +142,7 @@ class DownloadsListCache extends ChangeNotifier {
     return _states[path]?.parsedItems;
   }
 
-  void setCacheChanged(String path, bool changed) {
+  void setCacheChanged(String path, {required bool changed}) {
     if (_states.containsKey(path)) {
       _states[path]!.isListChanged = changed;
       notifyListeners();

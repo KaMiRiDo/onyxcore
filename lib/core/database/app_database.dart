@@ -212,6 +212,21 @@ class ThumbnailCacheEntries extends Table {
   Set<Column<Object>> get primaryKey => {fileHash};
 }
 
+/// Custom Extractors (Phase 1).
+class CustomExtractorEntries extends Table {
+  @override
+  String get tableName => 'custom_extractors';
+
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get script => text()();
+  IntColumn get createdAt => integer()();
+  IntColumn get modifiedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Database class
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,6 +247,7 @@ class ThumbnailCacheEntries extends Table {
     MarkerRecentEntries,
     DownloadHistoryEntries,
     ThumbnailCacheEntries,
+    CustomExtractorEntries,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -241,7 +257,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -252,6 +268,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         // v2: Add thumbnail_cache table.
         await m.createTable(thumbnailCacheEntries);
+      }
+      if (from < 3) {
+        // v3: Add custom extractors table.
+        await m.createTable(customExtractorEntries);
       }
     },
   );
@@ -281,6 +301,38 @@ class AppDatabase extends _$AppDatabase {
   /// Watch all settings rows as a stream (for reactive SettingsNotifier).
   Stream<List<Setting>> watchAllSettings() {
     return select(settings).watch();
+  }
+
+  // ── CustomExtractors helpers ──────────────────────────────────────────────
+  
+  Future<List<CustomExtractorEntry>> getAllExtractors() async {
+    return select(customExtractorEntries).get();
+  }
+
+  Stream<List<CustomExtractorEntry>> watchAllExtractors() {
+    return select(customExtractorEntries).watch();
+  }
+
+  Future<void> upsertExtractor(
+    String id,
+    String name,
+    String script,
+    int createdAt,
+    int modifiedAt,
+  ) async {
+    await into(customExtractorEntries).insertOnConflictUpdate(
+      CustomExtractorEntriesCompanion.insert(
+        id: id,
+        name: name,
+        script: script,
+        createdAt: createdAt,
+        modifiedAt: modifiedAt,
+      ),
+    );
+  }
+
+  Future<void> deleteExtractor(String id) async {
+    await (delete(customExtractorEntries)..where((t) => t.id.equals(id))).go();
   }
 
   // ── MetadataCache helpers ─────────────────────────────────────────────────

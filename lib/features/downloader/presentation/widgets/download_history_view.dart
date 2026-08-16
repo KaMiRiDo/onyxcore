@@ -804,6 +804,9 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
       case 'profile':
         typeIcon = Icons.person_outline_rounded;
         typeColor = Colors.purpleAccent;
+      case 'extractor':
+        typeIcon = Icons.extension_rounded;
+        typeColor = Colors.tealAccent;
     }
 
     if (isError) typeColor = Colors.redAccent;

@@ -56,6 +56,12 @@ abstract class SettingsRepository {
   /// Update whether to download to the current folder by default.
   Future<void> setDownloadToCurrentFolder({required bool value});
 
+  /// Update whether custom extractors are enabled.
+  Future<void> setCustomExtractorsEnabled({required bool value});
+
+  /// Update the browser used for custom extractors.
+  Future<void> setExtractorBrowser(String? browser);
+
   // ——— Gallery Sorting ———
 
   /// Set the sort key for a specific folder path.

@@ -103,7 +103,7 @@ class LuxEngine extends DownloadEngine {
         'https://api.github.com/repos/iawia002/lux/releases/latest',
       ]);
       if (res.exitCode == 0) {
-        final json = jsonDecode(res.stdout as String);
+        final json = jsonDecode(res.stdout as String) as Map<String, dynamic>;
         return json['tag_name']?.toString().replaceFirst('v', '');
       }
     } catch (_) {}
@@ -313,9 +313,9 @@ class LuxEngine extends DownloadEngine {
     }
 
     // Lux supports multi-threading internally
-    args.addAll(['-n', '16']);
-
-    args.add(url);
+    args
+      ..addAll(['-n', '16'])
+      ..add(url);
 
     return Process.start(binaryPath!, args);
   }

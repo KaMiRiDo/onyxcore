@@ -4064,6 +4064,368 @@ class ThumbnailCacheEntriesCompanion
   }
 }
 
+class $CustomExtractorEntriesTable extends CustomExtractorEntries
+    with TableInfo<$CustomExtractorEntriesTable, CustomExtractorEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CustomExtractorEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scriptMeta = const VerificationMeta('script');
+  @override
+  late final GeneratedColumn<String> script = GeneratedColumn<String>(
+    'script',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modifiedAtMeta = const VerificationMeta(
+    'modifiedAt',
+  );
+  @override
+  late final GeneratedColumn<int> modifiedAt = GeneratedColumn<int>(
+    'modified_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    script,
+    createdAt,
+    modifiedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'custom_extractors';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CustomExtractorEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('script')) {
+      context.handle(
+        _scriptMeta,
+        script.isAcceptableOrUnknown(data['script']!, _scriptMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scriptMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('modified_at')) {
+      context.handle(
+        _modifiedAtMeta,
+        modifiedAt.isAcceptableOrUnknown(data['modified_at']!, _modifiedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modifiedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CustomExtractorEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CustomExtractorEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      script: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}script'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      modifiedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}modified_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CustomExtractorEntriesTable createAlias(String alias) {
+    return $CustomExtractorEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class CustomExtractorEntry extends DataClass
+    implements Insertable<CustomExtractorEntry> {
+  final String id;
+  final String name;
+  final String script;
+  final int createdAt;
+  final int modifiedAt;
+  const CustomExtractorEntry({
+    required this.id,
+    required this.name,
+    required this.script,
+    required this.createdAt,
+    required this.modifiedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['script'] = Variable<String>(script);
+    map['created_at'] = Variable<int>(createdAt);
+    map['modified_at'] = Variable<int>(modifiedAt);
+    return map;
+  }
+
+  CustomExtractorEntriesCompanion toCompanion(bool nullToAbsent) {
+    return CustomExtractorEntriesCompanion(
+      id: Value(id),
+      name: Value(name),
+      script: Value(script),
+      createdAt: Value(createdAt),
+      modifiedAt: Value(modifiedAt),
+    );
+  }
+
+  factory CustomExtractorEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CustomExtractorEntry(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      script: serializer.fromJson<String>(json['script']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      modifiedAt: serializer.fromJson<int>(json['modifiedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'script': serializer.toJson<String>(script),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'modifiedAt': serializer.toJson<int>(modifiedAt),
+    };
+  }
+
+  CustomExtractorEntry copyWith({
+    String? id,
+    String? name,
+    String? script,
+    int? createdAt,
+    int? modifiedAt,
+  }) => CustomExtractorEntry(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    script: script ?? this.script,
+    createdAt: createdAt ?? this.createdAt,
+    modifiedAt: modifiedAt ?? this.modifiedAt,
+  );
+  CustomExtractorEntry copyWithCompanion(CustomExtractorEntriesCompanion data) {
+    return CustomExtractorEntry(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      script: data.script.present ? data.script.value : this.script,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      modifiedAt: data.modifiedAt.present
+          ? data.modifiedAt.value
+          : this.modifiedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomExtractorEntry(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('script: $script, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('modifiedAt: $modifiedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, script, createdAt, modifiedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CustomExtractorEntry &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.script == this.script &&
+          other.createdAt == this.createdAt &&
+          other.modifiedAt == this.modifiedAt);
+}
+
+class CustomExtractorEntriesCompanion
+    extends UpdateCompanion<CustomExtractorEntry> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> script;
+  final Value<int> createdAt;
+  final Value<int> modifiedAt;
+  final Value<int> rowid;
+  const CustomExtractorEntriesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.script = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.modifiedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CustomExtractorEntriesCompanion.insert({
+    required String id,
+    required String name,
+    required String script,
+    required int createdAt,
+    required int modifiedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       script = Value(script),
+       createdAt = Value(createdAt),
+       modifiedAt = Value(modifiedAt);
+  static Insertable<CustomExtractorEntry> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? script,
+    Expression<int>? createdAt,
+    Expression<int>? modifiedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (script != null) 'script': script,
+      if (createdAt != null) 'created_at': createdAt,
+      if (modifiedAt != null) 'modified_at': modifiedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CustomExtractorEntriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? script,
+    Value<int>? createdAt,
+    Value<int>? modifiedAt,
+    Value<int>? rowid,
+  }) {
+    return CustomExtractorEntriesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      script: script ?? this.script,
+      createdAt: createdAt ?? this.createdAt,
+      modifiedAt: modifiedAt ?? this.modifiedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (script.present) {
+      map['script'] = Variable<String>(script.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (modifiedAt.present) {
+      map['modified_at'] = Variable<int>(modifiedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomExtractorEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('script: $script, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('modifiedAt: $modifiedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4092,6 +4454,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $DownloadHistoryEntriesTable(this);
   late final $ThumbnailCacheEntriesTable thumbnailCacheEntries =
       $ThumbnailCacheEntriesTable(this);
+  late final $CustomExtractorEntriesTable customExtractorEntries =
+      $CustomExtractorEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4111,6 +4475,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     markerRecentEntries,
     downloadHistoryEntries,
     thumbnailCacheEntries,
+    customExtractorEntries,
   ];
 }
 
@@ -6692,6 +7057,227 @@ typedef $$ThumbnailCacheEntriesTableProcessedTableManager =
       ThumbnailCacheEntry,
       PrefetchHooks Function()
     >;
+typedef $$CustomExtractorEntriesTableCreateCompanionBuilder =
+    CustomExtractorEntriesCompanion Function({
+      required String id,
+      required String name,
+      required String script,
+      required int createdAt,
+      required int modifiedAt,
+      Value<int> rowid,
+    });
+typedef $$CustomExtractorEntriesTableUpdateCompanionBuilder =
+    CustomExtractorEntriesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> script,
+      Value<int> createdAt,
+      Value<int> modifiedAt,
+      Value<int> rowid,
+    });
+
+class $$CustomExtractorEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $CustomExtractorEntriesTable> {
+  $$CustomExtractorEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get script => $composableBuilder(
+    column: $table.script,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get modifiedAt => $composableBuilder(
+    column: $table.modifiedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CustomExtractorEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CustomExtractorEntriesTable> {
+  $$CustomExtractorEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get script => $composableBuilder(
+    column: $table.script,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get modifiedAt => $composableBuilder(
+    column: $table.modifiedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CustomExtractorEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CustomExtractorEntriesTable> {
+  $$CustomExtractorEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get script =>
+      $composableBuilder(column: $table.script, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get modifiedAt => $composableBuilder(
+    column: $table.modifiedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$CustomExtractorEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CustomExtractorEntriesTable,
+          CustomExtractorEntry,
+          $$CustomExtractorEntriesTableFilterComposer,
+          $$CustomExtractorEntriesTableOrderingComposer,
+          $$CustomExtractorEntriesTableAnnotationComposer,
+          $$CustomExtractorEntriesTableCreateCompanionBuilder,
+          $$CustomExtractorEntriesTableUpdateCompanionBuilder,
+          (
+            CustomExtractorEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $CustomExtractorEntriesTable,
+              CustomExtractorEntry
+            >,
+          ),
+          CustomExtractorEntry,
+          PrefetchHooks Function()
+        > {
+  $$CustomExtractorEntriesTableTableManager(
+    _$AppDatabase db,
+    $CustomExtractorEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CustomExtractorEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CustomExtractorEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CustomExtractorEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> script = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> modifiedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CustomExtractorEntriesCompanion(
+                id: id,
+                name: name,
+                script: script,
+                createdAt: createdAt,
+                modifiedAt: modifiedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String script,
+                required int createdAt,
+                required int modifiedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CustomExtractorEntriesCompanion.insert(
+                id: id,
+                name: name,
+                script: script,
+                createdAt: createdAt,
+                modifiedAt: modifiedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CustomExtractorEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CustomExtractorEntriesTable,
+      CustomExtractorEntry,
+      $$CustomExtractorEntriesTableFilterComposer,
+      $$CustomExtractorEntriesTableOrderingComposer,
+      $$CustomExtractorEntriesTableAnnotationComposer,
+      $$CustomExtractorEntriesTableCreateCompanionBuilder,
+      $$CustomExtractorEntriesTableUpdateCompanionBuilder,
+      (
+        CustomExtractorEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $CustomExtractorEntriesTable,
+          CustomExtractorEntry
+        >,
+      ),
+      CustomExtractorEntry,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6727,4 +7313,9 @@ class $AppDatabaseManager {
       );
   $$ThumbnailCacheEntriesTableTableManager get thumbnailCacheEntries =>
       $$ThumbnailCacheEntriesTableTableManager(_db, _db.thumbnailCacheEntries);
+  $$CustomExtractorEntriesTableTableManager get customExtractorEntries =>
+      $$CustomExtractorEntriesTableTableManager(
+        _db,
+        _db.customExtractorEntries,
+      );
 }

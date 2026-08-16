@@ -46,6 +46,10 @@ class MockSettingsNotifier extends AsyncNotifier<AppSettings> implements Setting
   @override
   Future<void> setDownloadToCurrentFolder({required bool value}) async {}
   @override
+  Future<void> setCustomExtractorsEnabled({required bool value}) async {}
+  @override
+  Future<void> setExtractorBrowser(String? value) async {}
+  @override
   Future<void> setFolderSort(String path, dynamic option) async {}
   @override
   Future<void> cleanupFolderSorts(List<String> paths) async {}

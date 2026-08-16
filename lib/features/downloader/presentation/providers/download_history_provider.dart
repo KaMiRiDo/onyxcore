@@ -243,6 +243,7 @@ class DownloadHistorySelectionNotifier extends Notifier<Set<String>> {
   @override
   Set<String> build() => {};
 
+  // ignore: use_setters_to_change_properties
   void setAnchor(String id) {
     _lastSelectedId = id;
   }

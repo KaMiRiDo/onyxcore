@@ -135,8 +135,9 @@ class YouGetEngine extends DownloadEngine {
         'https://pypi.org/pypi/you-get/json',
       ]);
       if (res.exitCode == 0) {
-        final json = jsonDecode(res.stdout as String);
-        return json['info']?['version']?.toString();
+        final json = jsonDecode(res.stdout as String) as Map<String, dynamic>;
+        final info = json['info'] as Map<String, dynamic>?;
+        return info?['version']?.toString();
       }
     } catch (_) {}
     return null;

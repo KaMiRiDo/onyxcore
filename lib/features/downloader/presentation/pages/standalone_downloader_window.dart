@@ -435,9 +435,11 @@ class _StandaloneDownloaderWindowState
               url: group.originalUrl,
               destination: groupDest,
               title: group.first.isProfile ? '$folderName Profile' : folderName,
-              downloadType: group.first.isProfile
-                  ? 'profile'
-                  : (group.first.isPlaylist ? 'playlist' : 'generic'),
+              downloadType: group.first.isExtractorGroup 
+                  ? 'extractor'
+                  : group.first.isProfile
+                      ? 'profile'
+                      : (group.first.isPlaylist ? 'playlist' : 'generic'),
               format: config.format,
               audioOnly: config.mode == DownloadMode.audioOnly,
               mute: config.mode == DownloadMode.mute,
@@ -518,7 +520,7 @@ class _StandaloneDownloaderWindowState
               url: group.originalUrl,
               destination: groupDest,
               title: folderName,
-              downloadType: 'carousel',
+              downloadType: group.first.isExtractorGroup ? 'extractor' : 'carousel',
               format: config.format,
               audioOnly: config.mode == DownloadMode.audioOnly,
               mute: config.mode == DownloadMode.mute,
@@ -589,7 +591,7 @@ class _StandaloneDownloaderWindowState
             url: downloadUrl,
             destination: dest,
             title: finalTitle,
-            downloadType: info.isVideo ? 'video' : 'image',
+            downloadType: info.isExtractorGroup ? 'extractor' : (info.isVideo ? 'video' : 'image'),
             format: format,
             audioOnly: config.mode == DownloadMode.audioOnly,
             mute: config.mode == DownloadMode.mute,
@@ -675,7 +677,7 @@ class _StandaloneDownloaderWindowState
             url: downloadUrl,
             destination: itemDest,
             title: finalTitle,
-            downloadType: info.isVideo ? 'video' : 'image',
+            downloadType: info.isExtractorGroup ? 'extractor' : (info.isVideo ? 'video' : 'image'),
             format: format,
             audioOnly: config.mode == DownloadMode.audioOnly,
             mute: config.mode == DownloadMode.mute,
@@ -978,6 +980,29 @@ class _StandaloneDownloaderWindowState
         }
         return true;
       }
+      if (event.logicalKey == LogicalKeyboardKey.keyR) {
+        if (_currentGroup != null) {
+          _controller.analyzeUrls(_currentGroup!.originalUrl);
+        } else {
+          if (_selectedIndices.isNotEmpty) {
+            final urls = _selectedIndices.map((i) {
+              if (i < (_controller.cache.parsedItems?.length ?? 0)) {
+                return _controller.cache.parsedItems![i].originalUrl;
+              }
+              return '';
+            }).where((u) => u.isNotEmpty).join('\n');
+            if (urls.isNotEmpty) {
+              _controller.analyzeUrls(urls);
+            }
+          } else {
+             final urls = _controller.cache.parsedItems?.map((g) => g.originalUrl).join('\n') ?? '';
+             if (urls.isNotEmpty) {
+               _controller.analyzeUrls(urls);
+             }
+          }
+        }
+        return true;
+      }
     }
     return false;
   }
@@ -1176,7 +1201,7 @@ class _StandaloneDownloaderWindowState
             (_controller.cache.importedListPath == null && path == 'default')) {
           _controller.cache.isListChanged = false;
         } else {
-          _controller.cache.setCacheChanged(path, false);
+          _controller.cache.setCacheChanged(path, changed: false);
         }
       });
     }
@@ -1299,7 +1324,7 @@ class _StandaloneDownloaderWindowState
                     path == 'default')) {
               _controller.cache.isListChanged = false;
             } else {
-              _controller.cache.setCacheChanged(path, false);
+              _controller.cache.setCacheChanged(path, changed: false);
             }
           });
         }

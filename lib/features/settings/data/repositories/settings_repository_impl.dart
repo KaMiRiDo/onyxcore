@@ -51,6 +51,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const _openWithDialogWidth = 'open_with_dialog_width';
   static const _openWithDialogHeight = 'open_with_dialog_height';
   static const _sidePanelWidthPixels = 'side_panel_width_pixels';
+  static const _customExtractorsEnabled = 'customExtractorsEnabled';
+  static const _extractorBrowser = 'extractorBrowser';
 
   // Helper to read multiple settings at once (minimizes async round trips)
   Future<Map<String, String?>> _readAll(List<String> keys) async {
@@ -74,6 +76,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _downloadToCurrentFolder, _maxConcurrentDownloads, _maxLiveRecordingMinutes,
       _documentSearchCaseSensitive, _documentSearchUseRegex,
       _audioPlayerVolume, _videoPlayerVolume, _videoShowRemainingTime,
+      _customExtractorsEnabled, _extractorBrowser,
     ];
 
     final vals = await _readAll(keys);
@@ -126,6 +129,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       audioPlayerVolume: SettingsCodec.decodeDouble(vals[_audioPlayerVolume], fallback: 100),
       videoPlayerVolume: SettingsCodec.decodeDouble(vals[_videoPlayerVolume], fallback: 30),
       videoShowRemainingTime: SettingsCodec.decodeBool(vals[_videoShowRemainingTime], fallback: false),
+      customExtractorsEnabled: SettingsCodec.decodeBool(vals[_customExtractorsEnabled], fallback: false),
+      extractorBrowser: SettingsCodec.decodeNullableString(vals[_extractorBrowser]),
     );
   }
 
@@ -171,6 +176,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       // Nullable
       if (settings.cachedResolvedHwDec != null) _db.setSetting(_cachedResolvedHwDec, settings.cachedResolvedHwDec!) else _db.removeSetting(_cachedResolvedHwDec),
       if (settings.downloadBrowser != null) _db.setSetting(_downloadBrowser, settings.downloadBrowser!) else _db.removeSetting(_downloadBrowser),
+      if (settings.extractorBrowser != null) _db.setSetting(_extractorBrowser, settings.extractorBrowser!) else _db.removeSetting(_extractorBrowser),
+      _db.setSetting(_customExtractorsEnabled, SettingsCodec.encodeBool(settings.customExtractorsEnabled)),
       // Pinned folders
       _db.savePinnedFolders(settings.pinnedFolders),
     ]);
@@ -254,6 +261,19 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setDownloadToCurrentFolder({required bool value}) =>
       _db.setSetting(_downloadToCurrentFolder, SettingsCodec.encodeBool(value));
+
+  @override
+  Future<void> setCustomExtractorsEnabled({required bool value}) =>
+      _db.setSetting(_customExtractorsEnabled, SettingsCodec.encodeBool(value));
+
+  @override
+  Future<void> setExtractorBrowser(String? browser) async {
+    if (browser != null) {
+      await _db.setSetting(_extractorBrowser, browser);
+    } else {
+      await _db.removeSetting(_extractorBrowser);
+    }
+  }
 
   // ── Open With Dialog geometry ─────────────────────────────────────────────
 

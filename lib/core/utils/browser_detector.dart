@@ -1,5 +1,17 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:onyxcore/features/downloader/domain/entities/browser_capability.dart';
+
+class BrowserInfo {
+  const BrowserInfo({
+    required this.id,
+    required this.name,
+    required this.capability,
+  });
+  final String id;
+  final String name;
+  final BrowserCapability capability;
+}
 
 class BrowserDetector {
   static const List<String> _knownBrowsers = [
@@ -90,5 +102,44 @@ class BrowserDetector {
     } catch (_) {}
 
     return null;
+  }
+
+  /// Returns browsers capable of running custom extractors (Chromium-based only).
+  static Future<List<BrowserInfo>> getExtractorBrowsers() async {
+    final installed = await getInstalledBrowsers();
+    final results = <BrowserInfo>[];
+    
+    for (final browser in installed) {
+      var cap = BrowserCapability.other;
+      if (browser.contains('chrome') || browser.contains('chromium') || browser.contains('brave') || browser.contains('edge') || browser.contains('vivaldi') || browser.contains('opera')) {
+        cap = BrowserCapability.chromium;
+      } else if (browser.contains('firefox')) {
+        cap = BrowserCapability.firefox;
+      }
+      
+      results.add(BrowserInfo(
+        id: browser,
+        name: _formatBrowserName(browser),
+        capability: cap,
+      ));
+    }
+    
+    return results;
+  }
+
+  static String _formatBrowserName(String id) {
+    switch (id) {
+      case 'google-chrome': return 'Google Chrome';
+      case 'chrome': return 'Chrome';
+      case 'chromium': return 'Chromium';
+      case 'brave':
+      case 'brave-browser': return 'Brave';
+      case 'vivaldi': return 'Vivaldi';
+      case 'opera': return 'Opera';
+      case 'edge':
+      case 'microsoft-edge': return 'Microsoft Edge';
+      case 'firefox': return 'Firefox';
+      default: return id;
+    }
   }
 }

@@ -210,6 +210,17 @@ class RecordingDownloadsSharedController extends ChangeNotifier
   @override
   String selectedEngine = 'auto';
 
+  String _selectedExtractorId = 'none';
+
+  @override
+  String get selectedExtractorId => _selectedExtractorId;
+
+  @override
+  set selectedExtractorId(String id) {
+    _selectedExtractorId = id;
+    notifyListeners();
+  }
+
   @override
   int totalListSize = 0;
 
@@ -304,7 +315,7 @@ class RecordingDownloadsSharedController extends ChangeNotifier
   }
 
   @override
-  Future<void> hydrateProfile(String url) async {}
+  Future<void> hydrateProfile(String originalUrl, {bool fallbackToDirectLink = false}) async {}
 
   @override
   Future<void> cancelHydration(String url) async {
@@ -1319,7 +1330,7 @@ void main() {
 
         final textFields = find.byType(TextField);
         final urlField = textFields.first;
-        final searchField = textFields.at(1);
+        final searchField = textFields.last;
 
         // Trigger Ctrl+F
         await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);

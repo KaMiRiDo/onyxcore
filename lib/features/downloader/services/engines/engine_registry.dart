@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:onyxcore/features/downloader/services/deno_runtime.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/gallery_dl_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/lux_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/streamlink_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/youget_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
-import 'package:onyxcore/features/downloader/services/deno_runtime.dart';
 
 /// Central registry for download engines.
 ///

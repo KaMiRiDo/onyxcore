@@ -10,11 +10,15 @@ import 'package:onyxcore/core/utils/browser_detector.dart';
 import 'package:onyxcore/core/widgets/onyx_switch.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/dialogs.dart';
+import 'package:onyxcore/features/downloader/domain/entities/browser_capability.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/add_extractor_dialog.dart';
 import 'package:onyxcore/features/downloader/services/aria2_accelerator.dart';
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/components/browser_preference_tile.dart';
+import 'package:onyxcore/features/settings/presentation/widgets/components/extractor_list_tile.dart';
 
 class SettingsDialog extends ConsumerStatefulWidget {
 
@@ -645,6 +649,31 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                     },
                   ),
                 ),
+                _buildSettingTile(
+                  title: 'Custom Extractors',
+                  subtitle: 'Enable custom Javascript-based media extractors for unsupported websites.',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.customExtractorsEnabled ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          customExtractorsEnabled: value,
+                        );
+                      });
+                    },
+                  ),
+                ),
+                if (_draftSettings?.customExtractorsEnabled ?? false) ...[
+                  const BrowserPreferenceTile(),
+                  const ExtractorListTile(),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                        child: const _AddExtractorButton(),
+                    ),
+                  ),
+                ],
                 _buildInstalledEnginesSection(),
                 _buildSectionHeader('Sync', _generalKeys['Sync']!),
                 _buildEmptySection(
@@ -1808,8 +1837,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                         final processFuture = engine
                                             .uninstall();
                                         if (processFuture != null) {
-                                          // ignore: unawaited_futures
-                                          ref
+                                          unawaited(ref
                                               .read(
                                                 downloaderUpdateProvider
                                                     .notifier,
@@ -1818,7 +1846,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                                                 engine,
                                                 processFuture,
                                                 isRemoving: true,
-                                              );
+                                              ));
                                         }
                                       }
                                     },
@@ -2049,6 +2077,72 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     );
   }
 }
+
+class _AddExtractorButton extends StatefulWidget {
+  const _AddExtractorButton();
+
+  @override
+  State<_AddExtractorButton> createState() => _AddExtractorButtonState();
+}
+
+class _AddExtractorButtonState extends State<_AddExtractorButton> {
+  bool _isLoading = true;
+  bool _hasChromium = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBrowsers();
+  }
+
+  Future<void> _checkBrowsers() async {
+    final browsers = await BrowserDetector.getExtractorBrowsers();
+    if (mounted) {
+      setState(() {
+        _hasChromium = browsers.any((b) => b.capability == BrowserCapability.chromium);
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 40,
+        width: 140,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FilledButton.icon(
+          onPressed: _hasChromium
+              ? () {
+                  showDialog<void>(
+                    context: context,
+                    builder: (context) => const AddExtractorDialog(),
+                  );
+                }
+              : null,
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Add Extractor'),
+        ),
+        if (!_hasChromium)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'A Chromium-based browser (Chrome, Edge, Brave, etc.) is required to create extractors. Please install one.',
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 
 class GradientUnderlineTabIndicator extends Decoration {
   const GradientUnderlineTabIndicator({

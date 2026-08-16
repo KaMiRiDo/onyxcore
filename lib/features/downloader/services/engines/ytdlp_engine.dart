@@ -107,7 +107,27 @@ class YtDlpEngine extends DownloadEngine {
     }
 
     if (actualBrowser != null && actualBrowser.toLowerCase() != 'none') {
-      args.addAll(['--cookies-from-browser', actualBrowser]);
+      var mappedBrowser = actualBrowser.toLowerCase();
+      if (mappedBrowser.contains('brave')) {
+        mappedBrowser = 'brave';
+      } else if (mappedBrowser.contains('chrome')) {
+        mappedBrowser = 'chrome';
+      } else if (mappedBrowser.contains('chromium')) {
+        mappedBrowser = 'chromium';
+      } else if (mappedBrowser.contains('edge')) {
+        mappedBrowser = 'edge';
+      } else if (mappedBrowser.contains('firefox')) {
+        mappedBrowser = 'firefox';
+      } else if (mappedBrowser.contains('opera')) {
+        mappedBrowser = 'opera';
+      } else if (mappedBrowser.contains('safari')) {
+        mappedBrowser = 'safari';
+      } else if (mappedBrowser.contains('vivaldi')) {
+        mappedBrowser = 'vivaldi';
+      } else if (mappedBrowser.contains('whale')) {
+        mappedBrowser = 'whale';
+      }
+      args.addAll(['--cookies-from-browser', mappedBrowser]);
     }
 
     // Bypass Cloudflare TLS fingerprinting

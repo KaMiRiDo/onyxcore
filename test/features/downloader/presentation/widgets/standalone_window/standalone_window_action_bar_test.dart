@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_action_bar.dart';
@@ -15,7 +16,8 @@ void main() {
     var clearTapped = false;
 
     await tester.pumpWidget(
-      MaterialApp(
+      ProviderScope(
+        child: MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
             searchController: TextEditingController(),
@@ -41,6 +43,7 @@ void main() {
           ),
         ),
       ),
+      ),
     );
 
     expect(find.text('Default List'), findsOneWidget);
@@ -61,7 +64,8 @@ void main() {
     var emptyTrashTapped = false;
 
     await tester.pumpWidget(
-      MaterialApp(
+      ProviderScope(
+        child: MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
             searchController: TextEditingController(),
@@ -87,6 +91,7 @@ void main() {
           ),
         ),
       ),
+      ),
     );
 
     expect(find.text('Trash'), findsOneWidget);
@@ -102,7 +107,8 @@ void main() {
 
   testWidgets('StandaloneWindowActionBar renders trash view without buttons when empty', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
+      ProviderScope(
+        child: MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
             searchController: TextEditingController(),
@@ -128,6 +134,7 @@ void main() {
           ),
         ),
       ),
+      ),
     );
 
     expect(find.text('Trash'), findsOneWidget);
@@ -139,7 +146,8 @@ void main() {
     var backToRootTapped = false;
 
     await tester.pumpWidget(
-      MaterialApp(
+      ProviderScope(
+        child: MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
             searchController: TextEditingController(),
@@ -165,6 +173,7 @@ void main() {
           ),
         ),
       ),
+      ),
     );
 
     expect(find.text('My Custom List'), findsOneWidget);
@@ -183,7 +192,8 @@ void main() {
     });
 
     await tester.pumpWidget(
-      MaterialApp(
+      ProviderScope(
+        child: MaterialApp(
         home: Scaffold(
           body: StandaloneWindowActionBar(
             searchController: TextEditingController(),
@@ -209,6 +219,7 @@ void main() {
           ),
         ),
       ),
+      ),
     );
 
     // Verify rightmost button is at the right edge
@@ -218,7 +229,9 @@ void main() {
     expect(clearButtonRect.right, equals(1920.0 - 16.0));
 
     // Verify search box is absolutely centered
-    final searchBoxFinder = find.byType(TextField);
+    final searchBoxFinder = find.byWidgetPredicate(
+      (widget) => widget is TextField && widget.decoration?.hintText == 'Search...',
+    );
     expect(searchBoxFinder, findsOneWidget);
     final searchBoxRect = tester.getRect(searchBoxFinder);
     const screenCenter = 1920.0 / 2;

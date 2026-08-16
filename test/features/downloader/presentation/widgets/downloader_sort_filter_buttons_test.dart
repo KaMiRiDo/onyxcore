@@ -1,5 +1,6 @@
 // ignore_for_file: unused_local_variable, avoid_redundant_argument_values
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/domain/entities/downloader_filter_settings.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
@@ -7,7 +8,7 @@ import 'package:onyxcore/features/downloader/presentation/widgets/standalone_win
 
 void main() {
   group('DownloaderSortDropdown & DownloaderFilterButton Tests', () {
-    Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+    Widget wrap(Widget child) => ProviderScope(child: MaterialApp(home: Scaffold(body: child)));
 
     testWidgets('DownloaderSortDropdown contains only sort options (no media types)',
         (tester) async {

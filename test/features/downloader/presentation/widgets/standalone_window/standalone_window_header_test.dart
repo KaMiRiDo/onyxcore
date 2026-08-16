@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_header.dart';
 
@@ -18,15 +19,17 @@ void main() {
     var selectedEngine = 'auto';
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: StandaloneWindowHeader(
-            urlController: urlController,
-            urlFocusNode: urlFocusNode,
-            gradientController: gradientController,
-            onFetch: () => fetchCalled = true,
-            selectedEngine: selectedEngine,
-            onEngineChanged: (engine) => selectedEngine = engine,
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: StandaloneWindowHeader(
+              urlController: urlController,
+              urlFocusNode: urlFocusNode,
+              gradientController: gradientController,
+              onFetch: () => fetchCalled = true,
+              selectedEngine: selectedEngine,
+              onEngineChanged: (engine) => selectedEngine = engine,
+            ),
           ),
         ),
       ),

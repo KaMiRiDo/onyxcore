@@ -47,9 +47,8 @@ void main() {
       await tester.tap(find.text('Extraction Logs'));
       await tester.pumpAndSettle();
 
-      // Verify Scrollbar and SelectableText with smooth scrolling physics
       expect(find.byType(Scrollbar), findsOneWidget);
-      expect(find.byType(SelectableText), findsOneWidget);
+      expect(find.byType(SelectableText), findsWidgets);
       expect(find.textContaining('Log line 1'), findsOneWidget);
 
       // Verify smooth scrolling
@@ -101,7 +100,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify logs are visible immediately (initiallyExpanded = true)
-      expect(find.byType(SelectableText), findsOneWidget);
+      expect(find.byType(SelectableText), findsWidgets);
       expect(find.textContaining('Error Trace: Timeout'), findsOneWidget);
     },
   );
@@ -214,6 +213,43 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('40.00 MB'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'PropertiesDialog displays Source URL for single group selections',
+    (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final item = MediaInfo(
+        id: '1',
+        title: 'Sample Media',
+        originalUrl: 'https://custom-extractor.com/media/123',
+      );
+      final group = MediaGroup(
+        items: [item],
+        originalUrl: 'https://custom-extractor.com/media/123',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PropertiesDialog(
+              selectedItems: [group],
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Source URL'), findsOneWidget);
+      expect(find.text('https://custom-extractor.com/media/123'), findsOneWidget);
     },
   );
 }

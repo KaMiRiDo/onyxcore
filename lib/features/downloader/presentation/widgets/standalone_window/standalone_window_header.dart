@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
+import 'package:onyxcore/features/downloader/presentation/widgets/components/extractor_dropdown.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/settings_dialog.dart';
 
 class StandaloneWindowHeader extends StatelessWidget {
@@ -116,54 +117,45 @@ class StandaloneWindowHeader extends StatelessWidget {
 
   Widget _buildFetchRow(BuildContext context, bool isSmallWindow) {
     return Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Fetch Button
-                  Container(
-                    height: isSmallWindow ? 24 : 38,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          AppColors.magenta,
-                          AppColors.violet,
-                          AppColors.indigo,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
-                    ),
-                    child: ElevatedButton(
-                      onPressed: onFetch,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
-                        ),
-                      ),
-                      child: Text(
-                        'Fetch',
-                        style: GoogleFonts.manrope(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isSmallWindow ? 11 : 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Bottom Row (Dropdown + Settings)
+                  // Top Row (Fetch Button + Settings)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: SizedBox(
-                          height: isSmallWindow ? 24 : null,
-                          child: EngineSelectorDropdown(
-                            selectedEngine: selectedEngine,
-                            onChanged: onEngineChanged,
+                        child: Container(
+                          height: isSmallWindow ? 24 : 38,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.magenta,
+                                AppColors.violet,
+                                AppColors.indigo,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
+                          ),
+                          child: ElevatedButton(
+                            onPressed: onFetch,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
+                              ),
+                            ),
+                            child: Text(
+                              'Fetch',
+                              style: GoogleFonts.manrope(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallWindow ? 11 : 15,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -178,11 +170,11 @@ class StandaloneWindowHeader extends StatelessWidget {
                               section: 'Download Manager',
                             ),
                             child: Container(
-                              width: isSmallWindow ? 24 : 36,
-                              height: isSmallWindow ? 24 : 36,
+                              width: isSmallWindow ? 24 : 38,
+                              height: isSmallWindow ? 24 : 38,
                               decoration: BoxDecoration(
                                 color: AppColors.surfaceBase,
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
                                 border: Border.all(color: Colors.white10),
                               ),
                               child: Icon(
@@ -192,6 +184,29 @@ class StandaloneWindowHeader extends StatelessWidget {
                               ),
                             ),
                           ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Bottom Row (Dropdowns)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: isSmallWindow ? 24 : 38,
+                          child: EngineSelectorDropdown(
+                            selectedEngine: selectedEngine,
+                            onChanged: onEngineChanged,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SizedBox(
+                          height: isSmallWindow ? 24 : 38,
+                          child: const ExtractorDropdown(),
                         ),
                       ),
                     ],

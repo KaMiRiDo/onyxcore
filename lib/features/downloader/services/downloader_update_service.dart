@@ -98,7 +98,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       'venv',
     );
     final venvDir = Directory(venvPath);
-    if (!await venvDir.exists()) {
+    if (!venvDir.existsSync()) {
       final res = await Process.run('python3', ['-m', 'venv', venvPath]);
       if (res.exitCode != 0) {
         throw Exception('Failed to create global virtual environment: ${res.stderr}');
@@ -149,7 +149,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           'bin',
         ),
       );
-      if (!await binDir.exists()) await binDir.create(recursive: true);
+      if (!binDir.existsSync()) await binDir.create(recursive: true);
 
       var completed = 0;
       for (final engine in enginesToUpdate) {
@@ -208,7 +208,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         ),
       );
 
-      if (!await binDir.exists()) {
+      if (!binDir.existsSync()) {
         await binDir.create(recursive: true);
       }
 
@@ -336,7 +336,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         await _ensureGlobalVenv();
       }
       final process = await processFuture;
-      process.stdout.drain<void>(); // Consume stdout to prevent pipe deadlock
+      unawaited(process.stdout.drain<void>()); // Consume stdout to prevent pipe deadlock
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode;
       final stderr = await stderrFuture;
@@ -389,18 +389,20 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       }
 
       final resBody = await res.transform(utf8.decoder).join();
-      final json = jsonDecode(resBody);
-      final assets = json['assets'] as List<dynamic>?;
+      final json = jsonDecode(resBody) as Map<String, dynamic>;
+      final assets = (json['assets'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
 
       if (assets == null || assets.isEmpty) {
         throw Exception('No assets found in the release');
       }
 
-      // Find the asset that contains the assetName (so 'Linux_x86_64.tar.gz' matches 'lux_1.0_Linux_x86_64.tar.gz')
-      final asset = assets.firstWhere(
-        (a) => (a['name'] as String).contains(assetName),
-        orElse: () => null,
-      );
+      Map<String, dynamic>? asset;
+      for (final a in assets) {
+        if ((a['name'] as String).contains(assetName)) {
+          asset = a;
+          break;
+        }
+      }
 
       if (asset == null) {
         throw Exception('Asset $assetName not found in release');
@@ -487,10 +489,13 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       }
 
       if (checksumAssetName != null) {
-        final checksumAsset = assets.firstWhere(
-          (a) => a['name'] == checksumAssetName,
-          orElse: () => null,
-        );
+        Map<String, dynamic>? checksumAsset;
+        for (final a in assets) {
+          if (a['name'] == checksumAssetName) {
+            checksumAsset = a;
+            break;
+          }
+        }
         if (checksumAsset != null) {
           final checksumUrl = checksumAsset['browser_download_url'] as String;
           final checksumReq = await client.getUrl(Uri.parse(checksumUrl));

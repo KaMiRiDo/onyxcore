@@ -153,6 +153,8 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
 
                     if (isAudioFormat) {
                       typeIcon = Icons.audiotrack_rounded;
+                    } else if (group.first.isExtractorGroup && currentGroup == null) {
+                      typeIcon = Icons.public_rounded; // Globe icon fallback
                     } else if (group.first.isProfile) {
                       typeIcon = Icons.account_circle_rounded;
                     } else if (group.first.isPlaylist) {
@@ -179,20 +181,30 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                     final isFetching =
                         firstItem?.id == 'fetch_loading' ||
                         firstItem?.id == 'hydration_loading';
-                    if (!isFetching) {
-                      if (firstItem?.thumbnail != null &&
-                          firstItem!.thumbnail!.isNotEmpty) {
-                        thumbUrl = firstItem.thumbnail;
-                      } else if (!(firstItem?.isVideo ?? true) &&
-                          (firstItem?.directUrl != null &&
-                              firstItem!.directUrl!.isNotEmpty)) {
-                        thumbUrl = firstItem.directUrl;
-                      } else if (!(firstItem?.isVideo ?? true) &&
-                          (firstItem != null &&
-                              firstItem.originalUrl.isNotEmpty) &&
-                          (firstItem.originalUrl.startsWith('http://') ||
-                              firstItem.originalUrl.startsWith('https://'))) {
-                        thumbUrl = firstItem.originalUrl;
+
+                    if (firstItem?.thumbnail != null &&
+                        firstItem!.thumbnail!.isNotEmpty) {
+                      thumbUrl = firstItem.thumbnail;
+                    } else if (!(firstItem?.isVideo ?? true) &&
+                        (firstItem?.directUrl != null &&
+                            firstItem!.directUrl!.isNotEmpty)) {
+                      thumbUrl = firstItem.directUrl;
+                    } else if (!isFetching &&
+                        !(firstItem?.isVideo ?? true) &&
+                        (firstItem != null &&
+                            firstItem.originalUrl.isNotEmpty) &&
+                        (firstItem.originalUrl.startsWith('http://') ||
+                            firstItem.originalUrl.startsWith('https://'))) {
+                      thumbUrl = firstItem.originalUrl;
+                    }
+
+                    if ((thumbUrl == null || thumbUrl.isEmpty) &&
+                        group.first.isExtractorGroup &&
+                        currentGroup == null) {
+                      final host = Uri.tryParse(group.originalUrl)?.host;
+                      if (host != null) {
+                        thumbUrl =
+                            'https://www.google.com/s2/favicons?domain=$host&sz=256';
                       }
                     }
                     double aspectRatio = 1;
@@ -287,9 +299,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                               fit: BoxFit.contain,
                                               cacheWidth: 300,
                                               errorBuilder: (c, e, s) =>
-                                                  const Center(
+                                                  Center(
                                                     child: Icon(
-                                                      Icons.image,
+                                                      typeIcon,
                                                       color: Colors.white24,
                                                       size: 36,
                                                     ),
@@ -303,14 +315,28 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                               },
                                               fit: BoxFit.contain,
                                               cacheWidth: 300,
-                                              errorBuilder: (c, e, s) =>
-                                                  const Center(
-                                                    child: Icon(
-                                                      Icons.image,
-                                                      color: Colors.white24,
-                                                      size: 36,
+                                              errorBuilder: (c, e, s) {
+                                                if (group.first.isExtractorGroup && currentGroup == null) {
+                                                  return Image.network(
+                                                    'https://www.google.com/s2/favicons?domain=${Uri.tryParse(group.originalUrl)?.host}&sz=256',
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder: (c, e, s) => Center(
+                                                      child: Icon(
+                                                        typeIcon,
+                                                        color: Colors.white24,
+                                                        size: 36,
+                                                      ),
                                                     ),
+                                                  );
+                                                }
+                                                return Center(
+                                                  child: Icon(
+                                                    typeIcon,
+                                                    color: Colors.white24,
+                                                    size: 36,
                                                   ),
+                                                );
+                                              },
                                               loadingBuilder:
                                                   (
                                                     context,
@@ -337,9 +363,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                             ),
                                     );
                                   } else {
-                                    return const Center(
+                                    return Center(
                                       child: Icon(
-                                        Icons.image,
+                                        typeIcon,
                                         size: 48,
                                         color: Colors.white10,
                                       ),
@@ -357,11 +383,22 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                     color: Colors.black.withValues(alpha: 0.7),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: Icon(
-                                    typeIcon,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
+                                  child: (group.first.isExtractorGroup && currentGroup == null) 
+                                      ? Image.network(
+                                          'https://www.google.com/s2/favicons?domain=${Uri.tryParse(group.originalUrl)?.host}&sz=64',
+                                          width: 14,
+                                          height: 14,
+                                          errorBuilder: (context, error, stackTrace) => Icon(
+                                            Icons.public_rounded,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
+                                        )
+                                      : Icon(
+                                          typeIcon,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
                                 ),
                               ),
                               if (isTagged)

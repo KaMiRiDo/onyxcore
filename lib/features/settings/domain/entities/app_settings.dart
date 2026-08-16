@@ -8,8 +8,8 @@ enum SpeedControlOption {
   releaseToFix('Release to Fix')
   ;
 
-  final String label;
   const SpeedControlOption(this.label);
+  final String label;
 }
 
 /// Immutable application settings entity.
@@ -55,6 +55,8 @@ class AppSettings extends Equatable {
     this.audioPlayerVolume = 100.0,
     this.videoPlayerVolume = 30.0,
     this.videoShowRemainingTime = false,
+    this.customExtractorsEnabled = false,
+    this.extractorBrowser,
   });
 
   /// Whether to open medias and files in standalone mode by default.
@@ -165,6 +167,12 @@ class AppSettings extends Equatable {
   /// Whether the video player should show remaining time instead of total time.
   final bool videoShowRemainingTime;
 
+  /// Whether custom extractors are enabled.
+  final bool customExtractorsEnabled;
+
+  /// The browser used by custom extractors.
+  final String? extractorBrowser;
+
   AppSettings copyWith({
     bool? openInStandaloneMode,
     bool? autoPlayNext,
@@ -202,6 +210,8 @@ class AppSettings extends Equatable {
     double? audioPlayerVolume,
     double? videoPlayerVolume,
     bool? videoShowRemainingTime,
+    bool? customExtractorsEnabled,
+    String? extractorBrowser,
   }) {
     return AppSettings(
       openInStandaloneMode: openInStandaloneMode ?? this.openInStandaloneMode,
@@ -247,6 +257,8 @@ class AppSettings extends Equatable {
       audioPlayerVolume: audioPlayerVolume ?? this.audioPlayerVolume,
       videoPlayerVolume: videoPlayerVolume ?? this.videoPlayerVolume,
       videoShowRemainingTime: videoShowRemainingTime ?? this.videoShowRemainingTime,
+      customExtractorsEnabled: customExtractorsEnabled ?? this.customExtractorsEnabled,
+      extractorBrowser: extractorBrowser ?? this.extractorBrowser,
     );
   }
 
@@ -288,5 +300,7 @@ class AppSettings extends Equatable {
     audioPlayerVolume,
     videoPlayerVolume,
     videoShowRemainingTime,
+    customExtractorsEnabled,
+    extractorBrowser,
   ];
 }

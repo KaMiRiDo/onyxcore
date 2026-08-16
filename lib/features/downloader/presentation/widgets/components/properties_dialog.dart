@@ -120,10 +120,12 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
     // Determine logs and error state to show if it's a single root item
     String? logs;
     var isError = false;
+    String? sourceUrl;
     if (isSingleGroup) {
       final group = widget.selectedItems.first as MediaGroup;
       logs = group.first.fetchLogs;
       isError = group.first.isError || group.first.errorMessage != null;
+      sourceUrl = group.originalUrl;
     }
 
     final hasLogs = isSingleGroup && logs != null && logs.isNotEmpty;
@@ -402,6 +404,39 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
                                     ),
                                   );
                                 }).toList(),
+                              ),
+                            ],
+                            if (sourceUrl != null) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.link_rounded,
+                                    size: 14,
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 80,
+                                    child: Text(
+                                      'Source URL',
+                                      style: GoogleFonts.manrope(
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: SelectableText(
+                                      sourceUrl,
+                                      style: GoogleFonts.manrope(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ],

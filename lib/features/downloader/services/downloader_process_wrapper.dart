@@ -32,6 +32,7 @@ class MediaDownloaderBackend {
     String? browser,
     bool fetchDeep = false,
     bool isPlaylist = false,
+    bool fallbackToDirectLink = false,
     void Function(MediaInfo info)? onProgress,
     void Function(int pid)? onProcessStarted,
   }) async {
@@ -109,12 +110,12 @@ class MediaDownloaderBackend {
               '$pipelineLogs[$engineId]:\n$currentLogs';
 
           successfulInfos[i] = successfulInfos[i].copyWith(
+            id: successfulInfos[i].id.isEmpty ? 'item_${url.hashCode}_$i' : successfulInfos[i].id,
             engineId: successfulInfos[i].engineId ?? successfulEngineId,
-            errorMessage:
-                successfulInfos[i].errorMessage ??
-                (engineErrors.isNotEmpty ? engineErrors.values.first : null),
+            errorMessage: successfulInfos[i].errorMessage,
             fetchLogs: formattedSuccessLogs,
           );
+          if (onProgress != null) onProgress(successfulInfos[i]);
         }
         results.addAll(successfulInfos);
       } else {
@@ -132,9 +133,33 @@ class MediaDownloaderBackend {
           idx++;
         }
 
-        results.add(
-          MediaInfo(
-            id: '',
+        if (fallbackToDirectLink &&
+            (url.startsWith('http://') || url.startsWith('https://'))) {
+          var fallbackTitle = url;
+          try {
+            final uri = Uri.parse(url);
+            if (uri.pathSegments.isNotEmpty) {
+              fallbackTitle = uri.pathSegments.last;
+            }
+          } catch (_) {}
+          
+          final probedSize = await _probeFallbackSize(url);
+          
+          final fallbackInfo = MediaInfo(
+            id: 'fallback_${url.hashCode}',
+            title: fallbackTitle,
+            originalUrl: url,
+            directUrl: url,
+            thumbnail: url,
+            isVideo: false,
+            filesize: probedSize,
+            fetchLogs: pipelineLogs.toString(),
+          );
+          if (onProgress != null) onProgress(fallbackInfo);
+          results.add(fallbackInfo);
+        } else {
+          final errInfo = MediaInfo(
+            id: 'err_${url.hashCode}',
             title: url,
             originalUrl: url,
             isError: true,
@@ -142,12 +167,28 @@ class MediaDownloaderBackend {
                 ? errorMsg
                 : 'All available engines failed to analyze this URL.',
             fetchLogs: pipelineLogs.toString(),
-          ),
-        );
+          );
+          if (onProgress != null) onProgress(errInfo);
+          results.add(errInfo);
+        }
       }
     }
 
     return results;
+  }
+
+  static Future<int?> _probeFallbackSize(String url) async {
+    try {
+      final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
+      final req = await client.headUrl(Uri.parse(url));
+      final res = await req.close();
+      if (res.contentLength > 0) {
+        client.close(force: true);
+        return res.contentLength;
+      }
+      client.close(force: true);
+    } catch (_) {}
+    return null;
   }
 
   static Future<Process> startDownload({

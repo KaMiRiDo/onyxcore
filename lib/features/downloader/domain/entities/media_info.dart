@@ -251,6 +251,9 @@ class MediaInfo {
     this.tag,
     this.tagSortOrder,
     this.uploadDate,
+    this.isExtractorGroup = false,
+    this.extractorId,
+    this.extractorName,
   });
 
   factory MediaInfo.fromJson(
@@ -325,14 +328,16 @@ class MediaInfo {
     } else if (formatsJson != null && formatsJson.isNotEmpty) {
       isVid =
           true; // yt-dlp default assumption if vcodec missing but formats exist
-    } else if (json['extension'] != null) {
+    } else if (json['ext'] != null || json['extension'] != null) {
+      final ext = (json['ext'] ?? json['extension']).toString().toLowerCase();
       isVid = [
         'mp4',
         'webm',
         'mkv',
         'mov',
         'avi',
-      ].contains(json['extension'].toString().toLowerCase());
+        'm3u8',
+      ].contains(ext);
     }
 
     return MediaInfo(
@@ -342,7 +347,8 @@ class MediaInfo {
           json['thumbnail']?.toString() ??
           (json['thumbnails'] is List && (json['thumbnails'] as List).isNotEmpty
               ? ((json['thumbnails'] as List).last as Map<String, dynamic>)['url']?.toString()
-              : null),
+              : null) ??
+          (!isVid && (json['ext'] == 'jpg' || json['ext'] == 'png' || json['ext'] == 'webp' || json['ext'] == 'gif') ? json['url']?.toString() : null),
       duration: (json['duration'] as num?)?.toInt(),
       filesize: () {
         var size = (json['filesize'] as num?)?.toInt() ??
@@ -427,6 +433,9 @@ class MediaInfo {
       tag: json['tag']?.toString(),
       tagSortOrder: json['tagSortOrder']?.toString(),
       uploadDate: _parseUploadDate(json),
+      isExtractorGroup: json['isExtractorGroup'] as bool? ?? false,
+      extractorId: json['extractorId']?.toString(),
+      extractorName: json['extractorName']?.toString(),
     );
   }
 
@@ -463,6 +472,9 @@ class MediaInfo {
       uploadDate: map['uploadDate'] != null
           ? DateTime.tryParse(map['uploadDate'].toString())
           : null,
+      isExtractorGroup: map['isExtractorGroup'] as bool? ?? false,
+      extractorId: map['extractorId']?.toString(),
+      extractorName: map['extractorName']?.toString(),
     );
   }
   final String id;
@@ -490,6 +502,9 @@ class MediaInfo {
   final String? tag;
   final String? tagSortOrder;
   final DateTime? uploadDate;
+  final bool isExtractorGroup;
+  final String? extractorId;
+  final String? extractorName;
 
   MediaInfo copyWith({
     String? id,
@@ -513,6 +528,9 @@ class MediaInfo {
     String? tagSortOrder,
     bool clearTag = false,
     DateTime? uploadDate,
+    bool? isExtractorGroup,
+    String? extractorId,
+    String? extractorName,
   }) {
     return MediaInfo(
       id: id ?? this.id,
@@ -539,6 +557,9 @@ class MediaInfo {
       tag: clearTag ? null : (tag ?? this.tag),
       tagSortOrder: clearTag ? null : (tagSortOrder ?? this.tagSortOrder),
       uploadDate: uploadDate ?? this.uploadDate,
+      isExtractorGroup: isExtractorGroup ?? this.isExtractorGroup,
+      extractorId: extractorId ?? this.extractorId,
+      extractorName: extractorName ?? this.extractorName,
     );
   }
 
@@ -569,6 +590,9 @@ class MediaInfo {
       if (tag != null) 'tag': tag,
       if (tagSortOrder != null) 'tagSortOrder': tagSortOrder,
       if (uploadDate != null) 'uploadDate': uploadDate!.toIso8601String(),
+      if (isExtractorGroup) 'isExtractorGroup': isExtractorGroup,
+      if (extractorId != null) 'extractorId': extractorId,
+      if (extractorName != null) 'extractorName': extractorName,
     };
   }
 }

@@ -5,16 +5,14 @@ import 'package:onyxcore/features/downloader/presentation/widgets/components/dow
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 
 class MockDownloaderUpdateNotifier extends DownloaderUpdateNotifier {
-  DownloaderUpdateState _state;
 
   MockDownloaderUpdateNotifier(this._state);
+  final DownloaderUpdateState _state;
 
   @override
   DownloaderUpdateState build() => _state;
 
-  void setState(DownloaderUpdateState newState) {
-    state = newState;
-  }
+
 
   @override
   Future<void> updateBinaries() async {}
@@ -33,7 +31,7 @@ void main() {
   group('DownloadsMissingBinariesView Tests', () {
     testWidgets('Shows Install button when not updating', (tester) async {
       final mockNotifier = MockDownloaderUpdateNotifier(
-        const DownloaderUpdateState(isUpdating: false),
+        const DownloaderUpdateState(),
       );
 
       await tester.pumpWidget(
@@ -85,7 +83,6 @@ void main() {
         const DownloaderUpdateState(
           isUpdating: true,
           progress: 0.60,
-          currentUpdatingEngineName: null,
         ),
       );
 

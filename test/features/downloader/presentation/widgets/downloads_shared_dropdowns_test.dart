@@ -1,12 +1,13 @@
 // ignore_for_file: cascade_invocations, unused_local_variable
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
-import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
-import 'dart:io';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_dropdowns.dart';
+import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
+import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/downloader/services/engines/ytdlp_engine.dart';
 
 class _MockEngine extends DownloadEngine {
