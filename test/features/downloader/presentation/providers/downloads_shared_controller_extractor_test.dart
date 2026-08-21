@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -45,8 +46,14 @@ void main() {
   setUp(() {
     mockExtractorNotifier = MockCustomExtractorNotifier();
     mockRuntime = MockExtractorRuntimeService();
-    when(() => mockRuntime.execute(any(), any(), browser: any(named: 'browser'), onLog: any(named: 'onLog')))
-        .thenAnswer((_) async => ExtractorResult(['https://example.com/video.mp4'], 'mock logs'));
+    when(() => mockRuntime.execute(
+          any(),
+          any(),
+          browser: any(named: 'browser'),
+          config: any(named: 'config'),
+          onLog: any(named: 'onLog'),
+          onProcessStarted: any(named: 'onProcessStarted'),
+        )).thenAnswer((_) async => ExtractorResult(['https://example.com/video.mp4'], 'mock logs'));
   });
 
   Future<ProviderContainer> createContainer({
@@ -74,7 +81,14 @@ void main() {
       // Default extractor is 'none'
       await controller.analyzeUrls('https://example.com/direct');
       
-      verifyNever(() => mockRuntime.execute(any(), any(), browser: any(named: 'browser'), onLog: any(named: 'onLog')));
+      verifyNever(() => mockRuntime.execute(
+            any(),
+            any(),
+            browser: any(named: 'browser'),
+            config: any(named: 'config'),
+            onLog: any(named: 'onLog'),
+            onProcessStarted: any(named: 'onProcessStarted'),
+          ));
     });
 
     test('analyzeUrls runs custom extractor if selected', () async {
@@ -85,12 +99,42 @@ void main() {
       final controller = container.read(downloadsSharedControllerProvider)
         ..selectedExtractorId = 'test_ext';
       
+      when(() => mockRuntime.execute(
+            any(),
+            'https://example.com/extractme',
+            browser: any(named: 'browser'),
+            config: any(named: 'config'),
+            onLog: any(named: 'onLog'),
+            onProcessStarted: any(named: 'onProcessStarted'),
+          )).thenAnswer((_) async => ExtractorResult([], 'mock logs'));
+
       // We don't await because analyzeUrls fires and forgets the backend part
       // but we await the initial execution
-      await controller.analyzeUrls('https://example.com/extractme');
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      unawaited(controller.analyzeUrls('https://example.com/extractme'));
       
-      verify(() => mockRuntime.execute(any(), 'https://example.com/extractme', browser: any(named: 'browser'), onLog: any(named: 'onLog'))).called(1);
+      // Allow pipeline to start
+      for (var i = 0; i < 50; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        if (controller.activeExtractorPids.containsKey('https://example.com/extractme') || (controller.cache.parsedItems?.isNotEmpty ?? false)) break;
+      }
+      
+      verify(() => mockRuntime.execute(
+            any(),
+            'https://example.com/extractme',
+            browser: any(named: 'browser'),
+            config: any(named: 'config'),
+            onLog: any(named: 'onLog'),
+            onProcessStarted: any(named: 'onProcessStarted'),
+          )).called(1);
+      
+      // Wait for PID to be cleared and pipeline to finish
+      for (var i = 0; i < 50; i++) {
+        if (!controller.activeExtractorPids.containsKey('https://example.com/extractme')) {
+          await Future<void>.delayed(const Duration(milliseconds: 50)); // let downstream microtasks finish
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
     });
 
     test('analyzeUrls triggers hydrateProfile when extractor returns playlist (Manual test required for backend callback)', () async {
@@ -98,6 +142,109 @@ void main() {
       // This test serves as a characterization stub. Full verification of the hydrateProfile
       // trigger is performed manually as documented in the implementation plan.
       expect(true, true);
+    });
+    test('analyzeUrls registers and cleans up extractor PID on success', () async {
+      final container = await createContainer(
+        settings: const AppSettings(customExtractorsEnabled: true),
+      );
+      await container.read(customExtractorsProvider.future);
+      final controller = container.read(downloadsSharedControllerProvider)
+        ..selectedExtractorId = 'test_ext';
+      
+      when(() => mockRuntime.execute(
+            any(),
+            any(),
+            browser: any(named: 'browser'),
+            config: any(named: 'config'),
+            onLog: any(named: 'onLog'),
+            onProcessStarted: any(named: 'onProcessStarted'),
+          )).thenAnswer((invocation) async {
+        final onProcessStarted = invocation.namedArguments[#onProcessStarted] as void Function(int pid)?;
+        onProcessStarted?.call(12345);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return ExtractorResult([], 'mock logs');
+      });
+
+      unawaited(controller.analyzeUrls('https://example.com/pid'));
+      
+      // Wait for PID to appear
+      for (var i = 0; i < 50; i++) {
+        if (controller.activeExtractorPids.containsKey('https://example.com/pid')) break;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      
+      expect(controller.activeExtractorPids['https://example.com/pid'], contains(12345));
+      
+      // Wait for PID to be cleared
+      for (var i = 0; i < 50; i++) {
+        if (!controller.activeExtractorPids.containsKey('https://example.com/pid')) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      
+      expect(controller.activeExtractorPids.containsKey('https://example.com/pid'), isFalse);
+    });
+
+    test('analyzeUrls cleans up extractor PID on failure', () async {
+      final container = await createContainer(
+        settings: const AppSettings(customExtractorsEnabled: true),
+      );
+      await container.read(customExtractorsProvider.future);
+      final controller = container.read(downloadsSharedControllerProvider)
+        ..selectedExtractorId = 'test_ext';
+      
+      when(() => mockRuntime.execute(
+            any(),
+            any(),
+            browser: any(named: 'browser'),
+            config: any(named: 'config'),
+            onLog: any(named: 'onLog'),
+            onProcessStarted: any(named: 'onProcessStarted'),
+          )).thenAnswer((invocation) async {
+        final onProcessStarted = invocation.namedArguments[#onProcessStarted] as void Function(int pid)?;
+        onProcessStarted?.call(9999);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        throw ExtractorException('Simulated timeout', 'logs');
+      });
+
+      unawaited(controller.analyzeUrls('https://example.com/fail'));
+      
+      // Wait for PID to appear
+      for (var i = 0; i < 50; i++) {
+        if (controller.activeExtractorPids.containsKey('https://example.com/fail')) break;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(controller.activeExtractorPids['https://example.com/fail'], contains(9999));
+      
+      // Wait for PID to be cleared after failure
+      for (var i = 0; i < 50; i++) {
+        if (!controller.activeExtractorPids.containsKey('https://example.com/fail')) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(controller.activeExtractorPids.containsKey('https://example.com/fail'), isFalse);
+    });
+
+    test('cancelExtraction removes PID and sets error state', () async {
+      final container = await createContainer(
+        settings: const AppSettings(customExtractorsEnabled: true),
+      );
+      await container.read(customExtractorsProvider.future);
+      final controller = container.read(downloadsSharedControllerProvider)
+        ..selectedExtractorId = 'test_ext';
+      
+      controller.activeExtractorPids['https://example.com/cancel'] = [54321];
+      controller.activeHydrationPids['https://example.com/cancel'] = [11111]; // simulate parallel hydration
+      
+      await controller.cancelExtraction('https://example.com/cancel');
+      
+      expect(controller.activeExtractorPids.containsKey('https://example.com/cancel'), isFalse);
+      // Ensure hydration PIDs are unaffected
+      expect(controller.activeHydrationPids['https://example.com/cancel'], contains(11111));
     });
   });
 }

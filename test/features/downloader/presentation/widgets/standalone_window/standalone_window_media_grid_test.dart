@@ -405,4 +405,53 @@ void main() {
 
     expect(cancelledUrl, equals('https://youtube.com/playlist?list=123'));
   });
+  testWidgets('StandaloneWindowMediaGrid suppresses hydration overlay and cancel button for error items', (tester) async {
+    final info = MediaInfo(
+      id: 'err1',
+      title: 'Errored Media',
+      originalUrl: 'https://youtube.com/playlist?list=123',
+      errorMessage: 'Download failed',
+      isError: true,
+    );
+    final group = MediaGroup(originalUrl: 'https://youtube.com/playlist?list=123', items: [info]);
+    String? cancelledUrl;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StandaloneWindowMediaGrid(
+            listPath: '',
+            isTrashView: false,
+            groups: [group],
+            currentGroup: null,
+            selectedIndices: const {},
+            downloadingImageIndices: const {},
+            getConfig: (g) => null,
+            isHydratingItem: (id) => true, // Simulate hydration is still active for parent
+            onCancelHydration: (url) {
+              cancelledUrl = url;
+            },
+            onTagItem: (url, tag) {},
+            onTapItem: (i, {isCtrl = false, isShift = false}) {},
+            onDoubleTapItem: (i, g) {},
+            onRestoreTrashItem: (i) {},
+            onFormatChanged: (index, format) {},
+            onFilterChanged: (index, filter) {},
+            onStartDownload: (index) {},
+            mainFocusNode: FocusNode(),
+            matchTargetFormat: (info, format) => format,
+            getHeight: (res) => 1080,
+            getFormatBytes: (i, f, c) => null,
+          ),
+        ),
+      ),
+    );
+
+    // Should NOT find BubbleLoader or Cancel button because isError is true
+    expect(find.byType(BubbleLoader), findsNothing);
+    expect(find.text('Cancel'), findsNothing);
+    
+    // Error icon should still be present
+    expect(find.byIcon(Icons.error_outline), findsWidgets);
+  });
 }

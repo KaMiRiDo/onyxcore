@@ -15,8 +15,12 @@ class CustomExtractor {
       id: map['id']?.toString() ?? '',
       name: map['name']?.toString() ?? '',
       script: map['script']?.toString() ?? '',
-      createdAt: DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num).toInt()),
-      modifiedAt: DateTime.fromMillisecondsSinceEpoch((map['modifiedAt'] as num).toInt()),
+      createdAt: map['createdAt'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num).toInt())
+          : DateTime.now(),
+      modifiedAt: map['modifiedAt'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch((map['modifiedAt'] as num).toInt())
+          : DateTime.now(),
     );
   }
 

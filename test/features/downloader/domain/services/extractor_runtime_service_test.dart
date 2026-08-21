@@ -23,7 +23,14 @@ void main() {
       );
 
       // Define behavior
-      when(() => mockService.execute(any(), any(), browser: any(named: 'browser'), onLog: any(named: 'onLog'))).thenAnswer((_) async => ExtractorResult([
+      when(() => mockService.execute(
+        any(),
+        any(),
+        browser: any(named: 'browser'),
+        config: any(named: 'config'),
+        onLog: any(named: 'onLog'),
+        onProcessStarted: any(named: 'onProcessStarted'),
+      )).thenAnswer((_) async => ExtractorResult([
         'http://media.com/1.mp4',
       ], 'test log'));
       

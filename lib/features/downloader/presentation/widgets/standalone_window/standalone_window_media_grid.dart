@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,7 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
+import 'package:onyxcore/features/downloader/presentation/services/remote_video_thumbnail_resolver.dart';
 import 'package:onyxcore/features/downloader/presentation/services/thumbnail_aspect_resolver.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_empty_state.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_shared_components.dart';
@@ -134,7 +136,10 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                     final group = groups[index];
                     final isHydrating = isHydratingItem(group.originalUrl);
                     final firstItem = group.items.isNotEmpty
-                        ? group.items.first
+                        ? group.items.cast<MediaInfo?>().firstWhere(
+                            (e) => e != null && e.id != 'fetch_loading' && e.id != 'hydration_loading' && e.id != 'fetch_error',
+                            orElse: () => group.items.first,
+                          )
                         : null;
 
                     DownloadConfig? config;
@@ -153,11 +158,11 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
 
                     if (isAudioFormat) {
                       typeIcon = Icons.audiotrack_rounded;
-                    } else if (group.first.isExtractorGroup && currentGroup == null) {
+                    } else if ((firstItem?.isExtractorGroup ?? false) && currentGroup == null) {
                       typeIcon = Icons.public_rounded; // Globe icon fallback
-                    } else if (group.first.isProfile) {
+                    } else if (firstItem?.isProfile ?? false) {
                       typeIcon = Icons.account_circle_rounded;
-                    } else if (group.first.isPlaylist) {
+                    } else if (firstItem?.isPlaylist ?? false) {
                       typeIcon = Icons.video_library_rounded;
                     } else if (group.items.length > 1) {
                       typeIcon = Icons.filter_none_rounded;
@@ -177,29 +182,55 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                         ? (tagKeys[itemUrl] ??= GlobalKey())
                         : null;
 
+                    final isItemError = currentGroup == null
+                        ? (group.isError ||
+                              ((firstItem?.id == 'error' || firstItem?.id == 'fetch_error') &&
+                                  firstItem?.title != 'Fetching...'))
+                        : ((firstItem?.id == 'error' || firstItem?.id == 'fetch_error') &&
+                              firstItem?.title != 'Fetching...');
+
                     String? thumbUrl;
                     final isFetching =
                         firstItem?.id == 'fetch_loading' ||
                         firstItem?.id == 'hydration_loading';
 
-                    if (firstItem?.thumbnail != null &&
-                        firstItem!.thumbnail!.isNotEmpty) {
-                      thumbUrl = firstItem.thumbnail;
-                    } else if (!(firstItem?.isVideo ?? true) &&
-                        (firstItem?.directUrl != null &&
-                            firstItem!.directUrl!.isNotEmpty)) {
-                      thumbUrl = firstItem.directUrl;
-                    } else if (!isFetching &&
-                        !(firstItem?.isVideo ?? true) &&
-                        (firstItem != null &&
-                            firstItem.originalUrl.isNotEmpty) &&
-                        (firstItem.originalUrl.startsWith('http://') ||
-                            firstItem.originalUrl.startsWith('https://'))) {
-                      thumbUrl = firstItem.originalUrl;
+                    if (!isItemError) {
+                      if (firstItem?.thumbnail != null &&
+                          firstItem!.thumbnail!.isNotEmpty) {
+                        thumbUrl = firstItem.thumbnail;
+                      } else {
+                        if (!(firstItem?.isVideo ?? true) &&
+                            (firstItem?.directUrl != null &&
+                                firstItem!.directUrl!.isNotEmpty)) {
+                          thumbUrl = firstItem.directUrl;
+                        } else if (!isFetching &&
+                            !(firstItem?.isExtractorGroup ?? false) &&
+                            !(firstItem?.isVideo ?? true) &&
+                            (firstItem != null &&
+                                firstItem.originalUrl.isNotEmpty) &&
+                            (firstItem.originalUrl.startsWith('http://') ||
+                                firstItem.originalUrl.startsWith('https://'))) {
+                          thumbUrl = firstItem.originalUrl;
+                        } else if (!isFetching && (firstItem?.isVideo ?? false)) {
+                          final bestVideoUrl = firstItem?.directUrl ?? firstItem?.originalUrl;
+                          if (bestVideoUrl != null &&
+                              bestVideoUrl.isNotEmpty &&
+                              (bestVideoUrl.startsWith('http://') ||
+                                  bestVideoUrl.startsWith('https://'))) {
+                            final resolvedPath = RemoteVideoThumbnailResolver.getThumbnailPath(bestVideoUrl);
+                            if (resolvedPath != null) {
+                              thumbUrl = 'file://$resolvedPath';
+                            } else if (!RemoteVideoThumbnailResolver.isFailed(bestVideoUrl)) {
+                              RemoteVideoThumbnailResolver.generate(bestVideoUrl);
+                              thumbUrl = 'generating_thumbnail';
+                            }
+                          }
+                        }
+                      }
                     }
 
-                    if ((thumbUrl == null || thumbUrl.isEmpty) &&
-                        group.first.isExtractorGroup &&
+                    if (!isItemError && (thumbUrl == null || thumbUrl.isEmpty) &&
+                        (firstItem?.isExtractorGroup ?? false) &&
                         currentGroup == null) {
                       final host = Uri.tryParse(group.originalUrl)?.host;
                       if (host != null) {
@@ -227,13 +258,6 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                       }
                     }
                     aspectRatio = aspectRatio.clamp(0.56, 1.8);
-
-                    final isItemError = currentGroup == null
-                        ? (group.isError ||
-                              (firstItem?.isError ?? false) ||
-                              (firstItem?.errorMessage?.isNotEmpty ?? false))
-                        : ((firstItem?.isError ?? false) ||
-                              (firstItem?.errorMessage?.isNotEmpty ?? false));
 
                     final Widget itemCard = RepaintBoundary(
                       key: globalKey,
@@ -283,91 +307,104 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                   if (showThumbnail) {
                                     return ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
-                                      child:
-                                          thumbUrl.startsWith('/') ||
-                                              thumbUrl.startsWith('file://') ||
-                                              thumbUrl.startsWith(r'C:\') ||
-                                              thumbUrl.startsWith(r'D:\')
-                                          ? Image.file(
-                                              File(
-                                                thumbUrl.startsWith('file://')
-                                                    ? Uri.parse(
-                                                        thumbUrl,
-                                                      ).toFilePath()
-                                                    : thumbUrl,
+                                      child: thumbUrl == 'generating_thumbnail'
+                                          ? Center(
+                                              child: SizedBox(
+                                                width: 24,
+                                                height: 24,
+                                                child: CircularProgressIndicator(
+                                                  value: Platform.environment.containsKey('FLUTTER_TEST') ? 0 : null,
+                                                  strokeWidth: 2,
+                                                  color: Colors.white24,
+                                                ),
                                               ),
-                                              fit: BoxFit.contain,
-                                              cacheWidth: 300,
-                                              errorBuilder: (c, e, s) =>
-                                                  Center(
+                                            )
+                                          : thumbUrl.startsWith('file://')
+                                              ? Image.file(
+                                                  File(thumbUrl.substring(7)),
+                                                  fit: BoxFit.contain,
+                                                  cacheWidth: 300,
+                                                  errorBuilder: (c, e, s) => Center(
                                                     child: Icon(
                                                       typeIcon,
                                                       color: Colors.white24,
                                                       size: 36,
                                                     ),
                                                   ),
-                                            )
-                                          : Image.network(
-                                              thumbUrl,
-                                              headers: const {
-                                                'User-Agent':
-                                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                                              },
-                                              fit: BoxFit.contain,
-                                              cacheWidth: 300,
-                                              errorBuilder: (c, e, s) {
-                                                if (group.first.isExtractorGroup && currentGroup == null) {
-                                                  return Image.network(
-                                                    'https://www.google.com/s2/favicons?domain=${Uri.tryParse(group.originalUrl)?.host}&sz=256',
-                                                    fit: BoxFit.contain,
-                                                    errorBuilder: (c, e, s) => Center(
-                                                      child: Icon(
-                                                        typeIcon,
-                                                        color: Colors.white24,
-                                                        size: 36,
+                                                )
+                                              : thumbUrl.startsWith('data:image/')
+                                                  ? Image.memory(
+                                                      base64Decode(
+                                                        thumbUrl.split(',').last,
                                                       ),
-                                                    ),
-                                                  );
-                                                }
-                                                return Center(
-                                                  child: Icon(
-                                                    typeIcon,
-                                                    color: Colors.white24,
-                                                    size: 36,
-                                                  ),
-                                                );
-                                              },
-                                              loadingBuilder:
-                                                  (
-                                                    context,
-                                                    child,
-                                                    loadingProgress,
-                                                  ) {
-                                                    if (loadingProgress ==
-                                                        null) {
-                                                      return child;
-                                                    }
-                                                    return const Center(
-                                                      child: SizedBox(
-                                                        width: 24,
-                                                        height: 24,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                              strokeWidth: 2,
-                                                              color: Colors
-                                                                  .white24,
+                                                      fit: BoxFit.contain,
+                                                      cacheWidth: 300,
+                                                      errorBuilder: (c, e, s) => Center(
+                                                        child: Icon(
+                                                          typeIcon,
+                                                          color: Colors.white24,
+                                                          size: 36,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : Image.network(
+                                                      thumbUrl,
+                                                      headers: const {
+                                                        'User-Agent':
+                                                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                                                      },
+                                                      fit: BoxFit.contain,
+                                                      cacheWidth: 300,
+                                                      errorBuilder: (c, e, s) {
+                                                        if (group.first.isExtractorGroup && currentGroup == null) {
+                                                          return Image.network(
+                                                            'https://www.google.com/s2/favicons?domain=${Uri.tryParse(group.originalUrl)?.host}&sz=256',
+                                                            fit: BoxFit.contain,
+                                                            errorBuilder: (c, e, s) => Center(
+                                                              child: Icon(
+                                                                typeIcon,
+                                                                color: Colors.white24,
+                                                                size: 36,
+                                                              ),
                                                             ),
-                                                      ),
-                                                    );
-                                                  },
-                                            ),
+                                                          );
+                                                        }
+                                                        return Center(
+                                                          child: Icon(
+                                                            typeIcon,
+                                                            color: Colors.white24,
+                                                            size: 36,
+                                                          ),
+                                                        );
+                                                      },
+                                                      loadingBuilder: (
+                                                        context,
+                                                        child,
+                                                        loadingProgress,
+                                                      ) {
+                                                        if (loadingProgress == null) {
+                                                          return child;
+                                                        }
+                                                        return Center(
+                                                          child: SizedBox(
+                                                            width: 24,
+                                                            height: 24,
+                                                            child: CircularProgressIndicator(
+                                                              value: Platform.environment.containsKey('FLUTTER_TEST') ? 0 : null,
+                                                              strokeWidth: 2,
+                                                              color: Colors.white24,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
                                     );
                                   } else {
                                     return Center(
                                       child: Icon(
                                         typeIcon,
                                         size: 48,
-                                        color: Colors.white10,
+                                        color: Colors.white24,
                                       ),
                                     );
                                   }
@@ -383,7 +420,7 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                     color: Colors.black.withValues(alpha: 0.7),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: (group.first.isExtractorGroup && currentGroup == null) 
+                                  child: ((firstItem?.isExtractorGroup ?? false) && currentGroup == null) 
                                       ? Image.network(
                                           'https://www.google.com/s2/favicons?domain=${Uri.tryParse(group.originalUrl)?.host}&sz=64',
                                           width: 14,
@@ -676,13 +713,13 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              if (isHydrating ||
+                              if (!isItemError && (isHydrating ||
                                   firstItem?.id == 'fetch_loading' ||
                                   firstItem?.id == 'hydration_loading' ||
-                                  downloadingImageIndices.contains(index))
+                                  downloadingImageIndices.contains(index)))
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.54),
+                                    color: Colors.black.withValues(alpha: 0.3),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(

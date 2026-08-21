@@ -4,13 +4,25 @@ import 'dart:io';
 import 'package:onyxcore/core/utils/browser_detector.dart';
 import 'package:onyxcore/features/downloader/domain/entities/browser_capability.dart';
 import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.dart';
+import 'package:onyxcore/features/downloader/domain/entities/extractor_runtime_config.dart';
+import 'package:onyxcore/features/downloader/domain/services/extractor_output_validator.dart';
 import 'package:onyxcore/features/downloader/domain/services/extractor_runtime_service.dart';
 import 'package:onyxcore/features/downloader/services/deno_runtime.dart';
 
 class DenoExtractorRuntimeService implements ExtractorRuntimeService {
   @override
-  Future<ExtractorResult> execute(CustomExtractor extractor, String url, {BrowserInfo? browser, void Function(String)? onLog}) async {
+  Future<ExtractorResult> execute(
+    CustomExtractor extractor,
+    String url, {
+    BrowserInfo? browser,
+    ExtractorRuntimeConfig? config,
+    void Function(String)? onLog,
+    void Function(int pid)? onProcessStarted,
+  }) async {
+    final runtimeConfig = config ?? const ExtractorRuntimeConfig();
     final tempDir = await Directory.systemTemp.createTemp('onyx_extractor_');
+    Process? process;
+
     try {
       final userScriptFile = File('${tempDir.path}/user_script.js');
       await userScriptFile.writeAsString(extractor.script);
@@ -20,6 +32,8 @@ class DenoExtractorRuntimeService implements ExtractorRuntimeService {
 const executablePath = Deno.env.get("PUPPETEER_EXECUTABLE_PATH");
 const url = Deno.args[0];
 const userScriptPath = Deno.args[1];
+const navigationTimeoutMs = parseInt(Deno.args[2], 10);
+const settleDelayMs = parseInt(Deno.args[3], 10);
 
 if (!executablePath) {
   console.error("A Chromium-based browser is required for custom extractors.");
@@ -36,6 +50,15 @@ const browserProcess = new Deno.Command(executablePath, {
   ],
   stderr: "piped"
 }).spawn();
+
+Deno.addSignalListener("SIGINT", () => {
+  try { browserProcess.kill("SIGTERM"); } catch(_) {}
+  Deno.exit(1);
+});
+Deno.addSignalListener("SIGTERM", () => {
+  try { browserProcess.kill("SIGTERM"); } catch(_) {}
+  Deno.exit(1);
+});
 
 const reader = browserProcess.stderr.getReader();
 const decoder = new TextDecoder();
@@ -97,14 +120,22 @@ try {
   }
 
   await sendSessionCommand("Page.enable");
-  await sendSessionCommand("Page.navigate", { url });
   
+  // Hard navigation timeout
+  const navigatePromise = sendSessionCommand("Page.navigate", { url });
+  
+  const navTimeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error("Navigation timeout exceeded (" + navigationTimeoutMs + "ms)")), navigationTimeoutMs);
+  });
+  
+  await Promise.race([navigatePromise, navTimeoutPromise]);
+  
+  // Wait for loadEventFired with timeout
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       ws.removeEventListener('message', listener);
-      console.warn("Page.loadEventFired timed out after 30 seconds, proceeding anyway.");
-      resolve();
-    }, 30000);
+      reject(new Error("Page.loadEventFired timeout exceeded (" + navigationTimeoutMs + "ms)"));
+    }, navigationTimeoutMs);
 
     const listener = (event) => {
       const msg = JSON.parse(event.data);
@@ -116,6 +147,10 @@ try {
     };
     ws.addEventListener('message', listener);
   });
+  
+  if (settleDelayMs > 0) {
+    await new Promise(r => setTimeout(r, settleDelayMs));
+  }
 
   const userScriptContent = await Deno.readTextFile(userScriptPath);
   
@@ -154,37 +189,75 @@ try {
   } else {
     console.log(JSON.stringify(evalResult.result.value));
   }
+  
+  try { ws.close(); } catch(_) {}
+  try { browserProcess.kill("SIGTERM"); } catch(_) {}
+  Deno.exit(0);
 
 } catch(e) {
   console.error("Extractor error:", e.message || e);
-  Deno.exitCode = 1;
-} finally {
   try { ws.close(); } catch(_) {}
   try { browserProcess.kill("SIGTERM"); } catch(_) {}
+  Deno.exit(1);
 }
 ''';
       await wrapperScriptFile.writeAsString(wrapperScript);
 
       final env = <String, String>{};
+      String? executablePath;
+
       if (browser != null && browser.capability == BrowserCapability.chromium) {
-        // Find executable if it's a known generic name, but here we just pass the ID as executable
-        // Actually, BrowserDetector id might just be "google-chrome". Puppeteer can use this directly.
-        env['PUPPETEER_EXECUTABLE_PATH'] = browser.id;
+        // Resolve the browser ID to a real executable path
+        try {
+          final res = await Process.run('which', [browser.id]);
+          if (res.exitCode == 0) {
+            executablePath = res.stdout.toString().trim();
+          }
+        } catch (_) {}
       }
 
-      final process = await Process.start(
+      if (executablePath == null || executablePath.isEmpty) {
+        throw ExtractorException('Browser executable not found for: ${browser?.name ?? "unknown"}', '');
+      }
+
+      env['PUPPETEER_EXECUTABLE_PATH'] = executablePath;
+
+      // Lock down permissions. Only allow execution of the browser, network for websocket, and file access for the temp dir
+      final allowRun = '--allow-run=$executablePath';
+      const allowNet = '--allow-net=localhost,127.0.0.1'; // Deno CDP ws connects to localhost
+      final allowRead = '--allow-read=${tempDir.path}';
+      final allowWrite = '--allow-write=${tempDir.path}';
+      const allowEnv = '--allow-env=PUPPETEER_EXECUTABLE_PATH';
+
+      process = await Process.start(
         DenoRuntime.managedPath,
-        ['run', '--allow-all', wrapperScriptFile.path, url, userScriptFile.path],
+        [
+          'run',
+          allowRun,
+          allowNet,
+          allowRead,
+          allowWrite,
+          allowEnv,
+          wrapperScriptFile.path,
+          url,
+          userScriptFile.path,
+          runtimeConfig.navigationTimeoutMs.toString(),
+          runtimeConfig.settleDelayMs.toString(),
+        ],
         environment: env,
       );
+      
+      onProcessStarted?.call(process.pid);
 
       final outLogs = <String>[];
       final errLogs = <String>[];
       final allLogs = <String>[];
       
       void log(String line) {
-        allLogs.add(line);
-        onLog?.call(line);
+        // Sanitize logs to avoid exposing absolute temp dir paths
+        final sanitized = line.replaceAll(tempDir.path, '<temp_dir>');
+        allLogs.add(sanitized);
+        onLog?.call(sanitized);
       }
 
       process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
@@ -197,11 +270,19 @@ try {
         log(line);
       });
 
-      final exitCode = await process.exitCode;
+      // Bounded execution timeout
+      final exitCode = await process.exitCode.timeout(
+        Duration(milliseconds: runtimeConfig.extractorTimeoutMs),
+        onTimeout: () {
+          process?.kill();
+          throw ExtractorException('Extractor execution timeout exceeded (${runtimeConfig.extractorTimeoutMs}ms)', allLogs.join('\n'));
+        },
+      );
+
       final fullLogs = allLogs.join('\n');
 
       if (exitCode != 0) {
-        throw ExtractorException('Extractor failed (exit code $exitCode):\n${errLogs.join('\n')}', fullLogs);
+        throw ExtractorException('Extractor failed (exit code $exitCode):\n${errLogs.map((l) => l.replaceAll(tempDir.path, '<temp_dir>')).join('\n')}', fullLogs);
       }
 
       if (outLogs.isEmpty) {
@@ -212,34 +293,15 @@ try {
       final jsonStr = outLogs.last;
       try {
         final decoded = jsonDecode(jsonStr);
-        if (decoded is! List) {
-          throw const FormatException('Extractor result must be an array of URL strings.');
-        }
-
-        final resultUrls = <String>[];
-        for (final item in decoded) {
-          if (item is! String) {
-            throw const FormatException('Extractor result must be an array of URL strings.');
-          }
-          final urlStr = item.trim();
-          if (urlStr.isEmpty) {
-            throw const FormatException('Extractor returned an empty URL string.');
-          }
-          final uri = Uri.tryParse(urlStr);
-          if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
-            throw const FormatException('Extractor returned an invalid URL string.');
-          }
-          resultUrls.add(urlStr);
-        }
-        
-        return ExtractorResult(resultUrls, fullLogs);
-      } on FormatException catch (e) {
-        throw ExtractorException(e.message, fullLogs);
+        final validatedUrls = ExtractorOutputValidator.validateRaw(decoded, config: runtimeConfig, logs: fullLogs);
+        return ExtractorResult(validatedUrls, fullLogs);
+      } on ExtractorException {
+        rethrow;
       } catch (e) {
         throw ExtractorException('Failed to parse extractor output: $e\nOutput was: $jsonStr', fullLogs);
       }
     } finally {
-      // Clean up temp dir
+      process?.kill();
       if (tempDir.existsSync()) {
         await tempDir.delete(recursive: true);
       }

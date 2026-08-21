@@ -37,7 +37,9 @@ class MediaFormat {
           json['resolution']?.toString() ??
           (json['height'] != null
               ? '${json['width']}x${json['height']}'
-              : 'audio only'),
+              : ((json['vcodec'] != null && json['vcodec'] != 'none') || ['mp4', 'mkv', 'webm', 'mov'].contains(json['ext'])
+                  ? 'original'
+                  : 'audio only')),
       videoCodec: json['vcodec']?.toString(),
       audioCodec: json['acodec']?.toString(),
       filesize: parsedFilesize,

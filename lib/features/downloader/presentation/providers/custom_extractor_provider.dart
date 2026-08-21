@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/browser_detector.dart';
 import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.dart';
+import 'package:onyxcore/features/downloader/domain/entities/extractor_runtime_config.dart';
 import 'package:onyxcore/features/downloader/domain/services/extractor_runtime_service.dart';
 import 'package:onyxcore/features/downloader/services/deno_extractor_runtime_service.dart';
 
@@ -61,7 +62,14 @@ final customExtractorsProvider = AsyncNotifierProvider<CustomExtractorNotifier, 
 
 class DummyExtractorRuntimeService implements ExtractorRuntimeService {
   @override
-  Future<ExtractorResult> execute(CustomExtractor extractor, String url, {BrowserInfo? browser, void Function(String)? onLog}) async {
+  Future<ExtractorResult> execute(
+    CustomExtractor extractor,
+    String url, {
+    BrowserInfo? browser,
+    ExtractorRuntimeConfig? config,
+    void Function(String)? onLog,
+    void Function(int pid)? onProcessStarted,
+  }) async {
     // Return empty result for tests
     return ExtractorResult([], 'Dummy logs');
   }

@@ -350,7 +350,7 @@ void main() {
       await controller.analyzeUrls('url1');
       
       final group = controller.cache.parsedItems!.first;
-      expect(group.items.first.id, '');
+      expect(group.items.first.id, 'err_${'url1'.hashCode}');
       expect(group.items.first.isError, true);
     });
 
@@ -524,7 +524,7 @@ void main() {
       });
       
       await controller.hydrateProfile('url');
-      expect(controller.pendingStatsUpdate, 6);
+      expect(controller.pendingStatsUpdate, 7);
     });
 
     test('U-DL-SHC-21: hydrateProfile final replacement preserves header and logs', () async {
@@ -645,7 +645,7 @@ void main() {
       
       await controller.hydrateProfile('url');
       expect(notifierCalled, true);
-      expect(controller.hydrationNotifier.value, 1);
+      expect(controller.hydrationNotifier.value, 2);
     });
 
     test('U-DL-SHC-25: hydrateProfile error path clears loading flag', () async {
@@ -753,9 +753,51 @@ void main() {
 
       expect(controller.backgroundLoadingProfiles.contains(targetUrl), isFalse);
       expect(controller.activeHydrationPids.containsKey(targetUrl), isFalse);
+      expect(controller.cache.parsedItems!.length, 1);
       expect(controller.cache.parsedItems!.first.items.length, 1);
       expect(controller.cache.parsedItems!.first.items.first.id, 'item_1');
       expect(controller.cache.parsedItems!.first.items.any((i) => i.id == 'hydration_loading'), isFalse);
+    });
+
+    test('U-DL-SHC-30: cancelHydration routes to cancelExtraction if extractor PID exists', () async {
+      final container = await createContainer();
+      final controller = container.read(downloadsSharedControllerProvider);
+
+      const targetUrl = 'https://extractor.com/test';
+      final fetchItem = MediaInfo(id: 'fetch_loading', title: 'Fetching...', originalUrl: targetUrl);
+      final group = MediaGroup(originalUrl: targetUrl, items: [fetchItem]);
+
+      controller.cache.parsedItems = [group];
+      controller.backgroundLoadingProfiles.add(targetUrl);
+      controller.activeExtractorPids[targetUrl] = [999998]; // dummy extractor PID
+
+      await controller.cancelHydration(targetUrl); // The cancel button triggers this
+
+      expect(controller.activeExtractorPids.containsKey(targetUrl), isFalse);
+      expect(controller.backgroundLoadingProfiles.contains(targetUrl), isFalse);
+      // Since the only item was fetch_loading, the group should be completely removed
+      expect(controller.cache.parsedItems!.isEmpty, isTrue);
+    });
+
+    test('U-DL-SHC-31: cancelExtraction removes group if empty but keeps already fetched items', () async {
+      final container = await createContainer();
+      final controller = container.read(downloadsSharedControllerProvider);
+
+      const targetUrl = 'https://extractor.com/test2';
+      final item1 = MediaInfo(id: 'item_1', title: 'Video 1', originalUrl: targetUrl);
+      final fetchItem = MediaInfo(id: 'fetch_loading', title: 'Fetching...', originalUrl: targetUrl);
+      final group = MediaGroup(originalUrl: targetUrl, items: [item1, fetchItem]);
+
+      controller.cache.parsedItems = [group];
+      controller.backgroundLoadingProfiles.add(targetUrl);
+      controller.activeExtractorPids[targetUrl] = [999997]; 
+
+      await controller.cancelExtraction(targetUrl);
+
+      expect(controller.activeExtractorPids.containsKey(targetUrl), isFalse);
+      expect(controller.cache.parsedItems!.length, 1);
+      expect(controller.cache.parsedItems!.first.items.length, 1); // fetch_loading removed
+      expect(controller.cache.parsedItems!.first.items.first.id, 'item_1'); // item kept
     });
   });
 }

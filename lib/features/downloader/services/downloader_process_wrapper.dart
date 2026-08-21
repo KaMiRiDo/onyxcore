@@ -35,10 +35,12 @@ class MediaDownloaderBackend {
     bool fallbackToDirectLink = false,
     void Function(MediaInfo info)? onProgress,
     void Function(int pid)? onProcessStarted,
+    bool Function()? isCancelled,
   }) async {
     final results = <MediaInfo>[];
 
     for (final url in urls) {
+      if (isCancelled != null && isCancelled()) break;
       if (url.trim().isEmpty) continue;
       final sequence = EngineRegistry.resolveEngineSequence(url.trim(), engine);
       var success = false;
@@ -112,7 +114,7 @@ class MediaDownloaderBackend {
           successfulInfos[i] = successfulInfos[i].copyWith(
             id: successfulInfos[i].id.isEmpty ? 'item_${url.hashCode}_$i' : successfulInfos[i].id,
             engineId: successfulInfos[i].engineId ?? successfulEngineId,
-            errorMessage: successfulInfos[i].errorMessage,
+            errorMessage: successfulInfos[i].errorMessage ?? engineErrors[engineId],
             fetchLogs: formattedSuccessLogs,
           );
           if (onProgress != null) onProgress(successfulInfos[i]);

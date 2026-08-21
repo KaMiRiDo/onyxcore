@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,6 +22,7 @@ import 'package:onyxcore/features/downloader/presentation/providers/download_tas
 import 'package:onyxcore/features/downloader/presentation/providers/downloader_readiness_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
+import 'package:onyxcore/features/downloader/presentation/services/remote_video_thumbnail_resolver.dart';
 import 'package:onyxcore/features/downloader/presentation/services/thumbnail_aspect_resolver.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/downloads_missing_binaries_view.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/properties_dialog.dart';
@@ -297,6 +299,14 @@ class _StandaloneDownloaderWindowState
               _trash.add(
                 _TrashItem(item: item, listPath: listPath, config: config),
               );
+            } else {
+              final videoUrls = item.items
+                  .where((e) => e.isVideo)
+                  .map((e) => e.directUrl ?? e.originalUrl)
+                  .whereType<String>();
+              for (final url in videoUrls) {
+                RemoteVideoThumbnailResolver.cleanup(url);
+              }
             }
           }
         }
@@ -313,6 +323,11 @@ class _StandaloneDownloaderWindowState
                   parentGroup: _currentGroup,
                 ),
               );
+            } else {
+              if (item.isVideo) {
+                final url = item.directUrl ?? item.originalUrl;
+                RemoteVideoThumbnailResolver.cleanup(url);
+              }
             }
           }
         }
@@ -980,29 +995,6 @@ class _StandaloneDownloaderWindowState
         }
         return true;
       }
-      if (event.logicalKey == LogicalKeyboardKey.keyR) {
-        if (_currentGroup != null) {
-          _controller.analyzeUrls(_currentGroup!.originalUrl);
-        } else {
-          if (_selectedIndices.isNotEmpty) {
-            final urls = _selectedIndices.map((i) {
-              if (i < (_controller.cache.parsedItems?.length ?? 0)) {
-                return _controller.cache.parsedItems![i].originalUrl;
-              }
-              return '';
-            }).where((u) => u.isNotEmpty).join('\n');
-            if (urls.isNotEmpty) {
-              _controller.analyzeUrls(urls);
-            }
-          } else {
-             final urls = _controller.cache.parsedItems?.map((g) => g.originalUrl).join('\n') ?? '';
-             if (urls.isNotEmpty) {
-               _controller.analyzeUrls(urls);
-             }
-          }
-        }
-        return true;
-      }
     }
     return false;
   }
@@ -1055,6 +1047,19 @@ class _StandaloneDownloaderWindowState
     _controller = ref.watch(downloadsSharedControllerProvider);
     // Also watch the cache explicitly so UI updates when cache changes
     ref.watch(downloadsListCacheProvider);
+
+    // Refresh _currentGroup if cache was updated behind the scenes
+    if (_currentGroup != null && _controller.cache.parsedItems != null) {
+      final rootIndex = _controller.cache.parsedItems!.indexWhere(
+        (g) => g.originalUrl == _currentGroup!.originalUrl,
+      );
+      if (rootIndex != -1) {
+        _currentGroup = _controller.cache.parsedItems![rootIndex];
+      } else {
+        _currentGroup = null;
+      }
+    }
+
     final readiness = ref.watch(downloaderReadinessProvider);
 
     return Scaffold(
@@ -1423,6 +1428,23 @@ class _StandaloneDownloaderWindowState
     }
 
     setState(() {
+      for (final t in _trash) {
+        if (t.item is MediaGroup) {
+          final videoUrls = (t.item as MediaGroup).items
+              .where((e) => e.isVideo)
+              .map((e) => e.directUrl ?? e.originalUrl)
+              .whereType<String>();
+          for (final url in videoUrls) {
+            RemoteVideoThumbnailResolver.cleanup(url);
+          }
+        } else {
+          final info = t.item as MediaInfo;
+          if (info.isVideo) {
+            final url = info.directUrl ?? info.originalUrl;
+            RemoteVideoThumbnailResolver.cleanup(url);
+          }
+        }
+      }
       _trash.clear();
       _selectedIndices.clear();
     });
@@ -1714,6 +1736,23 @@ class _StandaloneDownloaderWindowState
       config: rootIndex != -1 ? _controller.cache.configs[rootIndex] : null,
       onRestoreAll: _restoreTrash,
       onEmptyTrash: () => setState(() {
+        for (final t in _trash) {
+          if (t.item is MediaGroup) {
+            final videoUrls = (t.item as MediaGroup).items
+                .where((e) => e.isVideo)
+                .map((e) => e.directUrl ?? e.originalUrl)
+                .whereType<String>();
+            for (final url in videoUrls) {
+              RemoteVideoThumbnailResolver.cleanup(url);
+            }
+          } else {
+            final info = t.item as MediaInfo;
+            if (info.isVideo) {
+              final url = info.directUrl ?? info.originalUrl;
+              RemoteVideoThumbnailResolver.cleanup(url);
+            }
+          }
+        }
         _trash.clear();
         _selectedIndices.clear();
       }),
@@ -1979,35 +2018,46 @@ class _StandaloneDownloaderWindowState
     bool isCtrl = false,
     bool isShift = false,
   }) {
-    if (index == -1) {
-      setState(() {
-        _selectedIndices.clear();
-        _lastSelectedIndex = -1;
-      });
-      return;
-    }
-    setState(() {
-      if (isShift && _lastSelectedIndex != -1) {
-        final start = math.min(_lastSelectedIndex, index);
-        final end = math.max(_lastSelectedIndex, index);
-        _selectedIndices.clear();
-        for (var i = start; i <= end; i++) {
-          _selectedIndices.add(i);
-        }
-      } else if (isCtrl) {
-        if (_selectedIndices.contains(index)) {
-          _selectedIndices.remove(index);
-        } else {
-          _selectedIndices.add(index);
-        }
-        _lastSelectedIndex = index;
-      } else {
-        _selectedIndices
-          ..clear()
-          ..add(index);
-        _lastSelectedIndex = index;
+    if (!mounted) return;
+
+    void updateState() {
+      if (!mounted) return;
+      if (index == -1) {
+        setState(() {
+          _selectedIndices.clear();
+          _lastSelectedIndex = -1;
+        });
+        return;
       }
-    });
+      setState(() {
+        if (isShift && _lastSelectedIndex != -1) {
+          final start = math.min(_lastSelectedIndex, index);
+          final end = math.max(_lastSelectedIndex, index);
+          _selectedIndices.clear();
+          for (var i = start; i <= end; i++) {
+            _selectedIndices.add(i);
+          }
+        } else if (isCtrl) {
+          if (_selectedIndices.contains(index)) {
+            _selectedIndices.remove(index);
+          } else {
+            _selectedIndices.add(index);
+          }
+          _lastSelectedIndex = index;
+        } else {
+          _selectedIndices
+            ..clear()
+            ..add(index);
+          _lastSelectedIndex = index;
+        }
+      });
+    }
+
+    if (SchedulerBinding.instance.schedulerPhase != SchedulerPhase.idle) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => updateState());
+    } else {
+      updateState();
+    }
   }
 
   List<MediaGroup> _getVisibleGroups() {
@@ -3012,6 +3062,11 @@ class _StandaloneDownloaderWindowState
   @visibleForTesting
   void handleDeleteForTesting({required bool isShiftPressed}) =>
       _handleDelete(isShiftPressed);
+
+  @visibleForTesting
+  void toggleSelectionForTesting(int index) {
+    _toggleSelection(index);
+  }
 
   @visibleForTesting
   void onDoubleTapItemForTesting(int index, MediaGroup group) {
