@@ -4119,6 +4119,17 @@ class $CustomExtractorEntriesTable extends CustomExtractorEntries
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _metadataMeta = const VerificationMeta(
+    'metadata',
+  );
+  @override
+  late final GeneratedColumn<String> metadata = GeneratedColumn<String>(
+    'metadata',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4126,6 +4137,7 @@ class $CustomExtractorEntriesTable extends CustomExtractorEntries
     script,
     createdAt,
     modifiedAt,
+    metadata,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4176,6 +4188,12 @@ class $CustomExtractorEntriesTable extends CustomExtractorEntries
     } else if (isInserting) {
       context.missing(_modifiedAtMeta);
     }
+    if (data.containsKey('metadata')) {
+      context.handle(
+        _metadataMeta,
+        metadata.isAcceptableOrUnknown(data['metadata']!, _metadataMeta),
+      );
+    }
     return context;
   }
 
@@ -4205,6 +4223,10 @@ class $CustomExtractorEntriesTable extends CustomExtractorEntries
         DriftSqlType.int,
         data['${effectivePrefix}modified_at'],
       )!,
+      metadata: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}metadata'],
+      ),
     );
   }
 
@@ -4221,12 +4243,19 @@ class CustomExtractorEntry extends DataClass
   final String script;
   final int createdAt;
   final int modifiedAt;
+
+  /// Optional JSON metadata for default extractors (Phase 2).
+  ///
+  /// Null for Phase 1 script extractors. Contains `extractorKind` and
+  /// kind-specific configuration (e.g. `cssSelector`, `attributeName`).
+  final String? metadata;
   const CustomExtractorEntry({
     required this.id,
     required this.name,
     required this.script,
     required this.createdAt,
     required this.modifiedAt,
+    this.metadata,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4236,6 +4265,9 @@ class CustomExtractorEntry extends DataClass
     map['script'] = Variable<String>(script);
     map['created_at'] = Variable<int>(createdAt);
     map['modified_at'] = Variable<int>(modifiedAt);
+    if (!nullToAbsent || metadata != null) {
+      map['metadata'] = Variable<String>(metadata);
+    }
     return map;
   }
 
@@ -4246,6 +4278,9 @@ class CustomExtractorEntry extends DataClass
       script: Value(script),
       createdAt: Value(createdAt),
       modifiedAt: Value(modifiedAt),
+      metadata: metadata == null && nullToAbsent
+          ? const Value.absent()
+          : Value(metadata),
     );
   }
 
@@ -4260,6 +4295,7 @@ class CustomExtractorEntry extends DataClass
       script: serializer.fromJson<String>(json['script']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       modifiedAt: serializer.fromJson<int>(json['modifiedAt']),
+      metadata: serializer.fromJson<String?>(json['metadata']),
     );
   }
   @override
@@ -4271,6 +4307,7 @@ class CustomExtractorEntry extends DataClass
       'script': serializer.toJson<String>(script),
       'createdAt': serializer.toJson<int>(createdAt),
       'modifiedAt': serializer.toJson<int>(modifiedAt),
+      'metadata': serializer.toJson<String?>(metadata),
     };
   }
 
@@ -4280,12 +4317,14 @@ class CustomExtractorEntry extends DataClass
     String? script,
     int? createdAt,
     int? modifiedAt,
+    Value<String?> metadata = const Value.absent(),
   }) => CustomExtractorEntry(
     id: id ?? this.id,
     name: name ?? this.name,
     script: script ?? this.script,
     createdAt: createdAt ?? this.createdAt,
     modifiedAt: modifiedAt ?? this.modifiedAt,
+    metadata: metadata.present ? metadata.value : this.metadata,
   );
   CustomExtractorEntry copyWithCompanion(CustomExtractorEntriesCompanion data) {
     return CustomExtractorEntry(
@@ -4296,6 +4335,7 @@ class CustomExtractorEntry extends DataClass
       modifiedAt: data.modifiedAt.present
           ? data.modifiedAt.value
           : this.modifiedAt,
+      metadata: data.metadata.present ? data.metadata.value : this.metadata,
     );
   }
 
@@ -4306,13 +4346,15 @@ class CustomExtractorEntry extends DataClass
           ..write('name: $name, ')
           ..write('script: $script, ')
           ..write('createdAt: $createdAt, ')
-          ..write('modifiedAt: $modifiedAt')
+          ..write('modifiedAt: $modifiedAt, ')
+          ..write('metadata: $metadata')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, script, createdAt, modifiedAt);
+  int get hashCode =>
+      Object.hash(id, name, script, createdAt, modifiedAt, metadata);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4321,7 +4363,8 @@ class CustomExtractorEntry extends DataClass
           other.name == this.name &&
           other.script == this.script &&
           other.createdAt == this.createdAt &&
-          other.modifiedAt == this.modifiedAt);
+          other.modifiedAt == this.modifiedAt &&
+          other.metadata == this.metadata);
 }
 
 class CustomExtractorEntriesCompanion
@@ -4331,6 +4374,7 @@ class CustomExtractorEntriesCompanion
   final Value<String> script;
   final Value<int> createdAt;
   final Value<int> modifiedAt;
+  final Value<String?> metadata;
   final Value<int> rowid;
   const CustomExtractorEntriesCompanion({
     this.id = const Value.absent(),
@@ -4338,6 +4382,7 @@ class CustomExtractorEntriesCompanion
     this.script = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.modifiedAt = const Value.absent(),
+    this.metadata = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CustomExtractorEntriesCompanion.insert({
@@ -4346,6 +4391,7 @@ class CustomExtractorEntriesCompanion
     required String script,
     required int createdAt,
     required int modifiedAt,
+    this.metadata = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -4358,6 +4404,7 @@ class CustomExtractorEntriesCompanion
     Expression<String>? script,
     Expression<int>? createdAt,
     Expression<int>? modifiedAt,
+    Expression<String>? metadata,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4366,6 +4413,7 @@ class CustomExtractorEntriesCompanion
       if (script != null) 'script': script,
       if (createdAt != null) 'created_at': createdAt,
       if (modifiedAt != null) 'modified_at': modifiedAt,
+      if (metadata != null) 'metadata': metadata,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4376,6 +4424,7 @@ class CustomExtractorEntriesCompanion
     Value<String>? script,
     Value<int>? createdAt,
     Value<int>? modifiedAt,
+    Value<String?>? metadata,
     Value<int>? rowid,
   }) {
     return CustomExtractorEntriesCompanion(
@@ -4384,6 +4433,7 @@ class CustomExtractorEntriesCompanion
       script: script ?? this.script,
       createdAt: createdAt ?? this.createdAt,
       modifiedAt: modifiedAt ?? this.modifiedAt,
+      metadata: metadata ?? this.metadata,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4406,6 +4456,9 @@ class CustomExtractorEntriesCompanion
     if (modifiedAt.present) {
       map['modified_at'] = Variable<int>(modifiedAt.value);
     }
+    if (metadata.present) {
+      map['metadata'] = Variable<String>(metadata.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4420,6 +4473,7 @@ class CustomExtractorEntriesCompanion
           ..write('script: $script, ')
           ..write('createdAt: $createdAt, ')
           ..write('modifiedAt: $modifiedAt, ')
+          ..write('metadata: $metadata, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7064,6 +7118,7 @@ typedef $$CustomExtractorEntriesTableCreateCompanionBuilder =
       required String script,
       required int createdAt,
       required int modifiedAt,
+      Value<String?> metadata,
       Value<int> rowid,
     });
 typedef $$CustomExtractorEntriesTableUpdateCompanionBuilder =
@@ -7073,6 +7128,7 @@ typedef $$CustomExtractorEntriesTableUpdateCompanionBuilder =
       Value<String> script,
       Value<int> createdAt,
       Value<int> modifiedAt,
+      Value<String?> metadata,
       Value<int> rowid,
     });
 
@@ -7107,6 +7163,11 @@ class $$CustomExtractorEntriesTableFilterComposer
 
   ColumnFilters<int> get modifiedAt => $composableBuilder(
     column: $table.modifiedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get metadata => $composableBuilder(
+    column: $table.metadata,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7144,6 +7205,11 @@ class $$CustomExtractorEntriesTableOrderingComposer
     column: $table.modifiedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get metadata => $composableBuilder(
+    column: $table.metadata,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CustomExtractorEntriesTableAnnotationComposer
@@ -7171,6 +7237,9 @@ class $$CustomExtractorEntriesTableAnnotationComposer
     column: $table.modifiedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get metadata =>
+      $composableBuilder(column: $table.metadata, builder: (column) => column);
 }
 
 class $$CustomExtractorEntriesTableTableManager
@@ -7224,6 +7293,7 @@ class $$CustomExtractorEntriesTableTableManager
                 Value<String> script = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> modifiedAt = const Value.absent(),
+                Value<String?> metadata = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CustomExtractorEntriesCompanion(
                 id: id,
@@ -7231,6 +7301,7 @@ class $$CustomExtractorEntriesTableTableManager
                 script: script,
                 createdAt: createdAt,
                 modifiedAt: modifiedAt,
+                metadata: metadata,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7240,6 +7311,7 @@ class $$CustomExtractorEntriesTableTableManager
                 required String script,
                 required int createdAt,
                 required int modifiedAt,
+                Value<String?> metadata = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CustomExtractorEntriesCompanion.insert(
                 id: id,
@@ -7247,6 +7319,7 @@ class $$CustomExtractorEntriesTableTableManager
                 script: script,
                 createdAt: createdAt,
                 modifiedAt: modifiedAt,
+                metadata: metadata,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -190,9 +190,6 @@ class DownloadsSharedController extends ChangeNotifier {
     CustomExtractor? activeExtractor;
     if (extractorsEnabled && _selectedExtractorId != 'none') {
       final extractors = ref.read(customExtractorsProvider).value ?? [];
-      // Use dynamic or Object to avoid needing CustomExtractor type import if it's missing, but we can just use dynamic.
-      // Wait, we need the CustomExtractor type. It's imported as custom_extractor_provider.dart so we have access to it? 
-      // Actually, custom_extractor_provider.dart exports CustomExtractor or we can just var it.
       for (final e in extractors) {
         if (e.id == _selectedExtractorId) {
           activeExtractor = e;
@@ -201,11 +198,13 @@ class DownloadsSharedController extends ChangeNotifier {
       }
     }
 
-    final runtimeService = ref.read(extractorRuntimeServiceProvider);
     final extractorBrowser = settings?.extractorBrowser;
 
     for (final url in urls) {
       if (activeExtractor != null) {
+        // Phase 1.1 Refactor 2: only access the runtime service when an
+        // extractor is actually selected, keeping the no-extractor path pure.
+        final runtimeService = ref.read(extractorRuntimeServiceProvider);
         unawaited(_runExtractorPipeline(url, activeExtractor, runtimeService, extractorBrowser));
       } else {
         unawaited(_runStandardPipeline(url, [url], browser, false, null));
@@ -620,12 +619,15 @@ class DownloadsSharedController extends ChangeNotifier {
     }
   }
 
+  /// Cancels any active hydration processes for [url].
+  ///
+  /// Handles only [activeHydrationPids]. Extractor cancellation is handled
+  /// separately by [cancelExtraction].
+  ///
+  /// Phase 1.1 Refactor 1: cancelHydration is no longer responsible for
+  /// extractor cancellation. The UI cancel action should call both methods
+  /// when needed to preserve the same user-visible behaviour.
   Future<void> cancelHydration(String url) async {
-    if (activeExtractorPids.containsKey(url)) {
-      await cancelExtraction(url);
-      return;
-    }
-
     backgroundLoadingProfiles.remove(url);
     final pids = activeHydrationPids.remove(url);
     if (pids != null) {
@@ -635,10 +637,13 @@ class DownloadsSharedController extends ChangeNotifier {
     }
     
     if (cache.parsedItems != null) {
-      final groupIndex = cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
+      final groupIndex =
+          cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
       if (groupIndex != -1) {
         final group = cache.parsedItems![groupIndex];
-        group.items.removeWhere((e) => e.id == 'hydration_loading' || e.id == 'fetch_loading');
+        group.items.removeWhere(
+          (e) => e.id == 'hydration_loading' || e.id == 'fetch_loading',
+        );
         if (group.items.isEmpty) {
           cache.parsedItems!.removeAt(groupIndex);
         }

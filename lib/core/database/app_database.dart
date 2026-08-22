@@ -212,7 +212,7 @@ class ThumbnailCacheEntries extends Table {
   Set<Column<Object>> get primaryKey => {fileHash};
 }
 
-/// Custom Extractors (Phase 1).
+/// Custom Extractors (Phase 1 + Phase 2).
 class CustomExtractorEntries extends Table {
   @override
   String get tableName => 'custom_extractors';
@@ -222,6 +222,12 @@ class CustomExtractorEntries extends Table {
   TextColumn get script => text()();
   IntColumn get createdAt => integer()();
   IntColumn get modifiedAt => integer()();
+
+  /// Optional JSON metadata for default extractors (Phase 2).
+  ///
+  /// Null for Phase 1 script extractors. Contains `extractorKind` and
+  /// kind-specific configuration (e.g. `cssSelector`, `attributeName`).
+  TextColumn get metadata => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -257,7 +263,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -272,6 +278,14 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         // v3: Add custom extractors table.
         await m.createTable(customExtractorEntries);
+      }
+      if (from < 4) {
+        // v4: Add nullable metadata column to custom_extractors (Phase 2).
+        // Existing Phase 1 rows receive NULL, which is correct.
+        await m.addColumn(
+          customExtractorEntries,
+          customExtractorEntries.metadata,
+        );
       }
     },
   );
@@ -318,8 +332,9 @@ class AppDatabase extends _$AppDatabase {
     String name,
     String script,
     int createdAt,
-    int modifiedAt,
-  ) async {
+    int modifiedAt, {
+    String? metadata,
+  }) async {
     await into(customExtractorEntries).insertOnConflictUpdate(
       CustomExtractorEntriesCompanion.insert(
         id: id,
@@ -327,6 +342,7 @@ class AppDatabase extends _$AppDatabase {
         script: script,
         createdAt: createdAt,
         modifiedAt: modifiedAt,
+        metadata: Value(metadata),
       ),
     );
   }

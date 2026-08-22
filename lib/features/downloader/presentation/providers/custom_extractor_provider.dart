@@ -17,6 +17,7 @@ class CustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>> {
       script: e.script,
       createdAt: DateTime.fromMillisecondsSinceEpoch(e.createdAt),
       modifiedAt: DateTime.fromMillisecondsSinceEpoch(e.modifiedAt),
+      metadata: e.metadata, // Phase 2: restore metadata for default extractors
     )).toList();
   }
 
@@ -28,6 +29,7 @@ class CustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>> {
       extractor.script,
       extractor.createdAt.millisecondsSinceEpoch,
       extractor.modifiedAt.millisecondsSinceEpoch,
+      metadata: extractor.metadata, // Phase 2
     );
     final current = state.value ?? [];
     state = AsyncValue.data([...current, extractor]);
@@ -41,6 +43,7 @@ class CustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>> {
       extractor.script,
       extractor.createdAt.millisecondsSinceEpoch,
       extractor.modifiedAt.millisecondsSinceEpoch,
+      metadata: extractor.metadata, // Phase 2
     );
     final current = state.value ?? [];
     state = AsyncValue.data(

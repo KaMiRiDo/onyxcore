@@ -759,7 +759,7 @@ void main() {
       expect(controller.cache.parsedItems!.first.items.any((i) => i.id == 'hydration_loading'), isFalse);
     });
 
-    test('U-DL-SHC-30: cancelHydration routes to cancelExtraction if extractor PID exists', () async {
+    test('U-DL-SHC-30: cancelHydration does NOT route to cancelExtraction (Phase 1.1 isolation)', () async {
       final container = await createContainer();
       final controller = container.read(downloadsSharedControllerProvider);
 
@@ -771,9 +771,10 @@ void main() {
       controller.backgroundLoadingProfiles.add(targetUrl);
       controller.activeExtractorPids[targetUrl] = [999998]; // dummy extractor PID
 
-      await controller.cancelHydration(targetUrl); // The cancel button triggers this
+      await controller.cancelHydration(targetUrl);
 
-      expect(controller.activeExtractorPids.containsKey(targetUrl), isFalse);
+      // Phase 1.1: extractor cancellation is isolated from hydration cancellation.
+      expect(controller.activeExtractorPids.containsKey(targetUrl), isTrue);
       expect(controller.backgroundLoadingProfiles.contains(targetUrl), isFalse);
       // Since the only item was fetch_loading, the group should be completely removed
       expect(controller.cache.parsedItems!.isEmpty, isTrue);

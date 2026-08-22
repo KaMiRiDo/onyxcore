@@ -281,6 +281,8 @@ class _StandaloneDownloaderWindowState
         for (final index in sortedIndices) {
           if (index < (_controller.cache.parsedItems?.length ?? 0)) {
             final item = _controller.cache.parsedItems!.removeAt(index);
+            // Phase 1.1: cancel both extractor and hydration independently.
+            _controller.cancelExtraction(item.originalUrl);
             _controller.cancelHydration(item.originalUrl);
             final config = _controller.cache.configs.remove(index);
             // Re-index configs
@@ -332,6 +334,8 @@ class _StandaloneDownloaderWindowState
           }
         }
         if (_currentGroup!.items.isEmpty) {
+          // Phase 1.1: cancel both extractor and hydration independently.
+          _controller.cancelExtraction(_currentGroup!.originalUrl);
           _controller.cancelHydration(_currentGroup!.originalUrl);
         }
       }
@@ -2419,6 +2423,8 @@ class _StandaloneDownloaderWindowState
       isHydratingItem: (url) =>
           _controller.activeHydrationPids.containsKey(url),
       onCancelHydration: (url) async {
+        // Phase 1.1: cancel both extractor and hydration independently.
+        await _controller.cancelExtraction(url);
         await _controller.cancelHydration(url);
         if (mounted) setState(() {});
       },
