@@ -318,14 +318,27 @@ lib/
 │   │   downloader/
 │   │   │   domain/
 │   │   │   │   entities/
+│   │   │   │   │   browser_capability.dart
+│   │   │   │   │   custom_extractor.dart
 │   │   │   │   │   download_config.dart
+│   │   │   │   │   downloader_filter_settings.dart
+│   │   │   │   │   extractor_runtime_config.dart
 │   │   │   │   │   media_info.dart
+│   │   │   │   repositories/
+│   │   │   │   │   custom_extractor_repository.dart
+│   │   │   │   services/
+│   │   │   │   │   default_extractor_template_service.dart
+│   │   │   │   │   default_extractor_validator.dart
+│   │   │   │   │   extractor_output_validator.dart
+│   │   │   │   │   extractor_runtime_service.dart
 │   │   │   presentation/
 │   │   │   │   pages/
 │   │   │   │   │   standalone_downloader_window.dart
 │   │   │   │   providers/
+│   │   │   │   │   custom_extractor_provider.dart
 │   │   │   │   │   download_history_provider.dart
 │   │   │   │   │   download_task_provider.dart
+│   │   │   │   │   downloader_readiness_provider.dart
 │   │   │   │   │   downloads_panel_provider.dart
 │   │   │   │   │   downloads_shared_controller.dart
 │   │   │   │   widgets/
@@ -335,6 +348,8 @@ lib/
 │   │   │   │   │   downloads_panel.dart
 │   │   │   │   │   downloads_panel_helpers.dart
 │   │   │   │   │   components/
+│   │   │   │   │   │   add_extractor_dialog.dart
+│   │   │   │   │   │   downloader_filter_overlay.dart
 │   │   │   │   │   │   downloads_empty_state.dart
 │   │   │   │   │   │   downloads_header.dart
 │   │   │   │   │   │   downloads_missing_binaries_view.dart
@@ -345,6 +360,8 @@ lib/
 │   │   │   │   │   │   downloads_panel_tiles.dart
 │   │   │   │   │   │   downloads_shared_components.dart
 │   │   │   │   │   │   downloads_shared_dropdowns.dart
+│   │   │   │   │   │   extractor_dropdown.dart
+│   │   │   │   │   │   properties_dialog.dart
 │   │   │   │   │   standalone_window/
 │   │   │   │   │   │   standalone_window_action_bar.dart
 │   │   │   │   │   │   standalone_window_active_downloads.dart
@@ -355,6 +372,8 @@ lib/
 │   │   │   services/
 │   │   │   │   aria2_accelerator.dart
 │   │   │   │   cookie_helper.dart
+│   │   │   │   deno_extractor_runtime_service.dart
+│   │   │   │   deno_runtime.dart
 │   │   │   │   download_history_database.dart
 │   │   │   │   downloader_process_wrapper.dart
 │   │   │   │   downloader_update_service.dart
@@ -685,7 +704,7 @@ test/
 ```
 
 
-**Total: 210+ Dart source files across 9 feature modules, core infrastructure, and services layer.**
+**Total: 230+ Dart source files across 9 feature modules, core infrastructure, and services layer.**
 
 ---
 
@@ -1508,14 +1527,14 @@ test/
 ### 10. Download Manager
 
 #### 10.1 Architecture Overview
-- **Feature module** at `lib/features/downloader/` — 27 Dart source files organized in Clean Architecture layers (domain, services, presentation)
+- **Feature module** at `lib/features/downloader/` — 40+ Dart source files organized in Clean Architecture layers (domain, services, presentation)
 - **Engine-based CLI orchestration**: Downloads are executed by spawning `yt-dlp` or `gallery-dl` as child processes via `Process.start()`, with stdout/stderr streaming for real-time progress parsing
 - **State management**: Riverpod `NotifierProvider` pattern — `DownloadTaskNotifier` manages active/pending tasks, `DownloadHistoryNotifier` manages persisted completed tasks, `DownloadsPanelProvider` controls panel UI state, and `DownloadsSharedController` manages fetching and media state for the standalone window.
 - **Panel architecture**: `DownloadsPanel` is a lightweight `ConsumerWidget` functioning purely as a router for active tasks and history views. The heavy lifting for URL input, media parsing, fetching, and grid presentation is handled by the `StandaloneDownloaderWindow`.
 
 #### 10.2 Domain Entities
 - **`MediaInfo`**: Core entity representing a single downloadable media item
-  - Fields: `id`, `title`, `thumbnail`, `originalUrl`, `duration` (seconds), `filesize`, `formats` (list of `MediaFormat`), `extractor` (source platform), `isVideo`, `isProfile`, `isPlaylist`, `itemCount`, `errorMessage`
+  - Fields: `id`, `title`, `thumbnail`, `originalUrl`, `duration` (seconds), `filesize`, `formats` (list of `MediaFormat`), `extractor` (source platform), `isVideo`, `isProfile`, `isPlaylist`, `itemCount`, `errorMessage`, `uploadDate`
   - **`isError`**: Computed property — `true` when `errorMessage` is non-null, used to route to error tile rendering
 - **`MediaFormat`**: Represents a selectable download quality option
   - Fields: `formatId` (yt-dlp format selector string), `extension`, `resolution` (e.g., "1080p", "720p", "audio only"), `formatString` (display label), `filesize`
@@ -1527,12 +1546,34 @@ test/
 - **`DownloadConfig`**: Per-item configuration for the download
   - Fields: `mode` (`DownloadMode` enum: `auto`, `video`, `audio`), `formatId` (selected quality), `groupFilter` (`GroupDownloadType` enum: `all`, `images`, `videos`)
   - **Mutable**: Config is modified in-place via UI dropdowns (format selection, media type filter)
+- **`CustomExtractor`**: Immutable entity representing a user-defined JavaScript extractor script
+  - Fields: `id`, `name`, `script` (user-authored JS or template-generated), `createdAt`, `modifiedAt`, `metadata` (nullable JSON string)
+  - **Phase discriminant**: `metadata == null` → manual script extractor (Phase 1); `metadata != null` → template-generated default extractor (Phase 2+)
+  - `copyWith()` uses an `_absent` sentinel `Object` to distinguish "not provided" from an explicit `null` clear for the `metadata` field
+  - Serializable via `toMap()` / `fromMap()` — metadata key is omitted entirely when null for round-trip parity
+- **`ExtractorRuntimeConfig`**: Immutable configuration for the Deno extractor runtime
+  - Fields: `navigationTimeoutMs` (30s), `extractorTimeoutMs` (30s), `settleDelayMs` (500ms SPA settle), `maxResults` (500 max URL return limit)
+  - Hardcoded conservative defaults; future phases may expose these in Settings
+- **`BrowserCapability`**: Enum classifying installed browsers as `chromium`, `firefox`, `other`, or `none` for extractor execution routing
+- **`DownloaderFilterSettings`**: Immutable filter state for the standalone downloader media grid
+  - `selectedTypes`: `Set<DownloaderItemType>` filtering by `image`, `video`, `groupPost`, `playlist`, `profile`, `others`
+  - `selectedDates`: `Set<DateTime>` filtering by upload date
+  - `isDefault`: computed `true` when both sets are empty
+- **`DownloaderViewPreferences`**: Combines `sortOrder` (string key) and `DownloaderFilterSettings` for per-session view state
+- **`DownloaderItemClassifier`**: Pure utility class that maps `MediaGroup`/`MediaInfo` to `DownloaderItemType` and extracts normalized date values for date-based filtering
 
 #### 10.3 Engine System
 - **`DownloadEngine`** (abstract): Interface defining `id`, `displayName`, `icon`, `color`, `binaryPath`, `updateInfo`, `canHandle(url)`, `buildFetchArgs(url, settings)`, `buildDownloadArgs(mediaInfo, config, destination, settings)`, `parseFetchOutput(stdout)`, `parseProgress(line)`
 - **`EngineRegistry`**: Singleton registry that holds all engine instances and resolves the correct engine for a URL via `canHandle()` matching
   - **Auto-select mode**: Uses `resolveEngineSequence()` to generate an ordered list of installed engines. Prioritizes engines whose `urlPatterns` match, sorted by priority (0 to 10), then appends non-matching installed engines as fallbacks.
   - **Required vs Optional**: Required engines (`yt-dlp`, `gallery-dl`) block UI if missing. Optional engines (`lux`, `you-get`, `streamlink`, `playwright`) can be dynamically installed/deleted from Settings.
+  - **Required Runtimes**: `DenoRuntime` is classified as a required runtime (separate from required engines). `allRequiredReady` returns `true` only when both required engines AND all required runtimes are installed. `missingRequired` aggregates both missing engines and missing runtimes into a single list for the readiness check.
+- **`DenoRuntime`** (`DownloadEngine` subclass, singleton)
+  - **Pinned version**: `v2.9.5` — always installs exactly this version from GitHub for deterministic behavior
+  - **Managed path**: `~/.local/share/onyxcore/bin/deno` — independent of any system-installed Deno
+  - **Not a download engine**: `fetchMetadata()` and `startDownload()` throw `UnimplementedError` — Deno is exclusively a JS execution runtime for custom extractors
+  - **Installation verification**: Checks file existence AND executable bits (`stat.mode & 0x49 != 0`) via `isInstalled`
+  - **GitHub asset**: `deno-x86_64-unknown-linux-gnu.zip` from the pinned GitHub release tag
 - **`YtDlpEngine`**: CLI wrapper for `yt-dlp`
   - **Binary resolution**: Checks `~/.local/share/onyxcore/bin/yt-dlp` first, then system `yt-dlp`
   - **URL matching**: Handles YouTube, Instagram, Twitter/X, TikTok, Vimeo, Dailymotion, SoundCloud, Bilibili, and generic video URLs
@@ -1741,8 +1782,91 @@ test/
 - **`downloadBrowser`** (`String?`): Selected browser for cookie extraction; auto-detected via `BrowserDetector.getDefaultBrowser()` on first launch; dropdown in Settings shows all installed browsers + "None"
 - **`downloadToCurrentFolder`** (`bool`, default `true`): When enabled, downloads save to the currently browsed directory; when disabled, saves to `~/Downloads`; toggle available in both Settings dialog and results view statistics strip
 - **`maxConcurrentDownloads`** (`int`, default `3`): Maximum parallel download tasks (1–10); slider in Settings dialog
+- **`customExtractorsEnabled`** (`bool`, default `false`): Master toggle for the Custom Extractor system. When disabled, the `ExtractorDropdown` is grayed out and no extractor is applied even if one is selected
+- **`extractorBrowser`** (`String?`): The specific Chromium-based browser used by the Deno extractor runtime (e.g., `chromium`, `google-chrome`, `brave-browser`). Only Chromium-based browsers are supported (filtered via `BrowserCapability`)
 
-#### 10.12 Core Utilities (Cross-Cutting)
+#### 10.12 Downloader Readiness System (`DownloaderReadinessProvider`)
+- **`DownloaderReadinessState`**: Immutable state model with `isReady`, `needsInstall`, `isChecking` booleans
+- **`DownloaderReadinessNotifier`** (`AsyncNotifierProvider`): On build, calls `EngineRegistry.allRequiredReady` to determine if all required engines + runtimes (including Deno) are installed. Routes the panel to `DownloadsMissingBinariesView` if `needsInstall` is true.
+- **`retry()`**: Re-runs the readiness check (used after an installation completes to transition back to the main panel)
+
+#### 10.13 Custom Extractor System
+
+The Custom Extractor system allows power users to write JavaScript scripts that run in a sandboxed Deno + Chromium browser environment to extract download URLs from websites that standard engines cannot handle.
+
+##### 10.13.1 Architecture
+- **Two-phase design**:
+  - **Phase 1 (Script extractors)**: User writes raw JavaScript manually via the Script tab in `AddExtractorDialog`
+  - **Phase 2 (Default extractors)**: User fills a GUI form (CSS selector + attribute); `DefaultExtractorTemplateService` code-generates the JS script. Metadata is stored alongside the script for re-editing
+- **Execution pipeline**: `DownloadsSharedController.analyzeUrls()` → resolves active extractor → `DenoExtractorRuntimeService.execute()` → spawns Deno process → Deno launches Chromium headlessly via CDP WebSocket → user script runs in page context → JSON array of URLs returned on stdout → `ExtractorOutputValidator` validates → URLs fed into normal `analyzeUrls` flow
+
+##### 10.13.2 Domain Layer
+- **`ExtractorRuntimeService`** (abstract interface)
+  - Single method: `execute(extractor, url, {browser, config, onLog, onProcessStarted})`
+  - Returns `ExtractorResult(urls: List<String>, logs: String)`
+  - Throws `ExtractorException(message, logs)` on failure
+- **`DefaultExtractorTemplateService`** (pure Dart, no Flutter/Riverpod)
+  - `generateScript(config)`: Dispatches to kind-specific template generators
+  - `encodeMetadata(config)` / `decodeMetadata(metadata?)`: JSON codec for `DefaultExtractorConfig` ↔ `CustomExtractor.metadata`
+  - `decodeMetadata` returns `null` on null input, malformed JSON, missing fields, or unknown kind (forward-compat)
+  - **HTML Extractor template**: `document.querySelectorAll(selector)` → `element.getAttribute(attribute)` → resolves relative URLs via `new URL(value, document.baseURI).href` → returns deduped absolute `http(s)://` URLs as a JSON array
+  - **JS injection security**: `_escapeJsString()` escapes all injected values using rune-by-rune `\xXX` / `\uXXXX` encoding — prevents CSS selector or attribute values from breaking out of the JS string literal
+- **`DefaultExtractorValidator`** (pure Dart, no Flutter/Riverpod)
+  - `validateExtractorName(name)`: Rejects empty, whitespace-only, or >255 char names
+  - `validateCssSelector(selector)`: Rejects empty, null bytes, `{}`/`}` block chars, and unbalanced `[]`/`()` brackets
+  - `validateAttributeName(attr)`: Rejects empty, leading/trailing whitespace, internal whitespace, HTML-spec-forbidden chars (`"`, `'`, `>`, `/`, `=`, `\x00`), and control chars U+0001–U+001F
+- **`ExtractorOutputValidator`**
+  - `validateRaw(decoded, config, logs?)`: Asserts result is a `List`, then delegates to `validate()`
+  - `validate(items, config, logs?)`: Enforces `maxResults` limit, string-only items, non-empty URLs, valid `http`/`https` scheme, non-empty authority — deduplicates and returns unique URLs
+
+##### 10.13.3 Service Layer
+- **`DenoExtractorRuntimeService`** (implements `ExtractorRuntimeService`)
+  - Writes `user_script.js` and a self-contained `wrapper.js` to a temp directory
+  - **Wrapper script**: Pure Deno script that: spawns Chromium with `--headless=new` + CDP, reads the DevTools WebSocket URL from stderr, attaches to a new Target, enables Page domain, navigates, waits for `Page.loadEventFired`, optionally delays `settleDelayMs` for SPAs, then calls `Runtime.evaluate` to import the user script as a data URI module and invoke `export { extract }` pattern
+  - **CDP (Chrome DevTools Protocol)**: Communication via raw WebSocket (`ws://127.0.0.1:<random port>`), using a promise-based `sendCommand(method, params)` dispatcher
+  - **Deno permissions** (locked-down sandbox): `--allow-run=<executablePath>` (only the resolved browser binary), `--allow-net=localhost,127.0.0.1` (CDP WebSocket only), `--allow-read=<tempDir>`, `--allow-write=<tempDir>`, `--allow-env=PUPPETEER_EXECUTABLE_PATH`
+  - **Deno API guard**: If eval output contains `Deno is not defined` or `Deno.` in the exception, surfaces a user-friendly error indicating Deno APIs cannot be used in browser page context
+  - **Output parsing**: Last line of stdout is the JSON array; all other lines are treated as logs; `ExtractorOutputValidator.validateRaw()` validates the decoded result
+  - **Log sanitization**: Temp dir absolute paths are replaced with `<temp_dir>` in all streamed logs to prevent leaking filesystem layout
+  - **Cleanup**: `finally` block always kills the process and deletes the temp directory recursively
+  - **Execution timeout**: `process.exitCode.timeout(extractorTimeoutMs)` — kills process and throws `ExtractorException` on timeout
+
+##### 10.13.4 Presentation Layer
+- **`customExtractorsProvider`** (`AsyncNotifierProvider<CustomExtractorNotifier, List<CustomExtractor>>`)
+  - `build()`: Loads all extractors from `AppDatabase.getAllExtractors()` and maps to `CustomExtractor` domain entities (including `metadata` Phase 2 field)
+  - `addExtractor()` / `updateExtractor()`: Upserts to Drift DB and updates in-memory state
+  - `deleteExtractor(id)`: Deletes from DB and filters out from in-memory list
+- **`extractorRuntimeServiceProvider`** (`Provider<ExtractorRuntimeService>`): Returns `DenoExtractorRuntimeService()` in production. A `DummyExtractorRuntimeService` is available for testing (returns empty `ExtractorResult`)
+- **`ExtractorDropdown`** (`ConsumerWidget`): Compact `PopupMenuButton` listing "No Extractor" + all saved extractors; disabled (grayed at 30% opacity) when `customExtractorsEnabled` is `false`; integrated into the `StandaloneWindowHeader` URL bar area
+- **`AddExtractorDialog`** (`ConsumerStatefulWidget`): Dual-tab dialog (Default Extractor / Script)
+  - **Default tab**: Extractor Name + Extractor Type dropdown (HTML, extensible) + CSS Selector field + Attribute Name field — all validated inline via `DefaultExtractorValidator` with real-time error clearing
+  - **Script tab**: Extractor Name + multi-line JS editor (monospace font, expands to fill dialog height)
+  - **Edit mode**: When `extractor != null`, decodes `metadata` to determine initial tab; script extractors open on Script tab, default extractors on Default tab with pre-populated fields
+  - **Name sync**: Two separate `TextEditingController` instances (one per tab) kept bidirectionally in sync via `addListener` to avoid `GlobalKey` conflicts when `TabBarView` renders both pages simultaneously
+  - **Save flow**: Default tab → validates → generates script via `DefaultExtractorTemplateService` → encodes metadata → calls `customExtractorsProvider.notifier.addExtractor/updateExtractor`; Script tab → validates → saves with `metadata: null`
+
+##### 10.13.5 Persistence
+- **Drift table** (`CustomExtractorEntries`, DB schema v3+): Columns: `id` (TEXT PK), `name` (TEXT), `script` (TEXT), `created_at` (INTEGER ms), `modified_at` (INTEGER ms), `metadata` (nullable TEXT — added in schema v4)
+- **Schema migration v3**: Table created
+- **Schema migration v4**: `metadata` nullable column added; existing Phase 1 rows receive NULL
+- **Extractor ordering**: Returned in insertion order from SQLite (no explicit ORDER BY); future phases may add `position` column
+
+#### 10.14 Standalone Downloader — Filter & Sort System
+- **`DownloaderFilterOverlay`**: Global singleton `OverlayEntry` system (static `show()`/`hide()`) anchored to the action bar filter button
+  - Supports multi-select type checkboxes (`DownloaderItemType`) and date picker calendar grid
+  - `availableDatesByType` map allows per-type date availability highlighting in the calendar
+  - Closes on outside-tap via transparent `Positioned.fill` `GestureDetector`
+- **Sort options**: `added_desc`, `added_asc`, `date_desc`, `date_asc`, `size_desc`, `size_asc` — stored in `DownloaderViewPreferences.sortOrder`
+- **`DownloaderItemClassifier`**: Classifies media items into `DownloaderItemType` and normalizes `uploadDate` to day-precision `DateTime` for date filter matching. `matchesDateFilter()` iterates all items in a group for date-match (any-match semantics)
+
+#### 10.15 Properties Dialog (`PropertiesDialog`)
+- **Glassmorphic multi-item properties view** for selected media cards in the standalone downloader
+  - Accepts `List<dynamic>` (mix of `MediaGroup` and `MediaInfo`)
+  - Displays format details, resolution sorted by height, filesize estimates based on `getFormatBytes()` callback and active `DownloadConfig`
+  - Full raw logs viewer with `FiraCode` monospace font in a scrollable 250px container
+  - Engine attribution row showing which engine/extractor produced each item
+
+#### 10.16 Core Utilities (Cross-Cutting)
 - **`ProcessUtils`**: Graceful process tree killer used by the download task system
   - `killProcessTree(pid)`: Async — discovers children via `pgrep -P`, recursively kills bottom-up, sends SIGTERM first with 1s grace period, then SIGKILL
   - `killProcessTreeSync(pid)`: Sync variant for window close handlers — immediate SIGKILL cascade (no async await possible in dispose)
@@ -1784,8 +1908,13 @@ test/
 
 #### 11.6 Single Source of Truth Persistence (`core/database`)
 - **Drift Consolidation**: Completely replaced fragmented `hive`, `hive_flutter`, `shared_preferences`, and `sqlite3` implementations with a unified, strongly-typed Drift database (`AppDatabase`).
-- **Unified Schema**: Centralized schema definition for app settings, pinned folders, gallery sort orders, video markers, and download histories inside a single SQLite file, preventing sync errors.
+- **Unified Schema**: Centralized schema definition for app settings, pinned folders, gallery sort orders, video markers, download histories, and custom extractors inside a single SQLite file, preventing sync errors.
 - **Type-Safe JSON Codecs**: Uses `SettingsCodec` to safely serialize non-primitive configuration types into the database, guaranteeing atomic multi-field updates.
+- **Schema versions**:
+  - v1: `Settings`, `FolderSortPreferences`, `PinnedFolders`, `PinnedItems`, `MetadataCacheEntries`, `PlaybackMemoryEntries`, `AudioFavoriteEntries`, `VideoFavoriteEntries`, `VideoMarkerEntries`, `EmojiSetEntries`, `EmojiUsageEntries`, `OpenWithDialogSizeEntries`, `ThumbnailCacheEntries`
+  - v2: `DownloadHistoryEntries` table added
+  - v3: `CustomExtractorEntries` table added — columns: `id` (TEXT PK), `name`, `script`, `created_at` (INTEGER ms), `modified_at` (INTEGER ms)
+  - v4: `metadata` nullable TEXT column added to `CustomExtractorEntries` for Phase 2 default extractor support
 
 ---
 
@@ -1820,4 +1949,4 @@ test/
 
 ---
 
-*Generated: 2026-07-14 | Comprehensive audit of 210+ Dart source files across 9 feature modules, core infrastructure, and services layer.*
+*Generated: 2026-08-23 | Comprehensive audit of 230+ Dart source files across 9 feature modules, core infrastructure, and services layer.*

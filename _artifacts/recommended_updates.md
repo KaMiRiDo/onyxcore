@@ -1,355 +1,198 @@
-# OnyxCore — Recommended Updates & Roadmap
+# OnyxCore — Recommended Updates
 
-> Strategic improvements organized by module priority. Each section lists features and architectural updates that would enhance the application.
-
----
-
-## 1. Core Architecture
-
-### 1.1 Isolate Worker Pool
-- Replace per-operation `Isolate.run` calls with a **centralized IsolatePool** (2-4 workers)
-- Reuse isolates across copy/move/delete/size-calculation operations
-- Add graceful shutdown and timeout handling
-- Priority: **High** — prevents resource exhaustion during batch operations
-
-### 1.2 Error Boundary System
-- Implement global error handler for uncaught isolate/async exceptions
-- Surface silent failures to UI with retry options
-- Add crash recovery for stuck background tasks
-- Priority: **High**
-
-### 1.3 Plugin Architecture
-- Abstract file operations behind a plugin interface for extensibility
-- Enable third-party integrations (cloud storage backends, archive handlers)
-- Priority: **Low** — future extensibility
-
-### 1.4 Logging & Diagnostics
-- Add structured logging with log levels (debug/info/warn/error)
-- Optional log-to-file for user bug reports
-- Performance profiling hooks for render/IO bottlenecks
-- Priority: **Medium**
+> **Audit Date:** 2026-08-23 | **Framework:** Flutter 3.44.4 / Dart SDK ^3.10.4 | **Platform:** Linux
 
 ---
 
-## 2. Directory Browser
+## 1. Performance Issues
 
-### 2.1 List View Mode
-- Add a **list/detail view** toggle alongside the existing grid view
-- Show columns: Name, Size, Type, Date Modified, Permissions
-- Sortable column headers
-- Priority: **High** — standard file manager expectation
-
-### 2.2 Dual Pane Mode
-- Split the browser into two independent directory panes
-- Drag-and-drop between panes for copy/move
-- Priority: **Medium**
-
-### 2.3 Favorites / Bookmarks
-- Allow users to **pin custom folders** to the sidebar
-- Drag-and-drop reordering of pinned items
-- Already partially modeled in `AppSettings.pinnedFolders`
-- Priority: **High**
-
-### 2.4 Breadcrumb Dropdown
-- Add a **dropdown arrow** on each breadcrumb segment showing sibling folders
-- Enable quick lateral navigation without going back
-- Priority: **Medium**
-
-### 2.5 Directory Size Column
-- Show folder sizes inline (lazy-computed via isolate)
-- Cache results in `MetadataCache`
-- Priority: **Medium**
-
-### 2.6 File Preview Tooltips
-- Show hover tooltips with file metadata (size, date, dimensions for images)
-- Small thumbnail preview for image files on hover
-- Priority: **Low**
-
-### 2.7 Undo/Redo for File Operations
-- Implement an undo stack for move/rename/delete operations
-- "Undo" snackbar after destructive actions (like Gmail's undo send)
-- Priority: **Medium**
-
-### 2.8 Batch Compress
-- Implement the "Compress..." context menu item (currently placeholder)
-- Support zip/tar.gz/7z creation
-- Priority: **Medium**
-
-### 2.9 Virtual Folders
-- Implement **Recent files** (currently `virtual:recent` route exists but may need data source)
-- Implement **Starred/Favorites** virtual folder
-- Priority: **Medium**
-
-### 2.10 Terminal Integration
-- Embedded terminal panel (like VS Code's integrated terminal)
-- Currently only "Open in Terminal" launches external gnome-terminal
-- Priority: **Low**
+### 1.1 Downloader — Custom Extractor Execution Blocks the UI Thread
+- **Location**: `lib/features/downloader/services/deno_extractor_runtime_service.dart`
+- **Issue**: The entire `execute()` method awaits `process.exitCode` on the main Flutter isolate. Although the `await` is non-blocking, log streaming via `listen()` occurs on the main event loop. For extractors running for up to 30 seconds (the default `extractorTimeoutMs`), any synchronous work in the `onLog` callback could stall frame rendering.
+- **Recommendation**: Run the `Process.start`, stream consuming, and `exitCode` await inside a `compute` isolate using `Isolate.run` and pass results back via a `ReceivePort`. If isolate overhead is undesirable, at minimum ensure `onLog` callbacks are lightweight and do not trigger `setState` synchronously.
 
 ---
 
-## 3. Image Viewer
-
-### 3.1 Thumbnail Strip
-- Add a horizontal **thumbnail filmstrip** at the bottom for quick navigation
-- Highlight current image; click to jump
-- Priority: **Medium**
-
-### 3.2 Slideshow Mode
-- Auto-advance through images with configurable interval
-- Transition animations (fade, slide)
-- Priority: **Low**
-
-### 3.3 Advanced Editor Features
-- **Color/Saturation adjustments** (extend ffmpeg pipeline)
-- **Resize/Scale** tool
-- **Filters** (grayscale, sepia, sharpen, blur)
-- **Undo/Redo** stack for edit operations
-- Priority: **Medium**
-
-### 3.4 RAW Image Support
-- Detect and render RAW camera formats (CR2, NEF, ARW) via dcraw/libraw
-- Priority: **Low**
-
-### 3.5 Image Comparison
-- Side-by-side or overlay comparison mode for similar images
-- Priority: **Low**
-
-### 3.6 Album Art Extraction
-- Extract embedded thumbnails from image EXIF for faster grid loading
-- Priority: **Medium** — performance improvement
+### 1.2 Downloader — `DownloadsSharedController.recalculateFilteredStatistics()` Called on Every Notify
+- **Location**: `lib/features/downloader/presentation/providers/downloads_shared_controller.dart`
+- **Issue**: `recalculateFilteredStatistics()` iterates all `parsedItems` groups and their items on every `notifyListeners()` call. For large playlist imports (hundreds of items), this is a synchronous O(n) scan on the main thread that runs every rebuild cycle.
+- **Recommendation**: Memoize statistics using a dirty flag. Set `_statisticsDirty = true` whenever `parsedItems` or `DownloadConfig` changes, compute lazily on the next getter call, and return cached values on subsequent reads without re-scanning.
 
 ---
 
-## 4. Video Player
-
-### 4.1 Chapter Support
-- Parse and display chapter markers on the seek bar
-- Chapter list in a side panel
-- Priority: **Medium**
-
-### 4.2 A-B Loop
-- Set loop points A and B for repeated playback of a segment
-- Priority: **Low**
-
-### 4.3 Video Filters
-- Real-time video filters (brightness, contrast, hue) via media_kit/mpv
-- Priority: **Low**
-
-### 4.4 Picture-in-Picture
-- Floating mini-player overlay while browsing files
-- Priority: **Medium**
-
-### 4.5 Thumbnail Preview on Seek
-- Show frame thumbnails when hovering over the progress bar
-- Priority: **Medium** — significant UX improvement
-
-### 4.6 Keyboard Shortcut Overlay
-- Show a `?` help overlay listing all keyboard shortcuts
-- Priority: **Low**
-
-### 4.7 Cast/Stream Support
-- DLNA/Chromecast streaming capability
-- Priority: **Low** — future feature
-
-### 4.8 Video Editing
-- Implement the "Edit Video" button (currently TODO placeholder)
-- Basic trim, cut, concatenate via ffmpeg
-- Priority: **Medium**
+### 1.3 Directory Browser — Sort Isolate Threshold May Miss Mid-Size Directories
+- **Location**: `lib/features/directory_browser/presentation/providers/directory_providers.dart` — `sortedDirectoryItemsProvider`
+- **Issue**: Sort is offloaded to a `compute` isolate only for directories with ≥500 items. On older/slower hardware, synchronous sorts of 200–499 items can still cause noticeable jank during rapid navigation.
+- **Recommendation**: Lower the threshold to 100–150 items, or use `Isolate.run` unconditionally. The startup cost of spawning a compute isolate (~1–3ms) is negligible compared to a synchronous stall in the frame budget.
 
 ---
 
-## 5. Audio Player
-
-### 5.1 Album Art Extraction
-- Extract embedded album art from audio files (ID3 tags, Vorbis comments)
-- Display in hero player and playlist tiles
-- Priority: **High** — currently shows placeholder icon
-
-### 5.2 Metadata Extraction
-- Parse artist, album, track number, genre from audio metadata
-- Replace hardcoded "Unknown Artist" and "3:42" duration
-- Priority: **High** — core UX gap
-
-### 5.3 Real Waveform Analysis
-- Generate actual waveform data from audio file (via ffmpeg or audiowaveform CLI)
-- Replace the current pseudo-random procedural waveform
-- Priority: **Medium**
-
-### 5.4 Equalizer
-- Visual equalizer with preset profiles
-- Priority: **Low**
-
-### 5.5 Gapless Playback
-- Ensure seamless transitions between tracks (pre-buffer next track)
-- Priority: **Medium**
-
-### 5.6 Mini Player
-- Persistent bottom mini-player bar when navigating away from audio view
-- Priority: **Medium**
-
-### 5.7 Queue Management
-- Drag-and-drop reordering of the playlist
-- Add/remove individual tracks from queue
-- Priority: **Medium**
+### 1.4 Image Viewer — 500 MB `imageCache.maximumSizeBytes` Limit Is Hard-Coded
+- **Location**: `lib/main.dart` — engine initialization
+- **Issue**: The global image cache is hard-coded to 500 MB. On systems with limited RAM (4–8 GB), this can trigger OS-level memory pressure when navigating large DSLR photo directories, as Flutter will not evict cached images until the 500 MB limit is hit.
+- **Recommendation**: Make this configurable in Settings → Performance (e.g., "Image Cache Size: 100 MB / 250 MB / 500 MB"). Default to a lower value (128 MB) for general use and allow power users to raise it.
 
 ---
 
-## 6. Document Viewer
-
-### 6.1 PDF Viewer
-- Implement PDF rendering (currently shows placeholder)
-- Use `pdfium` or `pdf_render` package
-- Priority: **High** — PDF is a very common format
-
-### 6.2 Syntax Highlighting
-- Add proper syntax highlighting to code blocks in markdown viewer
-- Use `highlight` package or custom token painter
-- Priority: **Medium**
-
-### 6.3 Plain Text Viewer
-- Support viewing/editing plain text files (.txt, .log, .conf, .json, .yaml)
-- Priority: **Medium**
-
-### 6.4 Search Within Document
-- Ctrl+F search within markdown/text content
-- Highlight matches with navigation
-- Priority: **Medium**
-
-### 6.5 Table of Contents
-- Auto-generate TOC sidebar from markdown headings
-- Click to scroll to section
-- Priority: **Low**
+### 1.5 Video Player — libmpv Buffer Config Is Very Aggressive
+- **Location**: `lib/features/video_player/presentation/widgets/video_preview_widget.dart` — mpv property setup
+- **Issue**: `demuxer-max-bytes: 400 MiB` and `cache-secs: 60` are very aggressive for short clips or low-bitrate content. On machines with limited RAM, pre-allocating 600 MB of buffer memory (400 MB forward + 200 MB backward) per player instance can cause memory contention when multiple viewer windows are open simultaneously.
+- **Recommendation**: Add a "Streaming Buffer" dropdown in Settings → Performance. Offer presets: `Minimal (64 MiB)`, `Balanced (128 MiB)` (default), `Aggressive (400 MiB)`. Apply dynamically based on detected available system RAM.
 
 ---
 
-## 7. Settings & Preferences
-
-### 7.1 Theme Customization
-- Allow users to choose accent colors (beyond violet)
-- Light mode option
-- Custom gradient presets
-- Priority: **Low**
-
-### 7.2 Keyboard Shortcut Customization
-- Configurable key bindings for all actions
-- Priority: **Low**
-
-### 7.3 Default Application Mapping
-- Configure which external apps to use for specific file types
-- "Open With..." context menu option
-- Priority: **Medium**
-
-### 7.4 Import/Export Settings
-- Backup and restore settings to/from JSON file
-- Priority: **Low**
+### 1.6 Audio Player — `AudioQueueIsolate` Rebuilds Full Queue on Any Directory Change
+- **Location**: `lib/features/audio_player/domain/utils/audio_queue_isolate.dart`
+- **Issue**: The audio queue is re-generated from scratch on every directory refresh event, even if only one file was added or removed.
+- **Recommendation**: Implement a delta-patch approach — compute the diff of new vs. old file lists and only insert/remove changed tracks into the existing queue rather than rebuilding from scratch.
 
 ---
 
-## 8. Code Quality & Refactoring
-
-### 8.1 Consolidate formatBytes (Immediate)
-- Merge 4 duplicate `formatBytes`/`_formatSize` implementations into `StringUtils.formatBytes()`
-- Add `double` overload for device provider use case
-- **Files to update**: `directory_size_utils.dart`, `task_history_view.dart`, `playlist_overlay.dart`, `device_provider.dart`
-
-### 8.2 Consolidate formatDuration
-- Create `StringUtils.formatDuration()` with format options
-- Unify video player and audio player duration formatting
-- **Files to update**: `video_preview_widget.dart`, `waveform_scrubber.dart`
-
-### 8.3 Consolidate Gradient Slider Track
-- Remove `_GradientRectSliderTrackShape` from `video_volume_overlay.dart`
-- Reuse existing `GradientRectSliderTrackShape` from `gradient_slider_track.dart`
-
-### 8.4 Extract Shared Viewer Patterns
-- Create `ViewerMixin` or base class for shared logic across all viewer widgets:
-  - HUD auto-hide timer
-  - Keyboard navigation
-  - Window management boilerplate
-  - IPC reverse navigation
-- Reduces ~200 lines of duplicated code across 4 viewers
-
-### 8.5 Unit Test Coverage
-- Add unit tests for:
-  - `DirectoryCache` TTL logic
-  - `FileTypeClassifier` extension mapping
-  - `StringUtils` formatting functions
-  - `TabManager` state transitions
-  - `ConflictProvider` queue/completer logic
-- Priority: **High** — currently no test coverage
-
-### 8.6 Widget Test Coverage
-- Add widget tests for:
-  - `ItemCard` selection states
-  - `ContextMenu` positioning
-  - `BreadcrumbSegment` navigation
-  - `FilterOverlay` state management
-- Priority: **Medium**
-
----
-## Performance Risks & Recommended Solutions
-
-| # | Risk | Location | Impact | Solution |
-|---|------|----------|--------|----------|
-| 1 | **No Isolate Pool** — each file copy spawns a new isolate | `LocalFileDatasource` | Resource exhaustion during batch ops (100+ files) | Implement centralized `IsolatePool` with configurable worker count |
-| 2 | **Unbounded directory listing** — `Isolate.run` loads entire directory into memory | `DirectoryItemsNotifier` | OOM on dirs with 50k+ files | Add pagination/virtualization; stream results from isolate |
-| 3 | **inotify watch limits** — Linux default is 8192 watches | `DirectoryWatcher` | Silent failure on large dir trees | Check `/proc/sys/fs/inotify/max_user_watches`; add error handling |
-| 4 | **Image thumbnails on main thread** — `Image.file` with `cacheWidth` still decodes on UI thread | `ItemCard._buildItemPreview` | Jank on image-heavy directories | Pre-generate thumbnails in isolate; use cached thumbnail files |
-| 5 | **Player lifecycle in preview mode** — Player created/disposed on every preview toggle | `VideoPreviewWidget` | Noticeable delay on rapid preview switching | Cache Player instances per path with LRU eviction |
-| 6 | **No error boundary** — unhandled exceptions in isolates crash silently | `TaskNotifier._processQueue` | Tasks stuck in "running" state forever | Add try/catch wrappers + timeout; surface errors to UI |
-| 7 | **SharedPreferences on main thread** — blocking I/O during settings read | `SettingsNotifier.build` | Frame drops on cold start | Move to async initialization; show splash screen |
-| 8 | **Large file history** — JSON file grows unbounded | `TaskHistoryProvider` | Slow load times, high memory | Add max history size; implement rotation/cleanup |
+### 1.7 ThumbnailCacheService — No Maximum Cache Size Enforcement
+- **Location**: `lib/core/cache/thumbnail_cache_service.dart`
+- **Issue**: The Freedesktop thumbnail cache at `~/.cache/onyxcore/thumbnails/` has no size cap. On directories with thousands of RAW/HEIC/video files, the cache can grow unboundedly over time, consuming gigabytes of disk space.
+- **Recommendation**: Add a periodic LRU eviction pass (e.g., on app startup, trim to the 5000 most-recently-accessed entries, or a configurable max disk size). Expose a "Clear Thumbnail Cache" button in Settings → Storage.
 
 ---
 
-## Redundant Code & Consolidation Opportunities
+## 2. Risks
 
-### 1. `formatBytes` — **4 duplicate implementations**
-
-| Location | Signature | Notes |
-|----------|-----------|-------|
-| `core/utils/string_utils.dart` | `StringUtils.formatBytes(int)` | ✅ **Canonical** |
-| `core/utils/directory_size_utils.dart` | `formatBytes(int)` | Top-level function, duplicate |
-| `widgets/task_history_view.dart` | `_formatBytes(int)` | Private method, duplicate |
-| `widgets/playlist_overlay.dart` | `_formatSize(int)` | Private method, different name |
-| `providers/device_provider.dart` | `_formatSize(double)` | Takes double, slightly different |
-
-**Action**: Consolidate all to `StringUtils.formatBytes()`. Add a `double` overload if needed.
-
-### 2. `_formatDuration` — **3 duplicate implementations**
-
-| Location | Format |
-|----------|--------|
-| `video_preview_widget.dart` | `HH:MM:SS` or `MM:SS` |
-| `waveform_scrubber.dart` | `M:SS` (no zero-pad minutes) |
-| `task_history_detail_view.dart` | `Xh Ym Zs` (prose format) |
-
-**Action**: Create `StringUtils.formatDuration()` with optional format parameter. The task history one uses a different format so it may stay separate.
-
-### 3. `_formatSize` in `PlaylistOverlay`
-- Identical logic to `StringUtils.formatBytes` — direct replacement.
-
-### 4. Gradient Slider Track — **2 implementations**
-- `GradientRectSliderTrackShape` in `gradient_slider_track.dart`
-- `_GradientRectSliderTrackShape` in `video_volume_overlay.dart`
-
-**Action**: Reuse the public `GradientRectSliderTrackShape` in the volume overlay.
-
-### 5. `_buildTopBarButton` pattern
-- Nearly identical button builder methods in `VideoPreviewWidget` and `MarkdownPreviewWidget`.
-- **Action**: Extract to `ViewerTopBar` or a shared utility widget.
+### 2.1 Custom Extractor — Deno Pinned Version May Become Unmaintained
+- **Location**: `lib/features/downloader/services/deno_runtime.dart` — `pinnedVersion = 'v2.9.5'`
+- **Risk**: Pinning to `v2.9.5` indefinitely means the app will never benefit from security patches or JS engine updates in Deno. If a critical CVE is found in Deno 2.9.x's network stack or V8, all users running extractors against untrusted pages will be exposed.
+- **Recommendation**: Add a scheduled check (monthly / on app start) that compares `pinnedVersion` to the latest GitHub release. If a newer version is available, display a warning in Settings → Download Manager → Custom Extractors. Allow the user to trigger an update. Consider updating the pin in code with each app release.
 
 ---
 
-## Priority Summary
-
-| Priority | Items |
-|----------|-------|
-| **Immediate** | formatBytes consolidation, formatDuration consolidation, gradient slider dedup |
-| **High** | Isolate pool, error boundaries, list view mode, favorites, audio metadata, PDF viewer, unit tests |
-| **Medium** | Dual pane, breadcrumb dropdown, undo/redo, thumbnail strip, PiP, real waveform, syntax highlighting, text viewer |
-| **Low** | Plugin arch, slideshow, RAW support, equalizer, theme customization, keyboard config |
+### 2.2 Custom Extractor — Temp Directory Cleanup May Fail on Kill/Crash
+- **Location**: `lib/features/downloader/services/deno_extractor_runtime_service.dart` — `finally` block
+- **Risk**: The `finally` block calls `tempDir.delete(recursive: true)` after `process.kill()`. If the app is force-killed (SIGKILL, power loss) while an extractor is running, the temp directory at `/tmp/onyx_extractor_*` will be left on disk. Accumulated orphaned directories could consume significant disk space if the feature is used frequently.
+- **Recommendation**: On app startup, scan `/tmp` for `onyx_extractor_*` directories and delete any that are older than 1 hour. This is a one-time O(1) scan on launch and requires no persistent state.
 
 ---
 
-*Generated: 2026-05-06 | Based on comprehensive audit of OnyxCore v1.0.0 codebase.*
+### 2.3 Custom Extractor — `Runtime.evaluate` Expression Concatenation Edge Case
+- **Location**: `lib/features/downloader/services/deno_extractor_runtime_service.dart` — wrapper script `Runtime.evaluate` expression
+- **Risk**: The wrapper script uses `JSON.stringify(userScriptContent)` to embed user script source into the `Runtime.evaluate` expression string via template literal concatenation. If `JSON.stringify` produces a string containing unusual Unicode or escape sequences that interact with the surrounding JS template literal, edge cases in very unusual user-authored scripts could produce unexpected parsing behavior in the eval string.
+- **Recommendation**: Verify via unit test that scripts containing backticks, `${}`, and Unicode supplementary plane characters are correctly preserved end-to-end through the eval pipeline. The current architecture (reading script from file via `Deno.readTextFile` then embedding via `JSON.stringify`) is sound — confirm with regression tests.
+
+---
+
+### 2.4 Download Manager — SIGKILL on Download Processes May Corrupt Partial Files
+- **Location**: `lib/app.dart` — `onWindowClose()` → `killProcessTreeSync()`
+- **Risk**: `killProcessTreeSync()` is a synchronous SIGKILL cascade. If a `yt-dlp` process is in the middle of writing a partial file when killed, the output file will be corrupt. `yt-dlp` itself typically handles this gracefully when receiving `SIGTERM` but SIGKILL bypasses any cleanup handlers.
+- **Recommendation**: In `onWindowClose()`, send `SIGTERM` first and wait up to 2 seconds (with a `Future.delayed`) before falling back to SIGKILL. This gives `yt-dlp` time to flush and rename the `.part` file. Since this is in the close handler, a 2-second delay is tolerable.
+
+---
+
+### 2.5 Download History — No Row Count Cap on `download_history` Table
+- **Location**: `lib/features/downloader/services/download_history_database.dart`
+- **Risk**: The download history table has no automatic pruning. Heavy users who perform thousands of downloads will accumulate unbounded rows in `~/.local/share/onyxcore/downloads.db`. The paginated `getAll(LIMIT 50)` keeps the UI fast, but `totalEntries` requires a full `COUNT(*)` scan which can become slow on very large tables (100k+ rows).
+- **Recommendation**: Add an auto-prune policy: after each insert, if `totalEntries > 10,000` (configurable), delete the oldest N entries to bring count back to a cap. Expose a max-history-size setting in Settings → Download Manager.
+
+---
+
+### 2.6 Downloader — `Aria2Accelerator` Not Verified for Presence Before Use
+- **Location**: `lib/features/downloader/services/aria2_accelerator.dart` — usage in `YtDlpEngine`
+- **Risk**: If the `aria2c` binary is not installed on the system, injecting `--external-downloader aria2c` into `yt-dlp` args will cause downloads to silently fail. There is no pre-flight check for `aria2` presence before attempting to use it as an external downloader.
+- **Recommendation**: Add `aria2` to the `EngineRegistry` as an optional dependency (or check via `which aria2c` at startup). If missing, suppress the `--external-downloader aria2c` flag and fall back to `yt-dlp`'s built-in downloader. Display an "Install aria2 for faster downloads" prompt in Settings.
+
+---
+
+### 2.7 Custom Extractor — Extractor ID Generation Uses Millisecond Timestamp
+- **Location**: `lib/features/downloader/presentation/widgets/components/add_extractor_dialog.dart` — `_persist()` method
+- **Risk**: Using `DateTime.now().millisecondsSinceEpoch.toString()` as the primary key is not collision-safe. If a user creates two extractors within the same millisecond (e.g., via rapid double-click or test automation), the second `upsertExtractor` call will silently overwrite the first.
+- **Recommendation**: Use the `uuid` package (already in `pubspec.yaml`) to generate a `Uuid().v4()` ID instead of the timestamp.
+
+---
+
+### 2.8 DirectoryWatcher — Potential inotify File Descriptor Leak on Tab Close
+- **Location**: `lib/core/platform/directory_watcher.dart`
+- **Risk**: If a watcher subscription is created for a tab but the tab closes before the subscription's cancel completes asynchronously, the inotify file descriptor may remain open. On systems with a low `fs.inotify.max_user_watches` limit (default 8192), opening many tabs pointing to large directories could exhaust watch descriptors.
+- **Recommendation**: Add a guard that immediately calls `subscription.cancel()` synchronously on tab disposal. Log a warning if the watch limit error `ENOSPC` is detected and display a user-visible notice recommending `sysctl fs.inotify.max_user_watches=524288`.
+
+---
+
+### 2.9 EngineRegistry — `allRequiredReady` Performs Synchronous Filesystem Calls on Every Invocation
+- **Location**: `lib/features/downloader/services/engines/engine_registry.dart` — `allRequiredReady` getter
+- **Risk**: `allRequiredReady` calls `isInstalled` on each engine, which calls `File(managedPath).existsSync()` (a synchronous filesystem call). `DownloaderReadinessNotifier.build()` is called from Riverpod on every panel open. Frequent panel open/close cycles will hammer the filesystem with sync I/O on the main isolate.
+- **Recommendation**: Cache the `isInstalled` result per engine with a 10-second TTL. Invalidate the cache explicitly after `DownloaderUpdateNotifier.updateBinaries()` completes. This converts repeated panel opens from synchronous stat calls into in-memory reads.
+
+---
+
+## 3. Optimization Points
+
+### 3.1 Custom Extractor — No Extractor Management UI in Settings
+- **Location**: Settings Dialog → Download Manager section
+- **Issue**: The `AddExtractorDialog` is accessible from the standalone downloader window but there is no dedicated list/management view in the Settings dialog for reviewing, editing, or deleting all saved extractors.
+- **Recommendation**: Add a "Custom Extractors" subsection in Settings → Download Manager (similar to the "Installed Engines" section) showing a scrollable list of extractors with inline Edit and Delete actions.
+
+---
+
+### 3.2 Download History — No Full-Text Search
+- **Location**: `lib/features/downloader/presentation/widgets/download_history_view.dart`
+- **Issue**: Download history only supports date and status filters. Users cannot search by URL keyword, title substring, or destination path. With large history databases, finding a specific past download requires manual scrolling.
+- **Recommendation**: Add a search text field to the `DownloadHistoryView` toolbar. Implement a SQLite `LIKE '%query%'` filter on `title` and `url` columns. Debounce the query by 300ms to avoid excessive DB calls on each keystroke.
+
+---
+
+### 3.3 Custom Extractor — No In-Dialog Test-Run Capability
+- **Location**: `lib/features/downloader/presentation/widgets/components/add_extractor_dialog.dart`
+- **Issue**: After creating a custom extractor, users have no in-dialog way to test it against a sample URL before saving. They must save, select it in the dropdown, enter a URL, and run the fetch to verify behavior.
+- **Recommendation**: Add a "Test" button in `AddExtractorDialog` that takes a URL from a secondary text field and invokes `DenoExtractorRuntimeService.execute()` immediately. Display the extracted URLs (or error + logs) in an expandable inline section within the dialog.
+
+---
+
+### 3.4 Downloader — `DownloaderFilterOverlay` Uses a Global Static `OverlayEntry`
+- **Location**: `lib/features/downloader/presentation/widgets/components/downloader_filter_overlay.dart`
+- **Issue**: The static `_overlayEntry` singleton means only one filter overlay can exist at a time application-wide. If the owning widget is disposed without explicitly calling `hide()`, the `OverlayEntry` remains inserted in the overlay tree pointing to a garbage-collected widget.
+- **Recommendation**: Register a `dispose` callback on the caller widget that calls `DownloaderFilterOverlay.hide()`. Alternatively, convert to an instance-based overlay managed by the widget (not static global state) and dispose it in the widget's `dispose()`.
+
+---
+
+### 3.5 Custom Extractor — `DefaultExtractorKind` Enum Is Not Extensible at Runtime
+- **Location**: `lib/features/downloader/domain/services/default_extractor_template_service.dart`
+- **Issue**: `DefaultExtractorKind` is a Dart `enum` with `html` as its only member. Adding a new kind (e.g., JSON API extractor, Network request interceptor) requires a code change and app release. The UI dropdown in `AddExtractorDialog` must also be manually updated.
+- **Recommendation**: For Phase 3+, consider replacing the enum with a registry pattern (similar to `EngineRegistry`) where extractor kinds are registered by name and a `TemplateBuilder` function. The existing `extractorKind` JSON key approach already supports forward-compat via `firstOrNull` — the infrastructure is ready for extension.
+
+---
+
+### 3.6 Directory Browser — `DirectoryCache` TTL Is Fixed at 30 Seconds
+- **Location**: `lib/core/cache/directory_cache.dart`
+- **Issue**: The 30-second TTL is a hard-coded constant. On network filesystems (NFS, SAMBA) or slow external drives, 30 seconds may be too short. On local SSDs with inotify, 30 seconds is conservative since events already invalidate the cache; longer TTL would have no negative effect.
+- **Recommendation**: Make the TTL configurable in Settings → Performance with presets: `Off (0s)`, `Short (10s)`, `Standard (30s)` (default), `Long (120s)`.
+
+---
+
+### 3.7 Window Management — OS Window Title Not Updated on Playlist Navigation
+- **Location**: `lib/core/window_management/persistent_viewer_manager.dart`
+- **Issue**: Secondary viewer windows (image, video, audio) do not update the OS-level window title when navigating between files in the playlist. The title stays as the initially-opened file name, making it difficult to identify individual viewer windows in the taskbar or window switcher (`Alt+Tab`).
+- **Recommendation**: After each playlist navigation in the standalone viewers, call `windowManager.setTitle(fileName)` to update the OS window title to the currently-viewed file name.
+
+---
+
+### 3.8 Downloader — No Retry Mechanism for Failed Downloads
+- **Location**: `lib/features/downloader/presentation/providers/download_task_provider.dart`
+- **Issue**: When a download fails (`DownloadStatus.error`), users must manually re-trigger the download from scratch. There is no "Retry" action on failed task tiles.
+- **Recommendation**: Add a "Retry" button on `DownloadTaskTile` for tasks in `error` state. Implement `retryDownload(id)` in `DownloadTaskNotifier` that re-creates the task with the same `url`, `destination`, and `args`, then starts it immediately.
+
+---
+
+### 3.9 Settings — `extractorBrowser` Dropdown Not Filtered to Chromium-Only
+- **Location**: `lib/features/settings/presentation/widgets/settings_dialog.dart` — extractor browser dropdown
+- **Issue**: The `extractorBrowser` setting dropdown likely shows all installed browsers (including Firefox, etc.), but `DenoExtractorRuntimeService` only supports `BrowserCapability.chromium`. Selecting a non-Chromium browser results in an unhelpful `ExtractorException` at runtime.
+- **Recommendation**: Filter the `extractorBrowser` dropdown to only show browsers with `BrowserCapability.chromium`. Add a helper subtitle: "Only Chromium-based browsers are supported for custom extractors."
+
+---
+
+### 3.10 Testing — Custom Extractor Domain Layer Has No Unit Tests
+- **Location**: `test/features/downloader/` — no test files exist for the new domain services
+- **Issue**: `DefaultExtractorTemplateService`, `DefaultExtractorValidator`, and `ExtractorOutputValidator` are pure Dart classes specifically designed to be testable standalone (no Flutter/Riverpod dependencies). They contain security-critical logic (JS escaping, URL scheme validation, CSS selector validation) that is currently uncovered.
+- **Recommendation**: Create:
+  - `test/features/downloader/unit/domain/services/default_extractor_template_service_test.dart` — test `generateScript()` output for various selectors/attributes including edge cases (backticks, Unicode, injection patterns); test `encodeMetadata`/`decodeMetadata` round-trip and null/malformed handling
+  - `test/features/downloader/unit/domain/services/default_extractor_validator_test.dart` — test all validation rules with valid/invalid inputs for name, CSS selector, and attribute name
+  - `test/features/downloader/unit/domain/services/extractor_output_validator_test.dart` — test max results enforcement, non-string item rejection, scheme validation, empty URL rejection, deduplication
+
+---
+
+*Generated: 2026-08-23 | Full codebase audit covering 9 feature modules, core infrastructure, and services layer.*
