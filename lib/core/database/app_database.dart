@@ -282,10 +282,16 @@ class AppDatabase extends _$AppDatabase {
       if (from < 4) {
         // v4: Add nullable metadata column to custom_extractors (Phase 2).
         // Existing Phase 1 rows receive NULL, which is correct.
-        await m.addColumn(
-          customExtractorEntries,
-          customExtractorEntries.metadata,
-        );
+        try {
+          await m.addColumn(
+            customExtractorEntries,
+            customExtractorEntries.metadata,
+          );
+        } catch (e) {
+          if (!e.toString().contains('duplicate column name')) {
+            rethrow;
+          }
+        }
       }
     },
   );

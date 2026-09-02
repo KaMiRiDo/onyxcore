@@ -51,7 +51,7 @@ class StandaloneWindowHeader extends StatelessWidget {
                   Expanded(child: _buildInputBox(isSmallWindow)),
                   const SizedBox(width: 16),
                   SizedBox(
-                    width: isSmallWindow ? 140 : 200,
+                    width: isSmallWindow ? 180 : 260,
                     height: isSmallWindow ? 56 : 84, // matching input box height
                     child: _buildFetchRow(context, isSmallWindow),
                   ),
@@ -117,100 +117,102 @@ class StandaloneWindowHeader extends StatelessWidget {
 
   Widget _buildFetchRow(BuildContext context, bool isSmallWindow) {
     return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                  // Top Row (Fetch Button + Settings)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: isSmallWindow ? 24 : 38,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                AppColors.magenta,
-                                AppColors.violet,
-                                AppColors.indigo,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
-                          ),
-                          child: ElevatedButton(
-                            onPressed: onFetch,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
-                              ),
-                            ),
-                            child: Text(
-                              'Fetch',
-                              style: GoogleFonts.manrope(
-                                fontWeight: FontWeight.bold,
-                                fontSize: isSmallWindow ? 11 : 15,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Tooltip(
-                        message: 'Downloader Settings',
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () => SettingsDialog.show(
-                              context,
-                              section: 'Download Manager',
-                            ),
-                            child: Container(
-                              width: isSmallWindow ? 24 : 38,
-                              height: isSmallWindow ? 24 : 38,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceBase,
-                                borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
-                                border: Border.all(color: Colors.white10),
-                              ),
-                              child: Icon(
-                                Icons.settings_outlined,
-                                size: isSmallWindow ? 14 : 18,
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Top Row (Fetch Button + Engine Dropdown)
+        Row(
+          children: [
+            Expanded(
+              flex: 3, // Fetch button gets less width
+              child: Container(
+                height: isSmallWindow ? 24 : 38,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      AppColors.magenta,
+                      AppColors.violet,
+                      AppColors.indigo,
                     ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: 8),
-                  // Bottom Row (Dropdowns)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: isSmallWindow ? 24 : 38,
-                          child: EngineSelectorDropdown(
-                            selectedEngine: selectedEngine,
-                            onChanged: onEngineChanged,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: SizedBox(
-                          height: isSmallWindow ? 24 : 38,
-                          child: const ExtractorDropdown(),
-                        ),
-                      ),
-                    ],
+                  borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
+                ),
+                child: ElevatedButton(
+                  onPressed: onFetch,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
+                    ),
+                    padding: EdgeInsets.zero,
                   ),
+                  child: Text(
+                    'Fetch',
+                    style: GoogleFonts.manrope(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isSmallWindow ? 11 : 15,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 4, // Engine dropdown gets more width
+              child: SizedBox(
+                height: isSmallWindow ? 24 : 38,
+                child: EngineSelectorDropdown(
+                  selectedEngine: selectedEngine,
+                  onChanged: onEngineChanged,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Bottom Row (Extractor Dropdown + Settings)
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: isSmallWindow ? 24 : 38,
+                child: const ExtractorDropdown(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'Downloader Settings',
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => SettingsDialog.show(
+                    context,
+                    section: 'Download Manager',
+                  ),
+                  child: Container(
+                    width: isSmallWindow ? 24 : 38,
+                    height: isSmallWindow ? 24 : 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceBase,
+                      borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Icon(
+                      Icons.settings_outlined,
+                      size: isSmallWindow ? 14 : 18,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

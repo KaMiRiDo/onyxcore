@@ -20,7 +20,7 @@ void main() {
     when(() => mockEngine.id).thenReturn('mock_engine');
     when(() => mockEngine.displayName).thenReturn('Mock Engine');
     when(() => mockEngine.priority).thenReturn(100);
-    when(() => mockEngine.urlPatterns).thenReturn([RegExp(r'.*')]);
+    when(() => mockEngine.urlPatterns).thenReturn([RegExp('.*')]);
     when(() => mockEngine.isInstalled).thenReturn(true);
     
     when(() => mockEngine.fetchMetadata(
@@ -37,9 +37,7 @@ void main() {
     EngineRegistry.register(mockEngine);
   });
 
-  tearDown(() {
-    EngineRegistry.clearRegisteredEngines();
-  });
+  tearDown(EngineRegistry.clearRegisteredEngines);
 
   group('MediaDownloaderBackend Tests', () {
     test('analyzeUrls processes all URLs when not cancelled', () async {
@@ -57,7 +55,7 @@ void main() {
 
     test('analyzeUrls halts processing early when cancelled', () async {
       final urls = ['url1', 'url2', 'url3'];
-      int count = 0;
+      var count = 0;
       
       final results = await MediaDownloaderBackend.analyzeUrls(
         urls,

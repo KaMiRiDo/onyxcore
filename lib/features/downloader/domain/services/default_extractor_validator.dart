@@ -1,3 +1,5 @@
+import 'package:onyxcore/features/downloader/domain/services/default_extractor_template_service.dart' show DefaultExtractorTemplateService;
+
 /// Validation logic for default extractor fields.
 ///
 /// Pure Dart — no Flutter, no Riverpod. Fully testable standalone.

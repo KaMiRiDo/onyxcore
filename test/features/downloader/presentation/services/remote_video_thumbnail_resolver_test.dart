@@ -4,16 +4,14 @@ import 'package:onyxcore/features/downloader/presentation/services/remote_video_
 
 void main() {
   group('RemoteVideoThumbnailResolver Tests', () {
-    setUp(() {
-      RemoteVideoThumbnailResolver.reset();
-    });
+    setUp(RemoteVideoThumbnailResolver.reset);
 
     test('getThumbnailPath returns null initially', () {
       expect(RemoteVideoThumbnailResolver.getThumbnailPath('http://test.com/video.mp4'), isNull);
     });
 
     test('cleanup clears cache entry and deletes temp file', () async {
-      final url = 'http://test.com/video2.mp4';
+      const url = 'http://test.com/video2.mp4';
       
       // We manually set a resolved path for testing
       final tempFile = File('${Directory.systemTemp.path}/test_thumb.jpg');

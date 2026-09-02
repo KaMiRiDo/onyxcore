@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.dart' show CustomExtractor;
 
 // ── Kind enum ────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,8 @@ class DefaultExtractorTemplateService {
     final escapedSelector = _escapeJsString(cssSelector);
     final escapedAttribute = _escapeJsString(attributeName);
 
-    return '''async function extract(url) {
+    return '''
+async function extract(url) {
   const results = new Set();
 
   document

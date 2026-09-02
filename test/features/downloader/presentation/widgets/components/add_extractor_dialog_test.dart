@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onyxcore/core/widgets/onyx_switch.dart';
 import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/custom_extractor_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/add_extractor_dialog.dart';
@@ -44,19 +45,11 @@ void main() {
   // ── Tab structure ──────────────────────────────────────────────────────────
 
   group('Tab structure', () {
-    testWidgets('Dialog shows two tabs: Default Extractor and Script',
-        (WidgetTester tester) async {
+    testWidgets('Dialog shows Script Mode toggle', (WidgetTester tester) async { await tester.pumpWidget(_buildTestApp()); expect(find.text('Script Mode'), findsOneWidget); });
+
+    testWidgets('Default Extractor fields are shown by default', (WidgetTester tester) async {
       await tester.pumpWidget(_buildTestApp());
-
-      expect(find.text('Default Extractor'), findsOneWidget);
-      expect(find.text('Script'), findsOneWidget);
-    });
-
-    testWidgets('Default Extractor tab is selected by default',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(_buildTestApp());
-
-      // Verify Default tab fields are visible
+      // Verify Default fields are visible
       expect(find.byKey(const ValueKey('extractor_name_field')), findsOneWidget);
       expect(
         find.byKey(const ValueKey('extractor_selector_field')),
@@ -68,17 +61,11 @@ void main() {
       );
     });
 
-    testWidgets('Script tab is accessible and shows script editor',
-        (WidgetTester tester) async {
+    testWidgets('Script mode is accessible and shows script editor', (WidgetTester tester) async {
       await tester.pumpWidget(_buildTestApp());
-
-      await tester.tap(find.text('Script'));
+      await tester.tap(find.byType(OnyxSwitch)); // OnyxSwitch uses Switch inside
       await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const ValueKey('extractor_script_field')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('extractor_script_field')), findsOneWidget);
     });
   });
 
@@ -153,7 +140,7 @@ void main() {
         'src',
       );
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       expect(mockNotifier.addedExtractor, isNull);
@@ -178,7 +165,7 @@ void main() {
       );
       // Leave selector empty
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       expect(mockNotifier.addedExtractor, isNull);
@@ -203,7 +190,7 @@ void main() {
       );
       // Leave attribute empty
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       expect(mockNotifier.addedExtractor, isNull);
@@ -213,7 +200,7 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(_buildTestApp());
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Create'));
       await tester.pump();
 
       // An error message should appear somewhere in the tree
@@ -249,7 +236,7 @@ void main() {
         'src',
       );
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       expect(mockNotifier.addedExtractor, isNotNull);
@@ -278,7 +265,7 @@ void main() {
         'src',
       );
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       expect(mockNotifier.addedExtractor, isNotNull);
@@ -310,7 +297,7 @@ void main() {
         'src',
       );
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       expect(mockNotifier.addedExtractor, isNotNull);
@@ -324,12 +311,12 @@ void main() {
 
   // ── Script tab — regression ────────────────────────────────────────────────
 
-  group('Script tab — existing behavior preserved (regression)', () {
-    testWidgets('Script tab shows name and script editor fields',
+  group('Script mode — existing behavior preserved (regression)', () {
+    testWidgets('Script mode shows name and script editor fields',
         (WidgetTester tester) async {
       await tester.pumpWidget(_buildTestApp());
 
-      await tester.tap(find.text('Script'));
+      await tester.tap(find.byType(OnyxSwitch));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('extractor_name_script_field')), findsOneWidget);
@@ -339,7 +326,7 @@ void main() {
       );
     });
 
-    testWidgets('saves a script extractor from Script tab',
+    testWidgets('saves a script extractor from Script mode',
         (WidgetTester tester) async {
       final mockNotifier = MockCustomExtractorNotifier();
       await tester.pumpWidget(_buildTestApp(
@@ -348,7 +335,7 @@ void main() {
         ],
       ));
 
-      await tester.tap(find.text('Script'));
+      await tester.tap(find.byType(OnyxSwitch));
       await tester.pumpAndSettle();
 
       await tester.enterText(
@@ -360,7 +347,7 @@ void main() {
         'async function extract(url) { return []; }',
       );
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       expect(mockNotifier.addedExtractor, isNotNull);
@@ -377,7 +364,7 @@ void main() {
   // ── Edit mode ─────────────────────────────────────────────────────────────
 
   group('Edit mode', () {
-    testWidgets('pre-fills Default tab fields when editing a default extractor',
+    testWidgets('pre-fills Default fields when editing a default extractor',
         (WidgetTester tester) async {
       const metadata =
           '{"extractorKind":"html","cssSelector":".article img","attributeName":"data-src"}';
@@ -392,7 +379,7 @@ void main() {
 
       await tester.pumpWidget(_buildTestApp(extractor: extractor));
 
-      // Should be on Default tab
+      // Should be in default mode
       expect(
         find.byKey(const ValueKey('extractor_selector_field')),
         findsOneWidget,
@@ -414,7 +401,7 @@ void main() {
       expect(attributeField.controller!.text, 'data-src');
     });
 
-    testWidgets('opens Script tab when editing a manual script extractor',
+    testWidgets('opens Script mode when editing a manual script extractor',
         (WidgetTester tester) async {
       final extractor = CustomExtractor(
         id: '1',
@@ -428,7 +415,7 @@ void main() {
       await tester.pumpWidget(_buildTestApp(extractor: extractor));
       await tester.pumpAndSettle();
 
-      // Script field should be visible (Script tab active)
+      // Script field should be visible (Script mode active)
       expect(
         find.byKey(const ValueKey('extractor_script_field')),
         findsOneWidget,
@@ -462,7 +449,7 @@ void main() {
         '.new-gallery img',
       );
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Update'));
       await tester.pumpAndSettle();
 
       expect(mockNotifier.updatedExtractor, isNotNull);

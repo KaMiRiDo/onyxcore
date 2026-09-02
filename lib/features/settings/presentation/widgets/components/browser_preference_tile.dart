@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:onyxcore/core/utils/browser_detector.dart';
+import 'package:onyxcore/core/widgets/onyx_dropdown.dart';
 import 'package:onyxcore/features/downloader/domain/entities/browser_capability.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
@@ -50,36 +50,56 @@ class _BrowserPreferenceTileState extends ConsumerState<BrowserPreferenceTile> {
 
     final selected = settings.extractorBrowser ?? _defaultBrowser;
 
-    final dropdownEntries = _browsers!.map((b) {
-      final isSupported = b.capability == BrowserCapability.chromium;
-      var label = b.name;
-      if (b.id == _defaultBrowser) {
-        label += ' (Default)';
-      }
-      if (!isSupported) {
-        label += ' (Not Supported Yet)';
-      }
 
-      return DropdownMenuItem<String>(
-        value: b.id,
-        enabled: isSupported,
-        child: Text(label),
-      );
-    }).toList();
 
-    return ListTile(
-      title: const Text('Custom Extractor Browser'),
-      subtitle: const Text(
-          'Select the Chromium-based browser to use for Custom Extractors.'),
-      trailing: DropdownButton<String>(
-        value: _browsers!.any((b) => b.id == selected) ? selected : null,
-        hint: const Text('Select Browser'),
-        items: dropdownEntries,
-        onChanged: (value) {
-          if (value != null) {
-            ref.read(settingsProvider.notifier).setExtractorBrowser(value);
-          }
-        },
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, bottom: 24),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Custom Extractor Browser',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Select the Chromium-based browser to use for Custom Extractors.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          SizedBox(
+            height: 36,
+            width: 160,
+            child: OnyxDropdown<String>(
+              isExpanded: true,
+              value: _browsers!.any((b) => b.id == selected) ? selected! : _browsers!.first.id,
+              options: _browsers!
+                  .map((b) => MapEntry(b.id, b.name))
+                  .toList(),
+              disabledOptions: _browsers!
+                  .where((b) => b.capability != BrowserCapability.chromium)
+                  .map((b) => b.id)
+                  .toSet(),
+              onChanged: (value) {
+                ref.read(settingsProvider.notifier).setExtractorBrowser(value);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

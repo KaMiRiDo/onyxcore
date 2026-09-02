@@ -2886,7 +2886,6 @@ void main() {
             title: 'Ext Video',
             originalUrl: 'https://extractor.com/video',
             directUrl: 'https://extractor.com/direct.mp4',
-            isVideo: true,
           ).copyWith(isExtractorGroup: true),
         ],
       );

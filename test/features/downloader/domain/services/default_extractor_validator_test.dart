@@ -307,7 +307,7 @@ void main() {
         );
       });
 
-      test('rejects attribute with US control character (\\x1F)', () {
+      test(r'rejects attribute with US control character (\x1F)', () {
         expect(
           DefaultExtractorValidator.validateAttributeName('data\x1Fsrc'),
           isNotNull,

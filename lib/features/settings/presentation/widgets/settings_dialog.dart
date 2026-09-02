@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
@@ -104,6 +105,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _tabController = TabController(
       length: 4,
       vsync: this,
@@ -165,6 +167,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _initTimer?.cancel();
     _tabController.dispose();
     _generalScrollController.dispose();
@@ -172,6 +175,17 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     _securityScrollController.dispose();
     _shortcutsScrollController.dispose();
     super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      if (ModalRoute.of(context)?.isCurrent ?? false) {
+        _handleClose();
+        return true;
+      }
+    }
+    return false;
   }
 
   void _scrollToSection(GlobalKey key, String sectionName, String tab) {
@@ -513,7 +527,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
         Expanded(
           child: SingleChildScrollView(
             controller: _generalScrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.only(right: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -665,14 +679,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                 ),
                 if (_draftSettings?.customExtractorsEnabled ?? false) ...[
                   const BrowserPreferenceTile(),
-                  const ExtractorListTile(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  const Padding(
+                    padding: EdgeInsets.only(left: 24, top: 8, bottom: 8),
                     child: Align(
                       alignment: Alignment.centerLeft,
-                        child: const _AddExtractorButton(),
+                      child: _AddExtractorButton(),
                     ),
                   ),
+                  const ExtractorListTile(),
                 ],
                 _buildInstalledEnginesSection(),
                 _buildSectionHeader('Sync', _generalKeys['Sync']!),
@@ -731,7 +745,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
         Expanded(
           child: SingleChildScrollView(
             controller: _viewersScrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.only(right: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1007,7 +1021,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
         Expanded(
           child: SingleChildScrollView(
             controller: _securityScrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.only(right: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1045,7 +1059,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
         Expanded(
           child: SingleChildScrollView(
             controller: _shortcutsScrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.only(right: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1182,7 +1196,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
   Widget _buildShortcutTile(String description, List<String> keys) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(left: 24, bottom: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -1241,7 +1255,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   }) {
     return Container(
       width: 180,
-      color: Colors.black.withValues(alpha: 0.1),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.1),
+        border: Border(
+          right: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
       child: ListView.builder(
         itemCount: items.length,
@@ -1298,16 +1317,27 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   }
 
   Widget _buildSectionHeader(String title, GlobalKey key) {
-    return Padding(
+    final isFirst = title == 'Files & Folders' || title == 'General' || title == 'Vault';
+    return Container(
       key: key,
-      padding: const EdgeInsets.only(top: 28, bottom: 8),
-      child: Text(
-        title.toUpperCase(),
-        style: GoogleFonts.manrope(
-          fontSize: 15,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.5,
-          color: AppColors.violet.withValues(alpha: 0.8),
+      width: double.infinity,
+      margin: EdgeInsets.only(top: isFirst ? 0 : 24, bottom: 8),
+      padding: const EdgeInsets.only(top: 16),
+      decoration: BoxDecoration(
+        border: isFirst ? null : Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 24),
+        child: Text(
+          title.toUpperCase(),
+          style: GoogleFonts.manrope(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: AppColors.violet.withValues(alpha: 0.8),
+          ),
         ),
       ),
     );
@@ -1315,7 +1345,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
 
   Widget _buildEmptySection(String message) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.only(left: 24, top: 24, bottom: 24),
       child: Text(
         message,
         style: GoogleFonts.manrope(
@@ -1333,7 +1363,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
     required Widget trailing,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.only(left: 24, top: 12, bottom: 12),
       child: Row(
         children: [
           Expanded(
@@ -1450,10 +1480,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
   }
 
   Widget _buildInstalledEnginesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
+    return Padding(
+      padding: const EdgeInsets.only(left: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
           padding: const EdgeInsets.only(top: 20, bottom: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2007,6 +2039,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
           },
         ),
       ],
+    ),
     );
   }
 
@@ -2118,17 +2151,47 @@ class _AddExtractorButtonState extends State<_AddExtractorButton> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FilledButton.icon(
-          onPressed: _hasChromium
-              ? () {
-                  showDialog<void>(
-                    context: context,
-                    builder: (context) => const AddExtractorDialog(),
-                  );
-                }
-              : null,
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Add Extractor'),
+        Container(
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: _hasChromium
+                ? const LinearGradient(
+                    colors: [
+                      AppColors.magenta,
+                      AppColors.violet,
+                      AppColors.indigo,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: _hasChromium ? null : Colors.white12,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ElevatedButton.icon(
+            onPressed: _hasChromium
+                ? () {
+                    showDialog<void>(
+                      context: context,
+                      builder: (context) => const AddExtractorDialog(),
+                    );
+                  }
+                : null,
+            icon: const Icon(Icons.add_rounded, size: 20),
+            label: const Text(
+              'Add Extractor',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
         ),
         if (!_hasChromium)
           const Padding(

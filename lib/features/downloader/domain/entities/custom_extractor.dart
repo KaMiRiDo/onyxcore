@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:onyxcore/features/downloader/domain/services/default_extractor_template_service.dart' show DefaultExtractorTemplateService;
 
 @immutable
 class CustomExtractor {

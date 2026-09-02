@@ -73,7 +73,7 @@ void main() {
       test('escapes double quotes in selector', () {
         final config = DefaultExtractorConfig(
           kind: DefaultExtractorKind.html,
-          cssSelector: r'img[src="photo.jpg"]',
+          cssSelector: 'img[src="photo.jpg"]',
           attributeName: 'src',
         );
         final script = service.generateScript(config);
@@ -181,7 +181,7 @@ void main() {
         // ends with the expected closing sequence.
         expect(
           script,
-          contains('querySelectorAll("\\")'),
+          contains(r'querySelectorAll("\")'),
         );
       });
 
@@ -197,7 +197,7 @@ void main() {
         // The " must be escaped, preventing string termination.
         expect(script, contains(r'\"'));
         // Verify the getAttribute call contains the escaped quote.
-        expect(script, contains('getAttribute("\\"'));
+        expect(script, contains(r'getAttribute("\"'));
       });
 
       test('JS injection via selector: single-quote breakout is neutralised', () {
