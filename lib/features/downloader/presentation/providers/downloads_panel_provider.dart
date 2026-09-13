@@ -49,12 +49,16 @@ class _CacheState {
   String? importedListName;
   String? importedListPath;
   bool isListChanged = false;
+  bool isLocked = false;
+  String? currentPassword;
 }
 
 class CustomListInfo {
-  CustomListInfo({required this.path, required this.name});
+  CustomListInfo({required this.path, required this.name, this.hasPassword = false, this.isLocked = false});
   final String path;
   final String name;
+  final bool hasPassword;
+  final bool isLocked;
 }
 
 class DownloadsListCache extends ChangeNotifier {
@@ -112,6 +116,18 @@ class DownloadsListCache extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get isLocked => _activeState.isLocked;
+  set isLocked(bool value) {
+    _activeState.isLocked = value;
+    notifyListeners();
+  }
+
+  String? get currentPassword => _activeState.currentPassword;
+  set currentPassword(String? value) {
+    _activeState.currentPassword = value;
+    notifyListeners();
+  }
+
   List<CustomListInfo> get customLists {
     final lists = <CustomListInfo>[];
     for (final entry in _states.entries) {
@@ -119,6 +135,8 @@ class DownloadsListCache extends ChangeNotifier {
         lists.add(CustomListInfo(
           path: entry.value.importedListPath!,
           name: entry.value.importedListName!,
+          hasPassword: entry.value.isLocked || (entry.value.currentPassword != null && entry.value.currentPassword!.isNotEmpty),
+          isLocked: entry.value.isLocked,
         ));
       }
     }
@@ -135,6 +153,8 @@ class DownloadsListCache extends ChangeNotifier {
     _activeState.importedListName = null;
     _activeState.importedListPath = null;
     _activeState.isListChanged = false;
+    _activeState.isLocked = false;
+    _activeState.currentPassword = null;
     notifyListeners();
   }
 
@@ -145,6 +165,37 @@ class DownloadsListCache extends ChangeNotifier {
   void setCacheChanged(String path, {required bool changed}) {
     if (_states.containsKey(path)) {
       _states[path]!.isListChanged = changed;
+      notifyListeners();
+    }
+  }
+
+  bool isLockedForPath(String path) {
+    return _states[path]?.isLocked ?? false;
+  }
+
+  void lockPath(String path) {
+    if (_states.containsKey(path)) {
+      _states[path]!.isLocked = true;
+      _states[path]!.parsedItems = null;
+      _states[path]!.currentPassword = null;
+      notifyListeners();
+    }
+  }
+
+  bool hasPasswordForPath(String path) {
+    final state = _states[path];
+    if (state == null) return false;
+    return state.isLocked || (state.currentPassword != null && state.currentPassword!.isNotEmpty);
+  }
+
+  String? getPasswordForPath(String path) {
+    return _states[path]?.currentPassword;
+  }
+
+  void removePasswordForPath(String path) {
+    if (_states.containsKey(path)) {
+      _states[path]!.isLocked = false;
+      _states[path]!.currentPassword = null;
       notifyListeners();
     }
   }

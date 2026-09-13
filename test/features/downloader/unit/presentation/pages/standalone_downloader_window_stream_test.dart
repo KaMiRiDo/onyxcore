@@ -13,9 +13,9 @@ void main() {
       const item = MediaInfo(
         id: '1',
         title: 'Video',
-        originalUrl: 'https://youtube.com/watch?v=abc',
+        originalUrl: 'https://example.com/watch?v=abc',
         directUrl: 'https://cdn.example.com/direct.mp4',
-        webpageUrl: 'https://youtube.com/watch?v=abc',
+        webpageUrl: 'https://example.com/watch?v=abc',
       );
       expect(resolveStreamUrl(item), 'https://cdn.example.com/direct.mp4');
     });
@@ -220,7 +220,7 @@ void main() {
       const item = MediaInfo(
         id: '1',
         title: 'Instagram Video',
-        originalUrl: 'https://www.instagram.com/p/abc123/',
+        originalUrl: 'https://www.example.com/p/abc123/',
         formats: [
           MediaFormat(
             formatId: 'original',

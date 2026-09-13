@@ -2,7 +2,10 @@
 ///
 /// This file is intentionally Flutter-free so it can be used inside
 /// background isolates for directory listing.
-enum FileItemType { folder, image, video, audio, document, archive, other }
+enum FileItemType { folder, image, video, audio, document, archive, downloaderList, other }
+
+/// Extension for OnyxCore's encrypted downloader media list format.
+const kDmlExtension = '.dml';
 
 /// Image file extensions recognized by the application.
 const kImageExtensions = [
@@ -93,6 +96,7 @@ const kArchiveExtensions = [
 FileItemType classifyFileType(String name) {
   final extension = name.contains('.') ? '.${name.split('.').last}' : '';
   final ext = extension.toLowerCase();
+  if (ext == kDmlExtension) return FileItemType.downloaderList;
   if (kImageExtensions.contains(ext)) return FileItemType.image;
   if (kVideoExtensions.contains(ext)) return FileItemType.video;
   if (kAudioExtensions.contains(ext)) return FileItemType.audio;
@@ -117,6 +121,8 @@ class FileTypeClassifier {
         return kDocumentExtensions;
       case FileItemType.archive:
         return kArchiveExtensions;
+      case FileItemType.downloaderList:
+        return [kDmlExtension];
       case FileItemType.folder:
       case FileItemType.other:
         return [];

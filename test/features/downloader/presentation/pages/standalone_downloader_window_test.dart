@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/downloader/domain/entities/download_config.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
@@ -355,8 +357,16 @@ class RecordingDownloadsSharedController extends ChangeNotifier
   }
 
   @override
-  Future<void> importListFromFile(String path, String fileName) async {
-    importCalls.add(<String, String>{'path': path, 'fileName': fileName});
+  Future<void> importListFromFile(
+    String path,
+    String fileName, {
+    String? password,
+  }) async {
+    importCalls.add(<String, String>{
+      'path': path,
+      'fileName': fileName,
+      if (password != null) 'password': password,
+    });
     cache
       ..switchList(path)
       ..importedListPath = path
@@ -2897,8 +2907,8 @@ void main() {
 
       await pumpWindow(tester, container: container);
 
-      // Should show CircularProgressIndicator since thumbUrl is 'generating_thumbnail'
-      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      // Should show BubbleLoader since thumbUrl is 'generating_thumbnail'
+      expect(find.byType(BubbleLoader), findsWidgets);
     });
   });
 }

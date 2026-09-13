@@ -23,6 +23,7 @@ void main() {
             onListTap: (path) => defaultListTapped = path == 'default',
             onCustomListClose: (path) {},
             onCustomListSave: (path) {},
+            onCustomListLock: (path) {},
           ),
         ),
       ),
@@ -63,6 +64,7 @@ void main() {
             },
             onCustomListClose: (path) => customListClosed = true,
             onCustomListSave: (path) {},
+            onCustomListLock: (path) {},
           ),
         ),
       ),
@@ -100,6 +102,7 @@ void main() {
             onListTap: (path) {},
             onCustomListClose: (path) => customListClosed = true,
             onCustomListSave: (path) => customListSaved = true,
+            onCustomListLock: (path) {},
           ),
         ),
       ),
@@ -132,5 +135,42 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(customListSaved, isTrue);
+  });
+
+  testWidgets('StandaloneWindowMediaList renders json lists with red tint', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StandaloneWindowMediaList(
+            isTrashView: false,
+            trashCount: 0,
+            activeListPath: 'default',
+            customLists: [
+              CustomListInfo(path: '/list.dml', name: 'Dml List'),
+              CustomListInfo(path: '/legacy.json', name: 'Legacy Json'),
+            ],
+            isListChanged: (path) => false,
+            onTrashTap: () {},
+            onImportTap: () {},
+            onListTap: (_) {},
+            onCustomListClose: (_) {},
+            onCustomListSave: (_) {},
+            onCustomListLock: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    // Verify both lists exist
+    expect(find.text('Dml List'), findsOneWidget);
+    expect(find.text('Legacy Json'), findsOneWidget);
+
+    // Verify Legacy Json text has red tint
+    final jsonTextWidget = tester.widget<Text>(find.text('Legacy Json'));
+    expect(jsonTextWidget.style?.color, equals(Colors.redAccent));
+
+    // Verify Dml List text has normal white70 color since it is inactive
+    final dmlTextWidget = tester.widget<Text>(find.text('Dml List'));
+    expect(dmlTextWidget.style?.color, equals(Colors.white70));
   });
 }

@@ -1,15 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:onyxcore/core/theme/app_theme.dart';
+import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/audio_player/presentation/pages/audio_player_view.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
 import 'package:onyxcore/features/downloader/presentation/pages/standalone_downloader_window.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
+import 'package:path/path.dart' as p;
 
 /// Manages multi-view state and IPC for spawning new native windows using Flutter's Multi-View API.
 class PersistentViewerManager {
@@ -48,6 +53,22 @@ class PersistentViewerManager {
         final viewId = args['view_id'] as int;
         
         await closeWindow(viewId);
+      } else if (call.method == 'open_file') {
+        final args = call.arguments as Map;
+        final filePath = args['file_path'] as String;
+        
+        if (filePath.toLowerCase().endsWith('.dml') || filePath.toLowerCase().endsWith('.json')) {
+          unawaited(openMedia(WindowParams(
+            viewerType: ViewerType.downloader,
+            file: FileItem(
+              path: filePath,
+              name: p.basename(filePath),
+              type: FileItemType.downloaderList,
+              modified: DateTime.now(),
+            ),
+            initParams: {'importListPath': '$filePath?t=${DateTime.now().millisecondsSinceEpoch}'},
+          )));
+        }
       }
     });
   }

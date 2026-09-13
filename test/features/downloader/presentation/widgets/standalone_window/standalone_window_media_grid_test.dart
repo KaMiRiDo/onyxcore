@@ -377,7 +377,7 @@ void main() {
             selectedIndices: const {},
             downloadingImageIndices: const {},
             getConfig: (g) => null,
-            isHydratingItem: (id) => true,
+            isHydratingItem: (id) => id == 'https://youtube.com/playlist?list=123',
             onCancelHydration: (url) {
               cancelledUrl = url;
             },
@@ -397,7 +397,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(BubbleLoader), findsOneWidget);
+    expect(find.byType(BubbleLoader), findsWidgets);
     expect(find.text('Cancel'), findsOneWidget);
 
     await tester.tap(find.text('Cancel'));

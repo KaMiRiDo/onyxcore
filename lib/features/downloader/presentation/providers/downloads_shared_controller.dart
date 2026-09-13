@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ignore: implementation_imports
 import 'package:flutter_riverpod/legacy.dart';
@@ -16,8 +16,54 @@ import 'package:onyxcore/features/downloader/domain/services/extractor_runtime_s
 import 'package:onyxcore/features/downloader/presentation/providers/custom_extractor_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/downloader/services/dml_crypto_service.dart';
 import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
+
+// ── Isolate entry point for compute() ────────────────────────────────────────
+// Must be a top-level function — compute() cannot use closures.
+List<MediaGroup> _parseMediaGroupList(String jsonString) {
+  final decoded = jsonDecode(jsonString);
+  final List<dynamic> itemsList;
+  if (decoded is List) {
+    itemsList = decoded;
+  } else if (decoded is Map) {
+    itemsList = decoded['items'] as List<dynamic>? ?? [];
+  } else {
+    throw Exception('Invalid JSON format');
+  }
+  return itemsList
+      .map((e) => MediaGroup.fromMap(e as Map<String, dynamic>))
+      .toList();
+}
+
+/// Message sent to the export isolate so we only cross the isolate boundary once.
+class _ExportMessage {
+  const _ExportMessage(this.itemsData, this.statistics, {this.password});
+  final List<MediaGroup> itemsData;
+  final Map<String, dynamic> statistics;
+  final String? password;
+}
+
+/// Runs jsonEncode + AES-GCM encrypt in one isolate pass.
+Uint8List _encryptExportIsolate(_ExportMessage msg) {
+  final data = <String, dynamic>{
+    'items': msg.itemsData.map((e) => e.toMap()).toList(),
+    'statistics': msg.statistics,
+  };
+  final jsonString = jsonEncode(data);
+  return DmlCryptoService.encrypt(jsonString, password: msg.password);
+}
+
+/// Runs jsonEncode in one isolate pass (for plain .json export).
+String _encodeJsonIsolate(_ExportMessage msg) {
+  final data = <String, dynamic>{
+    'items': msg.itemsData.map((e) => e.toMap()).toList(),
+    'statistics': msg.statistics,
+  };
+  return jsonEncode(data);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 class DownloadsSharedController extends ChangeNotifier {
 
@@ -679,58 +725,78 @@ class DownloadsSharedController extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
-  Future<void> importListFromFile(String path, String fileName) async {
+  Future<void> importListFromFile(String path, String fileName, {String? password}) async {
     try {
       if (cache.hasCache(path)) {
-        cache.switchList(path);
-        recalculateFilteredStatistics();
-        return;
+        final existingItems = cache.getItemsForPath(path);
+        // Only return early if the cache actually has parsed items.
+        // If it's empty, it might be from a failed import, so we should try to reload.
+        if (existingItems != null) {
+          cache.switchList(path);
+          recalculateFilteredStatistics();
+          return;
+        }
       }
-      
+
       final file = File(path);
       if (!file.existsSync()) return;
 
-      final contents = await file.readAsString();
-      
       cache
         ..switchList(path)
         ..clear()
         ..importedListName = fileName
         ..importedListPath = path
-        ..isListChanged = false;
-      
-      if (path.toLowerCase().endsWith('.json')) {
+        ..isListChanged = false
+        ..isLocked = false
+        ..currentPassword = password;
+
+      if (DmlCryptoService.isDmlFile(path) || DmlCryptoService.isJsonFile(path)) {
         try {
-          final decoded = jsonDecode(contents);
-          List<dynamic> itemsList;
-          if (decoded is List) {
-            itemsList = decoded;
-          } else if (decoded is Map) {
-            itemsList = decoded['items'] as List<dynamic>? ?? [];
+          String jsonString;
+          if (DmlCryptoService.isDmlFile(path)) {
+            final bytes = await file.readAsBytes();
+            try {
+              jsonString = await DmlCryptoService.decryptInIsolate(bytes, password: password);
+            } on DmlLockedException {
+              cache.isLocked = true;
+              cache.parsedItems = null;
+              cache.importedListPath = path;
+              recalculateFilteredStatistics();
+              if (!_isDisposed) notifyListeners();
+              if (password != null && password.isNotEmpty) {
+                throw Exception('Incorrect password');
+              }
+              return;
+            }
           } else {
-            throw Exception('Invalid JSON format');
+            jsonString = await file.readAsString();
           }
 
-          final importedItems = itemsList
-              .map((e) => MediaGroup.fromMap(e as Map<String, dynamic>))
-              .toList();
-          
+          // Parse JSON + map objects off the UI thread to avoid jank on large lists.
+          final importedItems = await compute(_parseMediaGroupList, jsonString);
+
           cache.parsedItems = importedItems;
           cache.configs.clear();
           for (var i = 0; i < importedItems.length; i++) {
-            cache.configs[i] = DownloadConfig(
-              
-            );
+            cache.configs[i] = DownloadConfig();
           }
-          
+
           recalculateFilteredStatistics();
           hydrationNotifier.value++;
           if (!_isDisposed) notifyListeners();
         } catch (e) {
-          debugPrint('Error parsing JSON: $e');
-          await analyzeUrls(contents);
+          debugPrint('Error parsing list: $e');
+          if (DmlCryptoService.isDmlFile(path)) {
+            // Do NOT attempt to read an encrypted DML file as a plain string if it fails to parse.
+            // Throw it upwards to be caught by the outer catch.
+            rethrow;
+          } else {
+            final contents = await file.readAsString();
+            await analyzeUrls(contents);
+          }
         }
       } else {
+        final contents = await file.readAsString();
         await analyzeUrls(contents);
       }
     } catch (e) {
@@ -741,23 +807,40 @@ class DownloadsSharedController extends ChangeNotifier {
   Future<void> exportListToFile(String path) async {
     try {
       final file = File(path);
-      
-      if (path.toLowerCase().endsWith('.json')) {
-        final itemsData = cache.parsedItems?.map((e) => e.toMap()).toList() ?? [];
-        final data = {
-          'items': itemsData,
-          'statistics': {
-            'totalSize': totalListSize,
-            'images': totalListImages,
-            'videos': totalListVideos,
-          },
+
+      if (DmlCryptoService.isDmlFile(path) || DmlCryptoService.isJsonFile(path)) {
+        // Pass data directly to isolate (do not serialize on UI thread to prevent GTK freeze).
+        final itemsData = cache.parsedItems ?? [];
+        final statistics = <String, dynamic>{
+          'totalSize': totalListSize,
+          'images': totalListImages,
+          'videos': totalListVideos,
         };
-        await file.writeAsString(jsonEncode(data));
+
+        if (DmlCryptoService.isDmlFile(path)) {
+          // jsonEncode + AES-GCM encrypt on a background isolate.
+          final encryptedBytes = await compute(
+            _encryptExportIsolate,
+            _ExportMessage(itemsData, statistics, password: cache.currentPassword),
+          );
+          await file.writeAsBytes(encryptedBytes);
+        } else {
+          // Plain JSON export — move jsonEncode off the UI thread.
+          final jsonString = await compute(
+            _encodeJsonIsolate,
+            _ExportMessage(itemsData, statistics),
+          );
+          await file.writeAsString(jsonString);
+        }
       } else {
-        final urls = cache.parsedItems?.map((g) => g.originalUrl).where((u) => u.isNotEmpty).toList() ?? [];
+        final urls = cache.parsedItems
+                ?.map((g) => g.originalUrl)
+                .where((u) => u.isNotEmpty)
+                .toList() ??
+            [];
         await file.writeAsString(urls.join('\n'));
       }
-      
+
       cache.importedListPath = path;
       cache.isListChanged = false;
       cache.notify();

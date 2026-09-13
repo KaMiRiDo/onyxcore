@@ -265,6 +265,16 @@ class _FileGridState extends ConsumerState<FileGrid>
       return;
     }
 
+    // .dml = OnyxCore downloader media list — open in standalone downloader
+    if (item.type == FileItemType.downloaderList) {
+      PersistentViewerManager.openMedia(WindowParams(
+        viewerType: ViewerType.downloader,
+        file: item,
+        initParams: {'importListPath': '${item.path}?t=${DateTime.now().millisecondsSinceEpoch}'},
+      ));
+      return;
+    }
+
     if (item.type == FileItemType.image ||
         item.type == FileItemType.video ||
         item.type == FileItemType.audio ||

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -33,6 +35,7 @@ import 'package:onyxcore/features/downloader/presentation/widgets/standalone_win
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_location_bar.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_grid.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_list.dart';
+import 'package:onyxcore/features/downloader/services/dml_crypto_service.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:path/path.dart' as p;
@@ -95,6 +98,9 @@ class _StandaloneDownloaderWindowState
   final List<_TrashItem> _trash = [];
   bool _isTrashView = false;
   bool _isSearchVisible = false;
+  bool _isProcessingList = false; // true while a .dml list is being decrypted & loaded
+  bool _obscureUnlockPassword = true;
+  final TextEditingController _unlockPasswordController = TextEditingController();
   String _listFilter = 'added_desc';
   final Map<String, DownloaderViewPreferences> _viewPreferences = {};
 
@@ -282,8 +288,8 @@ class _StandaloneDownloaderWindowState
           if (index < (_controller.cache.parsedItems?.length ?? 0)) {
             final item = _controller.cache.parsedItems!.removeAt(index);
             // Phase 1.1: cancel both extractor and hydration independently.
-            _controller.cancelExtraction(item.originalUrl);
-            _controller.cancelHydration(item.originalUrl);
+            _controller..cancelExtraction(item.originalUrl)
+            ..cancelHydration(item.originalUrl);
             final config = _controller.cache.configs.remove(index);
             // Re-index configs
             final newConfigs = <int, DownloadConfig>{};
@@ -335,8 +341,8 @@ class _StandaloneDownloaderWindowState
         }
         if (_currentGroup!.items.isEmpty) {
           // Phase 1.1: cancel both extractor and hydration independently.
-          _controller.cancelExtraction(_currentGroup!.originalUrl);
-          _controller.cancelHydration(_currentGroup!.originalUrl);
+          _controller..cancelExtraction(_currentGroup!.originalUrl)
+          ..cancelHydration(_currentGroup!.originalUrl);
         }
       }
 
@@ -806,6 +812,30 @@ class _StandaloneDownloaderWindowState
     _currentPath = (initialPath != null && initialPath.isNotEmpty)
         ? initialPath
         : _getDefaultDownloadsPath();
+        
+    final importListPathRaw = widget.initParams['importListPath'] as String?;
+    if (importListPathRaw != null && importListPathRaw.isNotEmpty) {
+      // Mark as importing immediately so the first frame shows the spinner,
+      // not an empty list.
+      _isProcessingList = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (mounted) {
+          final importListPath = importListPathRaw.contains('?t=') 
+              ? importListPathRaw.substring(0, importListPathRaw.indexOf('?t=')) 
+              : importListPathRaw;
+          final name = p.basenameWithoutExtension(importListPath);
+          await _controller.importListFromFile(importListPath, name);
+          _saveCurrentTabState(importListPath);
+          if (mounted) {
+            setState(() {
+              _controller.cache.switchList(importListPath);
+              _restoreTabState(importListPath);
+              _isProcessingList = false;
+            });
+          }
+        }
+      });
+    }
 
     _gradientController = AnimationController(
       vsync: this,
@@ -911,6 +941,41 @@ class _StandaloneDownloaderWindowState
         });
       }
     }
+    
+    // Handle .dml file open when the downloader window is already visible
+    // (e.g. user double-clicks a .dml while the app is running).
+    final newImportPathRaw = widget.initParams['importListPath'] as String?;
+    final oldImportPathRaw = oldWidget.initParams['importListPath'] as String?;
+    if (newImportPathRaw != null &&
+        newImportPathRaw.isNotEmpty &&
+        newImportPathRaw != oldImportPathRaw) {
+      setState(() => _isProcessingList = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        try {
+          final actualPath = newImportPathRaw.contains('?t=') 
+              ? newImportPathRaw.substring(0, newImportPathRaw.indexOf('?t=')) 
+              : newImportPathRaw;
+              
+          final name = p.basenameWithoutExtension(actualPath);
+          final previousPath = _controller.cache.importedListPath ?? 'default';
+          _saveCurrentTabState(previousPath);
+          await _controller.importListFromFile(actualPath, name);
+          if (mounted) {
+            setState(() {
+              _controller.cache.switchList(actualPath);
+              _restoreTabState(actualPath);
+            });
+          }
+        } catch (e) {
+          debugPrint('Error importing list from didUpdateWidget: $e');
+        } finally {
+          if (mounted) {
+            setState(() => _isProcessingList = false);
+          }
+        }
+      });
+    }
   }
 
   bool _handleGlobalRawKey(KeyEvent event) {
@@ -952,24 +1017,115 @@ class _StandaloneDownloaderWindowState
       if (event.logicalKey == LogicalKeyboardKey.keyW) {
         final path = _controller.cache.importedListPath;
         if (path != null && path != 'default') {
-          final index = _controller.cache.customLists.indexWhere(
-            (l) => l.path == path,
-          );
-          _controller.cache.invalidateCache(path);
-          _tabStates.remove(path);
+          void performClose() {
+            final index = _controller.cache.customLists.indexWhere(
+              (l) => l.path == path,
+            );
+            _controller.cache.invalidateCache(path);
+            _tabStates.remove(path);
 
-          var newPath = 'default';
-          if (_controller.cache.customLists.isNotEmpty) {
-            final nextIndex = index < _controller.cache.customLists.length
-                ? index
-                : _controller.cache.customLists.length - 1;
-            newPath = _controller.cache.customLists[nextIndex].path;
+            var newPath = 'default';
+            if (_controller.cache.customLists.isNotEmpty) {
+              final nextIndex = index < _controller.cache.customLists.length
+                  ? index
+                  : _controller.cache.customLists.length - 1;
+              newPath = _controller.cache.customLists[nextIndex].path;
+            }
+
+            setState(() {
+              _controller.cache.switchList(newPath);
+              _restoreTabState(newPath);
+            });
           }
 
-          setState(() {
-            _controller.cache.switchList(newPath);
-            _restoreTabState(newPath);
-          });
+          if (_controller.cache.isCacheChanged(path)) {
+            showDialog<void>(
+              context: context,
+              builder: (context) => AlertDialog(
+                backgroundColor: const Color(0xFF1E1E1E),
+                surfaceTintColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                title: Text(
+                  'Unsaved Changes',
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+                content: Text(
+                  'You have unsaved changes. Are you sure you want to discard them?',
+                  style: GoogleFonts.outfit(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+                actionsAlignment: MainAxisAlignment.spaceBetween,
+                actions: [
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white70)),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: AppColors.error.withValues(alpha: 0.2)),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          performClose();
+                        },
+                        child: Text('Discard', style: GoogleFonts.outfit(color: AppColors.error)),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          backgroundColor: AppColors.violet,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        onPressed: () async {
+                          Navigator.of(context).pop();
+
+                      final itemsToSave = _controller.cache.getItemsForPath(path);
+                      if (itemsToSave != null) {
+                        final file = File(path);
+                        final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
+                        if (DmlCryptoService.isDmlFile(path)) {
+                          final currentPassword = _controller.cache.currentPassword;
+                          final encryptedBytes = await DmlCryptoService.encryptInIsolate(jsonString, password: currentPassword);
+                          await file.writeAsBytes(encryptedBytes);
+                        } else {
+                          await file.writeAsString(jsonString);
+                        }
+                        setState(() {
+                          _controller.cache.setCacheChanged(path, changed: false);
+                        });
+                      }
+                    },
+                        child: Text('Save', style: GoogleFonts.outfit(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          } else {
+            performClose();
+          }
         }
         return true;
       }
@@ -1131,7 +1287,7 @@ class _StandaloneDownloaderWindowState
                 340.0,
               );
 
-              return Row(
+              final mainContent = Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Left Sidebar
@@ -1166,7 +1322,46 @@ class _StandaloneDownloaderWindowState
                         _buildActionBar(),
 
                         // Media Grid
-                        Expanded(child: _buildMediaGrid()),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              _buildMediaGrid(),
+                              if (_isProcessingList)
+                                Positioned.fill(
+                                  child: ClipRect(
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.65),
+                                        ),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const BubbleLoader(size: 76),
+                                              const SizedBox(height: 20),
+                                              Text(
+                                                'Processing...',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.w600,
+                                                      letterSpacing: 0.5,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
 
                         // Location Bar
                         _buildLocationBar(),
@@ -1175,6 +1370,12 @@ class _StandaloneDownloaderWindowState
                   ),
                 ],
               );
+
+              if (_isProcessingList) {
+                return AbsorbPointer(child: mainContent);
+              }
+
+              return mainContent;
             },
           ),
         ),
@@ -1217,34 +1418,42 @@ class _StandaloneDownloaderWindowState
   }
 
   Future<void> _exportCurrentList() async {
+    if (_isProcessingList) return;
     final saveLocation = await CustomFilePickerDialog.show(
       context,
       title: 'EXPORT LIST',
       saveMode: true,
-      initialFileName: '${_controller.cache.importedListName ?? "export"}.json',
-      allowedExtensions: ['json', 'txt'],
+      initialFileName: '${_controller.cache.importedListName ?? "export"}.dml',
+      allowedExtensions: ['dml'],
     );
     if (saveLocation != null && saveLocation.isNotEmpty) {
-      final exportedPath = saveLocation.first;
-      final isDefaultList =
-          _controller.cache.importedListPath == null ||
-          _controller.cache.importedListPath == 'default';
+      setState(() => _isProcessingList = true);
+      try {
+        final exportedPath = saveLocation.first;
+        final isDefaultList =
+            _controller.cache.importedListPath == null ||
+            _controller.cache.importedListPath == 'default';
 
-      await _controller.exportListToFile(exportedPath);
+        await _controller.exportListToFile(exportedPath);
 
-      if (isDefaultList) {
-        _controller.cache.clear();
+        if (isDefaultList) {
+          _controller.cache.clear();
+        }
+
+        await _controller.importListFromFile(
+          exportedPath,
+          p.basenameWithoutExtension(exportedPath),
+        );
+
+        setState(() {
+          _controller.cache.switchList('default');
+          _restoreTabState('default');
+        });
+      } finally {
+        if (mounted) {
+          setState(() => _isProcessingList = false);
+        }
       }
-
-      await _controller.importListFromFile(
-        exportedPath,
-        p.basenameWithoutExtension(exportedPath),
-      );
-
-      setState(() {
-        _controller.cache.switchList('default');
-        _restoreTabState('default');
-      });
     }
   }
 
@@ -1278,33 +1487,44 @@ class _StandaloneDownloaderWindowState
         });
       },
       onImportTap: () async {
+        if (_isProcessingList) return;
         final path = await CustomFilePickerDialog.show(
           context,
           title: 'IMPORT LIST',
-          allowedExtensions: ['json'],
+          allowedExtensions: ['dml', 'json'],
         );
         if (path != null && path.isNotEmpty) {
           final file = File(path.first);
           if (file.existsSync()) {
-            final content = await file.readAsString();
-            final data = jsonDecode(content) as Map<String, dynamic>;
-            final items = (data['items'] as List)
-                .map((e) => MediaGroup.fromMap(e as Map<String, dynamic>))
-                .toList();
-
-            final name = p.basenameWithoutExtension(path.first);
-            final currentPath = _controller.cache.importedListPath ?? 'default';
-            _saveCurrentTabState(currentPath);
-
-            setState(() {
-              _controller.cache.switchList(path.first);
-              _controller.cache.parsedItems = items;
-              _controller.cache.importedListPath = path.first;
-              _controller.cache.importedListName = name;
-              _controller.cache.isListChanged = false;
-              _restoreTabState(path.first);
-            });
-            _controller.recalculateFilteredStatistics();
+            setState(() => _isProcessingList = true);
+            try {
+              final name = p.basenameWithoutExtension(path.first);
+              final currentPath = _controller.cache.importedListPath ?? 'default';
+              _saveCurrentTabState(currentPath);
+              
+              await _controller.importListFromFile(path.first, name);
+              
+              if (mounted) {
+                setState(() {
+                  _controller.cache.switchList(path.first);
+                  _restoreTabState(path.first);
+                });
+              }
+            } catch (e) {
+              debugPrint('Error importing list from UI: $e');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to import list: $e', style: GoogleFonts.outfit(color: Colors.white)),
+                    backgroundColor: Colors.red.shade900,
+                  ),
+                );
+              }
+            } finally {
+              if (mounted) {
+                setState(() => _isProcessingList = false);
+              }
+            }
           }
         }
       },
@@ -1324,8 +1544,16 @@ class _StandaloneDownloaderWindowState
         final itemsToSave = _controller.cache.getItemsForPath(path);
         if (itemsToSave != null) {
           final file = File(path);
-          final data = {'items': itemsToSave.map((e) => e.toMap()).toList()};
-          await file.writeAsString(jsonEncode(data));
+          
+          if (DmlCryptoService.isDmlFile(path)) {
+            final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
+            final currentPassword = _controller.cache.currentPassword;
+            final encryptedBytes = await DmlCryptoService.encryptInIsolate(jsonString, password: currentPassword);
+            await file.writeAsBytes(encryptedBytes);
+          } else {
+            final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
+            await file.writeAsString(jsonString);
+          }
 
           setState(() {
             if (_controller.cache.importedListPath == path ||
@@ -1335,6 +1563,72 @@ class _StandaloneDownloaderWindowState
             } else {
               _controller.cache.setCacheChanged(path, changed: false);
             }
+          });
+        }
+      },
+      onCustomListLock: (path) async {
+        if (!DmlCryptoService.isDmlFile(path)) return;
+        final listName = p.basenameWithoutExtension(path);
+        final hasPassword = _controller.cache.hasPasswordForPath(path);
+
+        if (hasPassword) {
+          final currentPassword = _controller.cache.getPasswordForPath(path);
+          if (currentPassword == null) return;
+
+          final remove = await _showRemoveLockDialog(context, currentPassword);
+          if (remove) {
+            _controller.cache.removePasswordForPath(path);
+            _controller.cache.setCacheChanged(path, changed: true);
+            
+            final itemsToSave = _controller.cache.getItemsForPath(path);
+            if (itemsToSave != null) {
+              final file = File(path);
+              final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
+              await file.writeAsString(jsonString);
+              setState(() {
+                _controller.cache.setCacheChanged(path, changed: false);
+              });
+            }
+          }
+        } else {
+          final password = await _showLockDialog(context, listName);
+          if (password != null && password.isNotEmpty) {
+            if (_controller.cache.importedListPath == path) {
+              _controller.cache.currentPassword = password;
+              _controller.cache.isListChanged = true;
+            }
+            if (_controller.cache.importedListPath != path) {
+              final currentPath = _controller.cache.importedListPath ?? 'default';
+              _saveCurrentTabState(currentPath);
+              setState(() {
+                _controller.cache.switchList(path);
+                _restoreTabState(path);
+                _isTrashView = false;
+              });
+            }
+            _controller.cache.currentPassword = password;
+            _controller.cache.isListChanged = true;
+            // Trigger save
+            final itemsToSave = _controller.cache.getItemsForPath(path);
+            if (itemsToSave != null) {
+              final file = File(path);
+              final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
+              final encryptedBytes = await DmlCryptoService.encryptInIsolate(jsonString, password: password);
+              await file.writeAsBytes(encryptedBytes);
+              setState(() {
+                _controller.cache.isListChanged = false;
+                _controller.cache.currentPassword = null;
+                _controller.cache.parsedItems = null;
+                _controller.cache.isLocked = true;
+              });
+            }
+          }
+        }
+      },
+      onCustomListLockToggle: (path) {
+        if (!_controller.cache.isLockedForPath(path)) {
+          setState(() {
+            _controller.cache.lockPath(path);
           });
         }
       },
@@ -1358,6 +1652,314 @@ class _StandaloneDownloaderWindowState
               : (_controller.cache.getItemsForPath('default')?.isEmpty ??
                     true)),
     );
+  }
+
+  Future<String?> _showLockDialog(BuildContext context, String listName) async {
+    final passwordController = TextEditingController();
+    final confirmController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var obscurePassword = true;
+    var obscureConfirm = true;
+    String? errorMessage;
+
+    return showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          title: Text(
+            'Lock $listName',
+            style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          content: Form(
+            key: formKey,
+            child: SizedBox(
+              width: 360,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SizedBox(
+                    width: 360,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                autofocus: true,
+                                controller: passwordController,
+                                obscureText: obscurePassword,
+                                style: GoogleFonts.outfit(color: Colors.white),
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                  labelText: 'Password',
+                                  labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: const BorderSide(color: Colors.white30),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: const BorderSide(color: AppColors.violet),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                validator: (_) => null,
+                                onFieldSubmitted: (_) {
+                                  final pwd = passwordController.text;
+                                  final confirm = confirmController.text;
+                                  if (pwd.isEmpty) {
+                                    setState(() => errorMessage = 'Password is required');
+                                  } else if (pwd != confirm) {
+                                    setState(() => errorMessage = 'Passwords do not match');
+                                  } else {
+                                    Navigator.of(context).pop(pwd);
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: IconButton(
+                                icon: Icon(
+                                  obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                  color: Colors.white70,
+                                ),
+                                onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: confirmController,
+                                obscureText: obscureConfirm,
+                                style: GoogleFonts.outfit(color: Colors.white),
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                  labelText: 'Confirm Password',
+                                  labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: const BorderSide(color: Colors.white30),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: const BorderSide(color: AppColors.violet),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                validator: (_) => null,
+                                onFieldSubmitted: (_) {
+                                  final pwd = passwordController.text;
+                                  final confirm = confirmController.text;
+                                  if (pwd.isEmpty) {
+                                    setState(() => errorMessage = 'Password is required');
+                                  } else if (pwd != confirm) {
+                                    setState(() => errorMessage = 'Passwords do not match');
+                                  } else {
+                                    Navigator.of(context).pop(pwd);
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: IconButton(
+                                icon: Icon(
+                                  obscureConfirm ? Icons.visibility : Icons.visibility_off,
+                                  color: Colors.white70,
+                                ),
+                                onPressed: () => setState(() => obscureConfirm = !obscureConfirm),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (errorMessage != null)
+                    Positioned(
+                      bottom: -20,
+                      left: 0,
+                      child: Text(
+                        errorMessage!,
+                        style: GoogleFonts.outfit(color: AppColors.error, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white70)),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: AppColors.violet,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: () {
+                final pwd = passwordController.text;
+                final confirm = confirmController.text;
+                if (pwd.isEmpty) {
+                  setState(() => errorMessage = 'Password is required');
+                } else if (pwd != confirm) {
+                  setState(() => errorMessage = 'Passwords do not match');
+                } else {
+                  Navigator.of(context).pop(pwd);
+                }
+              },
+              child: Text('Lock', style: GoogleFonts.outfit(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _showRemoveLockDialog(BuildContext context, String currentPassword) async {
+    final passwordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var obscurePassword = true;
+    String? errorMessage;
+
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          title: Text(
+            'Remove Password',
+            style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          content: Form(
+            key: formKey,
+            child: SizedBox(
+              width: 360,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SizedBox(
+                    width: 360,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                autofocus: true,
+                                controller: passwordController,
+                                obscureText: obscurePassword,
+                                style: GoogleFonts.outfit(color: Colors.white),
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                  labelText: 'Current Password',
+                                  labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: const BorderSide(color: Colors.white30),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: const BorderSide(color: AppColors.violet),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                validator: (_) => null,
+                                onFieldSubmitted: (_) {
+                                  if (passwordController.text != currentPassword) {
+                                    setState(() => errorMessage = 'Incorrect password');
+                                  } else {
+                                    Navigator.of(context).pop(true);
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: IconButton(
+                                icon: Icon(
+                                  obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                  color: Colors.white70,
+                                ),
+                                onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (errorMessage != null)
+                    Positioned(
+                      bottom: -20,
+                      left: 0,
+                      child: Text(
+                        errorMessage!,
+                        style: GoogleFonts.outfit(color: AppColors.error, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white70)),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: AppColors.error,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: () {
+                if (passwordController.text != currentPassword) {
+                  setState(() => errorMessage = 'Incorrect password');
+                } else {
+                  Navigator.of(context).pop(true);
+                }
+              },
+              child: Text('Remove', style: GoogleFonts.outfit(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    ) ?? false;
   }
 
   Future<void> _restoreTrash() async {
@@ -2387,6 +2989,128 @@ class _StandaloneDownloaderWindowState
   }
 
   Widget _buildMediaGrid() {
+    if (_controller.cache.isLocked) {
+      return Center(
+        child: Container(
+          width: 320,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline, color: Colors.white54, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'This list is locked',
+                style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      autofocus: true,
+                      controller: _unlockPasswordController,
+                      obscureText: _obscureUnlockPassword,
+                      style: GoogleFonts.outfit(color: Colors.white),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        labelText: 'Password',
+                        labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.white30),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: AppColors.violet),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onSubmitted: (value) async {
+                        if (value.isNotEmpty) {
+                          final path = _controller.cache.importedListPath;
+                          final name = _controller.cache.importedListName;
+                          if (path != null && name != null) {
+                            try {
+                              await _controller.importListFromFile(path, name, password: value);
+                              _unlockPasswordController.clear();
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Incorrect password', style: GoogleFonts.outfit(color: Colors.white)),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: IconButton(
+                      icon: Icon(
+                        _obscureUnlockPassword ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.white70,
+                      ),
+                      onPressed: () => setState(() => _obscureUnlockPassword = !_obscureUnlockPassword),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.violet,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () async {
+                    final value = _unlockPasswordController.text;
+                    if (value.isNotEmpty) {
+                      final path = _controller.cache.importedListPath;
+                      final name = _controller.cache.importedListName;
+                      if (path != null && name != null) {
+                        try {
+                          await _controller.importListFromFile(path, name, password: value);
+                          _unlockPasswordController.clear();
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Incorrect password', style: GoogleFonts.outfit(color: Colors.white)),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    }
+                  },
+                  child: Text('Unlock', style: GoogleFonts.outfit(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final mappedGroups = _getVisibleGroups();
     _currentVisibleGroups = mappedGroups;
 
@@ -2571,35 +3295,43 @@ class _StandaloneDownloaderWindowState
         }
       },
       onExport: () async {
-        if (_controller.cache.importedListName != null &&
-            _controller.cache.isListChanged &&
-            _controller.cache.importedListPath != null) {
-          await _controller.exportListToFile(
-            _controller.cache.importedListPath!,
-          );
-        } else {
-          final saveLocation = await CustomFilePickerDialog.show(
-            context,
-            title: 'EXPORT LIST',
-            saveMode: true,
-            initialFileName:
-                '${_controller.cache.importedListName ?? "export"}.json',
-            allowedExtensions: ['json', 'txt'],
-          );
-          if (saveLocation != null && saveLocation.isNotEmpty) {
-            final exportedPath = saveLocation.first;
-            final isDefaultList = _controller.cache.importedListName == null;
-
-            await _controller.exportListToFile(exportedPath);
-
-            if (isDefaultList) {
-              _controller.cache.clear();
-            }
-
-            await _controller.importListFromFile(
-              exportedPath,
-              p.basename(exportedPath),
+        if (_isProcessingList) return;
+        setState(() => _isProcessingList = true);
+        try {
+          if (_controller.cache.importedListName != null &&
+              _controller.cache.isListChanged &&
+              _controller.cache.importedListPath != null) {
+            await _controller.exportListToFile(
+              _controller.cache.importedListPath!,
             );
+          } else {
+            final saveLocation = await CustomFilePickerDialog.show(
+              context,
+              title: 'EXPORT LIST',
+              saveMode: true,
+              initialFileName:
+                  '${_controller.cache.importedListName ?? "export"}.dml',
+              allowedExtensions: ['dml'],
+            );
+            if (saveLocation != null && saveLocation.isNotEmpty) {
+              final exportedPath = saveLocation.first;
+              final isDefaultList = _controller.cache.importedListName == null;
+
+              await _controller.exportListToFile(exportedPath);
+
+              if (isDefaultList) {
+                _controller.cache.clear();
+              }
+
+              await _controller.importListFromFile(
+                exportedPath,
+                p.basename(exportedPath),
+              );
+            }
+          }
+        } finally {
+          if (mounted) {
+            setState(() => _isProcessingList = false);
           }
         }
       },
@@ -3197,8 +3929,19 @@ String? resolveStreamUrl(MediaInfo item, {MediaFormat? selectedFormat}) {
   }
 
   // Let media_kit's ytdl hook handle DASH audio+video muxing natively
-  // for yt-dlp extracted links.
-  if (item.engineId == 'yt-dlp' || item.extractor != null) {
+  // for yt-dlp extracted links. This also bypasses expired directUrls for old
+  // imported JSON lists that might be missing the engineId field.
+  final isLikelyYtDlp = item.engineId == 'yt-dlp' ||
+      item.extractor != null ||
+      item.originalUrl.contains('youtube.com') ||
+      item.originalUrl.contains('youtu.be') ||
+      item.originalUrl.contains('instagram.com') ||
+      item.originalUrl.contains('tiktok.com') ||
+      item.originalUrl.contains('twitter.com') ||
+      item.originalUrl.contains('x.com') ||
+      item.originalUrl.contains('reddit.com');
+
+  if (isLikelyYtDlp) {
     if (item.webpageUrl != null && item.webpageUrl!.isNotEmpty) {
       return item.webpageUrl;
     }
@@ -3288,4 +4031,10 @@ class _TrashItem {
   final String listPath;
   final MediaGroup? parentGroup;
   final DownloadConfig? config;
+}
+
+// Top-level isolate function for UI non-blocking json encode
+String _encodeJsonIsolateListSave(List<MediaGroup> itemsData) {
+  final data = {'items': itemsData.map((e) => e.toMap()).toList()};
+  return jsonEncode(data);
 }

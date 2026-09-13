@@ -10,6 +10,7 @@ import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
+import 'package:onyxcore/features/downloader/services/dml_crypto_service.dart';
 import 'package:onyxcore/features/downloader/services/engines/download_engine.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
@@ -711,32 +712,57 @@ void main() {
       await tempDir.delete(recursive: true);
     });
 
-    test('U-DL-SHC-28: exportListToFile saves JSON and txt', () async {
+    test('U-DL-SHC-28: exportListToFile saves encrypted DML file', () async {
       final container = await createContainer();
       final controller = container.read(downloadsSharedControllerProvider);
       
       final tempDir = await Directory.systemTemp.createTemp();
-      final jsonFile = File('${tempDir.path}/out.json');
-      final textFile = File('${tempDir.path}/out.txt');
+      final dmlFile = File('${tempDir.path}/out.dml');
       
       controller.cache.parsedItems = [
         MediaGroup(originalUrl: 'url3', items: [MediaInfo(id: '3', title: 't3', originalUrl: 'url3', isVideo: false)])
       ];
       controller.totalListSize = 1000;
       
-      await controller.exportListToFile(jsonFile.path);
-      final jsonContent = await jsonFile.readAsString();
-      expect(jsonContent, contains('url3'));
-      expect(jsonContent, contains('1000'));
+      await controller.exportListToFile(dmlFile.path);
       
-      await controller.exportListToFile(textFile.path);
-      final textContent = await textFile.readAsString();
-      expect(textContent, contains('url3'));
+      // Ensure file exists and starts with magic bytes
+      final bytes = await dmlFile.readAsBytes();
+      expect(bytes.length, greaterThan(20));
+      expect(bytes[0], equals(0x44)); // 'D'
+      expect(bytes[1], equals(0x4D)); // 'M'
+      expect(bytes[2], equals(0x4C)); // 'L'
+      expect(bytes[3], equals(0x01)); 
+      
+      // Decrypt to check JSON contents
+      final decryptedJson = DmlCryptoService.decrypt(bytes);
+      expect(decryptedJson, contains('url3'));
+      expect(decryptedJson, contains('1000'));
       
       await tempDir.delete(recursive: true);
     });
 
-    test('U-DL-SHC-29: cancelHydration removes loading placeholder and preserves already hydrated items', () async {
+    test('U-DL-SHC-29: importListFromFile decrypts and loads DML file', () async {
+      final container = await createContainer();
+      final controller = container.read(downloadsSharedControllerProvider);
+      
+      final tempDir = await Directory.systemTemp.createTemp();
+      final dmlFile = File('${tempDir.path}/in.dml');
+      
+      const testJson = '{"items":[{"originalUrl":"url_dml","items":[{"id":"1","title":"t_dml","originalUrl":"url_dml","isVideo":false}]}],"statistics":{"totalSize":2000,"images":1,"videos":0}}';
+      final encryptedBytes = DmlCryptoService.encrypt(testJson);
+      await dmlFile.writeAsBytes(encryptedBytes);
+      
+      await controller.importListFromFile(dmlFile.path, 'in.dml');
+      
+      expect(controller.cache.importedListName, 'in.dml');
+      expect(controller.cache.parsedItems?.length, 1);
+      expect(controller.cache.parsedItems?.first.originalUrl, 'url_dml');
+      
+      await tempDir.delete(recursive: true);
+    });
+
+    test('U-DL-SHC-30: cancelHydration removes loading placeholder and preserves already hydrated items', () async {
       final container = await createContainer();
       final controller = container.read(downloadsSharedControllerProvider);
 

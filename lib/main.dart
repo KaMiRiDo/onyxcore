@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -26,9 +27,9 @@ void main(List<String> args) async {
   PersistentViewerManager.init();
 
   // Pre-warm the global audio player so first-click on audio doesn't freeze the UI
-  Future.microtask(() => globalAudioPlayer);
+  unawaited(Future.microtask(() => globalAudioPlayer));
 
-  // Configure window options for a seamless, titlebar-less experience for the main window
+  // Configure window options for a seamless, titlebar-less experience for the main window.
   const windowOptions = WindowOptions(
     size: Size(1280, 720),
     center: true,
@@ -39,8 +40,13 @@ void main(List<String> args) async {
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
-    await windowManager.maximize();
     await windowManager.focus();
+    // Maximize AFTER show() so the OpenGL context has time to initialize at
+    // the initial size before resizing — prevents the GTK "Timed out waiting
+    // for OpenGL frame" stall that triggered the "not responding" dialog.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await windowManager.maximize();
+    });
   });
 
   runWidget(

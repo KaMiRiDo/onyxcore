@@ -461,6 +461,24 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
+// Implements GApplication::command_line.
+static int my_application_command_line(GApplication* application, GApplicationCommandLine* command_line) {
+  MyApplication* self = MY_APPLICATION(application);
+  gchar** arguments = g_application_command_line_get_arguments(command_line, nullptr);
+
+  if (arguments != nullptr && arguments[0] != nullptr && arguments[1] != nullptr) {
+    if (self->window_channel != nullptr) {
+      g_autoptr(FlValue) args = fl_value_new_map();
+      fl_value_set_string_take(args, "file_path", fl_value_new_string(arguments[1]));
+      fl_method_channel_invoke_method(self->window_channel, "open_file", args, nullptr, nullptr, nullptr);
+    }
+  }
+
+  g_strfreev(arguments);
+  g_application_activate(application);
+  return 0;
+}
+
 // Implements GApplication::local_command_line.
 static gboolean my_application_local_command_line(GApplication* application,
                                                   gchar*** arguments,
@@ -474,6 +492,11 @@ static gboolean my_application_local_command_line(GApplication* application,
     g_warning("Failed to register: %s", error->message);
     *exit_status = 1;
     return TRUE;
+  }
+
+  if (g_application_get_is_remote(application)) {
+    // This is a secondary instance. Return FALSE to let GTK forward the command line to the primary instance.
+    return FALSE;
   }
 
   g_application_activate(application);
@@ -509,6 +532,7 @@ static void my_application_dispose(GObject* object) {
 
 static void my_application_class_init(MyApplicationClass* klass) {
   G_APPLICATION_CLASS(klass)->activate = my_application_activate;
+  G_APPLICATION_CLASS(klass)->command_line = my_application_command_line;
   G_APPLICATION_CLASS(klass)->local_command_line =
       my_application_local_command_line;
   G_APPLICATION_CLASS(klass)->startup = my_application_startup;
@@ -519,13 +543,9 @@ static void my_application_class_init(MyApplicationClass* klass) {
 static void my_application_init(MyApplication* self) {}
 
 MyApplication* my_application_new() {
-  // Set the program name to the application ID, which helps various systems
-  // like GTK and desktop environments map this running application to its
-  // corresponding .desktop file. This ensures better integration by allowing
-  // the application to be recognized beyond its binary name.
   g_set_prgname(APPLICATION_ID);
 
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_NON_UNIQUE, nullptr));
+                                     G_APPLICATION_HANDLES_COMMAND_LINE, nullptr));
 }

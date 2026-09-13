@@ -310,11 +310,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                       child: thumbUrl == 'generating_thumbnail'
                                           ? Center(
                                               child: SizedBox(
-                                                width: 24,
-                                                height: 24,
-                                                child: CircularProgressIndicator(
-                                                  value: Platform.environment.containsKey('FLUTTER_TEST') ? 0 : null,
-                                                  strokeWidth: 2,
+                                                width: 36,
+                                                height: 36,
+                                                child: BubbleLoader(
                                                   color: Colors.white24,
                                                 ),
                                               ),
@@ -387,11 +385,9 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                                         }
                                                         return Center(
                                                           child: SizedBox(
-                                                            width: 24,
-                                                            height: 24,
-                                                            child: CircularProgressIndicator(
-                                                              value: Platform.environment.containsKey('FLUTTER_TEST') ? 0 : null,
-                                                              strokeWidth: 2,
+                                                            width: 36,
+                                                            height: 36,
+                                                            child: BubbleLoader(
                                                               color: Colors.white24,
                                                             ),
                                                           ),
