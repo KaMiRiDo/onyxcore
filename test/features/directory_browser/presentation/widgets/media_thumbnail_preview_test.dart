@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -291,52 +290,41 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  test('ThumbnailSession order and reprioritization via session', () async {
+  test('ThumbnailSession deduplicates concurrent enqueueCandidate calls for the same path', () async {
+    final mockCache = MockThumbnailCacheService();
+    when(() => mockCache.lookup(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        )).thenReturn(ThumbnailLookupResult.miss);
+    when(() => mockCache.markFailed(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+          kind: any(named: 'kind'),
+        )).thenAnswer((_) async {});
+
     final session = ThumbnailSession(
       folderPath: '/path/to',
       tabId: 'tab_test',
+      cacheService: mockCache,
     );
     addTearDown(session.dispose);
 
-    final order = <int>[];
-    final gate = Completer<void>();
+    const c = ThumbnailCandidate(
+      path: 'file1.jpg',
+      type: FileItemType.image,
+      modifiedEpochMs: 0,
+      sizeBytes: 1024,
+    );
+    session.updateViewportInterest(candidates: [c], visiblePaths: {c.path});
 
-    final f1 = session.enqueue(ThumbnailJob(
-      filePath: 'file1.mp4',
-      size: ThumbnailSize.normal,
-      priority: 10,
-      task: () async {
-        await gate.future;
-        order.add(1);
-      },
-    ));
+    final f1 = session.enqueueCandidate(c);
+    final f2 = session.enqueueCandidate(c); // should be deduplicated
 
-    final f2 = session.enqueue(ThumbnailJob(
-      filePath: 'file2.mp4',
-      size: ThumbnailSize.normal,
-      priority: 20,
-      task: () async {
-        order.add(2);
-      },
-    ));
-
-    final f3 = session.enqueue(ThumbnailJob(
-      filePath: 'file3.mp4',
-      size: ThumbnailSize.normal,
-      priority: 30,
-      task: () async {
-        order.add(3);
-      },
-    ));
-
-    // Reprioritize file3 so it runs before file2 (gets priority 0)
-    session.reprioritize({'file3.mp4'});
-
-    gate.complete();
-    await Future.wait([f1, f2, f3]);
-
-    expect(order.first, 1);
-    expect(order, containsAllInOrder([1, 3, 2]));
+    final results = await Future.wait([f1, f2]).timeout(const Duration(seconds: 5));
+    // Both futures must resolve and return the same outcome
+    expect(results[0], equals(results[1]));
   });
 
   testWidgets('MediaThumbnailPreview gracefully handles corrupted or missing cached image without crashing', (tester) async {

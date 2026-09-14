@@ -210,16 +210,36 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
       return;
     }
 
-    final job = session.createJobForFileItem(
-      item: widget.item,
-      cacheService: cacheService,
-      priority: 0,
+    final outcome = await session.enqueueCandidate(
+      ThumbnailCandidate.fromFileItem(widget.item),
+      priority: ThumbnailSchedulingPolicy.visiblePriority,
     );
-
-    await session.enqueue(job);
     if (_disposed || !mounted) return;
 
+    switch (outcome) {
+      case ThumbnailJobOutcome.failed:
+        setState(() {
+          _isBroken = true;
+        });
+        return;
+      case ThumbnailJobOutcome.cancelled:
+      case ThumbnailJobOutcome.obsolete:
+        // No-op — never treat as broken media
+        return;
+      case ThumbnailJobOutcome.deferred:
+        // Temporarily rejected due to cap. Re-evaluate after the queue frees up.
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (!_disposed && mounted) {
+            _loadThumbnail();
+          }
+        });
+        return;
+      case ThumbnailJobOutcome.success:
+        break; // fall through to cache lookup below
+    }
+
     if (_cachedThumbPath == null) {
+
       try {
         final postLookup = cacheService.lookup(
           filePath: filePath,

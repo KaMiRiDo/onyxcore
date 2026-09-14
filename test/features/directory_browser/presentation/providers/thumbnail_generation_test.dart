@@ -19,22 +19,21 @@ void main() {
   setUpAll(() async {
     // Create a temporary cache directory for the tests
     tempCacheDir = Directory.systemTemp.createTempSync('thumbnail_test_cache_');
-    
+
     // Initialize a test database in memory
     db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
 
-    // Provide a mocked ThumbnailCacheService that returns paths in our temp directory
+    // Provide a mocked ThumbnailCacheService that uses a real DB for integration testing
     cacheService = ThumbnailCacheService(db);
     await cacheService.load();
-
-    // Use a custom cache directory for ThumbnailCacheService by overriding its logic?
-    // Wait, ThumbnailCacheService relies on hardcoded path.
-    // Instead of overriding, we'll just let it use the default test logic if it exists,
-    // or just let it use its normal logic which computes paths. 
   });
 
   setUp(() {
-    session = ThumbnailSession(folderPath: '/test/media', tabId: 'tab_1');
+    session = ThumbnailSession(
+      folderPath: '/test/media',
+      tabId: 'tab_1',
+      cacheService: cacheService,
+    );
   });
 
   tearDown(() {
@@ -60,7 +59,7 @@ void main() {
     for (final file in dummyFiles) {
       final ext = p.extension(file.path).toLowerCase();
       final isVideo = ext == '.mp4';
-      
+
       final item = FileItem(
         path: file.path,
         name: p.basename(file.path),
@@ -69,11 +68,14 @@ void main() {
         modified: file.lastModifiedSync(),
       );
 
-      final outcome = await generateMediaThumbnail(
-        item: item,
-        cacheService: cacheService,
-        session: session,
+      // Extend interest so the session treats this as a current job
+      final candidate = ThumbnailCandidate.fromFileItem(item);
+      session.updateViewportInterest(
+        candidates: [candidate],
+        visiblePaths: {item.path},
       );
+
+      final outcome = await session.enqueueCandidate(candidate);
 
       expect(
         outcome,

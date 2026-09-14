@@ -66,35 +66,35 @@ void main() {
           )).thenReturn(ThumbnailLookupResult.miss);
     });
 
-    test('ThumbnailJobOutcome enum has success, cancelled, and failed', () {
+    test('ThumbnailJobOutcome enum has success, cancelled, failed, obsolete, deferred', () {
       expect(ThumbnailJobOutcome.values, containsAll([
         ThumbnailJobOutcome.success,
         ThumbnailJobOutcome.cancelled,
         ThumbnailJobOutcome.failed,
+        ThumbnailJobOutcome.obsolete,
+        ThumbnailJobOutcome.deferred,
       ]));
     });
 
-    test('generateMediaThumbnail returns ThumbnailJobOutcome.cancelled and NEVER marks failed when session is cancelled', () async {
-      final session = ThumbnailSession(folderPath: '/test/folder', tabId: 'tab_1');
-      final item = FileItem(
-        path: '/test/folder/pic_cancel.jpg',
-        name: 'pic_cancel.jpg',
-        type: FileItemType.image,
-        sizeBytes: 1024,
-        modified: DateTime.now(),
+    test('enqueueCandidate on cancelled session returns cancelled outcome', () async {
+      final session = ThumbnailSession(
+        folderPath: '/test/folder',
+        tabId: 'tab_1',
+        cacheService: mockCache,
       );
-
-      // Pre-cancel session
       session.cancel();
 
-      final outcome = await generateMediaThumbnail(
-        item: item,
-        cacheService: mockCache,
-        session: session,
+      final outcome = await session.enqueueCandidate(
+        ThumbnailCandidate.fromFileItem(FileItem(
+          path: '/test/folder/pic_cancel.jpg',
+          name: 'pic_cancel.jpg',
+          type: FileItemType.image,
+          sizeBytes: 1024,
+          modified: DateTime.now(),
+        )),
       );
 
       expect(outcome, ThumbnailJobOutcome.cancelled);
-      // Crucial: markFailed should NEVER be called for cancelled jobs
       verifyNever(() => mockCache.markFailed(
             filePath: any(named: 'filePath'),
             mtime: any(named: 'mtime'),
@@ -105,14 +105,11 @@ void main() {
       session.dispose();
     });
 
-    test('generateMediaThumbnail returns ThumbnailJobOutcome.failed and marks failed for corrupt/non-existent files', () async {
-      final session = ThumbnailSession(folderPath: '/test/folder', tabId: 'tab_1');
-      final item = FileItem(
-        path: '/non_existent_corrupted_file_path_xyz.jpg',
-        name: 'corrupt.jpg',
-        type: FileItemType.image,
-        sizeBytes: 1024,
-        modified: DateTime.now(),
+    test('enqueueCandidate on corrupt/non-existent file returns failed outcome', () async {
+      final session = ThumbnailSession(
+        folderPath: '/test/folder',
+        tabId: 'tab_1',
+        cacheService: mockCache,
       );
 
       when(() => mockCache.markFailed(
@@ -121,11 +118,29 @@ void main() {
             sizeBytes: any(named: 'sizeBytes'),
             kind: any(named: 'kind'),
           )).thenAnswer((_) async {});
+      when(() => mockCache.storeThumbnail(
+            filePath: any(named: 'filePath'),
+            mtime: any(named: 'mtime'),
+            sizeBytes: any(named: 'sizeBytes'),
+            kind: any(named: 'kind'),
+            thumbnailFile: any(named: 'thumbnailFile'),
+          )).thenAnswer((_) async {});
 
-      final outcome = await generateMediaThumbnail(
-        item: item,
-        cacheService: mockCache,
-        session: session,
+      final item = FileItem(
+        path: '/non_existent_corrupted_file_path_xyz.jpg',
+        name: 'corrupt.jpg',
+        type: FileItemType.image,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
+      );
+      // Extend interest so the session treats this as a current job
+      session.updateViewportInterest(
+        candidates: [ThumbnailCandidate.fromFileItem(item)],
+        visiblePaths: {item.path},
+      );
+
+      final outcome = await session.enqueueCandidate(
+        ThumbnailCandidate.fromFileItem(item),
       );
 
       expect(outcome, ThumbnailJobOutcome.failed);
@@ -196,7 +211,25 @@ void main() {
     });
 
     test('Temporary files created during failed or cancelled thumbnail generation are removed without polluting cache', () async {
-      final session = ThumbnailSession(folderPath: '/test/folder', tabId: 'tab_1');
+      final localMockCache = MockThumbnailCacheService();
+      when(localMockCache.ensureLoaded).thenAnswer((_) async {});
+      when(() => localMockCache.lookup(
+            filePath: any(named: 'filePath'),
+            mtime: any(named: 'mtime'),
+            sizeBytes: any(named: 'sizeBytes'),
+          )).thenReturn(ThumbnailLookupResult.miss);
+      when(() => localMockCache.markFailed(
+            filePath: any(named: 'filePath'),
+            mtime: any(named: 'mtime'),
+            sizeBytes: any(named: 'sizeBytes'),
+            kind: any(named: 'kind'),
+          )).thenAnswer((_) async {});
+
+      final session = ThumbnailSession(
+        folderPath: '/test/folder',
+        tabId: 'tab_1',
+        cacheService: localMockCache,
+      );
       final item = FileItem(
         path: '/invalid_test_path_atomic_123.jpg',
         name: 'atomic.jpg',
@@ -208,24 +241,11 @@ void main() {
       final tempPath = ThumbnailCacheService.computeTempPath(item.path, ThumbnailSize.normal);
       final cachePath = ThumbnailCacheService.computeCachePath(item.path, ThumbnailSize.normal);
 
-      final mockCache = MockThumbnailCacheService();
-      when(() => mockCache.lookup(
-            filePath: any(named: 'filePath'),
-            mtime: any(named: 'mtime'),
-            sizeBytes: any(named: 'sizeBytes'),
-          )).thenReturn(ThumbnailLookupResult.miss);
-      when(() => mockCache.markFailed(
-            filePath: any(named: 'filePath'),
-            mtime: any(named: 'mtime'),
-            sizeBytes: any(named: 'sizeBytes'),
-            kind: any(named: 'kind'),
-          )).thenAnswer((_) async {});
-
-      await generateMediaThumbnail(
-        item: item,
-        cacheService: mockCache,
-        session: session,
+      session.updateViewportInterest(
+        candidates: [ThumbnailCandidate.fromFileItem(item)],
+        visiblePaths: {item.path},
       );
+      await session.enqueueCandidate(ThumbnailCandidate.fromFileItem(item));
 
       expect(File(tempPath).existsSync(), isFalse, reason: 'Temporary file must be deleted after failed generation');
       expect(File(cachePath).existsSync(), isFalse, reason: 'No corrupt partial cache file should be placed at cachePath');
@@ -235,21 +255,24 @@ void main() {
   });
 
   group('Phase 1.2 — Patch 4: Lifecycle Edge Cases & Concurrency', () {
-    test('Enqueueing after session disposal completes safely without executing tasks or throwing', () async {
-      final session = ThumbnailSession(folderPath: '/test/folder', tabId: 'tab_1');
+
+    test('Enqueueing after session disposal returns cancelled outcome without running tasks or throwing', () async {
+      final session = ThumbnailSession(
+        folderPath: '/test/folder',
+        tabId: 'tab_1',
+        cacheService: null, // no cache = cancelled fast path
+      );
       session.dispose();
 
-      var taskRun = false;
-      final job = ThumbnailJob(
-        filePath: '/test/folder/pic_after_dispose.jpg',
-        size: ThumbnailSize.normal,
-        task: () async {
-          taskRun = true;
-        },
+      final outcome = await session.enqueueCandidate(
+        const ThumbnailCandidate(
+          path: '/test/folder/pic_after_dispose.jpg',
+          type: FileItemType.image,
+          modifiedEpochMs: 0,
+          sizeBytes: 0,
+        ),
       );
-
-      await session.enqueue(job);
-      expect(taskRun, isFalse);
+      expect(outcome, ThumbnailJobOutcome.cancelled);
       expect(session.isDisposed, isTrue);
     });
 
@@ -282,20 +305,39 @@ void main() {
     });
 
     test('Simultaneous cancellation and job completion does not throw or double-complete', () async {
-      final session = ThumbnailSession(folderPath: '/folder', tabId: 'tab_1');
-      final gate = Completer<void>();
+      final mockCache2 = MockThumbnailCacheService();
+      when(mockCache2.ensureLoaded).thenAnswer((_) async {});
+      when(() => mockCache2.lookup(
+            filePath: any(named: 'filePath'),
+            mtime: any(named: 'mtime'),
+            sizeBytes: any(named: 'sizeBytes'),
+          )).thenReturn(ThumbnailLookupResult.miss);
+      when(() => mockCache2.markFailed(
+            filePath: any(named: 'filePath'),
+            mtime: any(named: 'mtime'),
+            sizeBytes: any(named: 'sizeBytes'),
+            kind: any(named: 'kind'),
+          )).thenAnswer((_) async {});
 
-      final job = ThumbnailJob(
-        filePath: '/folder/race.jpg',
-        size: ThumbnailSize.normal,
-        task: () async {
-          await gate.future;
-        },
+      final session = ThumbnailSession(
+        folderPath: '/folder',
+        tabId: 'tab_1',
+        cacheService: mockCache2,
       );
 
-      final future = session.enqueue(job);
+      final candidate = const ThumbnailCandidate(
+        path: '/folder/race.jpg',
+        type: FileItemType.image,
+        modifiedEpochMs: 0,
+        sizeBytes: 0,
+      );
+      session.updateViewportInterest(
+        candidates: [candidate],
+        visiblePaths: {candidate.path},
+      );
+
+      final future = session.enqueueCandidate(candidate);
       session.cancel();
-      gate.complete();
 
       expect(() => future, returnsNormally);
       await future;
@@ -303,31 +345,57 @@ void main() {
       session.dispose();
     });
 
-    test('Worker slot cleanup: active count is decremented even if thumbnail task throws an error', () async {
-      final session = ThumbnailSession(folderPath: '/folder', tabId: 'tab_1');
+    test('Worker slot cleanup: active count is decremented even if generation fails', () async {
+      final mockCache3 = MockThumbnailCacheService();
+      when(mockCache3.ensureLoaded).thenAnswer((_) async {});
+      when(() => mockCache3.lookup(
+            filePath: any(named: 'filePath'),
+            mtime: any(named: 'mtime'),
+            sizeBytes: any(named: 'sizeBytes'),
+          )).thenReturn(ThumbnailLookupResult.miss);
+      when(() => mockCache3.markFailed(
+            filePath: any(named: 'filePath'),
+            mtime: any(named: 'mtime'),
+            sizeBytes: any(named: 'sizeBytes'),
+            kind: any(named: 'kind'),
+          )).thenAnswer((_) async {});
 
-      final throwingJob = ThumbnailJob(
-        filePath: '/folder/throw.jpg',
-        size: ThumbnailSize.normal,
-        task: () async {
-          throw Exception('Task error');
-        },
+      final session = ThumbnailSession(
+        folderPath: '/folder',
+        tabId: 'tab_1',
+        cacheService: mockCache3,
       );
 
-      await session.enqueue(throwingJob);
-
-      // Enqueue a succeeding job after to verify the worker slot wasn't leaked
-      var secondJobRun = false;
-      final secondJob = ThumbnailJob(
-        filePath: '/folder/second.jpg',
-        size: ThumbnailSize.normal,
-        task: () async {
-          secondJobRun = true;
-        },
+      final throwing = const ThumbnailCandidate(
+        path: '/folder/throw.jpg',
+        type: FileItemType.image,
+        modifiedEpochMs: 0,
+        sizeBytes: 0,
       );
+      session.updateViewportInterest(
+        candidates: [throwing],
+        visiblePaths: {throwing.path},
+      );
+      await session.enqueueCandidate(throwing);
 
-      await session.enqueue(secondJob);
-      expect(secondJobRun, isTrue);
+      // Second candidate verifies worker slot was released
+      final second = const ThumbnailCandidate(
+        path: '/folder/second.jpg',
+        type: FileItemType.image,
+        modifiedEpochMs: 0,
+        sizeBytes: 0,
+      );
+      when(() => mockCache3.lookup(
+            filePath: second.path,
+            mtime: any(named: 'mtime'),
+            sizeBytes: any(named: 'sizeBytes'),
+          )).thenReturn(ThumbnailLookupResult.miss);
+      session.updateViewportInterest(
+        candidates: [second],
+        visiblePaths: {second.path},
+      );
+      final result = await session.enqueueCandidate(second);
+      expect(result, isNot(equals(ThumbnailJobOutcome.deferred)));
 
       session.dispose();
     });

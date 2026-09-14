@@ -473,6 +473,17 @@ class _FileGridState extends ConsumerState<FileGrid>
     );
 
     final visiblePaths = <String>{};
+    final candidates = <ThumbnailCandidate>[];
+
+    // Build bounded candidate list: buffer window only
+    for (var i = indices.firstBufferIndex;
+        i <= indices.lastBufferIndex && i < items.length;
+        i++) {
+      final item = items[i];
+      if (item.type == FileItemType.image || item.type == FileItemType.video) {
+        candidates.add(ThumbnailCandidate.fromFileItem(item));
+      }
+    }
     for (var i = indices.firstVisibleIndex;
         i < indices.lastVisibleIndex && i < items.length;
         i++) {
@@ -485,60 +496,21 @@ class _FileGridState extends ConsumerState<FileGrid>
     try {
       final session = ref.read(activeThumbnailSessionProvider);
       if (session != null && !session.isCancelled && !session.isDisposed) {
-        session.reprioritize(visiblePaths);
+        session.updateViewportInterest(
+          candidates: candidates,
+          visiblePaths: visiblePaths,
+        );
       }
     } catch (_) {
       // In test environments or uninitialized provider trees
     }
   }
 
-  /// Compute which items are visible on screen plus outer buffer rows and tell
-  /// the thumbnail session queue to prioritize viewport items, then buffer rows,
-  /// and progressively generate remaining items in the folder.
+  /// [_enqueueFolderThumbnails] is now a no-op alias kept for call-site
+  /// compatibility. All scheduling is done via [_reprioritizeVisibleThumbnails]
+  /// which calls [ThumbnailSession.updateViewportInterest].
   void _enqueueFolderThumbnails(List<FileItem> items, double zoom) {
-    if (!_scrollController.hasClients) return;
-
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final totalWidth = _lastConstraints?.maxWidth ??
-        ((renderBox?.hasSize ?? false)
-            ? renderBox!.size.width
-            : MediaQuery.of(context).size.width);
-    final totalHeight = _lastConstraints?.maxHeight ??
-        ((renderBox?.hasSize ?? false)
-            ? renderBox!.size.height
-            : _scrollController.position.viewportDimension);
-
-    final scrollOffset = _scrollController.hasClients
-        ? _scrollController.offset.clamp(
-            0.0,
-            _scrollController.position.maxScrollExtent,
-          )
-        : 0.0;
-
-    final indices = calculateGridViewportIndices(
-      gridWidth: totalWidth,
-      gridHeight: totalHeight,
-      scrollOffset: scrollOffset,
-      itemCount: items.length,
-      zoom: zoom,
-    );
-
-    try {
-      final session = ref.read(activeThumbnailSessionProvider);
-      final cacheService = ref.read(thumbnailCacheServiceProvider);
-      if (session != null && !session.isCancelled && !session.isDisposed) {
-        session.enqueueAllFolderItems(
-          items: items,
-          cacheService: cacheService,
-          firstVisibleIndex: indices.firstVisibleIndex,
-          lastVisibleIndex: indices.lastVisibleIndex,
-          firstBufferIndex: indices.firstBufferIndex,
-          lastBufferIndex: indices.lastBufferIndex,
-        );
-      }
-    } catch (_) {
-      // In test environments or uninitialized provider trees
-    }
+    _reprioritizeVisibleThumbnails(items, zoom);
   }
 
   void _throttledReprioritize(List<FileItem> items, double zoom) {

@@ -2,505 +2,209 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as img;
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
-import 'package:onyxcore/core/platform/process_priority.dart';
-import 'package:onyxcore/core/utils/file_type_classifier.dart';
-import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_candidate.dart';
+import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_generation.dart';
+import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_job.dart';
+import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_queue.dart';
+import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_scheduling_policy.dart';
 
-/// Top-level function for background image thumbnail generation via [compute].
-Future<bool> _generateImageThumbnail(List<String> args) async {
-  final sourcePath = args[0];
-  final destPath = args[1];
-  try {
-    final bytes = File(sourcePath).readAsBytesSync();
-    final image = img.decodeImage(bytes);
-    if (image == null) return false;
+export 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_candidate.dart';
+export 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_generation.dart'
+    show ThumbnailProcessController;
+export 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_job.dart';
+export 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_scheduling_policy.dart';
 
-    final resized = img.copyResize(image, width: 320);
-    final jpegBytes = img.encodeJpg(resized, quality: 85);
-    File(destPath).writeAsBytesSync(jpegBytes);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-/// Represents the outcome of a thumbnail generation job.
-enum ThumbnailJobOutcome {
-  /// The thumbnail was generated and committed to the cache successfully.
-  success,
-
-  /// The job was cancelled due to folder navigation, tab change, or disposal.
-  cancelled,
-
-  /// Generation genuinely failed (corrupt file, unsupported format, error).
-  failed,
-}
-
-/// Generates a media thumbnail file and caches it via [ThumbnailCacheService].
-Future<ThumbnailJobOutcome> generateMediaThumbnail({
-  required FileItem item,
-  required ThumbnailCacheService cacheService,
-  required ThumbnailSession session,
-}) async {
-  if (session.isCancelled || session.isDisposed) {
-    return ThumbnailJobOutcome.cancelled;
-  }
-
-  final filePath = item.path;
-  final mtime = item.modified.millisecondsSinceEpoch;
-  final sizeBytes = item.sizeBytes ?? 0;
-
-  final lookup = cacheService.lookup(
-    filePath: filePath,
-    mtime: mtime,
-    sizeBytes: sizeBytes,
-  );
-
-  if (lookup == ThumbnailLookupResult.hit) {
-    return ThumbnailJobOutcome.success;
-  }
-  if (lookup == ThumbnailLookupResult.failed) {
-    return ThumbnailJobOutcome.failed;
-  }
-
-  await ThumbnailCacheService.ensureCacheDirs();
-  final tempThumbPath = ThumbnailCacheService.computeTempPath(
-    filePath,
-    ThumbnailSize.normal,
-  );
-  final finalCachePath = ThumbnailCacheService.computeCachePath(
-    filePath,
-    ThumbnailSize.normal,
-  );
-  final jobKey = '$filePath::${ThumbnailSize.normal.name}';
-
-  try {
-    final isImage = item.type == FileItemType.image;
-    final isCommonImage = isImage && ThumbnailSession.isCommonImageFormat(filePath);
-
-    var generated = false;
-
-    // 1. Try Dart image package for common image formats (up to 5MB)
-    if (isCommonImage &&
-        sizeBytes > 0 &&
-        sizeBytes <= ThumbnailSession.dartDecodeMaxBytes) {
-      generated = await compute(_generateImageThumbnail, [
-        filePath,
-        tempThumbPath,
-      ]);
-    }
-
-    // 2. Fallback to external thumbnailers (heif-thumbnailer, gdk-pixbuf-thumbnailer, FFmpeg)
-    if (!generated) {
-      final command = ThumbnailSession.getThumbnailerCommand(filePath, tempThumbPath, isImage: isImage);
-      final executable = command.first;
-      final args = command.sublist(1);
-
-      final process = await Process.start(executable, args);
-      unawaited(setLowProcessPriority(process.pid));
-      session.registerRunningProcess(jobKey, process);
-      process.stdout.drain<void>().ignore();
-      process.stderr.drain<void>().ignore();
-      await process.exitCode;
-      session.unregisterRunningProcess(jobKey);
-
-      final file = File(tempThumbPath);
-      try {
-        // ignore: avoid_slow_async_io
-        generated = file.existsSync() && file.lengthSync() > 0;
-      } catch (_) {
-        generated = false;
-      }
-    }
-
-    if (session.isCancelled || session.isDisposed) {
-      try {
-        final partialFile = File(tempThumbPath);
-        if (partialFile.existsSync()) {
-          partialFile.deleteSync();
-        }
-      } catch (_) {}
-      return ThumbnailJobOutcome.cancelled;
-    }
-
-    final thumbFile = File(tempThumbPath);
-    var thumbExists = false;
-    try {
-      thumbExists = thumbFile.existsSync() && thumbFile.lengthSync() > 0;
-    } catch (_) {
-      thumbExists = false;
-    }
-
-    if (generated && thumbExists) {
-      // Atomic commit: rename temp file to final cache path
-      final committedFile = thumbFile.renameSync(finalCachePath);
-      await cacheService.storeThumbnail(
-        filePath: filePath,
-        mtime: mtime,
-        sizeBytes: sizeBytes,
-        kind: isImage ? 'image' : 'video',
-        thumbnailFile: committedFile,
-      );
-      return ThumbnailJobOutcome.success;
-    } else {
-      // Clean up incomplete temp file if created
-      try {
-        if (thumbFile.existsSync()) {
-          thumbFile.deleteSync();
-        }
-      } catch (_) {}
-
-      if (session.isCancelled || session.isDisposed) {
-        return ThumbnailJobOutcome.cancelled;
-      }
-
-      await cacheService.markFailed(
-        filePath: filePath,
-        mtime: mtime,
-        sizeBytes: sizeBytes,
-        kind: isImage ? 'image' : 'video',
-      );
-      return ThumbnailJobOutcome.failed;
-    }
-  } catch (e) {
-    try {
-      final partialFile = File(tempThumbPath);
-      if (partialFile.existsSync()) {
-        partialFile.deleteSync();
-      }
-    } catch (_) {}
-
-    if (!session.isCancelled && !session.isDisposed) {
-      await cacheService.markFailed(
-        filePath: filePath,
-        mtime: mtime,
-        sizeBytes: sizeBytes,
-        kind: item.type == FileItemType.image ? 'image' : 'video',
-      );
-      return ThumbnailJobOutcome.failed;
-    }
-    return ThumbnailJobOutcome.cancelled;
-  }
-}
-
-
-/// Represents a single unit of work for thumbnail generation.
-class ThumbnailJob {
-  ThumbnailJob({
-    required this.filePath,
-    required this.size,
-    required this.task,
-    this.priority = 100,
-    bool? isVideo,
-  }) : isVideo = isVideo ?? (classifyFileType(filePath) == FileItemType.video);
-
-  final String filePath;
-  final ThumbnailSize size;
-  final Future<void> Function() task;
-  final bool isVideo;
-  int priority;
-
-  String get key => '$filePath::${size.name}';
-}
-
-class _ThumbnailQueueEntry {
-  _ThumbnailQueueEntry({required this.job, required this.completer});
-
-  final ThumbnailJob job;
-  final Completer<void> completer;
-}
-
-/// Represents a session-scoped thumbnail generation queue for an active folder in a tab.
-class ThumbnailSession {
+/// Session-scoped thumbnail scheduler for a single active folder in a tab.
+///
+/// ## Bounded admission
+/// Only candidates within the current viewport + prefetch window are ever
+/// admitted to the queue. Total pending jobs are capped at
+/// [ThumbnailSchedulingPolicy.maxPendingJobs].
+///
+/// ## Memory guarantee
+/// Scheduling memory scales with:
+///   visible media + bounded prefetch media + bounded running workers
+/// and never with the total media count in the active folder.
+///
+/// ## Process ownership
+/// This session is the single owner of the jobKey → [Process] map.
+/// The queue requests preemption via a narrow callback; it never holds
+/// process references directly.
+class ThumbnailSession implements ThumbnailProcessController {
   ThumbnailSession({
     required this.folderPath,
     required this.tabId,
     this.cacheService,
-  });
-
-  /// Grace period in milliseconds to allow child process to terminate on SIGTERM
-  /// before escalating to SIGKILL.
-  static const int graceMillis = 300;
-
-  static bool isCommonImageFormat(String filePath) {
-    final ext = filePath.toLowerCase();
-    return ext.endsWith('.jpg') ||
-        ext.endsWith('.jpeg') ||
-        ext.endsWith('.png') ||
-        ext.endsWith('.webp') ||
-        ext.endsWith('.gif') ||
-        ext.endsWith('.bmp') ||
-        ext.endsWith('.tiff') ||
-        ext.endsWith('.tif');
+  }) {
+    _queue = ThumbnailBoundedQueue(
+      runner: _runJob,
+      onPreemptRequest: _preemptProcess,
+    );
   }
 
-  static List<String> getThumbnailerCommand(String filePath, String tempThumbPath, {required bool isImage}) {
-    final ext = filePath.toLowerCase();
-    if (ext.endsWith('.heic') || ext.endsWith('.heif') || ext.endsWith('.avif')) {
-      return ['heif-thumbnailer', '-s', '320', filePath, tempThumbPath];
-    }
-    if (ext.endsWith('.dng')) {
-      return ['gdk-pixbuf-thumbnailer', '-s', '320', filePath, tempThumbPath];
-    }
-    
-    // Fallback to FFmpeg
-    return [
-      'ffmpeg',
-      '-y',
-      if (!isImage) ...['-ss', '00:00:01'],
-      '-i',
-      filePath,
-      '-vframes',
-      '1',
-      if (!isImage) '-an',
-      if (isImage) ...['-update', '1'],
-      '-vf',
-      'scale=320:-1',
-      '-q:v',
-      '5',
-      '-loglevel',
-      'error',
-      tempThumbPath,
-    ];
-  }
+  // ── Forwarding constants for backward test compatibility ───────────────────
+  // These preserve the exact values expected by existing hardening tests and
+  // delegate to ThumbnailSchedulingPolicy as the single source of truth.
 
-  /// Maximum file size in bytes for in-memory Dart image decoding. Images larger than
-  /// this threshold route directly to FFmpeg to preserve memory stability and responsiveness.
-  static const int dartDecodeMaxBytes = 5 * 1024 * 1024;
+  /// Grace period between SIGTERM and SIGKILL escalation (ms).
+  static const int graceMillis = ThumbnailSchedulingPolicy.processGraceMillis;
 
-  /// Maximum concurrent background workers for image thumbnail generation.
-  /// Bounded to 2 to prevent UI stutters and CPU starvation.
-  static const int maxImageWorkers = 2;
+  /// Scroll-settle debounce before a full viewport interest update (ms).
+  static const int scrollSettleDebounceMillis =
+      ThumbnailSchedulingPolicy.scrollSettleDebounceMillis;
 
-  /// Maximum concurrent background workers for video thumbnail generation.
-  /// Bounded to 1 because video demuxing/decoding is compute-heavy.
-  static const int maxVideoWorkers = 1;
+  /// Maximum source-file size eligible for in-process Dart image decoding.
+  static const int dartDecodeMaxBytes = ThumbnailSchedulingPolicy.dartDecodeMaxBytes;
 
-  /// Debounce duration in milliseconds before full folder thumbnail queueing triggers
-  /// after user scrolling settles.
-  static const int scrollSettleDebounceMillis = 150;
+  /// Maximum concurrent image decode workers.
+  static const int maxImageWorkers = ThumbnailSchedulingPolicy.maxImageWorkers;
+
+  /// Maximum concurrent video frame-extraction workers.
+  static const int maxVideoWorkers = ThumbnailSchedulingPolicy.maxVideoWorkers;
+
+  /// Returns true for file extensions eligible for in-process Dart decoding.
+  static bool isCommonImageFormat(String filePath) =>
+      _isCommonImageFormatForward(filePath);
+
+  /// Returns the external thumbnailer command for the given file.
+  static List<String> getThumbnailerCommand(
+    String filePath,
+    String tempThumbPath, {
+    required bool isImage,
+  }) =>
+      _getThumbnailerCommandForward(
+        filePath,
+        tempThumbPath,
+        isImage: isImage,
+      );
+
+  // ── Session identity ───────────────────────────────────────────────────────
 
   final String folderPath;
   final String tabId;
   final ThumbnailCacheService? cacheService;
 
+  // ── State ──────────────────────────────────────────────────────────────────
+
   bool _isCancelled = false;
   bool _isDisposed = false;
-  int _activeImageCount = 0;
-  int _activeVideoCount = 0;
 
-  final List<_ThumbnailQueueEntry> _queue = [];
-  final Map<String, _ThumbnailQueueEntry> _queueMap = {};
-  final Set<String> _queuedKeys = {};
-  final Set<String> _runningKeys = {};
-  final Set<String> _completedKeys = {};
-  final Map<String, ThumbnailJob> _runningJobs = {};
-  final Map<String, Future<void>> _inFlightFutures = {};
+  /// Monotonically increasing revision counter; incremented on each
+  /// [updateViewportInterest] call (diagnostic use only).
+  int _revision = 0;
+
+  /// Visible + prefetch paths — the current interest window.
+  Set<String> _interestPaths = const {};
+
+  /// Exact viewport paths — used by eviction guard and relevance display.
+  Set<String> _visiblePaths = const {};
+
+  late final ThumbnailBoundedQueue _queue;
+
+  /// Single owner of jobKey → external [Process] handles.
   final Map<String, Process> _runningProcesses = {};
+
+  // ── Public state accessors ─────────────────────────────────────────────────
 
   bool get isCancelled => _isCancelled;
   bool get isDisposed => _isDisposed;
 
-  bool isJobActiveOrQueued(String filePath, ThumbnailSize size) {
-    final key = '$filePath::${size.name}';
-    return _queuedKeys.contains(key) || _runningKeys.contains(key);
-  }
+  // ──────────────────────────────────────────────────────────────────────────
+  // Primary scheduling API
+  // ──────────────────────────────────────────────────────────────────────────
 
-  bool isJobCompleted(String filePath, ThumbnailSize size) {
-    final key = '$filePath::${size.name}';
-    return _completedKeys.contains(key);
-  }
-
-  /// Creates a [ThumbnailJob] for a given [FileItem].
-  ThumbnailJob createJobForFileItem({
-    required FileItem item,
-    required ThumbnailCacheService cacheService,
-    int priority = 100,
+  /// Update the viewport interest window and admit bounded candidates.
+  ///
+  /// [candidates] must be pre-sliced to the buffer window by [FileGrid].
+  /// [visiblePaths] is the exact viewport subset.
+  ///
+  /// Ordering contract:
+  ///   1. Replace both bounded path sets atomically.
+  ///   2. Remove now-obsolete pending jobs.
+  ///   3. Admit visible candidates first (priority 0..N from center outward).
+  ///   4. Admit prefetch candidates second (priority 50+..M from center outward).
+  void updateViewportInterest({
+    required List<ThumbnailCandidate> candidates,
+    required Set<String> visiblePaths,
   }) {
-    return ThumbnailJob(
-      filePath: item.path,
-      size: ThumbnailSize.normal,
-      priority: priority,
-      isVideo: item.type == FileItemType.video,
-      task: () => generateMediaThumbnail(
-        item: item,
-        cacheService: cacheService,
-        session: this,
-      ),
-    );
+    if (_isCancelled || _isDisposed) return;
+
+    _revision++;
+    final interestPaths = candidates.map((c) => c.path).toSet();
+
+    // 1. Replace sets atomically.
+    _interestPaths = Set.unmodifiable(interestPaths);
+    _visiblePaths = Set.unmodifiable(visiblePaths);
+    _queue.updateInterestPaths(_interestPaths, _visiblePaths);
+
+    // 2. Cancel pending jobs outside the new interest window.
+    _queue.cancelObsoletes(_interestPaths);
+
+    final cs = cacheService;
+    if (cs == null) return;
+
+    // 3 & 4. Admit visible first, then prefetch.
+    final visible = candidates.where((c) => visiblePaths.contains(c.path)).toList();
+    final prefetch = candidates.where((c) => !visiblePaths.contains(c.path)).toList();
+
+    for (final candidate in visible) {
+      _queue.admit(candidate, ThumbnailSchedulingPolicy.visiblePriority, _revision, cs);
+    }
+    for (final candidate in prefetch) {
+      _queue.admit(
+        candidate,
+        ThumbnailSchedulingPolicy.bufferPriorityBase,
+        _revision,
+        cs,
+      );
+    }
   }
 
-  /// Enqueues a thumbnail generation job.
-  /// If the job is already in queue, updates its priority if the new priority is higher.
-  Future<void> enqueue(ThumbnailJob job) {
+  /// Admit a single candidate from a visible widget (e.g. [MediaThumbnailPreview]).
+  ///
+  /// Adds the candidate's path to both [_interestPaths] and [_visiblePaths] before
+  /// admission to prevent the race where a visible widget's job is treated as
+  /// obsolete before the grid has called [updateViewportInterest].
+  ///
+  /// The next [updateViewportInterest] call replaces both sets, pruning paths
+  /// no longer in the bounded grid window.
+  Future<ThumbnailJobOutcome> enqueueCandidate(
+    ThumbnailCandidate candidate, {
+    int priority = ThumbnailSchedulingPolicy.visiblePriority,
+  }) {
     if (_isCancelled || _isDisposed) {
-      return Future.value();
+      return Future.value(ThumbnailJobOutcome.cancelled);
     }
 
-    final key = job.key;
-    if (_completedKeys.contains(key)) {
-      return Future.value();
-    }
+    final cs = cacheService;
+    if (cs == null) return Future.value(ThumbnailJobOutcome.cancelled);
 
-    final existing = _queueMap[key];
-    if (existing != null) {
-      if (existing.job.priority != job.priority) {
-        existing.job.priority = job.priority;
-        _queue.sort((a, b) => a.job.priority.compareTo(b.job.priority));
-        _preemptLowPriorityJobsIfNeeded();
-      }
-      return _inFlightFutures[key] ?? Future.value();
-    }
+    // Extend interest to include this directly-admitted visible candidate.
+    _interestPaths = {..._interestPaths, candidate.path};
+    _visiblePaths = {..._visiblePaths, candidate.path};
+    _queue.updateInterestPaths(_interestPaths, _visiblePaths);
 
-    if (_inFlightFutures.containsKey(key)) {
-      return _inFlightFutures[key]!;
-    }
-
-    final completer = Completer<void>();
-    final entry = _ThumbnailQueueEntry(job: job, completer: completer);
-
-    _queue.add(entry);
-    _queueMap[key] = entry;
-    _queuedKeys.add(key);
-    _inFlightFutures[key] = completer.future;
-
-    _preemptLowPriorityJobsIfNeeded();
-    _processNext();
-    return completer.future;
+    return _queue.admit(candidate, priority, _revision, cs);
   }
 
-  /// Enqueues all media items in the active folder with distance-aware priorities:
-  /// - Exact viewport items: Priority 0..N
-  /// - Buffer rows above/below: Priority 50..M
-  /// - Rest of folder: Priority 200..Z
-  void enqueueAllFolderItems({
-    required List<FileItem> items,
-    required ThumbnailCacheService cacheService,
-    required int firstVisibleIndex,
-    required int lastVisibleIndex,
-    required int firstBufferIndex,
-    required int lastBufferIndex,
-  }) {
-    if (_isCancelled || _isDisposed) return;
+  // ──────────────────────────────────────────────────────────────────────────
+  // Job relevance (used by generation layer)
+  // ──────────────────────────────────────────────────────────────────────────
 
-    final centerVisibleIndex = (firstVisibleIndex < lastVisibleIndex)
-        ? firstVisibleIndex + ((lastVisibleIndex - firstVisibleIndex) ~/ 2)
-        : firstVisibleIndex;
-
-    var modified = false;
-    for (var i = 0; i < items.length; i++) {
-      final item = items[i];
-      if (item.type != FileItemType.image && item.type != FileItemType.video) {
-        continue;
-      }
-
-      final key = '${item.path}::${ThumbnailSize.normal.name}';
-      if (_completedKeys.contains(key)) continue;
-
-      int priority;
-      if (i >= firstVisibleIndex && i < lastVisibleIndex) {
-        // Viewport items: start from center and radiate outward
-        priority = (i - centerVisibleIndex).abs();
-      } else if (i >= firstBufferIndex && i < lastBufferIndex) {
-        // Buffer items: radiate outward around viewport
-        priority = 50 + (i - centerVisibleIndex).abs();
-      } else {
-        // Remaining folder items: radiate outward until all items in folder are processed
-        priority = 200 + (i - centerVisibleIndex).abs();
-      }
-
-      final existing = _queueMap[key];
-      if (existing != null) {
-        if (existing.job.priority != priority) {
-          existing.job.priority = priority;
-          modified = true;
-        }
-      } else if (!_runningKeys.contains(key) && !_inFlightFutures.containsKey(key)) {
-        final job = createJobForFileItem(
-          item: item,
-          cacheService: cacheService,
-          priority: priority,
-        );
-        final completer = Completer<void>();
-        final entry = _ThumbnailQueueEntry(job: job, completer: completer);
-        _queue.add(entry);
-        _queueMap[key] = entry;
-        _queuedKeys.add(key);
-        _inFlightFutures[key] = completer.future;
-        modified = true;
-      }
-    }
-
-    if (modified) {
-      _queue.sort((a, b) => a.job.priority.compareTo(b.job.priority));
-    }
-
-    _preemptLowPriorityJobsIfNeeded();
-    _processNext();
+  bool _isJobRelevant(ThumbnailJob job) {
+    return !_isCancelled &&
+        !_isDisposed &&
+        _interestPaths.contains(job.candidate.path);
   }
 
-  /// Re-orders pending queue entries based on which items are currently visible in the viewport.
-  void reprioritize(Set<String> visiblePaths) {
-    if (_isCancelled || _isDisposed) return;
+  // ──────────────────────────────────────────────────────────────────────────
+  // Process ownership (implements ThumbnailProcessController)
+  // ──────────────────────────────────────────────────────────────────────────
 
-    var modified = false;
-    for (final entry in _queue) {
-      if (visiblePaths.contains(entry.job.filePath)) {
-        if (entry.job.priority != 0) {
-          entry.job.priority = 0;
-          modified = true;
-        }
-      } else if (entry.job.priority < 50) {
-        entry.job.priority = 200;
-        modified = true;
-      }
-    }
-
-    if (modified) {
-      _queue.sort((a, b) => a.job.priority.compareTo(b.job.priority));
-      _preemptLowPriorityJobsIfNeeded();
-    }
-  }
-
-  /// If high-priority viewport items are waiting and workers are busy on off-screen jobs,
-  /// terminate the off-screen process immediately so viewport items start without delay.
-  void _preemptLowPriorityJobsIfNeeded() {
-    if (_isCancelled || _isDisposed) return;
-    if (_queue.isEmpty) return;
-
-    for (final entry in _queue) {
-      if (entry.job.priority >= 50) break;
-
-      final isVideo = entry.job.isVideo;
-      final isPoolFull = isVideo
-          ? _activeVideoCount >= maxVideoWorkers
-          : _activeImageCount >= maxImageWorkers;
-
-      if (isPoolFull) {
-        String? victimKey;
-        var worstPriority = -1;
-        for (final running in _runningJobs.entries) {
-          if (running.value.isVideo == isVideo &&
-              running.value.priority >= 50 &&
-              running.value.priority > worstPriority) {
-            worstPriority = running.value.priority;
-            victimKey = running.key;
-          }
-        }
-
-        if (victimKey != null && _runningProcesses.containsKey(victimKey)) {
-          final proc = _runningProcesses[victimKey];
-          if (proc != null) {
-            _terminateProcess(proc);
-          }
-        }
-      }
-    }
-  }
-
-  /// Registers an external process handle so it can be gracefully terminated if cancelled.
+  /// Registers [process] under [jobKey]. If the session is already
+  /// cancelled/disposed, terminates [process] immediately without storing it.
+  @override
   void registerRunningProcess(String jobKey, Process process) {
     if (_isCancelled || _isDisposed) {
       _terminateProcess(process);
@@ -509,9 +213,53 @@ class ThumbnailSession {
     _runningProcesses[jobKey] = process;
   }
 
-  /// Unregisters a completed process handle.
+  /// Removes the process registered under [jobKey].
+  @override
   void unregisterRunningProcess(String jobKey) {
     _runningProcesses.remove(jobKey);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Test-compatibility accessors
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// Returns true if a job for [filePath]/[size] is currently pending or running.
+  /// No production callers — retained for test assertions.
+  bool isJobActiveOrQueued(String filePath, ThumbnailSize size) {
+    final key = '$filePath::${size.name}';
+    return _queue.isQueuedOrRunning(key);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Runner — called by ThumbnailBoundedQueue for each dequeued job
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Future<ThumbnailJobOutcome> _runJob(ThumbnailJob job) async {
+    final cs = cacheService;
+    if (cs == null || _isCancelled || _isDisposed) {
+      return ThumbnailJobOutcome.cancelled;
+    }
+
+    try {
+      return await generateMediaThumbnail(
+        job: job,
+        cacheService: cs,
+        processController: this,
+        isCancelledOrDisposed: () => _isCancelled || _isDisposed,
+        isJobRelevant: () => _isJobRelevant(job),
+      );
+    } finally {
+      // Runner cleanup here if needed
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Preemption (called by queue via callback)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  void _preemptProcess(String jobKey) {
+    final process = _runningProcesses[jobKey];
+    if (process != null) _terminateProcess(process);
   }
 
   void _terminateProcess(Process process) {
@@ -521,17 +269,15 @@ class ThumbnailSession {
         hasExited = true;
       }).catchError((dynamic _) => null);
 
-      // 1. Send graceful SIGTERM first
+      // Graceful SIGTERM first.
       process.kill();
 
-      // 2. Wait up to graceMillis (300ms) before escalating to SIGKILL
-      Future<void>.delayed(const Duration(milliseconds: graceMillis), () {
+      // Escalate to SIGKILL after grace period if still running.
+      Future<void>.delayed(Duration(milliseconds: graceMillis), () {
         if (!hasExited) {
           try {
             process.kill(ProcessSignal.sigkill);
-          } catch (_) {
-            // Process may have already exited
-          }
+          } catch (_) {}
         }
       });
     } catch (e) {
@@ -539,99 +285,47 @@ class ThumbnailSession {
     }
   }
 
-  void _processNext() {
-    if (_isCancelled || _isDisposed) return;
+  // ──────────────────────────────────────────────────────────────────────────
+  // Lifecycle
+  // ──────────────────────────────────────────────────────────────────────────
 
-    for (var i = 0; i < _queue.length;) {
-      final entry = _queue[i];
-      final isVideo = entry.job.isVideo;
-
-      final canRun = isVideo
-          ? _activeVideoCount < maxVideoWorkers
-          : _activeImageCount < maxImageWorkers;
-
-      if (!canRun) {
-        i++;
-        continue;
-      }
-
-      _queue.removeAt(i);
-      final key = entry.job.key;
-      _queuedKeys.remove(key);
-      _queueMap.remove(key);
-      _runningKeys.add(key);
-      _runningJobs[key] = entry.job;
-
-      if (isVideo) {
-        _activeVideoCount++;
-      } else {
-        _activeImageCount++;
-      }
-
-      () async {
-        try {
-          if (!_isCancelled && !_isDisposed) {
-            await entry.job.task();
-          }
-        } catch (e) {
-          debugPrint(
-            '[ThumbnailSession] Error generating thumbnail for ${entry.job.filePath}: $e',
-          );
-        } finally {
-          _runningJobs.remove(key);
-          _runningProcesses.remove(key);
-          _runningKeys.remove(key);
-          if (!_isCancelled && !_isDisposed) {
-            _completedKeys.add(key);
-          }
-
-          if (isVideo) {
-            _activeVideoCount--;
-          } else {
-            _activeImageCount--;
-          }
-
-          final _ = _inFlightFutures.remove(key);
-
-          if (!entry.completer.isCompleted) {
-            entry.completer.complete();
-          }
-
-          _processNext();
-        }
-      }();
-      i = 0;
-    }
-  }
-
-  /// Cancels all pending jobs and terminates active processes gracefully.
+  /// Cancels all pending jobs and terminates all registered external processes.
   void cancel() {
     if (_isCancelled) return;
     _isCancelled = true;
 
-    // Drain queued entries
-    for (final entry in _queue) {
-      _queuedKeys.remove(entry.job.key);
-      if (!entry.completer.isCompleted) {
-        entry.completer.complete();
-      }
-    }
-    _queue.clear();
-    _queueMap.clear();
-    _inFlightFutures.clear();
+    // Clear bounded path sets.
+    _interestPaths = const {};
+    _visiblePaths = const {};
 
-    // Terminate all running processes
+    // Drain queue; resolve completers as cancelled.
+    _queue.clearOnCancellation();
+
+    // Terminate all registered external processes.
     for (final process in _runningProcesses.values) {
       _terminateProcess(process);
     }
     _runningProcesses.clear();
   }
 
-  /// Disposes the session.
+  /// Disposes the session, cancelling all work first.
   void dispose() {
     if (_isDisposed) return;
     cancel();
     _isDisposed = true;
-    _inFlightFutures.clear();
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Private forwarding aliases — camelCase to satisfy lints
+// ─────────────────────────────────────────────────────────────────────────────
+
+bool _isCommonImageFormatForward(String filePath) =>
+    isCommonImageFormat(filePath);
+
+List<String> _getThumbnailerCommandForward(
+  String filePath,
+  String tempThumbPath, {
+  required bool isImage,
+}) =>
+    getThumbnailerCommand(filePath, tempThumbPath, isImage: isImage);
