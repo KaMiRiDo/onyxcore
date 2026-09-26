@@ -51,6 +51,8 @@ import 'package:onyxcore/features/video_player/presentation/services/subtitle_lo
 import 'package:onyxcore/features/video_player/presentation/state/video_player_state.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_playlist_sidebar.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_editor_provider.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/editor/video_editor_overlay.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
@@ -1792,6 +1794,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           final isSidebarOpen = sidebarRef.watch(
             videoPlaylistSidebarVisibleProvider,
           );
+          final isEditing = sidebarRef.watch(
+            videoEditorProvider.select((state) => state.isEditing),
+          );
 
           final screenWidth = MediaQuery.of(context).size.width;
           const minWidth = 240.0;
@@ -1896,8 +1901,16 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                       }
                     },
                     onKeyEvent: (node, event) => _keyboardHandler.handle(event),
-                    child: Listener(
-                      onPointerSignal: (event) {
+                    child: isEditing
+                        ? VideoEditorOverlay(
+                            controller: controller,
+                            sourceFile: _currentItem.path,
+                            onClose: () => ref
+                                .read(videoEditorProvider.notifier)
+                                .stopEdit(),
+                          )
+                        : Listener(
+                            onPointerSignal: (event) {
                         if (_displayState.isMarkerEditorActive) {
                           final box =
                               _markerEditorKey.currentContext
@@ -2200,11 +2213,10 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                                                       null,
                                               extraActions: [
                                                 if (!_displayState.isEmpty) ...[
-                                                  if (!_isNetworkStream)
                                                     _buildTopBarButton(
                                                       icon: Icons.edit_outlined,
                                                       onPressed: () {
-                                                        // TODO: Implement video editing
+                                                        ref.read(videoEditorProvider.notifier).startEdit();
                                                       },
                                                       tooltip: 'Edit Video',
                                                     ),
