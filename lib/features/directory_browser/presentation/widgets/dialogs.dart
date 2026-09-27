@@ -722,11 +722,13 @@ class ViewerDeleteDialog extends StatelessWidget {
                             : null,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        "Don't ask for confirmation in this session",
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: Colors.white70,
+                      Flexible(
+                        child: Text(
+                          "Don't ask for confirmation in this session",
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            color: Colors.white70,
+                          ),
                         ),
                       ),
                     ],

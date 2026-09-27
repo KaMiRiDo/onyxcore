@@ -12,6 +12,7 @@ import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/directory_browser/presentation/pages/directory_analysis_page.dart';
@@ -1401,16 +1402,57 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
               ref.read(taskProvider.notifier).updateItemCounts(taskId, p, t);
             },
           );
+        } on TrashFailedException {
+          ref.read(taskProvider.notifier).failTask(taskId, 'Move to Trash failed');
+          if (!mounted) return;
+          
+          final confirmPermanent = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => ViewerDeleteDialog(
+              fileName: paths.length == 1
+                  ? p.basename(paths.first)
+                  : '${paths.length} items',
+              permanent: true,
+            ),
+          );
+
+          if (confirmPermanent ?? false) {
+            final permanentTaskId = ref.read(taskProvider.notifier).addTask(
+                  title: 'Deleting ${paths.length} items',
+                  subtitle: 'Permanent deletion',
+                  sourcePaths: paths,
+                  isLight: true,
+                );
+            try {
+              await repo.deleteItems(
+                paths,
+                permanent: true,
+                taskId: permanentTaskId,
+                onLog: (msg) => ref.read(taskProvider.notifier).addLog(permanentTaskId, msg),
+                onProgress: (p, t) {
+                  ref.read(taskProvider.notifier).updateProgress(permanentTaskId, p / t);
+                  ref.read(taskProvider.notifier).updateItemCounts(permanentTaskId, p, t);
+                },
+              );
+              ref.read(taskProvider.notifier).completeTask(permanentTaskId);
+            } catch (err) {
+              ref.read(taskProvider.notifier).failTask(permanentTaskId, err.toString());
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Deletion failed: $err'), backgroundColor: AppColors.error),
+                );
+              }
+            }
+          }
+          ref.read(selectionProvider.notifier).deselectAll();
+          unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
+          unawaited(ref.read(settingsProvider.notifier).cleanupFolderSorts(paths));
+          return;
         } catch (e) {
           ref.read(taskProvider.notifier).failTask(taskId, e.toString());
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'System trash utility not found. Use Shift+Delete.',
-                ),
-                backgroundColor: AppColors.error,
-              ),
+              SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
             );
           }
           return;

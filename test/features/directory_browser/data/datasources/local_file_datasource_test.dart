@@ -57,16 +57,20 @@ void main() {
     });
 
 
-    test('trashItems falls back to deleteItems when gio fails silently or missing', () async {
-      // Create a file, call trashItems. Because gio trash fails silently or succeeds, we just ensure it doesn't throw.
+    test('trashItems throws TrashFailedException when gio fails', () async {
       final file = File(p.join(tempDir.path, 'f1.txt'))..createSync();
-      await datasource.trashItems([file.path]);
-      // Either it's trashed or not, but it shouldn't crash.
+      expect(
+        () => datasource.trashItems([file.path]),
+        throwsA(isA<TrashFailedException>()),
+      );
     });
 
-    test('moveToTrash succeeds without exception', () async {
+    test('moveToTrash throws TrashFailedException when gio fails', () async {
       final file = File(p.join(tempDir.path, 'f2.txt'))..createSync();
-      await datasource.moveToTrash([file.path]);
+      expect(
+        () => datasource.moveToTrash([file.path]),
+        throwsA(isA<TrashFailedException>()),
+      );
     });
 
     test('deleteItemsPermanent deletes directory if file does not exist', () async {

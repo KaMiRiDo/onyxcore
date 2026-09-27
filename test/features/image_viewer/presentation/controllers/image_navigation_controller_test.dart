@@ -155,12 +155,13 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('navigateAfterDeletion navigates to next item (wrap around)', (
+  testWidgets('navigateAfterDeletion calls onClearNavigation for last item', (
     tester,
   ) async {
     await pumpController(tester);
     controller.navigateAfterDeletion(item3);
-    expect(navigatedItem, item1);
+    expect(navigatedItem, null);
+    expect(clearCalled, true);
     controller.dispose();
   });
 

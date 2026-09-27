@@ -130,18 +130,36 @@ class ImageNavigationController extends ChangeNotifier {
 
   void navigateAfterDeletion(FileItem currentItem) {
     final mediaItems = getPlaylist();
-    
-    if (mediaItems.length > 1) {
-      final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path);
-      if (currentIndex != -1) {
-        final nextIndex = (currentIndex + 1) % mediaItems.length;
-        onNavigate(mediaItems[nextIndex]);
-      } else {
-        onClearNavigation();
-      }
-    } else {
+
+    if (mediaItems.isEmpty) {
       onClearNavigation();
+      return;
     }
+
+    final currentIndex =
+        mediaItems.indexWhere((i) => i.path == currentItem.path);
+
+    if (currentIndex == -1) {
+      // Item not found — something external changed the list
+      onClearNavigation();
+      return;
+    }
+
+    // Only 1 item left — quitting
+    if (mediaItems.length == 1) {
+      onClearNavigation();
+      return;
+    }
+
+    // Deleting the last item in the list: no "next" exists, quit viewer
+    if (currentIndex == mediaItems.length - 1) {
+      onClearNavigation();
+      return;
+    }
+
+    // Navigate to the item that will occupy the same index after deletion
+    // i.e., the item currently at currentIndex + 1
+    onNavigate(mediaItems[currentIndex + 1]);
   }
 
   Future<void> updateIndexData(FileItem currentItem) async {

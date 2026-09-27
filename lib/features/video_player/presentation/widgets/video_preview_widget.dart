@@ -20,6 +20,7 @@ import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
@@ -1645,7 +1646,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     final settings = ref.read(settingsProvider).value;
     var shouldConfirm = permanent || (settings?.confirmDeleteVideo ?? true);
 
-    if (_sessionSkipConfirm) {
+    // If user previously checked "Don't ask again", skip the trash confirm dialog.
+    // Permanent deletion always requires confirmation.
+    if (_sessionSkipConfirm && !permanent) {
       shouldConfirm = false;
     }
 
@@ -1713,6 +1716,52 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
         );
         ref.read(taskProvider.notifier).completeTask(taskId);
+      } on TrashFailedException {
+        ref.read(taskProvider.notifier).failTask(taskId, 'Move to Trash failed');
+        // Ask user whether to permanently delete
+        if (!mounted) return;
+        final confirmPermanent = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => ViewerDeleteDialog(
+            fileName: targetPaths.length == 1
+                ? p.basename(targetPaths.first)
+                : widget.item.name,
+            permanent: true,
+            onDontAskAgainChanged: null,
+          ),
+        );
+        if (confirmPermanent == true) {
+          final permanentTaskId = ref
+              .read(taskProvider.notifier)
+              .addTask(
+                title: 'Deleting video permanently',
+                subtitle: targetPaths.length == 1
+                    ? p.basename(targetPaths.first)
+                    : '${targetPaths.length} items',
+                sourcePaths: targetPaths,
+                isLight: true,
+              );
+          try {
+            await repo.deleteItems(
+              targetPaths,
+              permanent: true,
+              taskId: permanentTaskId,
+              onLog: (msg) =>
+                  ref.read(taskProvider.notifier).addLog(permanentTaskId, msg),
+            );
+            ref.read(taskProvider.notifier).completeTask(permanentTaskId);
+          } catch (err) {
+            ref
+                .read(taskProvider.notifier)
+                .failTask(permanentTaskId, err.toString());
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Deletion failed: $err')),
+              );
+            }
+          }
+        }
+        return; // Navigation already done above for non-trash path
       } catch (e) {
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
         if (mounted) {
@@ -1726,20 +1775,58 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     if (!widget.isStandalone) {
       ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
       if (targetPaths.contains(_currentItem.path)) {
-        final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
-        if (!isAutoPlay) {
-          ref.read(videoForcePauseNextProvider.notifier).state = true;
+        // Check if there are other videos remaining after this deletion
+        var mediaItems = ref
+            .read(filteredAndSortedVideoQueueProvider)
+            .where((i) => i.type == FileItemType.video)
+            .toList();
+        if (mediaItems.isEmpty) {
+          final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
+          mediaItems = items.where((i) => i.type == FileItemType.video).toList();
         }
-        _navigateMedia(true);
+        final remainingAfterDelete = mediaItems
+            .where((i) => !targetPaths.contains(i.path))
+            .toList();
+
+        if (remainingAfterDelete.isEmpty) {
+          // No more videos — close/clear the preview
+          ref.read(previewFileProvider.notifier).state = null;
+        } else {
+          final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
+          if (!isAutoPlay) {
+            ref.read(videoForcePauseNextProvider.notifier).state = true;
+          }
+          _navigateMedia(true);
+        }
       }
     } else {
       // Standalone logic for closing if current item is deleted
       if (targetPaths.contains(_currentItem.path)) {
-        final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
-        if (!isAutoPlay) {
-          ref.read(videoForcePauseNextProvider.notifier).state = true;
+        var mediaItems = _standalonePlaylist;
+        if (mediaItems.isEmpty) {
+          mediaItems = ref.read(videoQueueProvider);
         }
-        _navigateMedia(true);
+        final remainingAfterDelete = mediaItems
+            .where((i) => !targetPaths.contains(i.path))
+            .toList();
+
+        if (remainingAfterDelete.isEmpty) {
+          // No more videos — close the window
+          if (widget.windowId != null) {
+            await player.stop();
+            if (mounted) {
+              await PersistentViewerManager.closeWindow(
+                int.parse(widget.windowId!),
+              );
+            }
+          }
+        } else {
+          final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
+          if (!isAutoPlay) {
+            ref.read(videoForcePauseNextProvider.notifier).state = true;
+          }
+          _navigateMedia(true);
+        }
       }
     }
   }

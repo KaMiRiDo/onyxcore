@@ -7,6 +7,7 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
+import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
@@ -89,7 +90,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   late FileItem _currentItem;
 
-
+  /// When true, the "Move to Trash" confirmation dialog is skipped for the
+  /// remainder of this window session (set via the "Don't ask again" checkbox).
+  bool _sessionSkipConfirm = false;
 
   void _onWindowFocus() {
     if (mounted) _focusNode.requestFocus();
@@ -514,60 +517,112 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   Future<void> _handleDelete({required bool permanent}) async {
     final settings = ref.read(settingsProvider).value;
-    final confirm = permanent || (settings?.confirmDeleteImage ?? true);
+    var shouldConfirm = permanent || (settings?.confirmDeleteImage ?? true);
 
-    if (confirm) {
+    // If user previously checked "Don't ask again", skip the trash confirm dialog.
+    // Permanent deletion always requires confirmation.
+    if (_sessionSkipConfirm && !permanent) {
+      shouldConfirm = false;
+    }
+
+    if (shouldConfirm) {
       final shouldDelete = await showDialog<bool>(
         context: context,
         builder: (context) => ViewerDeleteDialog(
           fileName: _currentItem.name,
           permanent: permanent,
+          onDontAskAgainChanged: permanent
+              ? null
+              : (val) {
+                  _sessionSkipConfirm = val;
+                },
         ),
       );
       if (shouldDelete != true) return;
     }
 
-    if (widget.isStandalone) {
-      _navigationController.navigateAfterDeletion(_currentItem);
-    } else {
-      final repo = ref.read(directoryRepositoryProvider);
-      final currentPath = ref.read(currentPathProvider);
-      final taskId = ref
-          .read(taskProvider.notifier)
-          .addTask(
-            title: permanent
-                ? 'Deleting image permanently'
-                : 'Moving image to Trash',
-            subtitle: permanent ? 'Delete' : 'Trash',
-            sourcePaths: [_currentItem.path],
-            isLight: true,
-          );
-
-      try {
-        await repo.deleteItems(
-          [_currentItem.path],
-          permanent: permanent,
-          taskId: taskId,
-          onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+    // Perform the actual deletion (both standalone and inline modes)
+    final repo = ref.read(directoryRepositoryProvider);
+    final taskId = ref
+        .read(taskProvider.notifier)
+        .addTask(
+          title: permanent
+              ? 'Deleting image permanently'
+              : 'Moving image to Trash',
+          subtitle: permanent ? 'Delete' : 'Trash',
+          sourcePaths: [_currentItem.path],
+          isLight: true,
         );
-        ref.read(taskProvider.notifier).completeTask(taskId);
-      } catch (e) {
-        ref.read(taskProvider.notifier).addLog(taskId, 'Error: $e');
-        ref.read(taskProvider.notifier).failTask(taskId, e.toString());
-      } finally {
-        // Evict from flutter image cache to prevent stale views
-        final provider = _currentItem.path.startsWith('http') 
-            ? NetworkImage(_currentItem.path) 
-            : FileImage(File(_currentItem.path)) as ImageProvider;
-        await provider.evict();
-        await ResizeImage(provider, width: 3840).evict();
 
-        repo.invalidateCache(currentPath);
+    final deletingItem = _currentItem;
 
-        unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
+    // Navigate first so UX feels responsive (image switches immediately)
+    _navigationController.navigateAfterDeletion(deletingItem);
+
+    try {
+      await repo.deleteItems(
+        [deletingItem.path],
+        permanent: permanent,
+        taskId: taskId,
+        onLog: (msg) => ref.read(taskProvider.notifier).addLog(taskId, msg),
+      );
+      ref.read(taskProvider.notifier).completeTask(taskId);
+    } on TrashFailedException catch (e) {
+      ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+      // Ask user to confirm permanent deletion
+      if (!mounted) return;
+      final confirmPermanent = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => ViewerDeleteDialog(
+          fileName: deletingItem.name,
+          permanent: true,
+          onDontAskAgainChanged: null,
+        ),
+      );
+      if (confirmPermanent == true) {
+        final permanentTaskId = ref
+            .read(taskProvider.notifier)
+            .addTask(
+              title: 'Deleting image permanently',
+              subtitle: 'Delete',
+              sourcePaths: [deletingItem.path],
+              isLight: true,
+            );
+        try {
+          await repo.deleteItems(
+            [deletingItem.path],
+            permanent: true,
+            taskId: permanentTaskId,
+            onLog: (msg) =>
+                ref.read(taskProvider.notifier).addLog(permanentTaskId, msg),
+          );
+          ref.read(taskProvider.notifier).completeTask(permanentTaskId);
+        } catch (err) {
+          ref
+              .read(taskProvider.notifier)
+              .failTask(permanentTaskId, err.toString());
+        }
       }
+    } catch (e) {
+      ref.read(taskProvider.notifier).addLog(taskId, 'Error: $e');
+      ref.read(taskProvider.notifier).failTask(taskId, e.toString());
+    } finally {
+      // Evict from flutter image cache to prevent stale views
+      // Note: we use `deletingItem` because `_currentItem` has already been
+      // updated to the next image by `navigateAfterDeletion`.
+      final imgProvider = deletingItem.path.startsWith('http')
+          ? NetworkImage(deletingItem.path)
+          : FileImage(File(deletingItem.path)) as ImageProvider;
+      await imgProvider.evict();
+      await ResizeImage(imgProvider, width: 3840).evict();
 
-      _navigationController.navigateAfterDeletion(_currentItem);
+      if (!widget.isStandalone) {
+        final currentPath = ref.read(currentPathProvider);
+        repo.invalidateCache(currentPath);
+        unawaited(
+          ref.read(directoryItemsProvider.notifier).refresh(showLoader: false),
+        );
+      }
     }
   }
 

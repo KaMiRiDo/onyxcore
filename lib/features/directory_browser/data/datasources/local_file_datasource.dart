@@ -7,6 +7,19 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:path/path.dart' as p;
 
+/// Thrown when 'gio trash' fails so that callers can show a confirmation
+/// dialog and only permanently delete upon explicit user consent.
+class TrashFailedException implements Exception {
+  const TrashFailedException({required this.paths});
+
+  /// The file paths that could not be moved to trash.
+  final List<String> paths;
+
+  @override
+  String toString() =>
+      'TrashFailedException: could not trash ${paths.join(', ')}';
+}
+
 /// Data source for local file system operations.
 class LocalFileDatasource {
   /// List contents of a directory.
@@ -81,23 +94,39 @@ class LocalFileDatasource {
     );
   }
 
-  /// Move items to system trash using 'gio trash'.
+  /// Move items to system trash using 'gio trash' (batched for performance).
+  ///
+  /// Throws [TrashFailedException] if gio is unavailable or exits with an
+  /// error. Callers are responsible for presenting a confirmation dialog
+  /// and calling [deleteItems] only after the user explicitly consents to
+  /// permanent deletion.
   Future<void> moveToTrash(
     List<String> paths, {
     void Function(int processed, int total)? onProgress,
     String? taskId,
     void Function(String message)? onLog,
   }) async {
-    for (var i = 0; i < paths.length; i++) {
-      final path = paths[i];
-      try {
-        await Process.run('gio', ['trash', path]);
-        onLog?.call('Moved to Trash: $path');
-      } catch (_) {
-        // Fallback: delete permanently if gio fails
-        await deleteItems([path], onLog: onLog);
+    if (paths.isEmpty) return;
+
+    try {
+      // Batch all paths into a single gio process to avoid per-file process
+      // launch overhead — significantly faster for multi-file operations.
+      final result = await Process.run('gio', ['trash', ...paths]);
+      if (result.exitCode == 0) {
+        for (final path in paths) {
+          onLog?.call('Moved to Trash: $path');
+        }
+        onProgress?.call(paths.length, paths.length);
+      } else {
+        // gio reported an error — propagate as TrashFailedException so the
+        // caller can ask the user for confirmation before permanently deleting.
+        throw TrashFailedException(paths: paths);
       }
-      onProgress?.call(i + 1, paths.length);
+    } on TrashFailedException {
+      rethrow;
+    } catch (_) {
+      // gio not available or other OS exception — propagate as TrashFailedException.
+      throw TrashFailedException(paths: paths);
     }
   }
 
@@ -115,6 +144,7 @@ class LocalFileDatasource {
       onLog: onLog,
     );
   }
+
 
   /// Restore items from system trash using 'gio trash --restore'.
   /// gio expects a trash:// URI of the form: trash:///filename
