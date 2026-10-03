@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
 import 'package:onyxcore/core/platform/process_priority.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session.dart' show ThumbnailSession;
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_job.dart';
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_scheduling_policy.dart';
 

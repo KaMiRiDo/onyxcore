@@ -8,6 +8,8 @@ import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumb
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_job.dart';
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_queue.dart';
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_scheduling_policy.dart';
+import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart' show FileGrid;
+import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart' show MediaThumbnailPreview;
 
 export 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_candidate.dart';
 export 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_generation.dart'

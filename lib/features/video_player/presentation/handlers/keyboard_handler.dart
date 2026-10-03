@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
 
@@ -17,6 +18,7 @@ class VideoKeyboardCallbacks {
     required this.stopVolumeAdjust,
     required this.toggleMute,
     required this.takeScreenshot,
+    required this.filterSort,
     required this.openMarkerEditor,
     required this.closeMarkerEditor,
     required this.toggleFullscreen,
@@ -43,6 +45,8 @@ class VideoKeyboardCallbacks {
   final void Function() stopVolumeAdjust;
   final void Function() toggleMute;
   final void Function() takeScreenshot;
+  /// Triggers the sort/filter operation (move file to `Filtered` subfolder).
+  final Future<void> Function() filterSort;
   final void Function() openMarkerEditor;
   final void Function({required bool resume}) closeMarkerEditor;
   final void Function() toggleFullscreen;
@@ -182,7 +186,17 @@ class VideoKeyboardHandler {
         if (event is KeyDownEvent) callbacks.toggleMute();
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyS) {
-        if (event is KeyDownEvent) callbacks.takeScreenshot();
+        if (event is KeyDownEvent) {
+          if (isAltPressed) {
+            // Alt+S → Filter Sort (move to Filtered folder)
+            final isFilterSortEnabled = ref.read(settingsProvider).value?.videoFilterSortEnabled ?? false;
+            if (isFilterSortEnabled) {
+              callbacks.filterSort();
+            }
+          } else {
+            callbacks.takeScreenshot();
+          }
+        }
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
         if (event is KeyDownEvent) {

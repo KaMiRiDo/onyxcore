@@ -212,7 +212,6 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
 
     final outcome = await session.enqueueCandidate(
       ThumbnailCandidate.fromFileItem(widget.item),
-      priority: ThumbnailSchedulingPolicy.visiblePriority,
     );
     if (_disposed || !mounted) return;
 

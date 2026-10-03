@@ -1,18 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:onyxcore/features/video_player/domain/entities/video_segment.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_editor_provider.dart';
 import 'package:onyxcore/features/video_player/services/video_editor_service.dart';
-import 'package:onyxcore/features/video_player/domain/entities/video_segment.dart';
 import 'package:path/path.dart' as p;
-import 'dart:io';
 
 class VideoEditorOverlay extends ConsumerWidget {
   const VideoEditorOverlay({
-    super.key,
-    required this.controller,
-    required this.sourceFile,
-    required this.onClose,
+    required this.controller, required this.sourceFile, required this.onClose, super.key,
   });
 
   final VideoController controller;
@@ -21,7 +19,7 @@ class VideoEditorOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
+    return ColoredBox(
       color: Colors.black, // Root background
       child: Row(
         children: [
@@ -55,7 +53,7 @@ class VideoEditorOverlay extends ConsumerWidget {
             width: 380,
             decoration: BoxDecoration(
               color: const Color(0xFF1E1E1E), // Dark background for sidebar
-              border: Border(left: BorderSide(color: Colors.grey.withOpacity(0.2))),
+              border: Border(left: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
             ),
             child: _SidebarView(sourceFile: sourceFile),
           ),
@@ -68,7 +66,7 @@ class VideoEditorOverlay extends ConsumerWidget {
     final fileName = p.basename(sourceFile);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.black,
       child: Row(
         children: [
@@ -126,7 +124,7 @@ class VideoEditorOverlay extends ConsumerWidget {
     
     return Container(
       height: 100,
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       color: Colors.black,
       child: Column(
         children: [
@@ -234,8 +232,8 @@ class VideoEditorOverlay extends ConsumerWidget {
 }
 
 class _SidebarView extends ConsumerStatefulWidget {
-  final String sourceFile;
   const _SidebarView({required this.sourceFile});
+  final String sourceFile;
 
   @override
   ConsumerState<_SidebarView> createState() => _SidebarViewState();
@@ -300,7 +298,7 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: const Text(
             'Segments',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
@@ -328,13 +326,13 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
         ),
         // Action Buttons at bottom center
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: IconButton(
@@ -346,7 +344,7 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
               const SizedBox(width: 16),
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: IconButton(
@@ -364,9 +362,9 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
 }
 
 class _SegmentTile extends ConsumerStatefulWidget {
+  const _SegmentTile({required this.segment, required this.index});
   final VideoSegment segment;
   final int index;
-  const _SegmentTile({required this.segment, required this.index});
 
   @override
   ConsumerState<_SegmentTile> createState() => _SegmentTileState();
@@ -504,7 +502,7 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
                   // Mute Button aligned next to Speed
                   Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: IconButton(

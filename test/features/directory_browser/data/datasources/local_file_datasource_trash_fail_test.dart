@@ -88,7 +88,7 @@ void main() {
 
       // On a system with gio, this should succeed without throwing.
       // On a system where gio succeeds, no exception should propagate.
-      bool threw = false;
+      var threw = false;
       try {
         await datasource.moveToTrash([file.path]);
       } on TrashFailedException {
@@ -115,7 +115,7 @@ void main() {
       final file2 = File(p.join(tempDir.path, 'b.txt'))
         ..writeAsStringSync('b');
 
-      bool threw = false;
+      var threw = false;
       try {
         await datasource.moveToTrash([file1.path, file2.path]);
       } on TrashFailedException catch (e) {

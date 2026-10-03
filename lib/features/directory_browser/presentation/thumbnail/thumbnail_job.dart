@@ -1,4 +1,5 @@
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
+import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart' show FileItem;
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_candidate.dart';
 
 /// Outcome of a thumbnail generation or admission request.

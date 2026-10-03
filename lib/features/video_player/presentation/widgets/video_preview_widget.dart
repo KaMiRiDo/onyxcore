@@ -11,6 +11,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
+import 'package:onyxcore/core/services/media_filter_service.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 // import removed
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
@@ -46,14 +47,13 @@ import 'package:onyxcore/features/video_player/presentation/overlays/speed_indic
 import 'package:onyxcore/features/video_player/presentation/overlays/speed_overlay_wrapper.dart';
 import 'package:onyxcore/features/video_player/presentation/overlays/video_bottom_controls.dart';
 import 'package:onyxcore/features/video_player/presentation/overlays/volume_overlay_wrapper.dart';
+import 'package:onyxcore/features/video_player/presentation/providers/video_editor_provider.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
-
 import 'package:onyxcore/features/video_player/presentation/services/subtitle_loader.dart';
 import 'package:onyxcore/features/video_player/presentation/state/video_player_state.dart';
+import 'package:onyxcore/features/video_player/presentation/widgets/editor/video_editor_overlay.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_playlist_sidebar.dart';
-import 'package:onyxcore/features/video_player/presentation/providers/video_editor_provider.dart';
-import 'package:onyxcore/features/video_player/presentation/widgets/editor/video_editor_overlay.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
@@ -506,6 +506,7 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
           videoPath: _currentItem.path,
           setStateCallback: setState,
         ),
+        filterSort: _handleFilterSort,
         openMarkerEditor: _markerController.openMarkerEditor,
         closeMarkerEditor: _markerController.closeMarkerEditor,
         toggleFullscreen: _toggleFullscreen,
@@ -1530,56 +1531,12 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     _activeVolumeKey = null;
   }
 
-  void _navigateMedia(bool forward) {
-    if (widget.isStandalone) {
-      // 1. Standalone Mode: Use _standalonePlaylist
-      var mediaItems = _standalonePlaylist;
-      if (mediaItems.isEmpty) {
-        mediaItems = ref.read(videoQueueProvider);
-      }
-
-      if (mediaItems.isEmpty) return;
-
-      final currentIndex = mediaItems.indexWhere(
-        (i) => i.path == _currentItem.path,
-      );
-
-      if (currentIndex == -1 || mediaItems.length == 1) {
-        player.pause();
-        setState(() => _displayState = _displayState.copyWith(isEmpty: true));
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref.read(videoIsEmptyProvider.notifier).state = true;
-        });
-        return;
-      }
-
-      int nextIndex;
-      if (forward) {
-        if (currentIndex == mediaItems.length - 1) {
-          player.pause();
-          setState(() => _displayState = _displayState.copyWith(isEmpty: true));
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(videoIsEmptyProvider.notifier).state = true;
-          });
-          return;
-        }
-        nextIndex = currentIndex + 1;
-      } else {
-        if (currentIndex == 0) {
-          player.pause();
-          setState(() => _displayState = _displayState.copyWith(isEmpty: true));
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(videoIsEmptyProvider.notifier).state = true;
-          });
-          return;
-        }
-        nextIndex = currentIndex - 1;
-      }
-
-      _loadMedia(mediaItems[nextIndex]);
-    } else {
-      // 2. Inline Mode: Local Riverpod state update
-      var mediaItems = ref
+  FileItem? _getNextMediaItem(bool forward) {
+    var mediaItems = widget.isStandalone ? _standalonePlaylist : <FileItem>[];
+    if (widget.isStandalone && mediaItems.isEmpty) {
+      mediaItems = ref.read(videoQueueProvider);
+    } else if (!widget.isStandalone) {
+      mediaItems = ref
           .read(filteredAndSortedVideoQueueProvider)
           .where((i) => i.type == FileItemType.video)
           .toList();
@@ -1587,45 +1544,44 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
         mediaItems = items.where((i) => i.type == FileItemType.video).toList();
       }
+    }
 
-      if (mediaItems.isEmpty) return;
+    if (mediaItems.isEmpty) return null;
 
-      final currentIndex = mediaItems.indexWhere(
-        (i) => i.path == _currentItem.path,
-      );
-      if (currentIndex == -1 || mediaItems.length == 1) {
-        player.pause();
-        setState(() => _displayState = _displayState.copyWith(isEmpty: true));
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref.read(videoIsEmptyProvider.notifier).state = true;
-        });
-        return;
-      }
+    final currentIndex = mediaItems.indexWhere(
+      (i) => i.path == _currentItem.path,
+    );
+    if (currentIndex == -1 || mediaItems.length == 1) {
+      return null;
+    }
 
-      int nextIndex;
-      if (forward) {
-        if (currentIndex == mediaItems.length - 1) {
-          player.pause();
-          setState(() => _displayState = _displayState.copyWith(isEmpty: true));
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(videoIsEmptyProvider.notifier).state = true;
-          });
-          return;
-        }
-        nextIndex = currentIndex + 1;
-      } else {
-        if (currentIndex == 0) {
-          player.pause();
-          setState(() => _displayState = _displayState.copyWith(isEmpty: true));
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(videoIsEmptyProvider.notifier).state = true;
-          });
-          return;
-        }
-        nextIndex = currentIndex - 1;
-      }
+    if (forward) {
+      if (currentIndex == mediaItems.length - 1) return null;
+      return mediaItems[currentIndex + 1];
+    } else {
+      if (currentIndex == 0) return null;
+      return mediaItems[currentIndex - 1];
+    }
+  }
 
-      ref.read(previewFileProvider.notifier).state = mediaItems[nextIndex];
+  void _navigateMedia(bool forward) {
+    if (_isClosing) return;
+
+    final nextItem = _getNextMediaItem(forward);
+
+    if (nextItem == null) {
+      player.pause();
+      setState(() => _displayState = _displayState.copyWith(isEmpty: true));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(videoIsEmptyProvider.notifier).state = true;
+      });
+      return;
+    }
+
+    if (widget.isStandalone) {
+      _loadMedia(nextItem);
+    } else {
+      ref.read(previewFileProvider.notifier).state = nextItem;
     }
   }
 
@@ -1633,6 +1589,61 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     if (paths.contains(_currentItem.path)) {
       await player.pause();
       _navigateMedia(true);
+    }
+  }
+
+  /// Moves the currently playing file to the `Filtered` subfolder and then
+  /// follows the auto-play-next config: if enabled, play the next video;
+  /// otherwise (or when there is no next file) show the empty state.
+  Future<void> _handleFilterSort() async {
+    if (_isClosing) return;
+
+    final isFilterSortEnabled =
+        ref.read(settingsProvider).value?.videoFilterSortEnabled ?? false;
+    if (!isFilterSortEnabled) return;
+
+    final itemToMove = _currentItem;
+    final nextItem = _getNextMediaItem(true);
+    await player.pause();
+
+    try {
+      await MediaFilterService.moveToFiltered(itemToMove.path);
+    } catch (e) {
+      debugPrint('[VideoPlayer] FilterSort: move failed: $e');
+      // Resume playback if move failed
+      if (mounted) player.play();
+      return;
+    }
+
+    if (nextItem != null) {
+      final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
+      if (!isAutoPlay) {
+        ref.read(videoForcePauseNextProvider.notifier).state = true;
+      }
+
+      if (widget.isStandalone) {
+        _loadMedia(nextItem);
+      } else {
+        ref.read(previewFileProvider.notifier).state = nextItem;
+      }
+    } else {
+      if (mounted) {
+        setState(() => _displayState = _displayState.copyWith(isEmpty: true));
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(videoIsEmptyProvider.notifier).state = true;
+        });
+      }
+    }
+
+    // Remove from standalone playlist AFTER navigation so _navigateMedia can find the currentIndex
+    if (widget.isStandalone) {
+      _standalonePlaylist = _standalonePlaylist
+          .where((i) => i.path != itemToMove.path)
+          .toList();
+      ref.read(videoQueueProvider.notifier).state = _standalonePlaylist;
+    } else {
+      // Refresh gallery if embedded via surgical cache update
+      ref.read(directoryItemsProvider.notifier).removePaths([itemToMove.path]);
     }
   }
 
@@ -1692,6 +1703,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
 
     final targetPaths = paths ?? [widget.item.path];
+    final nextItemPrefetched = targetPaths.contains(_currentItem.path)
+        ? _getNextMediaItem(true)
+        : null;
 
     if (!isMove) {
       final repo = ref.read(directoryRepositoryProvider);
@@ -1717,7 +1731,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
         );
         ref.read(taskProvider.notifier).completeTask(taskId);
       } on TrashFailedException {
-        ref.read(taskProvider.notifier).failTask(taskId, 'Move to Trash failed');
+        ref
+            .read(taskProvider.notifier)
+            .failTask(taskId, 'Move to Trash failed');
         // Ask user whether to permanently delete
         if (!mounted) return;
         final confirmPermanent = await showDialog<bool>(
@@ -1727,10 +1743,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                 ? p.basename(targetPaths.first)
                 : widget.item.name,
             permanent: true,
-            onDontAskAgainChanged: null,
           ),
         );
-        if (confirmPermanent == true) {
+        if (confirmPermanent ?? false) {
           final permanentTaskId = ref
               .read(taskProvider.notifier)
               .addTask(
@@ -1755,9 +1770,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                 .read(taskProvider.notifier)
                 .failTask(permanentTaskId, err.toString());
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Deletion failed: $err')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Deletion failed: $err')));
             }
           }
         }
@@ -1773,7 +1788,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
     }
 
     if (!widget.isStandalone) {
-      ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
       if (targetPaths.contains(_currentItem.path)) {
         // Check if there are other videos remaining after this deletion
         var mediaItems = ref
@@ -1782,22 +1796,38 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             .toList();
         if (mediaItems.isEmpty) {
           final items = ref.read(sortedDirectoryItemsProvider).value ?? [];
-          mediaItems = items.where((i) => i.type == FileItemType.video).toList();
+          mediaItems = items
+              .where((i) => i.type == FileItemType.video)
+              .toList();
         }
         final remainingAfterDelete = mediaItems
             .where((i) => !targetPaths.contains(i.path))
             .toList();
 
         if (remainingAfterDelete.isEmpty) {
-          // No more videos — close/clear the preview
-          ref.read(previewFileProvider.notifier).state = null;
+          // No more videos — show placeholder
+          await player.stop();
+          if (mounted) {
+            setState(() {
+              _displayState = _displayState.copyWith(isEmpty: true);
+            });
+            ref.read(videoIsEmptyProvider.notifier).state = true;
+          }
         } else {
           final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
           if (!isAutoPlay) {
             ref.read(videoForcePauseNextProvider.notifier).state = true;
           }
-          _navigateMedia(true);
+          final nextItemFallback = remainingAfterDelete.first;
+          final nextItem = nextItemPrefetched ?? nextItemFallback;
+          ref.read(previewFileProvider.notifier).state = nextItem;
         }
+      }
+
+      if (isMove) {
+        ref.read(directoryItemsProvider.notifier).removePaths(targetPaths);
+      } else {
+        ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
       }
     } else {
       // Standalone logic for closing if current item is deleted
@@ -1811,21 +1841,33 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
             .toList();
 
         if (remainingAfterDelete.isEmpty) {
-          // No more videos — close the window
-          if (widget.windowId != null) {
-            await player.stop();
-            if (mounted) {
-              await PersistentViewerManager.closeWindow(
-                int.parse(widget.windowId!),
-              );
-            }
+          // No more videos — show placeholder
+          await player.stop();
+          if (mounted) {
+            setState(() {
+              _displayState = _displayState.copyWith(isEmpty: true);
+            });
+            ref.read(videoIsEmptyProvider.notifier).state = true;
           }
         } else {
           final isAutoPlay = ref.read(videoAutoPlaySessionProvider);
           if (!isAutoPlay) {
             ref.read(videoForcePauseNextProvider.notifier).state = true;
           }
-          _navigateMedia(true);
+          final nextItemFallback = remainingAfterDelete.first;
+          final nextItem = nextItemPrefetched ?? nextItemFallback;
+          _loadMedia(nextItem);
+        }
+      }
+
+      if (targetPaths.isNotEmpty) {
+        if (_standalonePlaylist.isNotEmpty) {
+          setState(() {
+            _standalonePlaylist = _standalonePlaylist
+                .where((i) => !targetPaths.contains(i.path))
+                .toList();
+          });
+          ref.read(videoQueueProvider.notifier).state = _standalonePlaylist;
         }
       }
     }
@@ -1833,6 +1875,9 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
 
   @override
   Widget build(BuildContext context) {
+    final isFilterSortEnabled =
+        ref.watch(settingsProvider).value?.videoFilterSortEnabled ?? false;
+
     ref.listen(videoRestartSignalProvider, (previous, next) {
       if (_displayState.isEmpty) {
         setState(() => _displayState = _displayState.copyWith(isEmpty: false));
@@ -1909,7 +1954,6 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                       ? VideoPlaylistSidebar(
                           isNetworkStream: _isNetworkStream,
                           onVideoSelected: (video) {
-
                             if (widget.isStandalone) {
                               _loadMedia(video);
                             } else {
@@ -1998,471 +2042,531 @@ class _VideoPreviewWidgetState extends ConsumerState<VideoPreviewWidget>
                           )
                         : Listener(
                             onPointerSignal: (event) {
-                        if (_displayState.isMarkerEditorActive) {
-                          final box =
-                              _markerEditorKey.currentContext
-                                      ?.findRenderObject()
-                                  as RenderBox?;
-                          if (box != null) {
-                            final local = box.globalToLocal(event.position);
-                            if (box.paintBounds.contains(local)) return;
-                          }
-                          _markerEditorKey.currentState?.shake();
-                          return;
-                        }
-                        _gestureHandler.handlePointerScroll(event);
-                      },
-                      onPointerPanZoomUpdate: (event) {
-                        if (_displayState.isMarkerEditorActive) {
-                          final box =
-                              _markerEditorKey.currentContext
-                                      ?.findRenderObject()
-                                  as RenderBox?;
-                          if (box != null) {
-                            final local = box.globalToLocal(event.position);
-                            if (box.paintBounds.contains(local)) return;
-                          }
-                          _markerEditorKey.currentState?.shake();
-                          return;
-                        }
-                        _gestureHandler.handlePointerPanZoomUpdate(event);
-                      },
-                      onPointerPanZoomEnd: (event) {
-                        if (_displayState.isMarkerEditorActive) return;
-                        _gestureHandler.handlePointerPanZoomEnd(event);
-                      },
-                      behavior: HitTestBehavior.translucent,
-                      child: GestureDetector(
-                        onTap: () {
-                          _focusNode.requestFocus();
-                          _hudController.onInteraction();
-                        },
-                        onDoubleTapDown: (details) {
-                          _doubleTapPosition = details.localPosition;
-                        },
-                        onDoubleTap: () {
-                          if (widget.windowId == null && !widget.isStandalone) {
-                            _openInNewWindow();
-                            return;
-                          }
+                              if (_displayState.isMarkerEditorActive) {
+                                final box =
+                                    _markerEditorKey.currentContext
+                                            ?.findRenderObject()
+                                        as RenderBox?;
+                                if (box != null) {
+                                  final local = box.globalToLocal(
+                                    event.position,
+                                  );
+                                  if (box.paintBounds.contains(local)) return;
+                                }
+                                _markerEditorKey.currentState?.shake();
+                                return;
+                              }
+                              _gestureHandler.handlePointerScroll(event);
+                            },
+                            onPointerPanZoomUpdate: (event) {
+                              if (_displayState.isMarkerEditorActive) {
+                                final box =
+                                    _markerEditorKey.currentContext
+                                            ?.findRenderObject()
+                                        as RenderBox?;
+                                if (box != null) {
+                                  final local = box.globalToLocal(
+                                    event.position,
+                                  );
+                                  if (box.paintBounds.contains(local)) return;
+                                }
+                                _markerEditorKey.currentState?.shake();
+                                return;
+                              }
+                              _gestureHandler.handlePointerPanZoomUpdate(event);
+                            },
+                            onPointerPanZoomEnd: (event) {
+                              if (_displayState.isMarkerEditorActive) return;
+                              _gestureHandler.handlePointerPanZoomEnd(event);
+                            },
+                            behavior: HitTestBehavior.translucent,
+                            child: GestureDetector(
+                              onTap: () {
+                                _focusNode.requestFocus();
+                                _hudController.onInteraction();
+                              },
+                              onDoubleTapDown: (details) {
+                                _doubleTapPosition = details.localPosition;
+                              },
+                              onDoubleTap: () {
+                                if (widget.windowId == null &&
+                                    !widget.isStandalone) {
+                                  _openInNewWindow();
+                                  return;
+                                }
 
-                          if (_doubleTapPosition == null) return;
-                          final width =
-                              context.size?.width ??
-                              MediaQuery.of(context).size.width;
-                          final isForward = _doubleTapPosition!.dx > width / 2;
+                                if (_doubleTapPosition == null) return;
+                                final width =
+                                    context.size?.width ??
+                                    MediaQuery.of(context).size.width;
+                                final isForward =
+                                    _doubleTapPosition!.dx > width / 2;
 
-                          _seekController.performStepSeek(isForward: isForward);
-                        },
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            if (constraints.maxWidth == 0 ||
-                                constraints.maxHeight == 0) {
-                              return const SizedBox();
-                            }
-                            _playerWidth = constraints.maxWidth;
-                            _playerHeight = constraints.maxHeight;
+                                _seekController.performStepSeek(
+                                  isForward: isForward,
+                                );
+                              },
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  if (constraints.maxWidth == 0 ||
+                                      constraints.maxHeight == 0) {
+                                    return const SizedBox();
+                                  }
+                                  _playerWidth = constraints.maxWidth;
+                                  _playerHeight = constraints.maxHeight;
 
-                            return ColoredBox(
-                              key: _playerKey,
-                              color: Colors.black,
-                              child: Stack(
-                                children: [
-                                  // Interaction Trigger Zone (Full Viewport)
-                                  Positioned.fill(
-                                    child: MouseRegion(
-                                      cursor: isVisible
-                                          ? MouseCursor.defer
-                                          : SystemMouseCursors.none,
-                                      onEnter: (_) =>
-                                          _hudController.onInteraction(),
-                                      onHover: (_) =>
-                                          _hudController.onInteraction(),
-                                      child: Stack(
-                                        children: [
-                                          // Video Player (isolated render pipeline)
-                                          if (_displayState.isEmpty)
-                                            Positioned.fill(
-                                              child: VideoEmptyState(
-                                                isStandalone:
-                                                    widget.isStandalone,
-                                                onClose: () {
-                                                  if (widget.isStandalone &&
-                                                      widget.windowId != null) {
-                                                    PersistentViewerManager.closeWindow(
-                                                      int.parse(
-                                                        widget.windowId!,
-                                                      ),
-                                                    );
-                                                  }
-                                                },
-                                              ),
-                                            )
-                                          else if (_displayState.hasError)
-                                            Positioned.fill(
-                                              child: VideoErrorState(
-                                                errorMessage:
-                                                    _displayState.errorMessage,
-                                                isStandalone:
-                                                    widget.isStandalone,
-                                                onClose: () {
-                                                  if (widget.isStandalone) {
-                                                    if (widget.windowId !=
-                                                        null) {
-                                                      PersistentViewerManager.closeWindow(
-                                                        int.parse(
-                                                          widget.windowId!,
-                                                        ),
-                                                      );
-                                                    }
-                                                  } else {
-                                                    ref
-                                                        .read(
-                                                          videoViewModeProvider
-                                                              .notifier,
-                                                        )
-                                                        .state = VideoViewMode
-                                                        .home;
-                                                  }
-                                                },
-                                              ),
-                                            )
-                                          else if (_isPlayerInitialized)
-                                            RepaintBoundary(
-                                              child: Center(
-                                                child: Video(
-                                                  controller: controller,
-                                                  controls: (state) =>
-                                                      const SizedBox.shrink(),
-                                                ),
-                                              ),
-                                            ),
-
-                                          // Unified BubbleLoader
-                                          VideoLoadingOverlay(
-                                            isVisible:
-                                                !_displayState.hasError &&
-                                                (_displayState.isOpening ||
-                                                    _displayState
-                                                        .isSeekingToInitial ||
-                                                    _displayState
-                                                        .isSmartBuffering ||
-                                                    _displayState
-                                                        .isSeekLoading),
-                                          ),
-
-                                          // Snapshot Flash Effect
-                                          Positioned.fill(
-                                            child: SnapshotFlash(
-                                              isVisible:
-                                                  _displayState.showFlash,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Snapshot Glass Toast
-                                  Positioned(
-                                    bottom: 120,
-                                    left: 0,
-                                    right: 0,
-                                    child: SnapshotToast(
-                                      isVisible:
-                                          _displayState.showSnapshotToast,
-                                    ),
-                                  ),
-
-                                  // Volume Overlay (Right side)
-                                  Positioned(
-                                    right: 32,
-                                    top: 0,
-                                    bottom: 0,
-                                    child: VolumeOverlayWrapper(
-                                      isVisible:
-                                          _displayState.isVolumeOverlayVisible,
-                                      volumeStream: player.stream.volume,
-                                      currentVolume: player.state.volume,
-                                      onVolumeChanged: (v) =>
-                                          player.setVolume(v),
-                                    ),
-                                  ),
-
-                                  // Speed Overlay (Left side)
-                                  Positioned(
-                                    left: 32,
-                                    top: 0,
-                                    bottom: 0,
-                                    child: SpeedOverlayWrapper(
-                                      isVisible:
-                                          _displayState.showSpeedOverlayVisible,
-                                      rateStream: player.stream.rate,
-                                      currentRate: player.state.rate,
-                                      onSpeedChanged: (r) => player.setRate(r),
-                                    ),
-                                  ),
-
-                                  // Persistent Speed Indicator Text (Bottom Left)
-                                  Positioned(
-                                    bottom: 24,
-                                    left: 24,
-                                    child: SpeedIndicator(
-                                      rateStream: player.stream.rate,
-                                      currentRate: player.state.rate,
-                                    ),
-                                  ),
-
-                                  // Seek Indicator Overlay (Top Right)
-                                  Positioned(
-                                    top: 100,
-                                    right: 64,
-                                    child: SeekIndicator(
-                                      isVisible:
-                                          _displayState.isSeekIndicatorVisible,
-                                      displayPosition: displayPosition,
-                                      totalDuration: player.state.duration,
-                                    ),
-                                  ),
-
-                                  // Top HUD (Standardized)
-                                  if (!_displayState.isEmpty)
-                                    Positioned(
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      child: AnimatedOpacity(
-                                        duration: const Duration(
-                                          milliseconds: 300,
-                                        ),
-                                        opacity: isVisible ? 1.0 : 0.0,
-                                        child: StreamBuilder<int?>(
-                                          stream: player.stream.width,
-                                          builder: (context, _) {
-                                            final state = player.state;
-                                            final res = (state.height ?? 0) > 0
-                                                ? '${state.height}p'
-                                                : 'Loading...';
-                                            final fpsString = _fps != null
-                                                ? ' • ${_fps!.toInt()} FPS'
-                                                : '';
-
-                                            var q = ref
-                                                .watch(
-                                                  filteredAndSortedVideoQueueProvider,
-                                                )
-                                                .where(
-                                                  (i) =>
-                                                      i.type ==
-                                                      FileItemType.video,
-                                                )
-                                                .toList();
-                                            if (q.isEmpty) {
-                                              final items =
-                                                  ref
-                                                      .watch(
-                                                        sortedDirectoryItemsProvider,
-                                                      )
-                                                      .value ??
-                                                  [];
-                                              q = items
-                                                  .where(
-                                                    (i) =>
-                                                        i.type ==
-                                                        FileItemType.video,
-                                                  )
-                                                  .toList();
-                                            }
-                                            final index = q.indexWhere(
-                                              (i) =>
-                                                  i.path == _currentItem.path,
-                                            );
-                                            final indexString = index != -1
-                                                ? ' • ${index + 1} / ${q.length}'
-                                                : '';
-
-                                            return ViewerTopBar(
-                                              title: _displayState.isEmpty
-                                                  ? ''
-                                                  : _currentItem.name,
-                                              metadata: _displayState.isEmpty
-                                                  ? ''
-                                                  : '$res$fpsString$indexString',
-                                              isStandalone: widget.isStandalone,
-                                              onPopOut: _openInNewWindow,
-                                              onClose: () =>
-                                                  ref
-                                                          .read(
-                                                            previewFileProvider
-                                                                .notifier,
-                                                          )
-                                                          .state =
-                                                      null,
-                                              extraActions: [
-                                                if (!_displayState.isEmpty) ...[
-                                                    _buildTopBarButton(
-                                                      icon: Icons.edit_outlined,
-                                                      onPressed: () {
-                                                        ref.read(videoEditorProvider.notifier).startEdit();
-                                                      },
-                                                      tooltip: 'Edit Video',
-                                                    ),
-                                                  const SizedBox(width: 8),
-                                                  _buildTopBarButton(
-                                                    icon:
-                                                        Icons.settings_rounded,
-                                                    onPressed: () =>
-                                                        SettingsDialog.show(
-                                                          context,
-                                                          initialTab: 1,
-                                                          section: 'Video',
-                                                        ),
-                                                    tooltip: 'Video Settings',
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                ],
-                                              ],
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ),
-
-                                  // Custom Bottom Controls
-                                  VideoBottomControls(
-                                    displayState: _displayState.copyWith(
-                                      isGlobalHudVisible: _isGlobalHudVisible,
-                                      fps: _fps,
-                                      showRemainingTime: false,
-                                      isNetworkStream: _isNetworkStream,
-                                      playbackSpeed: _playbackSpeed,
-                                      scrollLockAxis: _scrollLockAxis,
-                                      windowId: widget.windowId,
-                                      isStandalone: widget.isStandalone,
-                                    ),
-                                    player: player,
-                                    currentItem: _currentItem,
-                                    displayPosition: displayPosition,
-                                    availableFormats: _availableFormats,
-                                    selectedFormatId: _selectedFormatId,
-                                    onResolutionChanged: _onResolutionChanged,
-                                    onInteraction: _hudController.onInteraction,
-                                    onShowSeekIndicator:
-                                        _hudController.showSeekIndicator,
-                                    onToggleMute: _toggleMute,
-                                    onToggleFullscreen: _toggleFullscreen,
-                                    onNavigateMedia: _navigateMedia,
-                                    onShowMenu: _hudController.showMenu,
-                                    onOpenMarkerEditor: (m) => _markerController
-                                        .openMarkerEditor(marker: m),
-                                    audioKey: _audioKey,
-                                    subtitleKey: _subtitleKey,
-                                    speedKey: _speedKey,
-                                    resolutionKey: _resolutionKey,
-                                    onMarkerMenuVisibilityChanged: (v) {
-                                      if (mounted) {
-                                        setState(
-                                          () => _displayState = _displayState
-                                              .copyWith(isMarkerMenuVisible: v),
-                                        );
-                                        _hudController.onInteraction();
-                                      }
-                                    },
-                                    onStepSeek: _seekController.performStepSeek,
-                                    onStartFastSeek:
-                                        _seekController.startFastSeek,
-                                    onStopFastSeek:
-                                        _seekController.stopFastSeek,
-                                    playingNotifier: _isPlayingNotifier,
-                                    playbackSpeed: _playbackSpeed,
-                                  ),
-
-                                  // EPX-009: Marker Editor Overlay with full-screen click-outside dismissal
-                                  if (_displayState.isMarkerEditorActive &&
-                                      _markerEditorAnchor != null)
-                                    Builder(
-                                      builder: (context) {
-                                        // We need to calculate the slider's position relative to the player's root stack
-                                        final playerBox =
-                                            _playerKey.currentContext
-                                                    ?.findRenderObject()
-                                                as RenderBox?;
-                                        final sliderBox =
-                                            _sliderKey.currentContext
-                                                    ?.findRenderObject()
-                                                as RenderBox?;
-
-                                        double sliderX = 0;
-                                        if (playerBox != null &&
-                                            sliderBox != null) {
-                                          sliderX = sliderBox
-                                              .localToGlobal(
-                                                Offset.zero,
-                                                ancestor: playerBox,
-                                              )
-                                              .dx;
-                                        }
-
-                                        final anchorX =
-                                            sliderX + _markerEditorAnchor!.dx;
-                                        final idealLeft = anchorX - 210;
-                                        final clampedLeft = idealLeft.clamp(
-                                          16.0,
-                                          _playerWidth - 420 - 16.0,
-                                        );
-                                        final notchOffset =
-                                            anchorX - clampedLeft;
-
-                                        return Positioned.fill(
-                                          child: GestureDetector(
-                                            onTap: () => _markerController
-                                                .closeMarkerEditor(
-                                                  resume: true,
-                                                ),
-                                            behavior: HitTestBehavior.opaque,
-                                            onScaleUpdate: (_) =>
-                                                _markerEditorKey.currentState
-                                                    ?.shake(),
-                                            onDoubleTap: () {},
+                                  return ColoredBox(
+                                    key: _playerKey,
+                                    color: Colors.black,
+                                    child: Stack(
+                                      children: [
+                                        // Interaction Trigger Zone (Full Viewport)
+                                        Positioned.fill(
+                                          child: MouseRegion(
+                                            cursor: isVisible
+                                                ? MouseCursor.defer
+                                                : SystemMouseCursors.none,
+                                            onEnter: (_) =>
+                                                _hudController.onInteraction(),
+                                            onHover: (_) =>
+                                                _hudController.onInteraction(),
                                             child: Stack(
                                               children: [
-                                                Positioned(
-                                                  left: clampedLeft,
-                                                  bottom:
-                                                      104, // Aligned with the track top
-                                                  child: MarkerEditorOverlay(
-                                                    key: _markerEditorKey,
-                                                    initialContent:
-                                                        _editingMarker?.content,
-                                                    initialIcon:
-                                                        _editingMarker?.icon,
-                                                    timestamp:
-                                                        _editingMarker
-                                                            ?.timestamp ??
-                                                        player.state.position,
-                                                    notchOffset: notchOffset,
-                                                    onSave: _markerController
-                                                        .saveMarker,
-                                                    onCancel: () =>
-                                                        _markerController
-                                                            .closeMarkerEditor(
-                                                              resume: true,
+                                                // Video Player (isolated render pipeline)
+                                                if (_displayState.isEmpty)
+                                                  Positioned.fill(
+                                                    child: VideoEmptyState(
+                                                      isStandalone:
+                                                          widget.isStandalone,
+                                                      onClose: () {
+                                                        if (widget
+                                                                .isStandalone &&
+                                                            widget.windowId !=
+                                                                null) {
+                                                          PersistentViewerManager.closeWindow(
+                                                            int.parse(
+                                                              widget.windowId!,
                                                             ),
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                  )
+                                                else if (_displayState.hasError)
+                                                  Positioned.fill(
+                                                    child: VideoErrorState(
+                                                      errorMessage:
+                                                          _displayState
+                                                              .errorMessage,
+                                                      isStandalone:
+                                                          widget.isStandalone,
+                                                      onClose: () {
+                                                        if (widget
+                                                            .isStandalone) {
+                                                          if (widget.windowId !=
+                                                              null) {
+                                                            PersistentViewerManager.closeWindow(
+                                                              int.parse(
+                                                                widget
+                                                                    .windowId!,
+                                                              ),
+                                                            );
+                                                          }
+                                                        } else {
+                                                          ref
+                                                              .read(
+                                                                videoViewModeProvider
+                                                                    .notifier,
+                                                              )
+                                                              .state = VideoViewMode
+                                                              .home;
+                                                        }
+                                                      },
+                                                    ),
+                                                  )
+                                                else if (_isPlayerInitialized)
+                                                  RepaintBoundary(
+                                                    child: Center(
+                                                      child: Video(
+                                                        controller: controller,
+                                                        controls: (state) =>
+                                                            const SizedBox.shrink(),
+                                                      ),
+                                                    ),
+                                                  ),
+
+                                                // Unified BubbleLoader
+                                                VideoLoadingOverlay(
+                                                  isVisible:
+                                                      !_displayState.hasError &&
+                                                      (_displayState
+                                                              .isOpening ||
+                                                          _displayState
+                                                              .isSeekingToInitial ||
+                                                          _displayState
+                                                              .isSmartBuffering ||
+                                                          _displayState
+                                                              .isSeekLoading),
+                                                ),
+
+                                                // Snapshot Flash Effect
+                                                Positioned.fill(
+                                                  child: SnapshotFlash(
+                                                    isVisible:
+                                                        _displayState.showFlash,
                                                   ),
                                                 ),
                                               ],
                                             ),
                                           ),
-                                        );
-                                      },
+                                        ),
+
+                                        // Snapshot Glass Toast
+                                        Positioned(
+                                          bottom: 120,
+                                          left: 0,
+                                          right: 0,
+                                          child: SnapshotToast(
+                                            isVisible:
+                                                _displayState.showSnapshotToast,
+                                          ),
+                                        ),
+
+                                        // Volume Overlay (Right side)
+                                        Positioned(
+                                          right: 32,
+                                          top: 0,
+                                          bottom: 0,
+                                          child: VolumeOverlayWrapper(
+                                            isVisible: _displayState
+                                                .isVolumeOverlayVisible,
+                                            volumeStream: player.stream.volume,
+                                            currentVolume: player.state.volume,
+                                            onVolumeChanged: (v) =>
+                                                player.setVolume(v),
+                                          ),
+                                        ),
+
+                                        // Speed Overlay (Left side)
+                                        Positioned(
+                                          left: 32,
+                                          top: 0,
+                                          bottom: 0,
+                                          child: SpeedOverlayWrapper(
+                                            isVisible: _displayState
+                                                .showSpeedOverlayVisible,
+                                            rateStream: player.stream.rate,
+                                            currentRate: player.state.rate,
+                                            onSpeedChanged: (r) =>
+                                                player.setRate(r),
+                                          ),
+                                        ),
+
+                                        // Persistent Speed Indicator Text (Bottom Left)
+                                        Positioned(
+                                          bottom: 24,
+                                          left: 24,
+                                          child: SpeedIndicator(
+                                            rateStream: player.stream.rate,
+                                            currentRate: player.state.rate,
+                                          ),
+                                        ),
+
+                                        // Seek Indicator Overlay (Top Right)
+                                        Positioned(
+                                          top: 100,
+                                          right: 64,
+                                          child: SeekIndicator(
+                                            isVisible: _displayState
+                                                .isSeekIndicatorVisible,
+                                            displayPosition: displayPosition,
+                                            totalDuration:
+                                                player.state.duration,
+                                          ),
+                                        ),
+
+                                        // Top HUD (Standardized)
+                                        if (!_displayState.isEmpty)
+                                          Positioned(
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            child: AnimatedOpacity(
+                                              duration: const Duration(
+                                                milliseconds: 300,
+                                              ),
+                                              opacity: isVisible ? 1.0 : 0.0,
+                                              child: StreamBuilder<int?>(
+                                                stream: player.stream.width,
+                                                builder: (context, _) {
+                                                  final state = player.state;
+                                                  final res =
+                                                      (state.height ?? 0) > 0
+                                                      ? '${state.height}p'
+                                                      : 'Loading...';
+                                                  final fpsString = _fps != null
+                                                      ? ' • ${_fps!.toInt()} FPS'
+                                                      : '';
+
+                                                  var q = ref
+                                                      .watch(
+                                                        filteredAndSortedVideoQueueProvider,
+                                                      )
+                                                      .where(
+                                                        (i) =>
+                                                            i.type ==
+                                                            FileItemType.video,
+                                                      )
+                                                      .toList();
+                                                  if (q.isEmpty) {
+                                                    final items =
+                                                        ref
+                                                            .watch(
+                                                              sortedDirectoryItemsProvider,
+                                                            )
+                                                            .value ??
+                                                        [];
+                                                    q = items
+                                                        .where(
+                                                          (i) =>
+                                                              i.type ==
+                                                              FileItemType
+                                                                  .video,
+                                                        )
+                                                        .toList();
+                                                  }
+                                                  final index = q.indexWhere(
+                                                    (i) =>
+                                                        i.path ==
+                                                        _currentItem.path,
+                                                  );
+                                                  final indexString =
+                                                      index != -1
+                                                      ? ' • ${index + 1} / ${q.length}'
+                                                      : '';
+
+                                                  return ViewerTopBar(
+                                                    title: _displayState.isEmpty
+                                                        ? ''
+                                                        : _currentItem.name,
+                                                    metadata:
+                                                        _displayState.isEmpty
+                                                        ? ''
+                                                        : '$res$fpsString$indexString',
+                                                    isStandalone:
+                                                        widget.isStandalone,
+                                                    onPopOut: _openInNewWindow,
+                                                    onClose: () =>
+                                                        ref
+                                                                .read(
+                                                                  previewFileProvider
+                                                                      .notifier,
+                                                                )
+                                                                .state =
+                                                            null,
+                                                    extraActions: [
+                                                      if (!_displayState
+                                                          .isEmpty) ...[
+                                                        _buildTopBarButton(
+                                                          icon: Icons
+                                                              .edit_outlined,
+                                                          onPressed: () {
+                                                            ref
+                                                                .read(
+                                                                  videoEditorProvider
+                                                                      .notifier,
+                                                                )
+                                                                .startEdit();
+                                                          },
+                                                          tooltip: 'Edit Video',
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        _buildTopBarButton(
+                                                          icon: Icons
+                                                              .settings_rounded,
+                                                          onPressed: () =>
+                                                              SettingsDialog.show(
+                                                                context,
+                                                                initialTab: 1,
+                                                                section:
+                                                                    'Video',
+                                                              ),
+                                                          tooltip:
+                                                              'Video Settings',
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ),
+
+                                        // Custom Bottom Controls
+                                        VideoBottomControls(
+                                          displayState: _displayState.copyWith(
+                                            isGlobalHudVisible:
+                                                _isGlobalHudVisible,
+                                            fps: _fps,
+                                            showRemainingTime: false,
+                                            isNetworkStream: _isNetworkStream,
+                                            playbackSpeed: _playbackSpeed,
+                                            scrollLockAxis: _scrollLockAxis,
+                                            windowId: widget.windowId,
+                                            isStandalone: widget.isStandalone,
+                                          ),
+                                          player: player,
+                                          currentItem: _currentItem,
+                                          displayPosition: displayPosition,
+                                          availableFormats: _availableFormats,
+                                          selectedFormatId: _selectedFormatId,
+                                          onResolutionChanged:
+                                              _onResolutionChanged,
+                                          onInteraction:
+                                              _hudController.onInteraction,
+                                          onShowSeekIndicator:
+                                              _hudController.showSeekIndicator,
+                                          onToggleMute: _toggleMute,
+                                          onToggleFullscreen: _toggleFullscreen,
+                                          onNavigateMedia: _navigateMedia,
+                                          onShowMenu: _hudController.showMenu,
+                                          onOpenMarkerEditor: (m) =>
+                                              _markerController
+                                                  .openMarkerEditor(marker: m),
+                                          showFilterSortButton:
+                                              isFilterSortEnabled,
+                                          onFilterSortPressed:
+                                              _handleFilterSort,
+                                          audioKey: _audioKey,
+                                          subtitleKey: _subtitleKey,
+                                          speedKey: _speedKey,
+                                          resolutionKey: _resolutionKey,
+                                          onMarkerMenuVisibilityChanged: (v) {
+                                            if (mounted) {
+                                              setState(
+                                                () => _displayState =
+                                                    _displayState.copyWith(
+                                                      isMarkerMenuVisible: v,
+                                                    ),
+                                              );
+                                              _hudController.onInteraction();
+                                            }
+                                          },
+                                          onStepSeek:
+                                              _seekController.performStepSeek,
+                                          onStartFastSeek:
+                                              _seekController.startFastSeek,
+                                          onStopFastSeek:
+                                              _seekController.stopFastSeek,
+                                          playingNotifier: _isPlayingNotifier,
+                                          playbackSpeed: _playbackSpeed,
+                                        ),
+
+                                        // EPX-009: Marker Editor Overlay with full-screen click-outside dismissal
+                                        if (_displayState
+                                                .isMarkerEditorActive &&
+                                            _markerEditorAnchor != null)
+                                          Builder(
+                                            builder: (context) {
+                                              // We need to calculate the slider's position relative to the player's root stack
+                                              final playerBox =
+                                                  _playerKey.currentContext
+                                                          ?.findRenderObject()
+                                                      as RenderBox?;
+                                              final sliderBox =
+                                                  _sliderKey.currentContext
+                                                          ?.findRenderObject()
+                                                      as RenderBox?;
+
+                                              double sliderX = 0;
+                                              if (playerBox != null &&
+                                                  sliderBox != null) {
+                                                sliderX = sliderBox
+                                                    .localToGlobal(
+                                                      Offset.zero,
+                                                      ancestor: playerBox,
+                                                    )
+                                                    .dx;
+                                              }
+
+                                              final anchorX =
+                                                  sliderX +
+                                                  _markerEditorAnchor!.dx;
+                                              final idealLeft = anchorX - 210;
+                                              final clampedLeft = idealLeft
+                                                  .clamp(
+                                                    16.0,
+                                                    _playerWidth - 420 - 16.0,
+                                                  );
+                                              final notchOffset =
+                                                  anchorX - clampedLeft;
+
+                                              return Positioned.fill(
+                                                child: GestureDetector(
+                                                  onTap: () => _markerController
+                                                      .closeMarkerEditor(
+                                                        resume: true,
+                                                      ),
+                                                  behavior:
+                                                      HitTestBehavior.opaque,
+                                                  onScaleUpdate: (_) =>
+                                                      _markerEditorKey
+                                                          .currentState
+                                                          ?.shake(),
+                                                  onDoubleTap: () {},
+                                                  child: Stack(
+                                                    children: [
+                                                      Positioned(
+                                                        left: clampedLeft,
+                                                        bottom:
+                                                            104, // Aligned with the track top
+                                                        child: MarkerEditorOverlay(
+                                                          key: _markerEditorKey,
+                                                          initialContent:
+                                                              _editingMarker
+                                                                  ?.content,
+                                                          initialIcon:
+                                                              _editingMarker
+                                                                  ?.icon,
+                                                          timestamp:
+                                                              _editingMarker
+                                                                  ?.timestamp ??
+                                                              player
+                                                                  .state
+                                                                  .position,
+                                                          notchOffset:
+                                                              notchOffset,
+                                                          onSave:
+                                                              _markerController
+                                                                  .saveMarker,
+                                                          onCancel: () =>
+                                                              _markerController
+                                                                  .closeMarkerEditor(
+                                                                    resume:
+                                                                        true,
+                                                                  ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+
+                                        // Button moved to VideoBottomControls
+                                      ],
                                     ),
-                                ],
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
+                            ),
+                          ),
                   ),
                 ),
               ],

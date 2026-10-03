@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/video_player/domain/entities/video_segment.dart';
 import 'package:onyxcore/features/video_player/services/video_editor_service.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
-import 'package:mocktail/mocktail.dart';
 
 class MockTaskNotifier extends Notifier<List<FileTask>>
     with Mock

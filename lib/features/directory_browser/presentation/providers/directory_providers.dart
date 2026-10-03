@@ -466,6 +466,21 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     return updatedItems;
   }
 
+  /// Remove items directly from the cache without a full refresh.
+  void removePaths(List<String> pathsToRemove) {
+    if (state.value == null) return;
+    
+    final currentItems = state.value!;
+    final updatedItems = currentItems.where((i) => !pathsToRemove.contains(i.path)).toList();
+    
+    // Update state directly without loading
+    state = AsyncValue.data(updatedItems);
+    
+    // Update cache as well
+    final path = ref.read(currentPathProvider);
+    ref.read(directoryCacheProvider).put(path, updatedItems);
+  }
+
   /// Force reload the current directory (invalidates cache).
   Future<void> refresh({bool showLoader = true}) async {
     _metadataToken++;

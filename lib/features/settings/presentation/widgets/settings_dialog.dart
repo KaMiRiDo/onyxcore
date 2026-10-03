@@ -765,7 +765,25 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                     },
                   ),
                 ),
+
                 _buildSectionHeader('Image', _viewersKeys['Image']!),
+                _buildSettingTile(
+                  title: 'Enable sort/filter mode',
+                  subtitle:
+                      'Show a filter button (⊗) in the image viewer. '
+                      'Pressing it or using Alt+S moves the current file into a '
+                      '"Filtered" sub-folder of its parent directory.',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.imageFilterSortEnabled ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          imageFilterSortEnabled: value,
+                        );
+                      });
+                    },
+                  ),
+                ),
                 _buildSettingTile(
                   title: 'Confirm delete',
                   subtitle:
@@ -782,6 +800,23 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   ),
                 ),
                 _buildSectionHeader('Video', _viewersKeys['Video']!),
+                _buildSettingTile(
+                  title: 'Enable sort/filter mode',
+                  subtitle:
+                      'Show a filter button (⊗) in the video player. '
+                      'Pressing it or using Alt+S moves the current file into a '
+                      '"Filtered" sub-folder of its parent directory.',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.videoFilterSortEnabled ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          videoFilterSortEnabled: value,
+                        );
+                      });
+                    },
+                  ),
+                ),
                 _buildSettingTile(
                   title: 'Confirm delete',
                   subtitle:
@@ -887,6 +922,23 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                 ),
                 _buildSectionHeader('Audio', _viewersKeys['Audio']!),
                 _buildSettingTile(
+                  title: 'Enable sort/filter mode',
+                  subtitle:
+                      'Show a filter button (⊗) in the audio player. '
+                      'Pressing it or using Alt+S moves the current file into a '
+                      '"Filtered" sub-folder of its parent directory.',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.audioFilterSortEnabled ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          audioFilterSortEnabled: value,
+                        );
+                      });
+                    },
+                  ),
+                ),
+                _buildSettingTile(
                   title: 'Show hidden files',
                   subtitle:
                       'Show hidden files and folders starting with a dot in the audio player',
@@ -955,6 +1007,23 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog>
                   ),
                 ),
                 _buildSectionHeader('Documents', _viewersKeys['Documents']!),
+                _buildSettingTile(
+                  title: 'Enable sort/filter mode',
+                  subtitle:
+                      'Show a filter button (⊗) in the document viewer. '
+                      'Pressing it or using Alt+S moves the current file into a '
+                      '"Filtered" sub-folder of its parent directory.',
+                  trailing: OnyxSwitch(
+                    value: _draftSettings?.documentFilterSortEnabled ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _draftSettings = _draftSettings!.copyWith(
+                          documentFilterSortEnabled: value,
+                        );
+                      });
+                    },
+                  ),
+                ),
                 _buildSettingTile(
                   title: 'Confirm delete',
                   subtitle:

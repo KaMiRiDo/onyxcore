@@ -9,8 +9,8 @@ import 'package:pointycastle/export.dart';
 // ── Custom Exception ─────────────────────────────────────────────────────────
 
 class DmlLockedException implements Exception {
-  final String message;
   const DmlLockedException([this.message = 'DML file is locked']);
+  final String message;
   @override
   String toString() => 'DmlLockedException: $message';
 }
@@ -18,15 +18,15 @@ class DmlLockedException implements Exception {
 // ── Isolate Parameter Classes ────────────────────────────────────────────────
 
 class _EncryptParams {
+  const _EncryptParams(this.jsonPayload, this.password);
   final String jsonPayload;
   final String? password;
-  const _EncryptParams(this.jsonPayload, this.password);
 }
 
 class _DecryptParams {
+  const _DecryptParams(this.dmlBytes, this.password);
   final Uint8List dmlBytes;
   final String? password;
-  const _DecryptParams(this.dmlBytes, this.password);
 }
 
 // ── Top-level functions required by compute() (cannot be closures) ────────────
@@ -83,8 +83,8 @@ class DmlCryptoService {
       throw const FormatException('Invalid DML file: too short');
     }
 
-    bool isLocked = true;
-    bool isDefault = true;
+    var isLocked = true;
+    var isDefault = true;
     // Check magic bytes
     for (var i = 0; i < 4; i++) {
       if (dmlBytes[i] != _magicBytesLocked[i]) isLocked = false;

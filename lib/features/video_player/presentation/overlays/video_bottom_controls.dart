@@ -20,6 +20,7 @@ import 'package:onyxcore/features/video_player/presentation/widgets/hover_previe
 import 'package:onyxcore/features/video_player/presentation/widgets/playback_speed_control.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/timeline_marker.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/track_selector_menu.dart';
+import 'package:onyxcore/core/widgets/filter_sort_button.dart';
 
 class VideoBottomControls extends ConsumerStatefulWidget {
   const VideoBottomControls({
@@ -37,6 +38,8 @@ class VideoBottomControls extends ConsumerStatefulWidget {
     required this.onNavigateMedia,
     required this.onShowMenu,
     required this.onOpenMarkerEditor,
+    this.showFilterSortButton = false,
+    this.onFilterSortPressed,
     required this.audioKey,
     required this.subtitleKey,
     required this.speedKey,
@@ -68,6 +71,10 @@ class VideoBottomControls extends ConsumerStatefulWidget {
   })
   onShowMenu;
   final void Function(VideoMarker?) onOpenMarkerEditor;
+
+  final bool showFilterSortButton;
+  final VoidCallback? onFilterSortPressed;
+
   final GlobalKey audioKey;
   final GlobalKey subtitleKey;
   final GlobalKey speedKey;
@@ -240,6 +247,18 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (widget.showFilterSortButton &&
+                    widget.onFilterSortPressed != null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: FilterSortButton(
+                        hudVisible: true,
+                        onPressed: widget.onFilterSortPressed!,
+                      ),
+                    ),
+                  ),
                 // Progress Slider & Timers Row
                 if (!widget.displayState.isEmpty)
                   StreamBuilder<Duration>(
@@ -665,7 +684,6 @@ class _VideoBottomControlsState extends ConsumerState<VideoBottomControls> {
                         );
                       },
                     ),
-
 
                     // All remaining left/center/right controls hidden in empty state
                     if (!widget.displayState.isEmpty) ...[

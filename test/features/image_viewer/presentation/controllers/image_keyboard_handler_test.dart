@@ -48,10 +48,12 @@ void main() {
       onNavigateBackward: ({required bool isKeyRepeat}) => onNavigateBackwardCalled = isKeyRepeat,
       onNavigateHistoryForward: () {},
       onNavigateHistoryBackward: () => onNavigateHistoryBackwardCalled = true,
+      onFilterSort: () async {},
       onToggleFullscreen: () => onToggleFullscreenCalled = true,
       isSidebarOpen: () => sidebarOpen,
       isStandalone: standalone,
       isWindowed: windowed,
+      getIsFilterSortEnabled: () => false,
     );
   });
 
@@ -117,10 +119,12 @@ void main() {
       onNavigateBackward: ({required bool isKeyRepeat}) => onNavigateBackwardCalled = isKeyRepeat,
       onNavigateHistoryForward: () {},
       onNavigateHistoryBackward: () => onNavigateHistoryBackwardCalled = true,
+      onFilterSort: () async {},
       onToggleFullscreen: () => onToggleFullscreenCalled = true,
       isSidebarOpen: () => sidebarOpen,
       isStandalone: standalone,
       isWindowed: windowed,
+      getIsFilterSortEnabled: () => false,
     );
 
     await pumpHandler(tester, (node) {});
@@ -221,5 +225,47 @@ void main() {
     });
     handler.handleKeyEvent(eventBackward);
     expect(onNavigateBackwardCalled, true);
+  });
+
+  testWidgets('Filter/Sort shortcut', (tester) async {
+    var isFilterSortEnabled = true;
+    var onFilterSortCalled = false;
+
+    handler = ImageKeyboardHandler(
+      onClose: () {},
+      onDelete: ({required bool permanent}) {},
+      onToggleSidebar: () {},
+      onZoomIn: () {},
+      onZoomOut: () {},
+      onResetZoom: () {},
+      onNavigateForward: ({required bool isKeyRepeat}) {},
+      onNavigateBackward: ({required bool isKeyRepeat}) {},
+      onNavigateHistoryForward: () {},
+      onNavigateHistoryBackward: () {},
+      onFilterSort: () async {
+        onFilterSortCalled = true;
+      },
+      onToggleFullscreen: () {},
+      isSidebarOpen: () => false,
+      isStandalone: false,
+      isWindowed: false,
+      getIsFilterSortEnabled: () => isFilterSortEnabled,
+    );
+
+    await pumpHandler(tester, (node) {});
+
+    // Test Alt+S when enabled
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    expect(onFilterSortCalled, true);
+
+    // Test Alt+S when disabled
+    onFilterSortCalled = false;
+    isFilterSortEnabled = false;
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    expect(onFilterSortCalled, false);
   });
 }

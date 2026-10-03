@@ -62,6 +62,11 @@ abstract class SettingsRepository {
   /// Update the browser used for custom extractors.
   Future<void> setExtractorBrowser(String? browser);
 
+  Future<void> setImageFilterSortEnabled({required bool value});
+  Future<void> setVideoFilterSortEnabled({required bool value});
+  Future<void> setAudioFilterSortEnabled({required bool value});
+  Future<void> setDocumentFilterSortEnabled({required bool value});
+
   // ——— Gallery Sorting ———
 
   /// Set the sort key for a specific folder path.

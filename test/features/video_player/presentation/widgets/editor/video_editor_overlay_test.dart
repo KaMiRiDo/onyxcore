@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/editor/video_editor_overlay.dart';
 
 void main() {
@@ -11,7 +11,7 @@ void main() {
       MediaKit.ensureInitialized();
       final player = Player();
       final controller = VideoController(player);
-      bool isClosed = false;
+      var isClosed = false;
 
       await tester.pumpWidget(
         ProviderScope(

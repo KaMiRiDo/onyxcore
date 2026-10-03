@@ -18,7 +18,6 @@ class VideoEditorService {
       title: 'Trimming Video',
       subtitle: 'Merging ${segments.length} segment(s)',
       sourcePaths: [sourceFile],
-      isLight: false, // Heavy task due to FFMPEG
     );
 
     try {
@@ -41,7 +40,7 @@ class VideoEditorService {
       // To keep it lossless (-c copy), we extract segments to temp files, then concat.
 
       final tempFiles = <String>[];
-      for (int i = 0; i < segments.length; i++) {
+      for (var i = 0; i < segments.length; i++) {
         final segment = segments[i];
         final tempFile = '${outputDir.path}/.temp_cut_$i$ext';
         tempFiles.add(tempFile);
@@ -72,7 +71,7 @@ class VideoEditorService {
       notifier.updateCurrentItem(taskId, 'Merging segments...');
       final concatListPath = '${outputDir.path}/.concat_list.txt';
       final concatList = File(concatListPath);
-      final listContent = tempFiles.map((f) => "file '${f.replaceAll("'", "'\\''")}'").join('\n');
+      final listContent = tempFiles.map((f) => "file '${f.replaceAll("'", r"'\''")}'").join('\n');
       await concatList.writeAsString(listContent);
 
       final concatArgs = [
@@ -97,7 +96,7 @@ class VideoEditorService {
 
       if (exitCode != 0) throw Exception('Failed to merge segments');
       
-      notifier.updateProgress(taskId, 1.0);
+      notifier.updateProgress(taskId, 1);
       notifier.updateCurrentItem(taskId, 'Done');
       notifier.completeTask(taskId);
     } catch (e) {
@@ -114,7 +113,6 @@ class VideoEditorService {
       title: 'Extracting Frames',
       subtitle: '${segments.length} segment(s)',
       sourcePaths: [sourceFile],
-      isLight: false,
     );
 
     try {
@@ -124,7 +122,7 @@ class VideoEditorService {
         await outputDir.create(recursive: true);
       }
       
-      for (int i = 0; i < segments.length; i++) {
+      for (var i = 0; i < segments.length; i++) {
         final segment = segments[i];
         final duration = segment.end - segment.start;
         
@@ -150,7 +148,7 @@ class VideoEditorService {
         if (exitCode != 0) throw Exception('Failed to extract frames for segment $i');
       }
       
-      notifier.updateProgress(taskId, 1.0);
+      notifier.updateProgress(taskId, 1);
       notifier.updateCurrentItem(taskId, 'Done');
       notifier.completeTask(taskId);
     } catch (e) {
@@ -160,9 +158,9 @@ class VideoEditorService {
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    String threeDigitMillis =
+    final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    final twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    final threeDigitMillis =
         duration.inMilliseconds.remainder(1000).toString().padLeft(3, '0');
     return '${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds.$threeDigitMillis';
   }

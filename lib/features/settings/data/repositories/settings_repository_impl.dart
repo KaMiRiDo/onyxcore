@@ -53,6 +53,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const _sidePanelWidthPixels = 'side_panel_width_pixels';
   static const _customExtractorsEnabled = 'customExtractorsEnabled';
   static const _extractorBrowser = 'extractorBrowser';
+  static const _imageFilterSortEnabled = 'imageFilterSortEnabled';
+  static const _videoFilterSortEnabled = 'videoFilterSortEnabled';
+  static const _audioFilterSortEnabled = 'audioFilterSortEnabled';
+  static const _documentFilterSortEnabled = 'documentFilterSortEnabled';
 
   // Helper to read multiple settings at once (minimizes async round trips)
   Future<Map<String, String?>> _readAll(List<String> keys) async {
@@ -76,7 +80,9 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _downloadToCurrentFolder, _maxConcurrentDownloads, _maxLiveRecordingMinutes,
       _documentSearchCaseSensitive, _documentSearchUseRegex,
       _audioPlayerVolume, _videoPlayerVolume, _videoShowRemainingTime,
-      _customExtractorsEnabled, _extractorBrowser,
+      _customExtractorsEnabled, _extractorBrowser, 
+      _imageFilterSortEnabled, _videoFilterSortEnabled, 
+      _audioFilterSortEnabled, _documentFilterSortEnabled,
     ];
 
     final vals = await _readAll(keys);
@@ -131,6 +137,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       videoShowRemainingTime: SettingsCodec.decodeBool(vals[_videoShowRemainingTime], fallback: false),
       customExtractorsEnabled: SettingsCodec.decodeBool(vals[_customExtractorsEnabled], fallback: false),
       extractorBrowser: SettingsCodec.decodeNullableString(vals[_extractorBrowser]),
+      imageFilterSortEnabled: SettingsCodec.decodeBool(vals[_imageFilterSortEnabled], fallback: false),
+      videoFilterSortEnabled: SettingsCodec.decodeBool(vals[_videoFilterSortEnabled], fallback: false),
+      audioFilterSortEnabled: SettingsCodec.decodeBool(vals[_audioFilterSortEnabled], fallback: false),
+      documentFilterSortEnabled: SettingsCodec.decodeBool(vals[_documentFilterSortEnabled], fallback: false),
     );
   }
 
@@ -178,6 +188,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       if (settings.downloadBrowser != null) _db.setSetting(_downloadBrowser, settings.downloadBrowser!) else _db.removeSetting(_downloadBrowser),
       if (settings.extractorBrowser != null) _db.setSetting(_extractorBrowser, settings.extractorBrowser!) else _db.removeSetting(_extractorBrowser),
       _db.setSetting(_customExtractorsEnabled, SettingsCodec.encodeBool(settings.customExtractorsEnabled)),
+      _db.setSetting(_imageFilterSortEnabled, SettingsCodec.encodeBool(settings.imageFilterSortEnabled)),
+      _db.setSetting(_videoFilterSortEnabled, SettingsCodec.encodeBool(settings.videoFilterSortEnabled)),
+      _db.setSetting(_audioFilterSortEnabled, SettingsCodec.encodeBool(settings.audioFilterSortEnabled)),
+      _db.setSetting(_documentFilterSortEnabled, SettingsCodec.encodeBool(settings.documentFilterSortEnabled)),
       // Pinned folders
       _db.savePinnedFolders(settings.pinnedFolders),
     ]);
@@ -274,6 +288,22 @@ class SettingsRepositoryImpl implements SettingsRepository {
       await _db.removeSetting(_extractorBrowser);
     }
   }
+
+  @override
+  Future<void> setImageFilterSortEnabled({required bool value}) =>
+      _db.setSetting(_imageFilterSortEnabled, SettingsCodec.encodeBool(value));
+
+  @override
+  Future<void> setVideoFilterSortEnabled({required bool value}) =>
+      _db.setSetting(_videoFilterSortEnabled, SettingsCodec.encodeBool(value));
+
+  @override
+  Future<void> setAudioFilterSortEnabled({required bool value}) =>
+      _db.setSetting(_audioFilterSortEnabled, SettingsCodec.encodeBool(value));
+
+  @override
+  Future<void> setDocumentFilterSortEnabled({required bool value}) =>
+      _db.setSetting(_documentFilterSortEnabled, SettingsCodec.encodeBool(value));
 
   // ── Open With Dialog geometry ─────────────────────────────────────────────
 

@@ -18,6 +18,8 @@ class ImageKeyboardHandler {
     required this.isSidebarOpen,
     required this.isStandalone,
     required this.isWindowed,
+    required this.getIsFilterSortEnabled,
+    required this.onFilterSort,
   });
   final VoidCallback onClose;
   final void Function({required bool permanent}) onDelete;
@@ -33,6 +35,9 @@ class ImageKeyboardHandler {
   final bool Function() isSidebarOpen;
   final bool isStandalone;
   final bool isWindowed;
+  final bool Function() getIsFilterSortEnabled;
+  /// Triggers the sort/filter operation (Alt+S).
+  final Future<void> Function() onFilterSort;
 
   DateTime? _lastNavTime;
 
@@ -133,6 +138,16 @@ class ImageKeyboardHandler {
         }
         return KeyEventResult.handled;
       }
+    }
+
+    // Alt+S → Filter Sort (move to Filtered folder)
+    if (alt &&
+        event.logicalKey == LogicalKeyboardKey.keyS &&
+        event is KeyDownEvent) {
+      if (getIsFilterSortEnabled()) {
+        onFilterSort();
+      }
+      return KeyEventResult.handled;
     }
 
     return KeyEventResult.ignored;

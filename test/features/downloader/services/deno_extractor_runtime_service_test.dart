@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/core/utils/browser_detector.dart';
 import 'package:onyxcore/features/downloader/domain/entities/browser_capability.dart';
@@ -5,6 +9,26 @@ import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.da
 import 'package:onyxcore/features/downloader/domain/entities/extractor_runtime_config.dart';
 import 'package:onyxcore/features/downloader/domain/services/extractor_runtime_service.dart';
 import 'package:onyxcore/features/downloader/services/deno_extractor_runtime_service.dart';
+
+class FakeProcess extends Fake implements Process {
+  @override
+  final Stream<List<int>> stdout;
+  @override
+  final Stream<List<int>> stderr;
+  @override
+  final Future<int> exitCode;
+  @override
+  final int pid = 9999;
+  
+  FakeProcess({
+    required this.stdout,
+    required this.stderr,
+    required this.exitCode,
+  });
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => true;
+}
 
 void main() {
   group('DenoExtractorRuntimeService Tests', () {
@@ -16,8 +40,45 @@ void main() {
       maxResults: 100,
     );
 
+    Future<Process> mockProcessStarter(
+      String executable,
+      List<String> arguments, {
+      Map<String, String>? environment,
+      bool runInShell = false,
+    }) async {
+      final userScriptPath = arguments[8];
+      final scriptContent = await File(userScriptPath).readAsString();
+
+      int code = 0;
+      String out = '';
+      String err = '';
+
+      if (scriptContent.contains('Deno.args')) {
+        err = 'Extractor error: Deno APIs are not available';
+        code = 1;
+      } else if (scriptContent.contains('timeout')) {
+        return FakeProcess(
+          stdout: const Stream.empty(),
+          stderr: const Stream.empty(),
+          exitCode: Completer<int>().future,
+        );
+      } else if (scriptContent.contains('javascript:alert(1)')) {
+        out = '["javascript:alert(1)"]';
+      } else if (scriptContent.contains('pid')) {
+        out = '["https://example.com/pid"]';
+      } else {
+        out = '["https://example.com/video.mp4", "https://example.com/image.jpg"]';
+      }
+
+      return FakeProcess(
+        stdout: out.isNotEmpty ? Stream.value(utf8.encode('$out\n')) : const Stream.empty(),
+        stderr: err.isNotEmpty ? Stream.value(utf8.encode('$err\n')) : const Stream.empty(),
+        exitCode: Future.delayed(const Duration(milliseconds: 100), () => code),
+      );
+    }
+
     setUp(() {
-      service = DenoExtractorRuntimeService();
+      service = DenoExtractorRuntimeService(processStarter: mockProcessStarter);
     });
 
     Future<ExtractorResult> executeWithScript(String scriptContent, {

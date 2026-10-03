@@ -136,6 +136,26 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     await repo.setExtractorBrowser(browser);
   }
 
+  Future<void> setImageFilterSortEnabled({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setImageFilterSortEnabled(value: value);
+  }
+
+  Future<void> setVideoFilterSortEnabled({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setVideoFilterSortEnabled(value: value);
+  }
+
+  Future<void> setAudioFilterSortEnabled({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setAudioFilterSortEnabled(value: value);
+  }
+
+  Future<void> setDocumentFilterSortEnabled({required bool value}) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.setDocumentFilterSortEnabled(value: value);
+  }
+
   Future<void> setFolderSort(String path, SortOption option) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.setFolderSort(path, option);

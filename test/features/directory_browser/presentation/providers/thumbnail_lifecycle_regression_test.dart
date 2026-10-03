@@ -260,7 +260,6 @@ void main() {
       final session = ThumbnailSession(
         folderPath: '/test/folder',
         tabId: 'tab_1',
-        cacheService: null, // no cache = cancelled fast path
       );
       session.dispose();
 
@@ -325,7 +324,7 @@ void main() {
         cacheService: mockCache2,
       );
 
-      final candidate = const ThumbnailCandidate(
+      const candidate = ThumbnailCandidate(
         path: '/folder/race.jpg',
         type: FileItemType.image,
         modifiedEpochMs: 0,
@@ -366,7 +365,7 @@ void main() {
         cacheService: mockCache3,
       );
 
-      final throwing = const ThumbnailCandidate(
+      const throwing = ThumbnailCandidate(
         path: '/folder/throw.jpg',
         type: FileItemType.image,
         modifiedEpochMs: 0,
@@ -379,7 +378,7 @@ void main() {
       await session.enqueueCandidate(throwing);
 
       // Second candidate verifies worker slot was released
-      final second = const ThumbnailCandidate(
+      const second = ThumbnailCandidate(
         path: '/folder/second.jpg',
         type: FileItemType.image,
         modifiedEpochMs: 0,

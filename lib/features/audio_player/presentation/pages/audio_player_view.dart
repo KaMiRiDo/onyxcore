@@ -7,12 +7,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/core/playlist/media_queue_isolate.dart';
+import 'package:onyxcore/core/services/media_filter_service.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/core/utils/media_uri_helper.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 // import removed
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/core/widgets/filter_sort_button.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
@@ -459,6 +461,63 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     }
   }
 
+  Future<void> _handleFilterSort() async {
+    final currentTrack = ref.read(currentTrackProvider);
+    if (currentTrack == null) return;
+    
+    unawaited(_player.pause());
+    
+    try {
+      await MediaFilterService.moveToFiltered(currentTrack.path);
+    } catch (e) {
+      debugPrint('[AudioPlayer] FilterSort: move failed: $e');
+      if (mounted) _player.play();
+      return;
+    }
+    
+    // Remove from queues
+    final targetPaths = [currentTrack.path];
+    
+    final currentQueue = ref.read(audioQueueProvider);
+    final updatedQueue = currentQueue
+        .where((item) => !targetPaths.contains(item.path))
+        .toList();
+    ref.read(audioQueueProvider.notifier).state = updatedQueue;
+
+    final currentPlayingQueue = ref.read(audioPlayingQueueProvider);
+    final updatedPlayingQueue = currentPlayingQueue
+        .where((item) => !targetPaths.contains(item.path))
+        .toList();
+    ref.read(audioPlayingQueueProvider.notifier).state = updatedPlayingQueue;
+
+    if (!widget.isStandalone) {
+      ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+    }
+    
+    if (updatedPlayingQueue.isNotEmpty) {
+      final currentIndex = ref.read(activeTrackIndexProvider);
+      var safeIndex = currentIndex >= updatedPlayingQueue.length
+          ? updatedPlayingQueue.length - 1
+          : currentIndex;
+      if (safeIndex < 0) safeIndex = 0;
+
+      ref.read(activeTrackIndexProvider.notifier).state = safeIndex;
+
+      await MediaUriHelper.ensureLocalProxy();
+      final list = updatedPlayingQueue
+          .map((item) => Media(MediaUriHelper.getSafeMediaUri(item.path)))
+          .toList();
+      
+      final autoPlay = ref.read(audioAutoPlaySessionProvider);
+      await _player.open(Playlist(list, index: safeIndex), play: autoPlay);
+    } else {
+      setState(() => _isEmpty = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(audioIsEmptyProvider.notifier).state = true;
+      });
+    }
+  }
+
   Future<void> _handleItemsMoved(List<String> paths) async {
     // 1. Update global queues unconditionally so UI reflects the move
     final currentQueue = ref.read(audioQueueProvider);
@@ -851,6 +910,13 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           }
           return KeyEventResult.handled;
         }
+        if (key == LogicalKeyboardKey.keyS && isAlt) {
+          final isFilterSortEnabled = ref.read(settingsProvider).value?.audioFilterSortEnabled ?? false;
+          if (isFilterSortEnabled) {
+            _handleFilterSort();
+          }
+          return KeyEventResult.handled;
+        }
 
         return KeyEventResult.ignored;
       },
@@ -1107,6 +1173,16 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                                     .state = !isVisible;
                               },
                               tooltip: 'Playlist',
+                            ),
+                          ),
+
+                        // ── Filter Sort Button (Alt+S) ────────────
+                        if (settings?.audioFilterSortEnabled ?? false)
+                          Positioned(
+                            bottom: 24,
+                            right: 24,
+                            child: FilterSortButton(
+                              onPressed: _handleFilterSort,
                             ),
                           ),
                       ],

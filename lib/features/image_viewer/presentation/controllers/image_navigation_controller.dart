@@ -132,6 +132,8 @@ class ImageNavigationController extends ChangeNotifier {
     final mediaItems = getPlaylist();
 
     if (mediaItems.isEmpty) {
+      _isEmpty = true;
+      notifyListeners();
       onClearNavigation();
       return;
     }
@@ -141,18 +143,24 @@ class ImageNavigationController extends ChangeNotifier {
 
     if (currentIndex == -1) {
       // Item not found — something external changed the list
+      _isEmpty = true;
+      notifyListeners();
       onClearNavigation();
       return;
     }
 
     // Only 1 item left — quitting
     if (mediaItems.length == 1) {
+      _isEmpty = true;
+      notifyListeners();
       onClearNavigation();
       return;
     }
 
     // Deleting the last item in the list: no "next" exists, quit viewer
     if (currentIndex == mediaItems.length - 1) {
+      _isEmpty = true;
+      notifyListeners();
       onClearNavigation();
       return;
     }
@@ -180,6 +188,18 @@ class ImageNavigationController extends ChangeNotifier {
         _indexString = '$currentIndex/$totalCount';
         notifyListeners();
       }
+    }
+  }
+
+  void removeFile(String path) {
+    if (isStandalone) {
+      _standalonePlaylist.removeWhere((i) => i.path == path);
+      ref.read(imageQueueProvider.notifier).state = List.from(_standalonePlaylist);
+      notifyListeners();
+    } else {
+      final queue = ref.read(imageQueueProvider);
+      final updatedQueue = queue.where((i) => i.path != path).toList();
+      ref.read(imageQueueProvider.notifier).state = updatedQueue;
     }
   }
 

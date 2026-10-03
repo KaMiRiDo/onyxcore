@@ -39,7 +39,7 @@ void main() {
 
     test('markTimestamp sets pending start if none exists', () {
       final notifier = container.read(videoEditorProvider.notifier);
-      final timestamp = const Duration(seconds: 10);
+      const timestamp = Duration(seconds: 10);
       notifier.markTimestamp(timestamp, videoDuration);
 
       final state = container.read(videoEditorProvider);
@@ -51,8 +51,8 @@ void main() {
 
     test('markTimestamp finalizes segment if pending start exists', () {
       final notifier = container.read(videoEditorProvider.notifier);
-      final start = const Duration(seconds: 10);
-      final end = const Duration(seconds: 20);
+      const start = Duration(seconds: 10);
+      const end = Duration(seconds: 20);
 
       notifier.markTimestamp(start, videoDuration);
       notifier.markTimestamp(end, videoDuration);
@@ -66,8 +66,8 @@ void main() {
 
     test('markTimestamp ignores if end is before start', () {
       final notifier = container.read(videoEditorProvider.notifier);
-      final start = const Duration(seconds: 20);
-      final invalidEnd = const Duration(seconds: 10);
+      const start = Duration(seconds: 20);
+      const invalidEnd = Duration(seconds: 10);
 
       notifier.markTimestamp(start, videoDuration);
       notifier.markTimestamp(invalidEnd, videoDuration);

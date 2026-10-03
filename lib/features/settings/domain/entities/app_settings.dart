@@ -57,6 +57,10 @@ class AppSettings extends Equatable {
     this.videoShowRemainingTime = false,
     this.customExtractorsEnabled = false,
     this.extractorBrowser,
+    this.imageFilterSortEnabled = false,
+    this.videoFilterSortEnabled = false,
+    this.audioFilterSortEnabled = false,
+    this.documentFilterSortEnabled = false,
   });
 
   /// Whether to open medias and files in standalone mode by default.
@@ -173,6 +177,18 @@ class AppSettings extends Equatable {
   /// The browser used by custom extractors.
   final String? extractorBrowser;
 
+  /// Whether the sort/filter button is enabled in the image viewer.
+  final bool imageFilterSortEnabled;
+
+  /// Whether the sort/filter button is enabled in the video player.
+  final bool videoFilterSortEnabled;
+
+  /// Whether the sort/filter button is enabled in the audio player.
+  final bool audioFilterSortEnabled;
+
+  /// Whether the sort/filter button is enabled in the document viewer.
+  final bool documentFilterSortEnabled;
+
   AppSettings copyWith({
     bool? openInStandaloneMode,
     bool? autoPlayNext,
@@ -212,6 +228,10 @@ class AppSettings extends Equatable {
     bool? videoShowRemainingTime,
     bool? customExtractorsEnabled,
     String? extractorBrowser,
+    bool? imageFilterSortEnabled,
+    bool? videoFilterSortEnabled,
+    bool? audioFilterSortEnabled,
+    bool? documentFilterSortEnabled,
   }) {
     return AppSettings(
       openInStandaloneMode: openInStandaloneMode ?? this.openInStandaloneMode,
@@ -259,6 +279,10 @@ class AppSettings extends Equatable {
       videoShowRemainingTime: videoShowRemainingTime ?? this.videoShowRemainingTime,
       customExtractorsEnabled: customExtractorsEnabled ?? this.customExtractorsEnabled,
       extractorBrowser: extractorBrowser ?? this.extractorBrowser,
+      imageFilterSortEnabled: imageFilterSortEnabled ?? this.imageFilterSortEnabled,
+      videoFilterSortEnabled: videoFilterSortEnabled ?? this.videoFilterSortEnabled,
+      audioFilterSortEnabled: audioFilterSortEnabled ?? this.audioFilterSortEnabled,
+      documentFilterSortEnabled: documentFilterSortEnabled ?? this.documentFilterSortEnabled,
     );
   }
 
@@ -302,5 +326,9 @@ class AppSettings extends Equatable {
     videoShowRemainingTime,
     customExtractorsEnabled,
     extractorBrowser,
+    imageFilterSortEnabled,
+    videoFilterSortEnabled,
+    audioFilterSortEnabled,
+    documentFilterSortEnabled,
   ];
 }

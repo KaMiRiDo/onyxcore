@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/utils/browser_detector.dart';
 import 'package:onyxcore/features/downloader/domain/entities/browser_capability.dart';
 import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.dart';
@@ -9,7 +10,20 @@ import 'package:onyxcore/features/downloader/domain/services/extractor_output_va
 import 'package:onyxcore/features/downloader/domain/services/extractor_runtime_service.dart';
 import 'package:onyxcore/features/downloader/services/deno_runtime.dart';
 
+typedef ProcessStarter = Future<Process> Function(
+  String executable,
+  List<String> arguments, {
+  Map<String, String>? environment,
+  bool runInShell,
+});
+
 class DenoExtractorRuntimeService implements ExtractorRuntimeService {
+  final ProcessStarter processStarter;
+
+  DenoExtractorRuntimeService({
+    @visibleForTesting this.processStarter = Process.start,
+  });
+
   @override
   Future<ExtractorResult> execute(
     CustomExtractor extractor,
@@ -229,7 +243,7 @@ try {
       final allowWrite = '--allow-write=${tempDir.path}';
       const allowEnv = '--allow-env=PUPPETEER_EXECUTABLE_PATH';
 
-      process = await Process.start(
+      process = await processStarter(
         DenoRuntime.managedPath,
         [
           'run',

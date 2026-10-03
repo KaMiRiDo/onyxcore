@@ -365,4 +365,16 @@ void main() {
 
     controller.dispose();
   });
+
+  testWidgets('navigateAfterDeletion on last item sets isEmpty to true', (tester) async {
+    await pumpController(tester, customPlaylist: [item1]);
+    
+    // Call navigateAfterDeletion with the only item
+    controller.navigateAfterDeletion(item1);
+
+    expect(clearCalled, isTrue);
+    expect(controller.isEmpty, isTrue, reason: 'isEmpty must be true when last item is deleted');
+
+    controller.dispose();
+  });
 }

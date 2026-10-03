@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
+import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:onyxcore/features/video_player/presentation/handlers/keyboard_handler.dart';
 import 'package:onyxcore/features/video_player/presentation/providers/video_playlist_providers.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/marker_editor_overlay.dart';
@@ -17,6 +19,16 @@ class MockGlobalKey<T extends State<StatefulWidget>> extends GlobalKey<T> {
   final T mockState;
   @override
   T? get currentState => mockState;
+}
+
+class MockSettingsNotifierEnabled extends SettingsNotifier {
+  @override
+  Future<AppSettings> build() async => const AppSettings(videoFilterSortEnabled: true);
+}
+
+class MockSettingsNotifierDisabled extends SettingsNotifier {
+  @override
+  Future<AppSettings> build() async => const AppSettings();
 }
 
 void main() {
@@ -40,6 +52,7 @@ void main() {
     late bool closeMarkerEditorCalled;
     late bool toggleFullscreenCalled;
     late bool closePreviewCalled;
+    late bool filterSortCalled;
     late bool isControlsVisible;
     LogicalKeyboardKey? activeSeekKey;
     LogicalKeyboardKey? activeVolumeKey;
@@ -47,12 +60,16 @@ void main() {
     late VideoKeyboardCallbacks callbacks;
     late VideoKeyboardHandler handler;
 
-    Widget buildTestApp(WidgetTester tester, void Function(WidgetRef, BuildContext) onBuild) {
+    Widget buildTestApp(WidgetTester tester, void Function(WidgetRef, BuildContext) onBuild, {List<dynamic>? overrides}) {
       return ProviderScope(
+        overrides: [
+          if (overrides != null) ...overrides.cast(),
+        ],
         child: MaterialApp(
           home: Scaffold(
             body: Consumer(
               builder: (context, ref, child) {
+                ref.watch(settingsProvider);
                 onBuild(ref, context);
                 return const SizedBox();
               },
@@ -82,6 +99,7 @@ void main() {
       closeMarkerEditorCalled = false;
       toggleFullscreenCalled = false;
       closePreviewCalled = false;
+      filterSortCalled = false;
       isControlsVisible = false;
       activeSeekKey = null;
       activeVolumeKey = null;
@@ -111,6 +129,7 @@ void main() {
         toggleFullscreen: () => toggleFullscreenCalled = true,
         navigateMedia: (f) {},
         handleDelete: ({required bool permanent}) {},
+        filterSort: () async { filterSortCalled = true; },
         closePreview: () => closePreviewCalled = true,
         navigatePlaylistHistoryBack: (r) => closeMarkerEditorCalled = true, // reusing boolean for simplicity
         navigatePlaylistHistoryForward: (r) => takeScreenshotCalled = true, // reusing boolean
@@ -234,6 +253,38 @@ void main() {
       expect(result, equals(KeyEventResult.handled));
       expect(takeScreenshotCalled, isTrue);
     });
+
+    testWidgets('handles Alt+S for filter/sort when enabled', (tester) async {
+      await tester.pumpWidget(buildTestApp(tester, (ref, _) {
+        setupHandler(ref);
+      }, overrides: [
+        settingsProvider.overrideWith(MockSettingsNotifierEnabled.new),
+      ]));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      final result = handler.handle(createKeyEvent(LogicalKeyboardKey.keyS));
+      expect(result, equals(KeyEventResult.handled));
+      expect(filterSortCalled, isTrue);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    });
+
+    testWidgets('ignores Alt+S for filter/sort when disabled', (tester) async {
+      await tester.pumpWidget(buildTestApp(tester, (ref, _) {
+        setupHandler(ref);
+      }, overrides: [
+        settingsProvider.overrideWith(MockSettingsNotifierDisabled.new),
+      ]));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      final result = handler.handle(createKeyEvent(LogicalKeyboardKey.keyS));
+      expect(result, equals(KeyEventResult.handled)); // KeyEventResult is handled but it doesn't trigger the callback
+      expect(filterSortCalled, isFalse);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    });
     
     testWidgets('handles T for marker editor', (tester) async {
       await tester.pumpWidget(buildTestApp(tester, (ref, _) {
@@ -325,6 +376,7 @@ void main() {
             deleteCalled = true;
             expect(permanent, isFalse); // Shift not pressed in this simple test
           },
+          filterSort: () async {},
           closePreview: () {},
           navigatePlaylistHistoryBack: (r) {},
           navigatePlaylistHistoryForward: (r) {},
@@ -420,6 +472,7 @@ void main() {
           toggleFullscreen: () {},
           navigateMedia: (f) {},
           handleDelete: ({required bool permanent}) {},
+          filterSort: () async {},
           closePreview: () {},
           navigatePlaylistHistoryBack: (r) {},
           navigatePlaylistHistoryForward: (r) {},

@@ -13,8 +13,10 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:onyxcore/core/services/media_filter_service.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/widgets/bubble_loader.dart';
+import 'package:onyxcore/core/widgets/filter_sort_button.dart';
 import 'package:onyxcore/core/widgets/search_replace_overlay.dart';
 import 'package:onyxcore/core/widgets/viewer_top_bar.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
@@ -32,6 +34,11 @@ import 'package:window_manager/window_manager.dart';
 class SaveIntent extends Intent {
   const SaveIntent();
 }
+
+class FilterSortIntent extends Intent {
+  const FilterSortIntent();
+}
+
 
 class DualPaneIntent extends Intent {
   const DualPaneIntent();
@@ -240,7 +247,6 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
         }
       }
     });
-
     // On Linux/GTK, newly spawned windows may take a moment to be mapped by the OS.
     // A delayed focus request ensures the widget grabs focus after the window is fully active.
     Future.delayed(const Duration(milliseconds: 300), () async {
@@ -259,6 +265,31 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
         }
       }
     });
+  }
+
+  Future<void> _handleFilterSort() async {
+    try {
+      await MediaFilterService.moveToFiltered(widget.item.path);
+    } catch (e) {
+      debugPrint('[DocumentViewer] FilterSort: move failed: $e');
+      return;
+    }
+    
+    // Refresh directory since an item was moved
+    if (!widget.isStandalone) {
+      final repo = ref.read(directoryRepositoryProvider);
+      final currentPath = ref.read(currentPathProvider);
+      repo.invalidateCache(currentPath);
+      // ignore: unawaited_futures
+      ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+    }
+    
+    // Close the viewer
+    if (widget.isStandalone) {
+      windowManager.close();
+    } else {
+      ref.read(previewFileProvider.notifier).state = null;
+    }
   }
 
   void _onEditorScroll() {
@@ -732,10 +763,21 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
             const CloseIntent(),
         const SingleActivator(LogicalKeyboardKey.keyF):
             const FullscreenIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyS, alt: true):
+            const FilterSortIntent(),
         const SingleActivator(LogicalKeyboardKey.escape): const CloseIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
+          FilterSortIntent: CallbackAction<FilterSortIntent>(
+            onInvoke: (intent) {
+              final isFilterSortEnabled = ref.read(settingsProvider).value?.documentFilterSortEnabled ?? false;
+              if (isFilterSortEnabled) {
+                _handleFilterSort();
+              }
+              return null;
+            },
+          ),
           SaveIntent: CallbackAction<SaveIntent>(
             onInvoke: (intent) {
               if ((_isEditing || _isDualPane) && _hasChanges) _saveFile();
@@ -1000,6 +1042,17 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                       );
                     },
                     child: _buildSearchOverlay(),
+                  ),
+                
+                // ── Filter Sort Button (Alt+S) ────────────
+                if (ref.watch(settingsProvider).value?.documentFilterSortEnabled ?? false)
+                  Positioned(
+                    right: 20,
+                    bottom: 20,
+                    child: FilterSortButton(
+                      hudVisible: _isControlsVisible && (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible),
+                      onPressed: _handleFilterSort,
+                    ),
                   ),
               ],
             ),

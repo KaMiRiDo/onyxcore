@@ -24,6 +24,14 @@ class MockSettingsNotifier extends AsyncNotifier<AppSettings> implements Setting
   @override
   Future<void> setShowHiddenAudioFiles({required bool value}) async {}
   @override
+  Future<void> setImageFilterSortEnabled({required bool value}) async {}
+  @override
+  Future<void> setVideoFilterSortEnabled({required bool value}) async {}
+  @override
+  Future<void> setAudioFilterSortEnabled({required bool value}) async {}
+  @override
+  Future<void> setDocumentFilterSortEnabled({required bool value}) async {}
+  @override
   Future<void> setSnapshotPrefix(String value) async {}
   @override
   Future<void> setDoubleTapSeekSeconds(int value) async {}

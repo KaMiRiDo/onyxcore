@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onyxcore/core/services/media_filter_service.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
+import 'package:onyxcore/core/widgets/filter_sort_button.dart';
 import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/local_file_datasource.dart';
@@ -130,7 +132,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         });
 
     _keyboardHandler = ImageKeyboardHandler(
-      onClose: () => ref.read(previewFileProvider.notifier).state = null,
+      onClose: () {
+        if (widget.isStandalone) {
+          if (widget.windowId != null) {
+            PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
+          } else {
+            windowManager.hide();
+          }
+        } else {
+          ref.read(previewFileProvider.notifier).state = null;
+        }
+      },
       onDelete: _handleDelete,
       onToggleSidebar: () {
         final isOpen = ref.read(imagePlaylistSidebarVisibleProvider);
@@ -157,6 +169,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       isSidebarOpen: () => ref.read(imagePlaylistSidebarVisibleProvider),
       isStandalone: widget.isStandalone,
       isWindowed: widget.windowId != null,
+      getIsFilterSortEnabled: () => ref.read(settingsProvider).value?.imageFilterSortEnabled ?? false,
+      onFilterSort: _handleFilterSort,
     );
 
     _currentItem = widget.item;
@@ -495,15 +509,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   }
 
   void _onClearNavigation() {
-    if (widget.isStandalone) {
-      if (widget.windowId != null) {
-        PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
-      } else {
-        windowManager.hide();
-      }
-    } else {
-      ref.read(previewFileProvider.notifier).state = null;
-      ref.read(mainFocusNodeProvider).requestFocus();
+    if (mounted) {
+      setState(() {
+        _isEmpty = true;
+      });
     }
   }
 
@@ -513,6 +522,24 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     } else {
       _navigationController.navigateBackward(_currentItem);
     }
+  }
+
+  /// Moves the currently displayed image to the `Filtered` subfolder and then
+  /// shows the next image using the normal navigation flow.
+  Future<void> _handleFilterSort() async {
+    final itemToMove = _currentItem;
+    try {
+      await MediaFilterService.moveToFiltered(itemToMove.path);
+    } catch (e) {
+      debugPrint('[ImageViewer] FilterSort: move failed: $e');
+      return;
+    }
+    // Navigate to the next image (same as after deletion)
+    _navigationController.navigateAfterDeletion(itemToMove);
+
+    // Evict from queue directly to prevent it from showing up when navigating back
+    // without triggering a full cache rebuild.
+    _navigationController.removeFile(itemToMove.path);
   }
 
   Future<void> _handleDelete({required bool permanent}) async {
@@ -558,6 +585,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
     // Navigate first so UX feels responsive (image switches immediately)
     _navigationController.navigateAfterDeletion(deletingItem);
+    
+    // Evict from queue immediately
+    _navigationController.removeFile(deletingItem.path);
 
     try {
       await repo.deleteItems(
@@ -576,10 +606,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         builder: (ctx) => ViewerDeleteDialog(
           fileName: deletingItem.name,
           permanent: true,
-          onDontAskAgainChanged: null,
         ),
       );
-      if (confirmPermanent == true) {
+      if (confirmPermanent ?? false) {
         final permanentTaskId = ref
             .read(taskProvider.notifier)
             .addTask(
@@ -633,6 +662,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   @override
   Widget build(BuildContext context) {
+    final isFilterSortEnabled = ref.watch(settingsProvider).value?.imageFilterSortEnabled ?? false;
+
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -770,7 +801,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                         isNetworkStream: _isNetworkStream,
                                         itemPath: _currentItem.path,
                                         onPopOut: _openInNewWindow,
-                                        onClose: () => ref.read(previewFileProvider.notifier).state = null,
+                                        onClose: () {
+                                          if (widget.isStandalone) {
+                                            if (widget.windowId != null) {
+                                              PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
+                                            } else {
+                                              windowManager.hide();
+                                            }
+                                          } else {
+                                            ref.read(previewFileProvider.notifier).state = null;
+                                          }
+                                        },
                                       ),
                                     );
                                   },
@@ -837,6 +878,28 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                       child: ImageZoomIndicator(
                                         scale: _imageZoomController.currentScale,
                                       ),
+                                    );
+                                  },
+                                ),
+                              ),
+
+                              // ── Filter Sort Button (Alt+S) ────────────
+                              Positioned(
+                                right: 20,
+                                bottom: 20,
+                                child: ListenableBuilder(
+                                  listenable: _hudController,
+                                  builder: (context, child) {
+                                    final hudVisible = _hudController.isControlsVisible &&
+                                        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
+                                    
+                                    if (!isFilterSortEnabled) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    
+                                    return FilterSortButton(
+                                      hudVisible: hudVisible,
+                                      onPressed: _handleFilterSort,
                                     );
                                   },
                                 ),
