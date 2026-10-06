@@ -1,0 +1,6 @@
+// Data layer for the duplicate_detection feature.
+//
+// Phase 1 establishes this directory as the home for future data-layer
+// implementations (repository impls, data sources, isolate workers).
+//
+// No implementations are provided in Phase 1.

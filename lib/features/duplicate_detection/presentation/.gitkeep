@@ -1,0 +1,8 @@
+// Presentation layer boundary for the duplicate_detection feature.
+//
+// Phase 1 establishes this directory as the future home for:
+// - the dedicated comparison window (Phase 4);
+// - progress indicators and state providers.
+//
+// No UI components are implemented in Phase 1.
+// Do NOT add Flutter-widget code to this feature in Phase 1.
