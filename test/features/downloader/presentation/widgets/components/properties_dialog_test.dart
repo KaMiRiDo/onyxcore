@@ -21,9 +21,13 @@ void main() {
         id: '1',
         title: 'Sample Media',
         originalUrl: 'https://example.com/video',
-        fetchLogs: 'Log line 1\nLog line 2\nLog line 3\nLog line 4\nLog line 5\nLog line 6\nLog line 7\nLog line 8\nLog line 9\nLog line 10',
+        fetchLogs:
+            'Log line 1\nLog line 2\nLog line 3\nLog line 4\nLog line 5\nLog line 6\nLog line 7\nLog line 8\nLog line 9\nLog line 10',
       );
-      final group = MediaGroup(items: [item], originalUrl: 'https://example.com/video');
+      final group = MediaGroup(
+        items: [item],
+        originalUrl: 'https://example.com/video',
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -83,17 +87,17 @@ void main() {
         originalUrl: 'https://example.com/error',
         isError: true,
         errorMessage: 'Extraction failed: Playwright not found',
-        fetchLogs: 'Error Trace: Timeout waiting for selector\nFailed to extract',
+        fetchLogs:
+            'Error Trace: Timeout waiting for selector\nFailed to extract',
       );
-      final group = MediaGroup(items: [item], originalUrl: 'https://example.com/error');
+      final group = MediaGroup(
+        items: [item],
+        originalUrl: 'https://example.com/error',
+      );
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: PropertiesDialog(
-              selectedItems: [group],
-            ),
-          ),
+          home: Scaffold(body: PropertiesDialog(selectedItems: [group])),
         ),
       );
 
@@ -149,11 +153,7 @@ void main() {
       // Total expected: 72876032 + 16693248 = 89569280 bytes = 85.42 MB
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: PropertiesDialog(
-              selectedItems: [group],
-            ),
-          ),
+          home: Scaffold(body: PropertiesDialog(selectedItems: [group])),
         ),
       );
 
@@ -194,9 +194,7 @@ void main() {
         originalUrl: 'https://www.youtube.com/watch?v=custom',
       );
 
-      final config = DownloadConfig(
-        itemFormats: {'vid1': videoFormat720},
-      );
+      final config = DownloadConfig(itemFormats: {'vid1': videoFormat720});
 
       await tester.pumpWidget(
         MaterialApp(
@@ -238,18 +236,17 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: PropertiesDialog(
-              selectedItems: [group],
-            ),
-          ),
+          home: Scaffold(body: PropertiesDialog(selectedItems: [group])),
         ),
       );
 
       await tester.pumpAndSettle();
 
       expect(find.text('Source URL'), findsOneWidget);
-      expect(find.text('https://custom-extractor.com/media/123'), findsOneWidget);
+      expect(
+        find.text('https://custom-extractor.com/media/123'),
+        findsOneWidget,
+      );
     },
   );
 }

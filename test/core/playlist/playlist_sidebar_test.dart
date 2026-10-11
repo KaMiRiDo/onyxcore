@@ -17,36 +17,35 @@ import 'package:onyxcore/features/directory_browser/domain/repositories/director
 
 class MockDirectoryRepository extends Mock implements DirectoryRepository {}
 
+Future<void> simulateKeyDownEvent(LogicalKeyboardKey key) async {
+  await ServicesBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
+    SystemChannels.keyEvent.name,
+    SystemChannels.keyEvent.codec.encodeMessage({
+      'type': 'keydown',
+      'keymap': 'linux',
+      'toolkit': 'gtk',
+      'keyCode': key.keyId,
+      'scanCode': 0,
+      'modifiers': 0,
+    }),
+    (ByteData? data) {},
+  );
+}
 
-  Future<void> simulateKeyDownEvent(LogicalKeyboardKey key) async {
-    await ServicesBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
-      SystemChannels.keyEvent.name,
-      SystemChannels.keyEvent.codec.encodeMessage({
-        'type': 'keydown',
-        'keymap': 'linux',
-        'toolkit': 'gtk',
-        'keyCode': key.keyId,
-        'scanCode': 0,
-        'modifiers': 0,
-      }),
-      (ByteData? data) {},
-    );
-  }
-
-  Future<void> simulateKeyUpEvent(LogicalKeyboardKey key) async {
-    await ServicesBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
-      SystemChannels.keyEvent.name,
-      SystemChannels.keyEvent.codec.encodeMessage({
-        'type': 'keyup',
-        'keymap': 'linux',
-        'toolkit': 'gtk',
-        'keyCode': key.keyId,
-        'scanCode': 0,
-        'modifiers': 0,
-      }),
-      (ByteData? data) {},
-    );
-  }
+Future<void> simulateKeyUpEvent(LogicalKeyboardKey key) async {
+  await ServicesBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
+    SystemChannels.keyEvent.name,
+    SystemChannels.keyEvent.codec.encodeMessage({
+      'type': 'keyup',
+      'keymap': 'linux',
+      'toolkit': 'gtk',
+      'keyCode': key.keyId,
+      'scanCode': 0,
+      'modifiers': 0,
+    }),
+    (ByteData? data) {},
+  );
+}
 
 void main() {
   late AppDatabase db;
@@ -90,75 +89,101 @@ void main() {
 
   Widget buildTestWidget({List<dynamic> overrides = const []}) {
     return ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        ...overrides.cast()
-      ],
+      overrides: [databaseProvider.overrideWithValue(db), ...overrides.cast()],
       child: const MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 300,
-            child: PlaylistSidebar(),
-          ),
-        ),
+        home: Scaffold(body: SizedBox(width: 300, child: PlaylistSidebar())),
       ),
     );
   }
 
   group('PlaylistSidebar Empty States', () {
-    testWidgets('display "No audio files found" when Home queue is empty (W-AUD-SIDE-01)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => []),
-        audioViewModeProvider.overrideWith((ref) => AudioViewMode.home),
-      ]));
+    testWidgets(
+      'display "No audio files found" when Home queue is empty (W-AUD-SIDE-01)',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            overrides: [
+              audioQueueProvider.overrideWith((ref) => []),
+              audioViewModeProvider.overrideWith((ref) => AudioViewMode.home),
+            ],
+          ),
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      expect(find.text('No audio files found'), findsOneWidget);
-    });
+        expect(find.text('No audio files found'), findsOneWidget);
+      },
+    );
 
-    testWidgets('display "No favorite files in this folder" when Favorites queue is empty (W-AUD-SIDE-02)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => []),
-        audioViewModeProvider.overrideWith((ref) => AudioViewMode.favorites),
-      ]));
+    testWidgets(
+      'display "No favorite files in this folder" when Favorites queue is empty (W-AUD-SIDE-02)',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            overrides: [
+              audioQueueProvider.overrideWith((ref) => []),
+              audioViewModeProvider.overrideWith(
+                (ref) => AudioViewMode.favorites,
+              ),
+            ],
+          ),
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      expect(find.text('No favorite files in this folder'), findsOneWidget);
-    });
+        expect(find.text('No favorite files in this folder'), findsOneWidget);
+      },
+    );
   });
 
   group('PlaylistSidebar UI Elements', () {
-    testWidgets('render header title "Home" for home view mode (W-AUD-SIDE-34)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioViewModeProvider.overrideWith((ref) => AudioViewMode.home),
-      ]));
+    testWidgets(
+      'render header title "Home" for home view mode (W-AUD-SIDE-34)',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            overrides: [
+              audioViewModeProvider.overrideWith((ref) => AudioViewMode.home),
+            ],
+          ),
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      final headerFinder = find.descendant(
-        of: find.byType(Container),
-        matching: find.text('Home'),
-      );
-      expect(headerFinder, findsWidgets);
-    });
+        final headerFinder = find.descendant(
+          of: find.byType(Container),
+          matching: find.text('Home'),
+        );
+        expect(headerFinder, findsWidgets);
+      },
+    );
 
-    testWidgets('render header title "Favorites" for favorites view mode (W-AUD-SIDE-35)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioViewModeProvider.overrideWith((ref) => AudioViewMode.favorites),
-      ]));
+    testWidgets(
+      'render header title "Favorites" for favorites view mode (W-AUD-SIDE-35)',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            overrides: [
+              audioViewModeProvider.overrideWith(
+                (ref) => AudioViewMode.favorites,
+              ),
+            ],
+          ),
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      final headerFinder = find.descendant(
-        of: find.byType(Container),
-        matching: find.text('Favorites'),
-      );
-      expect(headerFinder, findsWidgets);
-    });
+        final headerFinder = find.descendant(
+          of: find.byType(Container),
+          matching: find.text('Favorites'),
+        );
+        expect(headerFinder, findsWidgets);
+      },
+    );
 
-    testWidgets('use TooltipIfTruncated for item titles (W-AUD-SIDE-55)', (tester) async {
+    testWidgets('use TooltipIfTruncated for item titles (W-AUD-SIDE-55)', (
+      tester,
+    ) async {
       final longNameFile = FileItem(
         name: 'A very very long song name that will definitely truncate.mp3',
         path: '/music/long.mp3',
@@ -166,10 +191,14 @@ void main() {
         modified: DateTime.now(),
       );
 
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => [longNameFile]),
-        audioPlayingQueueProvider.overrideWith((ref) => [longNameFile]),
-      ]));
+      await tester.pumpWidget(
+        buildTestWidget(
+          overrides: [
+            audioQueueProvider.overrideWith((ref) => [longNameFile]),
+            audioPlayingQueueProvider.overrideWith((ref) => [longNameFile]),
+          ],
+        ),
+      );
 
       await tester.pump();
 
@@ -178,10 +207,18 @@ void main() {
   });
 
   group('PlaylistSidebar Selection & Interaction', () {
-    testWidgets('handle single click to select one item (W-AUD-SIDE-04)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => [dummyFile1, dummyFile2, dummyFile3]),
-      ]));
+    testWidgets('handle single click to select one item (W-AUD-SIDE-04)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          overrides: [
+            audioQueueProvider.overrideWith(
+              (ref) => [dummyFile1, dummyFile2, dummyFile3],
+            ),
+          ],
+        ),
+      );
 
       await tester.pumpAndSettle();
 
@@ -194,50 +231,82 @@ void main() {
       expect(container.read(audioSelectionProvider), {dummyFile2.path});
     });
 
-    testWidgets('handle Ctrl+Click to add item to selection (W-AUD-SIDE-05)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => [dummyFile1, dummyFile2, dummyFile3]),
-      ]));
+    testWidgets('handle Ctrl+Click to add item to selection (W-AUD-SIDE-05)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          overrides: [
+            audioQueueProvider.overrideWith(
+              (ref) => [dummyFile1, dummyFile2, dummyFile3],
+            ),
+          ],
+        ),
+      );
 
       await tester.pumpAndSettle();
 
       // Tap Song 1
       // Inject control key state manually via ServicesBinding for the duration of both taps
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      
+
       // Directly invoke onTap to avoid test framework pointer event side effects clearing keyboard state
       final song1Gesture = tester.widget<GestureDetector>(
-        find.ancestor(of: find.text('Song 1.mp3'), matching: find.byType(GestureDetector)).first
+        find
+            .ancestor(
+              of: find.text('Song 1.mp3'),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
       );
       song1Gesture.onTap?.call();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pumpAndSettle();
 
       final song3Gesture = tester.widget<GestureDetector>(
-        find.ancestor(of: find.text('Song 3.mp3'), matching: find.byType(GestureDetector)).first
+        find
+            .ancestor(
+              of: find.text('Song 3.mp3'),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
       );
       song3Gesture.onTap?.call();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pumpAndSettle();
-      
+
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
 
       final element = tester.element(find.byType(PlaylistSidebar));
       final container = ProviderScope.containerOf(element);
-      
-      expect(container.read(audioSelectionProvider), {dummyFile1.path, dummyFile3.path});
+
+      expect(container.read(audioSelectionProvider), {
+        dummyFile1.path,
+        dummyFile3.path,
+      });
     });
 
-    testWidgets('show context menu on right click (W-AUD-SIDE-17)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => [dummyFile1]),
-      ]));
+    testWidgets('show context menu on right click (W-AUD-SIDE-17)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          overrides: [
+            audioQueueProvider.overrideWith((ref) => [dummyFile1]),
+          ],
+        ),
+      );
 
       await tester.pumpAndSettle();
 
       // Simulate right click using direct invocation for guaranteed secondary button event
       final song1Gesture = tester.widget<GestureDetector>(
-        find.ancestor(of: find.text('Song 1.mp3'), matching: find.byType(GestureDetector)).first
+        find
+            .ancestor(
+              of: find.text('Song 1.mp3'),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
       );
       song1Gesture.onSecondaryTapDown?.call(TapDownDetails());
       await tester.pump(const Duration(milliseconds: 100));
@@ -250,42 +319,57 @@ void main() {
       expect(container.read(audioSelectionProvider), {dummyFile1.path});
     });
 
-    testWidgets('clear selection when tapping empty background (W-AUD-SIDE-42)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => [dummyFile1]),
-      ]));
+    testWidgets(
+      'clear selection when tapping empty background (W-AUD-SIDE-42)',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            overrides: [
+              audioQueueProvider.overrideWith((ref) => [dummyFile1]),
+            ],
+          ),
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Song 1.mp3'));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Song 1.mp3'));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
 
-      final element = tester.element(find.byType(PlaylistSidebar));
-      final container = ProviderScope.containerOf(element);
-      expect(container.read(audioSelectionProvider), {dummyFile1.path});
+        final element = tester.element(find.byType(PlaylistSidebar));
+        final container = ProviderScope.containerOf(element);
+        expect(container.read(audioSelectionProvider), {dummyFile1.path});
 
-      // Tap empty space (bottom of the ListView)
-      await tester.tapAt(const Offset(150, 500));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
+        // Tap empty space (bottom of the ListView)
+        await tester.tapAt(const Offset(150, 500));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
 
-      expect(container.read(audioSelectionProvider), isEmpty);
-    });
+        expect(container.read(audioSelectionProvider), isEmpty);
+      },
+    );
   });
 
-
   group('PlaylistSidebar Navigation & Double Clicks', () {
-
-    testWidgets('double click file to play (W-AUD-SIDE-12, 13)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => [dummyFile1]),
-      ]));
+    testWidgets('double click file to play (W-AUD-SIDE-12, 13)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          overrides: [
+            audioQueueProvider.overrideWith((ref) => [dummyFile1]),
+          ],
+        ),
+      );
       await tester.pumpAndSettle();
 
-
       final fileGesture = tester.widget<GestureDetector>(
-        find.ancestor(of: find.text('Song 1.mp3'), matching: find.byType(GestureDetector)).first
+        find
+            .ancestor(
+              of: find.text('Song 1.mp3'),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
       );
       fileGesture.onDoubleTap?.call();
       await tester.pump(const Duration(milliseconds: 200));
@@ -298,12 +382,12 @@ void main() {
     });
   });
 
-  group('PlaylistSidebar Breadcrumbs & Hidden Files', () {
-
-  });
+  group('PlaylistSidebar Breadcrumbs & Hidden Files', () {});
 
   group('PlaylistSidebar Search & Sort', () {
-    testWidgets('update search query on text input (W-AUD-SIDE-36, 50)', (tester) async {
+    testWidgets('update search query on text input (W-AUD-SIDE-36, 50)', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -320,18 +404,24 @@ void main() {
   });
 
   group('PlaylistSidebar _TrackTile Specifics', () {
-    testWidgets('apply styling for currently playing track (W-AUD-SIDE-24, 25, 31)', (tester) async {
-      await tester.pumpWidget(buildTestWidget(overrides: [
-        audioQueueProvider.overrideWith((ref) => [dummyFile1]),
-        currentTrackProvider.overrideWith((ref) => dummyFile1),
-      ]));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'apply styling for currently playing track (W-AUD-SIDE-24, 25, 31)',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(
+            overrides: [
+              audioQueueProvider.overrideWith((ref) => [dummyFile1]),
+              currentTrackProvider.overrideWith((ref) => dummyFile1),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Check if it renders PlayingEqAnimation or pause icon
-      // Since mock player isn't fully active, we just verify it pumps without crashing
-      // and finds the TrackTile with dummyFile1.
-      expect(find.text('Song 1.mp3'), findsOneWidget);
-    });
+        // Check if it renders PlayingEqAnimation or pause icon
+        // Since mock player isn't fully active, we just verify it pumps without crashing
+        // and finds the TrackTile with dummyFile1.
+        expect(find.text('Song 1.mp3'), findsOneWidget);
+      },
+    );
   });
-
 }

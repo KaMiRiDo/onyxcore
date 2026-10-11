@@ -20,7 +20,10 @@ class DummyAudioFavoritesNotifier extends AudioFavoritesNotifier {
 Future<Uint8List> createTestImage() async {
   final recorder = ui.PictureRecorder();
   final canvas = ui.Canvas(recorder);
-  canvas.drawRect(const Rect.fromLTWH(0, 0, 1, 1), ui.Paint()..color = Colors.black);
+  canvas.drawRect(
+    const Rect.fromLTWH(0, 0, 1, 1),
+    ui.Paint()..color = Colors.black,
+  );
   final picture = recorder.endRecording();
   final image = await picture.toImage(1, 1);
   final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -34,31 +37,26 @@ void main() {
   setUpAll(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('onyxcore/window_manager'),
-      (MethodCall methodCall) async {
-        return null;
-      },
-    );
+          const MethodChannel('onyxcore/window_manager'),
+          (MethodCall methodCall) async {
+            return null;
+          },
+        );
     MediaKit.ensureInitialized();
     validPngBytes = await createTestImage();
   });
 
-  Widget buildTestWidget({
-    required FileItem? currentTrack,
-    Tag? tag,
-  }) {
+  Widget buildTestWidget({required FileItem? currentTrack, Tag? tag}) {
     return ProviderScope(
       key: UniqueKey(),
       overrides: [
         currentTrackProvider.overrideWith((ref) => currentTrack),
         audioTagsProvider.overrideWith((ref, arg) => Future.value(tag)),
-        audioFavoritesProvider.overrideWith((ref) => DummyAudioFavoritesNotifier()),
-      ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: HeroAudioPlayer(),
+        audioFavoritesProvider.overrideWith(
+          (ref) => DummyAudioFavoritesNotifier(),
         ),
-      ),
+      ],
+      child: const MaterialApp(home: Scaffold(body: HeroAudioPlayer())),
     );
   }
 
@@ -68,13 +66,15 @@ void main() {
       expect(find.byType(SizedBox), findsWidgets);
       // Wait for timers
       await tester.pump(const Duration(seconds: 3));
-      
+
       // Clean up the widget tree
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
     });
 
-    testWidgets('renders properly with a currentTrack without tags', (tester) async {
+    testWidgets('renders properly with a currentTrack without tags', (
+      tester,
+    ) async {
       final file = FileItem(
         path: '/test.mp3',
         name: 'test.mp3',
@@ -88,13 +88,15 @@ void main() {
 
       // Wait to trigger AutoScrollingText ticker
       await tester.pump(const Duration(seconds: 3));
-      
+
       // Clean up the widget tree
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
     });
 
-    testWidgets('renders properly with a currentTrack with tags', (tester) async {
+    testWidgets('renders properly with a currentTrack with tags', (
+      tester,
+    ) async {
       final file = FileItem(
         path: '/test.mp3',
         name: 'test.mp3',
@@ -110,7 +112,7 @@ void main() {
             pictureType: PictureType.coverFront,
             mimeType: MimeType.png,
             bytes: validPngBytes,
-          )
+          ),
         ],
       );
 
@@ -148,7 +150,7 @@ void main() {
 
       await tester.pumpWidget(buildAutoScrollingText('Text 1'));
       await tester.pump(const Duration(seconds: 3));
-      
+
       // Update with new text
       await tester.pumpWidget(buildAutoScrollingText('Text 2'));
       await tester.pump(const Duration(seconds: 3));

@@ -37,7 +37,9 @@ void main() {
     );
   }
 
-  testWidgets('renders file size on top right badge when available', (tester) async {
+  testWidgets('renders file size on top right badge when available', (
+    tester,
+  ) async {
     final group = MediaGroup(
       originalUrl: 'https://example.com/item',
       items: [
@@ -57,53 +59,61 @@ void main() {
     expect(find.text('10.00MB'), findsOneWidget);
   });
 
-  testWidgets('renders Unknown and NEVER resolution on badge when size is missing for image', (tester) async {
-    final group = MediaGroup(
-      originalUrl: 'https://example.com/item',
-      items: [
-        MediaInfo(
-          id: 'item2',
-          title: 'Photo without size',
-          originalUrl: 'https://example.com/item2',
-          isVideo: false,
-          width: 1920,
-          height: 1080,
-        ),
-      ],
-    );
+  testWidgets(
+    'renders Unknown and NEVER resolution on badge when size is missing for image',
+    (tester) async {
+      final group = MediaGroup(
+        originalUrl: 'https://example.com/item',
+        items: [
+          MediaInfo(
+            id: 'item2',
+            title: 'Photo without size',
+            originalUrl: 'https://example.com/item2',
+            isVideo: false,
+            width: 1920,
+            height: 1080,
+          ),
+        ],
+      );
 
-    await tester.pumpWidget(buildGrid(groups: [group]));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(buildGrid(groups: [group]));
+      await tester.pumpAndSettle();
 
-    // Should NOT show resolution 1920x1080
-    expect(find.text('1920x1080'), findsNothing);
-    // Should show Unknown
-    expect(find.text('Unknown'), findsOneWidget);
-  });
+      // Should NOT show resolution 1920x1080
+      expect(find.text('1920x1080'), findsNothing);
+      // Should show Unknown
+      expect(find.text('Unknown'), findsOneWidget);
+    },
+  );
 
-  testWidgets('renders Unknown and NEVER duration on badge when size is missing for video', (tester) async {
-    final group = MediaGroup(
-      originalUrl: 'https://example.com/item',
-      items: [
-        MediaInfo(
-          id: 'item3',
-          title: 'Video without size',
-          originalUrl: 'https://example.com/item3',
-          duration: 125, // 2:05
-        ),
-      ],
-    );
+  testWidgets(
+    'renders Unknown and NEVER duration on badge when size is missing for video',
+    (tester) async {
+      final group = MediaGroup(
+        originalUrl: 'https://example.com/item',
+        items: [
+          MediaInfo(
+            id: 'item3',
+            title: 'Video without size',
+            originalUrl: 'https://example.com/item3',
+            duration: 125, // 2:05
+          ),
+        ],
+      );
 
-    await tester.pumpWidget(buildGrid(groups: [group]));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(buildGrid(groups: [group]));
+      await tester.pumpAndSettle();
 
-    // Should NOT show duration 2:05
-    expect(find.text('2:05'), findsNothing);
-    // Should show Unknown
-    expect(find.text('Unknown'), findsOneWidget);
-  });
+      // Should NOT show duration 2:05
+      expect(find.text('2:05'), findsNothing);
+      // Should show Unknown
+      expect(find.text('Unknown'), findsOneWidget);
+    },
+  );
 
-  testWidgets('renders combined file size for multi-item group in root view', (tester) async {
+  testWidgets('renders combined file size for multi-item group in root view', (
+    tester,
+  ) async {
     final group = MediaGroup(
       originalUrl: 'https://example.com/multi',
       items: [
@@ -144,10 +154,7 @@ void main() {
       items: [itemA],
     );
 
-    await tester.pumpWidget(buildGrid(
-      groups: [group],
-      currentGroup: group,
-    ));
+    await tester.pumpWidget(buildGrid(groups: [group], currentGroup: group));
     await tester.pumpAndSettle();
 
     expect(find.text('2.50MB'), findsOneWidget);

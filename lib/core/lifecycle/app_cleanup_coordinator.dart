@@ -21,13 +21,17 @@ class AppCleanupCoordinator {
     try {
       thumbnailCleanup();
     } catch (e, st) {
-      debugPrint('[AppCleanupCoordinator] Error during thumbnail cleanup: $e\n$st');
+      debugPrint(
+        '[AppCleanupCoordinator] Error during thumbnail cleanup: $e\n$st',
+      );
     }
 
     try {
       archiveCleanup();
     } catch (e, st) {
-      debugPrint('[AppCleanupCoordinator] Error during archive cleanup: $e\n$st');
+      debugPrint(
+        '[AppCleanupCoordinator] Error during archive cleanup: $e\n$st',
+      );
     }
   }
 }

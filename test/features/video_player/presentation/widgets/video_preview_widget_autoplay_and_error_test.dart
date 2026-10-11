@@ -25,10 +25,22 @@ void main() {
     await db.close();
   });
 
-  testWidgets('Error state resets when navigating to a new valid video', (WidgetTester tester) async {
-    final invalidFile = FileItem(path: '/test/invalid_video.mp4', name: 'invalid.mp4', type: FileItemType.video, modified: DateTime.now());
-    final validFile = FileItem(path: '/test/valid_video.mp4', name: 'valid.mp4', type: FileItemType.video, modified: DateTime.now());
-    
+  testWidgets('Error state resets when navigating to a new valid video', (
+    WidgetTester tester,
+  ) async {
+    final invalidFile = FileItem(
+      path: '/test/invalid_video.mp4',
+      name: 'invalid.mp4',
+      type: FileItemType.video,
+      modified: DateTime.now(),
+    );
+    final validFile = FileItem(
+      path: '/test/valid_video.mp4',
+      name: 'valid.mp4',
+      type: FileItemType.video,
+      modified: DateTime.now(),
+    );
+
     final playlist = [invalidFile, validFile];
     final playlistJson = jsonEncode(playlist.map((e) => e.toJson()).toList());
 
@@ -37,18 +49,14 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-        ],
+        overrides: [databaseProvider.overrideWithValue(db)],
         child: MaterialApp(
           home: Scaffold(
             body: VideoPreviewWidget(
               item: invalidFile,
               isStandalone: true,
               windowId: '1',
-              initParams: {
-                'playlistJson': playlistJson,
-              },
+              initParams: {'playlistJson': playlistJson},
             ),
           ),
         ),
@@ -59,35 +67,50 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
+    final widgetState =
+        tester.state(find.byType(VideoPreviewWidget)) as dynamic;
 
-    final widgetState = tester.state(find.byType(VideoPreviewWidget)) as dynamic;
-    
     // Force error state
     // ignore: avoid_dynamic_calls
     widgetState.setErrorForTest('Failed to play video');
     await tester.pump();
-    
+
     // Verify error is shown
-    expect(find.textContaining('Failed to play'), findsWidgets, reason: 'Error overlay should be visible');
-    
+    expect(
+      find.textContaining('Failed to play'),
+      findsWidgets,
+      reason: 'Error overlay should be visible',
+    );
+
     // Now navigate to the next (valid) video
     final nextButton = find.byIcon(Icons.skip_next);
     expect(nextButton, findsOneWidget);
-    
+
     await tester.tap(nextButton);
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
 
     // The error should be gone because the state was reset
-    expect(find.textContaining('Failed to play'), findsNothing, reason: 'Error should be cleared on new media load');
+    expect(
+      find.textContaining('Failed to play'),
+      findsNothing,
+      reason: 'Error should be cleared on new media load',
+    );
 
     // Cleanup
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('Non-fatal error decoding audio does not block playback', (WidgetTester tester) async {
-    final validFile = FileItem(path: '/test/valid_video.mp4', name: 'valid.mp4', type: FileItemType.video, modified: DateTime.now());
+  testWidgets('Non-fatal error decoding audio does not block playback', (
+    WidgetTester tester,
+  ) async {
+    final validFile = FileItem(
+      path: '/test/valid_video.mp4',
+      name: 'valid.mp4',
+      type: FileItemType.video,
+      modified: DateTime.now(),
+    );
     final playlist = [validFile];
     final playlistJson = jsonEncode(playlist.map((e) => e.toJson()).toList());
 
@@ -96,18 +119,14 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-        ],
+        overrides: [databaseProvider.overrideWithValue(db)],
         child: MaterialApp(
           home: Scaffold(
             body: VideoPreviewWidget(
               item: validFile,
               isStandalone: true,
               windowId: '1',
-              initParams: {
-                'playlistJson': playlistJson,
-              },
+              initParams: {'playlistJson': playlistJson},
             ),
           ),
         ),
@@ -118,16 +137,21 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
-    final widgetState = tester.state(find.byType(VideoPreviewWidget)) as dynamic;
-    
+    final widgetState =
+        tester.state(find.byType(VideoPreviewWidget)) as dynamic;
+
     // Force non-fatal error state
     // ignore: avoid_dynamic_calls
     widgetState.setErrorForTest('Error decoding audio.');
     await tester.pump();
-    
+
     // Verify error is NOT shown because it's non-fatal
-    expect(find.textContaining('Error decoding audio.'), findsNothing, reason: 'Non-fatal error overlay should NOT be visible');
-    
+    expect(
+      find.textContaining('Error decoding audio.'),
+      findsNothing,
+      reason: 'Non-fatal error overlay should NOT be visible',
+    );
+
     // Cleanup
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));

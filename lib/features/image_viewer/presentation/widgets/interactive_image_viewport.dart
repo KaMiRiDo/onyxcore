@@ -43,7 +43,9 @@ class InteractiveImageViewport extends ConsumerWidget {
             transformationController: zoomController.transformationController,
             minScale: 1,
             maxScale: 15,
-            panEnabled: !zoomController.isPanZoomGesture && (isReadyForInteraction || isStandalone),
+            panEnabled:
+                !zoomController.isPanZoomGesture &&
+                (isReadyForInteraction || isStandalone),
             scaleEnabled: false,
             child: GestureDetector(
               onTap: () {

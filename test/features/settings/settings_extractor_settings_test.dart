@@ -8,19 +8,19 @@ void main() {
         customExtractorsEnabled: true,
         extractorBrowser: 'chrome',
       );
-      
+
       expect(settings.customExtractorsEnabled, true);
       expect(settings.extractorBrowser, 'chrome');
     });
 
     test('copyWith supports new fields', () {
       const settings = AppSettings();
-      
+
       final modified = settings.copyWith(
         customExtractorsEnabled: true,
         extractorBrowser: 'chrome',
       );
-      
+
       expect(modified.customExtractorsEnabled, true);
       expect(modified.extractorBrowser, 'chrome');
     });
@@ -30,7 +30,7 @@ void main() {
         customExtractorsEnabled: true,
         extractorBrowser: 'chrome',
       );
-      
+
       expect(settings.props.contains(true), true);
       expect(settings.props.contains('chrome'), true);
     });

@@ -9,7 +9,7 @@ void main() {
   group('TabState', () {
     test('default constructor sets up correct defaults', () {
       final state = TabState(id: 'tab1', currentPath: '/opt');
-      
+
       expect(state.id, 'tab1');
       expect(state.currentPath, '/opt');
       expect(state.history, isEmpty);
@@ -27,35 +27,57 @@ void main() {
 
     test('title returns correct display names based on currentPath', () {
       expect(TabState(id: '1', currentPath: '/').title, 'Root');
-      
+
       final homePath = Platform.environment['HOME'] ?? '/home/user';
       expect(TabState(id: '2', currentPath: homePath).title, 'Home');
 
-      expect(TabState(id: '3', currentPath: '.local/share/Trash/files').title, 'Trash');
+      expect(
+        TabState(id: '3', currentPath: '.local/share/Trash/files').title,
+        'Trash',
+      );
       expect(TabState(id: '4', currentPath: 'trash:///').title, 'Trash');
 
-      expect(TabState(id: '5', currentPath: '/some/nested/folder').title, 'folder');
+      expect(
+        TabState(id: '5', currentPath: '/some/nested/folder').title,
+        'folder',
+      );
     });
 
     test('canGoBack is true only when historyIndex > 0', () {
       expect(TabState(id: '1', currentPath: '/').canGoBack, isFalse);
-      expect(TabState(id: '1', currentPath: '/', historyIndex: 1).canGoBack, isTrue);
+      expect(
+        TabState(id: '1', currentPath: '/', historyIndex: 1).canGoBack,
+        isTrue,
+      );
     });
 
-    test('canGoForward is true only when historyIndex < history.length - 1', () {
-      expect(
-        TabState(id: '1', currentPath: '/', history: ['/a', '/b'], historyIndex: 1).canGoForward, 
-        isFalse
-      );
-      expect(
-        TabState(id: '1', currentPath: '/', history: ['/a', '/b', '/c'], historyIndex: 1).canGoForward, 
-        isTrue
-      );
-    });
+    test(
+      'canGoForward is true only when historyIndex < history.length - 1',
+      () {
+        expect(
+          TabState(
+            id: '1',
+            currentPath: '/',
+            history: ['/a', '/b'],
+            historyIndex: 1,
+          ).canGoForward,
+          isFalse,
+        );
+        expect(
+          TabState(
+            id: '1',
+            currentPath: '/',
+            history: ['/a', '/b', '/c'],
+            historyIndex: 1,
+          ).canGoForward,
+          isTrue,
+        );
+      },
+    );
 
     test('copyWith updates fields correctly', () {
       final state = TabState(id: 'tab1', currentPath: '/opt');
-      
+
       final updated = state.copyWith(
         id: 'tab2',
         currentPath: '/home',
@@ -103,7 +125,7 @@ void main() {
         sortSettings: const SortSettings(option: SortOption.lastModified),
         filterSettings: const FilterSettings(foldersOnly: true),
       );
-      
+
       final updated = state.copyWith();
 
       expect(updated.id, state.id);

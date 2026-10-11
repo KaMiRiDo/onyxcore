@@ -7,7 +7,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/filter_setti
 void main() {
   group('FilterSettings', () {
     final tDate = DateTime(2023);
-    
+
     final itemToday = FileItem(
       path: '/today.txt',
       name: 'today.txt',
@@ -36,7 +36,10 @@ void main() {
     test('isEmpty returns false when at least one field is set', () {
       expect(const FilterSettings(selectedDates: {}).isEmpty, isFalse);
       expect(const FilterSettings(foldersOnly: true).isEmpty, isFalse);
-      expect(const FilterSettings(category: FileItemType.image).isEmpty, isFalse);
+      expect(
+        const FilterSettings(category: FileItemType.image).isEmpty,
+        isFalse,
+      );
       expect(const FilterSettings(extensions: {'.jpg'}).isEmpty, isFalse);
     });
 
@@ -96,7 +99,7 @@ void main() {
         category: FileItemType.video,
         extensions: const {'.mp4'},
       );
-      
+
       final updated = settings.copyWith();
 
       expect(updated.selectedDates, {tDate});
@@ -113,7 +116,7 @@ void main() {
     test('apply() filters by date', () {
       final settings = FilterSettings(selectedDates: {tDate});
       final filtered = settings.apply(allItems);
-      
+
       expect(filtered.length, 2);
       expect(filtered, contains(itemToday));
       expect(filtered, contains(folderToday));
@@ -122,7 +125,7 @@ void main() {
     test('apply() filters by foldersOnly = true', () {
       const settings = FilterSettings(foldersOnly: true);
       final filtered = settings.apply(allItems);
-      
+
       expect(filtered.length, 1);
       expect(filtered.first, folderToday);
     });
@@ -130,34 +133,43 @@ void main() {
     test('apply() filters by foldersOnly = false (files only)', () {
       const settings = FilterSettings(foldersOnly: false);
       final filtered = settings.apply(allItems);
-      
+
       expect(filtered.length, 2);
       expect(filtered, contains(itemToday));
       expect(filtered, contains(itemYesterday));
     });
 
-    test('apply() filters by category (ignoring folders unless foldersOnly is true)', () {
-      // category filters out folders unless foldersOnly is exactly true
-      const settings = FilterSettings(category: FileItemType.image);
-      final filtered = settings.apply(allItems);
-      
-      expect(filtered.length, 1);
-      expect(filtered.first, itemYesterday);
-    });
+    test(
+      'apply() filters by category (ignoring folders unless foldersOnly is true)',
+      () {
+        // category filters out folders unless foldersOnly is exactly true
+        const settings = FilterSettings(category: FileItemType.image);
+        final filtered = settings.apply(allItems);
 
-    test('apply() includes folders when category is set but foldersOnly = true', () {
-      const settings = FilterSettings(category: FileItemType.image, foldersOnly: true);
-      final filtered = settings.apply(allItems);
-      
-      // when foldersOnly is true, only folders should remain. The category filter for folders passes when foldersOnly is true.
-      expect(filtered.length, 1);
-      expect(filtered.first, folderToday);
-    });
+        expect(filtered.length, 1);
+        expect(filtered.first, itemYesterday);
+      },
+    );
+
+    test(
+      'apply() includes folders when category is set but foldersOnly = true',
+      () {
+        const settings = FilterSettings(
+          category: FileItemType.image,
+          foldersOnly: true,
+        );
+        final filtered = settings.apply(allItems);
+
+        // when foldersOnly is true, only folders should remain. The category filter for folders passes when foldersOnly is true.
+        expect(filtered.length, 1);
+        expect(filtered.first, folderToday);
+      },
+    );
 
     test('apply() filters by extensions', () {
       const settings = FilterSettings(extensions: {'.jpg'});
       final filtered = settings.apply(allItems);
-      
+
       // extensions don't filter folders, only files
       expect(filtered.length, 2);
       expect(filtered, contains(itemYesterday)); // file matching extension
@@ -170,11 +182,10 @@ void main() {
         extensions: {'.jpg'}, // Only .jpg
       );
       final filtered = settings.apply(allItems);
-      
+
       // Folder doesn't match date, today.txt doesn't match date or ext
       expect(filtered.length, 1);
       expect(filtered.first, itemYesterday);
     });
   });
 }
-

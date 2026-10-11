@@ -407,9 +407,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                                   ),
                                   prefixIcon: Padding(
                                     padding: const EdgeInsets.all(12),
-                                    child: _buildGradientIcon(
-                                      Icons.search,
-                                    ),
+                                    child: _buildGradientIcon(Icons.search),
                                   ),
                                 ),
                               ),
@@ -461,8 +459,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                     return _buildActionIcon(
                       icon: Icons.sort_rounded,
                       onPressed: () {
-                        final box =
-                            context.findRenderObject()! as RenderBox;
+                        final box = context.findRenderObject()! as RenderBox;
                         final position = box.localToGlobal(Offset.zero);
                         SortOverlay.show(
                           context: context,
@@ -496,8 +493,7 @@ class _TopBarState extends ConsumerState<TopBar> {
                       return _buildActionIcon(
                         icon: Icons.tune_rounded,
                         onPressed: () {
-                          final box =
-                              context.findRenderObject()! as RenderBox;
+                          final box = context.findRenderObject()! as RenderBox;
                           final position = box.localToGlobal(Offset.zero);
                           FilterOverlay.show(
                             context: context,
@@ -901,10 +897,7 @@ class WindowButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _buildButton(
-          icon: Icons.remove,
-          onPressed: windowManager.minimize,
-        ),
+        _buildButton(icon: Icons.remove, onPressed: windowManager.minimize),
         const SizedBox(width: 8),
         _buildButton(
           icon: Icons.crop_square,
@@ -1032,7 +1025,9 @@ class _BreadcrumbSegmentState extends ConsumerState<BreadcrumbSegment> {
       },
       onAcceptWithDetails: (details) async {
         _hoverTimer?.cancel();
-        if (details.data.every((path) => p.dirname(path) == widget.targetPath)) {
+        if (details.data.every(
+          (path) => p.dirname(path) == widget.targetPath,
+        )) {
           return;
         }
 

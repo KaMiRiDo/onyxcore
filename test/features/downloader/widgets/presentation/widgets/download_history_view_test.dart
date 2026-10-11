@@ -14,11 +14,7 @@ void main() {
       container: container,
       child: const MaterialApp(
         home: Scaffold(
-          body: SizedBox(
-            width: 800,
-            height: 600,
-            child: DownloadHistoryView(),
-          ),
+          body: SizedBox(width: 800, height: 600, child: DownloadHistoryView()),
         ),
       ),
     );
@@ -29,11 +25,11 @@ void main() {
     late AppDatabase appDb;
 
     setUp(() {
-      appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+      appDb = AppDatabase.forTesting(
+        DatabaseConnection(NativeDatabase.memory()),
+      );
       container = ProviderContainer(
-        overrides: [
-          databaseProvider.overrideWithValue(appDb),
-        ],
+        overrides: [databaseProvider.overrideWithValue(appDb)],
       );
     });
 
@@ -42,7 +38,9 @@ void main() {
       appDb.close();
     });
 
-    testWidgets('Renders properly and handles lifecycle events', (tester) async {
+    testWidgets('Renders properly and handles lifecycle events', (
+      tester,
+    ) async {
       await tester.pumpWidget(createWidgetUnderTest(container));
       await tester.pumpAndSettle();
 
@@ -59,7 +57,10 @@ void main() {
         await tester.tap(backButton);
         await tester.pumpAndSettle();
       }
-      expect(container.read(downloadsPanelViewProvider), DownloadsPanelView.tasks);
+      expect(
+        container.read(downloadsPanelViewProvider),
+        DownloadsPanelView.tasks,
+      );
     });
   });
 }

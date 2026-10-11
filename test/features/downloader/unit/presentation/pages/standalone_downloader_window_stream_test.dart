@@ -62,38 +62,41 @@ void main() {
       expect(resolveStreamUrl(item), 'https://cdn.example.com/1080p.mp4');
     });
 
-    test('U-DL-STR-03: picks highest resolution format url when multiple formats exist', () {
-      const item = MediaInfo(
-        id: '1',
-        title: 'Video',
-        originalUrl: 'https://example.com/video',
-        formats: [
-          MediaFormat(
-            formatId: '136',
-            extension: 'mp4',
-            resolution: '1280x720',
-            formatString: '136 - 720p',
-            url: 'https://cdn.example.com/720p.mp4',
-          ),
-          MediaFormat(
-            formatId: '137',
-            extension: 'mp4',
-            resolution: '1920x1080',
-            formatString: '137 - 1080p',
-            url: 'https://cdn.example.com/1080p.mp4',
-          ),
-          MediaFormat(
-            formatId: '140',
-            extension: 'm4a',
-            resolution: 'audio only',
-            formatString: '140 - audio',
-            url: 'https://cdn.example.com/audio.m4a',
-          ),
-        ],
-      );
-      // 1080p should win over 720p and audio-only
-      expect(resolveStreamUrl(item), 'https://cdn.example.com/1080p.mp4');
-    });
+    test(
+      'U-DL-STR-03: picks highest resolution format url when multiple formats exist',
+      () {
+        const item = MediaInfo(
+          id: '1',
+          title: 'Video',
+          originalUrl: 'https://example.com/video',
+          formats: [
+            MediaFormat(
+              formatId: '136',
+              extension: 'mp4',
+              resolution: '1280x720',
+              formatString: '136 - 720p',
+              url: 'https://cdn.example.com/720p.mp4',
+            ),
+            MediaFormat(
+              formatId: '137',
+              extension: 'mp4',
+              resolution: '1920x1080',
+              formatString: '137 - 1080p',
+              url: 'https://cdn.example.com/1080p.mp4',
+            ),
+            MediaFormat(
+              formatId: '140',
+              extension: 'm4a',
+              resolution: 'audio only',
+              formatString: '140 - audio',
+              url: 'https://cdn.example.com/audio.m4a',
+            ),
+          ],
+        );
+        // 1080p should win over 720p and audio-only
+        expect(resolveStreamUrl(item), 'https://cdn.example.com/1080p.mp4');
+      },
+    );
 
     test('U-DL-STR-07: empty-string directUrl falls through to format url', () {
       const item = MediaInfo(
@@ -114,88 +117,110 @@ void main() {
       expect(resolveStreamUrl(item), 'https://cdn.example.com/fallback.mp4');
     });
 
-    test('U-DL-STR-08: skips formats with null urls and picks the highest-res non-null url', () {
-      const item = MediaInfo(
-        id: '1',
-        title: 'Video',
-        originalUrl: 'https://example.com/video',
-        formats: [
-          MediaFormat(
-            formatId: '248',
-            extension: 'webm',
-            resolution: '1920x1080',
-            formatString: '248',
-            // url is null — should be skipped
-          ),
-          MediaFormat(
-            formatId: '244',
-            extension: 'webm',
-            resolution: '854x480',
-            formatString: '244',
-            url: 'https://cdn.example.com/480p.webm',
-          ),
-          MediaFormat(
-            formatId: '247',
-            extension: 'webm',
-            resolution: '1280x720',
-            formatString: '247',
-            url: 'https://cdn.example.com/720p.webm',
-          ),
-        ],
-      );
-      // 1080p format has no url, 720p should win over 480p
-      expect(resolveStreamUrl(item), 'https://cdn.example.com/720p.webm');
-    });
+    test(
+      'U-DL-STR-08: skips formats with null urls and picks the highest-res non-null url',
+      () {
+        const item = MediaInfo(
+          id: '1',
+          title: 'Video',
+          originalUrl: 'https://example.com/video',
+          formats: [
+            MediaFormat(
+              formatId: '248',
+              extension: 'webm',
+              resolution: '1920x1080',
+              formatString: '248',
+              // url is null — should be skipped
+            ),
+            MediaFormat(
+              formatId: '244',
+              extension: 'webm',
+              resolution: '854x480',
+              formatString: '244',
+              url: 'https://cdn.example.com/480p.webm',
+            ),
+            MediaFormat(
+              formatId: '247',
+              extension: 'webm',
+              resolution: '1280x720',
+              formatString: '247',
+              url: 'https://cdn.example.com/720p.webm',
+            ),
+          ],
+        );
+        // 1080p format has no url, 720p should win over 480p
+        expect(resolveStreamUrl(item), 'https://cdn.example.com/720p.webm');
+      },
+    );
 
     // ═══════════════════════════════════════════════════════════════
     // Priority 3: webpageUrl fallback
     // ═══════════════════════════════════════════════════════════════
 
-    test('U-DL-STR-04: returns webpageUrl when directUrl is null and formats have no urls', () {
-      const item = MediaInfo(
-        id: '1',
-        title: 'Video',
-        originalUrl: 'https://example.com/video',
-        webpageUrl: 'https://example.com/video-page',
-        formats: [
-          MediaFormat(
-            formatId: '137',
-            extension: 'mp4',
-            resolution: '1920x1080',
-            formatString: '137',
-            // url is null
-          ),
-        ],
-      );
-      expect(resolveStreamUrl(item), 'https://example.com/video-page');
-    });
+    test(
+      'U-DL-STR-04: returns webpageUrl when directUrl is null and formats have no urls',
+      () {
+        const item = MediaInfo(
+          id: '1',
+          title: 'Video',
+          originalUrl: 'https://example.com/video',
+          webpageUrl: 'https://example.com/video-page',
+          formats: [
+            MediaFormat(
+              formatId: '137',
+              extension: 'mp4',
+              resolution: '1920x1080',
+              formatString: '137',
+              // url is null
+            ),
+          ],
+        );
+        expect(resolveStreamUrl(item), 'https://example.com/video-page');
+      },
+    );
 
-    test('U-DL-STR-10: formats with all null urls + no directUrl → returns webpageUrl', () {
-      const item = MediaInfo(
-        id: '1',
-        title: 'Video',
-        originalUrl: 'https://example.com/original',
-        webpageUrl: 'https://example.com/page',
-        formats: [
-          MediaFormat(formatId: 'a', extension: 'mp4', resolution: '1080p', formatString: 'a'),
-          MediaFormat(formatId: 'b', extension: 'mp4', resolution: '720p', formatString: 'b'),
-        ],
-      );
-      expect(resolveStreamUrl(item), 'https://example.com/page');
-    });
+    test(
+      'U-DL-STR-10: formats with all null urls + no directUrl → returns webpageUrl',
+      () {
+        const item = MediaInfo(
+          id: '1',
+          title: 'Video',
+          originalUrl: 'https://example.com/original',
+          webpageUrl: 'https://example.com/page',
+          formats: [
+            MediaFormat(
+              formatId: 'a',
+              extension: 'mp4',
+              resolution: '1080p',
+              formatString: 'a',
+            ),
+            MediaFormat(
+              formatId: 'b',
+              extension: 'mp4',
+              resolution: '720p',
+              formatString: 'b',
+            ),
+          ],
+        );
+        expect(resolveStreamUrl(item), 'https://example.com/page');
+      },
+    );
 
     // ═══════════════════════════════════════════════════════════════
     // Priority 4: originalUrl last resort
     // ═══════════════════════════════════════════════════════════════
 
-    test('U-DL-STR-05: returns originalUrl when all other fields are absent', () {
-      const item = MediaInfo(
-        id: '1',
-        title: 'Video',
-        originalUrl: 'https://example.com/original',
-      );
-      expect(resolveStreamUrl(item), 'https://example.com/original');
-    });
+    test(
+      'U-DL-STR-05: returns originalUrl when all other fields are absent',
+      () {
+        const item = MediaInfo(
+          id: '1',
+          title: 'Video',
+          originalUrl: 'https://example.com/original',
+        );
+        expect(resolveStreamUrl(item), 'https://example.com/original');
+      },
+    );
 
     // ═══════════════════════════════════════════════════════════════
     // Edge: null / empty — returns null
@@ -214,47 +239,56 @@ void main() {
     // gallery-dl pattern: CDN URL stored in formatString (not url)
     // ═══════════════════════════════════════════════════════════════
 
-    test('U-DL-STR-11: picks formatString as URL for gallery-dl "original" format '
-        'when format.url is null', () {
-      // gallery-dl stores the CDN URL in formatString, not in url
-      const item = MediaInfo(
-        id: '1',
-        title: 'Instagram Video',
-        originalUrl: 'https://www.example.com/p/abc123/',
-        formats: [
-          MediaFormat(
-            formatId: 'original',
-            extension: 'mp4',
-            resolution: 'original',
-            formatString: 'https://cdninstagram.com/video/abc.mp4',
-            // url is null — gallery-dl pattern
-          ),
-        ],
-      );
-      expect(
-        resolveStreamUrl(item),
-        'https://cdninstagram.com/video/abc.mp4',
-      );
-    });
+    test(
+      'U-DL-STR-11: picks formatString as URL for gallery-dl "original" format '
+      'when format.url is null',
+      () {
+        // gallery-dl stores the CDN URL in formatString, not in url
+        const item = MediaInfo(
+          id: '1',
+          title: 'Instagram Video',
+          originalUrl: 'https://www.example.com/p/abc123/',
+          formats: [
+            MediaFormat(
+              formatId: 'original',
+              extension: 'mp4',
+              resolution: 'original',
+              formatString: 'https://cdninstagram.com/video/abc.mp4',
+              // url is null — gallery-dl pattern
+            ),
+          ],
+        );
+        expect(
+          resolveStreamUrl(item),
+          'https://cdninstagram.com/video/abc.mp4',
+        );
+      },
+    );
 
-    test('U-DL-STR-12: prefers format.url over formatString when both are present', () {
-      const item = MediaInfo(
-        id: '1',
-        title: 'Video',
-        originalUrl: 'https://example.com/video',
-        formats: [
-          MediaFormat(
-            formatId: 'original',
-            extension: 'mp4',
-            resolution: 'original',
-            formatString: 'https://cdn.example.com/via-formatstring.mp4',
-            url: 'https://cdn.example.com/via-url-field.mp4',
-          ),
-        ],
-      );
-      // url field takes precedence over formatString
-      expect(resolveStreamUrl(item), 'https://cdn.example.com/via-url-field.mp4');
-    });
+    test(
+      'U-DL-STR-12: prefers format.url over formatString when both are present',
+      () {
+        const item = MediaInfo(
+          id: '1',
+          title: 'Video',
+          originalUrl: 'https://example.com/video',
+          formats: [
+            MediaFormat(
+              formatId: 'original',
+              extension: 'mp4',
+              resolution: 'original',
+              formatString: 'https://cdn.example.com/via-formatstring.mp4',
+              url: 'https://cdn.example.com/via-url-field.mp4',
+            ),
+          ],
+        );
+        // url field takes precedence over formatString
+        expect(
+          resolveStreamUrl(item),
+          'https://cdn.example.com/via-url-field.mp4',
+        );
+      },
+    );
   });
 
   group('resolvePlaybackUrl', () {
@@ -268,20 +302,28 @@ void main() {
       expect(resolvePlaybackUrl(item), 'https://youtube.com/watch?v=abc');
     });
 
-    test('U-DL-STR-14: falls back to originalUrl if webpageUrl is missing or empty', () {
-      const item = MediaInfo(
-        id: '1',
-        title: 'Video',
-        originalUrl: 'https://example.com/original',
-        webpageUrl: '',
-      );
-      expect(resolvePlaybackUrl(item), 'https://example.com/original');
-    });
+    test(
+      'U-DL-STR-14: falls back to originalUrl if webpageUrl is missing or empty',
+      () {
+        const item = MediaInfo(
+          id: '1',
+          title: 'Video',
+          originalUrl: 'https://example.com/original',
+          webpageUrl: '',
+        );
+        expect(resolvePlaybackUrl(item), 'https://example.com/original');
+      },
+    );
   });
 
   group('resolveEffectiveFormat', () {
     test('U-DL-STR-15: returns selectedFormat if provided', () {
-      final selected = MediaFormat(formatId: '137', resolution: '1080p', extension: 'mp4', formatString: '1080p');
+      final selected = MediaFormat(
+        formatId: '137',
+        resolution: '1080p',
+        extension: 'mp4',
+        formatString: '1080p',
+      );
       const item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test');
       expect(resolveEffectiveFormat(item, selectedFormat: selected), selected);
     });
@@ -293,30 +335,88 @@ void main() {
 
     test('U-DL-STR-17: picks 1080p if available and no format selected', () {
       final formats = <MediaFormat>[
-        MediaFormat(formatId: '2160p', resolution: '3840x2160', extension: 'mp4', formatString: '4K'),
-        MediaFormat(formatId: '1080p', resolution: '1920x1080', extension: 'mp4', formatString: 'FHD'),
-        MediaFormat(formatId: '720p', resolution: '1280x720', extension: 'mp4', formatString: 'HD'),
+        MediaFormat(
+          formatId: '2160p',
+          resolution: '3840x2160',
+          extension: 'mp4',
+          formatString: '4K',
+        ),
+        MediaFormat(
+          formatId: '1080p',
+          resolution: '1920x1080',
+          extension: 'mp4',
+          formatString: 'FHD',
+        ),
+        MediaFormat(
+          formatId: '720p',
+          resolution: '1280x720',
+          extension: 'mp4',
+          formatString: 'HD',
+        ),
       ];
-      final item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: formats);
+      final item = MediaInfo(
+        id: '1',
+        title: 'Video',
+        originalUrl: 'test',
+        formats: formats,
+      );
       expect(resolveEffectiveFormat(item)?.formatId, '1080p');
     });
 
-    test('U-DL-STR-18: picks best format under 1080p if 1080p not available', () {
-      final formats = <MediaFormat>[
-        MediaFormat(formatId: '2160p', resolution: '3840x2160', extension: 'mp4', formatString: '4K'),
-        MediaFormat(formatId: '720p', resolution: '1280x720', extension: 'mp4', formatString: 'HD'),
-        MediaFormat(formatId: '480p', resolution: '854x480', extension: 'mp4', formatString: 'SD'),
-      ];
-      final item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: formats);
-      expect(resolveEffectiveFormat(item)?.formatId, '720p');
-    });
+    test(
+      'U-DL-STR-18: picks best format under 1080p if 1080p not available',
+      () {
+        final formats = <MediaFormat>[
+          MediaFormat(
+            formatId: '2160p',
+            resolution: '3840x2160',
+            extension: 'mp4',
+            formatString: '4K',
+          ),
+          MediaFormat(
+            formatId: '720p',
+            resolution: '1280x720',
+            extension: 'mp4',
+            formatString: 'HD',
+          ),
+          MediaFormat(
+            formatId: '480p',
+            resolution: '854x480',
+            extension: 'mp4',
+            formatString: 'SD',
+          ),
+        ];
+        final item = MediaInfo(
+          id: '1',
+          title: 'Video',
+          originalUrl: 'test',
+          formats: formats,
+        );
+        expect(resolveEffectiveFormat(item)?.formatId, '720p');
+      },
+    );
 
     test('U-DL-STR-19: picks highest if all formats are > 1080p', () {
       final formats = <MediaFormat>[
-        MediaFormat(formatId: '4320p', resolution: '7680x4320', extension: 'mp4', formatString: '8K'),
-        MediaFormat(formatId: '2160p', resolution: '3840x2160', extension: 'mp4', formatString: '4K'),
+        MediaFormat(
+          formatId: '4320p',
+          resolution: '7680x4320',
+          extension: 'mp4',
+          formatString: '8K',
+        ),
+        MediaFormat(
+          formatId: '2160p',
+          resolution: '3840x2160',
+          extension: 'mp4',
+          formatString: '4K',
+        ),
       ];
-      final item = MediaInfo(id: '1', title: 'Video', originalUrl: 'test', formats: formats);
+      final item = MediaInfo(
+        id: '1',
+        title: 'Video',
+        originalUrl: 'test',
+        formats: formats,
+      );
       expect(resolveEffectiveFormat(item)?.formatId, '4320p');
     });
   });

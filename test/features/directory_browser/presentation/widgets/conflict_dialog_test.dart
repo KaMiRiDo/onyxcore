@@ -43,7 +43,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('File already exists'), findsOneWidget);
-    expect(find.textContaining('test_file.txt', findRichText: true), findsOneWidget);
+    expect(
+      find.textContaining('test_file.txt', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.text('Skip'), findsOneWidget);
     expect(find.text('Replace'), findsOneWidget);
     expect(find.text('Rename (Keep Both)'), findsOneWidget);
@@ -72,7 +75,9 @@ void main() {
     expect(tester.widget<Checkbox>(checkbox).value, true);
   });
 
-  testWidgets('ConflictDialog triggers shake animation on background tap', (tester) async {
+  testWidgets('ConflictDialog triggers shake animation on background tap', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildTestWidget());
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
@@ -81,7 +86,7 @@ void main() {
     // The dialog container has width 440, we can tap at top left.
     await tester.tapAt(const Offset(10, 10));
     await tester.pump();
-    
+
     // Test passes if it doesn't crash and animation triggers
     expect(find.byType(ConflictDialog), findsOneWidget);
   });

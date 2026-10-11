@@ -13,12 +13,12 @@ void main() {
     });
 
     Widget buildTestContext(Widget child) {
-      return MaterialApp(
-        home: Scaffold(body: child),
-      );
+      return MaterialApp(home: Scaffold(body: child));
     }
 
-    testWidgets('U-DOC-SYNTAX-01: Highlights Markdown Headers (#)', (WidgetTester tester) async {
+    testWidgets('U-DOC-SYNTAX-01: Highlights Markdown Headers (#)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(buildTestContext(Container()));
       final context = tester.element(find.byType(Container));
 
@@ -37,11 +37,15 @@ void main() {
       expect(firstSpan.style?.fontWeight, FontWeight.bold);
     });
 
-    testWidgets('U-DOC-SYNTAX-02: Highlights Bold (**) and Italic (_)', (WidgetTester tester) async {
+    testWidgets('U-DOC-SYNTAX-02: Highlights Bold (**) and Italic (_)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(buildTestContext(Container()));
       final context = tester.element(find.byType(Container));
 
-      final controller = MarkdownSyntaxHighlighter(text: 'text **bold** and _italic_');
+      final controller = MarkdownSyntaxHighlighter(
+        text: 'text **bold** and _italic_',
+      );
       final span = controller.buildTextSpan(
         context: context,
         style: baseStyle,
@@ -58,11 +62,15 @@ void main() {
       expect(italicSpan.style?.fontStyle, FontStyle.italic);
     });
 
-    testWidgets('U-DOC-SYNTAX-03: Highlights Markdown Links', (WidgetTester tester) async {
+    testWidgets('U-DOC-SYNTAX-03: Highlights Markdown Links', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(buildTestContext(Container()));
       final context = tester.element(find.byType(Container));
 
-      final controller = MarkdownSyntaxHighlighter(text: '[Google](https://google.com)');
+      final controller = MarkdownSyntaxHighlighter(
+        text: '[Google](https://google.com)',
+      );
       final span = controller.buildTextSpan(
         context: context,
         style: baseStyle,
@@ -79,48 +87,76 @@ void main() {
       expect(linkUrlSpan.style?.decoration, TextDecoration.underline);
     });
 
-    testWidgets('U-DOC-SYNTAX-04: Highlights Fenced Code Blocks and Inline Code', (WidgetTester tester) async {
+    testWidgets(
+      'U-DOC-SYNTAX-04: Highlights Fenced Code Blocks and Inline Code',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(buildTestContext(Container()));
+        final context = tester.element(find.byType(Container));
+
+        final controller = MarkdownSyntaxHighlighter(
+          text: 'use `print()` \n```dart\nmain()\n```',
+        );
+        final span = controller.buildTextSpan(
+          context: context,
+          style: baseStyle,
+          withComposing: false,
+        );
+
+        final inlineSpan =
+            span.children!.firstWhere(
+                  (s) => (s as TextSpan).text == '`print()`',
+                )
+                as TextSpan;
+        expect(inlineSpan.style?.color, const Color(0xFFCE93D8));
+
+        final blockSpan =
+            span.children!.firstWhere(
+                  (s) => (s as TextSpan).text!.contains('```dart'),
+                )
+                as TextSpan;
+        expect(blockSpan.style?.color, const Color(0xFFCE93D8));
+      },
+    );
+
+    testWidgets('U-DOC-SYNTAX-05: Highlights Blockquotes, Lists, and Math blocks', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(buildTestContext(Container()));
       final context = tester.element(find.byType(Container));
 
-      final controller = MarkdownSyntaxHighlighter(text: 'use `print()` \n```dart\nmain()\n```');
+      final controller = MarkdownSyntaxHighlighter(
+        text: '> quote\n- list\n\$\$ math \$\$',
+      );
       final span = controller.buildTextSpan(
         context: context,
         style: baseStyle,
         withComposing: false,
       );
 
-      final inlineSpan = span.children!.firstWhere((s) => (s as TextSpan).text == '`print()`') as TextSpan;
-      expect(inlineSpan.style?.color, const Color(0xFFCE93D8));
-
-      final blockSpan = span.children!.firstWhere((s) => (s as TextSpan).text!.contains('```dart')) as TextSpan;
-      expect(blockSpan.style?.color, const Color(0xFFCE93D8));
-    });
-
-    testWidgets('U-DOC-SYNTAX-05: Highlights Blockquotes, Lists, and Math blocks', (WidgetTester tester) async {
-      await tester.pumpWidget(buildTestContext(Container()));
-      final context = tester.element(find.byType(Container));
-
-      final controller = MarkdownSyntaxHighlighter(text: '> quote\n- list\n\$\$ math \$\$');
-      final span = controller.buildTextSpan(
-        context: context,
-        style: baseStyle,
-        withComposing: false,
-      );
-
-      final quoteSpan = span.children!.firstWhere((s) => (s as TextSpan).text!.contains('> quote')) as TextSpan;
-      expect(quoteSpan.style?.color, const Color(0xFFA6E22E)); // Blockquote color
+      final quoteSpan =
+          span.children!.firstWhere(
+                (s) => (s as TextSpan).text!.contains('> quote'),
+              )
+              as TextSpan;
+      expect(
+        quoteSpan.style?.color,
+        const Color(0xFFA6E22E),
+      ); // Blockquote color
 
       // Note: Lists and Math blocks are not currently explicitly styled by the regex in the implementation.
       // So they will just be plain text spans. The test previously asserted colors that were not implemented.
       // We will only assert the blockquote color here to match the implementation.
     });
 
-    testWidgets('U-DOC-SYNTAX-06: Handles plain text gracefully', (WidgetTester tester) async {
+    testWidgets('U-DOC-SYNTAX-06: Handles plain text gracefully', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(buildTestContext(Container()));
       final context = tester.element(find.byType(Container));
 
-      final controller = MarkdownSyntaxHighlighter(text: 'Just some plain text.');
+      final controller = MarkdownSyntaxHighlighter(
+        text: 'Just some plain text.',
+      );
       final span = controller.buildTextSpan(
         context: context,
         style: baseStyle,

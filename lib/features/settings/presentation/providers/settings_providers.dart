@@ -159,12 +159,16 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
   Future<void> setFolderSort(String path, SortOption option) async {
     final repo = ref.read(settingsRepositoryProvider);
     await repo.setFolderSort(path, option);
-    
+
     // Update local state since watchAllSettings only covers the generic Settings table.
     if (state.hasValue && state.value != null) {
-      final newSorts = Map<String, String>.from(state.value!.gallerySortSettings);
+      final newSorts = Map<String, String>.from(
+        state.value!.gallerySortSettings,
+      );
       newSorts[path] = option.name;
-      state = AsyncValue.data(state.value!.copyWith(gallerySortSettings: newSorts));
+      state = AsyncValue.data(
+        state.value!.copyWith(gallerySortSettings: newSorts),
+      );
     }
   }
 
@@ -174,17 +178,23 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
 
     // Update local state by removing matching paths
     if (state.hasValue && state.value != null) {
-      final newSorts = Map<String, String>.from(state.value!.gallerySortSettings);
+      final newSorts = Map<String, String>.from(
+        state.value!.gallerySortSettings,
+      );
       var changed = false;
       for (final path in paths) {
-        final toRemove = newSorts.keys.where((k) => k == path || k.startsWith('$path/')).toList();
+        final toRemove = newSorts.keys
+            .where((k) => k == path || k.startsWith('$path/'))
+            .toList();
         for (final k in toRemove) {
           newSorts.remove(k);
           changed = true;
         }
       }
       if (changed) {
-        state = AsyncValue.data(state.value!.copyWith(gallerySortSettings: newSorts));
+        state = AsyncValue.data(
+          state.value!.copyWith(gallerySortSettings: newSorts),
+        );
       }
     }
   }

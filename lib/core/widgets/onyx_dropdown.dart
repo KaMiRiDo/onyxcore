@@ -3,7 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 class OnyxDropdown<T> extends StatelessWidget {
   const OnyxDropdown({
-    required this.value, required this.options, required this.onChanged, super.key,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    super.key,
     this.minWidth = 100,
     this.isExpanded = false,
     this.disabledOptions = const {},
@@ -25,7 +28,8 @@ class OnyxDropdown<T> extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final popupMinWidth = isExpanded && constraints.maxWidth != double.infinity
+        final popupMinWidth =
+            isExpanded && constraints.maxWidth != double.infinity
             ? constraints.maxWidth
             : minWidth;
 
@@ -44,7 +48,7 @@ class OnyxDropdown<T> extends StatelessWidget {
           itemBuilder: (context) => options.map((opt) {
             final isSelected = opt.key == value;
             final isDisabled = disabledOptions.contains(opt.key);
-            
+
             return PopupMenuItem<T>(
               value: opt.key,
               height: 38,
@@ -52,7 +56,10 @@ class OnyxDropdown<T> extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? Colors.white.withValues(alpha: 0.06)
@@ -67,47 +74,49 @@ class OnyxDropdown<T> extends StatelessWidget {
                     color: isDisabled
                         ? Colors.white.withValues(alpha: 0.24)
                         : (isSelected
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.7)),
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.7)),
                   ),
                 ),
               ),
             );
-      }).toList(),
-      child: Container(
-        width: isExpanded ? double.infinity : null,
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
-          mainAxisAlignment: isExpanded ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
-          children: [
-            Flexible(
-              child: Text(
-                selectedOption.value,
-                style: GoogleFonts.manrope(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+          }).toList(),
+          child: Container(
+            width: isExpanded ? double.infinity : null,
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Row(
+              mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: isExpanded
+                  ? MainAxisAlignment.spaceBetween
+                  : MainAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: Text(
+                    selectedOption.value,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
-              ),
+                if (!isExpanded) const SizedBox(width: 8),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white.withValues(alpha: 0.3),
+                  size: 20,
+                ),
+              ],
             ),
-            if (!isExpanded) const SizedBox(width: 8),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Colors.white.withValues(alpha: 0.3),
-              size: 20,
-            ),
-          ],
-        ),
-        ),
-      );
+          ),
+        );
       },
     );
   }

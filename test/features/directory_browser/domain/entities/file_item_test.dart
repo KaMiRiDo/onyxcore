@@ -85,7 +85,7 @@ void main() {
 
     test('toJson and fromJson should work correctly', () {
       final json = tItem.toJson();
-      
+
       expect(json['path'], '/path/to/doc.pdf');
       expect(json['name'], 'doc.pdf');
       expect(json['type'], FileItemType.document.index);
@@ -110,7 +110,7 @@ void main() {
       };
 
       final fromJsonItem = FileItem.fromJson(minimalJson);
-      
+
       expect(fromJsonItem.path, '/min');
       expect(fromJsonItem.name, 'min');
       expect(fromJsonItem.type, FileItemType.folder);

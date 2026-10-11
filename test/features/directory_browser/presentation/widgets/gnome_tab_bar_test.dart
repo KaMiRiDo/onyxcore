@@ -11,7 +11,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/gnome_t
 class MockTabManager extends TabManager {
   MockTabManager(this._initialState);
   final TabManagerState _initialState;
-  
+
   String? switchedToId;
   String? closedTabId;
 
@@ -53,20 +53,22 @@ void main() {
     mockRepo = MockDirectoryRepository();
   });
 
-  testWidgets('GnomeTabBar does not render if only one tab exists', (tester) async {
+  testWidgets('GnomeTabBar does not render if only one tab exists', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          tabManagerProvider.overrideWith(() => MockTabManager(TabManagerState(
-            tabs: [TabState(id: '1', currentPath: '/home/user')],
-            activeTabIndex: 0,
-          ))),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: GnomeTabBar(),
+          tabManagerProvider.overrideWith(
+            () => MockTabManager(
+              TabManagerState(
+                tabs: [TabState(id: '1', currentPath: '/home/user')],
+                activeTabIndex: 0,
+              ),
+            ),
           ),
-        ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: GnomeTabBar())),
       ),
     );
 
@@ -76,28 +78,24 @@ void main() {
   });
 
   testWidgets('GnomeTabBar renders tabs and switches on tap', (tester) async {
-    final mockTabManager = MockTabManager(TabManagerState(
-      tabs: [
-        TabState(id: '1', currentPath: '/home/user/downloads'),
-        TabState(id: '2', currentPath: '/home/user/music'),
-        TabState(id: '3', currentPath: '/home/user/videos'),
-        TabState(id: '4', currentPath: '/home/user/desktop'),
-        TabState(id: '5', currentPath: '/'), // title will be Root
-        TabState(id: '6', currentPath: '/home/user/documents'),
-      ],
-      activeTabIndex: 0,
-    ));
+    final mockTabManager = MockTabManager(
+      TabManagerState(
+        tabs: [
+          TabState(id: '1', currentPath: '/home/user/downloads'),
+          TabState(id: '2', currentPath: '/home/user/music'),
+          TabState(id: '3', currentPath: '/home/user/videos'),
+          TabState(id: '4', currentPath: '/home/user/desktop'),
+          TabState(id: '5', currentPath: '/'), // title will be Root
+          TabState(id: '6', currentPath: '/home/user/documents'),
+        ],
+        activeTabIndex: 0,
+      ),
+    );
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          tabManagerProvider.overrideWith(() => mockTabManager),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: GnomeTabBar(),
-          ),
-        ),
+        overrides: [tabManagerProvider.overrideWith(() => mockTabManager)],
+        child: const MaterialApp(home: Scaffold(body: GnomeTabBar())),
       ),
     );
 
@@ -117,24 +115,20 @@ void main() {
   });
 
   testWidgets('GnomeTabBar closes tab on close button tap', (tester) async {
-    final mockTabManager = MockTabManager(TabManagerState(
-      tabs: [
-        TabState(id: '1', currentPath: '/home/user/downloads'),
-        TabState(id: '2', currentPath: '/home/user/music'),
-      ],
-      activeTabIndex: 0,
-    ));
+    final mockTabManager = MockTabManager(
+      TabManagerState(
+        tabs: [
+          TabState(id: '1', currentPath: '/home/user/downloads'),
+          TabState(id: '2', currentPath: '/home/user/music'),
+        ],
+        activeTabIndex: 0,
+      ),
+    );
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          tabManagerProvider.overrideWith(() => mockTabManager),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: GnomeTabBar(),
-          ),
-        ),
+        overrides: [tabManagerProvider.overrideWith(() => mockTabManager)],
+        child: const MaterialApp(home: Scaffold(body: GnomeTabBar())),
       ),
     );
 
@@ -147,7 +141,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final closeButtons = find.byIcon(Icons.close);
-    expect(closeButtons, findsNWidgets(2)); // Both active and hovered inactive tab have close buttons
+    expect(
+      closeButtons,
+      findsNWidgets(2),
+    ); // Both active and hovered inactive tab have close buttons
 
     await tester.tap(closeButtons.last);
     await tester.pumpAndSettle();
@@ -155,14 +152,18 @@ void main() {
     expect(mockTabManager.closedTabId, '2');
   });
 
-  testWidgets('GnomeTabBar drag and drop accepts dropped items', (tester) async {
-    final mockTabManager = MockTabManager(TabManagerState(
-      tabs: [
-        TabState(id: '1', currentPath: '/home/user/downloads'),
-        TabState(id: '2', currentPath: '/home/user/music'),
-      ],
-      activeTabIndex: 0,
-    ));
+  testWidgets('GnomeTabBar drag and drop accepts dropped items', (
+    tester,
+  ) async {
+    final mockTabManager = MockTabManager(
+      TabManagerState(
+        tabs: [
+          TabState(id: '1', currentPath: '/home/user/downloads'),
+          TabState(id: '2', currentPath: '/home/user/music'),
+        ],
+        activeTabIndex: 0,
+      ),
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -170,17 +171,15 @@ void main() {
           tabManagerProvider.overrideWith(() => mockTabManager),
           directoryRepositoryProvider.overrideWithValue(mockRepo),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: GnomeTabBar(),
-          ),
-        ),
+        child: const MaterialApp(home: Scaffold(body: GnomeTabBar())),
       ),
     );
 
     await tester.pumpAndSettle();
 
-    final dragTarget = tester.widget<DragTarget<List<String>>>(find.byType(DragTarget<List<String>>).last);
+    final dragTarget = tester.widget<DragTarget<List<String>>>(
+      find.byType(DragTarget<List<String>>).last,
+    );
     dragTarget.onAcceptWithDetails?.call(
       DragTargetDetails(
         data: const ['/home/user/downloads/song.mp3'],
@@ -189,7 +188,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(mockRepo.moveItemsSources, contains('/home/user/downloads/song.mp3'));
+    expect(
+      mockRepo.moveItemsSources,
+      contains('/home/user/downloads/song.mp3'),
+    );
     expect(mockRepo.moveItemsDestination, '/home/user/music');
 
     // Test will accept hover timer triggers switchTab

@@ -24,14 +24,21 @@ void main() {
       expect(container.read(backgroundPanelOpenProvider), isTrue);
     });
 
-    test('backgroundPanelViewProvider initial state is BackgroundPanelView.tasks', () {
-      final state = container.read(backgroundPanelViewProvider);
-      expect(state, BackgroundPanelView.tasks);
-    });
+    test(
+      'backgroundPanelViewProvider initial state is BackgroundPanelView.tasks',
+      () {
+        final state = container.read(backgroundPanelViewProvider);
+        expect(state, BackgroundPanelView.tasks);
+      },
+    );
 
     test('backgroundPanelViewProvider updates state', () {
-      container.read(backgroundPanelViewProvider.notifier).state = BackgroundPanelView.history;
-      expect(container.read(backgroundPanelViewProvider), BackgroundPanelView.history);
+      container.read(backgroundPanelViewProvider.notifier).state =
+          BackgroundPanelView.history;
+      expect(
+        container.read(backgroundPanelViewProvider),
+        BackgroundPanelView.history,
+      );
     });
 
     test('selectedHistoryIdProvider initial state is null', () {

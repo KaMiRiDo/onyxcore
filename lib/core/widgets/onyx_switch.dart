@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 
 class OnyxSwitch extends StatelessWidget {
-  const OnyxSwitch({
-    required this.value, required this.onChanged, super.key,
-  });
+  const OnyxSwitch({required this.value, required this.onChanged, super.key});
 
   final bool value;
   final ValueChanged<bool> onChanged;

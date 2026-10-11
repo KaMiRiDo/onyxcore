@@ -22,10 +22,15 @@ void main() {
 
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(const MethodChannel('persistent_viewer'), null);
+          .setMockMethodCallHandler(
+            const MethodChannel('persistent_viewer'),
+            null,
+          );
     });
 
-    testWidgets('W-HDR-01 to W-HDR-03: Open in Window button', (WidgetTester tester) async {
+    testWidgets('W-HDR-01 to W-HDR-03: Open in Window button', (
+      WidgetTester tester,
+    ) async {
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('onyxcore/window_manager'),
         (MethodCall methodCall) async {
@@ -38,7 +43,9 @@ void main() {
         ProviderScope(
           overrides: [
             currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
-            downloadsPanelViewProvider.overrideWith((ref) => DownloadsPanelView.tasks),
+            downloadsPanelViewProvider.overrideWith(
+              (ref) => DownloadsPanelView.tasks,
+            ),
           ],
           child: const MaterialApp(home: Scaffold(body: DownloadsHeader())),
         ),
@@ -49,10 +56,10 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.open_in_new_rounded));
       await tester.pumpAndSettle();
-      
+
       expect(log.length, 1);
       expect(log.first.method, 'create_window');
-      
+
       // We know ViewerType.downloader no longer implies maximize: true
       expect(log.first.arguments['maximize'], false);
     });

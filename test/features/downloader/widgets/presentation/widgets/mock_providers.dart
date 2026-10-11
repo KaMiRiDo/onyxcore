@@ -11,9 +11,7 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 class MockSettingsNotifier extends SettingsNotifier {
   @override
   Future<AppSettings> build() {
-    return Future.value(const AppSettings(
-      downloadBrowser: 'None',
-    ));
+    return Future.value(const AppSettings(downloadBrowser: 'None'));
   }
 }
 
@@ -57,7 +55,6 @@ class MockDownloadTaskNotifier extends DownloadTaskNotifier {
   }
 }
 
-
 class MockYtDlpEngine extends DownloadEngine {
   @override
   String get id => 'yt-dlp';
@@ -79,7 +76,7 @@ class MockYtDlpEngine extends DownloadEngine {
   IconData get icon => Icons.video_library;
   @override
   EngineUpdateInfo? get updateInfo => null;
-  
+
   @override
   Future<List<MediaInfo>> fetchMetadata({
     required String url,
@@ -97,7 +94,7 @@ class MockYtDlpEngine extends DownloadEngine {
         duration: 120,
         thumbnail: 'https://test.com/thumb',
         filesize: 1048576,
-      )
+      ),
     ];
   }
 

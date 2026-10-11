@@ -19,7 +19,7 @@ class FakeProcess extends Fake implements Process {
   final Future<int> exitCode;
   @override
   final int pid = 9999;
-  
+
   FakeProcess({
     required this.stdout,
     required this.stderr,
@@ -67,12 +67,17 @@ void main() {
       } else if (scriptContent.contains('pid')) {
         out = '["https://example.com/pid"]';
       } else {
-        out = '["https://example.com/video.mp4", "https://example.com/image.jpg"]';
+        out =
+            '["https://example.com/video.mp4", "https://example.com/image.jpg"]';
       }
 
       return FakeProcess(
-        stdout: out.isNotEmpty ? Stream.value(utf8.encode('$out\n')) : const Stream.empty(),
-        stderr: err.isNotEmpty ? Stream.value(utf8.encode('$err\n')) : const Stream.empty(),
+        stdout: out.isNotEmpty
+            ? Stream.value(utf8.encode('$out\n'))
+            : const Stream.empty(),
+        stderr: err.isNotEmpty
+            ? Stream.value(utf8.encode('$err\n'))
+            : const Stream.empty(),
         exitCode: Future.delayed(const Duration(milliseconds: 100), () => code),
       );
     }
@@ -81,7 +86,8 @@ void main() {
       service = DenoExtractorRuntimeService(processStarter: mockProcessStarter);
     });
 
-    Future<ExtractorResult> executeWithScript(String scriptContent, {
+    Future<ExtractorResult> executeWithScript(
+      String scriptContent, {
       ExtractorRuntimeConfig? config,
       void Function(int)? onProcessStarted,
     }) {
@@ -114,7 +120,13 @@ void main() {
           return ["https://example.com/video.mp4", "https://example.com/image.jpg"];
         }
       ''');
-      expect(result.urls, equals(['https://example.com/video.mp4', 'https://example.com/image.jpg']));
+      expect(
+        result.urls,
+        equals([
+          'https://example.com/video.mp4',
+          'https://example.com/image.jpg',
+        ]),
+      );
     });
 
     test('throws ExtractorException when Deno APIs are accessed', () async {
@@ -125,30 +137,44 @@ void main() {
             return ["https://example.com/deno"];
           }
         '''),
-        throwsA(isA<ExtractorException>().having(
-          (e) => e.message,
-          'message',
-          contains('Deno APIs are not available'),
-        )),
+        throwsA(
+          isA<ExtractorException>().having(
+            (e) => e.message,
+            'message',
+            contains('Deno APIs are not available'),
+          ),
+        ),
       );
     });
 
-    test('throws TimeoutException (or ExtractorException) when script hangs (extractorTimeoutMs)', () async {
-      expect(
-        () => executeWithScript('''
+    test(
+      'throws TimeoutException (or ExtractorException) when script hangs (extractorTimeoutMs)',
+      () async {
+        expect(
+          () => executeWithScript(
+            '''
           export async function extract(url) {
             await new Promise(r => setTimeout(r, 10000));
             return ["https://example.com/timeout"];
           }
-        ''', config: const ExtractorRuntimeConfig(
-          navigationTimeoutMs: 15000,
-          extractorTimeoutMs: 2000,
-          settleDelayMs: 0,
-          maxResults: 100,
-        )),
-        throwsA(isA<ExtractorException>().having((e) => e.message.toLowerCase(), 'message', contains('timeout'))),
-      );
-    });
+        ''',
+            config: const ExtractorRuntimeConfig(
+              navigationTimeoutMs: 15000,
+              extractorTimeoutMs: 2000,
+              settleDelayMs: 0,
+              maxResults: 100,
+            ),
+          ),
+          throwsA(
+            isA<ExtractorException>().having(
+              (e) => e.message.toLowerCase(),
+              'message',
+              contains('timeout'),
+            ),
+          ),
+        );
+      },
+    );
 
     test('browser unavailability is thrown explicitly', () async {
       final extractor = CustomExtractor(
@@ -164,11 +190,21 @@ void main() {
         capability: BrowserCapability.chromium,
       );
       expect(
-        () => service.execute(extractor, 'https://example.com', browser: invalidBrowser),
-        throwsA(isA<ExtractorException>().having((e) => e.message.toLowerCase(), 'message', contains('browser executable not found'))),
+        () => service.execute(
+          extractor,
+          'https://example.com',
+          browser: invalidBrowser,
+        ),
+        throwsA(
+          isA<ExtractorException>().having(
+            (e) => e.message.toLowerCase(),
+            'message',
+            contains('browser executable not found'),
+          ),
+        ),
       );
     });
-    
+
     test('reports PID immediately when process starts', () async {
       int? reportedPid;
       await executeWithScript('''
@@ -176,7 +212,7 @@ void main() {
           return ["https://example.com/pid"];
         }
       ''', onProcessStarted: (pid) => reportedPid = pid);
-      
+
       expect(reportedPid, isNotNull);
       expect(reportedPid, greaterThan(0));
     });
@@ -191,6 +227,5 @@ void main() {
         throwsA(isA<ExtractorException>()),
       );
     });
-
   });
 }

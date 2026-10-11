@@ -93,7 +93,8 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
               ? null
               : () async {
                   final preloadPaths = <String>[];
-                  final allItems = ref.read(sortedDirectoryItemsProvider).value ?? [];
+                  final allItems =
+                      ref.read(sortedDirectoryItemsProvider).value ?? [];
                   if (widget.item.type == FileItemType.image) {
                     final mediaItems = allItems
                         .where((i) => i.type == FileItemType.image)
@@ -129,7 +130,8 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
                     file: widget.item,
                     initParams: {
                       'preloadPaths': preloadPaths,
-                      if (widget.item.type == FileItemType.image || widget.item.type == FileItemType.video)
+                      if (widget.item.type == FileItemType.image ||
+                          widget.item.type == FileItemType.video)
                         'playlistPaths': allItems
                             .where((i) => i.type == widget.item.type)
                             .map((i) => i.path)
@@ -141,10 +143,9 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
                                 .toList()
                                 .indexWhere((i) => i.path == widget.item.path) +
                             1,
-                        'totalCount':
-                            allItems
-                                .where((i) => i.type == FileItemType.image)
-                                .length,
+                        'totalCount': allItems
+                            .where((i) => i.type == FileItemType.image)
+                            .length,
                       },
                     },
                   );
@@ -154,9 +155,7 @@ class _PreviewContainerState extends ConsumerState<PreviewContainer> {
           child: Stack(
             children: [
               // The Preview Content
-              Positioned.fill(
-                child: _buildPreviewer(),
-              ),
+              Positioned.fill(child: _buildPreviewer()),
             ],
           ),
         ),

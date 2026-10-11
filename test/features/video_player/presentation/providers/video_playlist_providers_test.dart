@@ -11,7 +11,8 @@ import 'package:onyxcore/features/video_player/presentation/providers/video_play
 
 class MockAppDatabase extends Mock implements AppDatabase {}
 
-class MockSettingsNotifier extends AsyncNotifier<AppSettings> implements SettingsNotifier {
+class MockSettingsNotifier extends AsyncNotifier<AppSettings>
+    implements SettingsNotifier {
   @override
   Future<AppSettings> build() async {
     return const AppSettings(showHiddenFiles: true, autoPlayNext: false);
@@ -42,7 +43,9 @@ class MockSettingsNotifier extends AsyncNotifier<AppSettings> implements Setting
   @override
   Future<void> setCachedResolvedHwDec(String? value) async {}
   @override
-  Future<void> setTrackpadSpeedControl({required SpeedControlOption value}) async {}
+  Future<void> setTrackpadSpeedControl({
+    required SpeedControlOption value,
+  }) async {}
   @override
   Future<void> setFilePickerDimensions(double width, double height) async {}
   @override
@@ -72,12 +75,11 @@ void main() {
 
     setUp(() {
       mockDb = MockAppDatabase();
-      when(() => mockDb.getVideoFavorites())
-          .thenAnswer((_) async => <String>{});
-      when(() => mockDb.addVideoFavorite(any()))
-          .thenAnswer((_) async {});
-      when(() => mockDb.removeVideoFavorite(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockDb.getVideoFavorites(),
+      ).thenAnswer((_) async => <String>{});
+      when(() => mockDb.addVideoFavorite(any())).thenAnswer((_) async {});
+      when(() => mockDb.removeVideoFavorite(any())).thenAnswer((_) async {});
 
       container = ProviderContainer(
         overrides: [
@@ -116,39 +118,87 @@ void main() {
       expect(container.read(videoAutoPlaySessionProvider), isFalse);
     });
 
-    test('currentVideoProvider returns correct FileItem based on index and queue', () {
-      final file1 = FileItem(name: '1.mp4', path: '/1.mp4', sizeBytes: 0, modified: DateTime.now(), type: FileItemType.video);
-      final file2 = FileItem(name: '2.mp4', path: '/2.mp4', sizeBytes: 0, modified: DateTime.now(), type: FileItemType.video);
-      
-      container.read(videoPlayingQueueProvider.notifier).state = [file1, file2];
-      container.read(activeVideoIndexProvider.notifier).state = 1;
+    test(
+      'currentVideoProvider returns correct FileItem based on index and queue',
+      () {
+        final file1 = FileItem(
+          name: '1.mp4',
+          path: '/1.mp4',
+          sizeBytes: 0,
+          modified: DateTime.now(),
+          type: FileItemType.video,
+        );
+        final file2 = FileItem(
+          name: '2.mp4',
+          path: '/2.mp4',
+          sizeBytes: 0,
+          modified: DateTime.now(),
+          type: FileItemType.video,
+        );
 
-      expect(container.read(currentVideoProvider), file2);
+        container.read(videoPlayingQueueProvider.notifier).state = [
+          file1,
+          file2,
+        ];
+        container.read(activeVideoIndexProvider.notifier).state = 1;
 
-      // Out of bounds
-      container.read(activeVideoIndexProvider.notifier).state = 5;
-      expect(container.read(currentVideoProvider), isNull);
-    });
+        expect(container.read(currentVideoProvider), file2);
 
-    test('filteredAndSortedVideoQueueProvider filters correctly based on search query', () {
-      final file1 = FileItem(name: 'apple.mp4', path: '/apple.mp4', sizeBytes: 0, modified: DateTime.now(), type: FileItemType.video);
-      final file2 = FileItem(name: 'banana.mp4', path: '/banana.mp4', sizeBytes: 0, modified: DateTime.now(), type: FileItemType.video);
-      
-      container.read(videoQueueProvider.notifier).state = [file1, file2];
-      container.read(videoSearchQueryProvider.notifier).state = 'app';
+        // Out of bounds
+        container.read(activeVideoIndexProvider.notifier).state = 5;
+        expect(container.read(currentVideoProvider), isNull);
+      },
+    );
 
-      final filtered = container.read(filteredAndSortedVideoQueueProvider);
-      expect(filtered.length, 1);
-      expect(filtered.first.name, 'apple.mp4');
-    });
+    test(
+      'filteredAndSortedVideoQueueProvider filters correctly based on search query',
+      () {
+        final file1 = FileItem(
+          name: 'apple.mp4',
+          path: '/apple.mp4',
+          sizeBytes: 0,
+          modified: DateTime.now(),
+          type: FileItemType.video,
+        );
+        final file2 = FileItem(
+          name: 'banana.mp4',
+          path: '/banana.mp4',
+          sizeBytes: 0,
+          modified: DateTime.now(),
+          type: FileItemType.video,
+        );
+
+        container.read(videoQueueProvider.notifier).state = [file1, file2];
+        container.read(videoSearchQueryProvider.notifier).state = 'app';
+
+        final filtered = container.read(filteredAndSortedVideoQueueProvider);
+        expect(filtered.length, 1);
+        expect(filtered.first.name, 'apple.mp4');
+      },
+    );
 
     test('filteredAndSortedVideoQueueProvider handles favorites mode', () {
-      final file1 = FileItem(name: 'apple.mp4', path: '/apple.mp4', sizeBytes: 0, modified: DateTime.now(), type: FileItemType.video);
-      final file2 = FileItem(name: 'banana.mp4', path: '/banana.mp4', sizeBytes: 0, modified: DateTime.now(), type: FileItemType.video);
-      
+      final file1 = FileItem(
+        name: 'apple.mp4',
+        path: '/apple.mp4',
+        sizeBytes: 0,
+        modified: DateTime.now(),
+        type: FileItemType.video,
+      );
+      final file2 = FileItem(
+        name: 'banana.mp4',
+        path: '/banana.mp4',
+        sizeBytes: 0,
+        modified: DateTime.now(),
+        type: FileItemType.video,
+      );
+
       container.read(videoQueueProvider.notifier).state = [file1, file2];
-      container.read(videoFavoritesProvider.notifier).toggleFavorite('/banana.mp4');
-      container.read(videoViewModeProvider.notifier).state = VideoViewMode.favorites;
+      container
+          .read(videoFavoritesProvider.notifier)
+          .toggleFavorite('/banana.mp4');
+      container.read(videoViewModeProvider.notifier).state =
+          VideoViewMode.favorites;
 
       final filtered = container.read(filteredAndSortedVideoQueueProvider);
       expect(filtered.length, 1);
@@ -162,6 +212,5 @@ void main() {
       expect(config.viewModeProvider, videoViewModeProvider);
       expect(config.favoritesValue, VideoViewMode.favorites);
     });
-
   });
 }

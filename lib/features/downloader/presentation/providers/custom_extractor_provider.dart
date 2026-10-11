@@ -11,14 +11,19 @@ class CustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>> {
   Future<List<CustomExtractor>> build() async {
     final db = ref.watch(databaseProvider);
     final entries = await db.getAllExtractors();
-    return entries.map((e) => CustomExtractor(
-      id: e.id,
-      name: e.name,
-      script: e.script,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(e.createdAt),
-      modifiedAt: DateTime.fromMillisecondsSinceEpoch(e.modifiedAt),
-      metadata: e.metadata, // Phase 2: restore metadata for default extractors
-    )).toList();
+    return entries
+        .map(
+          (e) => CustomExtractor(
+            id: e.id,
+            name: e.name,
+            script: e.script,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(e.createdAt),
+            modifiedAt: DateTime.fromMillisecondsSinceEpoch(e.modifiedAt),
+            metadata:
+                e.metadata, // Phase 2: restore metadata for default extractors
+          ),
+        )
+        .toList();
   }
 
   Future<void> addExtractor(CustomExtractor extractor) async {
@@ -59,9 +64,10 @@ class CustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>> {
   }
 }
 
-final customExtractorsProvider = AsyncNotifierProvider<CustomExtractorNotifier, List<CustomExtractor>>(
-  CustomExtractorNotifier.new,
-);
+final customExtractorsProvider =
+    AsyncNotifierProvider<CustomExtractorNotifier, List<CustomExtractor>>(
+      CustomExtractorNotifier.new,
+    );
 
 class DummyExtractorRuntimeService implements ExtractorRuntimeService {
   @override
@@ -78,6 +84,8 @@ class DummyExtractorRuntimeService implements ExtractorRuntimeService {
   }
 }
 
-final extractorRuntimeServiceProvider = Provider<ExtractorRuntimeService>((ref) {
+final extractorRuntimeServiceProvider = Provider<ExtractorRuntimeService>((
+  ref,
+) {
   return DenoExtractorRuntimeService();
 });

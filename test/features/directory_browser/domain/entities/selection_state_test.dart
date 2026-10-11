@@ -6,7 +6,7 @@ void main() {
   group('SelectionState', () {
     test('default constructor initializes correctly', () {
       const state = SelectionState();
-      
+
       expect(state.selectedPaths, isEmpty);
       expect(state.isSelectionMode, isFalse);
       expect(state.anchorIndex, isNull);
@@ -29,9 +29,7 @@ void main() {
         isSelectionMode: true,
         anchorIndex: 1,
       );
-      const state3 = SelectionState(
-        selectedPaths: {'/a', '/b'},
-      );
+      const state3 = SelectionState(selectedPaths: {'/a', '/b'});
 
       expect(state1, equals(state2));
       expect(state1, isNot(equals(state3)));
@@ -39,7 +37,7 @@ void main() {
 
     test('copyWith updates fields correctly', () {
       const state = SelectionState();
-      
+
       final updated = state.copyWith(
         selectedPaths: {'/new'},
         isSelectionMode: true,
@@ -57,7 +55,7 @@ void main() {
         isSelectionMode: true,
         anchorIndex: 5,
       );
-      
+
       final updated = state.copyWith();
 
       expect(updated.selectedPaths, state.selectedPaths);

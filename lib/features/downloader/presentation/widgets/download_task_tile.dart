@@ -6,7 +6,6 @@ import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_task_provider.dart';
 
 class DownloadTaskTile extends ConsumerStatefulWidget {
-
   const DownloadTaskTile({required this.task, super.key});
   final DownloadTask task;
 
@@ -177,7 +176,9 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                             child: Text(
                               'To: ${task.destination}',
                               style: GoogleFonts.manrope(
-                                color: AppColors.textMuted.withValues(alpha: 0.7),
+                                color: AppColors.textMuted.withValues(
+                                  alpha: 0.7,
+                                ),
                                 fontSize: 11,
                               ),
                               maxLines: 1,
@@ -281,37 +282,41 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                                   ),
                                 )
                               : (task.status == DownloadStatus.running &&
-                                      task.progress == 0.0 &&
-                                      task.totalSize.isEmpty)
-                                  ? LinearProgressIndicator(
+                                    task.progress == 0.0 &&
+                                    task.totalSize.isEmpty)
+                              ? LinearProgressIndicator(
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.06,
+                                  ),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.violet.withValues(alpha: 0.8),
+                                  ),
+                                )
+                              : TweenAnimationBuilder<double>(
+                                  tween: Tween<double>(
+                                    end: task.status == DownloadStatus.pending
+                                        ? 0.0
+                                        : task.progress,
+                                  ),
+                                  duration: const Duration(milliseconds: 300),
+                                  builder: (context, animatedProgress, _) {
+                                    return LinearProgressIndicator(
+                                      value: animatedProgress,
                                       backgroundColor: Colors.white.withValues(
                                         alpha: 0.06,
                                       ),
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        AppColors.violet.withValues(alpha: 0.8),
+                                        task.status == DownloadStatus.pending
+                                            ? Colors.white.withValues(
+                                                alpha: 0.1,
+                                              )
+                                            : AppColors.violet.withValues(
+                                                alpha: 0.8,
+                                              ),
                                       ),
-                                    )
-                                  : TweenAnimationBuilder<double>(
-                                      tween: Tween<double>(
-                                        end: task.status == DownloadStatus.pending
-                                            ? 0.0
-                                            : task.progress,
-                                      ),
-                                      duration: const Duration(milliseconds: 300),
-                                      builder: (context, animatedProgress, _) {
-                                        return LinearProgressIndicator(
-                                          value: animatedProgress,
-                                          backgroundColor: Colors.white.withValues(
-                                            alpha: 0.06,
-                                          ),
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            task.status == DownloadStatus.pending
-                                                ? Colors.white.withValues(alpha: 0.1)
-                                                : AppColors.violet.withValues(alpha: 0.8),
-                                          ),
-                                        );
-                                      },
-                                    ),
+                                    );
+                                  },
+                                ),
                         ),
                       ),
                     ],
@@ -336,7 +341,9 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                               style: GoogleFonts.manrope(
                                 color: task.status == DownloadStatus.cancelling
                                     ? Colors.orange.withValues(alpha: 0.7)
-                                    : AppColors.textMuted.withValues(alpha: 0.6),
+                                    : AppColors.textMuted.withValues(
+                                        alpha: 0.6,
+                                      ),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -358,7 +365,9 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
                             textAlign: TextAlign.right,
                             text: TextSpan(
                               style: GoogleFonts.manrope(
-                                color: AppColors.textMuted.withValues(alpha: 0.8),
+                                color: AppColors.textMuted.withValues(
+                                  alpha: 0.8,
+                                ),
                                 fontSize: 11,
                               ),
                               children: _buildStatsSpans(task),
@@ -388,9 +397,7 @@ class _DownloadTaskTileState extends ConsumerState<DownloadTaskTile> {
             ],
           ),
           if (_showCancelConfirm)
-            Positioned.fill(
-              child: _buildCancelConfirmation(),
-            ),
+            Positioned.fill(child: _buildCancelConfirmation()),
         ],
       ),
     );

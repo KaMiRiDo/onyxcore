@@ -9,7 +9,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/action_
 // Dummy Repository for testing
 class DummyDirectoryRepository implements DirectoryRepository {
   bool failCreate = false;
-  
+
   @override
   Future<void> createFolder(String path, String name, {String? taskId}) async {
     if (failCreate) throw Exception('Failed to create folder');
@@ -56,37 +56,35 @@ void main() {
         directoryRepositoryProvider.overrideWithValue(repo),
         taskProvider.overrideWith(() => MockTaskNotifier([])),
       ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: ActionBar(),
-        ),
-      ),
+      child: const MaterialApp(home: Scaffold(body: ActionBar())),
     );
   }
 
   testWidgets('ActionBar renders correctly and views options', (tester) async {
     await tester.pumpWidget(buildTestWidget(repo: DummyDirectoryRepository()));
-    
+
     expect(find.text('Add'), findsOneWidget);
     expect(find.byIcon(Icons.grid_view_rounded), findsOneWidget);
     expect(find.byIcon(Icons.sort_rounded), findsOneWidget);
     expect(find.byIcon(Icons.filter_list_rounded), findsOneWidget);
   });
 
-  testWidgets('ActionBar Add button triggers create folder flow successfully', (tester) async {
+  testWidgets('ActionBar Add button triggers create folder flow successfully', (
+    tester,
+  ) async {
     final repo = DummyDirectoryRepository();
     await tester.pumpWidget(buildTestWidget(repo: repo));
-    
+
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
-    
+
     // Expect input dialog
     expect(find.text('New Folder'), findsOneWidget);
-    
+
     // Enter folder name
     await tester.enterText(find.byType(TextField), 'my_new_folder');
     await tester.pumpAndSettle();
-    
+
     // Tap OK/Create (Usually dialogs have an OK or Create button, we can just find 'Create' or 'OK')
     final okButton = find.text('Create');
     if (tester.any(okButton)) {
@@ -95,30 +93,32 @@ void main() {
       await tester.tap(find.text('OK'));
     }
     await tester.pumpAndSettle();
-    
+
     // Check if dialog is gone
     expect(find.text('New Folder'), findsNothing);
   });
 
-  testWidgets('ActionBar Add button triggers error snackbar on failure', (tester) async {
+  testWidgets('ActionBar Add button triggers error snackbar on failure', (
+    tester,
+  ) async {
     final repo = DummyDirectoryRepository()..failCreate = true;
     await tester.pumpWidget(buildTestWidget(repo: repo));
-    
+
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
-    
+
     await tester.enterText(find.byType(TextField), 'fail_folder');
     await tester.pumpAndSettle();
-    
+
     final okButton = find.text('Create');
     if (tester.any(okButton)) {
       await tester.tap(okButton);
     } else {
       await tester.tap(find.text('OK'));
     }
-    
+
     await tester.pumpAndSettle();
-    
+
     // Check for snackbar
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.textContaining('Failed to create folder'), findsOneWidget);

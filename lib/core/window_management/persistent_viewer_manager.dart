@@ -51,23 +51,31 @@ class PersistentViewerManager {
       } else if (call.method == 'on_window_close') {
         final args = call.arguments as Map;
         final viewId = args['view_id'] as int;
-        
+
         await closeWindow(viewId);
       } else if (call.method == 'open_file') {
         final args = call.arguments as Map;
         final filePath = args['file_path'] as String;
-        
-        if (filePath.toLowerCase().endsWith('.dml') || filePath.toLowerCase().endsWith('.json')) {
-          unawaited(openMedia(WindowParams(
-            viewerType: ViewerType.downloader,
-            file: FileItem(
-              path: filePath,
-              name: p.basename(filePath),
-              type: FileItemType.downloaderList,
-              modified: DateTime.now(),
+
+        if (filePath.toLowerCase().endsWith('.dml') ||
+            filePath.toLowerCase().endsWith('.json')) {
+          unawaited(
+            openMedia(
+              WindowParams(
+                viewerType: ViewerType.downloader,
+                file: FileItem(
+                  path: filePath,
+                  name: p.basename(filePath),
+                  type: FileItemType.downloaderList,
+                  modified: DateTime.now(),
+                ),
+                initParams: {
+                  'importListPath':
+                      '$filePath?t=${DateTime.now().millisecondsSinceEpoch}',
+                },
+              ),
             ),
-            initParams: {'importListPath': '$filePath?t=${DateTime.now().millisecondsSinceEpoch}'},
-          )));
+          );
         }
       }
     });
@@ -182,7 +190,7 @@ class PersistentViewerManager {
       _focusTriggers.remove(viewId);
       _urlFocusTriggers.remove(viewId);
       updates.value++;
-      
+
       // Wait for Flutter to unmount the widget and for media_kit to release GL contexts.
       // Use a longer delay for systems with slow GPU teardown (e.g. Linux Mint with software Mesa).
       // Increased to 1500ms to avoid GLib-GObject-CRITICAL crashes during fast open/close.

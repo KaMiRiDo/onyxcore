@@ -7,7 +7,6 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 
 class WaveformScrubber extends ConsumerStatefulWidget {
-
   const WaveformScrubber({required this.fileName, super.key});
   final String fileName;
 
@@ -176,7 +175,6 @@ class _WaveformScrubberState extends ConsumerState<WaveformScrubber> {
 }
 
 class WaveformPainter extends CustomPainter {
-
   WaveformPainter({
     required this.progress,
     required this.barCount,
@@ -215,12 +213,7 @@ class WaveformPainter extends CustomPainter {
       final isPlayed = (x / size.width) <= progress;
 
       final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          x,
-          (size.height - barHeight) / 2,
-          barWidth,
-          barHeight,
-        ),
+        Rect.fromLTWH(x, (size.height - barHeight) / 2, barWidth, barHeight),
         const Radius.circular(2),
       );
 
@@ -231,12 +224,7 @@ class WaveformPainter extends CustomPainter {
           (barWidth + gap) / size.width / 2) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromLTWH(
-              x,
-              0,
-              barWidth,
-              size.height,
-            ),
+            Rect.fromLTWH(x, 0, barWidth, size.height),
             const Radius.circular(2),
           ),
           playheadPaint,

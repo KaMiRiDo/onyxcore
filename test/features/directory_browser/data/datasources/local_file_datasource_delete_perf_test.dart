@@ -35,33 +35,38 @@ void main() {
         // Expected in test environment without gio
       }
     });
-    test('moveToTrash with many files completes within reasonable time', () async {
-      // Create 5 files to trash
-      final files = <File>[];
-      for (var i = 0; i < 5; i++) {
-        final f = File(p.join(tempDir.path, 'file_$i.txt'))
-          ..writeAsStringSync('content $i');
-        files.add(f);
-      }
+    test(
+      'moveToTrash with many files completes within reasonable time',
+      () async {
+        // Create 5 files to trash
+        final files = <File>[];
+        for (var i = 0; i < 5; i++) {
+          final f = File(p.join(tempDir.path, 'file_$i.txt'))
+            ..writeAsStringSync('content $i');
+          files.add(f);
+        }
 
-      final paths = files.map((f) => f.path).toList();
+        final paths = files.map((f) => f.path).toList();
 
-      final stopwatch = Stopwatch()..start();
-      try {
-        await datasource.moveToTrash(paths);
-      } on TrashFailedException {
-        // Expected in test environment without gio
-      }
-      stopwatch.stop();
+        final stopwatch = Stopwatch()..start();
+        try {
+          await datasource.moveToTrash(paths);
+        } on TrashFailedException {
+          // Expected in test environment without gio
+        }
+        stopwatch.stop();
 
-      // Batched gio call should complete reasonably fast.
-      // 10s is generous but ensures we do not hang.
-      expect(stopwatch.elapsedMilliseconds, lessThan(10000));
-    });
+        // Batched gio call should complete reasonably fast.
+        // 10s is generous but ensures we do not hang.
+        expect(stopwatch.elapsedMilliseconds, lessThan(10000));
+      },
+    );
 
     test('moveToTrash reports progress correctly for multiple files', () async {
-      final file1 = File(p.join(tempDir.path, 'p1.txt'))..writeAsStringSync('a');
-      final file2 = File(p.join(tempDir.path, 'p2.txt'))..writeAsStringSync('b');
+      final file1 = File(p.join(tempDir.path, 'p1.txt'))
+        ..writeAsStringSync('a');
+      final file2 = File(p.join(tempDir.path, 'p2.txt'))
+        ..writeAsStringSync('b');
 
       final progressReports = <(int, int)>[];
       try {
@@ -89,10 +94,7 @@ void main() {
 
       final logs = <String>[];
       try {
-        await datasource.moveToTrash(
-          [file1.path],
-          onLog: logs.add,
-        );
+        await datasource.moveToTrash([file1.path], onLog: logs.add);
       } on TrashFailedException {
         // Expected in test environment without gio
         return;
@@ -118,10 +120,7 @@ void main() {
         ..writeAsStringSync('data');
 
       final logs = <String>[];
-      await datasource.deleteItems(
-        [file1.path, file2.path],
-        onLog: logs.add,
-      );
+      await datasource.deleteItems([file1.path, file2.path], onLog: logs.add);
 
       expect(logs.length, 2);
       expect(file1.existsSync(), isFalse);

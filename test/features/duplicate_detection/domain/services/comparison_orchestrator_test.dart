@@ -10,7 +10,6 @@ import 'package:onyxcore/features/duplicate_detection/domain/services/comparison
 // ── Fakes ────────────────────────────────────────────────────────────────────
 
 class _FakeOrchestrator extends Fake implements ComparisonOrchestrator {
-
   _FakeOrchestrator({
     required ComparisonResult result,
     bool shouldCancel = false,

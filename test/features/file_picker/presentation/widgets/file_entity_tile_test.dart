@@ -33,7 +33,7 @@ void main() {
   testWidgets('renders folder entity correctly', (tester) async {
     final folder = fs.directory('/home/user/Documents');
     await tester.pumpWidget(buildTile(folder));
-    
+
     expect(find.text('Documents'), findsOneWidget);
     expect(find.byIcon(Icons.folder_rounded), findsOneWidget);
   });
@@ -57,6 +57,4 @@ void main() {
     expect(find.text('clip.mp4'), findsOneWidget);
     expect(find.byIcon(Icons.video_collection_rounded), findsOneWidget);
   });
-
-
 }

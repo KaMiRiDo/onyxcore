@@ -15,7 +15,9 @@ class SelectionNotifier extends Notifier<SelectionState> {
     final tabId = ref.watch(tabIdProvider);
     final selectedPaths = ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.selectedPaths ?? const {},
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.selectedPaths ??
+            const {},
       ),
     );
     return SelectionState(

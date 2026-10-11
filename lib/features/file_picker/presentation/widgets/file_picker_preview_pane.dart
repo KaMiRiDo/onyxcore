@@ -6,11 +6,7 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:path/path.dart' as p;
 
 class FilePickerPreviewPane extends StatefulWidget {
-
-  const FilePickerPreviewPane({
-    required this.selectedPaths,
-    super.key,
-  });
+  const FilePickerPreviewPane({required this.selectedPaths, super.key});
   final List<String> selectedPaths;
 
   @override
@@ -67,9 +63,7 @@ class _FilePickerPreviewPaneState extends State<FilePickerPreviewPane> {
                 ? _buildEmptyState()
                 : ListView.separated(
                     controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: widget.selectedPaths.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 20),
                     itemBuilder: (context, index) =>
@@ -104,7 +98,6 @@ class _FilePickerPreviewPaneState extends State<FilePickerPreviewPane> {
 }
 
 class _PreviewItem extends StatelessWidget {
-
   const _PreviewItem({required this.path});
   final String path;
 

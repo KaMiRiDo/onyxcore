@@ -13,9 +13,13 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 /// Customization is provided via slots: [coverArt], [subtitle], [activeIndicator],
 /// and [defaultMediaIcon].
 class MediaTile extends StatelessWidget {
-
   const MediaTile({
-    required this.item, required this.isActive, required this.isSelected, required this.subtitle, required this.defaultMediaIcon, super.key,
+    required this.item,
+    required this.isActive,
+    required this.isSelected,
+    required this.subtitle,
+    required this.defaultMediaIcon,
+    super.key,
     this.onTap,
     this.onDoubleTap,
     this.onSecondaryTapDown,
@@ -29,7 +33,7 @@ class MediaTile extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final void Function(TapDownDetails details, BuildContext context)?
-      onSecondaryTapDown;
+  onSecondaryTapDown;
 
   /// Optional cover art widget (e.g. ID3 album art for audio).
   /// If null, the default icon is shown.
@@ -141,11 +145,7 @@ class MediaTile extends StatelessWidget {
                   ),
                 ),
                 if (isActive && activeIndicator != null)
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: activeIndicator,
-                  ),
+                  SizedBox(width: 24, height: 24, child: activeIndicator),
               ],
             ),
           ),
@@ -211,10 +211,7 @@ class MediaTile extends StatelessWidget {
               ),
             ),
           ),
-        if (hasImage)
-          Container(
-            color: Colors.black.withValues(alpha: 0.5),
-          ),
+        if (hasImage) Container(color: Colors.black.withValues(alpha: 0.5)),
         Center(
           child: ShaderMask(
             shaderCallback: (bounds) => const LinearGradient(

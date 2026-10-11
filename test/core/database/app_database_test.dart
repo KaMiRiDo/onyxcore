@@ -25,18 +25,21 @@ void main() {
       expect(updatedSorts['/test/path'], 'sizeLargeToSmall');
     });
 
-    test('removeFolderSorts removes matching paths and subdirectories', () async {
-      await database.setFolderSort('/test/path', 'lastModified');
-      await database.setFolderSort('/test/path/child', 'aToZ');
-      await database.setFolderSort('/other/path', 'zToA');
+    test(
+      'removeFolderSorts removes matching paths and subdirectories',
+      () async {
+        await database.setFolderSort('/test/path', 'lastModified');
+        await database.setFolderSort('/test/path/child', 'aToZ');
+        await database.setFolderSort('/other/path', 'zToA');
 
-      await database.removeFolderSorts(['/test/path']);
+        await database.removeFolderSorts(['/test/path']);
 
-      final sorts = await database.getAllFolderSorts();
-      expect(sorts.containsKey('/test/path'), isFalse);
-      expect(sorts.containsKey('/test/path/child'), isFalse);
-      expect(sorts.containsKey('/other/path'), isTrue);
-      expect(sorts['/other/path'], 'zToA');
-    });
+        final sorts = await database.getAllFolderSorts();
+        expect(sorts.containsKey('/test/path'), isFalse);
+        expect(sorts.containsKey('/test/path/child'), isFalse);
+        expect(sorts.containsKey('/other/path'), isTrue);
+        expect(sorts['/other/path'], 'zToA');
+      },
+    );
   });
 }

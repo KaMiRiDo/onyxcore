@@ -36,7 +36,6 @@ import 'package:path/path.dart' as p;
 /// - Tile metadata (subtitle, cover art, active indicator)
 /// - The media file type filter
 abstract class PlaylistSidebarBase extends ConsumerStatefulWidget {
-
   const PlaylistSidebarBase({
     super.key,
     this.onDelete,
@@ -49,7 +48,6 @@ abstract class PlaylistSidebarBase extends ConsumerStatefulWidget {
   final VoidCallback? onReload;
   final bool isNetworkStream;
 }
-
 
 abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     extends ConsumerState<T> {
@@ -100,8 +98,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
   void onItemDoubleTap(FileItem item, int realIndex, List<FileItem> queue);
 
   /// Invoked when a file item is single-tapped.
-  /// 
-  /// Routes to onItemDoubleTap by default to emulate standard playlist behavior 
+  ///
+  /// Routes to onItemDoubleTap by default to emulate standard playlist behavior
   /// (single click plays the item).
   void onItemTap(FileItem item, int realIndex, List<FileItem> queue) {
     onItemDoubleTap(item, realIndex, queue);
@@ -279,10 +277,16 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     );
   }
 
-  Future<void> handleMoveOrCopy(BuildContext context, List<String> paths, bool isMove) async {
+  Future<void> handleMoveOrCopy(
+    BuildContext context,
+    List<String> paths,
+    bool isMove,
+  ) async {
     final result = await CustomFilePickerDialog.show(
       context,
-      title: isMove ? 'SELECT DESTINATION TO MOVE' : 'SELECT DESTINATION TO COPY',
+      title: isMove
+          ? 'SELECT DESTINATION TO MOVE'
+          : 'SELECT DESTINATION TO COPY',
       pickDirectory: true,
       actionText: isMove ? 'MOVE HERE' : 'COPY HERE',
     );
@@ -295,11 +299,15 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
     });
   }
 
-  Future<void> executeMoveOrCopy(List<String> paths, String targetDir, bool isMove) async {
+  Future<void> executeMoveOrCopy(
+    List<String> paths,
+    String targetDir,
+    bool isMove,
+  ) async {
     if (isMove && widget.onMove != null) {
       widget.onMove!(paths);
     }
-    
+
     final repo = ref.read(directoryRepositoryProvider);
     final taskNotifier = ref.read(taskProvider.notifier);
 
@@ -330,7 +338,10 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
         final fileName = p.basename(sourcePath);
         final destPath = p.join(targetDir, fileName);
 
-        taskNotifier.addLog(taskId, '${isMove ? "Moving" : "Copying"} $fileName...');
+        taskNotifier.addLog(
+          taskId,
+          '${isMove ? "Moving" : "Copying"} $fileName...',
+        );
         taskNotifier.updateCurrentItem(taskId, fileName);
 
         var lastItemBytesProcessed = 0;
@@ -339,9 +350,16 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
           lastItemBytesProcessed = bytesCopied;
           totalBytesProcessed += delta;
 
-          taskNotifier.updateByteCounts(taskId, totalBytesProcessed, totalSizeBytes);
+          taskNotifier.updateByteCounts(
+            taskId,
+            totalBytesProcessed,
+            totalSizeBytes,
+          );
           if (totalSizeBytes > 0) {
-            taskNotifier.updateProgress(taskId, totalBytesProcessed / totalSizeBytes);
+            taskNotifier.updateProgress(
+              taskId,
+              totalBytesProcessed / totalSizeBytes,
+            );
           }
         }
 
@@ -360,7 +378,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
             onProgress: onProgress,
             onSyncing: onSyncing,
             taskId: taskId,
-            onPort: (port, isolate) => taskNotifier.registerPort(taskId, port, isolate: isolate),
+            onPort: (port, isolate) =>
+                taskNotifier.registerPort(taskId, port, isolate: isolate),
           );
         } else {
           await repo.copyItemTo(
@@ -369,7 +388,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
             onProgress: onProgress,
             onSyncing: onSyncing,
             taskId: taskId,
-            onPort: (port, isolate) => taskNotifier.registerPort(taskId, port, isolate: isolate),
+            onPort: (port, isolate) =>
+                taskNotifier.registerPort(taskId, port, isolate: isolate),
           );
         }
 
@@ -427,7 +447,9 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
         var newPaths = <String>[];
         final taskId = taskNotifier.addTask(
           title: 'Bulk renaming ${paths.length} items',
-          subtitle: mode == RenameMode.prefix ? 'Prefix: $value' : 'Index: $value',
+          subtitle: mode == RenameMode.prefix
+              ? 'Prefix: $value'
+              : 'Index: $value',
           sourcePaths: paths,
           isLight: true,
         );
@@ -487,7 +509,6 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
       final isLast = i == allSegments.length - 1;
       final targetPath = accumulatedPath;
 
-
       final inkWell = InkWell(
         onTap: isLast
             ? null
@@ -531,7 +552,8 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
             },
             onAcceptWithDetails: (details) {
               _hoverTimer?.cancel();
-              if (details.data.every((path) => p.dirname(path) == targetPath)) return;
+              if (details.data.every((path) => p.dirname(path) == targetPath))
+                return;
               executeMoveOrCopy(details.data, targetPath, true);
               ref.read(config.selectionProvider.notifier).state = {};
             },
@@ -539,7 +561,9 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
               final isOver = candidateData.isNotEmpty;
               return Container(
                 decoration: BoxDecoration(
-                  color: isOver ? AppColors.violet.withValues(alpha: 0.2) : Colors.transparent,
+                  color: isOver
+                      ? AppColors.violet.withValues(alpha: 0.2)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: inkWell,
@@ -548,7 +572,6 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
           ),
         );
       }
-
 
       if (!isLast) {
         breadcrumbWidgets.add(
@@ -581,9 +604,7 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
             child: SingleChildScrollView(
               controller: breadcrumbController,
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: breadcrumbWidgets,
-              ),
+              child: Row(children: breadcrumbWidgets),
             ),
           ),
           const SizedBox(width: 8),
@@ -725,17 +746,19 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
       _lastActiveIndex = activeIndex;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !scrollController.hasClients) return;
-        
+
         const itemHeight = 68;
         final targetOffset = activeIndex * itemHeight;
-        
+
         final currentOffset = scrollController.offset;
         final viewportHeight = scrollController.position.viewportDimension;
-        
+
         // Check if item is completely out of view or partially obscured
-        if (targetOffset < currentOffset || targetOffset + itemHeight > currentOffset + viewportHeight) {
+        if (targetOffset < currentOffset ||
+            targetOffset + itemHeight > currentOffset + viewportHeight) {
           // Scroll to center the item
-          var scrollOffset = targetOffset - (viewportHeight / 2) + (itemHeight / 2);
+          var scrollOffset =
+              targetOffset - (viewportHeight / 2) + (itemHeight / 2);
           // Don't scroll past the boundaries
           final maxExtent = scrollController.position.maxScrollExtent;
           if (maxExtent > 0) {
@@ -871,7 +894,9 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                 onKeyEvent: (node, event) {
                   if (event is KeyDownEvent &&
                       event.logicalKey == LogicalKeyboardKey.f2) {
-                    final currentSelection = ref.read(config.selectionProvider).toList();
+                    final currentSelection = ref
+                        .read(config.selectionProvider)
+                        .toList();
                     if (currentSelection.isNotEmpty) {
                       handleRename(context, currentSelection);
                       return KeyEventResult.handled;
@@ -881,172 +906,220 @@ abstract class PlaylistSidebarBaseState<T extends PlaylistSidebarBase>
                 },
                 child: Stack(
                   children: [
-                    if (queue.isEmpty) Center(
-                            child: Text(
-                              isFavoritesMode
-                                  ? favoritesEmptyStateText
-                                  : emptyStateText,
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ) else ListView.builder(
-                            controller: scrollController,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemExtent: 68,
-                            itemCount: queue.length,
-                          itemBuilder: (context, index) {
-                            final item = queue[index];
-                            final isActive = isItemActive(ref, item);
-                            final isItemSelected = selection.contains(item.path);
+                    if (queue.isEmpty)
+                      Center(
+                        child: Text(
+                          isFavoritesMode
+                              ? favoritesEmptyStateText
+                              : emptyStateText,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 14,
+                          ),
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemExtent: 68,
+                        itemCount: queue.length,
+                        itemBuilder: (context, index) {
+                          final item = queue[index];
+                          final isActive = isItemActive(ref, item);
+                          final isItemSelected = selection.contains(item.path);
 
-                            final Widget tileWidget = MediaTile(
-                              item: item,
-                              isActive: isActive,
-                              isSelected: isItemSelected,
-                              subtitle: buildSubtitle(item),
-                              defaultMediaIcon: defaultMediaIcon,
-                              defaultMediaIconSize: defaultMediaIconSize,
-                              coverArt: buildCoverArt(ref, item),
-                              activeIndicator: isActive
-                                  ? buildActiveIndicator(isCurrentlyPlaying)
-                                  : null,
-                              onSecondaryTapDown: (details, tileContext) {
-                                if (!isItemSelected) {
-                                  ref
-                                      .read(config.selectionProvider.notifier)
-                                      .state = {
-                                    item.path,
-                                  };
-                                }
-                                final box =
-                                    tileContext.findRenderObject()! as RenderBox;
-                                // Align context menu strictly to the right side of the list tile
-                                final position = box.localToGlobal(
-                                  Offset(box.size.width, 24),
+                          final Widget tileWidget = MediaTile(
+                            item: item,
+                            isActive: isActive,
+                            isSelected: isItemSelected,
+                            subtitle: buildSubtitle(item),
+                            defaultMediaIcon: defaultMediaIcon,
+                            defaultMediaIconSize: defaultMediaIconSize,
+                            coverArt: buildCoverArt(ref, item),
+                            activeIndicator: isActive
+                                ? buildActiveIndicator(isCurrentlyPlaying)
+                                : null,
+                            onSecondaryTapDown: (details, tileContext) {
+                              if (!isItemSelected) {
+                                ref
+                                    .read(config.selectionProvider.notifier)
+                                    .state = {
+                                  item.path,
+                                };
+                              }
+                              final box =
+                                  tileContext.findRenderObject()! as RenderBox;
+                              // Align context menu strictly to the right side of the list tile
+                              final position = box.localToGlobal(
+                                Offset(box.size.width, 24),
+                              );
+                              showContextMenu(context, item, position);
+                            },
+                            onTap: () {
+                              handleSelect(ref, index, queue);
+
+                              if (item.type != FileItemType.folder) {
+                                final originalQueue = ref.read(
+                                  config.queueProvider,
                                 );
-                                showContextMenu(context, item, position);
-                              },
-                              onTap: () {
-                                handleSelect(ref, index, queue);
-                                
-                                if (item.type != FileItemType.folder) {
-                                  final originalQueue = ref.read(config.queueProvider);
-                                  final realIndex = originalQueue.indexWhere((i) => i.path == item.path);
-                                  if (realIndex != -1) {
-                                    onItemTap(item, realIndex, originalQueue);
-                                  }
-                                }
-                              },
-                              onDoubleTap: () {
-                                ref.read(config.selectionProvider.notifier).state = {};
-
-                                if (item.type == FileItemType.folder) {
-                                  openFolder(ref, item.path);
-                                  return;
-                                }
-
-                                // Find the real index in the unfiltered queue
-                                final originalQueue = ref.read(config.queueProvider);
                                 final realIndex = originalQueue.indexWhere(
                                   (i) => i.path == item.path,
                                 );
                                 if (realIndex != -1) {
-                                  onItemDoubleTap(item, realIndex, originalQueue);
+                                  onItemTap(item, realIndex, originalQueue);
                                 }
-                              },
-                            );
+                              }
+                            },
+                            onDoubleTap: () {
+                              ref
+                                      .read(config.selectionProvider.notifier)
+                                      .state =
+                                  {};
 
-                            final Widget draggableWidget = Draggable<List<String>>(
-                              data: isItemSelected
-                                  ? selection.toList()
-                                  : [item.path],
-                              dragAnchorStrategy: (draggable, context, position) => const Offset(0, 0),
-                              feedback: RepaintBoundary(
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: Container(
-                                    width: 250,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF181818).withValues(alpha: 0.95),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                                      boxShadow: [
-                                        BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 4)),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      isItemSelected && selection.length > 1
-                                          ? '${selection.length} items'
-                                          : item.name,
-                                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                              if (item.type == FileItemType.folder) {
+                                openFolder(ref, item.path);
+                                return;
+                              }
+
+                              // Find the real index in the unfiltered queue
+                              final originalQueue = ref.read(
+                                config.queueProvider,
+                              );
+                              final realIndex = originalQueue.indexWhere(
+                                (i) => i.path == item.path,
+                              );
+                              if (realIndex != -1) {
+                                onItemDoubleTap(item, realIndex, originalQueue);
+                              }
+                            },
+                          );
+
+                          final Widget draggableWidget =
+                              Draggable<List<String>>(
+                                data: isItemSelected
+                                    ? selection.toList()
+                                    : [item.path],
+                                dragAnchorStrategy:
+                                    (draggable, context, position) =>
+                                        const Offset(0, 0),
+                                feedback: RepaintBoundary(
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: Container(
+                                      width: 250,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFF181818,
+                                        ).withValues(alpha: 0.95),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        isItemSelected && selection.length > 1
+                                            ? '${selection.length} items'
+                                            : item.name,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              childWhenDragging: Opacity(opacity: 0.3, child: tileWidget),
-                              child: tileWidget,
-                            );
-
-                            if (item.type == FileItemType.folder) {
-                              return DragTarget<List<String>>(
-                                onWillAcceptWithDetails: (details) {
-                                  if (details.data.contains(item.path)) return false;
-                                  
-                                  _hoverTimer?.cancel();
-                                  _hoverTimer = Timer(const Duration(milliseconds: 1000), () {
-                                    openFolder(ref, item.path);
-                                  });
-                                  
-                                  return true;
-                                },
-                                onLeave: (_) {
-                                  _hoverTimer?.cancel();
-                                },
-                                onAcceptWithDetails: (details) {
-                                  _hoverTimer?.cancel();
-                                  executeMoveOrCopy(details.data, item.path, true);
-                                  ref.read(config.selectionProvider.notifier).state = {};
-                                },
-                                builder: (context, candidateData, rejectedData) {
-                                  final isOver = candidateData.isNotEmpty;
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      color: isOver ? AppColors.violet.withValues(alpha: 0.15) : null,
-                                    ),
-                                    child: draggableWidget,
-                                  );
-                                },
+                                childWhenDragging: Opacity(
+                                  opacity: 0.3,
+                                  child: tileWidget,
+                                ),
+                                child: tileWidget,
                               );
-                            }
 
-                            return draggableWidget;
-                          },
-                        ),
-                  if (ref.watch(config.isReloadingProvider))
-                    Positioned.fill(
-                      child: ColoredBox(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        child: const Center(
-                          child: BubbleLoader(size: 48),
+                          if (item.type == FileItemType.folder) {
+                            return DragTarget<List<String>>(
+                              onWillAcceptWithDetails: (details) {
+                                if (details.data.contains(item.path))
+                                  return false;
+
+                                _hoverTimer?.cancel();
+                                _hoverTimer = Timer(
+                                  const Duration(milliseconds: 1000),
+                                  () {
+                                    openFolder(ref, item.path);
+                                  },
+                                );
+
+                                return true;
+                              },
+                              onLeave: (_) {
+                                _hoverTimer?.cancel();
+                              },
+                              onAcceptWithDetails: (details) {
+                                _hoverTimer?.cancel();
+                                executeMoveOrCopy(
+                                  details.data,
+                                  item.path,
+                                  true,
+                                );
+                                ref
+                                        .read(config.selectionProvider.notifier)
+                                        .state =
+                                    {};
+                              },
+                              builder: (context, candidateData, rejectedData) {
+                                final isOver = candidateData.isNotEmpty;
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: isOver
+                                        ? AppColors.violet.withValues(
+                                            alpha: 0.15,
+                                          )
+                                        : null,
+                                  ),
+                                  child: draggableWidget,
+                                );
+                              },
+                            );
+                          }
+
+                          return draggableWidget;
+                        },
+                      ),
+                    if (ref.watch(config.isReloadingProvider))
+                      Positioned.fill(
+                        child: ColoredBox(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          child: const Center(child: BubbleLoader(size: 48)),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
 
             // Bottom Navigation Bar
-            if (!widget.isNetworkStream)
-              buildBottomNavBar(isFavoritesMode),
+            if (!widget.isNetworkStream) buildBottomNavBar(isFavoritesMode),
           ],
-
         ),
       ),
     );

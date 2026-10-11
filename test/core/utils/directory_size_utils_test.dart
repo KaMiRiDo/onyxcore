@@ -23,8 +23,10 @@ void main() {
 
     setUp(() {
       tempDir = Directory.systemTemp.createTempSync('dir_size_test_');
-      file1 = File('${tempDir.path}/file1.txt')..writeAsStringSync('12345'); // 5 bytes
-      file2 = File('${tempDir.path}/file2.txt')..writeAsStringSync('1234567890'); // 10 bytes
+      file1 = File('${tempDir.path}/file1.txt')
+        ..writeAsStringSync('12345'); // 5 bytes
+      file2 = File('${tempDir.path}/file2.txt')
+        ..writeAsStringSync('1234567890'); // 10 bytes
       subDir = Directory('${tempDir.path}/subdir')..createSync();
       File('${subDir.path}/file3.txt').writeAsStringSync('abc'); // 3 bytes
     });

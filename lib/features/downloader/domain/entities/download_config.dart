@@ -5,7 +5,6 @@ enum DownloadMode { normal, mute, audioOnly }
 enum GroupDownloadType { all, images, videos }
 
 class DownloadConfig {
-
   DownloadConfig({
     this.format,
     this.mode = DownloadMode.normal,

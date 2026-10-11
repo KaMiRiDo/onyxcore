@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/playback_speed_control.dart';
 
 void main() {
-  testWidgets('PlaybackSpeedControl renders all speeds and handles tap', (WidgetTester tester) async {
+  testWidgets('PlaybackSpeedControl renders all speeds and handles tap', (
+    WidgetTester tester,
+  ) async {
     var selectedSpeed = 1.0;
-    
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -29,18 +31,21 @@ void main() {
     expect(selectedSpeed, 1.5);
   });
 
-  testWidgets('PlaybackSpeedControl uses different styles for selected and unselected speeds', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: PlaybackSpeedControl(
-            currentSpeed: 2,
-            onSpeedSelected: (speed) {},
+  testWidgets(
+    'PlaybackSpeedControl uses different styles for selected and unselected speeds',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlaybackSpeedControl(
+              currentSpeed: 2,
+              onSpeedSelected: (speed) {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.byType(Spacer), findsOneWidget);
-  });
+      expect(find.byType(Spacer), findsOneWidget);
+    },
+  );
 }

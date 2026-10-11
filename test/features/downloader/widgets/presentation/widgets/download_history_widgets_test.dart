@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:onyxcore/core/database/app_database.dart' hide DownloadHistoryEntry;
+import 'package:onyxcore/core/database/app_database.dart'
+    hide DownloadHistoryEntry;
 import 'package:onyxcore/core/database/database_provider.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
@@ -30,49 +31,43 @@ void main() {
     if (existingContainer != null) {
       return UncontrolledProviderScope(
         container: existingContainer,
-        child: const MaterialApp(
-          home: Scaffold(
-            body: DownloadHistoryView(),
-          ),
-        ),
+        child: const MaterialApp(home: Scaffold(body: DownloadHistoryView())),
       );
     }
     return ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(appDb),
-      ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: DownloadHistoryView(),
-        ),
-      ),
+      overrides: [databaseProvider.overrideWithValue(appDb)],
+      child: const MaterialApp(home: Scaffold(body: DownloadHistoryView())),
     );
   }
 
-  Widget createHistoryDetailTestWidget(DownloadHistoryEntry entry, ProviderContainer container) {
-    container.read(downloadHistoryProvider.notifier).addEntry(
-      DownloadTask(
-        id: entry.id,
-        url: entry.url,
-        title: entry.title,
-        destination: entry.destination,
-        downloadType: entry.downloadType,
-        status: DownloadStatus.values.firstWhere(
-            (s) => s.name.toLowerCase() == entry.statusName.toLowerCase(),
-            orElse: () => DownloadStatus.completed),
-        createdAt: entry.createdAt,
-        completedAt: entry.completedAt,
-        error: entry.errorMessage,
-        logs: entry.logs,
-      ),
-    );
+  Widget createHistoryDetailTestWidget(
+    DownloadHistoryEntry entry,
+    ProviderContainer container,
+  ) {
+    container
+        .read(downloadHistoryProvider.notifier)
+        .addEntry(
+          DownloadTask(
+            id: entry.id,
+            url: entry.url,
+            title: entry.title,
+            destination: entry.destination,
+            downloadType: entry.downloadType,
+            status: DownloadStatus.values.firstWhere(
+              (s) => s.name.toLowerCase() == entry.statusName.toLowerCase(),
+              orElse: () => DownloadStatus.completed,
+            ),
+            createdAt: entry.createdAt,
+            completedAt: entry.completedAt,
+            error: entry.errorMessage,
+            logs: entry.logs,
+          ),
+        );
 
     return UncontrolledProviderScope(
       container: container,
       child: const MaterialApp(
-        home: Scaffold(
-          body: DownloadHistoryDetailView(),
-        ),
+        home: Scaffold(body: DownloadHistoryDetailView()),
       ),
     );
   }
@@ -89,8 +84,9 @@ void main() {
       expect(find.text('No download history yet'), findsOneWidget);
     });
 
-
-    testWidgets('W-DL-HIS-03: Toggle multi-select context menu', (tester) async {
+    testWidgets('W-DL-HIS-03: Toggle multi-select context menu', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(appDb)],
       );
@@ -101,11 +97,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(
-            home: Scaffold(
-              body: DownloadHistoryView(),
-            ),
-          ),
+          child: const MaterialApp(home: Scaffold(body: DownloadHistoryView())),
         ),
       );
       await tester.pumpAndSettle();
@@ -113,7 +105,6 @@ void main() {
       expect(find.text('2 Selected'), findsOneWidget);
       expect(find.byIcon(Icons.close_rounded), findsWidgets);
     });
-
 
     testWidgets('W-DL-HIS-05: Clear All button', (tester) async {
       await tester.pumpWidget(createHistoryViewTestWidget(null));
@@ -136,11 +127,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(
-            home: Scaffold(
-              body: DownloadHistoryView(),
-            ),
-          ),
+          child: const MaterialApp(home: Scaffold(body: DownloadHistoryView())),
         ),
       );
       await tester.pumpAndSettle();
@@ -245,7 +232,12 @@ void main() {
       await tester.pumpWidget(createHistoryDetailTestWidget(entry, container));
       await tester.pumpAndSettle();
 
-      expect(find.text(StringUtils.truncateMiddle('/home/user/Downloads', maxLength: 60)), findsOneWidget);
+      expect(
+        find.text(
+          StringUtils.truncateMiddle('/home/user/Downloads', maxLength: 60),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('W-DL-HIS-13: Copy URL to clipboard', (tester) async {
@@ -270,7 +262,6 @@ void main() {
 
       expect(find.byTooltip('Copy URL'), findsOneWidget);
     });
-
 
     testWidgets('W-DL-HIS-15: Display duration', (tester) async {
       final now = DateTime.now();

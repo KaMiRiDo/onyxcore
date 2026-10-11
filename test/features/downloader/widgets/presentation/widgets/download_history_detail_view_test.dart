@@ -28,11 +28,11 @@ void main() {
     late AppDatabase appDb;
 
     setUp(() {
-      appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+      appDb = AppDatabase.forTesting(
+        DatabaseConnection(NativeDatabase.memory()),
+      );
       container = ProviderContainer(
-        overrides: [
-          databaseProvider.overrideWithValue(appDb),
-        ],
+        overrides: [databaseProvider.overrideWithValue(appDb)],
       );
     });
 
@@ -41,7 +41,9 @@ void main() {
       appDb.close();
     });
 
-    testWidgets('Renders detail view properly with no selected id', (tester) async {
+    testWidgets('Renders detail view properly with no selected id', (
+      tester,
+    ) async {
       await tester.pumpWidget(createWidgetUnderTest(container));
       await tester.pumpAndSettle();
 

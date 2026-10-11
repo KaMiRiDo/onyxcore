@@ -41,9 +41,33 @@ class MockCustomEngine extends DownloadEngine {
   @override
   EngineUpdateInfo? get updateInfo => null;
   @override
-  Future<List<MediaInfo>> fetchMetadata({required String url, String? browser, bool fetchDeep = false, bool isPlaylist = false, void Function(MediaInfo info)? onProgress, void Function(int pid)? onProcessStarted}) async => [];
+  Future<List<MediaInfo>> fetchMetadata({
+    required String url,
+    String? browser,
+    bool fetchDeep = false,
+    bool isPlaylist = false,
+    void Function(MediaInfo info)? onProgress,
+    void Function(int pid)? onProcessStarted,
+  }) async => [];
   @override
-  Future<Process> startDownload({required String url, required String destination, String? title, MediaFormat? format, bool audioOnly = false, bool mute = false, int? galleryIndex, bool isPlaylist = false, bool isProfile = false, String? browser, bool isZip = false, String? filterType, int? totalItems, String? singleItemId, String? directUrl, String? itemsRange}) async => throw UnimplementedError();
+  Future<Process> startDownload({
+    required String url,
+    required String destination,
+    String? title,
+    MediaFormat? format,
+    bool audioOnly = false,
+    bool mute = false,
+    int? galleryIndex,
+    bool isPlaylist = false,
+    bool isProfile = false,
+    String? browser,
+    bool isZip = false,
+    String? filterType,
+    int? totalItems,
+    String? singleItemId,
+    String? directUrl,
+    String? itemsRange,
+  }) async => throw UnimplementedError();
 }
 
 class TestGalleryDlEngine extends GalleryDlEngine {
@@ -85,6 +109,7 @@ class TestYouGetEngine extends YouGetEngine {
   @override
   String? get binaryPath => null;
 }
+
 void setEngineInstalled(DownloadEngine engine, bool installed) {
   if (engine is TestGalleryDlEngine) engine._installed = installed;
   if (engine is TestYtDlpEngine) engine._installed = installed;
@@ -108,66 +133,102 @@ void main() {
 
     group('1. Engine Resolution — resolveEngine', () {
       test('U-DL-REG-01: Return specific engine by preference', () {
-        final engine = EngineRegistry.resolveEngine('http://any.com', 'gallery-dl');
+        final engine = EngineRegistry.resolveEngine(
+          'http://any.com',
+          'gallery-dl',
+        );
         expect(engine, isA<GalleryDlEngine>());
       });
 
       test('U-DL-REG-02: Fallback to yt-dlp for unknown preference', () {
-        final engine = EngineRegistry.resolveEngine('http://any.com', 'nonexistent');
+        final engine = EngineRegistry.resolveEngine(
+          'http://any.com',
+          'nonexistent',
+        );
         expect(engine, isA<YtDlpEngine>());
       });
 
-      test('U-DL-REG-03: Auto-detect highest-priority installed engine by URL pattern', () {
-        final engine = EngineRegistry.resolveEngine('https://instagram.com/post', 'auto');
-        // Gallery-dl has priority 10 and matches instagram
-        expect(engine, isA<GalleryDlEngine>());
-      });
+      test(
+        'U-DL-REG-03: Auto-detect highest-priority installed engine by URL pattern',
+        () {
+          final engine = EngineRegistry.resolveEngine(
+            'https://instagram.com/post',
+            'auto',
+          );
+          // Gallery-dl has priority 10 and matches instagram
+          expect(engine, isA<GalleryDlEngine>());
+        },
+      );
 
       test('U-DL-REG-04: Skip uninstalled engines in auto mode', () {
         final lux = EngineRegistry.findById('lux');
         if (lux != null) setEngineInstalled(lux, false);
-        
+
         // Bilibili is handled by Lux (priority 4) or YouGet (priority 3) or yt-dlp (priority 9, but fallback)
-        final engine = EngineRegistry.resolveEngine('https://bilibili.com/video', 'auto');
+        final engine = EngineRegistry.resolveEngine(
+          'https://bilibili.com/video',
+          'auto',
+        );
         // Since Lux is uninstalled, it should fallback to YouGet (if it matches) or yt-dlp
         // yt-dlp has priority 9 and matches `.*`, so it might actually win! Wait, we'll just check it doesn't return Lux.
         expect(engine.id, isNot('lux'));
-        
+
         if (lux != null) setEngineInstalled(lux, true); // restore
       });
 
       test('U-DL-REG-05: Fallback to yt-dlp when no patterns match', () {
         // Since yt-dlp matches `.*`, it will always match, but it's the fallback
-        final engine = EngineRegistry.resolveEngine('https://random-unknown-site.com', 'auto');
+        final engine = EngineRegistry.resolveEngine(
+          'https://random-unknown-site.com',
+          'auto',
+        );
         // Depending on patterns, it might resolve to YtDlpEngine
         expect(engine, isA<YtDlpEngine>());
       });
     });
 
     group('2. Engine Sequence Resolution — resolveEngineSequence', () {
-      test('U-DL-REG-06: Return correct sequence for auto — matchers first by priority', () {
-        final seq = EngineRegistry.resolveEngineSequence('https://youtube.com/video', 'auto');
-        expect(seq.first, isA<YtDlpEngine>()); // yt-dlp is priority 9 and matches .*
-      });
+      test(
+        'U-DL-REG-06: Return correct sequence for auto — matchers first by priority',
+        () {
+          final seq = EngineRegistry.resolveEngineSequence(
+            'https://youtube.com/video',
+            'auto',
+          );
+          expect(
+            seq.first,
+            isA<YtDlpEngine>(),
+          ); // yt-dlp is priority 9 and matches .*
+        },
+      );
 
       test('U-DL-REG-07: Return single engine for specific preference', () {
-        final seq = EngineRegistry.resolveEngineSequence('http://any', 'yt-dlp');
+        final seq = EngineRegistry.resolveEngineSequence(
+          'http://any',
+          'yt-dlp',
+        );
         expect(seq.length, 1);
         expect(seq.first, isA<YtDlpEngine>());
       });
 
-      test('U-DL-REG-08: Fallback to yt-dlp when specific engine not found', () {
-        final seq = EngineRegistry.resolveEngineSequence('http://any', 'nonexistent');
-        expect(seq.length, 1);
-        expect(seq.first, isA<YtDlpEngine>());
-      });
+      test(
+        'U-DL-REG-08: Fallback to yt-dlp when specific engine not found',
+        () {
+          final seq = EngineRegistry.resolveEngineSequence(
+            'http://any',
+            'nonexistent',
+          );
+          expect(seq.length, 1);
+          expect(seq.first, isA<YtDlpEngine>());
+        },
+      );
 
       test('U-DL-REG-09: Handle no installed engines', () {
         EngineRegistry.clearAllEnginesForTesting();
         final yt = TestYtDlpEngine();
         yt._installed = false;
         EngineRegistry.register(yt);
-        
+
         final seq = EngineRegistry.resolveEngineSequence('http://any', 'auto');
         expect(seq.length, 1);
         expect(seq.first, isA<YtDlpEngine>());
@@ -181,7 +242,10 @@ void main() {
       });
 
       test('U-DL-REG-10: Skip non-matching engines in auto mode', () {
-        final seq = EngineRegistry.resolveEngineSequence('https://bilibili.com/video', 'auto');
+        final seq = EngineRegistry.resolveEngineSequence(
+          'https://bilibili.com/video',
+          'auto',
+        );
         // Should contain matching engines sorted by priority
         expect(seq, isNotEmpty);
       });
@@ -202,7 +266,10 @@ void main() {
       test('U-DL-REG-13: Return false if ANY required engine missing', () {
         setEngineInstalled(EngineRegistry.findById('gallery-dl')!, false);
         expect(EngineRegistry.requiredInstalled, isFalse);
-        setEngineInstalled(EngineRegistry.findById('gallery-dl')!, true); // restore
+        setEngineInstalled(
+          EngineRegistry.findById('gallery-dl')!,
+          true,
+        ); // restore
       });
 
       test('U-DL-REG-14: Return true if ALL engines installed', () {
@@ -211,7 +278,9 @@ void main() {
         }
         for (final e in EngineRegistry.allEngines) {
           if (!e.isInstalled) {
-            print('Engine ${e.id} is not installed! binaryPath: ${e.binaryPath}');
+            print(
+              'Engine ${e.id} is not installed! binaryPath: ${e.binaryPath}',
+            );
           }
         }
         expect(EngineRegistry.allInstalled, isTrue);
@@ -249,7 +318,10 @@ void main() {
         final missing = EngineRegistry.missingRequired;
         expect(missing.length, 1);
         expect(missing.first.id, 'gallery-dl');
-        setEngineInstalled(EngineRegistry.findById('gallery-dl')!, true); // restore
+        setEngineInstalled(
+          EngineRegistry.findById('gallery-dl')!,
+          true,
+        ); // restore
       });
 
       test('U-DL-REG-20: Return empty list when all required installed', () {

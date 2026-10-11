@@ -49,8 +49,6 @@ void main() {
       expect(listenerCount, 2);
     });
 
-
-
     test('startHideTimer hides controls after 3 seconds', () {
       fakeAsync((async) {
         controller.showControls();
@@ -73,43 +71,54 @@ void main() {
       });
     });
 
-    test('showZoomIndicatorForDuration does not spam notifyListeners on repeated calls', () {
-      fakeAsync((async) {
-        // Initial state
-        expect(controller.showZoomIndicator, false);
+    test(
+      'showZoomIndicatorForDuration does not spam notifyListeners on repeated calls',
+      () {
+        fakeAsync((async) {
+          // Initial state
+          expect(controller.showZoomIndicator, false);
 
-        // First call should show indicator and notify once
-        controller.showZoomIndicatorForDuration();
-        expect(controller.showZoomIndicator, true);
-        expect(listenerCount, 1);
+          // First call should show indicator and notify once
+          controller.showZoomIndicatorForDuration();
+          expect(controller.showZoomIndicator, true);
+          expect(listenerCount, 1);
 
-        // Repeated calls while still visible should NOT notify again
-        controller
-          ..showZoomIndicatorForDuration()
-          ..showZoomIndicatorForDuration();
-        expect(controller.showZoomIndicator, true);
-        expect(listenerCount, 1, reason: 'Repeated calls should not notify if already visible');
+          // Repeated calls while still visible should NOT notify again
+          controller
+            ..showZoomIndicatorForDuration()
+            ..showZoomIndicatorForDuration();
+          expect(controller.showZoomIndicator, true);
+          expect(
+            listenerCount,
+            1,
+            reason: 'Repeated calls should not notify if already visible',
+          );
 
-        // Advance time just before expiry
-        async.elapse(const Duration(milliseconds: 1999));
-        expect(controller.showZoomIndicator, true);
-        expect(listenerCount, 1);
+          // Advance time just before expiry
+          async.elapse(const Duration(milliseconds: 1999));
+          expect(controller.showZoomIndicator, true);
+          expect(listenerCount, 1);
 
-        // One more call to extend timer
-        controller.showZoomIndicatorForDuration();
-        expect(listenerCount, 1);
+          // One more call to extend timer
+          controller.showZoomIndicatorForDuration();
+          expect(listenerCount, 1);
 
-        // Original 2 seconds expire, but we extended it, so it should still be visible
-        async.elapse(const Duration(milliseconds: 10));
-        expect(controller.showZoomIndicator, true);
-        expect(listenerCount, 1);
+          // Original 2 seconds expire, but we extended it, so it should still be visible
+          async.elapse(const Duration(milliseconds: 10));
+          expect(controller.showZoomIndicator, true);
+          expect(listenerCount, 1);
 
-        // Wait for the new timer to expire
-        async.elapse(const Duration(seconds: 2));
-        expect(controller.showZoomIndicator, false);
-        expect(listenerCount, 2, reason: 'Should notify exactly once when hidden');
-      });
-    });
+          // Wait for the new timer to expire
+          async.elapse(const Duration(seconds: 2));
+          expect(controller.showZoomIndicator, false);
+          expect(
+            listenerCount,
+            2,
+            reason: 'Should notify exactly once when hidden',
+          );
+        });
+      },
+    );
 
     test('startClosing sets isClosing to true', () {
       controller.startClosing();

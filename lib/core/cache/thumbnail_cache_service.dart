@@ -208,7 +208,10 @@ class ThumbnailCacheService {
   ///
   /// Returns the path for the requested [size], or falls back to any
   /// available size. Returns null if no cached thumbnail exists on disk.
-  String? getCachedPath(String filePath, {ThumbnailSize size = ThumbnailSize.normal}) {
+  String? getCachedPath(
+    String filePath, {
+    ThumbnailSize size = ThumbnailSize.normal,
+  }) {
     final hash = AppDatabase.computeFileHash(filePath);
     final entry = _index[hash];
     if (entry == null || entry.status != 'ready') return null;
@@ -225,7 +228,10 @@ class ThumbnailCacheService {
   }
 
   /// Get the cached thumbnail path for a file asynchronously.
-  Future<String?> getCachedPathAsync(String filePath, {ThumbnailSize size = ThumbnailSize.normal}) async {
+  Future<String?> getCachedPathAsync(
+    String filePath, {
+    ThumbnailSize size = ThumbnailSize.normal,
+  }) async {
     final hash = AppDatabase.computeFileHash(filePath);
     final entry = _index[hash];
     if (entry == null || entry.status != 'ready') return null;
@@ -302,7 +308,9 @@ class ThumbnailCacheService {
         generatedAt: DateTime.now().millisecondsSinceEpoch,
       );
     } catch (e) {
-      debugPrint('ThumbnailCacheService: Failed to store thumbnail for $filePath: $e');
+      debugPrint(
+        'ThumbnailCacheService: Failed to store thumbnail for $filePath: $e',
+      );
     }
   }
 
@@ -336,7 +344,9 @@ class ThumbnailCacheService {
         generatedAt: DateTime.now().millisecondsSinceEpoch,
       );
     } catch (e) {
-      debugPrint('ThumbnailCacheService: Failed to mark failure for $filePath: $e');
+      debugPrint(
+        'ThumbnailCacheService: Failed to mark failure for $filePath: $e',
+      );
     }
   }
 
@@ -377,7 +387,8 @@ class ThumbnailCacheService {
     final matchingPaths = <String>[];
 
     for (final entry in _index.values) {
-      if (entry.filePath.startsWith(normalizedPrefix) || entry.filePath == folderPath) {
+      if (entry.filePath.startsWith(normalizedPrefix) ||
+          entry.filePath == folderPath) {
         matchingPaths.add(entry.filePath);
       }
     }

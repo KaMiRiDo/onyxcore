@@ -58,14 +58,8 @@ class _UnifiedSidePanelState extends ConsumerState<UnifiedSidePanel> {
     // Offstage prevents layout/paint when hidden but preserves state.
     final Widget content = Stack(
       children: [
-        Offstage(
-          offstage: !isDownloadsOpen,
-          child: const DownloadsPanel(),
-        ),
-        Offstage(
-          offstage: !isBackgroundOpen,
-          child: const BackgroundPanel(),
-        ),
+        Offstage(offstage: !isDownloadsOpen, child: const DownloadsPanel()),
+        Offstage(offstage: !isBackgroundOpen, child: const BackgroundPanel()),
       ],
     );
 
@@ -78,9 +72,7 @@ class _UnifiedSidePanelState extends ConsumerState<UnifiedSidePanel> {
         color: const Color(0xFF141414),
         border: isOpen
             ? Border(
-                left: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.12),
-                ),
+                left: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
               )
             : null,
         boxShadow: isOpen

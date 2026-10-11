@@ -54,7 +54,9 @@ class _OnyxCoreAppState extends ConsumerState<OnyxCoreApp> with WindowListener {
       debugPrint('[OnyxCoreApp] Main window closing. Terminating process...');
       AppCleanupCoordinator(
         thumbnailCleanup: () {
-          ref.read(activeThumbnailSessionProvider.notifier).disposeCurrentSession();
+          ref
+              .read(activeThumbnailSessionProvider.notifier)
+              .disposeCurrentSession();
         },
         archiveCleanup: ArchiveService.killZombies,
       ).runAll();

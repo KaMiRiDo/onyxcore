@@ -4,9 +4,11 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 import 'package:onyxcore/features/directory_browser/presentation/widgets/sort_overlay.dart';
 
 void main() {
-  testWidgets('SortOverlay shows correctly and returns selected option', (tester) async {
+  testWidgets('SortOverlay shows correctly and returns selected option', (
+    tester,
+  ) async {
     SortOption? selectedOption;
-    
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -42,7 +44,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(selectedOption, SortOption.sizeLargeToSmall);
-    
+
     // Check overlay is gone
     expect(find.text('Size (Large to Small)'), findsNothing);
   });

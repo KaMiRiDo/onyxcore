@@ -70,19 +70,45 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<AppSettings> load() async {
     final keys = [
-      _openInStandaloneMode, _autoPlayNext, _audioAutoPlayNext, _showHiddenFiles, _showHiddenAudioFiles,
-      _snapshotPrefix, _doubleTapSeekSeconds, _maxConcurrentTasks,
-      _globalSortOption, _resumePlayback, _audioSeekSeconds, _selectedHwDec,
-      _cachedResolvedHwDec, _trackpadSpeedControl, _filePickerWidth,
-      _filePickerHeight, _settingsWidth, _settingsHeight, _downloaderWidth,
-      _downloaderHeight, _confirmDeleteImage, _confirmDeleteVideo,
-      _confirmDeleteDocument, _confirmDeleteAudio, _downloadBrowser,
-      _downloadToCurrentFolder, _maxConcurrentDownloads, _maxLiveRecordingMinutes,
-      _documentSearchCaseSensitive, _documentSearchUseRegex,
-      _audioPlayerVolume, _videoPlayerVolume, _videoShowRemainingTime,
-      _customExtractorsEnabled, _extractorBrowser, 
-      _imageFilterSortEnabled, _videoFilterSortEnabled, 
-      _audioFilterSortEnabled, _documentFilterSortEnabled,
+      _openInStandaloneMode,
+      _autoPlayNext,
+      _audioAutoPlayNext,
+      _showHiddenFiles,
+      _showHiddenAudioFiles,
+      _snapshotPrefix,
+      _doubleTapSeekSeconds,
+      _maxConcurrentTasks,
+      _globalSortOption,
+      _resumePlayback,
+      _audioSeekSeconds,
+      _selectedHwDec,
+      _cachedResolvedHwDec,
+      _trackpadSpeedControl,
+      _filePickerWidth,
+      _filePickerHeight,
+      _settingsWidth,
+      _settingsHeight,
+      _downloaderWidth,
+      _downloaderHeight,
+      _confirmDeleteImage,
+      _confirmDeleteVideo,
+      _confirmDeleteDocument,
+      _confirmDeleteAudio,
+      _downloadBrowser,
+      _downloadToCurrentFolder,
+      _maxConcurrentDownloads,
+      _maxLiveRecordingMinutes,
+      _documentSearchCaseSensitive,
+      _documentSearchUseRegex,
+      _audioPlayerVolume,
+      _videoPlayerVolume,
+      _videoShowRemainingTime,
+      _customExtractorsEnabled,
+      _extractorBrowser,
+      _imageFilterSortEnabled,
+      _videoFilterSortEnabled,
+      _audioFilterSortEnabled,
+      _documentFilterSortEnabled,
     ];
 
     final vals = await _readAll(keys);
@@ -97,50 +123,158 @@ class SettingsRepositoryImpl implements SettingsRepository {
     final pinnedFolders = await _db.getOrderedPinnedFolders();
 
     return AppSettings(
-      openInStandaloneMode: SettingsCodec.decodeBool(vals[_openInStandaloneMode], fallback: true),
-      autoPlayNext: SettingsCodec.decodeBool(vals[_autoPlayNext], fallback: true),
-      audioAutoPlayNext: SettingsCodec.decodeBool(vals[_audioAutoPlayNext], fallback: true),
-      showHiddenFiles: SettingsCodec.decodeBool(vals[_showHiddenFiles], fallback: false),
-      showHiddenAudioFiles: SettingsCodec.decodeBool(vals[_showHiddenAudioFiles], fallback: false),
-      snapshotPrefix: SettingsCodec.decodeString(vals[_snapshotPrefix], fallback: 'snapshot'),
-      doubleTapSeekSeconds: SettingsCodec.decodeInt(vals[_doubleTapSeekSeconds], fallback: 10),
+      openInStandaloneMode: SettingsCodec.decodeBool(
+        vals[_openInStandaloneMode],
+        fallback: true,
+      ),
+      autoPlayNext: SettingsCodec.decodeBool(
+        vals[_autoPlayNext],
+        fallback: true,
+      ),
+      audioAutoPlayNext: SettingsCodec.decodeBool(
+        vals[_audioAutoPlayNext],
+        fallback: true,
+      ),
+      showHiddenFiles: SettingsCodec.decodeBool(
+        vals[_showHiddenFiles],
+        fallback: false,
+      ),
+      showHiddenAudioFiles: SettingsCodec.decodeBool(
+        vals[_showHiddenAudioFiles],
+        fallback: false,
+      ),
+      snapshotPrefix: SettingsCodec.decodeString(
+        vals[_snapshotPrefix],
+        fallback: 'snapshot',
+      ),
+      doubleTapSeekSeconds: SettingsCodec.decodeInt(
+        vals[_doubleTapSeekSeconds],
+        fallback: 10,
+      ),
       pinnedFolders: pinnedFolders,
       gallerySortSettings: await _loadGallerySortSettings(),
-      maxConcurrentTasks: SettingsCodec.decodeInt(vals[_maxConcurrentTasks], fallback: 3),
+      maxConcurrentTasks: SettingsCodec.decodeInt(
+        vals[_maxConcurrentTasks],
+        fallback: 3,
+      ),
       globalSortOption: globalSort,
-      resumePlayback: SettingsCodec.decodeBool(vals[_resumePlayback], fallback: true),
-      audioSeekSeconds: SettingsCodec.decodeInt(vals[_audioSeekSeconds], fallback: 5),
-      selectedHwDec: SettingsCodec.decodeString(vals[_selectedHwDec], fallback: 'auto'),
-      cachedResolvedHwDec: SettingsCodec.decodeNullableString(vals[_cachedResolvedHwDec]),
+      resumePlayback: SettingsCodec.decodeBool(
+        vals[_resumePlayback],
+        fallback: true,
+      ),
+      audioSeekSeconds: SettingsCodec.decodeInt(
+        vals[_audioSeekSeconds],
+        fallback: 5,
+      ),
+      selectedHwDec: SettingsCodec.decodeString(
+        vals[_selectedHwDec],
+        fallback: 'auto',
+      ),
+      cachedResolvedHwDec: SettingsCodec.decodeNullableString(
+        vals[_cachedResolvedHwDec],
+      ),
       trackpadSpeedControl: SpeedControlOption.values.firstWhere(
         (e) => e.name == vals[_trackpadSpeedControl],
         orElse: () => SpeedControlOption.off,
       ),
-      filePickerWidth: SettingsCodec.decodeDouble(vals[_filePickerWidth], fallback: 1000),
-      filePickerHeight: SettingsCodec.decodeDouble(vals[_filePickerHeight], fallback: 650),
-      settingsWidth: SettingsCodec.decodeDouble(vals[_settingsWidth], fallback: 760),
-      settingsHeight: SettingsCodec.decodeDouble(vals[_settingsHeight], fallback: 560),
-      downloaderWidth: SettingsCodec.decodeDouble(vals[_downloaderWidth], fallback: 950),
-      downloaderHeight: SettingsCodec.decodeDouble(vals[_downloaderHeight], fallback: 700),
-      confirmDeleteImage: SettingsCodec.decodeBool(vals[_confirmDeleteImage], fallback: true),
-      confirmDeleteVideo: SettingsCodec.decodeBool(vals[_confirmDeleteVideo], fallback: true),
-      confirmDeleteDocument: SettingsCodec.decodeBool(vals[_confirmDeleteDocument], fallback: true),
-      confirmDeleteAudio: SettingsCodec.decodeBool(vals[_confirmDeleteAudio], fallback: true),
-      downloadBrowser: SettingsCodec.decodeNullableString(vals[_downloadBrowser]),
-      downloadToCurrentFolder: SettingsCodec.decodeBool(vals[_downloadToCurrentFolder], fallback: true),
-      maxConcurrentDownloads: SettingsCodec.decodeInt(vals[_maxConcurrentDownloads], fallback: 3),
-      maxLiveRecordingMinutes: SettingsCodec.decodeInt(vals[_maxLiveRecordingMinutes], fallback: 0),
-      documentSearchCaseSensitive: SettingsCodec.decodeBool(vals[_documentSearchCaseSensitive], fallback: false),
-      documentSearchUseRegex: SettingsCodec.decodeBool(vals[_documentSearchUseRegex], fallback: false),
-      audioPlayerVolume: SettingsCodec.decodeDouble(vals[_audioPlayerVolume], fallback: 100),
-      videoPlayerVolume: SettingsCodec.decodeDouble(vals[_videoPlayerVolume], fallback: 30),
-      videoShowRemainingTime: SettingsCodec.decodeBool(vals[_videoShowRemainingTime], fallback: false),
-      customExtractorsEnabled: SettingsCodec.decodeBool(vals[_customExtractorsEnabled], fallback: false),
-      extractorBrowser: SettingsCodec.decodeNullableString(vals[_extractorBrowser]),
-      imageFilterSortEnabled: SettingsCodec.decodeBool(vals[_imageFilterSortEnabled], fallback: false),
-      videoFilterSortEnabled: SettingsCodec.decodeBool(vals[_videoFilterSortEnabled], fallback: false),
-      audioFilterSortEnabled: SettingsCodec.decodeBool(vals[_audioFilterSortEnabled], fallback: false),
-      documentFilterSortEnabled: SettingsCodec.decodeBool(vals[_documentFilterSortEnabled], fallback: false),
+      filePickerWidth: SettingsCodec.decodeDouble(
+        vals[_filePickerWidth],
+        fallback: 1000,
+      ),
+      filePickerHeight: SettingsCodec.decodeDouble(
+        vals[_filePickerHeight],
+        fallback: 650,
+      ),
+      settingsWidth: SettingsCodec.decodeDouble(
+        vals[_settingsWidth],
+        fallback: 760,
+      ),
+      settingsHeight: SettingsCodec.decodeDouble(
+        vals[_settingsHeight],
+        fallback: 560,
+      ),
+      downloaderWidth: SettingsCodec.decodeDouble(
+        vals[_downloaderWidth],
+        fallback: 950,
+      ),
+      downloaderHeight: SettingsCodec.decodeDouble(
+        vals[_downloaderHeight],
+        fallback: 700,
+      ),
+      confirmDeleteImage: SettingsCodec.decodeBool(
+        vals[_confirmDeleteImage],
+        fallback: true,
+      ),
+      confirmDeleteVideo: SettingsCodec.decodeBool(
+        vals[_confirmDeleteVideo],
+        fallback: true,
+      ),
+      confirmDeleteDocument: SettingsCodec.decodeBool(
+        vals[_confirmDeleteDocument],
+        fallback: true,
+      ),
+      confirmDeleteAudio: SettingsCodec.decodeBool(
+        vals[_confirmDeleteAudio],
+        fallback: true,
+      ),
+      downloadBrowser: SettingsCodec.decodeNullableString(
+        vals[_downloadBrowser],
+      ),
+      downloadToCurrentFolder: SettingsCodec.decodeBool(
+        vals[_downloadToCurrentFolder],
+        fallback: true,
+      ),
+      maxConcurrentDownloads: SettingsCodec.decodeInt(
+        vals[_maxConcurrentDownloads],
+        fallback: 3,
+      ),
+      maxLiveRecordingMinutes: SettingsCodec.decodeInt(
+        vals[_maxLiveRecordingMinutes],
+        fallback: 0,
+      ),
+      documentSearchCaseSensitive: SettingsCodec.decodeBool(
+        vals[_documentSearchCaseSensitive],
+        fallback: false,
+      ),
+      documentSearchUseRegex: SettingsCodec.decodeBool(
+        vals[_documentSearchUseRegex],
+        fallback: false,
+      ),
+      audioPlayerVolume: SettingsCodec.decodeDouble(
+        vals[_audioPlayerVolume],
+        fallback: 100,
+      ),
+      videoPlayerVolume: SettingsCodec.decodeDouble(
+        vals[_videoPlayerVolume],
+        fallback: 30,
+      ),
+      videoShowRemainingTime: SettingsCodec.decodeBool(
+        vals[_videoShowRemainingTime],
+        fallback: false,
+      ),
+      customExtractorsEnabled: SettingsCodec.decodeBool(
+        vals[_customExtractorsEnabled],
+        fallback: false,
+      ),
+      extractorBrowser: SettingsCodec.decodeNullableString(
+        vals[_extractorBrowser],
+      ),
+      imageFilterSortEnabled: SettingsCodec.decodeBool(
+        vals[_imageFilterSortEnabled],
+        fallback: false,
+      ),
+      videoFilterSortEnabled: SettingsCodec.decodeBool(
+        vals[_videoFilterSortEnabled],
+        fallback: false,
+      ),
+      audioFilterSortEnabled: SettingsCodec.decodeBool(
+        vals[_audioFilterSortEnabled],
+        fallback: false,
+      ),
+      documentFilterSortEnabled: SettingsCodec.decodeBool(
+        vals[_documentFilterSortEnabled],
+        fallback: false,
+      ),
     );
   }
 
@@ -152,46 +286,157 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> saveSettings(AppSettings settings) async {
     // Save all scalar settings
     await Future.wait([
-      _db.setSetting(_openInStandaloneMode, SettingsCodec.encodeBool(settings.openInStandaloneMode)),
-      _db.setSetting(_autoPlayNext, SettingsCodec.encodeBool(settings.autoPlayNext)),
-      _db.setSetting(_audioAutoPlayNext, SettingsCodec.encodeBool(settings.audioAutoPlayNext)),
-      _db.setSetting(_showHiddenFiles, SettingsCodec.encodeBool(settings.showHiddenFiles)),
-      _db.setSetting(_showHiddenAudioFiles, SettingsCodec.encodeBool(settings.showHiddenAudioFiles)),
-      _db.setSetting(_snapshotPrefix, SettingsCodec.encodeString(settings.snapshotPrefix)),
-      _db.setSetting(_doubleTapSeekSeconds, SettingsCodec.encodeInt(settings.doubleTapSeekSeconds)),
-      _db.setSetting(_maxConcurrentTasks, SettingsCodec.encodeInt(settings.maxConcurrentTasks)),
+      _db.setSetting(
+        _openInStandaloneMode,
+        SettingsCodec.encodeBool(settings.openInStandaloneMode),
+      ),
+      _db.setSetting(
+        _autoPlayNext,
+        SettingsCodec.encodeBool(settings.autoPlayNext),
+      ),
+      _db.setSetting(
+        _audioAutoPlayNext,
+        SettingsCodec.encodeBool(settings.audioAutoPlayNext),
+      ),
+      _db.setSetting(
+        _showHiddenFiles,
+        SettingsCodec.encodeBool(settings.showHiddenFiles),
+      ),
+      _db.setSetting(
+        _showHiddenAudioFiles,
+        SettingsCodec.encodeBool(settings.showHiddenAudioFiles),
+      ),
+      _db.setSetting(
+        _snapshotPrefix,
+        SettingsCodec.encodeString(settings.snapshotPrefix),
+      ),
+      _db.setSetting(
+        _doubleTapSeekSeconds,
+        SettingsCodec.encodeInt(settings.doubleTapSeekSeconds),
+      ),
+      _db.setSetting(
+        _maxConcurrentTasks,
+        SettingsCodec.encodeInt(settings.maxConcurrentTasks),
+      ),
       _db.setSetting(_globalSortOption, settings.globalSortOption.name),
-      _db.setSetting(_resumePlayback, SettingsCodec.encodeBool(settings.resumePlayback)),
-      _db.setSetting(_audioSeekSeconds, SettingsCodec.encodeInt(settings.audioSeekSeconds)),
-      _db.setSetting(_selectedHwDec, SettingsCodec.encodeString(settings.selectedHwDec)),
+      _db.setSetting(
+        _resumePlayback,
+        SettingsCodec.encodeBool(settings.resumePlayback),
+      ),
+      _db.setSetting(
+        _audioSeekSeconds,
+        SettingsCodec.encodeInt(settings.audioSeekSeconds),
+      ),
+      _db.setSetting(
+        _selectedHwDec,
+        SettingsCodec.encodeString(settings.selectedHwDec),
+      ),
       _db.setSetting(_trackpadSpeedControl, settings.trackpadSpeedControl.name),
-      _db.setSetting(_filePickerWidth, SettingsCodec.encodeDouble(settings.filePickerWidth)),
-      _db.setSetting(_filePickerHeight, SettingsCodec.encodeDouble(settings.filePickerHeight)),
-      _db.setSetting(_settingsWidth, SettingsCodec.encodeDouble(settings.settingsWidth)),
-      _db.setSetting(_settingsHeight, SettingsCodec.encodeDouble(settings.settingsHeight)),
-      _db.setSetting(_downloaderWidth, SettingsCodec.encodeDouble(settings.downloaderWidth)),
-      _db.setSetting(_downloaderHeight, SettingsCodec.encodeDouble(settings.downloaderHeight)),
-      _db.setSetting(_confirmDeleteImage, SettingsCodec.encodeBool(settings.confirmDeleteImage)),
-      _db.setSetting(_confirmDeleteVideo, SettingsCodec.encodeBool(settings.confirmDeleteVideo)),
-      _db.setSetting(_confirmDeleteDocument, SettingsCodec.encodeBool(settings.confirmDeleteDocument)),
-      _db.setSetting(_confirmDeleteAudio, SettingsCodec.encodeBool(settings.confirmDeleteAudio)),
-      _db.setSetting(_downloadToCurrentFolder, SettingsCodec.encodeBool(settings.downloadToCurrentFolder)),
-      _db.setSetting(_maxConcurrentDownloads, SettingsCodec.encodeInt(settings.maxConcurrentDownloads)),
-      _db.setSetting(_maxLiveRecordingMinutes, SettingsCodec.encodeInt(settings.maxLiveRecordingMinutes)),
-      _db.setSetting(_documentSearchCaseSensitive, SettingsCodec.encodeBool(settings.documentSearchCaseSensitive)),
-      _db.setSetting(_documentSearchUseRegex, SettingsCodec.encodeBool(settings.documentSearchUseRegex)),
-      _db.setSetting(_audioPlayerVolume, SettingsCodec.encodeDouble(settings.audioPlayerVolume)),
-      _db.setSetting(_videoPlayerVolume, SettingsCodec.encodeDouble(settings.videoPlayerVolume)),
-      _db.setSetting(_videoShowRemainingTime, SettingsCodec.encodeBool(settings.videoShowRemainingTime)),
+      _db.setSetting(
+        _filePickerWidth,
+        SettingsCodec.encodeDouble(settings.filePickerWidth),
+      ),
+      _db.setSetting(
+        _filePickerHeight,
+        SettingsCodec.encodeDouble(settings.filePickerHeight),
+      ),
+      _db.setSetting(
+        _settingsWidth,
+        SettingsCodec.encodeDouble(settings.settingsWidth),
+      ),
+      _db.setSetting(
+        _settingsHeight,
+        SettingsCodec.encodeDouble(settings.settingsHeight),
+      ),
+      _db.setSetting(
+        _downloaderWidth,
+        SettingsCodec.encodeDouble(settings.downloaderWidth),
+      ),
+      _db.setSetting(
+        _downloaderHeight,
+        SettingsCodec.encodeDouble(settings.downloaderHeight),
+      ),
+      _db.setSetting(
+        _confirmDeleteImage,
+        SettingsCodec.encodeBool(settings.confirmDeleteImage),
+      ),
+      _db.setSetting(
+        _confirmDeleteVideo,
+        SettingsCodec.encodeBool(settings.confirmDeleteVideo),
+      ),
+      _db.setSetting(
+        _confirmDeleteDocument,
+        SettingsCodec.encodeBool(settings.confirmDeleteDocument),
+      ),
+      _db.setSetting(
+        _confirmDeleteAudio,
+        SettingsCodec.encodeBool(settings.confirmDeleteAudio),
+      ),
+      _db.setSetting(
+        _downloadToCurrentFolder,
+        SettingsCodec.encodeBool(settings.downloadToCurrentFolder),
+      ),
+      _db.setSetting(
+        _maxConcurrentDownloads,
+        SettingsCodec.encodeInt(settings.maxConcurrentDownloads),
+      ),
+      _db.setSetting(
+        _maxLiveRecordingMinutes,
+        SettingsCodec.encodeInt(settings.maxLiveRecordingMinutes),
+      ),
+      _db.setSetting(
+        _documentSearchCaseSensitive,
+        SettingsCodec.encodeBool(settings.documentSearchCaseSensitive),
+      ),
+      _db.setSetting(
+        _documentSearchUseRegex,
+        SettingsCodec.encodeBool(settings.documentSearchUseRegex),
+      ),
+      _db.setSetting(
+        _audioPlayerVolume,
+        SettingsCodec.encodeDouble(settings.audioPlayerVolume),
+      ),
+      _db.setSetting(
+        _videoPlayerVolume,
+        SettingsCodec.encodeDouble(settings.videoPlayerVolume),
+      ),
+      _db.setSetting(
+        _videoShowRemainingTime,
+        SettingsCodec.encodeBool(settings.videoShowRemainingTime),
+      ),
       // Nullable
-      if (settings.cachedResolvedHwDec != null) _db.setSetting(_cachedResolvedHwDec, settings.cachedResolvedHwDec!) else _db.removeSetting(_cachedResolvedHwDec),
-      if (settings.downloadBrowser != null) _db.setSetting(_downloadBrowser, settings.downloadBrowser!) else _db.removeSetting(_downloadBrowser),
-      if (settings.extractorBrowser != null) _db.setSetting(_extractorBrowser, settings.extractorBrowser!) else _db.removeSetting(_extractorBrowser),
-      _db.setSetting(_customExtractorsEnabled, SettingsCodec.encodeBool(settings.customExtractorsEnabled)),
-      _db.setSetting(_imageFilterSortEnabled, SettingsCodec.encodeBool(settings.imageFilterSortEnabled)),
-      _db.setSetting(_videoFilterSortEnabled, SettingsCodec.encodeBool(settings.videoFilterSortEnabled)),
-      _db.setSetting(_audioFilterSortEnabled, SettingsCodec.encodeBool(settings.audioFilterSortEnabled)),
-      _db.setSetting(_documentFilterSortEnabled, SettingsCodec.encodeBool(settings.documentFilterSortEnabled)),
+      if (settings.cachedResolvedHwDec != null)
+        _db.setSetting(_cachedResolvedHwDec, settings.cachedResolvedHwDec!)
+      else
+        _db.removeSetting(_cachedResolvedHwDec),
+      if (settings.downloadBrowser != null)
+        _db.setSetting(_downloadBrowser, settings.downloadBrowser!)
+      else
+        _db.removeSetting(_downloadBrowser),
+      if (settings.extractorBrowser != null)
+        _db.setSetting(_extractorBrowser, settings.extractorBrowser!)
+      else
+        _db.removeSetting(_extractorBrowser),
+      _db.setSetting(
+        _customExtractorsEnabled,
+        SettingsCodec.encodeBool(settings.customExtractorsEnabled),
+      ),
+      _db.setSetting(
+        _imageFilterSortEnabled,
+        SettingsCodec.encodeBool(settings.imageFilterSortEnabled),
+      ),
+      _db.setSetting(
+        _videoFilterSortEnabled,
+        SettingsCodec.encodeBool(settings.videoFilterSortEnabled),
+      ),
+      _db.setSetting(
+        _audioFilterSortEnabled,
+        SettingsCodec.encodeBool(settings.audioFilterSortEnabled),
+      ),
+      _db.setSetting(
+        _documentFilterSortEnabled,
+        SettingsCodec.encodeBool(settings.documentFilterSortEnabled),
+      ),
       // Pinned folders
       _db.savePinnedFolders(settings.pinnedFolders),
     ]);
@@ -302,8 +547,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _db.setSetting(_audioFilterSortEnabled, SettingsCodec.encodeBool(value));
 
   @override
-  Future<void> setDocumentFilterSortEnabled({required bool value}) =>
-      _db.setSetting(_documentFilterSortEnabled, SettingsCodec.encodeBool(value));
+  Future<void> setDocumentFilterSortEnabled({required bool value}) => _db
+      .setSetting(_documentFilterSortEnabled, SettingsCodec.encodeBool(value));
 
   // ── Open With Dialog geometry ─────────────────────────────────────────────
 
@@ -322,7 +567,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> setOpenWithDialogSize(double width, double height) =>
       Future.wait([
         _db.setSetting(_openWithDialogWidth, SettingsCodec.encodeDouble(width)),
-        _db.setSetting(_openWithDialogHeight, SettingsCodec.encodeDouble(height)),
+        _db.setSetting(
+          _openWithDialogHeight,
+          SettingsCodec.encodeDouble(height),
+        ),
       ]);
 
   // ── Downloader panel width ────────────────────────────────────────────────

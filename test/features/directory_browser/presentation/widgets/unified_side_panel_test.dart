@@ -35,69 +35,81 @@ void main() {
     }
   }
 
-  testWidgets('UnifiedSidePanel shows DownloadsPanel when open', (tester) async {
+  testWidgets('UnifiedSidePanel shows DownloadsPanel when open', (
+    tester,
+  ) async {
     await pumpTestWidget(
       tester,
       ProviderScope(
         overrides: [
-          downloadsPanelWidthProvider.overrideWith(MockDownloadsPanelWidthNotifier.new),
+          downloadsPanelWidthProvider.overrideWith(
+            MockDownloadsPanelWidthNotifier.new,
+          ),
           databaseProvider.overrideWithValue(db),
           downloadsPanelOpenProvider.overrideWith((ref) => true),
           backgroundPanelOpenProvider.overrideWith((ref) => false),
         ],
         child: MaterialApp(
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(0.8)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(0.8)),
             child: child!,
           ),
-          home: const Scaffold(
-            body: UnifiedSidePanel(),
-          ),
+          home: const Scaffold(body: UnifiedSidePanel()),
         ),
       ),
     );
 
     // The DownloadsPanel offstage widget should be visible (offstage: false)
     final offstageDownloads = tester.widget<Offstage>(
-      find.byWidgetPredicate((w) => w is Offstage && w.child is DownloadsPanel)
+      find.byWidgetPredicate((w) => w is Offstage && w.child is DownloadsPanel),
     );
     expect(offstageDownloads.offstage, isFalse);
 
     final offstageBackground = tester.widget<Offstage>(
-      find.byWidgetPredicate((w) => w is Offstage && w.child is BackgroundPanel)
+      find.byWidgetPredicate(
+        (w) => w is Offstage && w.child is BackgroundPanel,
+      ),
     );
     expect(offstageBackground.offstage, isTrue);
   });
 
-  testWidgets('UnifiedSidePanel shows BackgroundPanel when open', (tester) async {
+  testWidgets('UnifiedSidePanel shows BackgroundPanel when open', (
+    tester,
+  ) async {
     await pumpTestWidget(
       tester,
       ProviderScope(
         overrides: [
-          downloadsPanelWidthProvider.overrideWith(MockDownloadsPanelWidthNotifier.new),
+          downloadsPanelWidthProvider.overrideWith(
+            MockDownloadsPanelWidthNotifier.new,
+          ),
           databaseProvider.overrideWithValue(db),
           downloadsPanelOpenProvider.overrideWith((ref) => false),
           backgroundPanelOpenProvider.overrideWith((ref) => true),
         ],
         child: MaterialApp(
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(0.8)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(0.8)),
             child: child!,
           ),
-          home: const Scaffold(
-            body: UnifiedSidePanel(),
-          ),
+          home: const Scaffold(body: UnifiedSidePanel()),
         ),
       ),
     );
 
     final offstageDownloads = tester.widget<Offstage>(
-      find.byWidgetPredicate((w) => w is Offstage && w.child is DownloadsPanel)
+      find.byWidgetPredicate((w) => w is Offstage && w.child is DownloadsPanel),
     );
     expect(offstageDownloads.offstage, isTrue);
 
     final offstageBackground = tester.widget<Offstage>(
-      find.byWidgetPredicate((w) => w is Offstage && w.child is BackgroundPanel)
+      find.byWidgetPredicate(
+        (w) => w is Offstage && w.child is BackgroundPanel,
+      ),
     );
     expect(offstageBackground.offstage, isFalse);
   });

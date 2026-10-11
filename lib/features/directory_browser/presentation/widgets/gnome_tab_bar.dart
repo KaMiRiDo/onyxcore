@@ -56,9 +56,7 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
       height: _height,
       margin: const EdgeInsets.only(left: 10, right: 10, top: 10),
       padding: const EdgeInsets.only(bottom: 6),
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableWidth = constraints.maxWidth;
@@ -100,7 +98,6 @@ class _GnomeTabBarState extends ConsumerState<GnomeTabBar> {
 }
 
 class _TabWidget extends ConsumerStatefulWidget {
-
   const _TabWidget({
     required this.tab,
     required this.isActive,
@@ -182,7 +179,9 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
         try {
           await repo.moveItems(details.data, targetPath);
           currentRef.read(taskProvider.notifier).completeTask(taskId);
-          currentRef.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+          currentRef
+              .read(directoryItemsProvider.notifier)
+              .refresh(showLoader: false);
           currentRef.read(selectionProvider.notifier).deselectAll();
         } catch (e) {
           currentRef.read(taskProvider.notifier).failTask(taskId, e.toString());
@@ -211,9 +210,7 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
                     : BorderRadius.zero,
                 border: widget.isActive
                     ? null
-                    : const Border(
-                        right: BorderSide(color: borderColor),
-                      ),
+                    : const Border(right: BorderSide(color: borderColor)),
               ),
               child: Stack(
                 alignment: Alignment.center,
@@ -269,7 +266,6 @@ class _TabWidgetState extends ConsumerState<_TabWidget> {
 }
 
 class _CloseButton extends StatelessWidget {
-
   const _CloseButton({required this.onTap, required this.isActive});
   final VoidCallback onTap;
   final bool isActive;

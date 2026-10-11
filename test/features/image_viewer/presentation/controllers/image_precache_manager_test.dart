@@ -17,7 +17,7 @@ void main() {
 
     test('enqueues and processes items sequentially', () async {
       final processed = <String>[];
-      
+
       Future<void> dummyPrecache(String path, BuildContext? context) async {
         await Future<void>.delayed(const Duration(milliseconds: 10));
         processed.add(path);
@@ -36,14 +36,14 @@ void main() {
         );
 
       expect(processed, isEmpty);
-      
+
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(processed, ['image1.jpg', 'image2.jpg']);
     });
 
     test('prioritizes level 1 over level 2', () async {
       final processed = <String>[];
-      
+
       Future<void> dummyPrecache(String path, BuildContext? context) async {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         processed.add(path);
@@ -70,36 +70,39 @@ void main() {
         );
 
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      
+
       // Blocker was running, then level1 (higher priority), then level2
       expect(processed, ['blocker.jpg', 'level1.jpg', 'level2.jpg']);
     });
 
-    test('tracks LRU eviction based on item count to prevent memory bloat', () async {
-      // Assuming a max items cap for simplicity in unit test logic.
-      // In practice, we will use a soft limit on the number of items or estimated bytes.
-      manager.maxCachedItems = 3;
+    test(
+      'tracks LRU eviction based on item count to prevent memory bloat',
+      () async {
+        // Assuming a max items cap for simplicity in unit test logic.
+        // In practice, we will use a soft limit on the number of items or estimated bytes.
+        manager.maxCachedItems = 3;
 
-      Future<void> dummyPrecache(String path, BuildContext? context) async {}
+        Future<void> dummyPrecache(String path, BuildContext? context) async {}
 
-      for (var i = 1; i <= 5; i++) {
-        manager.enqueuePrecache(
-          path: 'image$i.jpg',
-          level: 1,
-          precacheAction: (ctx) => dummyPrecache('image$i.jpg', ctx),
-        );
-      }
+        for (var i = 1; i <= 5; i++) {
+          manager.enqueuePrecache(
+            path: 'image$i.jpg',
+            level: 1,
+            precacheAction: (ctx) => dummyPrecache('image$i.jpg', ctx),
+          );
+        }
 
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      
-      // Should only retain the last 3 in its internal tracking structure
-      expect(manager.cachedPaths.length, equals(3));
-      expect(manager.cachedPaths.contains('image1.jpg'), isFalse);
-      expect(manager.cachedPaths.contains('image2.jpg'), isFalse);
-      expect(manager.cachedPaths.contains('image3.jpg'), isTrue);
-      expect(manager.cachedPaths.contains('image4.jpg'), isTrue);
-      expect(manager.cachedPaths.contains('image5.jpg'), isTrue);
-    });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        // Should only retain the last 3 in its internal tracking structure
+        expect(manager.cachedPaths.length, equals(3));
+        expect(manager.cachedPaths.contains('image1.jpg'), isFalse);
+        expect(manager.cachedPaths.contains('image2.jpg'), isFalse);
+        expect(manager.cachedPaths.contains('image3.jpg'), isTrue);
+        expect(manager.cachedPaths.contains('image4.jpg'), isTrue);
+        expect(manager.cachedPaths.contains('image5.jpg'), isTrue);
+      },
+    );
 
     test('clearSession empties queue and cache tracking', () async {
       Future<void> dummyPrecache(String path, BuildContext? context) async {}
@@ -109,10 +112,10 @@ void main() {
         level: 1,
         precacheAction: (ctx) => dummyPrecache('image1.jpg', ctx),
       );
-      
+
       await Future<void>.delayed(const Duration(milliseconds: 10));
       expect(manager.cachedPaths.length, equals(1));
-      
+
       manager.clearSession();
       expect(manager.cachedPaths, isEmpty);
       expect(manager.isProcessing, isFalse);

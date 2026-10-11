@@ -5,7 +5,9 @@ import 'package:onyxcore/features/video_player/presentation/utils/video_player_u
 
 void main() {
   group('SeekIndicator Widget Tests', () {
-    testWidgets('Renders correctly when visible and formats duration properly', (tester) async {
+    testWidgets('Renders correctly when visible and formats duration properly', (
+      tester,
+    ) async {
       const displayPosition = Duration(seconds: 120);
       const totalDuration = Duration(seconds: 360);
 
@@ -22,11 +24,14 @@ void main() {
       );
 
       expect(find.byType(SeekIndicator), findsOneWidget);
-      
-      final expectedText = '${VideoPlayerUtils.formatDuration(displayPosition)} / ${VideoPlayerUtils.formatDuration(totalDuration)}';
+
+      final expectedText =
+          '${VideoPlayerUtils.formatDuration(displayPosition)} / ${VideoPlayerUtils.formatDuration(totalDuration)}';
       expect(find.text(expectedText), findsOneWidget);
 
-      final opacityWidget = tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
+      final opacityWidget = tester.widget<AnimatedOpacity>(
+        find.byType(AnimatedOpacity),
+      );
       expect(opacityWidget.opacity, 1.0);
     });
 
@@ -46,7 +51,9 @@ void main() {
         ),
       );
 
-      final opacityWidget = tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
+      final opacityWidget = tester.widget<AnimatedOpacity>(
+        find.byType(AnimatedOpacity),
+      );
       expect(opacityWidget.opacity, 0.0);
     });
   });

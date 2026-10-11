@@ -26,46 +26,54 @@ class RemoteVideoThumbnailResolver {
   static Future<void> generate(String? url) async {
     if (url == null || url.isEmpty) return;
     if (Platform.environment.containsKey('FLUTTER_TEST')) return;
-    if (_resolvedPaths.containsKey(url) || _pendingUrls.contains(url) || _failedUrls.contains(url)) return;
+    if (_resolvedPaths.containsKey(url) ||
+        _pendingUrls.contains(url) ||
+        _failedUrls.contains(url))
+      return;
 
     _pendingUrls.add(url);
-    
+
     // Hash the URL for the cache path
     final hash = md5.convert(utf8.encode(url)).toString();
     final cacheDir = '${Directory.systemTemp.path}/onyxcore_thumbnails';
     Directory(cacheDir).createSync(recursive: true);
     final tempPath = '$cacheDir/$hash.jpg';
     final file = File(tempPath);
-    
+
     if (file.existsSync() && file.lengthSync() > 0) {
-       _resolvedPaths[url] = tempPath;
-       _pendingUrls.remove(url);
-       ThumbnailAspectResolver.updates.value++;
-       return;
+      _resolvedPaths[url] = tempPath;
+      _pendingUrls.remove(url);
+      ThumbnailAspectResolver.updates.value++;
+      return;
     }
 
     try {
-       final process = await Process.start('ffmpeg', [
-          '-i', url,
-          '-vframes', '1',
-          '-an',
-          '-s', '320x180',
-          '-ss', '00:00:00',
-          '-f', 'image2',
-          '-y',
-          tempPath
-       ]);
-       await process.exitCode;
-       if (file.existsSync() && file.lengthSync() > 0) {
-          _resolvedPaths[url] = tempPath;
-          ThumbnailAspectResolver.updates.value++;
-       } else {
-          _failedUrls.add(url);
-          ThumbnailAspectResolver.updates.value++;
-       }
+      final process = await Process.start('ffmpeg', [
+        '-i',
+        url,
+        '-vframes',
+        '1',
+        '-an',
+        '-s',
+        '320x180',
+        '-ss',
+        '00:00:00',
+        '-f',
+        'image2',
+        '-y',
+        tempPath,
+      ]);
+      await process.exitCode;
+      if (file.existsSync() && file.lengthSync() > 0) {
+        _resolvedPaths[url] = tempPath;
+        ThumbnailAspectResolver.updates.value++;
+      } else {
+        _failedUrls.add(url);
+        ThumbnailAspectResolver.updates.value++;
+      }
     } catch (_) {
-       _failedUrls.add(url);
-       ThumbnailAspectResolver.updates.value++;
+      _failedUrls.add(url);
+      ThumbnailAspectResolver.updates.value++;
     }
     _pendingUrls.remove(url);
   }

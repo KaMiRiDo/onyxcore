@@ -17,9 +17,7 @@ void main() {
     setUp(() {
       mockTaskNotifier = MockTaskNotifier();
       container = ProviderContainer(
-        overrides: [
-          taskProvider.overrideWith(() => mockTaskNotifier),
-        ],
+        overrides: [taskProvider.overrideWith(() => mockTaskNotifier)],
       );
     });
 
@@ -45,12 +43,14 @@ void main() {
         await service.trimAndMerge([segment], '/path/to/video.mp4');
       } catch (_) {}
 
-      verify(() => mockTaskNotifier.addTask(
-            title: any(named: 'title'),
-            subtitle: any(named: 'subtitle'),
-            sourcePaths: any(named: 'sourcePaths'),
-            isLight: any(named: 'isLight'),
-          )).called(1);
+      verify(
+        () => mockTaskNotifier.addTask(
+          title: any(named: 'title'),
+          subtitle: any(named: 'subtitle'),
+          sourcePaths: any(named: 'sourcePaths'),
+          isLight: any(named: 'isLight'),
+        ),
+      ).called(1);
     });
 
     test('extractFrames enqueues a FileTask', () async {
@@ -64,12 +64,14 @@ void main() {
         await service.extractFrames([segment], '/path/to/video.mp4');
       } catch (_) {}
 
-      verify(() => mockTaskNotifier.addTask(
-            title: any(named: 'title'),
-            subtitle: any(named: 'subtitle'),
-            sourcePaths: any(named: 'sourcePaths'),
-            isLight: any(named: 'isLight'),
-          )).called(1);
+      verify(
+        () => mockTaskNotifier.addTask(
+          title: any(named: 'title'),
+          subtitle: any(named: 'subtitle'),
+          sourcePaths: any(named: 'sourcePaths'),
+          isLight: any(named: 'isLight'),
+        ),
+      ).called(1);
     });
   });
 }

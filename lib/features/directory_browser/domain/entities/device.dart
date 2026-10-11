@@ -35,12 +35,12 @@ class Device {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        name,
-        path,
-        size,
-        (usage * 1000).round(),
-        isRemovable,
-        isMobile,
-      );
+    id,
+    name,
+    path,
+    size,
+    (usage * 1000).round(),
+    isRemovable,
+    isMobile,
+  );
 }

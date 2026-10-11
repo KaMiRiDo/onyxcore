@@ -28,30 +28,32 @@ void main() {
   final methodChannelCalls = <MethodCall>[];
 
   setUp(() {
-    db = AppDatabase.forTesting(drift.DatabaseConnection(NativeDatabase.memory()));
+    db = AppDatabase.forTesting(
+      drift.DatabaseConnection(NativeDatabase.memory()),
+    );
     methodChannelCalls.clear();
 
     // Set up mock channel handler
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('onyxcore/window_manager'),
-      (MethodCall methodCall) async {
-        methodChannelCalls.add(methodCall);
-        if (methodCall.method == 'create_window') {
-          return 42; // mock viewId
-        }
-        return null;
-      },
-    );
+          const MethodChannel('onyxcore/window_manager'),
+          (MethodCall methodCall) async {
+            methodChannelCalls.add(methodCall);
+            if (methodCall.method == 'create_window') {
+              return 42; // mock viewId
+            }
+            return null;
+          },
+        );
   });
 
   tearDown(() async {
     await db.close();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('onyxcore/window_manager'),
-      null,
-    );
+          const MethodChannel('onyxcore/window_manager'),
+          null,
+        );
   });
 
   Widget buildTestWidget({
@@ -61,9 +63,7 @@ void main() {
     return UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        home: Scaffold(
-          body: PreviewContainer(item: item),
-        ),
+        home: Scaffold(body: PreviewContainer(item: item)),
       ),
     );
   }
@@ -85,12 +85,17 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(buildTestWidget(item: item, container: container));
+      await tester.pumpWidget(
+        buildTestWidget(item: item, container: container),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byType(PreviewContainer), findsOneWidget);
       expect(find.text('PDF Preview not yet implemented'), findsOneWidget);
-      expect(find.text('Double-tap to open in external viewer'), findsOneWidget);
+      expect(
+        find.text('Double-tap to open in external viewer'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders unsupported message for unknown type', (tester) async {
@@ -109,20 +114,28 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(buildTestWidget(item: item, container: container));
+      await tester.pumpWidget(
+        buildTestWidget(item: item, container: container),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byType(PreviewContainer), findsOneWidget);
-      expect(find.text('Preview not supported for this file type'), findsOneWidget);
+      expect(
+        find.text('Preview not supported for this file type'),
+        findsOneWidget,
+      );
     });
   });
 
   group('Keyboard Shortcuts', () {
-    testWidgets('Ctrl+W closes preview when marker editor is inactive', (tester) async {
+    testWidgets('Ctrl+W closes preview when marker editor is inactive', (
+      tester,
+    ) async {
       final item = FileItem(
         path: '/home/user/unknown.xyz',
         name: 'unknown.xyz',
-        type: FileItemType.other, // Use other to avoid initializing media widgets
+        type:
+            FileItemType.other, // Use other to avoid initializing media widgets
         sizeBytes: 1024,
         modified: DateTime.now(),
       );
@@ -137,7 +150,9 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(buildTestWidget(item: item, container: container));
+      await tester.pumpWidget(
+        buildTestWidget(item: item, container: container),
+      );
       await tester.pumpAndSettle();
 
       // Trigger Ctrl+W
@@ -151,7 +166,9 @@ void main() {
       expect(container.read(previewHudVisibleProvider), isTrue);
     });
 
-    testWidgets('Ctrl+W does NOT close preview when marker editor is active', (tester) async {
+    testWidgets('Ctrl+W does NOT close preview when marker editor is active', (
+      tester,
+    ) async {
       final item = FileItem(
         path: '/home/user/unknown.xyz',
         name: 'unknown.xyz',
@@ -170,7 +187,9 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(buildTestWidget(item: item, container: container));
+      await tester.pumpWidget(
+        buildTestWidget(item: item, container: container),
+      );
       await tester.pumpAndSettle();
 
       // Trigger Ctrl+W
@@ -203,7 +222,9 @@ void main() {
           ],
         );
 
-        await tester.pumpWidget(buildTestWidget(item: item, container: container));
+        await tester.pumpWidget(
+          buildTestWidget(item: item, container: container),
+        );
         await tester.pump();
 
         // Wait 310ms to bypass throttle threshold
@@ -231,42 +252,51 @@ void main() {
   });
 
   group('Double-Tap Interactions', () {
-    testWidgets('Double-tap triggers PersistentViewerManager and closes preview', (tester) async {
-      final item = FileItem(
-        path: '/home/user/unknown.xyz',
-        name: 'unknown.xyz',
-        type: FileItemType.other, // onDoubleTap is enabled for other type
-        sizeBytes: 1024,
-        modified: DateTime.now(),
-      );
+    testWidgets(
+      'Double-tap triggers PersistentViewerManager and closes preview',
+      (tester) async {
+        final item = FileItem(
+          path: '/home/user/unknown.xyz',
+          name: 'unknown.xyz',
+          type: FileItemType.other, // onDoubleTap is enabled for other type
+          sizeBytes: 1024,
+          modified: DateTime.now(),
+        );
 
-      final container = ProviderContainer(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          settingsProvider.overrideWith(FakeSettingsNotifier.new),
-          previewFileProvider.overrideWith((ref) => item),
-          sortedDirectoryItemsProvider.overrideWithValue(AsyncValue.data([item])),
-        ],
-      );
+        final container = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            settingsProvider.overrideWith(FakeSettingsNotifier.new),
+            previewFileProvider.overrideWith((ref) => item),
+            sortedDirectoryItemsProvider.overrideWithValue(
+              AsyncValue.data([item]),
+            ),
+          ],
+        );
 
-      PersistentViewerManager.reset();
+        PersistentViewerManager.reset();
 
-      await tester.pumpWidget(buildTestWidget(item: item, container: container));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildTestWidget(item: item, container: container),
+        );
+        await tester.pumpAndSettle();
 
-      // Perform double tap gesture on the preview container
-      await tester.tap(find.byType(PreviewContainer));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byType(PreviewContainer));
-      await tester.pumpAndSettle();
+        // Perform double tap gesture on the preview container
+        await tester.tap(find.byType(PreviewContainer));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byType(PreviewContainer));
+        await tester.pumpAndSettle();
 
-      // Method channel should be invoked to create a window
-      final createWindowCall = methodChannelCalls.firstWhere((c) => c.method == 'create_window');
-      expect(createWindowCall, isNotNull);
+        // Method channel should be invoked to create a window
+        final createWindowCall = methodChannelCalls.firstWhere(
+          (c) => c.method == 'create_window',
+        );
+        expect(createWindowCall, isNotNull);
 
-      // The preview should close internally
-      expect(container.read(previewFileProvider), isNull);
-    });
+        // The preview should close internally
+        expect(container.read(previewFileProvider), isNull);
+      },
+    );
 
     testWidgets('Double-tap does not trigger for document', (tester) async {
       final item = FileItem(
@@ -285,7 +315,9 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(buildTestWidget(item: item, container: container));
+      await tester.pumpWidget(
+        buildTestWidget(item: item, container: container),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(PreviewContainer));
@@ -294,7 +326,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // No method channel call
-      expect(methodChannelCalls.where((c) => c.method == 'create_window'), isEmpty);
+      expect(
+        methodChannelCalls.where((c) => c.method == 'create_window'),
+        isEmpty,
+      );
     });
   });
 }

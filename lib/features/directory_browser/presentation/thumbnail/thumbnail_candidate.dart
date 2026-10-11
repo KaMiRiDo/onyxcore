@@ -22,11 +22,11 @@ class ThumbnailCandidate {
 
   /// Conversion factory — permitted only at the UI/session boundary.
   factory ThumbnailCandidate.fromFileItem(FileItem item) => ThumbnailCandidate(
-        path: item.path,
-        type: item.type,
-        modifiedEpochMs: item.modified.millisecondsSinceEpoch,
-        sizeBytes: item.sizeBytes ?? 0,
-      );
+    path: item.path,
+    type: item.type,
+    modifiedEpochMs: item.modified.millisecondsSinceEpoch,
+    sizeBytes: item.sizeBytes ?? 0,
+  );
 
   final String path;
   final FileItemType type;

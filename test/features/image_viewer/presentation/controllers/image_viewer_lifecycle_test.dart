@@ -7,9 +7,13 @@ import 'package:onyxcore/features/image_viewer/presentation/controllers/image_vi
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
 
 void main() {
-  testWidgets('ImageViewerLifecycle initializes and completes firstFrame', (tester) async {
+  testWidgets('ImageViewerLifecycle initializes and completes firstFrame', (
+    tester,
+  ) async {
     final focusNode = FocusNode();
-    final zoomAnimationController = AnimationController(vsync: const TestVSync());
+    final zoomAnimationController = AnimationController(
+      vsync: const TestVSync(),
+    );
     var onReadyForInteractionCalled = false;
     var onFirstFrameCalled = false;
 
@@ -31,24 +35,26 @@ void main() {
       modified: DateTime.now(),
     );
 
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: ref,
-      child: Consumer(
-        builder: (context, widgetRef, _) {
-          lifecycle.initialize(
-            context: context,
-            ref: widgetRef,
-            item: item,
-            isMountedCheck: () => true,
-          );
-          return const SizedBox();
-        },
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: ref,
+        child: Consumer(
+          builder: (context, widgetRef, _) {
+            lifecycle.initialize(
+              context: context,
+              ref: widgetRef,
+              item: item,
+              isMountedCheck: () => true,
+            );
+            return const SizedBox();
+          },
+        ),
       ),
-    ));
+    );
 
     // Pump to trigger post-frame callbacks
     await tester.pump();
-    
+
     expect(lifecycle.firstFrame, completes);
     expect(ref.read(imageIsEmptyProvider), false);
     expect(ref.read(imageRootPathProvider), '/test');

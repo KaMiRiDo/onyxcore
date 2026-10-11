@@ -23,13 +23,13 @@ enum DownloadStatus {
 }
 
 class DownloadTask {
-
   const DownloadTask({
     required this.id,
     required this.url,
     required this.destination,
     required this.title,
-    required this.createdAt, this.downloadType = 'generic',
+    required this.createdAt,
+    this.downloadType = 'generic',
     this.status = DownloadStatus.pending,
     this.progress = 0.0,
     this.speed = '',
@@ -626,12 +626,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       final speed = match.group(3)?.trim() ?? '';
       final eta = match.group(4)?.trim() ?? '';
 
-      updateWithProgress(
-        percentage,
-        speed: speed,
-        eta: eta,
-        totalSize: size,
-      );
+      updateWithProgress(percentage, speed: speed, eta: eta, totalSize: size);
       return;
     }
 
@@ -656,11 +651,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           // Only update counts — don't set progress here to avoid juggling.
           // Progress will be set by updateWithProgress when the actual
           // per-item download percentage comes from yt-dlp/aria2c.
-          _updateTask(
-            id,
-            completedItems: count,
-            totalItems: currentTotal,
-          );
+          _updateTask(id, completedItems: count, totalItems: currentTotal);
         }
       }
       return;
@@ -735,10 +726,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
     if (youGetMatch != null) {
       final percentage = double.tryParse(youGetMatch.group(1) ?? '0.0') ?? 0.0;
       final totalSize = youGetMatch.group(2) ?? '';
-      updateWithProgress(
-        percentage,
-        totalSize: totalSize,
-      );
+      updateWithProgress(percentage, totalSize: totalSize);
       return;
     }
 
@@ -816,10 +804,7 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
               totalItems: currentTotal,
             );
           } else {
-            _updateTask(
-              id,
-              completedItems: count,
-            );
+            _updateTask(id, completedItems: count);
           }
         }
       }
@@ -869,8 +854,10 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
       final dir = Directory(destination);
       if (dir.existsSync()) {
         var size = 0;
-        await for (final entity
-            in dir.list(recursive: true, followLinks: false)) {
+        await for (final entity in dir.list(
+          recursive: true,
+          followLinks: false,
+        )) {
           if (entity is File) {
             try {
               size += entity.statSync().size;
@@ -885,10 +872,12 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
           if (size == task.downloadedBytes && task.downloadedBytes > 0) return;
 
           final elapsed = DateTime.now().difference(task.createdAt);
-          final speedBps =
-              elapsed.inSeconds > 0 ? size ~/ elapsed.inSeconds : size;
-          final speedStr =
-              speedBps > 0 ? '${StringUtils.formatBytes(speedBps)}/s' : null;
+          final speedBps = elapsed.inSeconds > 0
+              ? size ~/ elapsed.inSeconds
+              : size;
+          final speedStr = speedBps > 0
+              ? '${StringUtils.formatBytes(speedBps)}/s'
+              : null;
 
           // Compute progress from bytes ratio when possible
           double? bytesProgress;
@@ -901,7 +890,8 @@ class DownloadTaskNotifier extends Notifier<List<DownloadTask>>
             speed: speedStr,
             // Only update progress from bytes if the yt-dlp/gallery-dl parser
             // hasn't provided a better value yet, or if bytes-based is higher
-            progress: (bytesProgress != null &&
+            progress:
+                (bytesProgress != null &&
                     (task.progress == 0.0 || bytesProgress > task.progress))
                 ? bytesProgress
                 : null,

@@ -7,8 +7,7 @@ enum SortOption {
   lastModified,
   sizeSmallToLarge,
   sizeLargeToSmall,
-  filesFirst
-  ;
+  filesFirst;
 
   String get label {
     switch (this) {
@@ -31,7 +30,6 @@ enum SortOption {
 }
 
 class SortSettings extends Equatable {
-
   const SortSettings({this.option = SortOption.aToZ});
 
   factory SortSettings.fromJson(Map<String, dynamic> json) {

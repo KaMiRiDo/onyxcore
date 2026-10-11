@@ -27,7 +27,7 @@ class StandaloneWindowHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSmallWindow = MediaQuery.of(context).size.width < 1100;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
@@ -36,27 +36,29 @@ class StandaloneWindowHeader extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          return constraints.maxWidth < 650 
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildInputBox(isSmallWindow),
-                  const SizedBox(height: 12),
-                  _buildFetchRow(context, isSmallWindow),
-                ],
-              )
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildInputBox(isSmallWindow)),
-                  const SizedBox(width: 16),
-                  SizedBox(
-                    width: isSmallWindow ? 180 : 260,
-                    height: isSmallWindow ? 56 : 84, // matching input box height
-                    child: _buildFetchRow(context, isSmallWindow),
-                  ),
-                ],
-              );
+          return constraints.maxWidth < 650
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildInputBox(isSmallWindow),
+                    const SizedBox(height: 12),
+                    _buildFetchRow(context, isSmallWindow),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildInputBox(isSmallWindow)),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      width: isSmallWindow ? 180 : 260,
+                      height: isSmallWindow
+                          ? 56
+                          : 84, // matching input box height
+                      child: _buildFetchRow(context, isSmallWindow),
+                    ),
+                  ],
+                );
         },
       ),
     );
@@ -66,52 +68,52 @@ class StandaloneWindowHeader extends StatelessWidget {
     return AnimatedBuilder(
       animation: gradientController,
       builder: (context, child) {
-                final isFocused = urlFocusNode.hasFocus;
-                return CustomPaint(
-                  painter: isFocused
-                      ? _GradientBorderPainter(gradientController.value)
-                      : null,
-                  child: Container(
-                    height: isSmallWindow ? 56 : 84, // Reduced to accommodate ~2 lines comfortably
-                    padding: const EdgeInsets.all(1.5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: !isFocused
-                          ? Border.all(color: Colors.white10)
-                          : Border.all(color: Colors.transparent, width: 1.5),
-                    ),
-                    child: CallbackShortcuts(
-                      bindings: {
-                        const SingleActivator(
-                          LogicalKeyboardKey.enter,
-                          control: true,
-                        ): onFetch,
-                      },
-                      child: TextField(
-                        controller: urlController,
-                        focusNode: urlFocusNode,
-                        maxLines: null,
-                        expands: true,
-                        style: GoogleFonts.firaCode(
-                          color: Colors.white,
-                          fontSize: isSmallWindow ? 10 : 13,
-                        ),
-                        decoration: InputDecoration(
-                          hintText:
-                              'https://youtube.com/watch?v=...\nhttps://instagram.com/...',
-                          hintStyle: GoogleFonts.firaCode(
-                            color: Colors.white24,
-                            fontSize: isSmallWindow ? 10 : 13,
-                          ),
-                          contentPadding: EdgeInsets.all(isSmallWindow ? 10 : 16),
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
+        final isFocused = urlFocusNode.hasFocus;
+        return CustomPaint(
+          painter: isFocused
+              ? _GradientBorderPainter(gradientController.value)
+              : null,
+          child: Container(
+            height: isSmallWindow
+                ? 56
+                : 84, // Reduced to accommodate ~2 lines comfortably
+            padding: const EdgeInsets.all(1.5),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: !isFocused
+                  ? Border.all(color: Colors.white10)
+                  : Border.all(color: Colors.transparent, width: 1.5),
+            ),
+            child: CallbackShortcuts(
+              bindings: {
+                const SingleActivator(LogicalKeyboardKey.enter, control: true):
+                    onFetch,
               },
+              child: TextField(
+                controller: urlController,
+                focusNode: urlFocusNode,
+                maxLines: null,
+                expands: true,
+                style: GoogleFonts.firaCode(
+                  color: Colors.white,
+                  fontSize: isSmallWindow ? 10 : 13,
+                ),
+                decoration: InputDecoration(
+                  hintText:
+                      'https://youtube.com/watch?v=...\nhttps://instagram.com/...',
+                  hintStyle: GoogleFonts.firaCode(
+                    color: Colors.white24,
+                    fontSize: isSmallWindow ? 10 : 13,
+                  ),
+                  contentPadding: EdgeInsets.all(isSmallWindow ? 10 : 16),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -147,7 +149,9 @@ class StandaloneWindowHeader extends StatelessWidget {
                     shadowColor: Colors.transparent,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
+                      borderRadius: BorderRadius.circular(
+                        isSmallWindow ? 6 : 10,
+                      ),
                     ),
                     padding: EdgeInsets.zero,
                   ),
@@ -190,16 +194,16 @@ class StandaloneWindowHeader extends StatelessWidget {
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: GestureDetector(
-                  onTap: () => SettingsDialog.show(
-                    context,
-                    section: 'Download Manager',
-                  ),
+                  onTap: () =>
+                      SettingsDialog.show(context, section: 'Download Manager'),
                   child: Container(
                     width: isSmallWindow ? 24 : 38,
                     height: isSmallWindow ? 24 : 38,
                     decoration: BoxDecoration(
                       color: AppColors.surfaceBase,
-                      borderRadius: BorderRadius.circular(isSmallWindow ? 6 : 10),
+                      borderRadius: BorderRadius.circular(
+                        isSmallWindow ? 6 : 10,
+                      ),
                       border: Border.all(color: Colors.white10),
                     ),
                     child: Icon(

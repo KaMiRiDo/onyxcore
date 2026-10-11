@@ -30,8 +30,7 @@ void main() {
   // ─── Bug 1: moveToTrash failure behaviour ──────────────────────────────────
 
   group('LocalFileDatasource - moveToTrash failure propagation', () {
-    test(
-        'moveToTrash throws TrashFailedException when gio fails '
+    test('moveToTrash throws TrashFailedException when gio fails '
         'instead of silently deleting permanently', () async {
       // Create a real file
       final file = File(p.join(tempDir.path, 'keep_me.txt'))
@@ -63,8 +62,7 @@ void main() {
       }
     });
 
-    test(
-        'moveToTrash throws TrashFailedException with correct paths '
+    test('moveToTrash throws TrashFailedException with correct paths '
         'when gio is unavailable or fails', () async {
       // Verify the exception carries the right information
       final paths = ['/some/file.mp4', '/other/image.jpg'];
@@ -80,8 +78,7 @@ void main() {
       expect(e, isA<Exception>());
     });
 
-    test(
-        'moveToTrash completes normally when gio succeeds '
+    test('moveToTrash completes normally when gio succeeds '
         '(no exception thrown)', () async {
       final file = File(p.join(tempDir.path, 'trash_me.txt'))
         ..writeAsStringSync('data');
@@ -108,30 +105,31 @@ void main() {
     });
 
     test(
-        'moveToTrash with multiple files throws if any path causes gio failure',
-        () async {
-      final file1 = File(p.join(tempDir.path, 'a.txt'))
-        ..writeAsStringSync('a');
-      final file2 = File(p.join(tempDir.path, 'b.txt'))
-        ..writeAsStringSync('b');
+      'moveToTrash with multiple files throws if any path causes gio failure',
+      () async {
+        final file1 = File(p.join(tempDir.path, 'a.txt'))
+          ..writeAsStringSync('a');
+        final file2 = File(p.join(tempDir.path, 'b.txt'))
+          ..writeAsStringSync('b');
 
-      var threw = false;
-      try {
-        await datasource.moveToTrash([file1.path, file2.path]);
-      } on TrashFailedException catch (e) {
-        threw = true;
-        expect(e.paths, isNotEmpty);
-        // Neither file should have been silently permanently deleted
-        // (files may still exist if gio failed)
-      }
+        var threw = false;
+        try {
+          await datasource.moveToTrash([file1.path, file2.path]);
+        } on TrashFailedException catch (e) {
+          threw = true;
+          expect(e.paths, isNotEmpty);
+          // Neither file should have been silently permanently deleted
+          // (files may still exist if gio failed)
+        }
 
-      // The important thing: if it threw, it's a TrashFailedException
-      if (threw) {
-        // Files were NOT silently permanently deleted
-        // (they might still exist on disk)
-        expect(true, isTrue);
-      }
-    });
+        // The important thing: if it threw, it's a TrashFailedException
+        if (threw) {
+          // Files were NOT silently permanently deleted
+          // (they might still exist on disk)
+          expect(true, isTrue);
+        }
+      },
+    );
 
     test('moveToTrash logs correctly on success', () async {
       final file = File(p.join(tempDir.path, 'log_test.txt'))
@@ -171,8 +169,7 @@ void main() {
       expect(file.existsSync(), isFalse);
     });
 
-    test(
-        'deleteItems permanently removes file even in standalone '
+    test('deleteItems permanently removes file even in standalone '
         '(no directory refresh needed)', () async {
       final file = File(p.join(tempDir.path, 'standalone_vid.mp4'))
         ..writeAsBytesSync([0xFF, 0xFE]);

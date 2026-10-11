@@ -298,10 +298,7 @@ class LuxEngine extends DownloadEngine {
     String? directUrl,
     String? itemsRange,
   }) async {
-    final args = <String>[
-      '-o',
-      destination,
-    ];
+    final args = <String>['-o', destination];
 
     if (title != null) {
       final safeTitle = title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');

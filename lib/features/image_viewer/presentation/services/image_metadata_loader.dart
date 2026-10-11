@@ -4,12 +4,9 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-class ImageMetadata {
 
-  const ImageMetadata({
-    this.metadataString,
-    this.imageSize,
-  });
+class ImageMetadata {
+  const ImageMetadata({this.metadataString, this.imageSize});
   final String? metadataString;
   final Size? imageSize;
 }
@@ -71,16 +68,14 @@ class ImageMetadataLoader {
         );
         stream.addListener(listener);
 
-        final size =
-            await completer.future.timeout(const Duration(seconds: 10));
+        final size = await completer.future.timeout(
+          const Duration(seconds: 10),
+        );
         final mp = (size.width * size.height / 1000000).toStringAsFixed(1);
         final metadataString =
             '${size.width.toInt()}x${size.height.toInt()} px • $mp MP';
 
-        return ImageMetadata(
-          metadataString: metadataString,
-          imageSize: size,
-        );
+        return ImageMetadata(metadataString: metadataString, imageSize: size);
       } catch (e) {
         return const ImageMetadata();
       }
@@ -94,9 +89,7 @@ class ImageMetadataLoader {
     try {
       final isSvg = filePath.toLowerCase().endsWith('.svg');
       if (isSvg) {
-        return const ImageMetadata(
-          metadataString: 'Vector Graphic • Scalable',
-        );
+        return const ImageMetadata(metadataString: 'Vector Graphic • Scalable');
       }
 
       await firstFrame;
@@ -105,22 +98,24 @@ class ImageMetadataLoader {
 
       final buffer = await ui.ImmutableBuffer.fromFilePath(filePath);
       final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final size = Size(descriptor.width.toDouble(), descriptor.height.toDouble());
+      final size = Size(
+        descriptor.width.toDouble(),
+        descriptor.height.toDouble(),
+      );
       descriptor.dispose();
       buffer.dispose();
 
       final mp = (size.width * size.height / 1000000).toStringAsFixed(1);
-      final metadataString = '${size.width.toInt()}x${size.height.toInt()} px • $mp MP';
+      final metadataString =
+          '${size.width.toInt()}x${size.height.toInt()} px • $mp MP';
 
-      return ImageMetadata(
-        metadataString: metadataString,
-        imageSize: size,
-      );
+      return ImageMetadata(metadataString: metadataString, imageSize: size);
     } on TimeoutException {
       // Silently catch timeouts to prevent log spam for very slow images
       return const ImageMetadata();
     } catch (e) {
-      if (e.toString().contains('Invalid image data') || e.toString().contains('Exception: Exception')) {
+      if (e.toString().contains('Invalid image data') ||
+          e.toString().contains('Exception: Exception')) {
         // Silently catch unsupported formats
         return const ImageMetadata();
       }

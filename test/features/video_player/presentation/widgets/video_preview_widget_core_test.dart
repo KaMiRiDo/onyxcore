@@ -75,9 +75,7 @@ void main() {
       when(
         () => mockPlayerStream.buffer,
       ).thenAnswer((_) => Stream.value(const Duration(minutes: 2)));
-      when(
-        () => mockPlayerStream.volume,
-      ).thenAnswer((_) => Stream.value(100));
+      when(() => mockPlayerStream.volume).thenAnswer((_) => Stream.value(100));
       when(() => mockPlayerStream.rate).thenAnswer((_) => Stream.value(1));
       when(
         () => mockPlayerStream.playing,
@@ -85,11 +83,11 @@ void main() {
       when(
         () => mockPlayerStream.buffering,
       ).thenAnswer((_) => Stream.value(false));
-      
+
       when(
         () => mockPlayerStream.error,
       ).thenAnswer((_) => errorStreamController.stream);
-      
+
       when(
         () => mockAppDatabase.getPlaybackPosition(any()),
       ).thenAnswer((_) async => null);
@@ -229,19 +227,19 @@ void main() {
 
         // Verify HUD (VideoBottomControls) is also visible to allow navigating back
         expect(find.byType(VideoBottomControls), findsOneWidget);
-        
+
         // Verify only playlist button is visible in HUD during empty state
         // Icons.playlist_play is from VideoBottomControls
         expect(find.byIcon(Icons.playlist_play), findsOneWidget);
         // Icons.playlist_play_rounded from VideoEmptyState should be gone
         expect(find.byIcon(Icons.playlist_play_rounded), findsNothing);
-        
+
         // Other HUD buttons should be hidden
         expect(find.byIcon(Icons.skip_previous), findsNothing);
         expect(find.byIcon(Icons.skip_next), findsNothing);
         expect(find.byIcon(Icons.play_arrow), findsNothing);
         expect(find.byIcon(Icons.pause), findsNothing);
-        
+
         // ViewerTopBar should be completely hidden
         expect(find.byType(ViewerTopBar), findsNothing);
 
@@ -256,11 +254,21 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(mockAppDatabase),
           settingsProvider.overrideWith(MockSettingsNotifier.new),
-          videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
+          videoFavoritesProvider.overrideWith(
+            (ref) => MockVideoFavoritesNotifier(),
+          ),
           videoMarkersProvider('/mock/video.mp4').overrideWith((ref) => []),
-          videoQueueProvider.overrideWith((ref) => [
-            FileItem(path: '/mock/video.mp4', name: 'video.mp4', sizeBytes: 1000, modified: DateTime.now(), type: FileItemType.video)
-          ]),
+          videoQueueProvider.overrideWith(
+            (ref) => [
+              FileItem(
+                path: '/mock/video.mp4',
+                name: 'video.mp4',
+                sizeBytes: 1000,
+                modified: DateTime.now(),
+                type: FileItemType.video,
+              ),
+            ],
+          ),
           videoPlaylistSidebarVisibleProvider.overrideWith((ref) => true),
         ],
       );
@@ -271,7 +279,13 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: VideoPreviewWidget(
-                item: FileItem(path: '/mock/video.mp4', name: 'video.mp4', sizeBytes: 1000, modified: DateTime.now(), type: FileItemType.video),
+                item: FileItem(
+                  path: '/mock/video.mp4',
+                  name: 'video.mp4',
+                  sizeBytes: 1000,
+                  modified: DateTime.now(),
+                  type: FileItemType.video,
+                ),
                 isStandalone: true,
               ),
             ),
@@ -288,18 +302,36 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
-    testWidgets('Sidebar state is preserved when video item is updated', (tester) async {
+    testWidgets('Sidebar state is preserved when video item is updated', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           databaseProvider.overrideWithValue(mockAppDatabase),
           settingsProvider.overrideWith(MockSettingsNotifier.new),
-          videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
+          videoFavoritesProvider.overrideWith(
+            (ref) => MockVideoFavoritesNotifier(),
+          ),
           videoMarkersProvider('/mock/video1.mp4').overrideWith((ref) => []),
           videoMarkersProvider('/mock/video2.mp4').overrideWith((ref) => []),
-          videoQueueProvider.overrideWith((ref) => [
-            FileItem(path: '/mock/video1.mp4', name: 'video1.mp4', sizeBytes: 1000, modified: DateTime.now(), type: FileItemType.video),
-            FileItem(path: '/mock/video2.mp4', name: 'video2.mp4', sizeBytes: 1000, modified: DateTime.now(), type: FileItemType.video),
-          ]),
+          videoQueueProvider.overrideWith(
+            (ref) => [
+              FileItem(
+                path: '/mock/video1.mp4',
+                name: 'video1.mp4',
+                sizeBytes: 1000,
+                modified: DateTime.now(),
+                type: FileItemType.video,
+              ),
+              FileItem(
+                path: '/mock/video2.mp4',
+                name: 'video2.mp4',
+                sizeBytes: 1000,
+                modified: DateTime.now(),
+                type: FileItemType.video,
+              ),
+            ],
+          ),
         ],
       );
 
@@ -310,7 +342,13 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: VideoPreviewWidget(
-                item: FileItem(path: '/mock/video1.mp4', name: 'video1.mp4', sizeBytes: 1000, modified: DateTime.now(), type: FileItemType.video),
+                item: FileItem(
+                  path: '/mock/video1.mp4',
+                  name: 'video1.mp4',
+                  sizeBytes: 1000,
+                  modified: DateTime.now(),
+                  type: FileItemType.video,
+                ),
                 isStandalone: true,
               ),
             ),
@@ -335,7 +373,13 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: VideoPreviewWidget(
-                item: FileItem(path: '/mock/video2.mp4', name: 'video2.mp4', sizeBytes: 1000, modified: DateTime.now(), type: FileItemType.video),
+                item: FileItem(
+                  path: '/mock/video2.mp4',
+                  name: 'video2.mp4',
+                  sizeBytes: 1000,
+                  modified: DateTime.now(),
+                  type: FileItemType.video,
+                ),
                 isStandalone: true,
               ),
             ),
@@ -362,16 +406,24 @@ void main() {
           overrides: [
             databaseProvider.overrideWithValue(mockAppDatabase),
             settingsProvider.overrideWith(() {
-               return MockSettingsNotifier();
+              return MockSettingsNotifier();
             }),
             videoPlaylistSidebarVisibleProvider.overrideWith((ref) => false),
-            videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
+            videoFavoritesProvider.overrideWith(
+              (ref) => MockVideoFavoritesNotifier(),
+            ),
             videoMarkersProvider('/mock/video.mp4').overrideWith((ref) => []),
           ],
           child: MaterialApp(
             home: Scaffold(
               body: VideoPreviewWidget(
-                item: FileItem(path: '/mock/video.mp4', name: 'video.mp4', sizeBytes: 1000, modified: DateTime.now(), type: FileItemType.video),
+                item: FileItem(
+                  path: '/mock/video.mp4',
+                  name: 'video.mp4',
+                  sizeBytes: 1000,
+                  modified: DateTime.now(),
+                  type: FileItemType.video,
+                ),
                 isStandalone: true,
               ),
             ),
@@ -380,7 +432,7 @@ void main() {
       );
 
       await tester.pump(const Duration(milliseconds: 500));
-      
+
       expect(find.byType(VideoPreviewWidget), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());

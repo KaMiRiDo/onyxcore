@@ -16,13 +16,17 @@ import 'package:onyxcore/features/video_player/presentation/providers/video_play
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 
 class MockPlayer extends Mock implements Player {}
+
 class MockPlayerState extends Mock implements PlayerState {}
+
 class MockPlayerStream extends Mock implements PlayerStream {}
+
 class MockAppDatabase extends Mock implements AppDatabase {}
 
 class MockSettingsNotifierEnabled extends SettingsNotifier {
   @override
-  Future<AppSettings> build() async => const AppSettings(videoFilterSortEnabled: true);
+  Future<AppSettings> build() async =>
+      const AppSettings(videoFilterSortEnabled: true);
 }
 
 class MockSettingsNotifierDisabled extends SettingsNotifier {
@@ -63,13 +67,25 @@ void main() {
       when(() => mockPlayerState.videoParams).thenReturn(const VideoParams());
       when(() => mockPlayerState.audioParams).thenReturn(const AudioParams());
       when(() => mockPlayerStream.log).thenAnswer((_) => const Stream.empty());
-      when(() => mockPlayerStream.error).thenAnswer((_) => errorStreamController.stream);
-      
-      when(() => mockAppDatabase.getPlaybackPosition(any())).thenAnswer((_) async => null);
-      when(() => mockAppDatabase.savePlaybackPosition(any(), any())).thenAnswer((_) async {});
-      when(() => mockAppDatabase.pruneMetadataCache(any())).thenAnswer((_) async => []);
-      when(() => mockAppDatabase.getAllMetadataCache()).thenAnswer((_) async => []);
-      when(() => mockAppDatabase.getAllThumbnailEntries()).thenAnswer((_) async => []);
+      when(
+        () => mockPlayerStream.error,
+      ).thenAnswer((_) => errorStreamController.stream);
+
+      when(
+        () => mockAppDatabase.getPlaybackPosition(any()),
+      ).thenAnswer((_) async => null);
+      when(
+        () => mockAppDatabase.savePlaybackPosition(any(), any()),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockAppDatabase.pruneMetadataCache(any()),
+      ).thenAnswer((_) async => []);
+      when(
+        () => mockAppDatabase.getAllMetadataCache(),
+      ).thenAnswer((_) async => []);
+      when(
+        () => mockAppDatabase.getAllThumbnailEntries(),
+      ).thenAnswer((_) async => []);
     });
 
     Widget buildWidget({required bool isFilterSortEnabled}) {
@@ -77,10 +93,16 @@ void main() {
       return ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(mockAppDatabase),
-          settingsProvider.overrideWith(isFilterSortEnabled ? MockSettingsNotifierEnabled.new : MockSettingsNotifierDisabled.new),
+          settingsProvider.overrideWith(
+            isFilterSortEnabled
+                ? MockSettingsNotifierEnabled.new
+                : MockSettingsNotifierDisabled.new,
+          ),
           videoPlaylistSidebarVisibleProvider.overrideWith((ref) => false),
           videoMarkersProvider('/mock/video.mp4').overrideWith((ref) => []),
-          videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
+          videoFavoritesProvider.overrideWith(
+            (ref) => MockVideoFavoritesNotifier(),
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -98,7 +120,9 @@ void main() {
       );
     }
 
-    testWidgets('shows FilterSortButton when videoFilterSortEnabled is true', (tester) async {
+    testWidgets('shows FilterSortButton when videoFilterSortEnabled is true', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -115,7 +139,9 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
-    testWidgets('hides FilterSortButton when videoFilterSortEnabled is false', (tester) async {
+    testWidgets('hides FilterSortButton when videoFilterSortEnabled is false', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -125,7 +151,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
-      
+
       expect(find.byType(FilterSortButton), findsNothing);
 
       await tester.pumpWidget(const SizedBox());

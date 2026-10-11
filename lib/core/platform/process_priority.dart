@@ -8,7 +8,12 @@ import 'dart:io';
 Future<bool> setLowProcessPriority(int pid, [int niceLevel = 10]) async {
   if (!Platform.isLinux) return false;
   try {
-    final result = await Process.run('renice', ['-n', '$niceLevel', '-p', '$pid']);
+    final result = await Process.run('renice', [
+      '-n',
+      '$niceLevel',
+      '-p',
+      '$pid',
+    ]);
     return result.exitCode == 0;
   } catch (_) {
     return false;

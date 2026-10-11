@@ -208,7 +208,9 @@ class _FileGridState extends ConsumerState<FileGrid>
           }
 
           ref.read(taskProvider.notifier).completeTask(taskId);
-          await ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+          await ref
+              .read(directoryItemsProvider.notifier)
+              .refresh(showLoader: false);
           ref.read(selectionProvider.notifier).deselectAll();
         } catch (e) {
           ref.read(taskProvider.notifier).addLog(taskId, 'ERROR: $e');
@@ -267,11 +269,16 @@ class _FileGridState extends ConsumerState<FileGrid>
 
     // .dml = OnyxCore downloader media list — open in standalone downloader
     if (item.type == FileItemType.downloaderList) {
-      PersistentViewerManager.openMedia(WindowParams(
-        viewerType: ViewerType.downloader,
-        file: item,
-        initParams: {'importListPath': '${item.path}?t=${DateTime.now().millisecondsSinceEpoch}'},
-      ));
+      PersistentViewerManager.openMedia(
+        WindowParams(
+          viewerType: ViewerType.downloader,
+          file: item,
+          initParams: {
+            'importListPath':
+                '${item.path}?t=${DateTime.now().millisecondsSinceEpoch}',
+          },
+        ),
+      );
       return;
     }
 
@@ -287,7 +294,9 @@ class _FileGridState extends ConsumerState<FileGrid>
         final mediaItems = allItems.where((i) => i.type == item.type).toList();
         final currentIndex = mediaItems.indexWhere((i) => i.path == item.path);
 
-        if (item.type == FileItemType.image && currentIndex != -1 && mediaItems.isNotEmpty) {
+        if (item.type == FileItemType.image &&
+            currentIndex != -1 &&
+            mediaItems.isNotEmpty) {
           for (var i = 1; i <= 1; i++) {
             preloadPaths
               ..add(mediaItems[(currentIndex + i) % mediaItems.length].path)
@@ -448,11 +457,13 @@ class _FileGridState extends ConsumerState<FileGrid>
     if (!_scrollController.hasClients) return;
 
     final renderBox = context.findRenderObject() as RenderBox?;
-    final totalWidth = _lastConstraints?.maxWidth ??
+    final totalWidth =
+        _lastConstraints?.maxWidth ??
         ((renderBox?.hasSize ?? false)
             ? renderBox!.size.width
             : MediaQuery.of(context).size.width);
-    final totalHeight = _lastConstraints?.maxHeight ??
+    final totalHeight =
+        _lastConstraints?.maxHeight ??
         ((renderBox?.hasSize ?? false)
             ? renderBox!.size.height
             : _scrollController.position.viewportDimension);
@@ -476,17 +487,21 @@ class _FileGridState extends ConsumerState<FileGrid>
     final candidates = <ThumbnailCandidate>[];
 
     // Build bounded candidate list: buffer window only
-    for (var i = indices.firstBufferIndex;
-        i <= indices.lastBufferIndex && i < items.length;
-        i++) {
+    for (
+      var i = indices.firstBufferIndex;
+      i <= indices.lastBufferIndex && i < items.length;
+      i++
+    ) {
       final item = items[i];
       if (item.type == FileItemType.image || item.type == FileItemType.video) {
         candidates.add(ThumbnailCandidate.fromFileItem(item));
       }
     }
-    for (var i = indices.firstVisibleIndex;
-        i < indices.lastVisibleIndex && i < items.length;
-        i++) {
+    for (
+      var i = indices.firstVisibleIndex;
+      i < indices.lastVisibleIndex && i < items.length;
+      i++
+    ) {
       final item = items[i];
       if (item.type == FileItemType.image || item.type == FileItemType.video) {
         visiblePaths.add(item.path);
@@ -582,9 +597,11 @@ GridViewportIndices calculateGridViewportIndices({
 
   // Exact Flutter SDK SliverGridDelegateWithMaxCrossAxisExtent formula:
   // int crossAxisCount = (constraints.crossAxisExtent / (maxCrossAxisExtent + crossAxisSpacing)).ceil();
-  final cols = (availableWidth / (effectiveMaxCrossAxisExtent + effectiveCrossAxisSpacing))
-      .ceil()
-      .clamp(1, 100);
+  final cols =
+      (availableWidth /
+              (effectiveMaxCrossAxisExtent + effectiveCrossAxisSpacing))
+          .ceil()
+          .clamp(1, 100);
 
   final rowHeight = effectiveMainAxisExtent + effectiveMainAxisSpacing;
   final effectiveScrollOffset = math.max(0, scrollOffset);

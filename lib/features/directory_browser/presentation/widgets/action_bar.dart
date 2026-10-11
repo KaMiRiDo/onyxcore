@@ -72,7 +72,9 @@ class ActionBar extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isActive ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+        color: isActive
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(
@@ -97,15 +99,13 @@ class ActionBar extends ConsumerWidget {
       final repo = ref.read(directoryRepositoryProvider);
       final taskId = ref
           .read(taskProvider.notifier)
-          .addTask(
-            title: 'New Folder',
-            subtitle: name,
-            isLight: true,
-          );
+          .addTask(title: 'New Folder', subtitle: name, isLight: true);
       try {
         await repo.createFolder(currentPath, name, taskId: taskId);
         ref.read(taskProvider.notifier).completeTask(taskId);
-        await ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+        await ref
+            .read(directoryItemsProvider.notifier)
+            .refresh(showLoader: false);
       } catch (e) {
         ref.read(taskProvider.notifier).failTask(taskId, e.toString());
         if (context.mounted) {

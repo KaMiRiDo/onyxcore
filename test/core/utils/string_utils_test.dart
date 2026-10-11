@@ -8,7 +8,10 @@ void main() {
     });
 
     test('truncates in the middle keeping start and end parts', () {
-      expect(StringUtils.truncateMiddle('abcdefghijklmnopqrstuvwxyz', maxLength: 13), 'abcde...vwxyz');
+      expect(
+        StringUtils.truncateMiddle('abcdefghijklmnopqrstuvwxyz', maxLength: 13),
+        'abcde...vwxyz',
+      );
     });
   });
 

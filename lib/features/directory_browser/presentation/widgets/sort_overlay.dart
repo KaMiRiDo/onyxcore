@@ -39,7 +39,6 @@ class SortOverlay {
 }
 
 class _SortOverlayWidget extends StatelessWidget {
-
   const _SortOverlayWidget({
     required this.buttonPosition,
     required this.buttonSize,
@@ -108,7 +107,9 @@ class _SortOverlayWidget extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFF181818).withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

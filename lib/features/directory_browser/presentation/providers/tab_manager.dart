@@ -8,20 +8,13 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'package:uuid/uuid.dart';
 
 class TabManagerState {
-
-  TabManagerState({
-    required this.tabs,
-    required this.activeTabIndex,
-  });
+  TabManagerState({required this.tabs, required this.activeTabIndex});
   final List<TabState> tabs;
   final int activeTabIndex;
 
   TabState get activeTab => tabs[activeTabIndex];
 
-  TabManagerState copyWith({
-    List<TabState>? tabs,
-    int? activeTabIndex,
-  }) {
+  TabManagerState copyWith({List<TabState>? tabs, int? activeTabIndex}) {
     return TabManagerState(
       tabs: tabs ?? this.tabs,
       activeTabIndex: activeTabIndex ?? this.activeTabIndex,
@@ -52,9 +45,7 @@ class TabManager extends Notifier<TabManagerState> {
           id: const Uuid().v4(),
           currentPath: home,
           history: [home],
-          sortSettings: SortSettings(
-            option: _getFolderSort(home),
-          ),
+          sortSettings: SortSettings(option: _getFolderSort(home)),
         ),
       ],
       activeTabIndex: 0,
@@ -64,7 +55,7 @@ class TabManager extends Notifier<TabManagerState> {
   SortOption _getFolderSort(String path) {
     final settingsState = ref.read(settingsProvider).value;
     final globalSort = settingsState?.globalSortOption ?? SortOption.aToZ;
-    
+
     if (settingsState != null) {
       final savedSortStr = settingsState.gallerySortSettings[path];
       if (savedSortStr != null) {
@@ -120,10 +111,7 @@ class TabManager extends Notifier<TabManagerState> {
       );
     }
 
-    state = state.copyWith(
-      tabs: newTabs,
-      activeTabIndex: newActiveIndex,
-    );
+    state = state.copyWith(tabs: newTabs, activeTabIndex: newActiveIndex);
   }
 
   void switchTab(int index) {
@@ -300,7 +288,9 @@ class TabManager extends Notifier<TabManagerState> {
     state = state.copyWith(tabs: newTabs);
 
     // Persist folder-specific sort
-    ref.read(settingsProvider.notifier).setFolderSort(tab.currentPath, sort.option);
+    ref
+        .read(settingsProvider.notifier)
+        .setFolderSort(tab.currentPath, sort.option);
   }
 
   void updateFilterSettings(String tabId, FilterSettings filter) {

@@ -29,12 +29,12 @@ class FakeAppDatabase implements AppDatabase {
   Future<void> setSetting(String key, String value) async {
     mockSettings[key] = value;
   }
-  
+
   @override
   Future<void> removeSetting(String key) async {
     mockSettings.remove(key);
   }
-  
+
   @override
   Future<Map<String, String>> getAllFolderSorts() async => {};
 
@@ -75,8 +75,13 @@ void main() {
     });
 
     test('saveSettings writes openInStandaloneMode', () async {
-      await repository.saveSettings(const AppSettings(openInStandaloneMode: false));
-      expect(fakeDb.mockSettings['openInStandaloneMode'], '0'); // bools are stored as '0'/'1' or 'true'/'false' depending on SettingsCodec
+      await repository.saveSettings(
+        const AppSettings(openInStandaloneMode: false),
+      );
+      expect(
+        fakeDb.mockSettings['openInStandaloneMode'],
+        '0',
+      ); // bools are stored as '0'/'1' or 'true'/'false' depending on SettingsCodec
       // wait, SettingsCodec uses encodeBool. We don't need to know the exact serialization if we just test it executes
     });
   });

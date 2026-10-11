@@ -48,10 +48,11 @@ class DiskUsage {
 /// or `null` if the command fails.
 Future<DiskUsage?> getDiskUsage(String path) async {
   try {
-    final result = await Process.run(
-      'df',
-      ['-B1', '--output=size,used,avail', path],
-    );
+    final result = await Process.run('df', [
+      '-B1',
+      '--output=size,used,avail',
+      path,
+    ]);
 
     if (result.exitCode != 0) return null;
 

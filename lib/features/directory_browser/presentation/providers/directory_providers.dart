@@ -64,7 +64,8 @@ class CurrentPathNotifier extends Notifier<String> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.currentPath ?? '/',
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.currentPath ?? '/',
       ),
     );
   }
@@ -100,7 +101,9 @@ final draggingPathsProvider = StateProvider<Set<String>>((ref) => {});
 final previewFileProvider = StateProvider<FileItem?>((ref) => null);
 
 /// Init parameters for the currently previewed file.
-final previewFileInitParamsProvider = StateProvider<Map<String, dynamic>?>((ref) => null);
+final previewFileInitParamsProvider = StateProvider<Map<String, dynamic>?>(
+  (ref) => null,
+);
 
 /// Tracks if a marker editor is currently active to suppress conflicting global shortcuts.
 final isMarkerEditorActiveProvider = StateProvider<bool>((ref) => false);
@@ -115,7 +118,8 @@ class SearchQueryNotifier extends Notifier<String> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.searchQuery ?? '',
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.searchQuery ?? '',
       ),
     );
   }
@@ -138,7 +142,9 @@ class IsSearchActiveNotifier extends Notifier<bool> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ??
+            false,
       ),
     );
   }
@@ -148,7 +154,9 @@ class IsSearchActiveNotifier extends Notifier<bool> {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ??
+            false,
       ),
     );
     if (current == value) return;
@@ -159,7 +167,9 @@ class IsSearchActiveNotifier extends Notifier<bool> {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isSearchActive ??
+            false,
       ),
     );
     ref
@@ -179,7 +189,9 @@ class IsAnalysisActiveNotifier extends Notifier<bool> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ??
+            false,
       ),
     );
   }
@@ -189,7 +201,9 @@ class IsAnalysisActiveNotifier extends Notifier<bool> {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ??
+            false,
       ),
     );
     if (current == value) return;
@@ -202,7 +216,9 @@ class IsAnalysisActiveNotifier extends Notifier<bool> {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isAnalysisActive ??
+            false,
       ),
     );
     ref
@@ -223,7 +239,9 @@ class IsLocationEditingNotifier extends Notifier<bool> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ??
+            false,
       ),
     );
   }
@@ -233,7 +251,9 @@ class IsLocationEditingNotifier extends Notifier<bool> {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ??
+            false,
       ),
     );
     if (current == value) return;
@@ -246,7 +266,9 @@ class IsLocationEditingNotifier extends Notifier<bool> {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isLocationEditing ??
+            false,
       ),
     );
     ref
@@ -275,7 +297,9 @@ final sortSettingsProvider = Provider<SortSettings>((ref) {
   final tabId = ref.watch(tabIdProvider);
   return ref.watch(
     tabManagerProvider.select(
-      (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.sortSettings ?? const SortSettings(),
+      (s) =>
+          s.tabs.where((t) => t.id == tabId).firstOrNull?.sortSettings ??
+          const SortSettings(),
     ),
   );
 });
@@ -284,7 +308,9 @@ final filterSettingsProvider = Provider<FilterSettings>((ref) {
   final tabId = ref.watch(tabIdProvider);
   return ref.watch(
     tabManagerProvider.select(
-      (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.filterSettings ?? const FilterSettings(),
+      (s) =>
+          s.tabs.where((t) => t.id == tabId).firstOrNull?.filterSettings ??
+          const FilterSettings(),
     ),
   );
 });
@@ -343,17 +369,21 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
         if (prev != null) {
           items[i] = items[i].copyWith(
             sizeBytes: items[i].sizeBytes ?? prev.sizeBytes,
-            imageAspectRatio: items[i].imageAspectRatio ?? prev.imageAspectRatio,
+            imageAspectRatio:
+                items[i].imageAspectRatio ?? prev.imageAspectRatio,
           );
         }
       }
     }
 
     final sort = ref.read(sortSettingsProvider);
-    final needsMetadataForSort = sort.option == SortOption.sizeSmallToLarge || 
-                                 sort.option == SortOption.sizeLargeToSmall;
+    final needsMetadataForSort =
+        sort.option == SortOption.sizeSmallToLarge ||
+        sort.option == SortOption.sizeLargeToSmall;
 
-    final hasMissingSizes = items.any((i) => i.type == FileItemType.folder && i.sizeBytes == null);
+    final hasMissingSizes = items.any(
+      (i) => i.type == FileItemType.folder && i.sizeBytes == null,
+    );
 
     // Start watching for changes
     _watchSubscription?.cancel().ignore();
@@ -371,7 +401,12 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
     if (needsMetadataForSort && hasMissingSizes) {
       // Await metadata generation to avoid default sort jump on startup or navigation
-      return _generateMetadataAsync(items, path, currentToken, returnOnly: true);
+      return _generateMetadataAsync(
+        items,
+        path,
+        currentToken,
+        returnOnly: true,
+      );
     } else {
       // Generate metadata async (aspect ratios)
       _generateMetadataAsync(items, path, currentToken).ignore();
@@ -409,7 +444,8 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     for (final item in updatedItems) {
       if (item.type == FileItemType.folder && item.sizeBytes == null) {
         folders.add(item.path);
-      } else if (item.type == FileItemType.image && item.imageAspectRatio == null) {
+      } else if (item.type == FileItemType.image &&
+          item.imageAspectRatio == null) {
         images.add(item.path);
       }
     }
@@ -420,7 +456,9 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
       for (var i = 0; i < updatedItems.length; i++) {
         if (sizes.containsKey(updatedItems[i].path)) {
-          updatedItems[i] = updatedItems[i].copyWith(sizeBytes: sizes[updatedItems[i].path]);
+          updatedItems[i] = updatedItems[i].copyWith(
+            sizeBytes: sizes[updatedItems[i].path],
+          );
           changed = true;
         }
       }
@@ -436,16 +474,18 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
 
         final chunk = images.skip(i).take(chunkSize).toList();
         final ratios = await mediaDatasource.extractAspectRatios(chunk);
-        
+
         if (_isDisposed || token != _metadataToken) return items;
 
         for (var j = 0; j < updatedItems.length; j++) {
           if (ratios.containsKey(updatedItems[j].path)) {
-            updatedItems[j] = updatedItems[j].copyWith(imageAspectRatio: ratios[updatedItems[j].path]);
+            updatedItems[j] = updatedItems[j].copyWith(
+              imageAspectRatio: ratios[updatedItems[j].path],
+            );
             changed = true;
           }
         }
-        
+
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
     }
@@ -453,29 +493,33 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     if (changed && !_isDisposed && token == _metadataToken) {
       // Cache it for the path we generated metadata for
       ref.read(directoryCacheProvider).put(originalPath, updatedItems);
-      
+
       if (!returnOnly) {
         // Only update the UI state if the user hasn't navigated away
         final currentPath = ref.read(currentPathProvider);
-        if (currentPath == originalPath && !_isDisposed && token == _metadataToken) {
+        if (currentPath == originalPath &&
+            !_isDisposed &&
+            token == _metadataToken) {
           state = AsyncValue.data(updatedItems);
         }
       }
     }
-    
+
     return updatedItems;
   }
 
   /// Remove items directly from the cache without a full refresh.
   void removePaths(List<String> pathsToRemove) {
     if (state.value == null) return;
-    
+
     final currentItems = state.value!;
-    final updatedItems = currentItems.where((i) => !pathsToRemove.contains(i.path)).toList();
-    
+    final updatedItems = currentItems
+        .where((i) => !pathsToRemove.contains(i.path))
+        .toList();
+
     // Update state directly without loading
     state = AsyncValue.data(updatedItems);
-    
+
     // Update cache as well
     final path = ref.read(currentPathProvider);
     ref.read(directoryCacheProvider).put(path, updatedItems);
@@ -504,7 +548,9 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
     if (current == null) return [];
 
     final pathSet = paths.toSet();
-    final removed = current.where((item) => pathSet.contains(item.path)).toList();
+    final removed = current
+        .where((item) => pathSet.contains(item.path))
+        .toList();
 
     state = AsyncValue.data(
       current.where((item) => !pathSet.contains(item.path)).toList(),
@@ -604,7 +650,8 @@ List<FileItem> _sortItems(
 ) {
   if (items.isEmpty) return [];
 
-  String stripDot(String name) => name.startsWith('.') ? name.substring(1) : name;
+  String stripDot(String name) =>
+      name.startsWith('.') ? name.substring(1) : name;
 
   // Split into pinned and unpinned
   final pinnedList = <FileItem>[];
@@ -650,9 +697,13 @@ List<FileItem> _sortItems(
     // Secondary sort based on option
     switch (option) {
       case SortOption.aToZ:
-        return stripDot(a.name).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
+        return stripDot(
+          a.name,
+        ).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
       case SortOption.zToA:
-        return stripDot(b.name).toLowerCase().compareTo(stripDot(a.name).toLowerCase());
+        return stripDot(
+          b.name,
+        ).toLowerCase().compareTo(stripDot(a.name).toLowerCase());
       case SortOption.firstModified:
         return a.modified.compareTo(b.modified);
       case SortOption.lastModified:
@@ -660,13 +711,19 @@ List<FileItem> _sortItems(
       case SortOption.sizeSmallToLarge:
         final cmp = (a.sizeBytes ?? 0).compareTo(b.sizeBytes ?? 0);
         if (cmp != 0) return cmp;
-        return stripDot(a.name).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
+        return stripDot(
+          a.name,
+        ).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
       case SortOption.sizeLargeToSmall:
         final cmp = (b.sizeBytes ?? 0).compareTo(a.sizeBytes ?? 0);
         if (cmp != 0) return cmp;
-        return stripDot(a.name).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
+        return stripDot(
+          a.name,
+        ).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
       case SortOption.filesFirst:
-        return stripDot(a.name).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
+        return stripDot(
+          a.name,
+        ).toLowerCase().compareTo(stripDot(b.name).toLowerCase());
     }
   });
 
@@ -680,7 +737,9 @@ class IsRefreshingNotifier extends Notifier<bool> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.isRefreshing ?? false,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.isRefreshing ??
+            false,
       ),
     );
   }
@@ -688,7 +747,9 @@ class IsRefreshingNotifier extends Notifier<bool> {
   @override
   set state(bool value) {
     final tabId = ref.read(tabIdProvider);
-    ref.read(tabManagerProvider.notifier).setRefreshing(tabId, refreshing: value);
+    ref
+        .read(tabManagerProvider.notifier)
+        .setRefreshing(tabId, refreshing: value);
   }
 }
 
@@ -703,7 +764,8 @@ class RefreshCountNotifier extends Notifier<int> {
     final tabId = ref.watch(tabIdProvider);
     return ref.watch(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
       ),
     );
   }
@@ -717,7 +779,8 @@ class RefreshCountNotifier extends Notifier<int> {
     // but for compatibility with state = value:
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
       ),
     );
     if (value > current) {
@@ -729,7 +792,8 @@ class RefreshCountNotifier extends Notifier<int> {
     final tabId = ref.read(tabIdProvider);
     final current = ref.read(
       tabManagerProvider.select(
-        (s) => s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
+        (s) =>
+            s.tabs.where((t) => t.id == tabId).firstOrNull?.refreshCount ?? 0,
       ),
     );
     final next = updater(current);

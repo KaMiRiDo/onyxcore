@@ -47,7 +47,7 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
     final usedLabel = usage?.usedHuman ?? '1.2 TB';
     final totalLabel = usage?.totalHuman ?? '2.0 TB';
     final availableLabel = usage?.availableHuman ?? '';
-    
+
     var formattedUsage = '$usedLabel of $totalLabel';
     try {
       final parts = totalLabel.split(' ');
@@ -57,7 +57,7 @@ class _StorageIndicatorState extends ConsumerState<StorageIndicator> {
         formattedUsage = '${used.toStringAsFixed(1)} / $totalLabel';
       }
     } catch (_) {}
-    
+
     final subtitleText = availableLabel.isNotEmpty
         ? '$formattedUsage  •  Free: $availableLabel'
         : formattedUsage;

@@ -176,7 +176,10 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.02),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04), width: 0.5),
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.04),
+            width: 0.5,
+          ),
         ),
       ),
       child: Row(
@@ -268,7 +271,9 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
         child: Icon(
           icon,
           size: 14,
-          color: active ? AppColors.violet : Colors.white.withValues(alpha: 0.4),
+          color: active
+              ? AppColors.violet
+              : Colors.white.withValues(alpha: 0.4),
         ),
       ),
     );
@@ -410,7 +415,10 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
     );
   }
 
-  Widget _buildOperationDropdown(String value, void Function(String?) onChanged) {
+  Widget _buildOperationDropdown(
+    String value,
+    void Function(String?) onChanged,
+  ) {
     final ops = ['All', 'Rename', 'Delete', 'Copy', 'Move', 'Create'];
     return Container(
       height: 36, // Reduced height
@@ -811,7 +819,9 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
               child: Icon(
                 operationIcon,
                 size: 16,
-                color: isSelected ? Colors.white : opColor.withValues(alpha: 0.8),
+                color: isSelected
+                    ? Colors.white
+                    : opColor.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(width: 12),
@@ -1006,7 +1016,6 @@ class _TaskHistoryViewState extends ConsumerState<TaskHistoryView> {
 }
 
 class _ClearHistoryDialog extends ConsumerStatefulWidget {
-
   const _ClearHistoryDialog({required this.onCancel, required this.onConfirm});
   final VoidCallback onCancel;
   final void Function(TaskHistoryFilter?) onConfirm;
@@ -1195,7 +1204,6 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
 }
 
 class _DeleteConfirmDialog extends StatelessWidget {
-
   const _DeleteConfirmDialog({
     required this.title,
     required this.message,
@@ -1288,9 +1296,11 @@ class _DeleteConfirmDialog extends StatelessWidget {
 }
 
 class HistoryCalendar extends StatefulWidget {
-
   const HistoryCalendar({
-    required this.selectedDates, required this.availableDates, required this.onDatesChanged, super.key,
+    required this.selectedDates,
+    required this.availableDates,
+    required this.onDatesChanged,
+    super.key,
   });
   final Set<DateTime> selectedDates;
   final Set<DateTime> availableDates;

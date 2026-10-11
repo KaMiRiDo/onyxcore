@@ -46,21 +46,21 @@ void main() {
     test('toJson returns correct map', () {
       const settings = SortSettings(option: SortOption.firstModified);
       final json = settings.toJson();
-      
+
       expect(json, {'option': 'firstModified'});
     });
 
     test('fromJson parses correctly', () {
       final json = {'option': 'sizeLargeToSmall'};
       final settings = SortSettings.fromJson(json);
-      
+
       expect(settings.option, SortOption.sizeLargeToSmall);
     });
 
     test('fromJson falls back to aToZ for invalid option string', () {
       final json = {'option': 'invalidOptionName'};
       final settings = SortSettings.fromJson(json);
-      
+
       expect(settings.option, SortOption.aToZ);
     });
   });

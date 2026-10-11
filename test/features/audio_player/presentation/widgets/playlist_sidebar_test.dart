@@ -32,14 +32,14 @@ void main() {
             databaseProvider.overrideWithValue(db),
             audioQueueProvider.overrideWith((ref) => []),
             audioPlayingProvider.overrideWith((ref) => Stream.value(false)),
-            audioRootPathProvider.overrideWith((ref) => Directory.systemTemp.path),
-            audioCurrentPathProvider.overrideWith((ref) => Directory.systemTemp.path),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: PlaylistSidebar(),
+            audioRootPathProvider.overrideWith(
+              (ref) => Directory.systemTemp.path,
             ),
-          ),
+            audioCurrentPathProvider.overrideWith(
+              (ref) => Directory.systemTemp.path,
+            ),
+          ],
+          child: const MaterialApp(home: Scaffold(body: PlaylistSidebar())),
         ),
       );
 
@@ -68,11 +68,7 @@ void main() {
             audioQueueProvider.overrideWith((ref) => [folderItem]),
             audioPlayingProvider.overrideWith((ref) => Stream.value(false)),
           ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: PlaylistSidebar(),
-            ),
-          ),
+          child: const MaterialApp(home: Scaffold(body: PlaylistSidebar())),
         ),
       );
 
@@ -83,7 +79,9 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('renders audio item subtitle with tags and size', (tester) async {
+    testWidgets('renders audio item subtitle with tags and size', (
+      tester,
+    ) async {
       final audioItem = FileItem(
         path: '/track.mp3',
         name: 'track.mp3',
@@ -102,11 +100,7 @@ void main() {
             audioPlayingProvider.overrideWith((ref) => Stream.value(false)),
             audioTagsOverridesProvider('/track.mp3').overrideWith((ref) => tag),
           ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: PlaylistSidebar(),
-            ),
-          ),
+          child: const MaterialApp(home: Scaffold(body: PlaylistSidebar())),
         ),
       );
 
@@ -117,7 +111,9 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('active indicator shows playing eq when playing', (tester) async {
+    testWidgets('active indicator shows playing eq when playing', (
+      tester,
+    ) async {
       final audioItem = FileItem(
         path: '/track.mp3',
         name: 'track.mp3',
@@ -133,11 +129,7 @@ void main() {
             currentTrackProvider.overrideWith((ref) => audioItem),
             audioPlayingProvider.overrideWith((ref) => Stream.value(true)),
           ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: PlaylistSidebar(),
-            ),
-          ),
+          child: const MaterialApp(home: Scaffold(body: PlaylistSidebar())),
         ),
       );
 
@@ -164,11 +156,7 @@ void main() {
             currentTrackProvider.overrideWith((ref) => audioItem),
             audioPlayingProvider.overrideWith((ref) => Stream.value(false)),
           ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: PlaylistSidebar(),
-            ),
-          ),
+          child: const MaterialApp(home: Scaffold(body: PlaylistSidebar())),
         ),
       );
 

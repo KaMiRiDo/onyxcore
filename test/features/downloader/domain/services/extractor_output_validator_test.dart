@@ -33,7 +33,13 @@ void main() {
       ];
       expect(
         () => ExtractorOutputValidator.validate(input, config: config),
-        throwsA(isA<ExtractorException>().having((e) => e.message, 'message', contains('exceeds the maximum allowed'))),
+        throwsA(
+          isA<ExtractorException>().having(
+            (e) => e.message,
+            'message',
+            contains('exceeds the maximum allowed'),
+          ),
+        ),
       );
     });
 
@@ -41,7 +47,13 @@ void main() {
       final input = ['https://example.com/1', 123, 'https://example.com/2'];
       expect(
         () => ExtractorOutputValidator.validate(input, config: config),
-        throwsA(isA<ExtractorException>().having((e) => e.message, 'message', contains('must be an array of URL strings'))),
+        throwsA(
+          isA<ExtractorException>().having(
+            (e) => e.message,
+            'message',
+            contains('must be an array of URL strings'),
+          ),
+        ),
       );
     });
 
@@ -49,15 +61,31 @@ void main() {
       final input = ['https://example.com/1', '   ', 'https://example.com/2'];
       expect(
         () => ExtractorOutputValidator.validate(input, config: config),
-        throwsA(isA<ExtractorException>().having((e) => e.message, 'message', contains('empty URL string'))),
+        throwsA(
+          isA<ExtractorException>().having(
+            (e) => e.message,
+            'message',
+            contains('empty URL string'),
+          ),
+        ),
       );
     });
 
     test('throws ExtractorException for invalid URLs', () {
-      final input = ['https://example.com/1', 'not_a_url', 'https://example.com/2'];
+      final input = [
+        'https://example.com/1',
+        'not_a_url',
+        'https://example.com/2',
+      ];
       expect(
         () => ExtractorOutputValidator.validate(input, config: config),
-        throwsA(isA<ExtractorException>().having((e) => e.message, 'message', contains('invalid URL string'))),
+        throwsA(
+          isA<ExtractorException>().having(
+            (e) => e.message,
+            'message',
+            contains('invalid URL string'),
+          ),
+        ),
       );
     });
 
@@ -73,7 +101,13 @@ void main() {
       for (final scheme in schemes) {
         expect(
           () => ExtractorOutputValidator.validate([scheme], config: config),
-          throwsA(isA<ExtractorException>().having((e) => e.message, 'message', contains('unsupported URL scheme'))),
+          throwsA(
+            isA<ExtractorException>().having(
+              (e) => e.message,
+              'message',
+              contains('unsupported URL scheme'),
+            ),
+          ),
           reason: 'Should reject $scheme',
         );
       }
@@ -81,8 +115,16 @@ void main() {
 
     test('throws FormatException if raw input is not a list', () {
       expect(
-        () => ExtractorOutputValidator.validateRaw({'url': 'https://example.com'}, config: config),
-        throwsA(isA<ExtractorException>().having((e) => e.message, 'message', contains('must be an array'))),
+        () => ExtractorOutputValidator.validateRaw({
+          'url': 'https://example.com',
+        }, config: config),
+        throwsA(
+          isA<ExtractorException>().having(
+            (e) => e.message,
+            'message',
+            contains('must be an array'),
+          ),
+        ),
       );
     });
   });

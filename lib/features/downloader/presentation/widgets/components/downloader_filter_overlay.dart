@@ -203,10 +203,12 @@ class _DownloaderFilterOverlayWidgetState
     }
 
     final updatedDates = _settings.selectedDates.where((selected) {
-      return newEffectiveDates.any((avail) =>
-          avail.year == selected.year &&
-          avail.month == selected.month &&
-          avail.day == selected.day);
+      return newEffectiveDates.any(
+        (avail) =>
+            avail.year == selected.year &&
+            avail.month == selected.month &&
+            avail.day == selected.day,
+      );
     }).toSet();
 
     _updateSettings(
@@ -236,100 +238,110 @@ class _DownloaderFilterOverlayWidgetState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.violet.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.filter_list_rounded,
-                  color: AppColors.violet,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Filter',
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              // Reset Button
-              InkWell(
-                onTap: hasActiveFilters ? _resetAll : null,
-                borderRadius: BorderRadius.circular(6),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.refresh_rounded,
-                        size: 14,
-                        color: hasActiveFilters ? AppColors.violet : Colors.white24,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Reset',
-                        style: GoogleFonts.manrope(
-                          color: hasActiveFilters ? AppColors.violet : Colors.white24,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.violet.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.filter_list_rounded,
+                    color: AppColors.violet,
+                    size: 16,
                   ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              // Close button
-              IconButton(
-                icon: const Icon(
-                  Icons.close_rounded,
-                  color: Colors.white60,
-                  size: 18,
+                const SizedBox(width: 10),
+                Text(
+                  'Filter',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                onPressed: widget.onClose,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                splashRadius: 16,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Types Section Header
-          Text(
-            'TYPES',
-            style: GoogleFonts.manrope(
-              color: Colors.white38,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
+                const Spacer(),
+                // Reset Button
+                InkWell(
+                  onTap: hasActiveFilters ? _resetAll : null,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.refresh_rounded,
+                          size: 14,
+                          color: hasActiveFilters
+                              ? AppColors.violet
+                              : Colors.white24,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Reset',
+                          style: GoogleFonts.manrope(
+                            color: hasActiveFilters
+                                ? AppColors.violet
+                                : Colors.white24,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Close button
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white60,
+                    size: 18,
+                  ),
+                  onPressed: widget.onClose,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  splashRadius: 16,
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 10),
 
-          // 3-Row Grid (2 columns per row)
-          _buildTypeGrid(),
+            const SizedBox(height: 16),
 
-          const SizedBox(height: 16),
-          Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
-          const SizedBox(height: 12),
+            // Types Section Header
+            Text(
+              'TYPES',
+              style: GoogleFonts.manrope(
+                color: Colors.white38,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
 
-          // Date Filter Accordion
-          _buildDateAccordion(),
-        ],
+            // 3-Row Grid (2 columns per row)
+            _buildTypeGrid(),
+
+            const SizedBox(height: 16),
+            Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+            const SizedBox(height: 12),
+
+            // Date Filter Accordion
+            _buildDateAccordion(),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -411,7 +423,11 @@ class _DownloaderFilterOverlayWidgetState
                 ),
                 child: isSelected
                     ? const Center(
-                        child: Icon(Icons.check_rounded, color: Colors.white, size: 12),
+                        child: Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 12,
+                        ),
                       )
                     : null,
               ),
@@ -475,7 +491,10 @@ class _DownloaderFilterOverlayWidgetState
                 if (hasDates) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.violet.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
@@ -593,9 +612,11 @@ class _DownloaderFilterCalendarState extends State<DownloaderFilterCalendar> {
 
   void _handleDateTap(DateTime date) {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    final isShift = keys.contains(LogicalKeyboardKey.shiftLeft) ||
+    final isShift =
+        keys.contains(LogicalKeyboardKey.shiftLeft) ||
         keys.contains(LogicalKeyboardKey.shiftRight);
-    final isControl = keys.contains(LogicalKeyboardKey.controlLeft) ||
+    final isControl =
+        keys.contains(LogicalKeyboardKey.controlLeft) ||
         keys.contains(LogicalKeyboardKey.controlRight) ||
         keys.contains(LogicalKeyboardKey.metaLeft) ||
         keys.contains(LogicalKeyboardKey.metaRight);
@@ -604,7 +625,9 @@ class _DownloaderFilterCalendarState extends State<DownloaderFilterCalendar> {
     final normalized = DateTime(date.year, date.month, date.day);
 
     if (isShift && _anchorDate != null) {
-      final start = _anchorDate!.isBefore(normalized) ? _anchorDate! : normalized;
+      final start = _anchorDate!.isBefore(normalized)
+          ? _anchorDate!
+          : normalized;
       final end = _anchorDate!.isBefore(normalized) ? normalized : _anchorDate!;
 
       for (var d = start; !d.isAfter(end); d = d.add(const Duration(days: 1))) {
@@ -698,7 +721,9 @@ class _DownloaderFilterCalendarState extends State<DownloaderFilterCalendar> {
                   size: 16,
                   color: hasSelection ? AppColors.violet : Colors.white30,
                 ),
-                onPressed: hasSelection ? () => widget.onDatesChanged({}) : null,
+                onPressed: hasSelection
+                    ? () => widget.onDatesChanged({})
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 tooltip: 'Reset Dates',
@@ -769,8 +794,9 @@ class _DownloaderFilterCalendarState extends State<DownloaderFilterCalendar> {
               (d) => _isSameDay(d, normalizedDate),
             );
             final isToday = _isSameDay(today, normalizedDate);
-            final isAvailable =
-                widget.availableDates.any((d) => _isSameDay(d, normalizedDate));
+            final isAvailable = widget.availableDates.any(
+              (d) => _isSameDay(d, normalizedDate),
+            );
 
             return InkWell(
               onTap: isAvailable ? () => _handleDateTap(normalizedDate) : null,
@@ -797,8 +823,10 @@ class _DownloaderFilterCalendarState extends State<DownloaderFilterCalendar> {
                     color: !isAvailable
                         ? Colors.white.withValues(alpha: 0.08)
                         : (isSelected
-                            ? Colors.white
-                            : (currentMonth ? Colors.white70 : Colors.white24)),
+                              ? Colors.white
+                              : (currentMonth
+                                    ? Colors.white70
+                                    : Colors.white24)),
                     fontSize: 11,
                     fontWeight: isSelected || isToday
                         ? FontWeight.w800

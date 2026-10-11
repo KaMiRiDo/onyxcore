@@ -25,7 +25,8 @@ class DownloaderReadinessState {
   }
 }
 
-class DownloaderReadinessNotifier extends AsyncNotifier<DownloaderReadinessState> {
+class DownloaderReadinessNotifier
+    extends AsyncNotifier<DownloaderReadinessState> {
   @override
   Future<DownloaderReadinessState> build() async {
     return _checkReadiness();
@@ -48,6 +49,7 @@ class DownloaderReadinessNotifier extends AsyncNotifier<DownloaderReadinessState
 }
 
 final downloaderReadinessProvider =
-    AsyncNotifierProvider<DownloaderReadinessNotifier, DownloaderReadinessState>(
-      DownloaderReadinessNotifier.new,
-    );
+    AsyncNotifierProvider<
+      DownloaderReadinessNotifier,
+      DownloaderReadinessState
+    >(DownloaderReadinessNotifier.new);

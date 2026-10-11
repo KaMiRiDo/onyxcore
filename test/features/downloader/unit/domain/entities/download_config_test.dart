@@ -10,11 +10,14 @@ void main() {
     group('DownloadMode Enum', () {
       test('U-DL-CFG-01: contains exactly 3 values', () {
         expect(DownloadMode.values.length, 3);
-        expect(DownloadMode.values, containsAllInOrder([
-          DownloadMode.normal,
-          DownloadMode.mute,
-          DownloadMode.audioOnly,
-        ]));
+        expect(
+          DownloadMode.values,
+          containsAllInOrder([
+            DownloadMode.normal,
+            DownloadMode.mute,
+            DownloadMode.audioOnly,
+          ]),
+        );
       });
 
       test('U-DL-CFG-02: resolves by index', () {
@@ -28,11 +31,14 @@ void main() {
     group('GroupDownloadType Enum', () {
       test('U-DL-CFG-03: contains exactly 3 values', () {
         expect(GroupDownloadType.values.length, 3);
-        expect(GroupDownloadType.values, containsAllInOrder([
-          GroupDownloadType.all,
-          GroupDownloadType.images,
-          GroupDownloadType.videos,
-        ]));
+        expect(
+          GroupDownloadType.values,
+          containsAllInOrder([
+            GroupDownloadType.all,
+            GroupDownloadType.images,
+            GroupDownloadType.videos,
+          ]),
+        );
       });
     });
 
@@ -79,11 +85,9 @@ void main() {
       });
 
       test('U-DL-CFG-07: preserves explicit itemFormats map', () {
-        final config = DownloadConfig(itemFormats: {
-          '1': null,
-          '2': null,
-          '3': null,
-        });
+        final config = DownloadConfig(
+          itemFormats: {'1': null, '2': null, '3': null},
+        );
         expect(config.itemFormats.length, 3);
       });
     });

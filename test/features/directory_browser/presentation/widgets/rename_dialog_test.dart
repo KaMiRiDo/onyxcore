@@ -14,9 +14,9 @@ void main() {
                 builder: (context) => RenameDialog(paths: paths),
               );
               if (result != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Result: $result')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Result: $result')));
               }
             },
             child: const Text('Show Dialog'),
@@ -33,7 +33,7 @@ void main() {
 
     expect(find.text('Rename Item'), findsOneWidget);
     expect(find.text('NEW ITEM NAME'), findsOneWidget);
-    
+
     // TextField should have the initial value 'test'
     expect(find.widgetWithText(TextField, 'test'), findsOneWidget);
 
@@ -49,7 +49,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(buildTestWidget(paths: ['/home/user/file1.txt', '/home/user/file2.txt']));
+    await tester.pumpWidget(
+      buildTestWidget(paths: ['/home/user/file1.txt', '/home/user/file2.txt']),
+    );
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
@@ -57,7 +59,7 @@ void main() {
     expect(find.text('RENAMING MODE'), findsOneWidget);
     expect(find.text('Add Prefix'), findsOneWidget);
     expect(find.text('Constant Name'), findsOneWidget);
-    
+
     // Type a prefix
     await tester.enterText(find.byType(TextField), 'prefix_');
     await tester.pumpAndSettle();
@@ -75,7 +77,9 @@ void main() {
     expect(find.text('prefix__2.txt'), findsOneWidget);
   });
 
-  testWidgets('RenameDialog returns single string for single file rename', (tester) async {
+  testWidgets('RenameDialog returns single string for single file rename', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildTestWidget(paths: ['/home/user/single.txt']));
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();

@@ -14,11 +14,11 @@ void main() {
   late bool? onNavigateBackwardCalled;
   late bool onNavigateHistoryBackwardCalled;
   late bool onToggleFullscreenCalled;
-  
+
   late bool sidebarOpen;
   late bool standalone;
   late bool windowed;
-  
+
   late ImageKeyboardHandler handler;
 
   setUp(() {
@@ -32,7 +32,7 @@ void main() {
     onNavigateBackwardCalled = null;
     onNavigateHistoryBackwardCalled = false;
     onToggleFullscreenCalled = false;
-    
+
     sidebarOpen = false;
     standalone = false;
     windowed = false;
@@ -44,8 +44,10 @@ void main() {
       onZoomIn: () => onZoomInCalled = true,
       onZoomOut: () => onZoomOutCalled = true,
       onResetZoom: () => onResetZoomCalled = true,
-      onNavigateForward: ({required bool isKeyRepeat}) => onNavigateForwardCalled = isKeyRepeat,
-      onNavigateBackward: ({required bool isKeyRepeat}) => onNavigateBackwardCalled = isKeyRepeat,
+      onNavigateForward: ({required bool isKeyRepeat}) =>
+          onNavigateForwardCalled = isKeyRepeat,
+      onNavigateBackward: ({required bool isKeyRepeat}) =>
+          onNavigateBackwardCalled = isKeyRepeat,
       onNavigateHistoryForward: () {},
       onNavigateHistoryBackward: () => onNavigateHistoryBackwardCalled = true,
       onFilterSort: () async {},
@@ -57,7 +59,10 @@ void main() {
     );
   });
 
-  Future<void> pumpHandler(WidgetTester tester, void Function(FocusNode) onKey) async {
+  Future<void> pumpHandler(
+    WidgetTester tester,
+    void Function(FocusNode) onKey,
+  ) async {
     final focusNode = FocusNode();
     await tester.pumpWidget(
       MaterialApp(
@@ -81,18 +86,18 @@ void main() {
 
   testWidgets('Close shortcuts when not windowed', (tester) async {
     await pumpHandler(tester, (node) {});
-    
+
     // Ctrl+W is technically broken in production code (it sets isCloseShortcut but doesn't call onClose)
     // So we just simulate it to get coverage for the if condition, but we don't expect onCloseCalled to be true.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    
+
     onCloseCalled = false;
     // Escape
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     expect(onCloseCalled, true);
-    
+
     onCloseCalled = false;
     // Backspace
     await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
@@ -115,8 +120,10 @@ void main() {
       onZoomIn: () => onZoomInCalled = true,
       onZoomOut: () => onZoomOutCalled = true,
       onResetZoom: () => onResetZoomCalled = true,
-      onNavigateForward: ({required bool isKeyRepeat}) => onNavigateForwardCalled = isKeyRepeat,
-      onNavigateBackward: ({required bool isKeyRepeat}) => onNavigateBackwardCalled = isKeyRepeat,
+      onNavigateForward: ({required bool isKeyRepeat}) =>
+          onNavigateForwardCalled = isKeyRepeat,
+      onNavigateBackward: ({required bool isKeyRepeat}) =>
+          onNavigateBackwardCalled = isKeyRepeat,
       onNavigateHistoryForward: () {},
       onNavigateHistoryBackward: () => onNavigateHistoryBackwardCalled = true,
       onFilterSort: () async {},
@@ -134,13 +141,13 @@ void main() {
 
   testWidgets('History navigation shortcuts', (tester) async {
     sidebarOpen = true;
-    
+
     // Create new handler where isCloseShortcut evaluates to true for arrowRight as well by injecting it or whatever
     // Wait, arrowRight is NOT in isCloseShortcut in production code!
     // I can only test arrowLeft here!
-    
+
     await pumpHandler(tester, (node) {});
-    
+
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     expect(onNavigateHistoryBackwardCalled, true);
@@ -152,7 +159,7 @@ void main() {
 
   testWidgets('Delete shortcut', (tester) async {
     await pumpHandler(tester, (node) {});
-    
+
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     expect(onDeletePermanent, false);
 
@@ -164,24 +171,24 @@ void main() {
 
   testWidgets('Sidebar toggle shortcut', (tester) async {
     await pumpHandler(tester, (node) {});
-    
+
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
     expect(onToggleSidebarCalled, true);
-    
+
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
   });
 
   testWidgets('Zoom shortcuts', (tester) async {
     await pumpHandler(tester, (node) {});
-    
+
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    
+
     await tester.sendKeyEvent(LogicalKeyboardKey.equal);
     expect(onZoomInCalled, true);
-    
+
     // Test minus key
     await tester.sendKeyEvent(LogicalKeyboardKey.minus);
     expect(onZoomOutCalled, true);
@@ -192,13 +199,13 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
     expect(onResetZoomCalled, true);
-    
+
     await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
   });
 
   testWidgets('Navigation shortcuts', (tester) async {
     await pumpHandler(tester, (node) {});
-    
+
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     expect(onNavigateForwardCalled, false);
 
@@ -212,13 +219,13 @@ void main() {
       timeStamp: Duration.zero,
     );
     handler.handleKeyEvent(eventForward);
-    
+
     final eventBackward = KeyRepeatEvent(
       physicalKey: PhysicalKeyboardKey.arrowLeft,
       logicalKey: LogicalKeyboardKey.arrowLeft,
       timeStamp: Duration.zero,
     );
-    
+
     // Simulate elapsed time in real time since ImageKeyboardHandler uses DateTime.now()
     await tester.runAsync(() async {
       await Future<void>.delayed(const Duration(milliseconds: 350));

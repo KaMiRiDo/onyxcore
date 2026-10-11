@@ -9,26 +9,22 @@ void main() {
     late ZoomAnimationEngine animationEngine;
     late ImageZoomController zoomController;
 
-
     setUp(() {
       TestWidgetsFlutterBinding.ensureInitialized();
       animationController = AnimationController(
         vsync: const TestVSync(),
         duration: const Duration(milliseconds: 200),
       );
-      
 
-      
       animationEngine = ZoomAnimationEngine(
         animationController: animationController,
         onTick: (matrix) {
           zoomController.animationTick = matrix;
         },
       );
-      
-      zoomController = ImageZoomController(
-        animationEngine: animationEngine,
-      )..updateConstraints(const Size(1000, 1000), const Size(500, 500));
+
+      zoomController = ImageZoomController(animationEngine: animationEngine)
+        ..updateConstraints(const Size(1000, 1000), const Size(500, 500));
     });
 
     tearDown(() {
@@ -46,21 +42,25 @@ void main() {
     test('setIsInteracting updates state and stops animation if true', () {
       zoomController.setZoom(2, focalPoint: const Offset(500, 500));
       expect(animationEngine.isAnimating, isTrue);
-      
+
       zoomController.isInteracting = true;
       expect(zoomController.isInteracting, isTrue);
       expect(animationEngine.isAnimating, isFalse);
     });
 
     test('setZoom without animation immediately updates transformation', () {
-      zoomController.setZoom(2, focalPoint: const Offset(500, 500), animate: false);
+      zoomController.setZoom(
+        2,
+        focalPoint: const Offset(500, 500),
+        animate: false,
+      );
       expect(zoomController.currentScale, equals(2.0));
     });
 
     test('startPanZoomGesture and endPanZoomGesture updates state', () {
       zoomController.startPanZoomGesture(Offset.zero);
       expect(zoomController.isPanZoomGesture, isTrue);
-      
+
       zoomController.endPanZoomGesture();
       expect(zoomController.isPanZoomGesture, isFalse);
     });
@@ -81,29 +81,38 @@ void main() {
       expect(matrix.getTranslation().x, isNot(equals(0.0)));
     });
 
-    test('updateConstraints clamps transformation when imageSize becomes non-null', () {
-      // Initialize with imageSize = null
-      final controller = ImageZoomController(
-        animationEngine: animationEngine,
-      )..updateConstraints(const Size(1000, 1000), null);
+    test(
+      'updateConstraints clamps transformation when imageSize becomes non-null',
+      () {
+        // Initialize with imageSize = null
+        final controller = ImageZoomController(animationEngine: animationEngine)
+          ..updateConstraints(const Size(1000, 1000), null);
 
-      // Set zoom and translate far out of bounds (allowed when imageSize == null)
-      controller
-        ..setZoom(2, focalPoint: const Offset(500, 500), animate: false)
-        ..applyTranslation(const Offset(5000, 5000));
+        // Set zoom and translate far out of bounds (allowed when imageSize == null)
+        controller
+          ..setZoom(2, focalPoint: const Offset(500, 500), animate: false)
+          ..applyTranslation(const Offset(5000, 5000));
 
-      final unconstrainedTx = controller.transformationController.value.getTranslation().x;
-      expect(unconstrainedTx, isNot(equals(0.0)));
+        final unconstrainedTx = controller.transformationController.value
+            .getTranslation()
+            .x;
+        expect(unconstrainedTx, isNot(equals(0.0)));
 
-      // Now resolve imageSize and update constraints
-      controller.updateConstraints(const Size(1000, 1000), const Size(500, 500));
+        // Now resolve imageSize and update constraints
+        controller.updateConstraints(
+          const Size(1000, 1000),
+          const Size(500, 500),
+        );
 
-      final constrainedTx = controller.transformationController.value.getTranslation().x;
-      // It should be clamped within bounds
-      expect(constrainedTx.abs(), lessThan(1000.0));
+        final constrainedTx = controller.transformationController.value
+            .getTranslation()
+            .x;
+        // It should be clamped within bounds
+        expect(constrainedTx.abs(), lessThan(1000.0));
 
-      controller.dispose();
-    });
+        controller.dispose();
+      },
+    );
 
     test('reset clears all state', () {
       zoomController
@@ -111,12 +120,14 @@ void main() {
         ..isInteracting = true
         ..startPanZoomGesture(Offset.zero)
         ..reset();
-      
+
       expect(zoomController.currentScale, equals(1.0));
       expect(zoomController.isInteracting, isFalse);
       expect(zoomController.isPanZoomGesture, isFalse);
-      expect(zoomController.transformationController.value, equals(Matrix4.identity()));
+      expect(
+        zoomController.transformationController.value,
+        equals(Matrix4.identity()),
+      );
     });
   });
 }
-

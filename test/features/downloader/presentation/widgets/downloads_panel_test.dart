@@ -38,14 +38,14 @@ void main() {
         if (activeTasks != null)
           activeDownloadTaskProvider.overrideWithValue(activeTasks),
       ],
-      child: const MaterialApp(
-        home: Scaffold(body: DownloadsPanel()),
-      ),
+      child: const MaterialApp(home: Scaffold(body: DownloadsPanel())),
     );
   }
 
   group('DownloadsPanel - Simplified Monitoring Panel', () {
-    testWidgets('W-DL-PAN-NEW-01: renders DownloadsPanel widget', (tester) async {
+    testWidgets('W-DL-PAN-NEW-01: renders DownloadsPanel widget', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(400, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -57,73 +57,97 @@ void main() {
       expect(find.byType(DownloadsPanel), findsOneWidget);
     });
 
-    testWidgets('W-DL-PAN-NEW-02: shows DownloadHistoryView when view=history', (tester) async {
-      tester.view.physicalSize = const Size(400, 800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'W-DL-PAN-NEW-02: shows DownloadHistoryView when view=history',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(createWidget(initialView: DownloadsPanelView.history));
-      await tester.pump();
-      await tester.pump();
+        await tester.pumpWidget(
+          createWidget(initialView: DownloadsPanelView.history),
+        );
+        await tester.pump();
+        await tester.pump();
 
-      expect(find.byType(DownloadHistoryView, skipOffstage: false), findsOneWidget);
-    });
+        expect(
+          find.byType(DownloadHistoryView, skipOffstage: false),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('W-DL-PAN-NEW-03: shows DownloadHistoryDetailView when view=historyDetail', (tester) async {
-      tester.view.physicalSize = const Size(400, 800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'W-DL-PAN-NEW-03: shows DownloadHistoryDetailView when view=historyDetail',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(createWidget(initialView: DownloadsPanelView.historyDetail));
-      await tester.pump();
-      await tester.pump();
+        await tester.pumpWidget(
+          createWidget(initialView: DownloadsPanelView.historyDetail),
+        );
+        await tester.pump();
+        await tester.pump();
 
-      expect(find.byType(DownloadHistoryDetailView, skipOffstage: false), findsOneWidget);
-    });
+        expect(
+          find.byType(DownloadHistoryDetailView, skipOffstage: false),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('W-DL-PAN-NEW-04: shows task tiles when active downloads are present', (tester) async {
-      tester.view.physicalSize = const Size(400, 800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'W-DL-PAN-NEW-04: shows task tiles when active downloads are present',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final tasks = [
-        DownloadTask(
-          id: 'task-1',
-          url: 'https://example.com/video.mp4',
-          destination: '/downloads',
-          title: 'My Test Video',
-          createdAt: DateTime.now(),
-          status: DownloadStatus.running,
-          progress: 0.5,
-        ),
-      ];
+        final tasks = [
+          DownloadTask(
+            id: 'task-1',
+            url: 'https://example.com/video.mp4',
+            destination: '/downloads',
+            title: 'My Test Video',
+            createdAt: DateTime.now(),
+            status: DownloadStatus.running,
+            progress: 0.5,
+          ),
+        ];
 
-      await tester.pumpWidget(createWidget(activeTasks: tasks));
-      await tester.pump();
-      await tester.pump();
+        await tester.pumpWidget(createWidget(activeTasks: tasks));
+        await tester.pump();
+        await tester.pump();
 
-      expect(find.byType(DownloadTaskTile), findsOneWidget);
-      expect(find.text('My Test Video'), findsOneWidget);
-    });
+        expect(find.byType(DownloadTaskTile), findsOneWidget);
+        expect(find.text('My Test Video'), findsOneWidget);
+      },
+    );
 
-    testWidgets('W-DL-PAN-NEW-05: shows empty state icon when no active downloads', (tester) async {
-      tester.view.physicalSize = const Size(400, 800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'W-DL-PAN-NEW-05: shows empty state icon when no active downloads',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(createWidget(activeTasks: []));
-      await tester.pump();
-      await tester.pump();
+        await tester.pumpWidget(createWidget(activeTasks: []));
+        await tester.pump();
+        await tester.pump();
 
-      expect(find.byType(DownloadTaskTile), findsNothing);
-      expect(find.byIcon(Icons.cloud_done_rounded), findsOneWidget);
-    });
+        expect(find.byType(DownloadTaskTile), findsNothing);
+        expect(find.byIcon(Icons.cloud_done_rounded), findsOneWidget);
+      },
+    );
 
-    testWidgets('W-DL-PAN-NEW-06: does NOT render URL input TextField', (tester) async {
+    testWidgets('W-DL-PAN-NEW-06: does NOT render URL input TextField', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(400, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -136,29 +160,32 @@ void main() {
       expect(find.byType(TextField), findsNothing);
     });
 
-    testWidgets('W-DL-PAN-NEW-07: shows Cancel All button when tasks are present', (tester) async {
-      tester.view.physicalSize = const Size(400, 800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'W-DL-PAN-NEW-07: shows Cancel All button when tasks are present',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final tasks = [
-        DownloadTask(
-          id: 'task-2',
-          url: 'https://example.com/img.jpg',
-          destination: '/downloads',
-          title: 'My Image',
-          createdAt: DateTime.now(),
-          status: DownloadStatus.running,
-          progress: 0.2,
-        ),
-      ];
+        final tasks = [
+          DownloadTask(
+            id: 'task-2',
+            url: 'https://example.com/img.jpg',
+            destination: '/downloads',
+            title: 'My Image',
+            createdAt: DateTime.now(),
+            status: DownloadStatus.running,
+            progress: 0.2,
+          ),
+        ];
 
-      await tester.pumpWidget(createWidget(activeTasks: tasks));
-      await tester.pump();
-      await tester.pump();
+        await tester.pumpWidget(createWidget(activeTasks: tasks));
+        await tester.pump();
+        await tester.pump();
 
-      expect(find.text('Cancel All'), findsOneWidget);
-    });
+        expect(find.text('Cancel All'), findsOneWidget);
+      },
+    );
   });
 }

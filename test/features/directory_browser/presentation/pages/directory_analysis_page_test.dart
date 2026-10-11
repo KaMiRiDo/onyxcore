@@ -38,11 +38,7 @@ class MockTabManager extends TabManager {
   TabManagerState build() {
     return TabManagerState(
       tabs: [
-        TabState(
-          id: 'mock-tab-id',
-          currentPath: '/mock',
-          history: ['/mock'],
-        ),
+        TabState(id: 'mock-tab-id', currentPath: '/mock', history: ['/mock']),
       ],
       activeTabIndex: 0,
     );
@@ -63,8 +59,18 @@ void main() {
 
     test('computeFilterOnly applies filters', () {
       final stats = [
-        FileStatWithInfo(path: '/a.txt', name: 'a.txt', type: FileItemType.document, stat: FileStatData(size: 100, modified: DateTime.now())),
-        FileStatWithInfo(path: '/b.png', name: 'b.png', type: FileItemType.image, stat: FileStatData(size: 100, modified: DateTime.now())),
+        FileStatWithInfo(
+          path: '/a.txt',
+          name: 'a.txt',
+          type: FileItemType.document,
+          stat: FileStatData(size: 100, modified: DateTime.now()),
+        ),
+        FileStatWithInfo(
+          path: '/b.png',
+          name: 'b.png',
+          type: FileItemType.image,
+          stat: FileStatData(size: 100, modified: DateTime.now()),
+        ),
       ];
       final args = FilterOnlyArgs(
         allFiles: stats,
@@ -89,19 +95,34 @@ void main() {
 
     test('groupByCurrentPath groups items correctly', () {
       final stats = [
-        FileStatWithInfo(path: '/root/a.txt', name: 'a.txt', type: FileItemType.document, stat: FileStatData(size: 100, modified: DateTime.now())),
-        FileStatWithInfo(path: '/root/sub/b.png', name: 'b.png', type: FileItemType.image, stat: FileStatData(size: 100, modified: DateTime.now())),
+        FileStatWithInfo(
+          path: '/root/a.txt',
+          name: 'a.txt',
+          type: FileItemType.document,
+          stat: FileStatData(size: 100, modified: DateTime.now()),
+        ),
+        FileStatWithInfo(
+          path: '/root/sub/b.png',
+          name: 'b.png',
+          type: FileItemType.image,
+          stat: FileStatData(size: 100, modified: DateTime.now()),
+        ),
       ];
-      
+
       final res1 = groupByCurrentPath(stats, '/root');
       expect(res1.length, 2);
       expect(res1.any((e) => e.name == 'a.txt' && !e.isDirectory), true);
       expect(res1.any((e) => e.name == 'sub' && e.isDirectory), true);
     });
-    
+
     test('computeGroupByPath delegates to groupByCurrentPath', () {
       final stats = [
-        FileStatWithInfo(path: '/root/a.txt', name: 'a.txt', type: FileItemType.document, stat: FileStatData(size: 100, modified: DateTime.now())),
+        FileStatWithInfo(
+          path: '/root/a.txt',
+          name: 'a.txt',
+          type: FileItemType.document,
+          stat: FileStatData(size: 100, modified: DateTime.now()),
+        ),
       ];
       final args = GroupArgs(stats, '/root');
       final res = computeGroupByPath(args);
@@ -114,7 +135,7 @@ void main() {
     late MockDirectoryRepository mockRepo;
     late AppDatabase mockDb;
     late MockSettingsRepository mockSettingsRepo;
-    
+
     setUp(() async {
       mockRepo = MockDirectoryRepository();
       mockDb = getMockDb();
@@ -136,20 +157,24 @@ void main() {
           settingsProvider.overrideWith(MockSettingsNotifier.new),
           pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
           tabManagerProvider.overrideWith(MockTabManager.new),
-          
+
           if (isLoading)
-            directoryAnalysisProvider('/mock').overrideWith((ref) => Completer<DirectoryAnalysisResult>().future)
+            directoryAnalysisProvider(
+              '/mock',
+            ).overrideWith((ref) => Completer<DirectoryAnalysisResult>().future)
           else if (error != null)
-            directoryAnalysisProvider('/mock').overrideWith((ref) => Future.error(error, StackTrace.empty))
+            directoryAnalysisProvider(
+              '/mock',
+            ).overrideWith((ref) => Future.error(error, StackTrace.empty))
           else if (initialData != null)
-            directoryAnalysisProvider('/mock').overrideWith((ref) => Future.value(initialData)),
-          
+            directoryAnalysisProvider(
+              '/mock',
+            ).overrideWith((ref) => Future.value(initialData)),
+
           if (overrides != null) ...overrides.cast(),
         ],
         child: const MaterialApp(
-          home: Scaffold(
-            body: DirectoryAnalysisPage(path: '/mock'),
-          ),
+          home: Scaffold(body: DirectoryAnalysisPage(path: '/mock')),
         ),
       );
     }
@@ -162,10 +187,15 @@ void main() {
     testWidgets('Renders error state', (WidgetTester tester) async {
       await tester.pumpWidget(createTestableWidget(error: 'Test failure'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Error analyzing directory:\nTest failure'), findsOneWidget);
+      expect(
+        find.textContaining('Error analyzing directory:\nTest failure'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('Renders data state overview section', (WidgetTester tester) async {
+    testWidgets('Renders data state overview section', (
+      WidgetTester tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -187,10 +217,10 @@ void main() {
           FileItemType.folder: CategoryStats(),
         },
       );
-      
+
       await tester.pumpWidget(createTestableWidget(initialData: data));
       await tester.pump();
-      
+
       expect(find.text('mock'), findsOneWidget); // Display name of '/mock'
       expect(find.text('/mock'), findsWidgets); // Subtitle path
       expect(find.text('Total Storage'), findsOneWidget);
@@ -198,8 +228,10 @@ void main() {
       expect(find.text('Images'), findsOneWidget);
       expect(find.text('Videos'), findsOneWidget);
     });
-    
-    testWidgets('Displays list of items and allows selection', (WidgetTester tester) async {
+
+    testWidgets('Displays list of items and allows selection', (
+      WidgetTester tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -214,10 +246,24 @@ void main() {
         ),
       ];
       final browserItems = [
-        BrowserItem(path: '/mock/f1.txt', name: 'f1.txt', isDirectory: false, size: 100, modified: DateTime.now(), type: FileItemType.document),
-        BrowserItem(path: '/mock/f2.png', name: 'f2.png', isDirectory: false, size: 200, modified: DateTime.now(), type: FileItemType.image),
+        BrowserItem(
+          path: '/mock/f1.txt',
+          name: 'f1.txt',
+          isDirectory: false,
+          size: 100,
+          modified: DateTime.now(),
+          type: FileItemType.document,
+        ),
+        BrowserItem(
+          path: '/mock/f2.png',
+          name: 'f2.png',
+          isDirectory: false,
+          size: 200,
+          modified: DateTime.now(),
+          type: FileItemType.image,
+        ),
       ];
-      
+
       final data = DirectoryAnalysisResult(
         path: '/mock',
         totalItems: 2,
@@ -235,12 +281,14 @@ void main() {
         },
       );
 
-      await tester.pumpWidget(createTestableWidget(
-        initialData: data,
-        overrides: [
-          displayedItemsProvider('/mock').overrideWith((ref) => browserItems),
-        ]
-      ));
+      await tester.pumpWidget(
+        createTestableWidget(
+          initialData: data,
+          overrides: [
+            displayedItemsProvider('/mock').overrideWith((ref) => browserItems),
+          ],
+        ),
+      );
 
       await tester.pumpAndSettle();
 
@@ -248,13 +296,17 @@ void main() {
       expect(find.text('f2.png'), findsOneWidget);
 
       // Tap checkbox to select f1.txt
-      await tester.tap(find.byType(Checkbox).last); // The first checkbox is master, the ones on rows are after
+      await tester.tap(
+        find.byType(Checkbox).last,
+      ); // The first checkbox is master, the ones on rows are after
       await tester.pumpAndSettle();
 
       // Since it's a bit hard to target the specific checkbox by index reliably without a key, let's just make sure it doesn't crash.
     });
 
-    testWidgets('Cancel button clears state in loading', (WidgetTester tester) async {
+    testWidgets('Cancel button clears state in loading', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createTestableWidget(isLoading: true));
       await tester.pump(); // Pump once for the loading state to render
 
@@ -265,10 +317,10 @@ void main() {
       await tester.pump();
       // Test passes if no exception occurs when interacting with providers
     });
-    
+
     testWidgets('Alt+Left Arrow cancels analysis', (WidgetTester tester) async {
       await tester.pumpWidget(createTestableWidget(isLoading: true));
-      
+
       await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
       await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowLeft);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowLeft);
@@ -281,31 +333,76 @@ void main() {
   group('DirectoryAnalysisPage Isolate Helpers', () {
     test('computeFilterOnly filters by type, extension, and size', () {
       final allFiles = [
-        FileStatWithInfo(name: 'f1.txt', path: '/f1.txt', type: FileItemType.document, stat: FileStatData(size: 100, modified: DateTime.now())),
-        FileStatWithInfo(name: 'f2.png', path: '/f2.png', type: FileItemType.image, stat: FileStatData(size: 200 * 1024 * 1024, modified: DateTime.now())), // 200MB
-        FileStatWithInfo(name: 'f3.mp4', path: '/f3.mp4', type: FileItemType.video, stat: FileStatData(size: 500, modified: DateTime.now())),
+        FileStatWithInfo(
+          name: 'f1.txt',
+          path: '/f1.txt',
+          type: FileItemType.document,
+          stat: FileStatData(size: 100, modified: DateTime.now()),
+        ),
+        FileStatWithInfo(
+          name: 'f2.png',
+          path: '/f2.png',
+          type: FileItemType.image,
+          stat: FileStatData(size: 200 * 1024 * 1024, modified: DateTime.now()),
+        ), // 200MB
+        FileStatWithInfo(
+          name: 'f3.mp4',
+          path: '/f3.mp4',
+          type: FileItemType.video,
+          stat: FileStatData(size: 500, modified: DateTime.now()),
+        ),
       ];
 
       // Filter by type
-      final argsType = FilterOnlyArgs(allFiles: allFiles, typeFilter: {FileItemType.document}, extFilter: {}, sizeFilter: null);
+      final argsType = FilterOnlyArgs(
+        allFiles: allFiles,
+        typeFilter: {FileItemType.document},
+        extFilter: {},
+        sizeFilter: null,
+      );
       expect(computeFilterOnly(argsType).length, 1);
 
       // Filter by size > 100MB
-      final argsSize = FilterOnlyArgs(allFiles: allFiles, typeFilter: {}, extFilter: {}, sizeFilter: 100);
+      final argsSize = FilterOnlyArgs(
+        allFiles: allFiles,
+        typeFilter: {},
+        extFilter: {},
+        sizeFilter: 100,
+      );
       expect(computeFilterOnly(argsSize).length, 1);
       expect(computeFilterOnly(argsSize).first.name, 'f2.png');
 
       // Filter by ext
-      final argsExt = FilterOnlyArgs(allFiles: allFiles, typeFilter: {}, extFilter: {'.mp4'}, sizeFilter: null);
+      final argsExt = FilterOnlyArgs(
+        allFiles: allFiles,
+        typeFilter: {},
+        extFilter: {'.mp4'},
+        sizeFilter: null,
+      );
       expect(computeFilterOnly(argsExt).length, 1);
       expect(computeFilterOnly(argsExt).first.name, 'f3.mp4');
     });
 
     test('groupByCurrentPath groups items correctly', () {
       final filteredFiles = [
-        FileStatWithInfo(name: 'f1.txt', path: '/mock/f1.txt', type: FileItemType.document, stat: FileStatData(size: 100, modified: DateTime.now())),
-        FileStatWithInfo(name: 'f2.png', path: '/mock/sub/f2.png', type: FileItemType.image, stat: FileStatData(size: 200, modified: DateTime.now())),
-        FileStatWithInfo(name: 'f3.mp4', path: '/mock/sub/f3.mp4', type: FileItemType.video, stat: FileStatData(size: 500, modified: DateTime.now())),
+        FileStatWithInfo(
+          name: 'f1.txt',
+          path: '/mock/f1.txt',
+          type: FileItemType.document,
+          stat: FileStatData(size: 100, modified: DateTime.now()),
+        ),
+        FileStatWithInfo(
+          name: 'f2.png',
+          path: '/mock/sub/f2.png',
+          type: FileItemType.image,
+          stat: FileStatData(size: 200, modified: DateTime.now()),
+        ),
+        FileStatWithInfo(
+          name: 'f3.mp4',
+          path: '/mock/sub/f3.mp4',
+          type: FileItemType.video,
+          stat: FileStatData(size: 500, modified: DateTime.now()),
+        ),
       ];
       final result = groupByCurrentPath(filteredFiles, '/mock');
 

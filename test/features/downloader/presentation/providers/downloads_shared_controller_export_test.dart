@@ -25,45 +25,48 @@ void main() {
       tempDir.deleteSync(recursive: true);
     });
 
-    test('exportListToFile and importListFromFile works without blocking', () async {
-      final largeList = List.generate(
-        1000,
-        (i) => MediaGroup(
-          originalUrl: 'https://example.com/$i',
-          items: [
-            MediaInfo(
-              id: 'id_$i',
-              title: 'Title $i',
-              originalUrl: 'https://example.com/$i',
-              directUrl: 'https://video.example.com/$i.mp4',
-            )
-          ],
-        ),
-      );
-      cache
-        ..parsedItems = largeList
-        ..isListChanged = true;
+    test(
+      'exportListToFile and importListFromFile works without blocking',
+      () async {
+        final largeList = List.generate(
+          1000,
+          (i) => MediaGroup(
+            originalUrl: 'https://example.com/$i',
+            items: [
+              MediaInfo(
+                id: 'id_$i',
+                title: 'Title $i',
+                originalUrl: 'https://example.com/$i',
+                directUrl: 'https://video.example.com/$i.mp4',
+              ),
+            ],
+          ),
+        );
+        cache
+          ..parsedItems = largeList
+          ..isListChanged = true;
 
-      final exportPath = '${tempDir.path}/test_export.dml';
+        final exportPath = '${tempDir.path}/test_export.dml';
 
-      final stopwatch = Stopwatch()..start();
-      await controller.exportListToFile(exportPath);
-      stopwatch.stop();
+        final stopwatch = Stopwatch()..start();
+        await controller.exportListToFile(exportPath);
+        stopwatch.stop();
 
-      expect(File(exportPath).existsSync(), isTrue);
-      
-      // If the main thread was blocked, this would take hundreds of milliseconds on a slow device.
-      // We expect it to be fast because it's run in an isolate (once fixed).
-      // print('Export took: ${stopwatch.elapsedMilliseconds} ms');
+        expect(File(exportPath).existsSync(), isTrue);
 
-      cache.clear();
-      expect(cache.parsedItems, isNull);
+        // If the main thread was blocked, this would take hundreds of milliseconds on a slow device.
+        // We expect it to be fast because it's run in an isolate (once fixed).
+        // print('Export took: ${stopwatch.elapsedMilliseconds} ms');
 
-      await controller.importListFromFile(exportPath, 'test_export');
+        cache.clear();
+        expect(cache.parsedItems, isNull);
 
-      expect(cache.parsedItems, isNotNull);
-      expect(cache.parsedItems!.length, 1000);
-      expect(cache.parsedItems!.first.items.first.title, 'Title 0');
-    });
+        await controller.importListFromFile(exportPath, 'test_export');
+
+        expect(cache.parsedItems, isNotNull);
+        expect(cache.parsedItems!.length, 1000);
+        expect(cache.parsedItems!.first.items.first.title, 'Title 0');
+      },
+    );
   });
 }

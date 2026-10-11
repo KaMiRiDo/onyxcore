@@ -1,5 +1,6 @@
 /// Utility functions for string manipulation.
 library;
+
 import 'package:flutter/widgets.dart';
 
 class StringUtils {

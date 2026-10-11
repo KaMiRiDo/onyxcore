@@ -34,7 +34,6 @@ import 'package:path/path.dart' as p;
 import 'package:window_manager/window_manager.dart';
 
 class AudioPlayerView extends ConsumerStatefulWidget {
-
   const AudioPlayerView({
     required this.item,
     this.isStandalone = false,
@@ -78,7 +77,9 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
   void initState() {
     super.initState();
     if (widget.isStandalone && widget.windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).addListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(widget.windowId!),
+      ).addListener(_onWindowFocus);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(audioIsEmptyProvider.notifier).state = false;
@@ -117,7 +118,9 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     Future.delayed(const Duration(milliseconds: 300), () async {
       if (mounted) {
         if (widget.isStandalone && widget.windowId != null) {
-          await PersistentViewerManager.presentWindow(int.parse(widget.windowId!));
+          await PersistentViewerManager.presentWindow(
+            int.parse(widget.windowId!),
+          );
         }
         if (mounted) _focusNode.requestFocus();
       }
@@ -266,12 +269,12 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     // player.open defaults to play: true, so playback starts immediately
   }
 
-
-
   @override
   void dispose() {
     if (widget.isStandalone && widget.windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(widget.windowId!)).removeListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(widget.windowId!),
+      ).removeListener(_onWindowFocus);
     }
     _focusNode.dispose();
     // 1. Cancel all stream subscriptions first
@@ -442,7 +445,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           final list = updatedPlayingQueue
               .map((item) => Media(MediaUriHelper.getSafeMediaUri(item.path)))
               .toList();
-          
+
           final autoPlay = ref.read(audioAutoPlaySessionProvider);
           await _player.open(Playlist(list, index: safeIndex), play: autoPlay);
         } else {
@@ -464,9 +467,9 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
   Future<void> _handleFilterSort() async {
     final currentTrack = ref.read(currentTrackProvider);
     if (currentTrack == null) return;
-    
+
     unawaited(_player.pause());
-    
+
     try {
       await MediaFilterService.moveToFiltered(currentTrack.path);
     } catch (e) {
@@ -474,10 +477,10 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       if (mounted) _player.play();
       return;
     }
-    
+
     // Remove from queues
     final targetPaths = [currentTrack.path];
-    
+
     final currentQueue = ref.read(audioQueueProvider);
     final updatedQueue = currentQueue
         .where((item) => !targetPaths.contains(item.path))
@@ -493,7 +496,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     if (!widget.isStandalone) {
       ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
     }
-    
+
     if (updatedPlayingQueue.isNotEmpty) {
       final currentIndex = ref.read(activeTrackIndexProvider);
       var safeIndex = currentIndex >= updatedPlayingQueue.length
@@ -507,7 +510,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       final list = updatedPlayingQueue
           .map((item) => Media(MediaUriHelper.getSafeMediaUri(item.path)))
           .toList();
-      
+
       final autoPlay = ref.read(audioAutoPlaySessionProvider);
       await _player.open(Playlist(list, index: safeIndex), play: autoPlay);
     } else {
@@ -528,7 +531,8 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
     final currentPlayingQueue = ref.read(audioPlayingQueueProvider);
     final currentIndex = ref.read(activeTrackIndexProvider);
-    final isPlayingTrackMoved = currentIndex >= 0 &&
+    final isPlayingTrackMoved =
+        currentIndex >= 0 &&
         currentIndex < currentPlayingQueue.length &&
         paths.contains(currentPlayingQueue[currentIndex].path);
 
@@ -544,7 +548,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
     // 2. Handle player state if the currently playing track was moved
     if (isPlayingTrackMoved) {
       await _player.pause();
-      
+
       if (updatedPlayingQueue.isNotEmpty) {
         var safeIndex = currentIndex >= updatedPlayingQueue.length
             ? updatedPlayingQueue.length - 1
@@ -557,7 +561,7 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         final list = updatedPlayingQueue
             .map((item) => Media(MediaUriHelper.getSafeMediaUri(item.path)))
             .toList();
-        
+
         final autoPlay = ref.read(audioAutoPlaySessionProvider);
         await _player.open(Playlist(list, index: safeIndex), play: autoPlay);
         if (autoPlay) {
@@ -584,9 +588,12 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         });
         final currentPlayingQueue = ref.read(audioPlayingQueueProvider);
         final currentIndex = ref.read(activeTrackIndexProvider);
-        if (currentPlayingQueue.isNotEmpty && currentIndex < currentPlayingQueue.length) {
+        if (currentPlayingQueue.isNotEmpty &&
+            currentIndex < currentPlayingQueue.length) {
           final playlist = Playlist(
-            currentPlayingQueue.map((f) => Media(MediaUriHelper.getSafeMediaUri(f.path))).toList(),
+            currentPlayingQueue
+                .map((f) => Media(MediaUriHelper.getSafeMediaUri(f.path)))
+                .toList(),
             index: currentIndex,
           );
           _player.open(playlist);
@@ -608,7 +615,10 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
 
     var topBarMetadata = 'Audio Player';
     if (currentTrack != null) {
-      final queue = ref.watch(filteredAndSortedAudioQueueProvider).where((i) => i.type == FileItemType.audio).toList();
+      final queue = ref
+          .watch(filteredAndSortedAudioQueueProvider)
+          .where((i) => i.type == FileItemType.audio)
+          .toList();
       final total = queue.length;
       final index = queue.indexWhere((i) => i.path == currentTrack.path);
       final positionStr = index != -1 ? '${index + 1} / $total' : '';
@@ -752,17 +762,27 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
         if (key == LogicalKeyboardKey.arrowUp) {
           final newVol = (_player.state.volume + 5).clamp(0, 200).toDouble();
           _player.setVolume(newVol);
-          ref.read(settingsProvider.notifier).saveSettings(
-            ref.read(settingsProvider).value!.copyWith(audioPlayerVolume: newVol),
-          );
+          ref
+              .read(settingsProvider.notifier)
+              .saveSettings(
+                ref
+                    .read(settingsProvider)
+                    .value!
+                    .copyWith(audioPlayerVolume: newVol),
+              );
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.arrowDown) {
           final newVol = (_player.state.volume - 5).clamp(0, 200).toDouble();
           _player.setVolume(newVol);
-          ref.read(settingsProvider.notifier).saveSettings(
-            ref.read(settingsProvider).value!.copyWith(audioPlayerVolume: newVol),
-          );
+          ref
+              .read(settingsProvider.notifier)
+              .saveSettings(
+                ref
+                    .read(settingsProvider)
+                    .value!
+                    .copyWith(audioPlayerVolume: newVol),
+              );
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.keyM) {
@@ -774,9 +794,14 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           final currentVolume = _player.state.volume;
           final newVol = currentVolume > 0 ? 0.0 : 100.0;
           _player.setVolume(newVol);
-          ref.read(settingsProvider.notifier).saveSettings(
-            ref.read(settingsProvider).value!.copyWith(audioPlayerVolume: newVol),
-          );
+          ref
+              .read(settingsProvider.notifier)
+              .saveSettings(
+                ref
+                    .read(settingsProvider)
+                    .value!
+                    .copyWith(audioPlayerVolume: newVol),
+              );
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.f2) {
@@ -911,7 +936,8 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.keyS && isAlt) {
-          final isFilterSortEnabled = ref.read(settingsProvider).value?.audioFilterSortEnabled ?? false;
+          final isFilterSortEnabled =
+              ref.read(settingsProvider).value?.audioFilterSortEnabled ?? false;
           if (isFilterSortEnabled) {
             _handleFilterSort();
           }
@@ -1023,171 +1049,221 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
                                     viewerType: ViewerType.audio,
                                     file: currentTrack ?? widget.item,
                                   );
-                                  PersistentViewerManager.openMedia(params).then((_) {
-                                    ref.read(previewFileProvider.notifier).state =
+                                  PersistentViewerManager.openMedia(
+                                    params,
+                                  ).then((_) {
+                                    ref
+                                            .read(previewFileProvider.notifier)
+                                            .state =
                                         null;
                                   });
                                 },
                           behavior: HitTestBehavior.translucent,
                           child: Stack(
                             children: [
-                        HeroAudioPlayer(
-                          isAudioPlayOnly: widget.initParams?['is_audio_play_only'] == true,
-                          onNextPressed: () {
-                            final currentPlayingQueue =
-                                ref.read(audioPlayingQueueProvider);
-                            final currentIndex =
-                                ref.read(activeTrackIndexProvider);
-                            if (currentIndex >=
-                                currentPlayingQueue.length - 1) {
-                              _player.pause();
-                              setState(() => _isEmpty = true);
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                ref.read(audioIsEmptyProvider.notifier).state = true;
-                              });
-                            } else {
-                              _player.next();
-                            }
-                          },
-                          onPreviousPressed: () {
-                            final currentIndex = ref.read(activeTrackIndexProvider);
-                            if (currentIndex == 0) {
-                              _player.pause();
-                              setState(() => _isEmpty = true);
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                ref.read(audioIsEmptyProvider.notifier).state = true;
-                              });
-                            } else {
-                              _player.previous();
-                            }
-                          },
-                        ),
-
-                        // Top HUD (Hero Pane only)
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: ViewerTopBar(
-                            title: currentTrack?.name ?? widget.item.name,
-                            metadata: topBarMetadata,
-                            isStandalone: widget.isStandalone,
-                            extraActions: [
-                              // Settings button
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.settings_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  onPressed: () {
-                                    SettingsDialog.show(
-                                      context,
-                                      initialTab: 1,
-                                      section: 'Audio',
-                                    );
-                                  },
-                                  tooltip: 'Audio Settings',
-                                  splashRadius: 24,
-                                ),
+                              HeroAudioPlayer(
+                                isAudioPlayOnly:
+                                    widget.initParams?['is_audio_play_only'] ==
+                                    true,
+                                onNextPressed: () {
+                                  final currentPlayingQueue = ref.read(
+                                    audioPlayingQueueProvider,
+                                  );
+                                  final currentIndex = ref.read(
+                                    activeTrackIndexProvider,
+                                  );
+                                  if (currentIndex >=
+                                      currentPlayingQueue.length - 1) {
+                                    _player.pause();
+                                    setState(() => _isEmpty = true);
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                          ref
+                                                  .read(
+                                                    audioIsEmptyProvider
+                                                        .notifier,
+                                                  )
+                                                  .state =
+                                              true;
+                                        });
+                                  } else {
+                                    _player.next();
+                                  }
+                                },
+                                onPreviousPressed: () {
+                                  final currentIndex = ref.read(
+                                    activeTrackIndexProvider,
+                                  );
+                                  if (currentIndex == 0) {
+                                    _player.pause();
+                                    setState(() => _isEmpty = true);
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                          ref
+                                                  .read(
+                                                    audioIsEmptyProvider
+                                                        .notifier,
+                                                  )
+                                                  .state =
+                                              true;
+                                        });
+                                  } else {
+                                    _player.previous();
+                                  }
+                                },
                               ),
-                              const SizedBox(width: 8),
-                              // Edit / Rename button
-                              if (currentTrack != null)
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(
-                                      Icons.edit_rounded,
-                                      color: Colors.white.withValues(alpha: 0.3),
-                                      size: 20,
+
+                              // Top HUD (Hero Pane only)
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: ViewerTopBar(
+                                  title: currentTrack?.name ?? widget.item.name,
+                                  metadata: topBarMetadata,
+                                  isStandalone: widget.isStandalone,
+                                  extraActions: [
+                                    // Settings button
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.settings_rounded,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                        onPressed: () {
+                                          SettingsDialog.show(
+                                            context,
+                                            initialTab: 1,
+                                            section: 'Audio',
+                                          );
+                                        },
+                                        tooltip: 'Audio Settings',
+                                        splashRadius: 24,
+                                      ),
                                     ),
-                                    onPressed: null, // Placeholder — disabled
-                                    tooltip: 'Edit (coming soon)',
-                                    splashRadius: 24,
+                                    const SizedBox(width: 8),
+                                    // Edit / Rename button
+                                    if (currentTrack != null)
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: IconButton(
+                                          icon: Icon(
+                                            Icons.edit_rounded,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.3,
+                                            ),
+                                            size: 20,
+                                          ),
+                                          onPressed:
+                                              null, // Placeholder — disabled
+                                          tooltip: 'Edit (coming soon)',
+                                          splashRadius: 24,
+                                        ),
+                                      ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  onClose: () {
+                                    if (widget.isStandalone) {
+                                      windowManager.close();
+                                    } else {
+                                      ref
+                                              .read(
+                                                previewFileProvider.notifier,
+                                              )
+                                              .state =
+                                          null;
+                                    }
+                                  },
+                                  onPopOut: widget.isStandalone
+                                      ? null
+                                      : () {
+                                          ref
+                                                  .read(
+                                                    previewFileProvider
+                                                        .notifier,
+                                                  )
+                                                  .state =
+                                              null;
+                                          final params = WindowParams(
+                                            viewerType: ViewerType.audio,
+                                            file: currentTrack ?? widget.item,
+                                          );
+                                          PersistentViewerManager.openMedia(
+                                            params,
+                                          );
+                                        },
+                                ),
+                              ),
+                              Positioned.fill(
+                                child: Center(
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 300),
+                                    opacity: (_isOpening || _isBuffering)
+                                        ? 1.0
+                                        : 0.0,
+                                    child: const BubbleLoader(),
                                   ),
                                 ),
-                              const SizedBox(width: 8),
-                            ],
-                            onClose: () {
-                              if (widget.isStandalone) {
-                                windowManager.close();
-                              } else {
-                                ref.read(previewFileProvider.notifier).state =
-                                    null;
-                              }
-                            },
-                            onPopOut: widget.isStandalone
-                                ? null
-                                : () {
-                                    ref
-                                            .read(
-                                              previewFileProvider.notifier,
-                                            )
-                                            .state =
-                                        null;
-                                    final params = WindowParams(
-                                      viewerType: ViewerType.audio,
-                                      file: currentTrack ?? widget.item,
-                                    );
-                                    PersistentViewerManager.openMedia(
-                                      params,
-                                    );
-                                  },
-                          ),
-                        ),
-                        Positioned.fill(
-                          child: Center(
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 300),
-                              opacity: (_isOpening || _isBuffering) ? 1.0 : 0.0,
-                              child: const BubbleLoader(),
-                            ),
-                          ),
-                        ),
-                        // Sidebar Toggle Button at bottom left
-                        if (widget.initParams?['is_audio_play_only'] != true)
-                          Positioned(
-                            bottom: 24,
-                            left: 24,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.playlist_play,
-                                size: 24,
                               ),
-                              color: ref.watch(audioPlaylistSidebarVisibleProvider) ? AppColors.magenta : Colors.white,
-                              onPressed: () {
-                                final isVisible = ref.read(
-                                  audioPlaylistSidebarVisibleProvider,
-                                );
-                                ref
-                                    .read(audioPlaylistSidebarVisibleProvider.notifier)
-                                    .state = !isVisible;
-                              },
-                              tooltip: 'Playlist',
-                            ),
-                          ),
+                              // Sidebar Toggle Button at bottom left
+                              if (widget.initParams?['is_audio_play_only'] !=
+                                  true)
+                                Positioned(
+                                  bottom: 24,
+                                  left: 24,
+                                  child: IconButton(
+                                    icon: const Icon(
+                                      Icons.playlist_play,
+                                      size: 24,
+                                    ),
+                                    color:
+                                        ref.watch(
+                                          audioPlaylistSidebarVisibleProvider,
+                                        )
+                                        ? AppColors.magenta
+                                        : Colors.white,
+                                    onPressed: () {
+                                      final isVisible = ref.read(
+                                        audioPlaylistSidebarVisibleProvider,
+                                      );
+                                      ref
+                                              .read(
+                                                audioPlaylistSidebarVisibleProvider
+                                                    .notifier,
+                                              )
+                                              .state =
+                                          !isVisible;
+                                    },
+                                    tooltip: 'Playlist',
+                                  ),
+                                ),
 
-                        // ── Filter Sort Button (Alt+S) ────────────
-                        if (settings?.audioFilterSortEnabled ?? false)
-                          Positioned(
-                            bottom: 24,
-                            right: 24,
-                            child: FilterSortButton(
-                              onPressed: _handleFilterSort,
-                            ),
+                              // ── Filter Sort Button (Alt+S) ────────────
+                              if (settings?.audioFilterSortEnabled ?? false)
+                                Positioned(
+                                  bottom: 24,
+                                  right: 24,
+                                  child: FilterSortButton(
+                                    onPressed: _handleFilterSort,
+                                  ),
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
-                  ),
+                        ),
                 ),
               ],
             ),
@@ -1230,11 +1306,13 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       final newPath = history.last;
       final currentPath = ref.read(audioCurrentPathProvider);
 
-      ref.read(audioPathHistoryProvider.notifier).state =
-          history.sublist(0, history.length - 1);
-      ref.read(audioPathForwardHistoryProvider.notifier).update(
-            (state) => [...state, currentPath],
-          );
+      ref.read(audioPathHistoryProvider.notifier).state = history.sublist(
+        0,
+        history.length - 1,
+      );
+      ref
+          .read(audioPathForwardHistoryProvider.notifier)
+          .update((state) => [...state, currentPath]);
 
       _openPlaylistFolder(ref, newPath);
     }
@@ -1246,11 +1324,11 @@ class _AudioPlayerViewState extends ConsumerState<AudioPlayerView> {
       final newPath = forwardHistory.last;
       final currentPath = ref.read(audioCurrentPathProvider);
 
-      ref.read(audioPathForwardHistoryProvider.notifier).state =
-          forwardHistory.sublist(0, forwardHistory.length - 1);
-      ref.read(audioPathHistoryProvider.notifier).update(
-            (state) => [...state, currentPath],
-          );
+      ref.read(audioPathForwardHistoryProvider.notifier).state = forwardHistory
+          .sublist(0, forwardHistory.length - 1);
+      ref
+          .read(audioPathHistoryProvider.notifier)
+          .update((state) => [...state, currentPath]);
 
       _openPlaylistFolder(ref, newPath);
     }

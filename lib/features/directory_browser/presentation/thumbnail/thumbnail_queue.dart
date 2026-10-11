@@ -2,14 +2,16 @@ import 'dart:async';
 import 'dart:io' show Process;
 import 'package:flutter/foundation.dart';
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
-import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session.dart' show ThumbnailSession;
+import 'package:onyxcore/features/directory_browser/presentation/providers/thumbnail_session.dart'
+    show ThumbnailSession;
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_candidate.dart';
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_job.dart';
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_scheduling_policy.dart';
 
 /// Runs a [ThumbnailJob] to completion and returns its outcome.
 /// Provided by [ThumbnailSession] via its internal scheduler.
-typedef ThumbnailJobRunner = Future<ThumbnailJobOutcome> Function(ThumbnailJob job);
+typedef ThumbnailJobRunner =
+    Future<ThumbnailJobOutcome> Function(ThumbnailJob job);
 
 /// Requests the session to preempt (SIGTERM/SIGKILL) the external process
 /// registered under [jobKey]. The queue owns no process map; it only passes
@@ -42,8 +44,8 @@ class ThumbnailBoundedQueue {
   ThumbnailBoundedQueue({
     required ThumbnailJobRunner runner,
     required ThumbnailPreemptCallback onPreemptRequest,
-  })  : _runner = runner,
-        _onPreemptRequest = onPreemptRequest;
+  }) : _runner = runner,
+       _onPreemptRequest = onPreemptRequest;
 
   final ThumbnailJobRunner _runner;
   final ThumbnailPreemptCallback _onPreemptRequest;
@@ -84,7 +86,10 @@ class ThumbnailBoundedQueue {
 
   /// Update both bounded path sets atomically.
   /// Must be called before [cancelObsoletes] on each interest update.
-  void updateInterestPaths(Set<String> interestPaths, Set<String> visiblePaths) {
+  void updateInterestPaths(
+    Set<String> interestPaths,
+    Set<String> visiblePaths,
+  ) {
     _interestPaths = interestPaths;
     _visiblePaths = visiblePaths;
   }
@@ -142,7 +147,8 @@ class ThumbnailBoundedQueue {
 
     // Step 2 — Running dedup.
     if (_runningKeys.contains(key)) {
-      return _inFlightFutures[key] ?? Future.value(ThumbnailJobOutcome.cancelled);
+      return _inFlightFutures[key] ??
+          Future.value(ThumbnailJobOutcome.cancelled);
     }
 
     // Step 3 — Pending dedup / promote.
@@ -163,7 +169,8 @@ class ThumbnailBoundedQueue {
     final typePending = _queue.where((e) => e.job.isVideo == isVideo).length;
     final totalPending = _queue.length;
 
-    final needsRoom = typePending >= typeCap ||
+    final needsRoom =
+        typePending >= typeCap ||
         totalPending >= ThumbnailSchedulingPolicy.maxPendingJobs;
 
     if (needsRoom) {
@@ -257,7 +264,8 @@ class ThumbnailBoundedQueue {
   /// running external process.
   void _preemptLowPriorityJobsIfNeeded() {
     for (final entry in _queue) {
-      if (entry.job.priority >= ThumbnailSchedulingPolicy.bufferPriorityBase) break;
+      if (entry.job.priority >= ThumbnailSchedulingPolicy.bufferPriorityBase)
+        break;
 
       final isVideo = entry.job.isVideo;
       final poolFull = isVideo
@@ -271,7 +279,8 @@ class ThumbnailBoundedQueue {
       var worstPriority = -1;
       for (final running in _runningJobs.entries) {
         if (running.value.isVideo == isVideo &&
-            running.value.priority >= ThumbnailSchedulingPolicy.bufferPriorityBase &&
+            running.value.priority >=
+                ThumbnailSchedulingPolicy.bufferPriorityBase &&
             running.value.priority > worstPriority) {
           worstPriority = running.value.priority;
           victimKey = running.key;
@@ -316,7 +325,9 @@ class ThumbnailBoundedQueue {
         try {
           outcome = await _runner(entry.job);
         } catch (e) {
-          debugPrint('[ThumbnailBoundedQueue] Runner error for ${entry.job.candidate.path}: $e');
+          debugPrint(
+            '[ThumbnailBoundedQueue] Runner error for ${entry.job.candidate.path}: $e',
+          );
           outcome = ThumbnailJobOutcome.failed;
         } finally {
           _runningJobs.remove(key);

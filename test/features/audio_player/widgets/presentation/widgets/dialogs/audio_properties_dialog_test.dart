@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -44,7 +43,9 @@ Future<void> pumpDialog(
         body: AudioPropertiesDialog(
           path: path,
           testStat: injectTestData ? (stat ?? _testStat) : null,
-          testProperties: injectTestData ? (properties ?? _testProperties) : null,
+          testProperties: injectTestData
+              ? (properties ?? _testProperties)
+              : null,
         ),
       ),
     ),
@@ -90,12 +91,13 @@ String createTestFile({String name = 'test_song.mp3', int sizeBytes = 5000}) {
 }
 
 void main() {
-// Prevent GoogleFonts from trying to fetch fonts over the network.
+  // Prevent GoogleFonts from trying to fetch fonts over the network.
   GoogleFonts.config.allowRuntimeFetching = false;
 
   setUpAll(() {
-    _tempDir = Directory.systemTemp
-        .createTempSync('audio_properties_dialog_test_');
+    _tempDir = Directory.systemTemp.createTempSync(
+      'audio_properties_dialog_test_',
+    );
     _testFile = File('${_tempDir.path}/song.mp3')
       ..writeAsBytesSync(List<int>.filled(5000, 0));
     _testStat = _testFile.statSync();
@@ -110,88 +112,93 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-01: Loading Spinner
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-01: shows loading spinner during data fetch',
-    (tester) async {
-      // Pump without settling to capture the loading state.
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.theme,
-          home: Scaffold(
-            body: AudioPropertiesDialog(
-              path: _testFile.path,
-              // Don't inject test data — let _loadProperties run (but it will
-              // resolve immediately since testStat/testProperties are null and
-              // the file exists).
-              testStat: _testStat,
-              testProperties: _testProperties,
-            ),
+  testWidgets('W-AUD-PROP-01: shows loading spinner during data fetch', (
+    tester,
+  ) async {
+    // Pump without settling to capture the loading state.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.theme,
+        home: Scaffold(
+          body: AudioPropertiesDialog(
+            path: _testFile.path,
+            // Don't inject test data — let _loadProperties run (but it will
+            // resolve immediately since testStat/testProperties are null and
+            // the file exists).
+            testStat: _testStat,
+            testProperties: _testProperties,
           ),
         ),
-      );
-      // After one frame, _isLoading is true → spinner shows.
-      await tester.pump();
+      ),
+    );
+    // After one frame, _isLoading is true → spinner shows.
+    await tester.pump();
 
-      // The spinner should be visible before loading completes.
-      // After pumpAndSettle it may be gone, so check immediately.
-      // Since our test data injects synchronously, we pump just the first frame.
-      // Note: with test overrides, loading completes in the microtask queue,
-      // so the spinner flashes briefly. Verify by checking before settle.
-      // If the spinner is already gone (sync resolution), just verify the
-      // final state renders correctly (PROP-02 covers this).
+    // The spinner should be visible before loading completes.
+    // After pumpAndSettle it may be gone, so check immediately.
+    // Since our test data injects synchronously, we pump just the first frame.
+    // Note: with test overrides, loading completes in the microtask queue,
+    // so the spinner flashes briefly. Verify by checking before settle.
+    // If the spinner is already gone (sync resolution), just verify the
+    // final state renders correctly (PROP-02 covers this).
 
-      // Let it settle.
-      await tester.pumpAndSettle();
+    // Let it settle.
+    await tester.pumpAndSettle();
 
-      // After loading, spinner should be replaced by content.
-      expect(find.text('METADATA'), findsOneWidget);
-    },
-  );
+    // After loading, spinner should be replaced by content.
+    expect(find.text('METADATA'), findsOneWidget);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-02: All metadata sections displayed
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-02: loads and displays all metadata sections',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-02: loads and displays all metadata sections', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      // Section headers
-      expect(find.text('METADATA'), findsOneWidget);
-      expect(find.text('AUDIO FORMAT'), findsOneWidget);
-      expect(find.text('FILE SYSTEM'), findsOneWidget);
+    // Section headers
+    expect(find.text('METADATA'), findsOneWidget);
+    expect(find.text('AUDIO FORMAT'), findsOneWidget);
+    expect(find.text('FILE SYSTEM'), findsOneWidget);
 
-      // Row labels
-      for (final label in [
-        'Title', 'Artist', 'Album', 'Genre',
-        'Duration', 'Bitrate', 'Sample Rate',
-        'File Name', 'Location', 'Size',
-        'Added Time', 'Updated Time',
-      ]) {
-        expect(find.text(label), findsOneWidget, reason: 'Missing label: $label');
-      }
+    // Row labels
+    for (final label in [
+      'Title',
+      'Artist',
+      'Album',
+      'Genre',
+      'Duration',
+      'Bitrate',
+      'Sample Rate',
+      'File Name',
+      'Location',
+      'Size',
+      'Added Time',
+      'Updated Time',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: 'Missing label: $label');
+    }
 
-      // Values from injected test properties
-      expect(find.text('03:45'), findsOneWidget);
-      expect(find.text('320 kbps'), findsOneWidget);
-      expect(find.text('44100 Hz'), findsOneWidget);
-    },
-  );
+    // Values from injected test properties
+    expect(find.text('03:45'), findsOneWidget);
+    expect(find.text('320 kbps'), findsOneWidget);
+    expect(find.text('44100 Hz'), findsOneWidget);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-03: Unknown for missing tags
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-03: displays "Unknown" for missing tag fields',
-    (tester) async {
-      // No testTag injected → _tag is null → all tag fields show "Unknown".
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-03: displays "Unknown" for missing tag fields', (
+    tester,
+  ) async {
+    // No testTag injected → _tag is null → all tag fields show "Unknown".
+    await pumpDialog(tester, path: _testFile.path);
 
-      // Title, Artist, Album, Genre should all be "Unknown".
-      final unknownFinder = find.text('Unknown');
-      expect(unknownFinder, findsAtLeast(4));
-    },
-  );
+    // Title, Artist, Album, Genre should all be "Unknown".
+    final unknownFinder = find.text('Unknown');
+    expect(unknownFinder, findsAtLeast(4));
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-04: Unknown for missing audio properties
@@ -216,119 +223,108 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-05: Close on Escape
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-05: closes dialog on Escape key',
-    (tester) async {
-      await pumpDialogViaShow(tester, _testFile.path);
+  testWidgets('W-AUD-PROP-05: closes dialog on Escape key', (tester) async {
+    await pumpDialogViaShow(tester, _testFile.path);
 
-      expect(find.byType(AudioPropertiesDialog), findsOneWidget);
+    expect(find.byType(AudioPropertiesDialog), findsOneWidget);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
 
-      expect(find.byType(AudioPropertiesDialog), findsNothing);
-    },
-  );
+    expect(find.byType(AudioPropertiesDialog), findsNothing);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-06: Close on close icon button
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-06: closes dialog on close icon button',
-    (tester) async {
-      await pumpDialogViaShow(tester, _testFile.path);
+  testWidgets('W-AUD-PROP-06: closes dialog on close icon button', (
+    tester,
+  ) async {
+    await pumpDialogViaShow(tester, _testFile.path);
 
-      expect(find.byType(AudioPropertiesDialog), findsOneWidget);
+    expect(find.byType(AudioPropertiesDialog), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.close));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(AudioPropertiesDialog), findsNothing);
-    },
-  );
+    expect(find.byType(AudioPropertiesDialog), findsNothing);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-07: Close on footer Close button
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-07: closes dialog on footer Close button',
-    (tester) async {
-      await pumpDialogViaShow(tester, _testFile.path);
+  testWidgets('W-AUD-PROP-07: closes dialog on footer Close button', (
+    tester,
+  ) async {
+    await pumpDialogViaShow(tester, _testFile.path);
 
-      expect(find.byType(AudioPropertiesDialog), findsOneWidget);
+    expect(find.byType(AudioPropertiesDialog), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Close'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Close'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(AudioPropertiesDialog), findsNothing);
-    },
-  );
+    expect(find.byType(AudioPropertiesDialog), findsNothing);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-08–11: _formatBytes coverage via file size display
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-08: formats bytes correctly for bytes (500 B)',
-    (tester) async {
-      final path = createTestFile(name: 'tiny.mp3', sizeBytes: 500);
-      final stat = File(path).statSync();
-      await pumpDialog(tester, path: path, stat: stat);
+  testWidgets('W-AUD-PROP-08: formats bytes correctly for bytes (500 B)', (
+    tester,
+  ) async {
+    final path = createTestFile(name: 'tiny.mp3', sizeBytes: 500);
+    final stat = File(path).statSync();
+    await pumpDialog(tester, path: path, stat: stat);
 
-      expect(find.text('500 B'), findsOneWidget);
-    },
-  );
+    expect(find.text('500 B'), findsOneWidget);
+  });
 
-  testWidgets(
-    'W-AUD-PROP-09: formats bytes correctly for kilobytes (2.0 KB)',
-    (tester) async {
-      final path = createTestFile(name: 'small.mp3', sizeBytes: 2048);
-      final stat = File(path).statSync();
-      await pumpDialog(tester, path: path, stat: stat);
+  testWidgets('W-AUD-PROP-09: formats bytes correctly for kilobytes (2.0 KB)', (
+    tester,
+  ) async {
+    final path = createTestFile(name: 'small.mp3', sizeBytes: 2048);
+    final stat = File(path).statSync();
+    await pumpDialog(tester, path: path, stat: stat);
 
-      expect(find.text('2.0 KB'), findsOneWidget);
-    },
-  );
+    expect(find.text('2.0 KB'), findsOneWidget);
+  });
 
-  testWidgets(
-    'W-AUD-PROP-10: formats bytes correctly for megabytes (1.0 MB)',
-    (tester) async {
-      final path = createTestFile(name: 'medium.mp3', sizeBytes: 1048576);
-      final stat = File(path).statSync();
-      await pumpDialog(tester, path: path, stat: stat);
+  testWidgets('W-AUD-PROP-10: formats bytes correctly for megabytes (1.0 MB)', (
+    tester,
+  ) async {
+    final path = createTestFile(name: 'medium.mp3', sizeBytes: 1048576);
+    final stat = File(path).statSync();
+    await pumpDialog(tester, path: path, stat: stat);
 
-      expect(find.text('1.0 MB'), findsOneWidget);
-    },
-  );
-
+    expect(find.text('1.0 MB'), findsOneWidget);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-12: Header title
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-12: displays header with "AUDIO INFORMATION" title',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-12: displays header with "AUDIO INFORMATION" title', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      final titleFinder = find.text('AUDIO INFORMATION');
-      expect(titleFinder, findsOneWidget);
-    },
-  );
+    final titleFinder = find.text('AUDIO INFORMATION');
+    expect(titleFinder, findsOneWidget);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-13: Section headers in violet color
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-13: displays section headers in violet color',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-13: displays section headers in violet color', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      for (final header in ['METADATA', 'AUDIO FORMAT', 'FILE SYSTEM']) {
-        final widget = tester.widget<Text>(find.text(header));
-        final color = widget.style?.color;
-        expect(color, AppColors.violet.withValues(alpha: 0.8));
-      }
-    },
-  );
+    for (final header in ['METADATA', 'AUDIO FORMAT', 'FILE SYSTEM']) {
+      final widget = tester.widget<Text>(find.text(header));
+      final color = widget.style?.color;
+      expect(color, AppColors.violet.withValues(alpha: 0.8));
+    }
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-14: Location is SelectableText
@@ -348,99 +344,93 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-15: Filename (basename) in File Name row
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-15: displays filename (basename) in File Name row',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-15: displays filename (basename) in File Name row', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      expect(find.text('song.mp3'), findsOneWidget);
-    },
-  );
+    expect(find.text('song.mp3'), findsOneWidget);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-16: Full path in Location row
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-16: displays full path in Location row',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-16: displays full path in Location row', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      expect(
-        find.widgetWithText(SelectableText, _testFile.path),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.widgetWithText(SelectableText, _testFile.path), findsOneWidget);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-17: Date formatting
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-17: formats dates as yyyy-MM-dd HH:mm',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-17: formats dates as yyyy-MM-dd HH:mm', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      final expectedChanged =
-          DateFormat('yyyy-MM-dd HH:mm').format(_testStat.changed);
-      final expectedModified =
-          DateFormat('yyyy-MM-dd HH:mm').format(_testStat.modified);
+    final expectedChanged = DateFormat(
+      'yyyy-MM-dd HH:mm',
+    ).format(_testStat.changed);
+    final expectedModified = DateFormat(
+      'yyyy-MM-dd HH:mm',
+    ).format(_testStat.modified);
 
-      if (expectedChanged == expectedModified) {
-        // Both timestamps resolve to the same string — expect exactly 2.
-        expect(find.text(expectedChanged), findsNWidgets(2));
-      } else {
-        expect(find.text(expectedChanged), findsOneWidget);
-        expect(find.text(expectedModified), findsOneWidget);
-      }
-    },
-  );
+    if (expectedChanged == expectedModified) {
+      // Both timestamps resolve to the same string — expect exactly 2.
+      expect(find.text(expectedChanged), findsNWidgets(2));
+    } else {
+      expect(find.text(expectedChanged), findsOneWidget);
+      expect(find.text(expectedModified), findsOneWidget);
+    }
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-18: Container styling
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-18: renders dialog container with correct styling',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-18: renders dialog container with correct styling', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      final containerFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is Container &&
-            widget.constraints?.maxWidth == 500 &&
-            widget.constraints?.minWidth == 500,
-      );
-      expect(containerFinder, findsOneWidget);
+    final containerFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          widget.constraints?.maxWidth == 500 &&
+          widget.constraints?.minWidth == 500,
+    );
+    expect(containerFinder, findsOneWidget);
 
-      final container = tester.widget<Container>(containerFinder);
-      final decoration = container.decoration! as BoxDecoration;
-      expect(decoration.borderRadius, BorderRadius.circular(20));
-    },
-  );
+    final container = tester.widget<Container>(containerFinder);
+    final decoration = container.decoration! as BoxDecoration;
+    expect(decoration.borderRadius, BorderRadius.circular(20));
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-19: Gradient close button
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-19: renders gradient close button in footer',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-19: renders gradient close button in footer', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      final buttonFinder = find.widgetWithText(ElevatedButton, 'Close');
-      expect(buttonFinder, findsOneWidget);
+    final buttonFinder = find.widgetWithText(ElevatedButton, 'Close');
+    expect(buttonFinder, findsOneWidget);
 
-      final gradientContainerFinder = find.ancestor(
-        of: buttonFinder,
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is Container &&
-              widget.decoration is BoxDecoration &&
-              (widget.decoration! as BoxDecoration).gradient ==
-                  AppTheme.primaryGradient,
-        ),
-      );
-      expect(gradientContainerFinder, findsOneWidget);
-    },
-  );
+    final gradientContainerFinder = find.ancestor(
+      of: buttonFinder,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Container &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration! as BoxDecoration).gradient ==
+                AppTheme.primaryGradient,
+      ),
+    );
+    expect(gradientContainerFinder, findsOneWidget);
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-20: Exception during loading
@@ -490,65 +480,60 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-22: Barrier color
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-22: opens dialog with correct barrier color',
-    (tester) async {
-      await pumpDialogViaShow(tester, _testFile.path);
+  testWidgets('W-AUD-PROP-22: opens dialog with correct barrier color', (
+    tester,
+  ) async {
+    await pumpDialogViaShow(tester, _testFile.path);
 
-      // Find the ModalBarrier with non-null color.
-      // There may be multiple barriers; find the one from showDialog.
-      final barrierFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is ModalBarrier &&
-            widget.color != null &&
-            widget.color!.a > 0,
-      );
-      expect(barrierFinder, findsOneWidget);
+    // Find the ModalBarrier with non-null color.
+    // There may be multiple barriers; find the one from showDialog.
+    final barrierFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is ModalBarrier && widget.color != null && widget.color!.a > 0,
+    );
+    expect(barrierFinder, findsOneWidget);
 
-      final barrier = tester.widget<ModalBarrier>(barrierFinder);
-      expect(barrier.color, Colors.black.withAlpha(179));
-    },
-  );
+    final barrier = tester.widget<ModalBarrier>(barrierFinder);
+    expect(barrier.color, Colors.black.withAlpha(179));
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-23: Autofocus on Focus widget
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-23: uses autofocus on wrapping Focus widget',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-23: uses autofocus on wrapping Focus widget', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      final focusFinder = find.byWidgetPredicate(
-        (widget) => widget is Focus && widget.autofocus,
-      );
-      expect(focusFinder, findsAtLeastNWidgets(1));
-    },
-  );
+    final focusFinder = find.byWidgetPredicate(
+      (widget) => widget is Focus && widget.autofocus,
+    );
+    expect(focusFinder, findsAtLeastNWidgets(1));
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // W-AUD-PROP-24: Label SizedBox width=120
   // ═══════════════════════════════════════════════════════════════════════════
-  testWidgets(
-    'W-AUD-PROP-24: renders property labels at 120px fixed width',
-    (tester) async {
-      await pumpDialog(tester, path: _testFile.path);
+  testWidgets('W-AUD-PROP-24: renders property labels at 120px fixed width', (
+    tester,
+  ) async {
+    await pumpDialog(tester, path: _testFile.path);
 
-      for (final label in ['Title', 'Artist', 'Duration', 'File Name']) {
-        final labelTextFinder = find.text(label);
-        expect(labelTextFinder, findsOneWidget);
+    for (final label in ['Title', 'Artist', 'Duration', 'File Name']) {
+      final labelTextFinder = find.text(label);
+      expect(labelTextFinder, findsOneWidget);
 
-        final sizedBoxFinder = find.ancestor(
-          of: labelTextFinder,
-          matching: find.byWidgetPredicate(
-            (widget) => widget is SizedBox && widget.width == 120,
-          ),
-        );
-        expect(
-          sizedBoxFinder,
-          findsOneWidget,
-          reason: 'Label "$label" should be inside a SizedBox(width: 120)',
-        );
-      }
-    },
-  );
+      final sizedBoxFinder = find.ancestor(
+        of: labelTextFinder,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is SizedBox && widget.width == 120,
+        ),
+      );
+      expect(
+        sizedBoxFinder,
+        findsOneWidget,
+        reason: 'Label "$label" should be inside a SizedBox(width: 120)',
+      );
+    }
+  });
 }

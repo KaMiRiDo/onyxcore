@@ -18,7 +18,10 @@ void main() {
       expect(getFolderIconConfig('lib').icon, Icons.code_rounded);
       expect(getFolderIconConfig('src').icon, Icons.code_rounded);
       expect(getFolderIconConfig('test').icon, Icons.science_rounded);
-      expect(getFolderIconConfig('assets').icon, Icons.collections_bookmark_rounded);
+      expect(
+        getFolderIconConfig('assets').icon,
+        Icons.collections_bookmark_rounded,
+      );
       expect(getFolderIconConfig('build').icon, Icons.inventory_2_rounded);
       expect(getFolderIconConfig('.git').icon, Icons.account_tree_rounded);
       expect(getFolderIconConfig('.vscode').icon, Icons.settings_rounded);
@@ -26,9 +29,15 @@ void main() {
 
     test('returns correct config for common user directories', () {
       expect(getFolderIconConfig('my_drive').icon, Icons.storage_rounded);
-      expect(getFolderIconConfig('desktop_folder').icon, Icons.desktop_windows_rounded);
+      expect(
+        getFolderIconConfig('desktop_folder').icon,
+        Icons.desktop_windows_rounded,
+      );
       expect(getFolderIconConfig('documents').icon, Icons.article_rounded);
-      expect(getFolderIconConfig('downloads').icon, Icons.file_download_rounded);
+      expect(
+        getFolderIconConfig('downloads').icon,
+        Icons.file_download_rounded,
+      );
       expect(getFolderIconConfig('my_music').icon, Icons.library_music_rounded);
       expect(getFolderIconConfig('pictures').icon, Icons.photo_library_rounded);
       expect(getFolderIconConfig('videos').icon, Icons.movie_creation_rounded);
@@ -55,11 +64,17 @@ void main() {
       expect(getFileIconConfig('index.js').icon, Icons.javascript_rounded);
       expect(getFileIconConfig('server.go').icon, Icons.bolt_rounded);
       expect(getFileIconConfig('main.rs').icon, Icons.build_circle_rounded);
-      expect(getFileIconConfig('helper.cpp').icon, Icons.settings_suggest_rounded);
+      expect(
+        getFileIconConfig('helper.cpp').icon,
+        Icons.settings_suggest_rounded,
+      );
     });
 
     test('returns correct config for config and markup files', () {
-      expect(getFileIconConfig('config.yaml').icon, Icons.settings_input_component_rounded);
+      expect(
+        getFileIconConfig('config.yaml').icon,
+        Icons.settings_input_component_rounded,
+      );
       expect(getFileIconConfig('data.json').icon, Icons.data_object_rounded);
       expect(getFileIconConfig('index.html').icon, Icons.html_rounded);
       expect(getFileIconConfig('pubspec.lock').icon, Icons.lock_rounded);
@@ -69,7 +84,10 @@ void main() {
     test('returns correct config for media files', () {
       expect(getFileIconConfig('video.mp4').icon, Icons.movie_creation_rounded);
       expect(getFileIconConfig('photo.jpg').icon, Icons.image_rounded);
-      expect(getFileIconConfig('document.pdf').icon, Icons.picture_as_pdf_rounded);
+      expect(
+        getFileIconConfig('document.pdf').icon,
+        Icons.picture_as_pdf_rounded,
+      );
       expect(getFileIconConfig('sheet.xlsx').icon, Icons.table_chart_rounded);
       expect(getFileIconConfig('archive.zip').icon, Icons.inventory_2_rounded);
       expect(getFileIconConfig('audio.mp3').icon, Icons.music_note_rounded);

@@ -9,7 +9,9 @@ import 'package:onyxcore/features/video_player/presentation/controllers/marker_c
 import 'package:onyxcore/features/video_player/presentation/providers/video_markers_provider.dart';
 
 class MockPlayer extends Mock implements Player {}
+
 class MockPlayerState extends Mock implements PlayerState {}
+
 class MockMarkerActions extends Mock implements MarkerActions {}
 
 void main() {
@@ -35,15 +37,22 @@ void main() {
 
     setUp(() {
       mockMarkerActions = MockMarkerActions();
-      when(() => mockMarkerActions.addMarker(any(), any(), any(), icon: any(named: 'icon'))).thenAnswer((_) async {});
-      when(() => mockMarkerActions.updateMarker(any(), any())).thenAnswer((_) async {});
+      when(
+        () => mockMarkerActions.addMarker(
+          any(),
+          any(),
+          any(),
+          icon: any(named: 'icon'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockMarkerActions.updateMarker(any(), any()),
+      ).thenAnswer((_) async {});
     });
 
     Widget buildTestApp(WidgetTester tester, void Function(WidgetRef) onBuild) {
       return ProviderScope(
-        overrides: [
-          markerActionsProvider.overrideWithValue(mockMarkerActions),
-        ],
+        overrides: [markerActionsProvider.overrideWithValue(mockMarkerActions)],
         child: MaterialApp(
           home: Scaffold(
             body: Consumer(
@@ -61,8 +70,12 @@ void main() {
       mockPlayer = MockPlayer();
       mockPlayerState = MockPlayerState();
       when(() => mockPlayer.state).thenReturn(mockPlayerState);
-      when(() => mockPlayerState.duration).thenReturn(const Duration(seconds: 100));
-      when(() => mockPlayerState.position).thenReturn(const Duration(seconds: 50));
+      when(
+        () => mockPlayerState.duration,
+      ).thenReturn(const Duration(seconds: 100));
+      when(
+        () => mockPlayerState.position,
+      ).thenReturn(const Duration(seconds: 50));
       when(() => mockPlayer.pause()).thenAnswer((_) async {});
       when(() => mockPlayer.play()).thenAnswer((_) async {});
 
@@ -103,75 +116,100 @@ void main() {
 
     setUpAll(() {
       registerFallbackValue(Duration.zero);
-      registerFallbackValue(VideoMarker(
+      registerFallbackValue(
+        VideoMarker(id: '1', timestamp: Duration.zero, content: ''),
+      );
+    });
+
+    testWidgets(
+      'openMarkerEditor without existing marker pauses and positions anchor',
+      (tester) async {
+        await tester.pumpWidget(buildTestApp(tester, setupController));
+
+        controller.openMarkerEditor();
+
+        expect(isMarkerEditorActive, isTrue);
+        expect(isControlsVisible, isTrue);
+        expect(editingMarker, isNull);
+        verify(() => mockPlayer.pause()).called(1);
+
+        // 50s / 100s = 0.5 fraction. Width is 800. 0.5 * 800 = 400
+        expect(markerEditorAnchor, equals(const Offset(400, 0)));
+      },
+    );
+
+    testWidgets('openMarkerEditor with existing marker uses marker timestamp', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestApp(tester, setupController));
+
+      final marker = VideoMarker(
         id: '1',
-        timestamp: Duration.zero,
-        content: '',
-      ));
-    });
-
-    testWidgets('openMarkerEditor without existing marker pauses and positions anchor', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, setupController));
-
-      controller.openMarkerEditor();
-
-      expect(isMarkerEditorActive, isTrue);
-      expect(isControlsVisible, isTrue);
-      expect(editingMarker, isNull);
-      verify(() => mockPlayer.pause()).called(1);
-      
-      // 50s / 100s = 0.5 fraction. Width is 800. 0.5 * 800 = 400
-      expect(markerEditorAnchor, equals(const Offset(400, 0)));
-    });
-
-    testWidgets('openMarkerEditor with existing marker uses marker timestamp', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, setupController));
-
-      final marker = VideoMarker(id: '1', timestamp: const Duration(seconds: 25), content: 'Test');
+        timestamp: const Duration(seconds: 25),
+        content: 'Test',
+      );
       controller.openMarkerEditor(marker: marker);
 
       expect(editingMarker, equals(marker));
-      
+
       // 25s / 100s = 0.25 fraction. Width is 800. 0.25 * 800 = 200
       expect(markerEditorAnchor, equals(const Offset(200, 0)));
     });
 
-    testWidgets('saveMarker creates new marker when editingMarker is null', (tester) async {
+    testWidgets('saveMarker creates new marker when editingMarker is null', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       await controller.saveMarker('New Content', 'test-icon');
 
-      verify(() => mockMarkerActions.addMarker(
-        '/path/to/video.mp4',
-        const Duration(seconds: 50),
-        'New Content',
-        icon: 'test-icon',
-      )).called(1);
+      verify(
+        () => mockMarkerActions.addMarker(
+          '/path/to/video.mp4',
+          const Duration(seconds: 50),
+          'New Content',
+          icon: 'test-icon',
+        ),
+      ).called(1);
 
       expect(isMarkerEditorActive, isFalse);
     });
 
-    testWidgets('saveMarker updates marker when editingMarker is not null', (tester) async {
+    testWidgets('saveMarker updates marker when editingMarker is not null', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
-      final marker = VideoMarker(id: '1', timestamp: const Duration(seconds: 25), content: 'Test');
+      final marker = VideoMarker(
+        id: '1',
+        timestamp: const Duration(seconds: 25),
+        content: 'Test',
+      );
       editingMarker = marker;
 
       await controller.saveMarker('Updated Content', 'updated-icon');
 
-      verify(() => mockMarkerActions.updateMarker(
-        '/path/to/video.mp4',
-        marker.copyWith(content: 'Updated Content', icon: 'updated-icon'),
-      )).called(1);
+      verify(
+        () => mockMarkerActions.updateMarker(
+          '/path/to/video.mp4',
+          marker.copyWith(content: 'Updated Content', icon: 'updated-icon'),
+        ),
+      ).called(1);
 
       expect(isMarkerEditorActive, isFalse);
     });
 
-    testWidgets('closeMarkerEditor resets state and resumes if requested', (tester) async {
+    testWidgets('closeMarkerEditor resets state and resumes if requested', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       isMarkerEditorActive = true;
-      editingMarker = VideoMarker(id: '1', timestamp: Duration.zero, content: '');
+      editingMarker = VideoMarker(
+        id: '1',
+        timestamp: Duration.zero,
+        content: '',
+      );
       markerEditorAnchor = const Offset(10, 10);
 
       controller.closeMarkerEditor(resume: true);

@@ -88,14 +88,21 @@ void main() {
 
     group('EngineUpdateInfo', () {
       test('U-DL-ENG-03: Create with all required fields', () {
-        final info = EngineUpdateInfo(apiUrl: 'http://api', assetName: 'asset.zip');
+        final info = EngineUpdateInfo(
+          apiUrl: 'http://api',
+          assetName: 'asset.zip',
+        );
         expect(info.apiUrl, 'http://api');
         expect(info.assetName, 'asset.zip');
         expect(info.checksumAssetName, isNull);
       });
 
       test('U-DL-ENG-04: Create with optional checksum', () {
-        final info = EngineUpdateInfo(apiUrl: 'http://api', assetName: 'asset.zip', checksumAssetName: 'asset.zip.sha256');
+        final info = EngineUpdateInfo(
+          apiUrl: 'http://api',
+          assetName: 'asset.zip',
+          checksumAssetName: 'asset.zip.sha256',
+        );
         expect(info.checksumAssetName, 'asset.zip.sha256');
       });
     });
@@ -107,23 +114,35 @@ void main() {
           MediaInfo(id: '2', title: '2', originalUrl: '2'),
           MediaInfo(id: '3', title: '3', originalUrl: '3'),
         ];
-        final exception = PartialMetadataException(partialInfos: partials, message: 'Timeout');
+        final exception = PartialMetadataException(
+          partialInfos: partials,
+          message: 'Timeout',
+        );
         expect(exception.partialInfos.length, 3);
         expect(exception.message, 'Timeout');
       });
 
       test('U-DL-ENG-06: Return message string', () {
-        final exception = PartialMetadataException(partialInfos: const [], message: 'Timed out after 10 minutes');
+        final exception = PartialMetadataException(
+          partialInfos: const [],
+          message: 'Timed out after 10 minutes',
+        );
         expect(exception.toString(), 'Timed out after 10 minutes');
       });
 
       test('U-DL-ENG-07: Implement Exception interface', () {
-        final exception = PartialMetadataException(partialInfos: const [], message: 'Error');
+        final exception = PartialMetadataException(
+          partialInfos: const [],
+          message: 'Error',
+        );
         expect(exception, isA<Exception>());
       });
 
       test('U-DL-ENG-08: Handle empty partialInfos', () {
-        final exception = PartialMetadataException(partialInfos: const [], message: 'No data');
+        final exception = PartialMetadataException(
+          partialInfos: const [],
+          message: 'No data',
+        );
         expect(exception.partialInfos, isEmpty);
         expect(exception.message, 'No data');
       });
@@ -152,13 +171,19 @@ void main() {
         expect(await engine.uninstall(), isNull);
       });
 
-      test('U-DL-ENG-13: Return null by default for getInstalledVersion', () async {
-        expect(await engine.getInstalledVersion(), isNull);
-      });
+      test(
+        'U-DL-ENG-13: Return null by default for getInstalledVersion',
+        () async {
+          expect(await engine.getInstalledVersion(), isNull);
+        },
+      );
 
-      test('U-DL-ENG-14: Return null by default for getLatestVersion', () async {
-        expect(await engine.getLatestVersion(), isNull);
-      });
+      test(
+        'U-DL-ENG-14: Return null by default for getLatestVersion',
+        () async {
+          expect(await engine.getLatestVersion(), isNull);
+        },
+      );
     });
   });
 }

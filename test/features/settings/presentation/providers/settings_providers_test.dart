@@ -10,15 +10,13 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 class FakeAppDatabaseForNotifier implements AppDatabase {
   @override
   Stream<List<Setting>> watchAllSettings() => Stream.empty();
-  
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeSettingsRepository implements SettingsRepository {
-  AppSettings currentSettings = const AppSettings(
-    
-  );
+  AppSettings currentSettings = const AppSettings();
 
   @override
   Future<AppSettings> load() async {
@@ -35,7 +33,7 @@ class FakeSettingsRepository implements SettingsRepository {
 
   @override
   Future<void> removeFolderSorts(List<String> paths) async {}
-  
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -62,35 +60,44 @@ void main() {
 
   test('setFolderSort updates local state', () async {
     final notifier = container.read(settingsProvider.notifier);
-    
+
     // Await initialization
     await container.read(settingsProvider.future);
 
     await notifier.setFolderSort('/some/path', SortOption.lastModified);
-    
-    final state = container.read(settingsProvider).value;
-    expect(state?.gallerySortSettings['/some/path'], SortOption.lastModified.name);
-  });
 
-  test('cleanupFolderSorts removes exact paths and child paths from local state', () async {
-    // Inject pre-existing sorts
-    fakeRepo.currentSettings = const AppSettings(
-      gallerySortSettings: {
-        '/test/dir': 'lastModified',
-        '/test/dir/child': 'aToZ',
-        '/other/dir': 'zToA',
-      }
+    final state = container.read(settingsProvider).value;
+    expect(
+      state?.gallerySortSettings['/some/path'],
+      SortOption.lastModified.name,
     );
-    
-    final notifier = container.read(settingsProvider.notifier);
-    // Await initialization
-    await container.read(settingsProvider.future);
-
-    await notifier.cleanupFolderSorts(['/test/dir']);
-
-    final state = container.read(settingsProvider).value;
-    expect(state?.gallerySortSettings.containsKey('/test/dir'), isFalse);
-    expect(state?.gallerySortSettings.containsKey('/test/dir/child'), isFalse);
-    expect(state?.gallerySortSettings.containsKey('/other/dir'), isTrue);
   });
+
+  test(
+    'cleanupFolderSorts removes exact paths and child paths from local state',
+    () async {
+      // Inject pre-existing sorts
+      fakeRepo.currentSettings = const AppSettings(
+        gallerySortSettings: {
+          '/test/dir': 'lastModified',
+          '/test/dir/child': 'aToZ',
+          '/other/dir': 'zToA',
+        },
+      );
+
+      final notifier = container.read(settingsProvider.notifier);
+      // Await initialization
+      await container.read(settingsProvider.future);
+
+      await notifier.cleanupFolderSorts(['/test/dir']);
+
+      final state = container.read(settingsProvider).value;
+      expect(state?.gallerySortSettings.containsKey('/test/dir'), isFalse);
+      expect(
+        state?.gallerySortSettings.containsKey('/test/dir/child'),
+        isFalse,
+      );
+      expect(state?.gallerySortSettings.containsKey('/other/dir'), isTrue);
+    },
+  );
 }

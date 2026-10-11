@@ -17,7 +17,6 @@ class ConflictResult {
 }
 
 class ConflictDialog extends ConsumerStatefulWidget {
-
   const ConflictDialog({
     required this.fileName,
     required this.destinationPath,
@@ -257,7 +256,9 @@ class _ConflictDialogState extends ConsumerState<ConflictDialog>
                                           ),
                                         ),
                                         side: BorderSide(
-                                          color: Colors.white.withValues(alpha: 0.2),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.2,
+                                          ),
                                         ),
                                       ),
                                     ),

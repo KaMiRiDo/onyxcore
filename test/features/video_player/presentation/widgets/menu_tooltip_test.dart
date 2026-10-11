@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/menu_tooltip.dart';
 
 void main() {
-  testWidgets('MenuTooltip shows and hides message on hover', (WidgetTester tester) async {
+  testWidgets('MenuTooltip shows and hides message on hover', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -33,17 +35,17 @@ void main() {
     expect(find.text('Test Tooltip'), findsNothing);
   });
 
-  testWidgets('MenuTooltip handles long text gracefully', (WidgetTester tester) async {
-    const longText = 'This is a very very very long tooltip message that should be truncated by maxLines: 1';
-    
+  testWidgets('MenuTooltip handles long text gracefully', (
+    WidgetTester tester,
+  ) async {
+    const longText =
+        'This is a very very very long tooltip message that should be truncated by maxLines: 1';
+
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
           body: Center(
-            child: MenuTooltip(
-              message: longText,
-              child: Text('Hover Me'),
-            ),
+            child: MenuTooltip(message: longText, child: Text('Hover Me')),
           ),
         ),
       ),

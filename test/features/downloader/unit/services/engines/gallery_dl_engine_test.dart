@@ -24,7 +24,6 @@ class MockHttpClient extends Fake implements HttpClient {
 }
 
 class MockHttpClientRequest extends Fake implements HttpClientRequest {
-
   MockHttpClientRequest(this.client);
   final MockHttpClient client;
   final MockHttpHeaders _headers = MockHttpHeaders();
@@ -52,7 +51,6 @@ class MockHttpHeaders extends Fake implements HttpHeaders {
 }
 
 class MockHttpClientResponse extends Fake implements HttpClientResponse {
-
   MockHttpClientResponse(this.statusCode, this._body);
   @override
   final int statusCode;
@@ -115,41 +113,50 @@ void main() {
               'full_name': 'Test User',
               'username': 'testuser',
               'profile_pic_url_hd': 'http://image.com/pic.jpg',
-              'edge_owner_to_timeline_media': {'count': 42, 'edges': []}
-            }
-          }
+              'edge_owner_to_timeline_media': {'count': 42, 'edges': []},
+            },
+          },
         });
 
-        final result = await engine.fetchInstagramProfile('https://instagram.com/testuser', null);
+        final result = await engine.fetchInstagramProfile(
+          'https://instagram.com/testuser',
+          null,
+        );
         expect(result, isNotNull);
         expect(result!.length, 1);
         expect(result.first.title, 'Test User (@testuser)');
         expect(result.first.isProfile, isTrue);
       });
 
-      test('U-DL-GAL-06: Fallback to gallery-dl if API request fails', () async {
-        mockHttpOverrides.client.statusCode = 404;
-        final result = await engine.fetchInstagramProfile('https://instagram.com/testuser', null);
-        expect(result, isNull);
-      });
+      test(
+        'U-DL-GAL-06: Fallback to gallery-dl if API request fails',
+        () async {
+          mockHttpOverrides.client.statusCode = 404;
+          final result = await engine.fetchInstagramProfile(
+            'https://instagram.com/testuser',
+            null,
+          );
+          expect(result, isNull);
+        },
+      );
 
       test('U-DL-GAL-07: Pass cookies to the request', () async {
         mockHttpOverrides.client.statusCode = 200;
         mockHttpOverrides.client.responseBody = jsonEncode({
           'data': {
-            'user': {
-              'full_name': 'Test',
-              'username': 'test'
-            }
-          }
+            'user': {'full_name': 'Test', 'username': 'test'},
+          },
         });
-        final result = await engine.fetchInstagramProfile('https://instagram.com/testuser', 'none');
+        final result = await engine.fetchInstagramProfile(
+          'https://instagram.com/testuser',
+          'none',
+        );
         expect(result, isNotNull); // Meaning it didn't crash.
       });
     });
 
     // 3. Streaming JSON State Machine is tested indirectly via fetchMetadata or we can't easily mock Process.start
-    // without process wrapping. Since fetchMetadata spawns a process, we will skip mocking Process.start unless 
+    // without process wrapping. Since fetchMetadata spawns a process, we will skip mocking Process.start unless
     // we use a wrapper. Wait, we can test _parseGalleryDlJsonBlock directly.
 
     group('4. JSON Block Parsing — File Events', () {
@@ -158,10 +165,17 @@ void main() {
           [
             3,
             {'url': 'http://img.com/1.jpg', 'title': 'My Post'},
-            'http://img.com/1.jpg'
-          ]
+            'http://img.com/1.jpg',
+          ],
         ]);
-        final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
+        final infos = await engine.parseGalleryDlJsonBlock(
+          block,
+          'http://url.com',
+          false,
+          null,
+          0,
+          false,
+        );
         expect(infos.length, 1);
         expect(infos.first.formats.first.formatString, 'http://img.com/1.jpg');
       });
@@ -173,144 +187,251 @@ void main() {
         final block = jsonEncode([
           [
             3,
-            {'url': 'http://img.com/1.jpg', 'title': 'My Post'}
+            {'url': 'http://img.com/1.jpg', 'title': 'My Post'},
           ],
           [
             3,
-            {'url': 'http://img.com/1.jpg', 'title': 'My Post'}
-          ]
+            {'url': 'http://img.com/1.jpg', 'title': 'My Post'},
+          ],
         ]);
-        final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
+        final infos = await engine.parseGalleryDlJsonBlock(
+          block,
+          'http://url.com',
+          false,
+          null,
+          0,
+          false,
+        );
         expect(infos.length, 2);
       });
     });
 
     group('5. Platform-Specific Title & Thumbnail Extraction', () {
-      test('U-DL-GAL-14: Extract Reddit post titles cleanly without clutter', () async {
-        final block1 = jsonEncode([
-          [
-            3,
-            {
-              'subreddit': 'InsideMollywood',
-              'title': 'Looks like a warning sign for many 😅',
-              'author': 'Icy_Beach4427',
-              'url': 'http://img.com/1.mp4'
-            }
-          ]
-        ]);
-        final infos1 = await engine.parseGalleryDlJsonBlock(block1, 'http://url.com', false, null, 0, false);
-        expect(infos1.first.title, 'Looks like a warning sign for many 😅');
+      test(
+        'U-DL-GAL-14: Extract Reddit post titles cleanly without clutter',
+        () async {
+          final block1 = jsonEncode([
+            [
+              3,
+              {
+                'subreddit': 'InsideMollywood',
+                'title': 'Looks like a warning sign for many 😅',
+                'author': 'Icy_Beach4427',
+                'url': 'http://img.com/1.mp4',
+              },
+            ],
+          ]);
+          final infos1 = await engine.parseGalleryDlJsonBlock(
+            block1,
+            'http://url.com',
+            false,
+            null,
+            0,
+            false,
+          );
+          expect(infos1.first.title, 'Looks like a warning sign for many 😅');
 
-        final block2 = jsonEncode([
-          [
-            3,
-            {'subreddit': 'pics', 'title': 'Cat', 'author': 'User123', 'url': 'http://img.com/1.jpg'}
-          ]
-        ]);
-        final infos2 = await engine.parseGalleryDlJsonBlock(block2, 'http://url.com', false, null, 0, false);
-        expect(infos2.first.title, 'Cat');
+          final block2 = jsonEncode([
+            [
+              3,
+              {
+                'subreddit': 'pics',
+                'title': 'Cat',
+                'author': 'User123',
+                'url': 'http://img.com/1.jpg',
+              },
+            ],
+          ]);
+          final infos2 = await engine.parseGalleryDlJsonBlock(
+            block2,
+            'http://url.com',
+            false,
+            null,
+            0,
+            false,
+          );
+          expect(infos2.first.title, 'Cat');
 
-        final block3 = jsonEncode([
-          [
-            3,
-            {'subreddit': 'pics', 'description': 'Cat photo', 'author': 'User123', 'url': 'http://img.com/1.jpg'}
-          ]
-        ]);
-        final infos3 = await engine.parseGalleryDlJsonBlock(block3, 'http://url.com', false, null, 0, false);
-        expect(infos3.first.title, 'Cat photo');
+          final block3 = jsonEncode([
+            [
+              3,
+              {
+                'subreddit': 'pics',
+                'description': 'Cat photo',
+                'author': 'User123',
+                'url': 'http://img.com/1.jpg',
+              },
+            ],
+          ]);
+          final infos3 = await engine.parseGalleryDlJsonBlock(
+            block3,
+            'http://url.com',
+            false,
+            null,
+            0,
+            false,
+          );
+          expect(infos3.first.title, 'Cat photo');
 
-        final block4 = jsonEncode([
-          [
-            3,
-            {'subreddit': 'pics', 'author': 'User123', 'url': 'http://img.com/1.jpg'}
-          ]
-        ]);
-        final infos4 = await engine.parseGalleryDlJsonBlock(block4, 'http://url.com', false, null, 0, false);
-        expect(infos4.first.title, 'r/pics Post by @User123');
-      });
+          final block4 = jsonEncode([
+            [
+              3,
+              {
+                'subreddit': 'pics',
+                'author': 'User123',
+                'url': 'http://img.com/1.jpg',
+              },
+            ],
+          ]);
+          final infos4 = await engine.parseGalleryDlJsonBlock(
+            block4,
+            'http://url.com',
+            false,
+            null,
+            0,
+            false,
+          );
+          expect(infos4.first.title, 'r/pics Post by @User123');
+        },
+      );
 
       test('U-DL-GAL-15: Extract Twitter/X item URLs correctly', () async {
         final block = jsonEncode([
           [
             3,
-            {'tweet_id': '12345', 'user': {'screen_name': 'test'}, 'url': 'http://img.com/1.jpg'}
-          ]
+            {
+              'tweet_id': '12345',
+              'user': {'screen_name': 'test'},
+              'url': 'http://img.com/1.jpg',
+            },
+          ],
         ]);
-        final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
+        final infos = await engine.parseGalleryDlJsonBlock(
+          block,
+          'http://url.com',
+          false,
+          null,
+          0,
+          false,
+        );
         expect(infos.first.originalUrl, 'https://x.com/test/status/12345');
       });
 
-      test('U-DL-GAL-16: Extract video URLs from Reddit secure_media', () async {
-        final block = jsonEncode([
-          [
-            3,
-            {
-              'secure_media': {
-                'reddit_video': {
-                  'fallback_url': 'http://vid.com/1.mp4'
-                }
-              }
-            }
-          ]
-        ]);
-        final infos = await engine.parseGalleryDlJsonBlock(block, 'http://url.com', false, null, 0, false);
-        expect(infos.first.formats.first.formatString, 'http://vid.com/1.mp4');
-        expect(infos.first.isVideo, isTrue);
-      });
+      test(
+        'U-DL-GAL-16: Extract video URLs from Reddit secure_media',
+        () async {
+          final block = jsonEncode([
+            [
+              3,
+              {
+                'secure_media': {
+                  'reddit_video': {'fallback_url': 'http://vid.com/1.mp4'},
+                },
+              },
+            ],
+          ]);
+          final infos = await engine.parseGalleryDlJsonBlock(
+            block,
+            'http://url.com',
+            false,
+            null,
+            0,
+            false,
+          );
+          expect(
+            infos.first.formats.first.formatString,
+            'http://vid.com/1.mp4',
+          );
+          expect(infos.first.isVideo, isTrue);
+        },
+      );
 
-      test('U-DL-GAL-17: Instagram grouped post individual URL with img_index', () async {
-        final block = jsonEncode([
-          [
-            3,
-            {'shortcode': 'test1234', 'url': 'http://img.com/1.jpg'},
-            'http://img.com/1.jpg'
-          ],
-          [
-            3,
-            {'shortcode': 'test1234', 'url': 'http://img.com/2.jpg'},
-            'http://img.com/2.jpg'
-          ]
-        ]);
-        final infos = await engine.parseGalleryDlJsonBlock(block, 'https://www.instagram.com/p/test1234', false, null, 0, false);
-        expect(infos.length, 2);
-        expect(infos[0].webpageUrl, 'https://www.instagram.com/p/test1234/?img_index=1');
-        expect(infos[1].webpageUrl, 'https://www.instagram.com/p/test1234/?img_index=2');
-      });
+      test(
+        'U-DL-GAL-17: Instagram grouped post individual URL with img_index',
+        () async {
+          final block = jsonEncode([
+            [
+              3,
+              {'shortcode': 'test1234', 'url': 'http://img.com/1.jpg'},
+              'http://img.com/1.jpg',
+            ],
+            [
+              3,
+              {'shortcode': 'test1234', 'url': 'http://img.com/2.jpg'},
+              'http://img.com/2.jpg',
+            ],
+          ]);
+          final infos = await engine.parseGalleryDlJsonBlock(
+            block,
+            'https://www.instagram.com/p/test1234',
+            false,
+            null,
+            0,
+            false,
+          );
+          expect(infos.length, 2);
+          expect(
+            infos[0].webpageUrl,
+            'https://www.instagram.com/p/test1234/?img_index=1',
+          );
+          expect(
+            infos[1].webpageUrl,
+            'https://www.instagram.com/p/test1234/?img_index=2',
+          );
+        },
+      );
 
-      test('U-DL-GAL-18: Preserves existingCount across sequential JSON blocks for galleryIndex', () async {
-        final block1 = jsonEncode([
-          [
-            3,
-            {'shortcode': 'test1', 'url': 'http://img.com/1.jpg'},
-            'http://img.com/1.jpg'
-          ],
-          [
-            3,
-            {'shortcode': 'test2', 'url': 'http://img.com/2.jpg'},
-            'http://img.com/2.jpg'
-          ]
-        ]);
-        final block2 = jsonEncode([
-          [
-            3,
-            {'shortcode': 'test3', 'url': 'http://img.com/3.jpg'},
-            'http://img.com/3.jpg'
-          ],
-          [
-            3,
-            {'shortcode': 'test4', 'url': 'http://img.com/4.jpg'},
-            'http://img.com/4.jpg'
-          ]
-        ]);
+      test(
+        'U-DL-GAL-18: Preserves existingCount across sequential JSON blocks for galleryIndex',
+        () async {
+          final block1 = jsonEncode([
+            [
+              3,
+              {'shortcode': 'test1', 'url': 'http://img.com/1.jpg'},
+              'http://img.com/1.jpg',
+            ],
+            [
+              3,
+              {'shortcode': 'test2', 'url': 'http://img.com/2.jpg'},
+              'http://img.com/2.jpg',
+            ],
+          ]);
+          final block2 = jsonEncode([
+            [
+              3,
+              {'shortcode': 'test3', 'url': 'http://img.com/3.jpg'},
+              'http://img.com/3.jpg',
+            ],
+            [
+              3,
+              {'shortcode': 'test4', 'url': 'http://img.com/4.jpg'},
+              'http://img.com/4.jpg',
+            ],
+          ]);
 
-        final infos1 = await engine.parseGalleryDlJsonBlock(block1, 'https://instagram.com/p/test1', false, null, 0, false);
-        expect(infos1[0].galleryIndex, 1);
-        expect(infos1[1].galleryIndex, 2);
+          final infos1 = await engine.parseGalleryDlJsonBlock(
+            block1,
+            'https://instagram.com/p/test1',
+            false,
+            null,
+            0,
+            false,
+          );
+          expect(infos1[0].galleryIndex, 1);
+          expect(infos1[1].galleryIndex, 2);
 
-        final infos2 = await engine.parseGalleryDlJsonBlock(block2, 'https://instagram.com/p/test1', false, null, infos1.length, false);
-        expect(infos2[0].galleryIndex, 3);
-        expect(infos2[1].galleryIndex, 4);
-      });
+          final infos2 = await engine.parseGalleryDlJsonBlock(
+            block2,
+            'https://instagram.com/p/test1',
+            false,
+            null,
+            infos1.length,
+            false,
+          );
+          expect(infos2[0].galleryIndex, 3);
+          expect(infos2[1].galleryIndex, 4);
+        },
+      );
     });
   });
 }

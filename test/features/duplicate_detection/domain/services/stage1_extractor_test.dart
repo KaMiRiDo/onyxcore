@@ -8,7 +8,6 @@ import 'package:onyxcore/features/duplicate_detection/domain/services/stage1_ext
 // ── Fakes ────────────────────────────────────────────────────────────────────
 
 class _FakeStage1Extractor extends Fake implements Stage1Extractor {
-
   _FakeStage1Extractor({required bool supports, Stage1Metadata? result})
     : _supports = supports,
       _result = result;

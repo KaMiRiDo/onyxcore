@@ -56,16 +56,19 @@ void main() {
         content: 'new_content',
         icon: '📌',
       );
-      
+
       expect(updated.id, 'new_id');
       expect(updated.timestamp, const Duration(milliseconds: 2000));
       expect(updated.content, 'new_content');
       expect(updated.icon, '📌');
     });
 
-    test('copyWith should return a new object with same values if none provided', () {
-      final updated = tMarker.copyWith();
-      expect(updated, equals(tMarker));
-    });
+    test(
+      'copyWith should return a new object with same values if none provided',
+      () {
+        final updated = tMarker.copyWith();
+        expect(updated, equals(tMarker));
+      },
+    );
   });
 }

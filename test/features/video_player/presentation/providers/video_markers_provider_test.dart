@@ -22,14 +22,14 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        (MethodCall methodCall) async {
-          if (methodCall.method == 'getApplicationSupportDirectory') {
-            return appSupportDir.path;
-          }
-          return null;
-        },
-      );
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (MethodCall methodCall) async {
+              if (methodCall.method == 'getApplicationSupportDirectory') {
+                return appSupportDir.path;
+              }
+              return null;
+            },
+          );
 
       videoPath = p.join(tempDir.path, 'video.mp4');
       container = ProviderContainer();
@@ -43,7 +43,9 @@ void main() {
     });
 
     test('videoMarkersProvider loads empty initially', () async {
-      final markers = await container.read(videoMarkersProvider(videoPath).future);
+      final markers = await container.read(
+        videoMarkersProvider(videoPath).future,
+      );
       expect(markers, isEmpty);
     });
 
@@ -56,7 +58,9 @@ void main() {
         'First marker',
       );
 
-      final markers = await container.read(videoMarkersProvider(videoPath).future);
+      final markers = await container.read(
+        videoMarkersProvider(videoPath).future,
+      );
       expect(markers.length, 1);
       expect(markers.first.content, 'First marker');
       expect(markers.first.timestamp, const Duration(seconds: 5));
@@ -71,7 +75,9 @@ void main() {
         'First marker',
       );
 
-      var markers = await container.read(videoMarkersProvider(videoPath).future);
+      var markers = await container.read(
+        videoMarkersProvider(videoPath).future,
+      );
       final originalMarker = markers.first;
 
       final updatedMarker = originalMarker.copyWith(content: 'Updated marker');
@@ -91,7 +97,9 @@ void main() {
         'First marker',
       );
 
-      var markers = await container.read(videoMarkersProvider(videoPath).future);
+      var markers = await container.read(
+        videoMarkersProvider(videoPath).future,
+      );
       expect(markers.length, 1);
 
       await actions.deleteMarker(videoPath, markers.first.id);
@@ -103,18 +111,12 @@ void main() {
     test('deleteAllMarkers should remove all markers', () async {
       final actions = container.read(markerActionsProvider);
 
-      await actions.addMarker(
-        videoPath,
-        const Duration(seconds: 1),
-        'M1',
-      );
-      await actions.addMarker(
-        videoPath,
-        const Duration(seconds: 2),
-        'M2',
-      );
+      await actions.addMarker(videoPath, const Duration(seconds: 1), 'M1');
+      await actions.addMarker(videoPath, const Duration(seconds: 2), 'M2');
 
-      var markers = await container.read(videoMarkersProvider(videoPath).future);
+      var markers = await container.read(
+        videoMarkersProvider(videoPath).future,
+      );
       expect(markers.length, 2);
 
       await actions.deleteAllMarkers(videoPath);

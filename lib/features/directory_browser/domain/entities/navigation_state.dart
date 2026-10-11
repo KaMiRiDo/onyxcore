@@ -2,10 +2,7 @@ import 'package:equatable/equatable.dart';
 
 /// Immutable state representing the navigation history.
 class NavigationState extends Equatable {
-  const NavigationState({
-    this.history = const [],
-    this.historyIndex = -1,
-  });
+  const NavigationState({this.history = const [], this.historyIndex = -1});
 
   final List<String> history;
   final int historyIndex;
@@ -20,10 +17,7 @@ class NavigationState extends Equatable {
   String get currentPath =>
       history.isNotEmpty && historyIndex >= 0 ? history[historyIndex] : '';
 
-  NavigationState copyWith({
-    List<String>? history,
-    int? historyIndex,
-  }) {
+  NavigationState copyWith({List<String>? history, int? historyIndex}) {
     return NavigationState(
       history: history ?? this.history,
       historyIndex: historyIndex ?? this.historyIndex,

@@ -5,26 +5,27 @@ import 'package:onyxcore/features/downloader/presentation/widgets/components/dow
 import 'package:onyxcore/features/downloader/services/downloader_update_service.dart';
 
 class MockDownloaderUpdateNotifier extends DownloaderUpdateNotifier {
-
   MockDownloaderUpdateNotifier(this._state);
   final DownloaderUpdateState _state;
 
   @override
   DownloaderUpdateState build() => _state;
 
-
-
   @override
   Future<void> updateBinaries() async {}
 
   @override
   Future<void> checkForUpdates({bool clearError = true}) async {}
-  
+
   @override
   Future<void> updateEngine(dynamic engine) async {}
-  
+
   @override
-  Future<void> installProcessEngine(dynamic engine, Future<dynamic>? processFuture, {bool isRemoving = false}) async {}
+  Future<void> installProcessEngine(
+    dynamic engine,
+    Future<dynamic>? processFuture, {
+    bool isRemoving = false,
+  }) async {}
 }
 
 void main() {
@@ -40,9 +41,7 @@ void main() {
             downloaderUpdateProvider.overrideWith(() => mockNotifier),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: DownloadsMissingBinariesView(),
-            ),
+            home: Scaffold(body: DownloadsMissingBinariesView()),
           ),
         ),
       );
@@ -51,55 +50,54 @@ void main() {
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
 
-    testWidgets('Shows currentUpdatingEngineName in progress UI during update', (tester) async {
-      final mockNotifier = MockDownloaderUpdateNotifier(
-        const DownloaderUpdateState(
-          isUpdating: true,
-          progress: 0.45,
-          currentUpdatingEngineName: 'yt-dlp',
-        ),
-      );
+    testWidgets(
+      'Shows currentUpdatingEngineName in progress UI during update',
+      (tester) async {
+        final mockNotifier = MockDownloaderUpdateNotifier(
+          const DownloaderUpdateState(
+            isUpdating: true,
+            progress: 0.45,
+            currentUpdatingEngineName: 'yt-dlp',
+          ),
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            downloaderUpdateProvider.overrideWith(() => mockNotifier),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: DownloadsMissingBinariesView(),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              downloaderUpdateProvider.overrideWith(() => mockNotifier),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: DownloadsMissingBinariesView()),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Install Dependencies'), findsNothing);
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      expect(find.text('Installing yt-dlp... 45%'), findsOneWidget);
-    });
+        expect(find.text('Install Dependencies'), findsNothing);
+        expect(find.byType(LinearProgressIndicator), findsOneWidget);
+        expect(find.text('Installing yt-dlp... 45%'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Shows generic progress text if currentUpdatingEngineName is null', (tester) async {
-      final mockNotifier = MockDownloaderUpdateNotifier(
-        const DownloaderUpdateState(
-          isUpdating: true,
-          progress: 0.60,
-        ),
-      );
+    testWidgets(
+      'Shows generic progress text if currentUpdatingEngineName is null',
+      (tester) async {
+        final mockNotifier = MockDownloaderUpdateNotifier(
+          const DownloaderUpdateState(isUpdating: true, progress: 0.60),
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            downloaderUpdateProvider.overrideWith(() => mockNotifier),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: DownloadsMissingBinariesView(),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              downloaderUpdateProvider.overrideWith(() => mockNotifier),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: DownloadsMissingBinariesView()),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Installing... 60%'), findsOneWidget);
-    });
+        expect(find.text('Installing... 60%'), findsOneWidget);
+      },
+    );
   });
 }

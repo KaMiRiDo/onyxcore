@@ -214,7 +214,6 @@ class _BackgroundProcessesButtonState
 
 /// Custom painter that draws a filled pie-chart arc.
 class _PieProgressPainter extends CustomPainter {
-
   _PieProgressPainter({
     required this.progress,
     required this.strokeColor,

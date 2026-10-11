@@ -4,6 +4,7 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
 import 'package:onyxcore/features/image_viewer/presentation/providers/image_playlist_providers.dart';
+
 class TestImageFavoritesNotifier extends ImageFavoritesNotifier {
   // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member, avoid_setters_without_getters
   set updateFavorites(Set<String> favs) => state = favs;
@@ -39,8 +40,18 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final item1 = FileItem(path: '/test/1.jpg', name: '1.jpg', type: FileItemType.image, modified: DateTime.now());
-      final item2 = FileItem(path: '/test/2.jpg', name: '2.jpg', type: FileItemType.image, modified: DateTime.now());
+      final item1 = FileItem(
+        path: '/test/1.jpg',
+        name: '1.jpg',
+        type: FileItemType.image,
+        modified: DateTime.now(),
+      );
+      final item2 = FileItem(
+        path: '/test/2.jpg',
+        name: '2.jpg',
+        type: FileItemType.image,
+        modified: DateTime.now(),
+      );
 
       expect(container.read(currentImageProvider), null);
 
@@ -54,42 +65,83 @@ void main() {
       expect(container.read(currentImageProvider), null);
     });
 
-    test('filteredAndSortedImageQueueProvider applies search, sort, and favorites filter', () {
-      final container = ProviderContainer(
-        overrides: [
-          imageFavoritesProvider.overrideWith((ref) => TestImageFavoritesNotifier()),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'filteredAndSortedImageQueueProvider applies search, sort, and favorites filter',
+      () {
+        final container = ProviderContainer(
+          overrides: [
+            imageFavoritesProvider.overrideWith(
+              (ref) => TestImageFavoritesNotifier(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      final date = DateTime.now();
-      final item1 = FileItem(path: '/test/a.jpg', name: 'a.jpg', type: FileItemType.image, modified: date);
-      final item2 = FileItem(path: '/test/b.jpg', name: 'b.jpg', type: FileItemType.image, modified: date.add(const Duration(days: 1)));
-      final item3 = FileItem(path: '/test/c.png', name: 'c.png', type: FileItemType.image, modified: date.add(const Duration(days: 2)));
+        final date = DateTime.now();
+        final item1 = FileItem(
+          path: '/test/a.jpg',
+          name: 'a.jpg',
+          type: FileItemType.image,
+          modified: date,
+        );
+        final item2 = FileItem(
+          path: '/test/b.jpg',
+          name: 'b.jpg',
+          type: FileItemType.image,
+          modified: date.add(const Duration(days: 1)),
+        );
+        final item3 = FileItem(
+          path: '/test/c.png',
+          name: 'c.png',
+          type: FileItemType.image,
+          modified: date.add(const Duration(days: 2)),
+        );
 
-      container.read(imageQueueProvider.notifier).state = [item2, item1, item3];
+        container.read(imageQueueProvider.notifier).state = [
+          item2,
+          item1,
+          item3,
+        ];
 
-      expect(container.read(filteredAndSortedImageQueueProvider), [item2, item1, item3]);
+        expect(container.read(filteredAndSortedImageQueueProvider), [
+          item2,
+          item1,
+          item3,
+        ]);
 
-      container.read(imageSearchQueryProvider.notifier).state = 'png';
-      expect(container.read(filteredAndSortedImageQueueProvider), [item3]);
-      container.read(imageSearchQueryProvider.notifier).state = '';
+        container.read(imageSearchQueryProvider.notifier).state = 'png';
+        expect(container.read(filteredAndSortedImageQueueProvider), [item3]);
+        container.read(imageSearchQueryProvider.notifier).state = '';
 
-      container.read(imageSortOptionProvider.notifier).state = SortOption.aToZ;
-      expect(container.read(filteredAndSortedImageQueueProvider), [item1, item2, item3]);
+        container.read(imageSortOptionProvider.notifier).state =
+            SortOption.aToZ;
+        expect(container.read(filteredAndSortedImageQueueProvider), [
+          item1,
+          item2,
+          item3,
+        ]);
 
-      (container.read(imageFavoritesProvider.notifier) as TestImageFavoritesNotifier).updateFavorites = {'/test/b.jpg'};
-      container.read(imageViewModeProvider.notifier).state = ImageViewMode.favorites;
-      expect(container.read(filteredAndSortedImageQueueProvider), [item2]);
-    });
+        (container.read(imageFavoritesProvider.notifier)
+                as TestImageFavoritesNotifier)
+            .updateFavorites = {
+          '/test/b.jpg',
+        };
+        container.read(imageViewModeProvider.notifier).state =
+            ImageViewMode.favorites;
+        expect(container.read(filteredAndSortedImageQueueProvider), [item2]);
+      },
+    );
 
     test('imagePlaylistProviderConfig is properly initialized', () {
       final config = imagePlaylistProviderConfig;
-      
+
       expect(config.currentPathProvider, imageCurrentPathProvider);
       expect(config.rootPathProvider, imageRootPathProvider);
       expect(config.pathHistoryProvider, imagePathHistoryProvider);
-      expect(config.pathForwardHistoryProvider, imagePathForwardHistoryProvider);
+      expect(
+        config.pathForwardHistoryProvider,
+        imagePathForwardHistoryProvider,
+      );
       expect(config.showHiddenProvider, imageShowHiddenProvider);
       expect(config.selectionProvider, imageSelectionProvider);
       expect(config.selectionAnchorProvider, imageSelectionAnchorProvider);
@@ -97,7 +149,10 @@ void main() {
       expect(config.isReloadingProvider, imageIsReloadingProvider);
       expect(config.sortOptionProvider, imageSortOptionProvider);
       expect(config.searchQueryProvider, imageSearchQueryProvider);
-      expect(config.filteredAndSortedQueueProvider, filteredAndSortedImageQueueProvider);
+      expect(
+        config.filteredAndSortedQueueProvider,
+        filteredAndSortedImageQueueProvider,
+      );
       expect(config.viewModeProvider, imageViewModeProvider);
       expect(config.favoritesValue, ImageViewMode.favorites);
     });

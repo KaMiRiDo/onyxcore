@@ -3,9 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SearchReplaceOverlay extends StatefulWidget {
-
   const SearchReplaceOverlay({
-    required this.initialQuery, required this.initialCaseSensitive, required this.initialUseRegex, required this.totalMatches, required this.currentMatchIndex, required this.isPreviewMode, required this.onSearchChanged, required this.onReplace, required this.onReplaceAll, required this.onNext, required this.onPrev, required this.onClose, required this.onCaseSensitiveChanged, required this.onUseRegexChanged, super.key,
+    required this.initialQuery,
+    required this.initialCaseSensitive,
+    required this.initialUseRegex,
+    required this.totalMatches,
+    required this.currentMatchIndex,
+    required this.isPreviewMode,
+    required this.onSearchChanged,
+    required this.onReplace,
+    required this.onReplaceAll,
+    required this.onNext,
+    required this.onPrev,
+    required this.onClose,
+    required this.onCaseSensitiveChanged,
+    required this.onUseRegexChanged,
+    super.key,
     this.onDragUpdate,
   });
   final String initialQuery;
@@ -114,9 +127,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: _buildSearchBox(canGoNext, canGoPrev),
-                    ),
+                    Expanded(child: _buildSearchBox(canGoNext, canGoPrev)),
                     const SizedBox(width: 8),
                     // Nav buttons
                     Container(
@@ -170,9 +181,7 @@ class _SearchReplaceOverlayState extends State<SearchReplaceOverlay> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(
-                        child: _buildReplaceBox(),
-                      ),
+                      Expanded(child: _buildReplaceBox()),
                       const SizedBox(width: 8),
                       _buildTextButton('Replace', () {
                         if (hasMatches) {

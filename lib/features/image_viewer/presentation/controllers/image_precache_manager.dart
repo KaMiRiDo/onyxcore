@@ -20,12 +20,12 @@ class ImagePrecacheManager {
 
   final List<PrecacheTask> _queue = [];
   final List<String> _cachedPaths = [];
-  
+
   bool _isProcessing = false;
-  
+
   // Custom limit on cached items to approximate 300MB
   // E.g., 20 items of FHD (1920x1920x4 bytes ~ 14MB each) is ~280MB.
-  int maxCachedItems = 20; 
+  int maxCachedItems = 20;
 
   bool get isProcessing => _isProcessing;
   List<String> get cachedPaths => List.unmodifiable(_cachedPaths);
@@ -36,28 +36,28 @@ class ImagePrecacheManager {
     required Future<void> Function(BuildContext? context) precacheAction,
   }) {
     if (_cachedPaths.contains(path)) return; // Already cached
-    
+
     // Check if already in queue
     final existingIndex = _queue.indexWhere((t) => t.path == path);
     if (existingIndex != -1) {
       if (_queue[existingIndex].level > level) {
         // Upgrade priority
         final task = _queue.removeAt(existingIndex);
-        _queue.add(PrecacheTask(
-          path: task.path,
-          level: level,
-          precacheAction: task.precacheAction,
-        ));
+        _queue.add(
+          PrecacheTask(
+            path: task.path,
+            level: level,
+            precacheAction: task.precacheAction,
+          ),
+        );
         _sortQueue();
       }
       return;
     }
 
-    _queue.add(PrecacheTask(
-      path: path,
-      level: level,
-      precacheAction: precacheAction,
-    ));
+    _queue.add(
+      PrecacheTask(path: path, level: level, precacheAction: precacheAction),
+    );
     _sortQueue();
     _processNext();
   }
@@ -74,9 +74,9 @@ class ImagePrecacheManager {
 
     try {
       await task.precacheAction(null);
-      
+
       _cachedPaths.add(task.path);
-      
+
       // LRU Eviction
       if (_cachedPaths.length > maxCachedItems) {
         _cachedPaths.removeAt(0);

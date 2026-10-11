@@ -14,12 +14,17 @@ import 'package:onyxcore/features/settings/domain/entities/app_settings.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class MockDirectoryRepository extends Mock implements DirectoryRepository {}
+
 class MockAppDatabase extends Mock implements AppDatabase {
   MockAppDatabase() {
     when(() => getImageFavorites()).thenAnswer((_) async => <String>{});
     when(() => pruneMetadataCache(any())).thenAnswer((_) async => <String>[]);
-    when(() => getAllMetadataCache()).thenAnswer((_) async => <MetadataCacheEntry>[]);
-    when(() => getAllThumbnailEntries()).thenAnswer((_) async => <ThumbnailCacheEntry>[]);
+    when(
+      () => getAllMetadataCache(),
+    ).thenAnswer((_) async => <MetadataCacheEntry>[]);
+    when(
+      () => getAllThumbnailEntries(),
+    ).thenAnswer((_) async => <ThumbnailCacheEntry>[]);
     when(() => getPlaybackPosition(any())).thenAnswer((_) async => null);
     when(() => savePlaybackPosition(any(), any())).thenAnswer((_) async {});
   }
@@ -27,7 +32,8 @@ class MockAppDatabase extends Mock implements AppDatabase {
 
 class MockSettingsNotifierEnabled extends SettingsNotifier {
   @override
-  Future<AppSettings> build() async => const AppSettings(imageFilterSortEnabled: true);
+  Future<AppSettings> build() async =>
+      const AppSettings(imageFilterSortEnabled: true);
 }
 
 class MockSettingsNotifierDisabled extends SettingsNotifier {
@@ -41,9 +47,15 @@ void main() {
       final now = DateTime.now();
       return ProviderScope(
         overrides: [
-          directoryRepositoryProvider.overrideWithValue(MockDirectoryRepository()),
+          directoryRepositoryProvider.overrideWithValue(
+            MockDirectoryRepository(),
+          ),
           databaseProvider.overrideWithValue(MockAppDatabase()),
-          settingsProvider.overrideWith(isFilterSortEnabled ? MockSettingsNotifierEnabled.new : MockSettingsNotifierDisabled.new),
+          settingsProvider.overrideWith(
+            isFilterSortEnabled
+                ? MockSettingsNotifierEnabled.new
+                : MockSettingsNotifierDisabled.new,
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -61,7 +73,9 @@ void main() {
       );
     }
 
-    testWidgets('shows FilterSortButton when imageFilterSortEnabled is true', (tester) async {
+    testWidgets('shows FilterSortButton when imageFilterSortEnabled is true', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -72,7 +86,9 @@ void main() {
       expect(find.byType(FilterSortButton), findsOneWidget);
     });
 
-    testWidgets('hides FilterSortButton when imageFilterSortEnabled is false', (tester) async {
+    testWidgets('hides FilterSortButton when imageFilterSortEnabled is false', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());

@@ -130,11 +130,7 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              iconData,
-              color: iconColor,
-              size: 20,
-            ),
+            Icon(iconData, color: iconColor, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -246,9 +242,12 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: filteredDevices.map((device) {
             final storageText = _formatUsageString(device.usage, device.size);
-            final freeSpaceText = _getFreeSpaceString(device.usage, device.size);
-            
-            final displayStorageText = freeSpaceText.isNotEmpty 
+            final freeSpaceText = _getFreeSpaceString(
+              device.usage,
+              device.size,
+            );
+
+            final displayStorageText = freeSpaceText.isNotEmpty
                 ? '$storageText  •  Free: $freeSpaceText'
                 : storageText;
 

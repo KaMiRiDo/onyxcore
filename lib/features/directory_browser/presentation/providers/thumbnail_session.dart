@@ -8,8 +8,10 @@ import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumb
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_job.dart';
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_queue.dart';
 import 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_scheduling_policy.dart';
-import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart' show FileGrid;
-import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart' show MediaThumbnailPreview;
+import 'package:onyxcore/features/directory_browser/presentation/widgets/file_grid.dart'
+    show FileGrid;
+import 'package:onyxcore/features/directory_browser/presentation/widgets/media_thumbnail_preview.dart'
+    show MediaThumbnailPreview;
 
 export 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_candidate.dart';
 export 'package:onyxcore/features/directory_browser/presentation/thumbnail/thumbnail_generation.dart'
@@ -57,7 +59,8 @@ class ThumbnailSession implements ThumbnailProcessController {
       ThumbnailSchedulingPolicy.scrollSettleDebounceMillis;
 
   /// Maximum source-file size eligible for in-process Dart image decoding.
-  static const int dartDecodeMaxBytes = ThumbnailSchedulingPolicy.dartDecodeMaxBytes;
+  static const int dartDecodeMaxBytes =
+      ThumbnailSchedulingPolicy.dartDecodeMaxBytes;
 
   /// Maximum concurrent image decode workers.
   static const int maxImageWorkers = ThumbnailSchedulingPolicy.maxImageWorkers;
@@ -75,11 +78,7 @@ class ThumbnailSession implements ThumbnailProcessController {
     String tempThumbPath, {
     required bool isImage,
   }) =>
-      _getThumbnailerCommandForward(
-        filePath,
-        tempThumbPath,
-        isImage: isImage,
-      );
+      _getThumbnailerCommandForward(filePath, tempThumbPath, isImage: isImage);
 
   // ── Session identity ───────────────────────────────────────────────────────
 
@@ -147,11 +146,20 @@ class ThumbnailSession implements ThumbnailProcessController {
     if (cs == null) return;
 
     // 3 & 4. Admit visible first, then prefetch.
-    final visible = candidates.where((c) => visiblePaths.contains(c.path)).toList();
-    final prefetch = candidates.where((c) => !visiblePaths.contains(c.path)).toList();
+    final visible = candidates
+        .where((c) => visiblePaths.contains(c.path))
+        .toList();
+    final prefetch = candidates
+        .where((c) => !visiblePaths.contains(c.path))
+        .toList();
 
     for (final candidate in visible) {
-      _queue.admit(candidate, ThumbnailSchedulingPolicy.visiblePriority, _revision, cs);
+      _queue.admit(
+        candidate,
+        ThumbnailSchedulingPolicy.visiblePriority,
+        _revision,
+        cs,
+      );
     }
     for (final candidate in prefetch) {
       _queue.admit(
@@ -267,9 +275,11 @@ class ThumbnailSession implements ThumbnailProcessController {
   void _terminateProcess(Process process) {
     try {
       var hasExited = false;
-      process.exitCode.then((_) {
-        hasExited = true;
-      }).catchError((dynamic _) => null);
+      process.exitCode
+          .then((_) {
+            hasExited = true;
+          })
+          .catchError((dynamic _) => null);
 
       // Graceful SIGTERM first.
       process.kill();
@@ -329,5 +339,4 @@ List<String> _getThumbnailerCommandForward(
   String filePath,
   String tempThumbPath, {
   required bool isImage,
-}) =>
-    getThumbnailerCommand(filePath, tempThumbPath, isImage: isImage);
+}) => getThumbnailerCommand(filePath, tempThumbPath, isImage: isImage);

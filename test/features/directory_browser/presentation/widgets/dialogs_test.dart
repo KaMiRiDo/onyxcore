@@ -18,9 +18,12 @@ void main() {
     );
   }
 
-  testWidgets('showVibrantConfirmDialog returns true on confirm', (tester) async {
+  testWidgets('showVibrantConfirmDialog returns true on confirm', (
+    tester,
+  ) async {
     bool? result;
-    await pumpTestWidget(tester, 
+    await pumpTestWidget(
+      tester,
       MaterialApp(
         home: Scaffold(
           body: Builder(
@@ -56,7 +59,8 @@ void main() {
 
   testWidgets('showInputDialog returns input text', (tester) async {
     String? result;
-    await pumpTestWidget(tester, 
+    await pumpTestWidget(
+      tester,
       MaterialApp(
         home: Scaffold(
           body: Builder(
@@ -80,7 +84,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Input Title'), findsOneWidget);
-    
+
     // Type new text
     await tester.enterText(find.byType(TextField), 'new value');
     await tester.pumpAndSettle();
@@ -91,9 +95,12 @@ void main() {
     expect(result, 'new value');
   });
 
-  testWidgets('ConfirmDialog renders and returns false on cancel', (tester) async {
+  testWidgets('ConfirmDialog renders and returns false on cancel', (
+    tester,
+  ) async {
     bool? result;
-    await pumpTestWidget(tester, 
+    await pumpTestWidget(
+      tester,
       MaterialApp(
         home: Scaffold(
           body: Builder(
@@ -119,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Confirm Title'), findsOneWidget);
-    
+
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
@@ -128,7 +135,8 @@ void main() {
 
   testWidgets('PermanentDeleteDialog handles dontAskAgain', (tester) async {
     var dontAskAgainResult = false;
-    await pumpTestWidget(tester, 
+    await pumpTestWidget(
+      tester,
       MaterialApp(
         home: Scaffold(
           body: Builder(
@@ -155,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Are you sure?'), findsOneWidget);
-    
+
     // Tap don't ask again
     await tester.tap(find.text("Don't ask for confirmation in this session"));
     await tester.pumpAndSettle();
@@ -168,7 +176,8 @@ void main() {
   });
 
   testWidgets('ViewerDeleteDialog logic works', (tester) async {
-    await pumpTestWidget(tester, 
+    await pumpTestWidget(
+      tester,
       MaterialApp(
         home: Scaffold(
           body: Builder(

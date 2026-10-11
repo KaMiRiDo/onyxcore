@@ -19,7 +19,9 @@ void main() {
 
   setUpAll(() {
     MediaKit.ensureInitialized();
-    tempDir = Directory.systemTemp.createTempSync('video_player_ytdl_path_test_');
+    tempDir = Directory.systemTemp.createTempSync(
+      'video_player_ytdl_path_test_',
+    );
     db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
   });
 
@@ -30,38 +32,41 @@ void main() {
     }
   });
 
-  testWidgets('VideoPreviewWidget initializes with network stream and sets ytdl_path without crashing', (WidgetTester tester) async {
-    final fileItem = FileItem(
-      path: 'https://sample.com/video.mp4',
-      name: 'video.mp4',
-      type: FileItemType.video,
-      modified: DateTime.now(),
-    );
+  testWidgets(
+    'VideoPreviewWidget initializes with network stream and sets ytdl_path without crashing',
+    (WidgetTester tester) async {
+      final fileItem = FileItem(
+        path: 'https://sample.com/video.mp4',
+        name: 'video.mp4',
+        type: FileItemType.video,
+        modified: DateTime.now(),
+      );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: VideoPreviewWidget(
-            item: fileItem,
-            initParams: const {'is_network_stream': true},
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [databaseProvider.overrideWithValue(db)],
+          child: MaterialApp(
+            home: Scaffold(
+              body: VideoPreviewWidget(
+                item: fileItem,
+                initParams: const {'is_network_stream': true},
+              ),
+            ),
           ),
         ),
-      ),
-    ));
+      );
 
-    // Wait for the player to initialize async
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(seconds: 1));
+      // Wait for the player to initialize async
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(seconds: 1));
 
-    // Verify it rendered successfully
-    expect(find.byType(VideoPreviewWidget), findsOneWidget);
+      // Verify it rendered successfully
+      expect(find.byType(VideoPreviewWidget), findsOneWidget);
 
-    // Cleanup and swallow unmount exceptions from mocked native dependencies
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpAndSettle();
-    while (tester.takeException() != null) {}
-  });
+      // Cleanup and swallow unmount exceptions from mocked native dependencies
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+      while (tester.takeException() != null) {}
+    },
+  );
 }

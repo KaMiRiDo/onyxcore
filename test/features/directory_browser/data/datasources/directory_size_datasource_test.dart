@@ -15,17 +15,22 @@ void main() {
     tempDir.deleteSync(recursive: true);
   });
 
-  test('getDirectorySizes should return sizes for multiple directories', () async {
-    final dir1 = Directory('${tempDir.path}/dir1')..createSync();
-    final dir2 = Directory('${tempDir.path}/dir2')..createSync();
-    
-    File('${dir1.path}/file1.txt').writeAsStringSync('12345'); // 5 bytes
-    File('${dir2.path}/file2.txt').writeAsStringSync('1234567890'); // 10 bytes
+  test(
+    'getDirectorySizes should return sizes for multiple directories',
+    () async {
+      final dir1 = Directory('${tempDir.path}/dir1')..createSync();
+      final dir2 = Directory('${tempDir.path}/dir2')..createSync();
 
-    final sizes = await datasource.getDirectorySizes([dir1.path, dir2.path]);
-    
-    expect(sizes, isNotNull);
-    expect(sizes[dir1.path], 5);
-    expect(sizes[dir2.path], 10);
-  });
+      File('${dir1.path}/file1.txt').writeAsStringSync('12345'); // 5 bytes
+      File(
+        '${dir2.path}/file2.txt',
+      ).writeAsStringSync('1234567890'); // 10 bytes
+
+      final sizes = await datasource.getDirectorySizes([dir1.path, dir2.path]);
+
+      expect(sizes, isNotNull);
+      expect(sizes[dir1.path], 5);
+      expect(sizes[dir2.path], 10);
+    },
+  );
 }

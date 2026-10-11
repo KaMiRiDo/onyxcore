@@ -82,15 +82,19 @@ class StandaloneWindowActionBar extends StatelessWidget {
   final bool hasGroups;
   final ValueNotifier<Map<String, String>?>? activeTagNotifier;
   final void Function(String url, String sort)? onTagTap;
-  final void Function(TapDownDetails details, String url)? onTagSecondaryTapDown;
+  final void Function(TapDownDetails details, String url)?
+  onTagSecondaryTapDown;
 
   @override
   Widget build(BuildContext context) {
     final isSmallWindow = MediaQuery.of(context).size.width < 1100;
-    
+
     if (isTrashView) {
       return Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: isSmallWindow ? 8 : 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: isSmallWindow ? 8 : 12,
+        ),
         decoration: BoxDecoration(
           color: AppColors.background,
           border: Border(bottom: BorderSide(color: AppColors.borderColor)),
@@ -113,9 +117,9 @@ class StandaloneWindowActionBar extends StatelessWidget {
                 label: const Text('Restore All'),
                 onPressed: onRestoreAll,
                 style: ElevatedButton.styleFrom(
-                   backgroundColor: AppColors.violet,
-                   foregroundColor: Colors.white,
-                   padding: const EdgeInsets.symmetric(horizontal: 16),
+                  backgroundColor: AppColors.violet,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
               ),
               const SizedBox(width: 8),
@@ -124,9 +128,9 @@ class StandaloneWindowActionBar extends StatelessWidget {
                 label: const Text('Empty'),
                 onPressed: onEmptyTrash,
                 style: ElevatedButton.styleFrom(
-                   backgroundColor: AppColors.error,
-                   foregroundColor: Colors.white,
-                   padding: const EdgeInsets.symmetric(horizontal: 16),
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
               ),
             ],
@@ -136,7 +140,10 @@ class StandaloneWindowActionBar extends StatelessWidget {
     }
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: isSmallWindow ? 8 : 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: isSmallWindow ? 8 : 12,
+      ),
       decoration: BoxDecoration(
         color: AppColors.background,
         border: Border(bottom: BorderSide(color: AppColors.borderColor)),
@@ -155,7 +162,10 @@ class StandaloneWindowActionBar extends StatelessWidget {
                       children: [
                         if (currentGroup != null) ...[
                           IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                            ),
                             onPressed: onBackToRoot,
                           ),
                           const SizedBox(width: 8),
@@ -182,7 +192,10 @@ class StandaloneWindowActionBar extends StatelessWidget {
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Icon(Icons.chevron_right, color: Colors.white54),
+                            child: Icon(
+                              Icons.chevron_right,
+                              color: Colors.white54,
+                            ),
                           ),
                           Flexible(
                             child: Text(
@@ -214,12 +227,15 @@ class StandaloneWindowActionBar extends StatelessWidget {
                           ValueListenableBuilder<Map<String, String>?>(
                             valueListenable: activeTagNotifier!,
                             builder: (context, activeTag, child) {
-                              if (activeTag == null) return const SizedBox.shrink();
+                              if (activeTag == null)
+                                return const SizedBox.shrink();
                               return Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 8),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
                                     child: Icon(
                                       Icons.chevron_right,
                                       color: Colors.white54,
@@ -230,18 +246,25 @@ class StandaloneWindowActionBar extends StatelessWidget {
                                       activeTag['url']!,
                                       activeTag['sort']!,
                                     ),
-                                    onSecondaryTapDown: (details) => onTagSecondaryTapDown
-                                        ?.call(details, activeTag['url']!),
+                                    onSecondaryTapDown: (details) =>
+                                        onTagSecondaryTapDown?.call(
+                                          details,
+                                          activeTag['url']!,
+                                        ),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(alpha: 0.2),
+                                        color: Colors.amber.withValues(
+                                          alpha: 0.2,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: Colors.amber.withValues(alpha: 0.5),
+                                          color: Colors.amber.withValues(
+                                            alpha: 0.5,
+                                          ),
                                         ),
                                       ),
                                       child: Row(
@@ -342,7 +365,8 @@ class StandaloneWindowActionBar extends StatelessWidget {
                               height: 36,
                               child: GroupFilterDropdown(
                                 selectedFilter:
-                                    config?.groupFilter ?? GroupDownloadType.all,
+                                    config?.groupFilter ??
+                                    GroupDownloadType.all,
                                 isEnabled: true,
                                 hasVideos: currentGroup!.items
                                     .where((i) => !i.isProfile)
@@ -362,7 +386,9 @@ class StandaloneWindowActionBar extends StatelessWidget {
                             onPressed: onClear,
                             style: TextButton.styleFrom(
                               backgroundColor: Colors.white12,
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),

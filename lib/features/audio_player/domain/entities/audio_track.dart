@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 
 class AudioTrack extends Equatable {
-
   const AudioTrack({
     required this.title,
     required this.artist,

@@ -36,8 +36,7 @@ List<FileItem> processMediaQueueIsolate(Map<String, dynamic> args) {
             // Skip hidden sub-files if we are not showing hidden items
             if (!showHidden && subName.startsWith('.')) continue;
 
-            if (sub is File &&
-                classifyFileType(sub.path) == targetType) {
+            if (sub is File && classifyFileType(sub.path) == targetType) {
               mediaCount++;
               // If we only care about presence (not an exact count), we could break.
               // But the UI needs the exact count for the folder tile subtitle.

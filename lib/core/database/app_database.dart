@@ -300,17 +300,17 @@ class AppDatabase extends _$AppDatabase {
 
   /// Read a single settings value by key. Returns null if not set.
   Future<String?> getSetting(String key) async {
-    final row = await (select(settings)
-          ..where((t) => t.key.equals(key)))
-        .getSingleOrNull();
+    final row = await (select(
+      settings,
+    )..where((t) => t.key.equals(key))).getSingleOrNull();
     return row?.value;
   }
 
   /// Upsert a single settings key/value pair.
   Future<void> setSetting(String key, String value) async {
-    await into(settings).insertOnConflictUpdate(
-      SettingsCompanion.insert(key: key, value: value),
-    );
+    await into(
+      settings,
+    ).insertOnConflictUpdate(SettingsCompanion.insert(key: key, value: value));
   }
 
   /// Delete a settings key (used for nullable settings that are cleared).
@@ -324,7 +324,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ── CustomExtractors helpers ──────────────────────────────────────────────
-  
+
   Future<List<CustomExtractorEntry>> getAllExtractors() async {
     return select(customExtractorEntries).get();
   }
@@ -374,32 +374,32 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> deleteMetadataCache(String filePath) async {
-    await (delete(metadataCacheEntries)
-          ..where((t) => t.filePath.equals(filePath)))
-        .go();
+    await (delete(
+      metadataCacheEntries,
+    )..where((t) => t.filePath.equals(filePath))).go();
   }
 
   Future<void> deleteMetadataCacheForFolder(String folderPath) async {
-    await (delete(metadataCacheEntries)
-          ..where((t) => t.filePath.like('$folderPath%')))
-        .go();
+    await (delete(
+      metadataCacheEntries,
+    )..where((t) => t.filePath.like('$folderPath%'))).go();
   }
 
   Future<void> deleteMetadataCacheBatch(List<String> paths) async {
-    await (delete(metadataCacheEntries)
-          ..where((t) => t.filePath.isIn(paths)))
-        .go();
+    await (delete(
+      metadataCacheEntries,
+    )..where((t) => t.filePath.isIn(paths))).go();
   }
 
   Future<List<String>> pruneMetadataCache(int maxCount) async {
-    final rows = await (select(metadataCacheEntries)
-          ..orderBy([(t) => OrderingTerm.desc(t.cachedAt)]))
-        .get();
+    final rows = await (select(
+      metadataCacheEntries,
+    )..orderBy([(t) => OrderingTerm.desc(t.cachedAt)])).get();
     if (rows.length > maxCount) {
       final toDelete = rows.skip(maxCount).map((r) => r.filePath).toList();
-      await (delete(metadataCacheEntries)
-            ..where((t) => t.filePath.isIn(toDelete)))
-          .go();
+      await (delete(
+        metadataCacheEntries,
+      )..where((t) => t.filePath.isIn(toDelete))).go();
       return toDelete;
     }
     return [];
@@ -407,9 +407,9 @@ class AppDatabase extends _$AppDatabase {
   // ── PlaybackMemory helpers ────────────────────────────────────────────────
 
   Future<int?> getPlaybackPosition(String filePath) async {
-    final row = await (select(playbackMemoryEntries)
-          ..where((t) => t.filePath.equals(filePath)))
-        .getSingleOrNull();
+    final row = await (select(
+      playbackMemoryEntries,
+    )..where((t) => t.filePath.equals(filePath))).getSingleOrNull();
     return row?.positionMs;
   }
 
@@ -440,9 +440,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> removeAudioFavorite(String filePath) async {
-    await (delete(audioFavoriteEntries)
-          ..where((t) => t.filePath.equals(filePath)))
-        .go();
+    await (delete(
+      audioFavoriteEntries,
+    )..where((t) => t.filePath.equals(filePath))).go();
   }
 
   Future<Set<String>> getVideoFavorites() async {
@@ -460,9 +460,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> removeVideoFavorite(String filePath) async {
-    await (delete(videoFavoriteEntries)
-          ..where((t) => t.filePath.equals(filePath)))
-        .go();
+    await (delete(
+      videoFavoriteEntries,
+    )..where((t) => t.filePath.equals(filePath))).go();
   }
 
   Future<Set<String>> getImageFavorites() async {
@@ -480,9 +480,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> removeImageFavorite(String filePath) async {
-    await (delete(imageFavoriteEntries)
-          ..where((t) => t.filePath.equals(filePath)))
-        .go();
+    await (delete(
+      imageFavoriteEntries,
+    )..where((t) => t.filePath.equals(filePath))).go();
   }
 
   // ── PinnedItems helpers ───────────────────────────────────────────────────
@@ -505,9 +505,9 @@ class AppDatabase extends _$AppDatabase {
   // ── PinnedFolders helpers ─────────────────────────────────────────────────
 
   Future<List<String>> getOrderedPinnedFolders() async {
-    final rows = await (select(pinnedFolders)
-          ..orderBy([(t) => OrderingTerm.asc(t.position)]))
-        .get();
+    final rows = await (select(
+      pinnedFolders,
+    )..orderBy([(t) => OrderingTerm.asc(t.position)])).get();
     return rows.map((r) => r.folderPath).toList();
   }
 
@@ -541,9 +541,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> removeFolderSorts(List<String> folderPaths) async {
     await transaction(() async {
       for (final path in folderPaths) {
-        await (delete(folderSortPreferences)
-              ..where((t) =>
-                  t.folderPath.equals(path) | t.folderPath.like('$path/%')))
+        await (delete(folderSortPreferences)..where(
+              (t) => t.folderPath.equals(path) | t.folderPath.like('$path/%'),
+            ))
             .go();
       }
     });
@@ -552,9 +552,9 @@ class AppDatabase extends _$AppDatabase {
   // ── MarkerRecents helpers ─────────────────────────────────────────────────
 
   Future<List<String>> getMarkerRecents() async {
-    final rows = await (select(markerRecentEntries)
-          ..orderBy([(t) => OrderingTerm.desc(t.usedAt)]))
-        .get();
+    final rows = await (select(
+      markerRecentEntries,
+    )..orderBy([(t) => OrderingTerm.desc(t.usedAt)])).get();
     return rows.map((r) => r.value).toList();
   }
 
@@ -568,14 +568,14 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> pruneMarkerRecents(int maxCount) async {
-    final rows = await (select(markerRecentEntries)
-          ..orderBy([(t) => OrderingTerm.desc(t.usedAt)]))
-        .get();
+    final rows = await (select(
+      markerRecentEntries,
+    )..orderBy([(t) => OrderingTerm.desc(t.usedAt)])).get();
     if (rows.length > maxCount) {
       final toDelete = rows.skip(maxCount).map((r) => r.value).toList();
-      await (delete(markerRecentEntries)
-            ..where((t) => t.value.isIn(toDelete)))
-          .go();
+      await (delete(
+        markerRecentEntries,
+      )..where((t) => t.value.isIn(toDelete))).go();
     }
   }
 
@@ -685,9 +685,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<DownloadHistoryEntry?> getDownloadHistoryEntry(String id) async {
-    return (select(downloadHistoryEntries)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (select(
+      downloadHistoryEntries,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   Future<void> upsertDownloadHistoryEntry(
@@ -697,9 +697,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> deleteDownloadHistoryEntries(Set<String> ids) async {
-    await (delete(downloadHistoryEntries)
-          ..where((t) => t.id.isIn(ids.toList())))
-        .go();
+    await (delete(
+      downloadHistoryEntries,
+    )..where((t) => t.id.isIn(ids.toList()))).go();
   }
 
   Future<void> clearAllDownloadHistory() async {
@@ -721,9 +721,9 @@ class AppDatabase extends _$AppDatabase {
 
   /// Look up a thumbnail cache entry by file hash.
   Future<ThumbnailCacheEntry?> lookupThumbnail(String fileHash) async {
-    return (select(thumbnailCacheEntries)
-          ..where((t) => t.fileHash.equals(fileHash)))
-        .getSingleOrNull();
+    return (select(
+      thumbnailCacheEntries,
+    )..where((t) => t.fileHash.equals(fileHash))).getSingleOrNull();
   }
 
   /// Upsert a thumbnail cache entry (insert or update on conflict).
@@ -755,9 +755,9 @@ class AppDatabase extends _$AppDatabase {
   /// Delete thumbnail cache entries for specific file paths.
   Future<void> deleteThumbnailsForPaths(List<String> paths) async {
     final hashes = paths.map(computeFileHash).toList();
-    await (delete(thumbnailCacheEntries)
-          ..where((t) => t.fileHash.isIn(hashes)))
-        .go();
+    await (delete(
+      thumbnailCacheEntries,
+    )..where((t) => t.fileHash.isIn(hashes))).go();
   }
 
   /// Delete all thumbnail cache entries.

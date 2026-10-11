@@ -16,8 +16,8 @@ class _VideoDeleteNavigator {
   _VideoDeleteNavigator({
     required List<FileItem> playlist,
     required bool autoPlay,
-  })  : _playlist = playlist,
-        _autoPlay = autoPlay;
+  }) : _playlist = playlist,
+       _autoPlay = autoPlay;
 
   final List<FileItem> _playlist;
   final bool _autoPlay;
@@ -27,16 +27,18 @@ class _VideoDeleteNavigator {
   /// - Decide: play next (if autoPlay), quit (if no next and autoPlay), or
   ///   show-paused-next (if !autoPlay and next exists), or quit (if no next).
   _PlayerAction navigateAfterDelete(FileItem deletedItem) {
-    final filteredPlaylist =
-        _playlist.where((i) => i.path != deletedItem.path).toList();
+    final filteredPlaylist = _playlist
+        .where((i) => i.path != deletedItem.path)
+        .toList();
 
     if (filteredPlaylist.isEmpty) {
       return _PlayerAction.quit;
     }
 
     // Determine next item
-    final deletedIndex =
-        _playlist.indexWhere((i) => i.path == deletedItem.path);
+    final deletedIndex = _playlist.indexWhere(
+      (i) => i.path == deletedItem.path,
+    );
     // Next item index in the original list after removal
     final nextIndex = deletedIndex >= filteredPlaylist.length
         ? filteredPlaylist.length - 1
@@ -78,7 +80,6 @@ class _SessionConfirmManager {
     return isPermanent || settingsRequiresConfirm;
   }
 }
-
 
 void main() {
   final video1 = FileItem(
@@ -127,10 +128,7 @@ void main() {
     });
 
     test('deleting ONLY video quits player regardless of autoplay', () {
-      final nav = _VideoDeleteNavigator(
-        playlist: [video1],
-        autoPlay: true,
-      );
+      final nav = _VideoDeleteNavigator(playlist: [video1], autoPlay: true);
       expect(nav.navigateAfterDelete(video1), _PlayerAction.quit);
     });
   });
@@ -145,22 +143,21 @@ void main() {
     });
 
     test('deleting ONLY video with autoplay=false quits player', () {
-      final nav = _VideoDeleteNavigator(
-        playlist: [video1],
-        autoPlay: false,
-      );
+      final nav = _VideoDeleteNavigator(playlist: [video1], autoPlay: false);
       expect(nav.navigateAfterDelete(video1), _PlayerAction.quit);
     });
 
-    test('deleting last video of 2 with autoplay=false pauses last remaining',
-        () {
-      final nav = _VideoDeleteNavigator(
-        playlist: [video1, video2],
-        autoPlay: false,
-      );
-      // Deleting video2 (last) falls back to video1
-      expect(nav.navigateAfterDelete(video2), _PlayerAction.pause);
-    });
+    test(
+      'deleting last video of 2 with autoplay=false pauses last remaining',
+      () {
+        final nav = _VideoDeleteNavigator(
+          playlist: [video1, video2],
+          autoPlay: false,
+        );
+        // Deleting video2 (last) falls back to video1
+        expect(nav.navigateAfterDelete(video2), _PlayerAction.pause);
+      },
+    );
   });
 
   // ─── Bug 2: Session skip confirm for "Don't ask again" checkbox ────────────
@@ -225,16 +222,18 @@ void main() {
       );
     });
 
-    test('when settings does not require confirm, no dialog shown regardless',
-        () {
-      final mgr = _SessionConfirmManager();
-      expect(
-        mgr.shouldShowConfirmDialog(
-          isPermanent: false,
-          settingsRequiresConfirm: false,
-        ),
-        isFalse,
-      );
-    });
+    test(
+      'when settings does not require confirm, no dialog shown regardless',
+      () {
+        final mgr = _SessionConfirmManager();
+        expect(
+          mgr.shouldShowConfirmDialog(
+            isPermanent: false,
+            settingsRequiresConfirm: false,
+          ),
+          isFalse,
+        );
+      },
+    );
   });
 }

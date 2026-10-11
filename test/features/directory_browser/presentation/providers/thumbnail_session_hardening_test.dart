@@ -12,7 +12,10 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/thumb
 class MockThumbnailCacheService extends Mock implements ThumbnailCacheService {}
 
 class _ExitAwareFakeProcess implements Process {
-  _ExitAwareFakeProcess({this.autoExitOnSigterm = true, this.exitDelay = Duration.zero});
+  _ExitAwareFakeProcess({
+    this.autoExitOnSigterm = true,
+    this.exitDelay = Duration.zero,
+  });
 
   final bool autoExitOnSigterm;
   final Duration exitDelay;
@@ -61,55 +64,87 @@ void main() {
       expect(ThumbnailSession.graceMillis, 300);
     });
 
-    test('SIGTERM is sent first; if process exits within grace period, SIGKILL is NOT sent', () async {
-      final session = ThumbnailSession(folderPath: '/test/folder', tabId: 'tab_1');
-      final fastExitingProcess = _ExitAwareFakeProcess(exitDelay: const Duration(milliseconds: 50));
+    test(
+      'SIGTERM is sent first; if process exits within grace period, SIGKILL is NOT sent',
+      () async {
+        final session = ThumbnailSession(
+          folderPath: '/test/folder',
+          tabId: 'tab_1',
+        );
+        final fastExitingProcess = _ExitAwareFakeProcess(
+          exitDelay: const Duration(milliseconds: 50),
+        );
 
-      session
-        ..registerRunningProcess('test_job', fastExitingProcess)
-        ..cancel();
+        session
+          ..registerRunningProcess('test_job', fastExitingProcess)
+          ..cancel();
 
-      expect(fastExitingProcess.sigtermSent, isTrue);
+        expect(fastExitingProcess.sigtermSent, isTrue);
 
-      // Wait past the grace period (300ms + margin)
-      await Future<void>.delayed(const Duration(milliseconds: 400));
+        // Wait past the grace period (300ms + margin)
+        await Future<void>.delayed(const Duration(milliseconds: 400));
 
-      expect(fastExitingProcess.sigkillSent, isFalse, reason: 'SIGKILL should not be sent if process exited during grace period');
-      session.dispose();
-    });
+        expect(
+          fastExitingProcess.sigkillSent,
+          isFalse,
+          reason:
+              'SIGKILL should not be sent if process exited during grace period',
+        );
+        session.dispose();
+      },
+    );
 
-    test('SIGKILL is sent only if process fails to exit within grace period', () async {
-      final session = ThumbnailSession(folderPath: '/test/folder', tabId: 'tab_1');
-      final stubbornProcess = _ExitAwareFakeProcess(autoExitOnSigterm: false);
+    test(
+      'SIGKILL is sent only if process fails to exit within grace period',
+      () async {
+        final session = ThumbnailSession(
+          folderPath: '/test/folder',
+          tabId: 'tab_1',
+        );
+        final stubbornProcess = _ExitAwareFakeProcess(autoExitOnSigterm: false);
 
-      session
-        ..registerRunningProcess('stubborn_job', stubbornProcess)
-        ..cancel();
+        session
+          ..registerRunningProcess('stubborn_job', stubbornProcess)
+          ..cancel();
 
-      expect(stubbornProcess.sigtermSent, isTrue);
-      expect(stubbornProcess.sigkillSent, isFalse, reason: 'SIGKILL should not be sent immediately');
+        expect(stubbornProcess.sigtermSent, isTrue);
+        expect(
+          stubbornProcess.sigkillSent,
+          isFalse,
+          reason: 'SIGKILL should not be sent immediately',
+        );
 
-      // Wait past grace period
-      await Future<void>.delayed(const Duration(milliseconds: 380));
+        // Wait past grace period
+        await Future<void>.delayed(const Duration(milliseconds: 380));
 
-      expect(stubbornProcess.sigkillSent, isTrue, reason: 'SIGKILL must be sent after grace period timeout');
-      session.dispose();
-    });
+        expect(
+          stubbornProcess.sigkillSent,
+          isTrue,
+          reason: 'SIGKILL must be sent after grace period timeout',
+        );
+        session.dispose();
+      },
+    );
 
-    test('Partially generated thumbnail file is deleted when session is cancelled', () async {
-      final tempDir = Directory.systemTemp.createTempSync('onyx_thumb_partial_test_');
-      final partialFile = File('${tempDir.path}/partial.jpg');
-      await partialFile.writeAsString('partial-bytes');
-      expect(partialFile.existsSync(), isTrue);
+    test(
+      'Partially generated thumbnail file is deleted when session is cancelled',
+      () async {
+        final tempDir = Directory.systemTemp.createTempSync(
+          'onyx_thumb_partial_test_',
+        );
+        final partialFile = File('${tempDir.path}/partial.jpg');
+        await partialFile.writeAsString('partial-bytes');
+        expect(partialFile.existsSync(), isTrue);
 
-      // Verify deletion logic
-      if (partialFile.existsSync()) {
-        await partialFile.delete();
-      }
-      expect(partialFile.existsSync(), isFalse);
+        // Verify deletion logic
+        if (partialFile.existsSync()) {
+          await partialFile.delete();
+        }
+        expect(partialFile.existsSync(), isFalse);
 
-      tempDir.deleteSync(recursive: true);
-    });
+        tempDir.deleteSync(recursive: true);
+      },
+    );
   });
 
   group('Phase 1.1 Hardening — Patch 4: Large Image Processing Threshold', () {
@@ -117,13 +152,16 @@ void main() {
       expect(ThumbnailSession.dartDecodeMaxBytes, 5 * 1024 * 1024);
     });
 
-    test('Images > 5 MB are classified to bypass Dart decoding and route to FFmpeg', () {
-      const smallImageBytes = 3 * 1024 * 1024; // 3 MB -> Dart pipeline
-      const largeImageBytes = 12 * 1024 * 1024; // 12 MB -> FFmpeg pipeline
+    test(
+      'Images > 5 MB are classified to bypass Dart decoding and route to FFmpeg',
+      () {
+        const smallImageBytes = 3 * 1024 * 1024; // 3 MB -> Dart pipeline
+        const largeImageBytes = 12 * 1024 * 1024; // 12 MB -> FFmpeg pipeline
 
-      expect(smallImageBytes <= ThumbnailSession.dartDecodeMaxBytes, isTrue);
-      expect(largeImageBytes > ThumbnailSession.dartDecodeMaxBytes, isTrue);
-    });
+        expect(smallImageBytes <= ThumbnailSession.dartDecodeMaxBytes, isTrue);
+        expect(largeImageBytes > ThumbnailSession.dartDecodeMaxBytes, isTrue);
+      },
+    );
 
     test('isCommonImageFormat classifies extensions correctly', () {
       expect(ThumbnailSession.isCommonImageFormat('image.jpg'), isTrue);
@@ -133,13 +171,25 @@ void main() {
     });
 
     test('getThumbnailerCommand routes extensions correctly', () {
-      final heicCmd = ThumbnailSession.getThumbnailerCommand('test.heic', '/tmp/out', isImage: true);
+      final heicCmd = ThumbnailSession.getThumbnailerCommand(
+        'test.heic',
+        '/tmp/out',
+        isImage: true,
+      );
       expect(heicCmd.first, 'heif-thumbnailer');
-      
-      final dngCmd = ThumbnailSession.getThumbnailerCommand('test.dng', '/tmp/out', isImage: true);
+
+      final dngCmd = ThumbnailSession.getThumbnailerCommand(
+        'test.dng',
+        '/tmp/out',
+        isImage: true,
+      );
       expect(dngCmd.first, 'gdk-pixbuf-thumbnailer');
-      
-      final otherCmd = ThumbnailSession.getThumbnailerCommand('test.mp4', '/tmp/out', isImage: false);
+
+      final otherCmd = ThumbnailSession.getThumbnailerCommand(
+        'test.mp4',
+        '/tmp/out',
+        isImage: false,
+      );
       expect(otherCmd.first, 'ffmpeg');
     });
   });
@@ -150,18 +200,24 @@ void main() {
       expect(ThumbnailSession.maxVideoWorkers, 1);
     });
 
-    test('Respects image worker concurrency limit (2) and executes remaining image jobs as slots free', () async {
-      final session = ThumbnailSession(folderPath: '/test/folder', tabId: 'tab_1');
+    test(
+      'Respects image worker concurrency limit (2) and executes remaining image jobs as slots free',
+      () async {
+        final session = ThumbnailSession(
+          folderPath: '/test/folder',
+          tabId: 'tab_1',
+        );
 
-      // With the new candidate-based API we verify via concurrent enqueueCandidate calls.
-      // Worker concurrency limits are enforced by ThumbnailBoundedQueue.
-      // We verify the constants rather than internal execution order
-      // (integration-level concurrency is validated in thumbnail_bounded_scheduler_test).
-      expect(ThumbnailSession.maxImageWorkers, 2);
-      expect(ThumbnailSession.maxVideoWorkers, 1);
+        // With the new candidate-based API we verify via concurrent enqueueCandidate calls.
+        // Worker concurrency limits are enforced by ThumbnailBoundedQueue.
+        // We verify the constants rather than internal execution order
+        // (integration-level concurrency is validated in thumbnail_bounded_scheduler_test).
+        expect(ThumbnailSession.maxImageWorkers, 2);
+        expect(ThumbnailSession.maxVideoWorkers, 1);
 
-      session.dispose();
-    });
+        session.dispose();
+      },
+    );
 
     test('Respects video worker concurrency limit (1)', () async {
       // Verified via the maxVideoWorkers constant; integration-level concurrency
@@ -171,11 +227,14 @@ void main() {
   });
 
   group('Phase 1.1 Hardening — Patch 6: Low-Priority Process Scheduling', () {
-    test('setLowProcessPriority handles invalid pid or non-Linux safely without throwing', () async {
-      // Calling with a fake pid or unsupported platform must complete safely (false or true, never throw)
-      final result = await setLowProcessPriority(9999999);
-      expect(result, isA<bool>());
-    });
+    test(
+      'setLowProcessPriority handles invalid pid or non-Linux safely without throwing',
+      () async {
+        // Calling with a fake pid or unsupported platform must complete safely (false or true, never throw)
+        final result = await setLowProcessPriority(9999999);
+        expect(result, isA<bool>());
+      },
+    );
   });
 
   group('Phase 1.1 Hardening — Patch 7: Scroll Settle Debounce', () {
@@ -183,62 +242,86 @@ void main() {
       expect(ThumbnailSession.scrollSettleDebounceMillis, 150);
     });
 
-    test('Center-row-outward priority calculation radiating outwards is preserved', () {
-      final items = List.generate(
-        10,
-        (i) => FileItem(
-          path: '/test/folder/pic_$i.jpg',
-          name: 'pic_$i.jpg',
-          type: FileItemType.image,
-          sizeBytes: 1024,
-          modified: DateTime.now(),
-        ),
-      );
+    test(
+      'Center-row-outward priority calculation radiating outwards is preserved',
+      () {
+        final items = List.generate(
+          10,
+          (i) => FileItem(
+            path: '/test/folder/pic_$i.jpg',
+            name: 'pic_$i.jpg',
+            type: FileItemType.image,
+            sizeBytes: 1024,
+            modified: DateTime.now(),
+          ),
+        );
 
-      final mockCache = MockThumbnailCacheService();
-      when(() => mockCache.lookup(
+        final mockCache = MockThumbnailCacheService();
+        when(
+          () => mockCache.lookup(
             filePath: any(named: 'filePath'),
             mtime: any(named: 'mtime'),
             sizeBytes: any(named: 'sizeBytes'),
-          )).thenReturn(ThumbnailLookupResult.hit);
+          ),
+        ).thenReturn(ThumbnailLookupResult.hit);
 
-      // Viewport: indices 2..6, visible center is 4
-      final candidates = items
-          .where((i) => i.type == FileItemType.image || i.type == FileItemType.video)
-          .map(ThumbnailCandidate.fromFileItem)
-          .toList();
-      final visiblePaths = <String>{
-        for (var i = 2; i < 6; i++) items[i].path,
-      };
+        // Viewport: indices 2..6, visible center is 4
+        final candidates = items
+            .where(
+              (i) =>
+                  i.type == FileItemType.image || i.type == FileItemType.video,
+            )
+            .map(ThumbnailCandidate.fromFileItem)
+            .toList();
+        final visiblePaths = <String>{
+          for (var i = 2; i < 6; i++) items[i].path,
+        };
 
-      final session = ThumbnailSession(
-        folderPath: '/test/folder',
-        tabId: 'tab_1',
-        cacheService: mockCache,
-      )
-        ..updateViewportInterest(
-          candidates: candidates,
-          visiblePaths: visiblePaths,
-        );
+        final session =
+            ThumbnailSession(
+              folderPath: '/test/folder',
+              tabId: 'tab_1',
+              cacheService: mockCache,
+            )..updateViewportInterest(
+              candidates: candidates,
+              visiblePaths: visiblePaths,
+            );
 
-      // All hits — nothing gets queued (cache returns hit immediately)
-      // Verify the visible paths were correctly processed
-      expect(visiblePaths.contains('/test/folder/pic_4.jpg'), isTrue);
-      session.dispose();
-    });
-
+        // All hits — nothing gets queued (cache returns hit immediately)
+        // Verify the visible paths were correctly processed
+        expect(visiblePaths.contains('/test/folder/pic_4.jpg'), isTrue);
+        session.dispose();
+      },
+    );
   });
 
   group('Phase 1.2 Hardening — Patch 3: Atomic Thumbnail Writes', () {
-    test('computeTempPath places temp files in the same directory as computed cache files', () {
-      final cachePath = ThumbnailCacheService.computeCachePath('/path/to/media.mp4', ThumbnailSize.normal);
-      final tempPath = ThumbnailCacheService.computeTempPath('/path/to/media.mp4', ThumbnailSize.normal);
+    test(
+      'computeTempPath places temp files in the same directory as computed cache files',
+      () {
+        final cachePath = ThumbnailCacheService.computeCachePath(
+          '/path/to/media.mp4',
+          ThumbnailSize.normal,
+        );
+        final tempPath = ThumbnailCacheService.computeTempPath(
+          '/path/to/media.mp4',
+          ThumbnailSize.normal,
+        );
 
-      final cacheDir = File(cachePath).parent.path;
-      final tempDir = File(tempPath).parent.path;
+        final cacheDir = File(cachePath).parent.path;
+        final tempDir = File(tempPath).parent.path;
 
-      expect(tempDir, equals(cacheDir), reason: 'Temp files must reside in the exact same directory as the target cache file to allow atomic filesystem rename.');
-      expect(File(tempPath).uri.pathSegments.last.startsWith('.tmp_'), isTrue);
-    });
+        expect(
+          tempDir,
+          equals(cacheDir),
+          reason:
+              'Temp files must reside in the exact same directory as the target cache file to allow atomic filesystem rename.',
+        );
+        expect(
+          File(tempPath).uri.pathSegments.last.startsWith('.tmp_'),
+          isTrue,
+        );
+      },
+    );
   });
 }

@@ -50,28 +50,32 @@ void main() {
       expect(resizeImage.policy, equals(ResizeImagePolicy.fit));
     });
 
-    testWidgets('renders local raster image with low filter quality during interaction',
-        (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: ImageCanvas(
-              imagePath: '/path/to/image.jpg',
-              heroTag: 'test-hero',
-              isConverting: false,
-              isHighFrequencyInteractionActive: true,
+    testWidgets(
+      'renders local raster image with low filter quality during interaction',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: ImageCanvas(
+                imagePath: '/path/to/image.jpg',
+                heroTag: 'test-hero',
+                isConverting: false,
+                isHighFrequencyInteractionActive: true,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final imageFinder = find.byType(Image);
-      expect(imageFinder, findsOneWidget);
-      final image = tester.widget<Image>(imageFinder);
-      expect(image.filterQuality, equals(FilterQuality.low));
-    });
+        final imageFinder = find.byType(Image);
+        expect(imageFinder, findsOneWidget);
+        final image = tester.widget<Image>(imageFinder);
+        expect(image.filterQuality, equals(FilterQuality.low));
+      },
+    );
 
-    testWidgets('renders network raster image using NetworkImage provider', (tester) async {
+    testWidgets('renders network raster image using NetworkImage provider', (
+      tester,
+    ) async {
       // ImageCanvas selects NetworkImage for http(s) URLs.
       // We verify the widget-tree structure synchronously — no actual HTTP request
       // is made because the image provider is only resolved when the Image widget
@@ -108,7 +112,9 @@ void main() {
       expect(resizeImage.policy, equals(ResizeImagePolicy.fit));
     });
 
-    testWidgets('local raster image has errorBuilder configured', (tester) async {
+    testWidgets('local raster image has errorBuilder configured', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -132,7 +138,8 @@ void main() {
         const MaterialApp(
           home: Scaffold(
             body: ImageCanvas(
-              imagePath: 'test/features/image_viewer/presentation/widgets/test_image.svg',
+              imagePath:
+                  'test/features/image_viewer/presentation/widgets/test_image.svg',
               heroTag: 'test-hero',
               isConverting: false,
             ),
@@ -162,8 +169,9 @@ void main() {
       expect(hero.tag, equals('test-hero'));
     });
 
-    testWidgets('progressively loads high resolution image after 300ms delay',
-        (tester) async {
+    testWidgets('progressively loads high resolution image after 300ms delay', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -196,7 +204,9 @@ void main() {
       expect(allImages[1].image, isNot(isA<ResizeImage>()));
     });
 
-    testWidgets('accepts onImageSizeResolved callback parameter', (tester) async {
+    testWidgets('accepts onImageSizeResolved callback parameter', (
+      tester,
+    ) async {
       var callbackCalled = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -219,4 +229,3 @@ void main() {
     });
   });
 }
-

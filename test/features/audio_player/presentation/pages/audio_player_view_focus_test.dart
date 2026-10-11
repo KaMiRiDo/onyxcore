@@ -48,60 +48,64 @@ void main() {
     }
   });
 
-  testWidgets('AudioPlayerView requests focus and triggers presentWindow when standalone', (WidgetTester tester) async {
-    final windowLogs = <MethodCall>[];
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('onyxcore/window_manager'),
-      (MethodCall methodCall) async {
-        windowLogs.add(methodCall);
-        return null;
-      },
-    );
+  testWidgets(
+    'AudioPlayerView requests focus and triggers presentWindow when standalone',
+    (WidgetTester tester) async {
+      final windowLogs = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('onyxcore/window_manager'),
+            (MethodCall methodCall) async {
+              windowLogs.add(methodCall);
+              return null;
+            },
+          );
 
-    final filePath = '${tempDir.path}/test_audio.mp3';
-    File(filePath).createSync();
+      final filePath = '${tempDir.path}/test_audio.mp3';
+      File(filePath).createSync();
 
-    final fileItem = FileItem(
-      path: filePath,
-      name: 'test_audio.mp3',
-      type: FileItemType.audio,
-      modified: DateTime.now(),
-    );
+      final fileItem = FileItem(
+        path: filePath,
+        name: 'test_audio.mp3',
+        type: FileItemType.audio,
+        modified: DateTime.now(),
+      );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: AudioPlayerView(
-            item: fileItem,
-            isStandalone: true,
-            windowId: '200',
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [databaseProvider.overrideWithValue(db)],
+          child: MaterialApp(
+            home: Scaffold(
+              body: AudioPlayerView(
+                item: fileItem,
+                isStandalone: true,
+                windowId: '200',
+              ),
+            ),
           ),
         ),
-      ),
-    ));
+      );
 
-    // Wait for the widget to build and the async Future<void>.delayed(300ms) to fire
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(seconds: 1));
+      // Wait for the widget to build and the async Future<void>.delayed(300ms) to fire
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(seconds: 1));
 
-    expect(
-      windowLogs,
-      contains(
-        isA<MethodCall>().having((call) => call.method, 'method', 'present_window')
-                         .having((call) => call.arguments['view_id'], 'view_id', 200),
-      ),
-    );
+      expect(
+        windowLogs,
+        contains(
+          isA<MethodCall>()
+              .having((call) => call.method, 'method', 'present_window')
+              .having((call) => call.arguments['view_id'], 'view_id', 200),
+        ),
+      );
 
-    // Verify focus is acquired
-    expect(FocusManager.instance.primaryFocus, isNotNull);
+      // Verify focus is acquired
+      expect(FocusManager.instance.primaryFocus, isNotNull);
 
-    // Cleanup and swallow unmount exceptions from mocked native dependencies
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpAndSettle();
-    while (tester.takeException() != null) {}
-  });
+      // Cleanup and swallow unmount exceptions from mocked native dependencies
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+      while (tester.takeException() != null) {}
+    },
+  );
 }

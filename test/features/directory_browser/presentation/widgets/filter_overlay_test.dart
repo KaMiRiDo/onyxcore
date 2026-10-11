@@ -9,19 +9,19 @@ void main() {
     return MaterialApp(
       builder: (context, child) {
         return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: const TextScaler.linear(0.5),
-          ),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(0.5)),
           child: child!,
         );
       },
-      home: Scaffold(
-        body: child,
-      ),
+      home: Scaffold(body: child),
     );
   }
 
-  testWidgets('FilterOverlay renders correctly and applies filters', (tester) async {
+  testWidgets('FilterOverlay renders correctly and applies filters', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -109,7 +109,7 @@ void main() {
     // First change ITEM TYPE to 'Files Only' to reveal FILE TYPE
     await tester.tap(find.text('Any').first);
     await tester.pumpAndSettle();
-    
+
     // Tap 'Files'
     await tester.tap(find.text('Files').last);
     await tester.pumpAndSettle();
@@ -128,7 +128,10 @@ void main() {
     await tester.tap(find.text('Apply Filter'));
     await tester.pumpAndSettle();
 
-    expect(find.text('At least one extension must be selected'), findsOneWidget);
+    expect(
+      find.text('At least one extension must be selected'),
+      findsOneWidget,
+    );
 
     // Select single extension chip '.jpg'
     await tester.tap(find.text('.jpg'));
@@ -143,7 +146,9 @@ void main() {
     expect(appliedSettings?.extensions.contains('.png'), false);
   });
 
-  testWidgets('FilterOverlay hides on tap outside and close button', (tester) async {
+  testWidgets('FilterOverlay hides on tap outside and close button', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -172,7 +177,7 @@ void main() {
     // Test tap outside
     await tester.tap(find.text('Show Filter'));
     await tester.pumpAndSettle();
-    
+
     await tester.tapAt(const Offset(1800, 900));
     await tester.pumpAndSettle();
     expect(find.text('Advanced Filters'), findsNothing);
@@ -188,7 +193,9 @@ void main() {
     expect(find.text('Advanced Filters'), findsNothing);
   });
 
-  testWidgets('FilterOverlay reset button and positioning near bottom', (tester) async {
+  testWidgets('FilterOverlay reset button and positioning near bottom', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -202,7 +209,10 @@ void main() {
               onPressed: () {
                 FilterOverlay.show(
                   context: context,
-                  position: const Offset(500, 950), // Positioned near bottom to trigger upward growth
+                  position: const Offset(
+                    500,
+                    950,
+                  ), // Positioned near bottom to trigger upward growth
                   initialSettings: const FilterSettings(foldersOnly: true),
                   onSelected: (settings) {},
                 );
@@ -223,6 +233,9 @@ void main() {
     await tester.tap(find.text('Reset'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Folders'), findsNothing); // should reset foldersOnly back to Any
+    expect(
+      find.text('Folders'),
+      findsNothing,
+    ); // should reset foldersOnly back to Any
   });
 }

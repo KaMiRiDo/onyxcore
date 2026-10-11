@@ -166,10 +166,7 @@ class _ActiveDownloadsPanel extends ConsumerWidget {
         final task = tasks[index];
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: DownloadTaskTile(
-            key: ValueKey(task.id),
-            task: task,
-          ),
+          child: DownloadTaskTile(key: ValueKey(task.id), task: task),
         );
       },
     );
@@ -190,9 +187,7 @@ class _ActiveDownloadsPanel extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 10),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
-              side: BorderSide(
-                color: AppColors.error.withValues(alpha: 0.3),
-              ),
+              side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
             ),
           ),
           child: Text(

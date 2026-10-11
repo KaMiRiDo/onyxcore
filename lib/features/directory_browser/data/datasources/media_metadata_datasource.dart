@@ -73,11 +73,13 @@ class MediaMetadataDatasource {
             header[1] == 0x50 &&
             header[2] == 0x4E &&
             header[3] == 0x47) {
-          final w = (header[16] << 24) |
+          final w =
+              (header[16] << 24) |
               (header[17] << 16) |
               (header[18] << 8) |
               header[19];
-          final h = (header[20] << 24) |
+          final h =
+              (header[20] << 24) |
               (header[21] << 16) |
               (header[22] << 8) |
               header[23];
@@ -85,9 +87,7 @@ class MediaMetadataDatasource {
         }
 
         // GIF: GIF87a / GIF89a
-        if (header[0] == 0x47 &&
-            header[1] == 0x49 &&
-            header[2] == 0x46) {
+        if (header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46) {
           final w = header[6] | (header[7] << 8);
           final h = header[8] | (header[9] << 8);
           if (w > 0 && h > 0) return w / h;
@@ -95,11 +95,13 @@ class MediaMetadataDatasource {
 
         // BMP: 'B' 'M'
         if (header.length >= 26 && header[0] == 0x42 && header[1] == 0x4D) {
-          final w = header[18] |
+          final w =
+              header[18] |
               (header[19] << 8) |
               (header[20] << 16) |
               (header[21] << 24);
-          var h = header[22] |
+          var h =
+              header[22] |
               (header[23] << 8) |
               (header[24] << 16) |
               (header[25] << 24);

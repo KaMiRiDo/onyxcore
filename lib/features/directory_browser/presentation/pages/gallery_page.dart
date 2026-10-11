@@ -61,7 +61,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    PersistentViewerManager.mainWindowFocusTrigger.addListener(_onMainWindowFocus);
+    PersistentViewerManager.mainWindowFocusTrigger.addListener(
+      _onMainWindowFocus,
+    );
     HardwareKeyboard.instance.addHandler(_handleGlobalHardwareKey);
     _focusNode = ref.read(mainFocusNodeProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -125,8 +127,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
 
   void _triggerStandaloneDownloader() {
     if (PersistentViewerManager.isWindowOpen(ViewerType.downloader)) {
-      final viewId =
-          PersistentViewerManager.getActiveWindowId(ViewerType.downloader);
+      final viewId = PersistentViewerManager.getActiveWindowId(
+        ViewerType.downloader,
+      );
       if (viewId != null) {
         PersistentViewerManager.presentAndFocusUrl(viewId);
         return;
@@ -145,13 +148,11 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
         initParams: {
           'width': max(
             950,
-            ref.read(settingsProvider).value?.downloaderWidth.toInt() ??
-                950,
+            ref.read(settingsProvider).value?.downloaderWidth.toInt() ?? 950,
           ),
           'height': max(
             700,
-            ref.read(settingsProvider).value?.downloaderHeight.toInt() ??
-                700,
+            ref.read(settingsProvider).value?.downloaderHeight.toInt() ?? 700,
           ),
         },
       ),
@@ -171,7 +172,9 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleGlobalHardwareKey);
-    PersistentViewerManager.mainWindowFocusTrigger.removeListener(_onMainWindowFocus);
+    PersistentViewerManager.mainWindowFocusTrigger.removeListener(
+      _onMainWindowFocus,
+    );
     WidgetsBinding.instance.removeObserver(this);
     _clearReverseIpc();
     _focusNode.dispose();
@@ -333,7 +336,8 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
                                                                 .create_new_folder_rounded,
                                                             shortcut:
                                                                 'Ctrl+Shift+N',
-                                                            onTap: _handleNewItem,
+                                                            onTap:
+                                                                _handleNewItem,
                                                           ),
                                                           ContextMenuItem(
                                                             title:
@@ -591,8 +595,6 @@ class _GalleryPageState extends ConsumerState<GalleryPage>
     );
   }
 
-
-
   /// Content area with synchronized tab flash animation.
   Widget _buildContentInner() {
     return const _GalleryContentArea();
@@ -664,18 +666,15 @@ class _GalleryContentAreaState extends ConsumerState<_GalleryContentArea>
 
         return Stack(
           children: [
-            Opacity(
-              opacity: flashOpacity,
-              child: child,
-            ),
+            Opacity(opacity: flashOpacity, child: child),
             if (flashVal > 0.01)
               Positioned.fill(
                 child: IgnorePointer(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E).withValues(
-                        alpha: 0.30 * flashVal,
-                      ),
+                      color: const Color(
+                        0xFF1E1E1E,
+                      ).withValues(alpha: 0.30 * flashVal),
                     ),
                   ),
                 ),
@@ -688,9 +687,7 @@ class _GalleryContentAreaState extends ConsumerState<_GalleryContentArea>
         children: tabState.tabs.map((tab) {
           return ProviderScope(
             key: ValueKey(tab.id),
-            overrides: [
-              tabIdProvider.overrideWithValue(tab.id),
-            ],
+            overrides: [tabIdProvider.overrideWithValue(tab.id)],
             child: _TabBody(tabId: tab.id),
           );
         }).toList(),
@@ -713,9 +710,7 @@ class _TabBody extends ConsumerWidget {
         Expanded(
           child: isAnalysisActive
               ? DirectoryAnalysisPage(path: currentPath)
-              : const RubberBandOverlay(
-                  child: FileGrid(),
-                ),
+              : const RubberBandOverlay(child: FileGrid()),
         ),
       ],
     );
@@ -1024,9 +1019,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     final items = ref.read(filteredDirectoryItemsProvider).value ?? [];
     ref
         .read(selectionProvider.notifier)
-        .selectAll(
-          items.map((i) => i.path).toList(),
-        );
+        .selectAll(items.map((i) => i.path).toList());
   }
 
   void _handleCopy() {
@@ -1057,7 +1050,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         .compressItems(context, selection.selectedPaths.toList(), currentDir);
   }
 
-  Future<void> _handlePaste() async { 
+  Future<void> _handlePaste() async {
     final clipboard = ref.read(clipboardProvider);
     if (clipboard.paths.isEmpty) return;
 
@@ -1260,7 +1253,11 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         } else {
           // Trigger a refresh at the start to show the file as soon as it's created
           if (ref.read(currentPathProvider) == targetDir) {
-            unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
+            unawaited(
+              ref
+                  .read(directoryItemsProvider.notifier)
+                  .refresh(showLoader: false),
+            );
           }
           await repo.copyItemTo(
             op.source,
@@ -1279,8 +1276,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         if (ref.read(currentPathProvider) == targetDir) {
           ref.read(selectionProvider.notifier).select(op.target);
           // Refresh after each item to show progress in the gallery
-          await ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
-
+          await ref
+              .read(directoryItemsProvider.notifier)
+              .refresh(showLoader: false);
         }
 
         ref
@@ -1355,8 +1353,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
               filesCount: filesCount,
               foldersCount: foldersCount,
               totalSize: StringUtils.formatBytes(totalSize),
-              pathsToCalculateSize:
-                  foldersCount > 0 ? selectedPaths.toList() : null,
+              pathsToCalculateSize: foldersCount > 0
+                  ? selectedPaths.toList()
+                  : null,
             ),
           ) ??
           false;
@@ -1403,9 +1402,11 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
             },
           );
         } on TrashFailedException {
-          ref.read(taskProvider.notifier).failTask(taskId, 'Move to Trash failed');
+          ref
+              .read(taskProvider.notifier)
+              .failTask(taskId, 'Move to Trash failed');
           if (!mounted) return;
-          
+
           final confirmPermanent = await showDialog<bool>(
             context: context,
             builder: (ctx) => ViewerDeleteDialog(
@@ -1417,7 +1418,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           );
 
           if (confirmPermanent ?? false) {
-            final permanentTaskId = ref.read(taskProvider.notifier).addTask(
+            final permanentTaskId = ref
+                .read(taskProvider.notifier)
+                .addTask(
                   title: 'Deleting ${paths.length} items',
                   subtitle: 'Permanent deletion',
                   sourcePaths: paths,
@@ -1428,31 +1431,51 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
                 paths,
                 permanent: true,
                 taskId: permanentTaskId,
-                onLog: (msg) => ref.read(taskProvider.notifier).addLog(permanentTaskId, msg),
+                onLog: (msg) => ref
+                    .read(taskProvider.notifier)
+                    .addLog(permanentTaskId, msg),
                 onProgress: (p, t) {
-                  ref.read(taskProvider.notifier).updateProgress(permanentTaskId, p / t);
-                  ref.read(taskProvider.notifier).updateItemCounts(permanentTaskId, p, t);
+                  ref
+                      .read(taskProvider.notifier)
+                      .updateProgress(permanentTaskId, p / t);
+                  ref
+                      .read(taskProvider.notifier)
+                      .updateItemCounts(permanentTaskId, p, t);
                 },
               );
               ref.read(taskProvider.notifier).completeTask(permanentTaskId);
             } catch (err) {
-              ref.read(taskProvider.notifier).failTask(permanentTaskId, err.toString());
+              ref
+                  .read(taskProvider.notifier)
+                  .failTask(permanentTaskId, err.toString());
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Deletion failed: $err'), backgroundColor: AppColors.error),
+                  SnackBar(
+                    content: Text('Deletion failed: $err'),
+                    backgroundColor: AppColors.error,
+                  ),
                 );
               }
             }
           }
           ref.read(selectionProvider.notifier).deselectAll();
-          unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
-          unawaited(ref.read(settingsProvider.notifier).cleanupFolderSorts(paths));
+          unawaited(
+            ref
+                .read(directoryItemsProvider.notifier)
+                .refresh(showLoader: false),
+          );
+          unawaited(
+            ref.read(settingsProvider.notifier).cleanupFolderSorts(paths),
+          );
           return;
         } catch (e) {
           ref.read(taskProvider.notifier).failTask(taskId, e.toString());
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+              SnackBar(
+                content: Text('Error: $e'),
+                backgroundColor: AppColors.error,
+              ),
             );
           }
           return;
@@ -1460,7 +1483,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       }
       ref.read(taskProvider.notifier).completeTask(taskId);
       ref.read(selectionProvider.notifier).deselectAll();
-      unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
+      unawaited(
+        ref.read(directoryItemsProvider.notifier).refresh(showLoader: false),
+      );
       unawaited(ref.read(settingsProvider.notifier).cleanupFolderSorts(paths));
     } catch (e) {
       debugPrint('Delete error: $e');
@@ -1472,9 +1497,7 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
     if (current != null) {
       ref
           .read(settingsProvider.notifier)
-          .setShowHiddenFiles(
-            value: !current.showHiddenFiles,
-          );
+          .setShowHiddenFiles(value: !current.showHiddenFiles);
     }
   }
 
@@ -1546,7 +1569,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
       );
       ref.read(taskProvider.notifier).completeTask(taskId);
       ref.read(selectionProvider.notifier).deselectAll();
-      unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
+      unawaited(
+        ref.read(directoryItemsProvider.notifier).refresh(showLoader: false),
+      );
     } catch (e) {
       debugPrint('Empty trash error: $e');
     }
@@ -1637,7 +1662,11 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
                 rethrow;
               }
             }
-            unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
+            unawaited(
+              ref
+                  .read(directoryItemsProvider.notifier)
+                  .refresh(showLoader: false),
+            );
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(
@@ -1731,7 +1760,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
           ref.read(selectionProvider.notifier).deselectAll();
           ref.read(selectionProvider.notifier).selectMultiple(newPaths);
         }
-        unawaited(ref.read(directoryItemsProvider.notifier).refresh(showLoader: false));
+        unawaited(
+          ref.read(directoryItemsProvider.notifier).refresh(showLoader: false),
+        );
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -1780,7 +1811,9 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
         }
 
         ref.read(taskProvider.notifier).completeTask(taskId);
-        await ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+        await ref
+            .read(directoryItemsProvider.notifier)
+            .refresh(showLoader: false);
         // Auto-select the new item
         ref.read(selectionProvider.notifier).selectMultiple([newItemPath]);
       } catch (e) {

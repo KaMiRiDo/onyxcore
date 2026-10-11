@@ -84,7 +84,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
   Size? _imageSize;
 
   // Interaction Quality State
-  final InteractionQualityNotifier _interactionQualityNotifier = InteractionQualityNotifier();
+  final InteractionQualityNotifier _interactionQualityNotifier =
+      InteractionQualityNotifier();
 
   bool _isGlobalHudVisible = true;
   Offset? _lastMousePos;
@@ -107,7 +108,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _preparationController = ImagePreparationController()
       ..addListener(() {
         if (mounted) {
-          if (!_preparationController.isConverting && _preparationController.preparedPath != null) {
+          if (!_preparationController.isConverting &&
+              _preparationController.preparedPath != null) {
             _loadMetadata();
           }
         }
@@ -169,7 +171,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       isSidebarOpen: () => ref.read(imagePlaylistSidebarVisibleProvider),
       isStandalone: widget.isStandalone,
       isWindowed: widget.windowId != null,
-      getIsFilterSortEnabled: () => ref.read(settingsProvider).value?.imageFilterSortEnabled ?? false,
+      getIsFilterSortEnabled: () =>
+          ref.read(settingsProvider).value?.imageFilterSortEnabled ?? false,
       onFilterSort: _handleFilterSort,
     );
 
@@ -238,12 +241,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       isMountedCheck: () => mounted,
     );
 
-    _restartSignalSub = ref.listenManual(imageRestartSignalProvider, (previous, next) {
+    _restartSignalSub = ref.listenManual(imageRestartSignalProvider, (
+      previous,
+      next,
+    ) {
       _navigationController.resetEmptyState();
     });
 
     if (widget.windowId == null && !widget.isStandalone) {
-      _hudVisibleSub = ref.listenManual(previewHudVisibleProvider, (previous, next) {
+      _hudVisibleSub = ref.listenManual(previewHudVisibleProvider, (
+        previous,
+        next,
+      ) {
         if (mounted) {
           setState(() => _isGlobalHudVisible = next as bool);
         }
@@ -344,7 +353,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
         }
         if (result.imageSize != null) {
           _imageSize = result.imageSize;
-          _imageZoomController.updateConstraints(_imageZoomController.viewportSize, _imageSize);
+          _imageZoomController.updateConstraints(
+            _imageZoomController.viewportSize,
+            _imageSize,
+          );
         }
       });
     }
@@ -359,7 +371,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
           _imageSize = size;
           if (_metadata == null || _metadata!.isEmpty) {
             final mp = (size.width * size.height / 1000000).toStringAsFixed(1);
-            _metadata = '${size.width.toInt()}x${size.height.toInt()} px • $mp MP';
+            _metadata =
+                '${size.width.toInt()}x${size.height.toInt()} px • $mp MP';
           }
           _imageZoomController.updateConstraints(
             _imageZoomController.viewportSize,
@@ -369,7 +382,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       });
     }
   }
-
 
   @override
   void dispose() {
@@ -384,7 +396,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
     _isEmptyNotifier.dispose();
     _interactionQualityNotifier.dispose();
     _isReadyForInteraction.dispose();
-    
+
     // Clear the precache session entirely on window close
     ImagePrecacheManager.instance.clearSession();
 
@@ -428,7 +440,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       if (mounted) {
         ref.read(imageIsEmptyProvider.notifier).state = false;
         ref.read(previewFileProvider.notifier).state = item;
-        
+
         final parentPath = p.dirname(item.path);
         final currentRoot = ref.read(imageRootPathProvider);
         if (currentRoot.isEmpty || !parentPath.startsWith(currentRoot)) {
@@ -585,7 +597,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
     // Navigate first so UX feels responsive (image switches immediately)
     _navigationController.navigateAfterDeletion(deletingItem);
-    
+
     // Evict from queue immediately
     _navigationController.removeFile(deletingItem.path);
 
@@ -603,10 +615,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
       if (!mounted) return;
       final confirmPermanent = await showDialog<bool>(
         context: context,
-        builder: (ctx) => ViewerDeleteDialog(
-          fileName: deletingItem.name,
-          permanent: true,
-        ),
+        builder: (ctx) =>
+            ViewerDeleteDialog(fileName: deletingItem.name, permanent: true),
       );
       if (confirmPermanent ?? false) {
         final permanentTaskId = ref
@@ -662,7 +672,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
 
   @override
   Widget build(BuildContext context) {
-    final isFilterSortEnabled = ref.watch(settingsProvider).value?.imageFilterSortEnabled ?? false;
+    final isFilterSortEnabled =
+        ref.watch(settingsProvider).value?.imageFilterSortEnabled ?? false;
 
     return Focus(
       focusNode: _focusNode,
@@ -723,7 +734,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                   _handleDelete(permanent: false),
                             )
                           : const SizedBox.shrink(),
-
                     ),
                     Expanded(
                       child: LayoutBuilder(
@@ -763,11 +773,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                               ]),
                                               builder: (context, child) {
                                                 return ImageCanvas(
-                                                  imagePath: _preparationController.preparedPath ?? _currentItem.path,
+                                                  imagePath:
+                                                      _preparationController
+                                                          .preparedPath ??
+                                                      _currentItem.path,
                                                   heroTag: _currentItem.path,
-                                                  isConverting: _preparationController.isConverting,
-                                                  isHighFrequencyInteractionActive: _interactionQualityNotifier.isActive,
-                                                  onImageSizeResolved: _onImageSizeResolved,
+                                                  isConverting:
+                                                      _preparationController
+                                                          .isConverting,
+                                                  isHighFrequencyInteractionActive:
+                                                      _interactionQualityNotifier
+                                                          .isActive,
+                                                  onImageSizeResolved:
+                                                      _onImageSizeResolved,
                                                 );
                                               },
                                             ),
@@ -783,20 +801,31 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 left: 0,
                                 right: 0,
                                 child: ListenableBuilder(
-                                  listenable: Listenable.merge([_hudController, _navigationController]),
+                                  listenable: Listenable.merge([
+                                    _hudController,
+                                    _navigationController,
+                                  ]),
                                   builder: (context, child) {
-                                    final isVisible = _hudController.isControlsVisible &&
-                                        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
+                                    final isVisible =
+                                        _hudController.isControlsVisible &&
+                                        (widget.windowId != null ||
+                                            widget.isStandalone ||
+                                            _isGlobalHudVisible);
                                     return AnimatedOpacity(
-                                      duration: const Duration(milliseconds: 300),
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
                                       opacity: isVisible ? 1.0 : 0.0,
                                       child: ImageViewerTopBar(
                                         title: _currentItem.name,
                                         metadata:
-                                            _navigationController.indexString != null
+                                            _navigationController.indexString !=
+                                                null
                                             ? '${_navigationController.indexString}${_metadata != null ? ' • $_metadata' : ''}'
                                             : _metadata,
-                                        isStandalone: widget.isStandalone || widget.windowId != null,
+                                        isStandalone:
+                                            widget.isStandalone ||
+                                            widget.windowId != null,
                                         isEmpty: _isEmpty,
                                         isNetworkStream: _isNetworkStream,
                                         itemPath: _currentItem.path,
@@ -804,12 +833,20 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                         onClose: () {
                                           if (widget.isStandalone) {
                                             if (widget.windowId != null) {
-                                              PersistentViewerManager.closeWindow(int.parse(widget.windowId!));
+                                              PersistentViewerManager.closeWindow(
+                                                int.parse(widget.windowId!),
+                                              );
                                             } else {
                                               windowManager.hide();
                                             }
                                           } else {
-                                            ref.read(previewFileProvider.notifier).state = null;
+                                            ref
+                                                    .read(
+                                                      previewFileProvider
+                                                          .notifier,
+                                                    )
+                                                    .state =
+                                                null;
                                           }
                                         },
                                       ),
@@ -824,16 +861,22 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 child: ListenableBuilder(
                                   listenable: _hudController,
                                   builder: (context, child) {
-                                    final isVisible = _hudController.isControlsVisible &&
-                                        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
-                                    if (!isVisible) return const SizedBox.shrink();
+                                    final isVisible =
+                                        _hudController.isControlsVisible &&
+                                        (widget.windowId != null ||
+                                            widget.isStandalone ||
+                                            _isGlobalHudVisible);
+                                    if (!isVisible)
+                                      return const SizedBox.shrink();
                                     return Consumer(
                                       builder: (context, sidebarRef, _) {
                                         final isSidebarOpen = sidebarRef.watch(
                                           imagePlaylistSidebarVisibleProvider,
                                         );
                                         return AnimatedOpacity(
-                                          duration: const Duration(milliseconds: 200),
+                                          duration: const Duration(
+                                            milliseconds: 200,
+                                          ),
                                           opacity: isVisible ? 1.0 : 0.0,
                                           child: IconButton(
                                             icon: const Icon(
@@ -861,22 +904,26 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 ),
                               ),
 
-
                               Positioned(
                                 bottom: 32,
                                 right: 32,
                                 child: ListenableBuilder(
                                   listenable: Listenable.merge([
                                     _hudController,
-                                    _imageZoomController.transformationController,
+                                    _imageZoomController
+                                        .transformationController,
                                   ]),
                                   builder: (context, child) {
-                                    if (!_hudController.showZoomIndicator) return const SizedBox.shrink();
+                                    if (!_hudController.showZoomIndicator)
+                                      return const SizedBox.shrink();
                                     return AnimatedOpacity(
-                                      duration: const Duration(milliseconds: 200),
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
                                       opacity: 1,
                                       child: ImageZoomIndicator(
-                                        scale: _imageZoomController.currentScale,
+                                        scale:
+                                            _imageZoomController.currentScale,
                                       ),
                                     );
                                   },
@@ -890,13 +937,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                 child: ListenableBuilder(
                                   listenable: _hudController,
                                   builder: (context, child) {
-                                    final hudVisible = _hudController.isControlsVisible &&
-                                        (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible);
-                                    
+                                    final hudVisible =
+                                        _hudController.isControlsVisible &&
+                                        (widget.windowId != null ||
+                                            widget.isStandalone ||
+                                            _isGlobalHudVisible);
+
                                     if (!isFilterSortEnabled) {
                                       return const SizedBox.shrink();
                                     }
-                                    
+
                                     return FilterSortButton(
                                       hudVisible: hudVisible,
                                       onPressed: _handleFilterSort,
@@ -904,12 +954,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget>
                                   },
                                 ),
                               ),
-                        ],
-                      );
-                    },
-                   ),
-                  ),
-                 ],
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

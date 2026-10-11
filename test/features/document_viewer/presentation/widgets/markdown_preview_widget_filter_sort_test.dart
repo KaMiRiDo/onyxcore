@@ -16,8 +16,12 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 class MockAppDatabase extends Mock implements AppDatabase {
   MockAppDatabase() {
     when(() => pruneMetadataCache(any())).thenAnswer((_) async => <String>[]);
-    when(() => getAllMetadataCache()).thenAnswer((_) async => <MetadataCacheEntry>[]);
-    when(() => getAllThumbnailEntries()).thenAnswer((_) async => <ThumbnailCacheEntry>[]);
+    when(
+      () => getAllMetadataCache(),
+    ).thenAnswer((_) async => <MetadataCacheEntry>[]);
+    when(
+      () => getAllThumbnailEntries(),
+    ).thenAnswer((_) async => <ThumbnailCacheEntry>[]);
     when(() => getPlaybackPosition(any())).thenAnswer((_) async => null);
     when(() => savePlaybackPosition(any(), any())).thenAnswer((_) async {});
   }
@@ -25,7 +29,8 @@ class MockAppDatabase extends Mock implements AppDatabase {
 
 class MockSettingsNotifierEnabled extends SettingsNotifier {
   @override
-  Future<AppSettings> build() async => const AppSettings(documentFilterSortEnabled: true);
+  Future<AppSettings> build() async =>
+      const AppSettings(documentFilterSortEnabled: true);
 }
 
 class MockSettingsNotifierDisabled extends SettingsNotifier {
@@ -53,7 +58,11 @@ void main() {
       return ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(MockAppDatabase()),
-          settingsProvider.overrideWith(isFilterSortEnabled ? MockSettingsNotifierEnabled.new : MockSettingsNotifierDisabled.new),
+          settingsProvider.overrideWith(
+            isFilterSortEnabled
+                ? MockSettingsNotifierEnabled.new
+                : MockSettingsNotifierDisabled.new,
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -71,28 +80,34 @@ void main() {
       );
     }
 
-    testWidgets('shows FilterSortButton when documentFilterSortEnabled is true', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets(
+      'shows FilterSortButton when documentFilterSortEnabled is true',
+      (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(buildWidget(true));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(buildWidget(true));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(FilterSortButton), findsOneWidget);
-    });
+        expect(find.byType(FilterSortButton), findsOneWidget);
+      },
+    );
 
-    testWidgets('hides FilterSortButton when documentFilterSortEnabled is false', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets(
+      'hides FilterSortButton when documentFilterSortEnabled is false',
+      (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(buildWidget(false));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(buildWidget(false));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(FilterSortButton), findsNothing);
-    });
+        expect(find.byType(FilterSortButton), findsNothing);
+      },
+    );
   });
 }

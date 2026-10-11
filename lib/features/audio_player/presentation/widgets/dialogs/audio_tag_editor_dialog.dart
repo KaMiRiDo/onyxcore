@@ -18,7 +18,6 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'package:path/path.dart' as p;
 
 class AudioTagEditorDialog extends ConsumerStatefulWidget {
-
   const AudioTagEditorDialog({required this.paths, super.key, this.onRename});
   final List<String> paths;
   final void Function(String oldPath, String newPath)? onRename;
@@ -650,10 +649,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
           focusNode: focusNode,
           autofocus: autofocus,
           onSubmitted: (_) => _save(),
-          style: GoogleFonts.manrope(
-            fontSize: 14,
-            color: Colors.white,
-          ),
+          style: GoogleFonts.manrope(fontSize: 14, color: Colors.white),
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.black.withValues(alpha: 0.3),
@@ -663,11 +659,15 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              borderSide: BorderSide(
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              borderSide: BorderSide(
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -734,10 +734,7 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
         newName = '$value$base$ext';
       }
 
-      previews.add({
-        'original': original,
-        'new': newName,
-      });
+      previews.add({'original': original, 'new': newName});
     }
     return previews;
   }
@@ -862,7 +859,9 @@ class _AudioTagEditorDialogState extends ConsumerState<AudioTagEditorDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.1),
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       ),
       child: Row(
         children: [

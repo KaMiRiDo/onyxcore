@@ -221,7 +221,9 @@ class _TasksViewState extends ConsumerState<_TasksView>
                             Text(
                               'No active tasks',
                               style: GoogleFonts.manrope(
-                                color: AppColors.textMuted.withValues(alpha: 0.5),
+                                color: AppColors.textMuted.withValues(
+                                  alpha: 0.5,
+                                ),
                                 fontSize: 14,
                               ),
                             ),
@@ -243,9 +245,7 @@ class _TasksViewState extends ConsumerState<_TasksView>
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.2),
-                  border: const Border(
-                    top: BorderSide(color: Colors.white10),
-                  ),
+                  border: const Border(top: BorderSide(color: Colors.white10)),
                 ),
                 child: SizedBox(
                   width: double.infinity,

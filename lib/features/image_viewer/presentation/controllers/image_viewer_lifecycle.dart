@@ -7,7 +7,6 @@ import 'package:onyxcore/features/image_viewer/presentation/providers/image_play
 import 'package:path/path.dart' as p;
 
 class ImageViewerLifecycle {
-
   ImageViewerLifecycle({
     required this.windowId,
     required this.isStandalone,
@@ -35,15 +34,17 @@ class ImageViewerLifecycle {
     required bool Function() isMountedCheck,
   }) async {
     if (isStandalone && windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(windowId!))
-          .addListener(onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(windowId!),
+      ).addListener(onWindowFocus);
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!isMountedCheck()) return;
 
       ref.read(imageIsEmptyProvider.notifier).state = false;
-      final isNetwork = item.path.startsWith('http://') ||
+      final isNetwork =
+          item.path.startsWith('http://') ||
           item.path.startsWith('https://') ||
           item.path.startsWith('http:/') ||
           item.path.startsWith('https:/');
@@ -83,8 +84,9 @@ class ImageViewerLifecycle {
 
   void dispose() {
     if (isStandalone && windowId != null) {
-      PersistentViewerManager.getFocusTrigger(int.parse(windowId!))
-          .removeListener(onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        int.parse(windowId!),
+      ).removeListener(onWindowFocus);
     }
   }
 }

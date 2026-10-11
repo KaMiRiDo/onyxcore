@@ -103,11 +103,7 @@ class StreamlinkEngine extends DownloadEngine {
       'bin',
       'pip',
     );
-    return Process.start(venvPip, [
-      'uninstall',
-      '-y',
-      'streamlink',
-    ]);
+    return Process.start(venvPip, ['uninstall', '-y', 'streamlink']);
   }
 
   @override

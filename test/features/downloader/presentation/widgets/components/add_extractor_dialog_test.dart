@@ -6,8 +6,7 @@ import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.da
 import 'package:onyxcore/features/downloader/presentation/providers/custom_extractor_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/components/add_extractor_dialog.dart';
 
-class MockCustomExtractorNotifier
-    extends AsyncNotifier<List<CustomExtractor>>
+class MockCustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>>
     implements CustomExtractorNotifier {
   CustomExtractor? addedExtractor;
   CustomExtractor? updatedExtractor;
@@ -45,12 +44,20 @@ void main() {
   // ── Tab structure ──────────────────────────────────────────────────────────
 
   group('Tab structure', () {
-    testWidgets('Dialog shows Script Mode toggle', (WidgetTester tester) async { await tester.pumpWidget(_buildTestApp()); expect(find.text('Script Mode'), findsOneWidget); });
+    testWidgets('Dialog shows Script Mode toggle', (WidgetTester tester) async {
+      await tester.pumpWidget(_buildTestApp());
+      expect(find.text('Script Mode'), findsOneWidget);
+    });
 
-    testWidgets('Default Extractor fields are shown by default', (WidgetTester tester) async {
+    testWidgets('Default Extractor fields are shown by default', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(_buildTestApp());
       // Verify Default fields are visible
-      expect(find.byKey(const ValueKey('extractor_name_field')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('extractor_name_field')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey('extractor_selector_field')),
         findsOneWidget,
@@ -61,25 +68,34 @@ void main() {
       );
     });
 
-    testWidgets('Script mode is accessible and shows script editor', (WidgetTester tester) async {
+    testWidgets('Script mode is accessible and shows script editor', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(_buildTestApp());
-      await tester.tap(find.byType(OnyxSwitch)); // OnyxSwitch uses Switch inside
+      await tester.tap(
+        find.byType(OnyxSwitch),
+      ); // OnyxSwitch uses Switch inside
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('extractor_script_field')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('extractor_script_field')),
+        findsOneWidget,
+      );
     });
   });
 
   // ── Dialog title ──────────────────────────────────────────────────────────
 
   group('Dialog title', () {
-    testWidgets('shows Add title for new extractor',
-        (WidgetTester tester) async {
+    testWidgets('shows Add title for new extractor', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(_buildTestApp());
       expect(find.text('Add Custom Extractor'), findsOneWidget);
     });
 
-    testWidgets('shows Edit title for existing extractor',
-        (WidgetTester tester) async {
+    testWidgets('shows Edit title for existing extractor', (
+      WidgetTester tester,
+    ) async {
       final extractor = CustomExtractor(
         id: '1',
         name: 'Test Extractor',
@@ -95,11 +111,15 @@ void main() {
   // ── Default Extractor tab — fields ────────────────────────────────────────
 
   group('Default Extractor tab fields', () {
-    testWidgets('shows Extractor Name, CSS Selector, Attribute Name fields',
-        (WidgetTester tester) async {
+    testWidgets('shows Extractor Name, CSS Selector, Attribute Name fields', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(_buildTestApp());
 
-      expect(find.byKey(const ValueKey('extractor_name_field')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('extractor_name_field')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey('extractor_selector_field')),
         findsOneWidget,
@@ -110,8 +130,9 @@ void main() {
       );
     });
 
-    testWidgets('shows HTML Extractor type dropdown',
-        (WidgetTester tester) async {
+    testWidgets('shows HTML Extractor type dropdown', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(_buildTestApp());
       // The extractor type dropdown shows 'HTML Extractor' by default
       expect(find.text('HTML Extractor'), findsOneWidget);
@@ -121,14 +142,17 @@ void main() {
   // ── Default Extractor — validation ────────────────────────────────────────
 
   group('Default Extractor — inline validation', () {
-    testWidgets('Save is blocked when name is empty',
-        (WidgetTester tester) async {
+    testWidgets('Save is blocked when name is empty', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
-      await tester.pumpWidget(_buildTestApp(
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       // Leave name empty, fill selector and attribute
       await tester.enterText(
@@ -146,14 +170,17 @@ void main() {
       expect(mockNotifier.addedExtractor, isNull);
     });
 
-    testWidgets('Save is blocked when CSS selector is empty',
-        (WidgetTester tester) async {
+    testWidgets('Save is blocked when CSS selector is empty', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
-      await tester.pumpWidget(_buildTestApp(
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       await tester.enterText(
         find.byKey(const ValueKey('extractor_name_field')),
@@ -171,14 +198,17 @@ void main() {
       expect(mockNotifier.addedExtractor, isNull);
     });
 
-    testWidgets('Save is blocked when attribute name is empty',
-        (WidgetTester tester) async {
+    testWidgets('Save is blocked when attribute name is empty', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
-      await tester.pumpWidget(_buildTestApp(
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       await tester.enterText(
         find.byKey(const ValueKey('extractor_name_field')),
@@ -196,8 +226,9 @@ void main() {
       expect(mockNotifier.addedExtractor, isNull);
     });
 
-    testWidgets('validation error appears inline below name field',
-        (WidgetTester tester) async {
+    testWidgets('validation error appears inline below name field', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(_buildTestApp());
 
       await tester.tap(find.text('Create'));
@@ -214,14 +245,17 @@ void main() {
   // ── Default Extractor — Save flow ─────────────────────────────────────────
 
   group('Default Extractor — Save flow', () {
-    testWidgets('saves a new default HTML extractor successfully',
-        (WidgetTester tester) async {
+    testWidgets('saves a new default HTML extractor successfully', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
-      await tester.pumpWidget(_buildTestApp(
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       await tester.enterText(
         find.byKey(const ValueKey('extractor_name_field')),
@@ -243,14 +277,17 @@ void main() {
       expect(mockNotifier.addedExtractor!.name, 'ABC Image Extractor');
     });
 
-    testWidgets('generated script is stored in the extractor',
-        (WidgetTester tester) async {
+    testWidgets('generated script is stored in the extractor', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
-      await tester.pumpWidget(_buildTestApp(
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       await tester.enterText(
         find.byKey(const ValueKey('extractor_name_field')),
@@ -275,14 +312,17 @@ void main() {
       expect(script, contains('async function extract(url)'));
     });
 
-    testWidgets('metadata is persisted with extractorKind=html',
-        (WidgetTester tester) async {
+    testWidgets('metadata is persisted with extractorKind=html', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
-      await tester.pumpWidget(_buildTestApp(
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       await tester.enterText(
         find.byKey(const ValueKey('extractor_name_field')),
@@ -312,28 +352,35 @@ void main() {
   // ── Script tab — regression ────────────────────────────────────────────────
 
   group('Script mode — existing behavior preserved (regression)', () {
-    testWidgets('Script mode shows name and script editor fields',
-        (WidgetTester tester) async {
+    testWidgets('Script mode shows name and script editor fields', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(_buildTestApp());
 
       await tester.tap(find.byType(OnyxSwitch));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('extractor_name_script_field')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('extractor_name_script_field')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey('extractor_script_field')),
         findsOneWidget,
       );
     });
 
-    testWidgets('saves a script extractor from Script mode',
-        (WidgetTester tester) async {
+    testWidgets('saves a script extractor from Script mode', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
-      await tester.pumpWidget(_buildTestApp(
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       await tester.tap(find.byType(OnyxSwitch));
       await tester.pumpAndSettle();
@@ -364,8 +411,9 @@ void main() {
   // ── Edit mode ─────────────────────────────────────────────────────────────
 
   group('Edit mode', () {
-    testWidgets('pre-fills Default fields when editing a default extractor',
-        (WidgetTester tester) async {
+    testWidgets('pre-fills Default fields when editing a default extractor', (
+      WidgetTester tester,
+    ) async {
       const metadata =
           '{"extractorKind":"html","cssSelector":".article img","attributeName":"data-src"}';
       final extractor = CustomExtractor(
@@ -401,8 +449,9 @@ void main() {
       expect(attributeField.controller!.text, 'data-src');
     });
 
-    testWidgets('opens Script mode when editing a manual script extractor',
-        (WidgetTester tester) async {
+    testWidgets('opens Script mode when editing a manual script extractor', (
+      WidgetTester tester,
+    ) async {
       final extractor = CustomExtractor(
         id: '1',
         name: 'Manual Extractor',
@@ -422,8 +471,9 @@ void main() {
       );
     });
 
-    testWidgets('updates existing default extractor and regenerates script',
-        (WidgetTester tester) async {
+    testWidgets('updates existing default extractor and regenerates script', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
       const metadata =
           '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}';
@@ -436,12 +486,14 @@ void main() {
         metadata: metadata,
       );
 
-      await tester.pumpWidget(_buildTestApp(
-        extractor: extractor,
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          extractor: extractor,
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       // Update the selector
       await tester.enterText(
@@ -467,14 +519,17 @@ void main() {
   // ── Cancel button ─────────────────────────────────────────────────────────
 
   group('Cancel button', () {
-    testWidgets('Cancel closes dialog without saving',
-        (WidgetTester tester) async {
+    testWidgets('Cancel closes dialog without saving', (
+      WidgetTester tester,
+    ) async {
       final mockNotifier = MockCustomExtractorNotifier();
-      await tester.pumpWidget(_buildTestApp(
-        overrides: [
-          customExtractorsProvider.overrideWith(() => mockNotifier),
-        ],
-      ));
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            customExtractorsProvider.overrideWith(() => mockNotifier),
+          ],
+        ),
+      );
 
       await tester.enterText(
         find.byKey(const ValueKey('extractor_name_field')),

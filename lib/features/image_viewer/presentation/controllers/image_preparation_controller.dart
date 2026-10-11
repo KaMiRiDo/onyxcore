@@ -2,10 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:onyxcore/features/image_viewer/utils/special_image_converter.dart';
 
 class ImagePreparationController extends ChangeNotifier {
-
-  ImagePreparationController({
-    this.converter,
-  });
+  ImagePreparationController({this.converter});
   final Future<String?> Function(String)? converter;
 
   bool _isConverting = false;
@@ -22,7 +19,8 @@ class ImagePreparationController extends ChangeNotifier {
     final currentGeneration = ++_generation;
 
     final ext = sourcePath.toLowerCase();
-    final isSpecial = ext.endsWith('.heic') ||
+    final isSpecial =
+        ext.endsWith('.heic') ||
         ext.endsWith('.heif') ||
         ext.endsWith('.avif') ||
         ext.endsWith('.dng') ||

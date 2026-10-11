@@ -31,7 +31,7 @@ class MockDirectoryRepository implements DirectoryRepository {
         sizeBytes: 4096,
         modified: DateTime(2023),
         type: FileItemType.other,
-      )
+      ),
     ];
   }
 
@@ -48,10 +48,14 @@ Future<void> pumpFrames(WidgetTester tester) async {
 }
 
 void main() {
-  Widget buildTestWidget({List<String> paths = const ['/home/user/docs/file.txt']}) {
+  Widget buildTestWidget({
+    List<String> paths = const ['/home/user/docs/file.txt'],
+  }) {
     return ProviderScope(
       overrides: [
-        directoryRepositoryProvider.overrideWithValue(MockDirectoryRepository()),
+        directoryRepositoryProvider.overrideWithValue(
+          MockDirectoryRepository(),
+        ),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -81,8 +85,14 @@ void main() {
     expect(find.text('/home/user/docs'), findsOneWidget);
   });
 
-  testWidgets('PropertiesDialog renders multiple files correctly', (tester) async {
-    await tester.pumpWidget(buildTestWidget(paths: ['/home/user/docs/file1.txt', '/home/user/docs/file2.txt']));
+  testWidgets('PropertiesDialog renders multiple files correctly', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildTestWidget(
+        paths: ['/home/user/docs/file1.txt', '/home/user/docs/file2.txt'],
+      ),
+    );
     await tester.tap(find.text('Show Dialog'));
     await pumpFrames(tester);
 

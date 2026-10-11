@@ -18,9 +18,9 @@ class FakeSelectionNotifier extends SelectionNotifier {
 
   @override
   SelectionState build() => SelectionState(
-        selectedPaths: initialPaths,
-        isSelectionMode: initialPaths.isNotEmpty,
-      );
+    selectedPaths: initialPaths,
+    isSelectionMode: initialPaths.isNotEmpty,
+  );
 
   @override
   void selectMultiple(List<String> paths, {bool isCtrl = false}) {
@@ -51,30 +51,20 @@ void main() {
   }) {
     return UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(
-        home: Scaffold(
-          body: child,
-        ),
-      ),
+      child: MaterialApp(home: Scaffold(body: child)),
     );
   }
 
   testWidgets('RubberBandOverlay builds successfully', (tester) async {
     final container = ProviderContainer(
-      overrides: [
-        selectionProvider.overrideWith(FakeSelectionNotifier.new),
-      ],
+      overrides: [selectionProvider.overrideWith(FakeSelectionNotifier.new)],
     );
 
     await tester.pumpWidget(
       buildTestWidget(
         container: container,
         child: RubberBandOverlay(
-          child: Container(
-            width: 500,
-            height: 500,
-            color: Colors.transparent,
-          ),
+          child: Container(width: 500, height: 500, color: Colors.transparent),
         ),
       ),
     );
@@ -82,7 +72,9 @@ void main() {
     expect(find.byType(RubberBandOverlay), findsOneWidget);
   });
 
-  testWidgets('RubberBandOverlay drag selects overlapping ItemCards', (tester) async {
+  testWidgets('RubberBandOverlay drag selects overlapping ItemCards', (
+    tester,
+  ) async {
     final fakeSelectionNotifier = FakeSelectionNotifier();
     final container = ProviderContainer(
       overrides: [
@@ -159,21 +151,36 @@ void main() {
     await tester.dragFrom(const Offset(40, 40), const Offset(80, 80));
     await tester.pumpAndSettle();
 
-    final activeNotifier = container.read(selectionProvider.notifier) as FakeSelectionNotifier;
+    final activeNotifier =
+        container.read(selectionProvider.notifier) as FakeSelectionNotifier;
 
     // Verify that selection notifier received only file1.txt
-    expect(activeNotifier.selectedPathsCaptured, contains('/home/user/file1.txt'));
-    expect(activeNotifier.selectedPathsCaptured, isNot(contains('/home/user/file2.txt')));
+    expect(
+      activeNotifier.selectedPathsCaptured,
+      contains('/home/user/file1.txt'),
+    );
+    expect(
+      activeNotifier.selectedPathsCaptured,
+      isNot(contains('/home/user/file2.txt')),
+    );
 
     // Drag 2: Select both (from 40,40 to 300,300)
     await tester.dragFrom(const Offset(40, 40), const Offset(260, 260));
     await tester.pumpAndSettle();
 
-    expect(activeNotifier.selectedPathsCaptured, contains('/home/user/file1.txt'));
-    expect(activeNotifier.selectedPathsCaptured, contains('/home/user/file2.txt'));
+    expect(
+      activeNotifier.selectedPathsCaptured,
+      contains('/home/user/file1.txt'),
+    );
+    expect(
+      activeNotifier.selectedPathsCaptured,
+      contains('/home/user/file2.txt'),
+    );
   });
 
-  testWidgets('RubberBandOverlay with Ctrl key preserves initial selection', (tester) async {
+  testWidgets('RubberBandOverlay with Ctrl key preserves initial selection', (
+    tester,
+  ) async {
     final fakeSelectionNotifier = FakeSelectionNotifier(
       initialPaths: {'/home/user/file2.txt'},
     );
@@ -258,10 +265,17 @@ void main() {
 
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
 
-    final activeNotifier = container.read(selectionProvider.notifier) as FakeSelectionNotifier;
+    final activeNotifier =
+        container.read(selectionProvider.notifier) as FakeSelectionNotifier;
 
     // Verify selection contains both file1 (from drag) and file2 (retained via Ctrl)
-    expect(activeNotifier.selectedPathsCaptured, contains('/home/user/file1.txt'));
-    expect(activeNotifier.selectedPathsCaptured, contains('/home/user/file2.txt'));
+    expect(
+      activeNotifier.selectedPathsCaptured,
+      contains('/home/user/file1.txt'),
+    );
+    expect(
+      activeNotifier.selectedPathsCaptured,
+      contains('/home/user/file2.txt'),
+    );
   });
 }

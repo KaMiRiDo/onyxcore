@@ -102,83 +102,90 @@ void main() {
 
   group('Bug Fix: navigateAfterDeletion last-image behavior', () {
     testWidgets(
-        'navigateAfterDeletion: when NOT at last image, navigates to next item',
-        (tester) async {
-      await pumpController(tester);
-      // item2 is at index 1, next should be item3
-      controller.navigateAfterDeletion(item2);
-      expect(navigatedItem, item3);
-      expect(clearCalled, isFalse);
-      controller.dispose();
-    });
+      'navigateAfterDeletion: when NOT at last image, navigates to next item',
+      (tester) async {
+        await pumpController(tester);
+        // item2 is at index 1, next should be item3
+        controller.navigateAfterDeletion(item2);
+        expect(navigatedItem, item3);
+        expect(clearCalled, isFalse);
+        controller.dispose();
+      },
+    );
 
     testWidgets(
-        'navigateAfterDeletion: when deleting LAST image, calls onClearNavigation (quit)',
-        (tester) async {
-      await pumpController(tester);
-      // item3 is the last item - should quit (clearNavigation) not wrap
-      controller.navigateAfterDeletion(item3);
-      expect(clearCalled, isTrue);
-      expect(navigatedItem, isNull);
-      controller.dispose();
-    });
+      'navigateAfterDeletion: when deleting LAST image, calls onClearNavigation (quit)',
+      (tester) async {
+        await pumpController(tester);
+        // item3 is the last item - should quit (clearNavigation) not wrap
+        controller.navigateAfterDeletion(item3);
+        expect(clearCalled, isTrue);
+        expect(navigatedItem, isNull);
+        controller.dispose();
+      },
+    );
 
     testWidgets(
-        'navigateAfterDeletion: when deleting FIRST image of 2, navigates to second',
-        (tester) async {
-      await pumpController(tester, customPlaylist: [item1, item2]);
-      controller.navigateAfterDeletion(item1);
-      expect(navigatedItem, item2);
-      expect(clearCalled, isFalse);
-      controller.dispose();
-    });
+      'navigateAfterDeletion: when deleting FIRST image of 2, navigates to second',
+      (tester) async {
+        await pumpController(tester, customPlaylist: [item1, item2]);
+        controller.navigateAfterDeletion(item1);
+        expect(navigatedItem, item2);
+        expect(clearCalled, isFalse);
+        controller.dispose();
+      },
+    );
 
     testWidgets(
-        'navigateAfterDeletion: when deleting LAST image of 2, calls onClearNavigation',
-        (tester) async {
-      await pumpController(tester, customPlaylist: [item1, item2]);
-      controller.navigateAfterDeletion(item2);
-      expect(clearCalled, isTrue);
-      expect(navigatedItem, isNull);
-      controller.dispose();
-    });
+      'navigateAfterDeletion: when deleting LAST image of 2, calls onClearNavigation',
+      (tester) async {
+        await pumpController(tester, customPlaylist: [item1, item2]);
+        controller.navigateAfterDeletion(item2);
+        expect(clearCalled, isTrue);
+        expect(navigatedItem, isNull);
+        controller.dispose();
+      },
+    );
 
     testWidgets(
-        'navigateAfterDeletion: when only 1 item in playlist, calls onClearNavigation',
-        (tester) async {
-      await pumpController(tester, customPlaylist: [item1]);
-      controller.navigateAfterDeletion(item1);
-      expect(clearCalled, isTrue);
-      expect(navigatedItem, isNull);
-      controller.dispose();
-    });
+      'navigateAfterDeletion: when only 1 item in playlist, calls onClearNavigation',
+      (tester) async {
+        await pumpController(tester, customPlaylist: [item1]);
+        controller.navigateAfterDeletion(item1);
+        expect(clearCalled, isTrue);
+        expect(navigatedItem, isNull);
+        controller.dispose();
+      },
+    );
 
     testWidgets(
-        'navigateAfterDeletion: deleting middle image navigates forward correctly',
-        (tester) async {
-      await pumpController(tester);
-      // item1 is at index 0, next should be item2
-      controller.navigateAfterDeletion(item1);
-      expect(navigatedItem, item2);
-      expect(clearCalled, isFalse);
-      controller.dispose();
-    });
+      'navigateAfterDeletion: deleting middle image navigates forward correctly',
+      (tester) async {
+        await pumpController(tester);
+        // item1 is at index 0, next should be item2
+        controller.navigateAfterDeletion(item1);
+        expect(navigatedItem, item2);
+        expect(clearCalled, isFalse);
+        controller.dispose();
+      },
+    );
 
     testWidgets(
-        'navigateAfterDeletion: item not found in playlist calls onClearNavigation',
-        (tester) async {
-      await pumpController(tester);
-      final missingItem = FileItem(
-        path: '/missing.jpg',
-        sizeBytes: 100,
-        modified: DateTime(0),
-        name: 'missing.jpg',
-        type: FileItemType.image,
-      );
-      controller.navigateAfterDeletion(missingItem);
-      expect(clearCalled, isTrue);
-      expect(navigatedItem, isNull);
-      controller.dispose();
-    });
+      'navigateAfterDeletion: item not found in playlist calls onClearNavigation',
+      (tester) async {
+        await pumpController(tester);
+        final missingItem = FileItem(
+          path: '/missing.jpg',
+          sizeBytes: 100,
+          modified: DateTime(0),
+          name: 'missing.jpg',
+          type: FileItemType.image,
+        );
+        controller.navigateAfterDeletion(missingItem);
+        expect(clearCalled, isTrue);
+        expect(navigatedItem, isNull);
+        controller.dispose();
+      },
+    );
   });
 }

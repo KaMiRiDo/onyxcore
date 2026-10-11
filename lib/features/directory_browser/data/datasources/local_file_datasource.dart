@@ -145,7 +145,6 @@ class LocalFileDatasource {
     );
   }
 
-
   /// Restore items from system trash using 'gio trash --restore'.
   /// gio expects a trash:// URI of the form: trash:///filename
   Future<void> restoreFromTrash(

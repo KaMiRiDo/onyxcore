@@ -10,6 +10,7 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'package:onyxcore/features/video_player/presentation/controllers/seek_controller.dart';
 
 class MockPlayer extends Mock implements Player {}
+
 class MockPlayerState extends Mock implements PlayerState {}
 
 class MockSettingsNotifier extends SettingsNotifier {
@@ -44,15 +45,12 @@ void main() {
     late bool showSeekIndicatorCalled;
     late bool onInteractionCalled;
 
-
     late VideoSeekCallbacks callbacks;
     late VideoSeekController controller;
 
     Widget buildTestApp(WidgetTester tester, void Function(WidgetRef) onBuild) {
       return ProviderScope(
-        overrides: [
-          settingsProvider.overrideWith(MockSettingsNotifier.new),
-        ],
+        overrides: [settingsProvider.overrideWith(MockSettingsNotifier.new)],
         child: MaterialApp(
           home: Scaffold(
             body: Consumer(
@@ -70,8 +68,12 @@ void main() {
       mockPlayer = MockPlayer();
       mockPlayerState = MockPlayerState();
       when(() => mockPlayer.state).thenReturn(mockPlayerState);
-      when(() => mockPlayerState.duration).thenReturn(const Duration(seconds: 100));
-      when(() => mockPlayerState.position).thenReturn(const Duration(seconds: 10));
+      when(
+        () => mockPlayerState.duration,
+      ).thenReturn(const Duration(seconds: 100));
+      when(
+        () => mockPlayerState.position,
+      ).thenReturn(const Duration(seconds: 10));
       when(() => mockPlayerState.playing).thenReturn(true);
       when(() => mockPlayer.pause()).thenAnswer((_) async {});
       when(() => mockPlayer.play()).thenAnswer((_) async {});
@@ -98,7 +100,6 @@ void main() {
 
       showSeekIndicatorCalled = false;
       onInteractionCalled = false;
-
 
       callbacks = VideoSeekCallbacks(
         getPlayer: () => mockPlayer,
@@ -146,26 +147,33 @@ void main() {
 
       controller = VideoSeekController(callbacks);
     }
-    
+
     setUpAll(() {
       registerFallbackValue(Duration.zero);
     });
 
-    testWidgets('requestEngineSeek updates virtual position instantly and throttles', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, setupController));
+    testWidgets(
+      'requestEngineSeek updates virtual position instantly and throttles',
+      (tester) async {
+        await tester.pumpWidget(buildTestApp(tester, setupController));
 
-      const target = Duration(seconds: 20);
-      controller.requestEngineSeek(target);
+        const target = Duration(seconds: 20);
+        controller.requestEngineSeek(target);
 
-      expect(virtualSeekPosition, equals(target));
-      expect(isScrubbing, isFalse);
-      verify(() => mockPlayer.pause()).called(1);
-      verify(() => mockPlayer.seek(target)).called(1); // Since throttle time > 100ms from epoch
-      
-      await tester.pump(const Duration(seconds: 2));
-    });
+        expect(virtualSeekPosition, equals(target));
+        expect(isScrubbing, isFalse);
+        verify(() => mockPlayer.pause()).called(1);
+        verify(
+          () => mockPlayer.seek(target),
+        ).called(1); // Since throttle time > 100ms from epoch
 
-    testWidgets('startFastSeek starts fast seek timer and performs step', (tester) async {
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+
+    testWidgets('startFastSeek starts fast seek timer and performs step', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       controller.startFastSeek(isForward: true);
@@ -175,14 +183,16 @@ void main() {
       expect(onInteractionCalled, isTrue);
       expect(fastSeekTimer, isNotNull);
       expect(fastSeekTimer!.isActive, isTrue);
-      
+
       controller.stopFastSeek();
       expect(fastSeekTimer, isNull);
 
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('slider handlers update scrub state and perform seek', (tester) async {
+    testWidgets('slider handlers update scrub state and perform seek', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       // Start
@@ -204,7 +214,9 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
     });
 
-    testWidgets('cleanupVirtualSeeking resets all temporary seek state', (tester) async {
+    testWidgets('cleanupVirtualSeeking resets all temporary seek state', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       isFastSeeking = true;
@@ -224,12 +236,14 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('requestEngineSeek uses debounce timer if called rapidly', (tester) async {
+    testWidgets('requestEngineSeek uses debounce timer if called rapidly', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       lastEngineSeekTime = DateTime.now(); // Simulate a seek just happened
       const target = Duration(seconds: 25);
-      
+
       controller.requestEngineSeek(target);
 
       // Should set debounce timer, NOT call seek instantly
@@ -240,35 +254,40 @@ void main() {
       // Wait for debounce timer (200ms)
       await tester.pump(const Duration(milliseconds: 250));
       verify(() => mockPlayer.seek(target)).called(1);
-      
+
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('scheduleVirtualStateCleanup retries if engineSeekTimer active', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester, setupController));
+    testWidgets(
+      'scheduleVirtualStateCleanup retries if engineSeekTimer active',
+      (tester) async {
+        await tester.pumpWidget(buildTestApp(tester, setupController));
 
-      // Start engine timer to simulate active debouncing
-      engineSeekTimer = Timer(const Duration(seconds: 10), () {});
+        // Start engine timer to simulate active debouncing
+        engineSeekTimer = Timer(const Duration(seconds: 10), () {});
 
-      controller.scheduleVirtualStateCleanup();
-      
-      // The cleanup timer is 1200ms. If we advance time, it should retry.
-      await tester.pump(const Duration(milliseconds: 1250));
-      expect(cleanupRetryCount, equals(1));
-      
-      // Advance enough times to hit max retries (5)
-      await tester.pump(const Duration(milliseconds: 1250));
-      await tester.pump(const Duration(milliseconds: 1250));
-      await tester.pump(const Duration(milliseconds: 1250));
-      await tester.pump(const Duration(milliseconds: 1250));
-      
-      // Once it exceeds retries, it clears state anyway
-      expect(virtualSeekPosition, isNull);
-      
-      engineSeekTimer?.cancel();
-    });
+        controller.scheduleVirtualStateCleanup();
 
-    testWidgets('startFastSeek periodic timer continues to seek', (tester) async {
+        // The cleanup timer is 1200ms. If we advance time, it should retry.
+        await tester.pump(const Duration(milliseconds: 1250));
+        expect(cleanupRetryCount, equals(1));
+
+        // Advance enough times to hit max retries (5)
+        await tester.pump(const Duration(milliseconds: 1250));
+        await tester.pump(const Duration(milliseconds: 1250));
+        await tester.pump(const Duration(milliseconds: 1250));
+        await tester.pump(const Duration(milliseconds: 1250));
+
+        // Once it exceeds retries, it clears state anyway
+        expect(virtualSeekPosition, isNull);
+
+        engineSeekTimer?.cancel();
+      },
+    );
+
+    testWidgets('startFastSeek periodic timer continues to seek', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       controller.startFastSeek(isForward: true);
@@ -282,19 +301,23 @@ void main() {
 
       // Stop fast seek should force the latest debounced seek to execute
       controller.stopFastSeek();
-      
+
       // Verify seek was called for the updated position
       verify(() => mockPlayer.seek(any())).called(1);
-      
+
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('performStepSeek resets scrub state if scrub was active', (tester) async {
+    testWidgets('performStepSeek resets scrub state if scrub was active', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       virtualScrubPosition = const Duration(seconds: 50);
       isFastSeeking = true;
-      virtualSeekPosition = const Duration(seconds: 5); // Should be ignored/overwritten
+      virtualSeekPosition = const Duration(
+        seconds: 5,
+      ); // Should be ignored/overwritten
 
       controller.performStepSeek(isForward: true);
 
@@ -302,22 +325,24 @@ void main() {
       expect(virtualScrubPosition, isNull);
       // It should seek to 50 + 10 = 60s
       verify(() => mockPlayer.seek(const Duration(seconds: 60))).called(1);
-      
+
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('stopFastSeek forces engine timer to fire immediately', (tester) async {
+    testWidgets('stopFastSeek forces engine timer to fire immediately', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
 
       // Setup a pending debounced seek
       engineSeekTimer = Timer(const Duration(seconds: 5), () {});
       virtualSeekPosition = const Duration(seconds: 35);
-      
+
       controller.stopFastSeek();
-      
+
       // Should immediately dispatch
       verify(() => mockPlayer.seek(const Duration(seconds: 35))).called(1);
-      
+
       await tester.pump(const Duration(seconds: 2));
     });
   });

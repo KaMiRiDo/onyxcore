@@ -23,9 +23,9 @@ class MockSelectionNotifier extends SelectionNotifier {
 
   @override
   SelectionState build() => SelectionState(
-        selectedPaths: initialPaths,
-        isSelectionMode: initialPaths.isNotEmpty,
-      );
+    selectedPaths: initialPaths,
+    isSelectionMode: initialPaths.isNotEmpty,
+  );
 
   @override
   void selectMultiple(List<String> paths, {bool isCtrl = false}) {
@@ -159,11 +159,7 @@ void main() {
   }) {
     return UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(
-        home: Scaffold(
-          body: child,
-        ),
-      ),
+      child: MaterialApp(home: Scaffold(body: child)),
     );
   }
 
@@ -183,10 +179,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      buildTestApp(
-        container: container,
-        child: const FileGrid(),
-      ),
+      buildTestApp(container: container, child: const FileGrid()),
     );
 
     expect(find.byType(BubbleLoader), findsOneWidget);
@@ -211,10 +204,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      buildTestApp(
-        container: container,
-        child: const FileGrid(),
-      ),
+      buildTestApp(container: container, child: const FileGrid()),
     );
 
     await tester.pumpAndSettle();
@@ -223,7 +213,9 @@ void main() {
     expect(find.text('Empty Folder'), findsOneWidget);
   });
 
-  testWidgets('FileGrid renders grid items when data is loaded', (tester) async {
+  testWidgets('FileGrid renders grid items when data is loaded', (
+    tester,
+  ) async {
     final item = FileItem(
       path: '/home/user/document.pdf',
       name: 'document.pdf',
@@ -250,10 +242,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      buildTestApp(
-        container: container,
-        child: const FileGrid(),
-      ),
+      buildTestApp(container: container, child: const FileGrid()),
     );
 
     await tester.pumpAndSettle();
@@ -262,7 +251,9 @@ void main() {
     expect(find.text('document.pdf'), findsOneWidget);
   });
 
-  testWidgets('FileGrid behaves as drag target for moving files', (tester) async {
+  testWidgets('FileGrid behaves as drag target for moving files', (
+    tester,
+  ) async {
     final item = FileItem(
       path: '/home/user/document.pdf',
       name: 'document.pdf',
@@ -290,15 +281,14 @@ void main() {
     );
 
     await tester.pumpWidget(
-      buildTestApp(
-        container: container,
-        child: const FileGrid(),
-      ),
+      buildTestApp(container: container, child: const FileGrid()),
     );
 
     await tester.pumpAndSettle();
 
-    final dragTarget = tester.widget<DragTarget<List<String>>>(find.byType(DragTarget<List<String>>));
+    final dragTarget = tester.widget<DragTarget<List<String>>>(
+      find.byType(DragTarget<List<String>>),
+    );
     dragTarget.onAcceptWithDetails?.call(
       DragTargetDetails(
         data: const ['/home/external/file.txt'],
@@ -313,64 +303,73 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
   });
 
-  testWidgets('FileGrid handles lifecycle state change and conflict resolution rename', (tester) async {
-    final item = FileItem(
-      path: '/home/user/document.pdf',
-      name: 'document.pdf',
-      type: FileItemType.document,
-      sizeBytes: 1024,
-      modified: DateTime.now(),
-    );
-
-    final container = ProviderContainer(
-      overrides: [
-        filteredDirectoryItemsProvider.overrideWithValue(AsyncValue<List<FileItem>>.data([item])),
-        sortedDirectoryItemsProvider.overrideWithValue(AsyncValue<List<FileItem>>.data([item])),
-        currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
-        pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
-        selectionProvider.overrideWith(MockSelectionNotifier.new),
-        isSearchActiveProvider.overrideWith(MockIsSearchActiveNotifier.new),
-        searchQueryProvider.overrideWith(MockSearchQueryNotifier.new),
-        filterSettingsProvider.overrideWith((ref) => const FilterSettings()),
-        directoryRepositoryProvider.overrideWithValue(mockRepo),
-        conflictProvider.overrideWith(() => FakeConflictNotifier(ConflictResolution.rename)),
-      ],
-    );
-
-    await tester.pumpWidget(
-      buildTestApp(
-        container: container,
-        child: const FileGrid(),
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    // Trigger AppLifecycleState change
-    (tester.state(find.byType(FileGrid)) as WidgetsBindingObserver)
-        .didChangeAppLifecycleState(AppLifecycleState.detached);
-
-    await tester.pumpAndSettle();
-  });
-
-  group('calculateGridViewportIndices', () {
-    test('computes exact column count and visible range at scroll offset 0', () {
-      final indices = calculateGridViewportIndices(
-        gridWidth: 1200,
-        gridHeight: 800,
-        scrollOffset: 0,
-        itemCount: 100,
-        zoom: 1,
+  testWidgets(
+    'FileGrid handles lifecycle state change and conflict resolution rename',
+    (tester) async {
+      final item = FileItem(
+        path: '/home/user/document.pdf',
+        name: 'document.pdf',
+        type: FileItemType.document,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
       );
 
-      // Available width: 1200 - 64 = 1136
-      // (1136 / (180 + 24)).ceil() = ceil(5.568) = 6 columns
-      expect(indices.cols, 6);
-      expect(indices.firstVisibleIndex, 0);
-      expect(indices.lastVisibleIndex, 30); // 5 rows * 6 cols = 30
-      expect(indices.firstBufferIndex, 0);
-      expect(indices.lastBufferIndex, 42); // 7 rows * 6 cols = 42
-    });
+      final container = ProviderContainer(
+        overrides: [
+          filteredDirectoryItemsProvider.overrideWithValue(
+            AsyncValue<List<FileItem>>.data([item]),
+          ),
+          sortedDirectoryItemsProvider.overrideWithValue(
+            AsyncValue<List<FileItem>>.data([item]),
+          ),
+          currentPathProvider.overrideWith(MockCurrentPathNotifier.new),
+          pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
+          selectionProvider.overrideWith(MockSelectionNotifier.new),
+          isSearchActiveProvider.overrideWith(MockIsSearchActiveNotifier.new),
+          searchQueryProvider.overrideWith(MockSearchQueryNotifier.new),
+          filterSettingsProvider.overrideWith((ref) => const FilterSettings()),
+          directoryRepositoryProvider.overrideWithValue(mockRepo),
+          conflictProvider.overrideWith(
+            () => FakeConflictNotifier(ConflictResolution.rename),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        buildTestApp(container: container, child: const FileGrid()),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Trigger AppLifecycleState change
+      (tester.state(find.byType(FileGrid)) as WidgetsBindingObserver)
+          .didChangeAppLifecycleState(AppLifecycleState.detached);
+
+      await tester.pumpAndSettle();
+    },
+  );
+
+  group('calculateGridViewportIndices', () {
+    test(
+      'computes exact column count and visible range at scroll offset 0',
+      () {
+        final indices = calculateGridViewportIndices(
+          gridWidth: 1200,
+          gridHeight: 800,
+          scrollOffset: 0,
+          itemCount: 100,
+          zoom: 1,
+        );
+
+        // Available width: 1200 - 64 = 1136
+        // (1136 / (180 + 24)).ceil() = ceil(5.568) = 6 columns
+        expect(indices.cols, 6);
+        expect(indices.firstVisibleIndex, 0);
+        expect(indices.lastVisibleIndex, 30); // 5 rows * 6 cols = 30
+        expect(indices.firstBufferIndex, 0);
+        expect(indices.lastBufferIndex, 42); // 7 rows * 6 cols = 42
+      },
+    );
 
     test('computes visible range accurately when scrolled down', () {
       final indices = calculateGridViewportIndices(
@@ -383,7 +382,10 @@ void main() {
 
       expect(indices.cols, 6);
       expect(indices.firstVisibleIndex, 6); // Row 1 starts at index 6
-      expect(indices.lastVisibleIndex, 42); // Up to row 6 (7 rows * 6 cols = 42)
+      expect(
+        indices.lastVisibleIndex,
+        42,
+      ); // Up to row 6 (7 rows * 6 cols = 42)
       expect(indices.firstBufferIndex, 0); // 2 rows above clamped to 0
       expect(indices.lastBufferIndex, 54); // Row 8 * 6 cols = 54
     });
@@ -416,18 +418,21 @@ void main() {
       expect(indicesZoomed.lastVisibleIndex, lessThanOrEqualTo(100));
     });
 
-    test('clamps indices when total items is smaller than visible capacity', () {
-      final indicesFewItems = calculateGridViewportIndices(
-        gridWidth: 1200,
-        gridHeight: 800,
-        scrollOffset: 0,
-        itemCount: 5,
-        zoom: 1,
-      );
+    test(
+      'clamps indices when total items is smaller than visible capacity',
+      () {
+        final indicesFewItems = calculateGridViewportIndices(
+          gridWidth: 1200,
+          gridHeight: 800,
+          scrollOffset: 0,
+          itemCount: 5,
+          zoom: 1,
+        );
 
-      expect(indicesFewItems.firstVisibleIndex, 0);
-      expect(indicesFewItems.lastVisibleIndex, 5);
-      expect(indicesFewItems.lastBufferIndex, 5);
-    });
+        expect(indicesFewItems.firstVisibleIndex, 0);
+        expect(indicesFewItems.lastVisibleIndex, 5);
+        expect(indicesFewItems.lastBufferIndex, 5);
+      },
+    );
   });
 }

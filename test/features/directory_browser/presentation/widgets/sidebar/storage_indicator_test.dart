@@ -22,30 +22,26 @@ void main() {
   Widget buildTestWidget(ProviderContainer container) {
     return UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(
-        home: Scaffold(
-          body: StorageIndicator(),
-        ),
-      ),
+      child: const MaterialApp(home: Scaffold(body: StorageIndicator())),
     );
   }
 
-  testWidgets('StorageIndicator renders correctly and handles timer', (tester) async {
+  testWidgets('StorageIndicator renders correctly and handles timer', (
+    tester,
+  ) async {
     final container = ProviderContainer(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-      ],
+      overrides: [databaseProvider.overrideWithValue(db)],
     );
     await tester.pumpWidget(buildTestWidget(container));
-    
+
     // Pump a few times to allow the Future in getDiskUsage to resolve
     await tester.pumpAndSettle();
-    
+
     expect(find.text('SYSTEM STORAGE'), findsOneWidget);
-    
+
     // Fast forward timer
     await tester.pump(const Duration(seconds: 4));
-    
+
     // Trigger refresh
     container.read(refreshCountProvider.notifier).state++;
     await tester.pumpAndSettle();

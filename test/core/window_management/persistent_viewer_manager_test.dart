@@ -18,12 +18,17 @@ void main() {
       log.clear();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (methodCall) async {
-        log.add(methodCall);
-        if (methodCall.method == 'create_window') {
-          return WidgetsBinding.instance.platformDispatcher.views.first.viewId;
-        }
-        return null;
-      });
+            log.add(methodCall);
+            if (methodCall.method == 'create_window') {
+              return WidgetsBinding
+                  .instance
+                  .platformDispatcher
+                  .views
+                  .first
+                  .viewId;
+            }
+            return null;
+          });
       PersistentViewerManager.init();
     });
 
@@ -34,75 +39,123 @@ void main() {
 
     test('init sets method call handler', () async {
       final result = await TestDefaultBinaryMessengerBinding
-          .instance.defaultBinaryMessenger
+          .instance
+          .defaultBinaryMessenger
           .handlePlatformMessage(
-        'onyxcore/window_manager',
-        const StandardMethodCodec().encodeMethodCall(
-            const MethodCall('on_window_focus', {'view_id': 100})),
-        (ByteData? data) {},
-      );
+            'onyxcore/window_manager',
+            const StandardMethodCodec().encodeMethodCall(
+              const MethodCall('on_window_focus', {'view_id': 100}),
+            ),
+            (ByteData? data) {},
+          );
       expect(result, isNotNull);
     });
 
-    test('on_window_focus triggers focus notifier for tracked window', () async {
-      final file = FileItem(path: '/focus.ext', name: 'focus.ext', type: FileItemType.other, modified: DateTime.now(), sizeBytes: 100);
-      final params = WindowParams(viewerType: ViewerType.markdown, file: file, initParams: {});
-      await PersistentViewerManager.openMedia(params);
-      
-      final viewId = WidgetsBinding.instance.platformDispatcher.views.first.viewId;
-      final trigger = PersistentViewerManager.getFocusTrigger(viewId);
-      final initialVal = trigger.value;
+    test(
+      'on_window_focus triggers focus notifier for tracked window',
+      () async {
+        final file = FileItem(
+          path: '/focus.ext',
+          name: 'focus.ext',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+          sizeBytes: 100,
+        );
+        final params = WindowParams(
+          viewerType: ViewerType.markdown,
+          file: file,
+          initParams: {},
+        );
+        await PersistentViewerManager.openMedia(params);
 
-      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .handlePlatformMessage(
-        'onyxcore/window_manager',
-        const StandardMethodCodec().encodeMethodCall(
-            MethodCall('on_window_focus', {'view_id': viewId})),
-        (ByteData? data) {},
-      );
-      
-      expect(trigger.value, initialVal + 1);
-    });
+        final viewId =
+            WidgetsBinding.instance.platformDispatcher.views.first.viewId;
+        final trigger = PersistentViewerManager.getFocusTrigger(viewId);
+        final initialVal = trigger.value;
+
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+              'onyxcore/window_manager',
+              const StandardMethodCodec().encodeMethodCall(
+                MethodCall('on_window_focus', {'view_id': viewId}),
+              ),
+              (ByteData? data) {},
+            );
+
+        expect(trigger.value, initialVal + 1);
+      },
+    );
 
     test('setFullScreen invokes set_fullscreen', () async {
-      await PersistentViewerManager.setFullScreen(WidgetsBinding.instance.platformDispatcher.views.first.viewId, true);
+      await PersistentViewerManager.setFullScreen(
+        WidgetsBinding.instance.platformDispatcher.views.first.viewId,
+        true,
+      );
       expect(
-          log.any((call) =>
+        log.any(
+          (call) =>
               call.method == 'set_fullscreen' &&
-              call.arguments['view_id'] == WidgetsBinding.instance.platformDispatcher.views.first.viewId &&
-              call.arguments['is_fullscreen'] == true),
-          isTrue);
+              call.arguments['view_id'] ==
+                  WidgetsBinding
+                      .instance
+                      .platformDispatcher
+                      .views
+                      .first
+                      .viewId &&
+              call.arguments['is_fullscreen'] == true,
+        ),
+        isTrue,
+      );
     });
 
     test('closeWindow invokes close_window', () async {
-      await PersistentViewerManager.closeWindow(WidgetsBinding.instance.platformDispatcher.views.first.viewId);
+      await PersistentViewerManager.closeWindow(
+        WidgetsBinding.instance.platformDispatcher.views.first.viewId,
+      );
       expect(
-          log.any((call) =>
+        log.any(
+          (call) =>
               call.method == 'close_window' &&
-              call.arguments['view_id'] == WidgetsBinding.instance.platformDispatcher.views.first.viewId),
-          isTrue);
+              call.arguments['view_id'] ==
+                  WidgetsBinding.instance.platformDispatcher.views.first.viewId,
+        ),
+        isTrue,
+      );
     });
 
     test('minimizeWindow invokes minimize_window', () async {
-      await PersistentViewerManager.minimizeWindow(WidgetsBinding.instance.platformDispatcher.views.first.viewId);
+      await PersistentViewerManager.minimizeWindow(
+        WidgetsBinding.instance.platformDispatcher.views.first.viewId,
+      );
       expect(
-          log.any((call) =>
+        log.any(
+          (call) =>
               call.method == 'minimize_window' &&
-              call.arguments['view_id'] == WidgetsBinding.instance.platformDispatcher.views.first.viewId),
-          isTrue);
+              call.arguments['view_id'] ==
+                  WidgetsBinding.instance.platformDispatcher.views.first.viewId,
+        ),
+        isTrue,
+      );
     });
 
     test('presentWindow invokes present_window', () async {
-      await PersistentViewerManager.presentWindow(WidgetsBinding.instance.platformDispatcher.views.first.viewId);
+      await PersistentViewerManager.presentWindow(
+        WidgetsBinding.instance.platformDispatcher.views.first.viewId,
+      );
       expect(
-          log.any((call) =>
+        log.any(
+          (call) =>
               call.method == 'present_window' &&
-              call.arguments['view_id'] == WidgetsBinding.instance.platformDispatcher.views.first.viewId),
-          isTrue);
+              call.arguments['view_id'] ==
+                  WidgetsBinding.instance.platformDispatcher.views.first.viewId,
+        ),
+        isTrue,
+      );
     });
 
-    testWidgets('buildView returns empty black scaffold when params is null',
-        (tester) async {
+    testWidgets('buildView returns empty black scaffold when params is null', (
+      tester,
+    ) async {
       final widget = PersistentViewerManager.buildView(999);
       await tester.pumpWidget(MaterialApp(home: widget));
       expect(find.byType(Scaffold), findsOneWidget);
@@ -110,7 +163,13 @@ void main() {
     });
 
     testWidgets('openMedia creates new window and sets params', (tester) async {
-      final file = FileItem(path: '/test.mp4', name: 'test.mp4', type: FileItemType.video, modified: DateTime.now(), sizeBytes: 100);
+      final file = FileItem(
+        path: '/test.mp4',
+        name: 'test.mp4',
+        type: FileItemType.video,
+        modified: DateTime.now(),
+        sizeBytes: 100,
+      );
       final params = WindowParams(
         viewerType: ViewerType.video,
         file: file,
@@ -121,11 +180,13 @@ void main() {
 
       // Verify create_window was called with correct params
       expect(
-        log.any((call) =>
-            call.method == 'create_window' &&
-            call.arguments['width'] == 1200 &&
-            call.arguments['height'] == 800 &&
-            call.arguments['maximize'] == true),
+        log.any(
+          (call) =>
+              call.method == 'create_window' &&
+              call.arguments['width'] == 1200 &&
+              call.arguments['height'] == 800 &&
+              call.arguments['maximize'] == true,
+        ),
         isTrue,
       );
 
@@ -136,14 +197,27 @@ void main() {
     });
 
     test('openMedia reuses existing window if type already open', () async {
-      final file1 = FileItem(path: '/test1.mp4', name: 'test1.mp4', type: FileItemType.video, modified: DateTime.now(), sizeBytes: 100);
+      final file1 = FileItem(
+        path: '/test1.mp4',
+        name: 'test1.mp4',
+        type: FileItemType.video,
+        modified: DateTime.now(),
+        sizeBytes: 100,
+      );
       final params1 = WindowParams(viewerType: ViewerType.video, file: file1);
 
       await PersistentViewerManager.openMedia(params1);
-      final viewId = WidgetsBinding.instance.platformDispatcher.views.first.viewId;
+      final viewId =
+          WidgetsBinding.instance.platformDispatcher.views.first.viewId;
       log.clear();
 
-      final file2 = FileItem(path: '/test2.mp4', name: 'test2.mp4', type: FileItemType.video, modified: DateTime.now(), sizeBytes: 100);
+      final file2 = FileItem(
+        path: '/test2.mp4',
+        name: 'test2.mp4',
+        type: FileItemType.video,
+        modified: DateTime.now(),
+        sizeBytes: 100,
+      );
       final params2 = WindowParams(viewerType: ViewerType.video, file: file2);
 
       await PersistentViewerManager.openMedia(params2);
@@ -151,9 +225,11 @@ void main() {
       // Should call present_window on the existing viewId, NOT create_window
       expect(log.any((call) => call.method == 'create_window'), isFalse);
       expect(
-        log.any((call) =>
-            call.method == 'present_window' &&
-            call.arguments['view_id'] == viewId),
+        log.any(
+          (call) =>
+              call.method == 'present_window' &&
+              call.arguments['view_id'] == viewId,
+        ),
         isTrue,
       );
     });
@@ -164,61 +240,92 @@ void main() {
       expect(trigger.value, 0);
     });
 
-    test('getUrlFocusTrigger returns ValueNotifier and retains instance per viewId', () {
-      final trigger1 = PersistentViewerManager.getUrlFocusTrigger(123);
-      final trigger2 = PersistentViewerManager.getUrlFocusTrigger(123);
-      expect(trigger1, isNotNull);
-      expect(trigger1.value, 0);
-      expect(identical(trigger1, trigger2), isTrue);
-    });
+    test(
+      'getUrlFocusTrigger returns ValueNotifier and retains instance per viewId',
+      () {
+        final trigger1 = PersistentViewerManager.getUrlFocusTrigger(123);
+        final trigger2 = PersistentViewerManager.getUrlFocusTrigger(123);
+        expect(trigger1, isNotNull);
+        expect(trigger1.value, 0);
+        expect(identical(trigger1, trigger2), isTrue);
+      },
+    );
 
-    test('presentAndFocusUrl invokes present_window and increments urlFocusTrigger', () async {
-      final trigger = PersistentViewerManager.getUrlFocusTrigger(456);
-      final initialVal = trigger.value;
+    test(
+      'presentAndFocusUrl invokes present_window and increments urlFocusTrigger',
+      () async {
+        final trigger = PersistentViewerManager.getUrlFocusTrigger(456);
+        final initialVal = trigger.value;
 
-      await PersistentViewerManager.presentAndFocusUrl(456);
+        await PersistentViewerManager.presentAndFocusUrl(456);
 
-      expect(
-        log.any((call) =>
-            call.method == 'present_window' &&
-            call.arguments['view_id'] == 456),
-        isTrue,
-      );
-      expect(trigger.value, initialVal + 1);
-    });
+        expect(
+          log.any(
+            (call) =>
+                call.method == 'present_window' &&
+                call.arguments['view_id'] == 456,
+          ),
+          isTrue,
+        );
+        expect(trigger.value, initialVal + 1);
+      },
+    );
 
-    test('isWindowOpen and getActiveWindowId correctly check active windows', () async {
-      PersistentViewerManager.reset();
-      expect(PersistentViewerManager.isWindowOpen(ViewerType.downloader), isFalse);
-      expect(PersistentViewerManager.getActiveWindowId(ViewerType.downloader), isNull);
+    test(
+      'isWindowOpen and getActiveWindowId correctly check active windows',
+      () async {
+        PersistentViewerManager.reset();
+        expect(
+          PersistentViewerManager.isWindowOpen(ViewerType.downloader),
+          isFalse,
+        );
+        expect(
+          PersistentViewerManager.getActiveWindowId(ViewerType.downloader),
+          isNull,
+        );
 
-      final file = FileItem(
-        path: '/test.ext',
-        name: 'test.ext',
-        type: FileItemType.other,
-        modified: DateTime.now(),
-        sizeBytes: 100,
-      );
-      final params = WindowParams(
-        viewerType: ViewerType.downloader,
-        file: file,
-        initParams: {},
-      );
-      await PersistentViewerManager.openMedia(params);
+        final file = FileItem(
+          path: '/test.ext',
+          name: 'test.ext',
+          type: FileItemType.other,
+          modified: DateTime.now(),
+          sizeBytes: 100,
+        );
+        final params = WindowParams(
+          viewerType: ViewerType.downloader,
+          file: file,
+          initParams: {},
+        );
+        await PersistentViewerManager.openMedia(params);
 
-      final viewId = WidgetsBinding.instance.platformDispatcher.views.first.viewId;
-      expect(PersistentViewerManager.isWindowOpen(ViewerType.downloader), isTrue);
-      expect(PersistentViewerManager.getActiveWindowId(ViewerType.downloader), equals(viewId));
-    });
+        final viewId =
+            WidgetsBinding.instance.platformDispatcher.views.first.viewId;
+        expect(
+          PersistentViewerManager.isWindowOpen(ViewerType.downloader),
+          isTrue,
+        );
+        expect(
+          PersistentViewerManager.getActiveWindowId(ViewerType.downloader),
+          equals(viewId),
+        );
+      },
+    );
 
     testWidgets('buildView branches', (tester) async {
       await tester.pumpWidget(Container());
       final ctx = tester.element(find.byType(Container));
 
-      final viewId = WidgetsBinding.instance.platformDispatcher.views.first.viewId;
-      
+      final viewId =
+          WidgetsBinding.instance.platformDispatcher.views.first.viewId;
+
       for (final type in ViewerType.values) {
-        final file = FileItem(path: '/test.ext', name: 'test.ext', type: FileItemType.video, modified: DateTime.now(), sizeBytes: 100);
+        final file = FileItem(
+          path: '/test.ext',
+          name: 'test.ext',
+          type: FileItemType.video,
+          modified: DateTime.now(),
+          sizeBytes: 100,
+        );
         final params = WindowParams(
           viewerType: type,
           file: file,
@@ -231,8 +338,10 @@ void main() {
         );
 
         await PersistentViewerManager.openMedia(params);
-        final widget = PersistentViewerManager.buildView(viewId) as ValueListenableBuilder<WindowParams?>;
-        
+        final widget =
+            PersistentViewerManager.buildView(viewId)
+                as ValueListenableBuilder<WindowParams?>;
+
         // Call the builder directly to evaluate the switch statement without mounting the complex widgets
         widget.builder(ctx, params, null);
       }
@@ -242,11 +351,22 @@ void main() {
       // Mock platform channel to throw exception
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (methodCall) async {
-        throw PlatformException(code: 'error');
-      });
+            throw PlatformException(code: 'error');
+          });
 
       // These should not crash
-      await PersistentViewerManager.openMedia(WindowParams(viewerType: ViewerType.image, file: FileItem(path: '', name: '', type: FileItemType.image, modified: DateTime.now(), sizeBytes: 0)));
+      await PersistentViewerManager.openMedia(
+        WindowParams(
+          viewerType: ViewerType.image,
+          file: FileItem(
+            path: '',
+            name: '',
+            type: FileItemType.image,
+            modified: DateTime.now(),
+            sizeBytes: 0,
+          ),
+        ),
+      );
       await PersistentViewerManager.setFullScreen(1, true);
       await PersistentViewerManager.closeWindow(1);
       await PersistentViewerManager.minimizeWindow(1);
@@ -254,4 +374,3 @@ void main() {
     });
   });
 }
-

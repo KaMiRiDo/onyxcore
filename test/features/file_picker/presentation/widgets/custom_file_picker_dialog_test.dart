@@ -12,7 +12,8 @@ import 'package:onyxcore/services/file_system_service.dart';
 
 import '../../../../helpers/file_system_helper.dart';
 
-class MockSettingsNotifier extends AsyncNotifier<AppSettings> implements SettingsNotifier {
+class MockSettingsNotifier extends AsyncNotifier<AppSettings>
+    implements SettingsNotifier {
   @override
   Future<AppSettings> build() async {
     return const AppSettings();
@@ -31,7 +32,7 @@ void main() {
 
   setUp(() {
     fs = setupMockFileSystem();
-    
+
     // CustomFilePickerDialog sidebar uses Platform.environment['HOME']
     final realHome = Platform.environment['HOME'] ?? '/home/user';
     fs.directory('$realHome/Documents').createSync(recursive: true);
@@ -40,7 +41,7 @@ void main() {
     fs.file('$realHome/Documents/report.txt')
       ..createSync(recursive: true)
       ..writeAsStringSync('Sample report');
-    
+
     fileSystemService = FileSystemService(fs);
   });
 
@@ -87,9 +88,9 @@ void main() {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog());
-    
+
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
@@ -105,9 +106,9 @@ void main() {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog(saveMode: true));
-    
+
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
@@ -116,15 +117,13 @@ void main() {
     expect(find.text('SAVE'), findsOneWidget);
   });
 
-
-
   testWidgets('selects directory and clicks select', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog(pickDirectory: true));
-    
+
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
@@ -135,35 +134,42 @@ void main() {
     // Click OPEN (which acts as SELECT in directory mode)
     await tester.tap(find.text('OPEN'));
     await tester.pumpAndSettle();
-    
+
     expect(dialogResult, isNotNull);
-    expect(dialogResult!.first, '${Platform.environment['HOME'] ?? '/home/user'}/Documents');
+    expect(
+      dialogResult!.first,
+      '${Platform.environment['HOME'] ?? '/home/user'}/Documents',
+    );
   });
 
   testWidgets('cancel closes dialog and returns null', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog());
-    
+
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('CANCEL'));
     await tester.pumpAndSettle();
-    
+
     expect(find.text('SELECT FILES'), findsNothing);
     expect(dialogResult, isNull);
   });
 
-  testWidgets('validates selection with allowedExtensions in saveMode', (tester) async {
+  testWidgets('validates selection with allowedExtensions in saveMode', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
-    await tester.pumpWidget(buildDialog(saveMode: true, allowedExtensions: ['pdf']));
-    
+
+    await tester.pumpWidget(
+      buildDialog(saveMode: true, allowedExtensions: ['pdf']),
+    );
+
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
@@ -176,19 +182,21 @@ void main() {
 
     await tester.tap(find.text('SAVE'));
     await tester.pumpAndSettle();
-    
+
     // Dialog should NOT be closed because selection is invalid
     expect(find.text('SAVE FILE'), findsOneWidget);
     expect(dialogResult, isNull);
   });
 
-  testWidgets('validates selection in saveMode with empty filename', (tester) async {
+  testWidgets('validates selection in saveMode with empty filename', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog(saveMode: true));
-    
+
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
@@ -209,16 +217,19 @@ void main() {
 
     // Dialog should be closed and return the path
     expect(find.text('SAVE FILE'), findsNothing);
-    expect(dialogResult!.first, '${Platform.environment['HOME'] ?? '/home/user'}/new_file.txt');
+    expect(
+      dialogResult!.first,
+      '${Platform.environment['HOME'] ?? '/home/user'}/new_file.txt',
+    );
   });
 
   testWidgets('handles folder creation', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog(pickDirectory: true));
-    
+
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
@@ -236,21 +247,24 @@ void main() {
 
     // Now current directory should be MyNewFolder
     expect(find.text('MyNewFolder'), findsWidgets);
-    
+
     // Select it
     await tester.tap(find.text('OPEN'));
     await tester.pumpAndSettle();
 
-    expect(dialogResult!.first, '${Platform.environment['HOME'] ?? '/home/user'}/MyNewFolder');
+    expect(
+      dialogResult!.first,
+      '${Platform.environment['HOME'] ?? '/home/user'}/MyNewFolder',
+    );
   });
 
   testWidgets('handles resize gesture', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog());
-    
+
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
 
@@ -264,7 +278,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    // There is no easy way to assert the new size in a widget test without a key on the container, 
+    // There is no easy way to assert the new size in a widget test without a key on the container,
     // but we can ensure it doesn't throw and triggers state updates.
     expect(find.text('SELECT FILES'), findsOneWidget);
   });
@@ -273,7 +287,7 @@ void main() {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog(pickDirectory: true));
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
@@ -281,10 +295,12 @@ void main() {
     // Trigger failure by empty name which might throw, or just assume it is caught
     await tester.tap(find.byIcon(Icons.create_new_folder_rounded));
     await tester.pumpAndSettle();
-    
+
     // Actually the mock file system won't throw on typical names. We can simulate a failure by using an invalid path character in the name or deleting the parent.
     // Let's just delete the current directory from the fs!
-    fs.directory(Platform.environment['HOME'] ?? '/home/user').deleteSync(recursive: true);
+    fs
+        .directory(Platform.environment['HOME'] ?? '/home/user')
+        .deleteSync(recursive: true);
 
     await tester.enterText(find.byType(TextField).last, 'MyNewFolder2');
     await tester.pumpAndSettle();
@@ -299,7 +315,7 @@ void main() {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog());
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
@@ -332,7 +348,7 @@ void main() {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog());
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
@@ -349,24 +365,27 @@ void main() {
     // Navigate deep first
     await tester.tap(find.text('Documents').first);
     await tester.pumpAndSettle();
-    
+
     // Tap the parent breadcrumb (if HOME is /home/user, it has multiple parts)
     final breadcrumb = find.text('user'); // Part of /home/user
     if (breadcrumb.evaluate().isNotEmpty) {
       await tester.tap(breadcrumb.first);
       await tester.pumpAndSettle();
     }
-    
+
     // Toggle hidden files
     await tester.tap(find.text('HIDDEN'));
     await tester.pumpAndSettle();
   });
 
   testWidgets('handles multiple selection and double tap', (tester) async {
-    tester.view.physicalSize = const Size(1200, 2000); // Larger to prevent off-screen
+    tester.view.physicalSize = const Size(
+      1200,
+      2000,
+    ); // Larger to prevent off-screen
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     await tester.pumpWidget(buildDialog(allowMultiple: true));
     await tester.tap(find.text('Show Dialog'));
     await tester.pumpAndSettle();
@@ -386,7 +405,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('report.txt'), warnIfMissed: false);
     await tester.pumpAndSettle();
-    
+
     expect(dialogResult, isNotNull);
   });
 
@@ -394,33 +413,37 @@ void main() {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     // Add initialFileName
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        fileSystemServiceProvider.overrideWithValue(fileSystemService),
-        settingsProvider.overrideWith(MockSettingsNotifier.new),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                dialogResult = await CustomFilePickerDialog.show(
-                  context,
-                  saveMode: true,
-                  initialFileName: 'test.txt',
-                );
-              },
-              child: const Text('Show Dialog'),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          fileSystemServiceProvider.overrideWithValue(fileSystemService),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  dialogResult = await CustomFilePickerDialog.show(
+                    context,
+                    saveMode: true,
+                    initialFileName: 'test.txt',
+                  );
+                },
+                child: const Text('Show Dialog'),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('Show Dialog'));
     await tester.pump(const Duration(milliseconds: 100)); // wait for dialog
-    await tester.pump(const Duration(milliseconds: 100)); // wait for focus delay
+    await tester.pump(
+      const Duration(milliseconds: 100),
+    ); // wait for focus delay
 
     // Submit text field (Enter key)
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -431,35 +454,37 @@ void main() {
   });
 
   testWidgets('handles missing provider state gracefully', (tester) async {
-    // This is hard to trigger unless the provider errors out. We'll skip deep forcing it 
+    // This is hard to trigger unless the provider errors out. We'll skip deep forcing it
     // unless necessary, but let's at least test the empty view by providing an empty directory.
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
+
     fs.directory('/empty').createSync(recursive: true);
-    
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        fileSystemServiceProvider.overrideWithValue(fileSystemService),
-        settingsProvider.overrideWith(MockSettingsNotifier.new),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                dialogResult = await CustomFilePickerDialog.show(
-                  context,
-                  initialDirectory: '/empty',
-                );
-              },
-              child: const Text('Show Dialog'),
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          fileSystemServiceProvider.overrideWithValue(fileSystemService),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  dialogResult = await CustomFilePickerDialog.show(
+                    context,
+                    initialDirectory: '/empty',
+                  );
+                },
+                child: const Text('Show Dialog'),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('Show Dialog'));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(seconds: 1));
@@ -476,28 +501,30 @@ void main() {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
-    
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        fileSystemServiceProvider.overrideWithValue(fileSystemService),
-        settingsProvider.overrideWith(MockSettingsNotifier.new),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                await CustomFilePickerDialog.show(
-                  context,
-                  initialDirectory: '/invalid_dir',
-                );
-              },
-              child: const Text('Show Dialog'),
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          fileSystemServiceProvider.overrideWithValue(fileSystemService),
+          settingsProvider.overrideWith(MockSettingsNotifier.new),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  await CustomFilePickerDialog.show(
+                    context,
+                    initialDirectory: '/invalid_dir',
+                  );
+                },
+                child: const Text('Show Dialog'),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('Show Dialog'));
     await tester.pump(); // Start dialog
     await tester.pump(const Duration(milliseconds: 100)); // Show bubble loader

@@ -47,7 +47,6 @@ class _PlayingEqAnimationState extends State<PlayingEqAnimation>
 }
 
 class _EqBar extends StatelessWidget {
-
   const _EqBar({required this.animation, required this.offset});
   final Animation<double> animation;
   final double offset;

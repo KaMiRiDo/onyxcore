@@ -12,11 +12,7 @@ void main() {
   Widget createWidgetUnderTest(ProviderContainer container) {
     return UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(
-        home: Scaffold(
-          body: DownloadsPanel(),
-        ),
-      ),
+      child: const MaterialApp(home: Scaffold(body: DownloadsPanel())),
     );
   }
 
@@ -25,11 +21,11 @@ void main() {
     late AppDatabase appDb;
 
     setUp(() {
-      appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+      appDb = AppDatabase.forTesting(
+        DatabaseConnection(NativeDatabase.memory()),
+      );
       container = ProviderContainer(
-        overrides: [
-          databaseProvider.overrideWithValue(appDb),
-        ],
+        overrides: [databaseProvider.overrideWithValue(appDb)],
       );
     });
 
@@ -38,7 +34,9 @@ void main() {
       appDb.close();
     });
 
-    testWidgets('Renders properly and handles lifecycle events', (tester) async {
+    testWidgets('Renders properly and handles lifecycle events', (
+      tester,
+    ) async {
       await tester.pumpWidget(createWidgetUnderTest(container));
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(DownloadsPanel), findsOneWidget);
@@ -46,7 +44,8 @@ void main() {
 
     testWidgets('Toggles history view when changing state', (tester) async {
       await tester.pumpWidget(createWidgetUnderTest(container));
-      container.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.history;
+      container.read(downloadsPanelViewProvider.notifier).state =
+          DownloadsPanelView.history;
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(DownloadsPanel), findsOneWidget);
     });

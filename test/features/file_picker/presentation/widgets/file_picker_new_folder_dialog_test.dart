@@ -5,11 +5,7 @@ import 'package:onyxcore/features/file_picker/presentation/widgets/file_picker_n
 void main() {
   testWidgets('renders dialog correctly and allows input', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: FilePickerNewFolderDialog(),
-        ),
-      ),
+      const MaterialApp(home: Scaffold(body: FilePickerNewFolderDialog())),
     );
 
     expect(find.text('New Folder'), findsOneWidget);
@@ -37,7 +33,7 @@ void main() {
                 },
                 child: const Text('Show Dialog'),
               );
-            }
+            },
           ),
         ),
       ),
@@ -70,7 +66,7 @@ void main() {
                 },
                 child: const Text('Show Dialog'),
               );
-            }
+            },
           ),
         ),
       ),

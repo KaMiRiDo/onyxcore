@@ -40,9 +40,9 @@ class ExtractorRuntimeConfig {
 
   @override
   int get hashCode => Object.hash(
-        navigationTimeoutMs,
-        extractorTimeoutMs,
-        settleDelayMs,
-        maxResults,
-      );
+    navigationTimeoutMs,
+    extractorTimeoutMs,
+    settleDelayMs,
+    maxResults,
+  );
 }

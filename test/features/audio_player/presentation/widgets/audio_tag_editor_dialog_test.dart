@@ -56,11 +56,12 @@ void main() {
     mockTaskNotifier = MockTaskNotifier();
   });
 
-  Widget createWidget(List<String> paths, {Function(String, String)? onRename}) {
+  Widget createWidget(
+    List<String> paths, {
+    Function(String, String)? onRename,
+  }) {
     return ProviderScope(
-      overrides: [
-        taskProvider.overrideWith(() => mockTaskNotifier),
-      ],
+      overrides: [taskProvider.overrideWith(() => mockTaskNotifier)],
       child: MaterialApp(
         home: Scaffold(
           body: AudioTagEditorDialog(paths: paths, onRename: onRename),
@@ -77,7 +78,8 @@ void main() {
           child: MaterialApp(
             home: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => AudioTagEditorDialog.show(context, ['/test.mp3']),
+                onPressed: () =>
+                    AudioTagEditorDialog.show(context, ['/test.mp3']),
                 child: const Text('Open'),
               ),
             ),
@@ -93,24 +95,29 @@ void main() {
   });
 
   group('AudioTagEditorDialog - Single File Mode', () {
-    testWidgets('renders correctly and falls back to filename (W-AUD-TAG-01, 02, 03, 08, 10, 12)', (WidgetTester tester) async {
-      await tester.pumpWidget(createWidget(['/path/to/SongName.mp3']));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'renders correctly and falls back to filename (W-AUD-TAG-01, 02, 03, 08, 10, 12)',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(createWidget(['/path/to/SongName.mp3']));
+        await tester.pumpAndSettle();
 
-      // Header
-      expect(find.text('EDIT TAGS'), findsOneWidget);
+        // Header
+        expect(find.text('EDIT TAGS'), findsOneWidget);
 
-      // Title field populated with filename
-      expect(find.text('Title'), findsOneWidget);
-      expect(find.text('SongName'), findsOneWidget); // controller text
+        // Title field populated with filename
+        expect(find.text('Title'), findsOneWidget);
+        expect(find.text('SongName'), findsOneWidget); // controller text
 
-      // Other fields
-      expect(find.text('Artist'), findsOneWidget);
-      expect(find.text('Album'), findsOneWidget);
-      expect(find.text('Genre'), findsOneWidget);
-    });
+        // Other fields
+        expect(find.text('Artist'), findsOneWidget);
+        expect(find.text('Album'), findsOneWidget);
+        expect(find.text('Genre'), findsOneWidget);
+      },
+    );
 
-    testWidgets('close buttons work (W-AUD-TAG-44, 45)', (WidgetTester tester) async {
+    testWidgets('close buttons work (W-AUD-TAG-44, 45)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createWidget(['/path/to/SongName.mp3']));
       await tester.pumpAndSettle();
 
@@ -122,34 +129,40 @@ void main() {
   });
 
   group('AudioTagEditorDialog - Bulk Mode', () {
-    testWidgets('renders bulk mode header and previews (W-AUD-TAG-06, 09, 11, 33)', (WidgetTester tester) async {
-      await tester.pumpWidget(createWidget([
-        '/path/to/Song_Alpha.mp3',
-        '/path/to/Song_Beta.mp3',
-        '/path/to/Song_Gamma.mp3'
-      ]));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'renders bulk mode header and previews (W-AUD-TAG-06, 09, 11, 33)',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          createWidget([
+            '/path/to/Song_Alpha.mp3',
+            '/path/to/Song_Beta.mp3',
+            '/path/to/Song_Gamma.mp3',
+          ]),
+        );
+        await tester.pumpAndSettle();
 
-      // Header
-      expect(find.text('BULK EDIT TAGS (3)'), findsOneWidget);
+        // Header
+        expect(find.text('BULK EDIT TAGS (3)'), findsOneWidget);
 
-      // No title field
-      expect(find.text('Title'), findsNothing);
+        // No title field
+        expect(find.text('Title'), findsNothing);
 
-      // Prefix calculated automatically
-      expect(find.text('Song_'), findsOneWidget);
+        // Prefix calculated automatically
+        expect(find.text('Song_'), findsOneWidget);
 
-      // Previews visible
-      expect(find.text('PREVIEW'), findsOneWidget);
-      expect(find.text('Song_Alpha.mp3'), findsWidgets);
-      expect(find.text('Song_Beta.mp3'), findsWidgets);
-    });
+        // Previews visible
+        expect(find.text('PREVIEW'), findsOneWidget);
+        expect(find.text('Song_Alpha.mp3'), findsWidgets);
+        expect(find.text('Song_Beta.mp3'), findsWidgets);
+      },
+    );
 
-    testWidgets('switches to baseName mode (W-AUD-TAG-32, 35)', (WidgetTester tester) async {
-      await tester.pumpWidget(createWidget([
-        '/path/to/Alpha.mp3',
-        '/path/to/Beta.mp3',
-      ]));
+    testWidgets('switches to baseName mode (W-AUD-TAG-32, 35)', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        createWidget(['/path/to/Alpha.mp3', '/path/to/Beta.mp3']),
+      );
       await tester.pumpAndSettle();
 
       // Switch to baseName
@@ -161,7 +174,9 @@ void main() {
 
       // Enter new text in the active text field for Base Name
       // First find the TextField for Base Name
-      final textFieldFinder = find.byType(TextField).first; // The first one is the bulk rename controller
+      final textFieldFinder = find
+          .byType(TextField)
+          .first; // The first one is the bulk rename controller
       await tester.enterText(textFieldFinder, 'NewBase');
       await tester.pumpAndSettle();
 
@@ -171,10 +186,9 @@ void main() {
     });
 
     testWidgets('previews prefix mode correctly', (WidgetTester tester) async {
-      await tester.pumpWidget(createWidget([
-        '/path/to/Song_Alpha.mp3',
-        '/path/to/Song_Beta.mp3',
-      ]));
+      await tester.pumpWidget(
+        createWidget(['/path/to/Song_Alpha.mp3', '/path/to/Song_Beta.mp3']),
+      );
       await tester.pumpAndSettle();
 
       final textFieldFinder = find.byType(TextField).first;
@@ -186,8 +200,12 @@ void main() {
   });
 
   group('AudioTagEditorDialog - Cover Art', () {
-    testWidgets('clear cover art toggles correctly (W-AUD-TAG-20, 21, 24)', (WidgetTester tester) async {
-      await tester.pumpWidget(createWidget(['/path/to/Song1.mp3', '/path/to/Song2.mp3']));
+    testWidgets('clear cover art toggles correctly (W-AUD-TAG-20, 21, 24)', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        createWidget(['/path/to/Song1.mp3', '/path/to/Song2.mp3']),
+      );
       await tester.pumpAndSettle();
 
       // Default state has no cover, just music note
@@ -210,7 +228,9 @@ void main() {
   });
 
   group('AudioTagEditorDialog - Save Operations', () {
-    testWidgets('saves tags and closes (W-AUD-TAG-25, 36, 40)', (WidgetTester tester) async {
+    testWidgets('saves tags and closes (W-AUD-TAG-25, 36, 40)', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(createWidget(['/path/to/Song.mp3']));
       await tester.pumpAndSettle();
 
@@ -233,9 +253,14 @@ void main() {
 
     testWidgets('saves and renames single file', (WidgetTester tester) async {
       var renameCalled = false;
-      await tester.pumpWidget(createWidget(['/path/to/Song.mp3'], onRename: (oldP, newP) {
-        renameCalled = true;
-      }));
+      await tester.pumpWidget(
+        createWidget(
+          ['/path/to/Song.mp3'],
+          onRename: (oldP, newP) {
+            renameCalled = true;
+          },
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, 'NewTitle');
@@ -249,10 +274,9 @@ void main() {
     });
 
     testWidgets('saves and bulk renames files', (WidgetTester tester) async {
-      await tester.pumpWidget(createWidget([
-        '/path/to/Song1.mp3',
-        '/path/to/Song2.mp3',
-      ]));
+      await tester.pumpWidget(
+        createWidget(['/path/to/Song1.mp3', '/path/to/Song2.mp3']),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, 'Bulk_');
@@ -263,11 +287,12 @@ void main() {
       expect(mockTaskNotifier.addedTasks.isNotEmpty, isTrue);
     });
 
-    testWidgets('saves bulk renames with BaseName mode', (WidgetTester tester) async {
-      await tester.pumpWidget(createWidget([
-        '/path/to/Song1.mp3',
-        '/path/to/Song2.mp3',
-      ]));
+    testWidgets('saves bulk renames with BaseName mode', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        createWidget(['/path/to/Song1.mp3', '/path/to/Song2.mp3']),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Base Name + Counter'));

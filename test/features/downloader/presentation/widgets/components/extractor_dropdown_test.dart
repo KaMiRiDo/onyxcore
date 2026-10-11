@@ -14,47 +14,51 @@ class MockSettingsNotifier extends SettingsNotifier {
 }
 
 void main() {
-  testWidgets('ExtractorDropdown renders correctly when enabled', (WidgetTester tester) async {
+  testWidgets('ExtractorDropdown renders correctly when enabled', (
+    WidgetTester tester,
+  ) async {
     const settings = AppSettings(customExtractorsEnabled: true);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           settingsProvider.overrideWith(() => MockSettingsNotifier(settings)),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: ExtractorDropdown()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ExtractorDropdown())),
       ),
     );
 
     await tester.pumpAndSettle();
 
     expect(find.text('No Extractor'), findsWidgets);
-    
+
     // The dropdown should be enabled
-    final dropdown = tester.widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>));
+    final dropdown = tester.widget<PopupMenuButton<String>>(
+      find.byType(PopupMenuButton<String>),
+    );
     expect(dropdown.enabled, isTrue);
   });
 
-  testWidgets('ExtractorDropdown is disabled when feature is off', (WidgetTester tester) async {
+  testWidgets('ExtractorDropdown is disabled when feature is off', (
+    WidgetTester tester,
+  ) async {
     const settings = AppSettings();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           settingsProvider.overrideWith(() => MockSettingsNotifier(settings)),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: ExtractorDropdown()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ExtractorDropdown())),
       ),
     );
 
     await tester.pumpAndSettle();
 
     expect(find.text('No Extractor'), findsWidgets);
-    
+
     // The dropdown should be disabled
-    final dropdown = tester.widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>));
+    final dropdown = tester.widget<PopupMenuButton<String>>(
+      find.byType(PopupMenuButton<String>),
+    );
     expect(dropdown.enabled, isFalse);
   });
 }

@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 class TransformationEngine {
   /// Computes a new matrix for a zoom interaction centered around [focalPoint].
   /// Returns null if the matrix is invalid or the scale change is negligible.
-  static Matrix4? computeZoom(Matrix4 currentMatrix, double newScale, Offset focalPoint) {
+  static Matrix4? computeZoom(
+    Matrix4 currentMatrix,
+    double newScale,
+    Offset focalPoint,
+  ) {
     final clampedScale = newScale.clamp(1.0, 15.0);
 
     if (clampedScale == 1.0) {
@@ -22,7 +26,9 @@ class TransformationEngine {
       final newMatrix = currentMatrix.clone()
         ..multiply(Matrix4.translationValues(scenePoint.dx, scenePoint.dy, 0))
         ..multiply(Matrix4.diagonal3Values(scaleRatio, scaleRatio, 1))
-        ..multiply(Matrix4.translationValues(-scenePoint.dx, -scenePoint.dy, 0));
+        ..multiply(
+          Matrix4.translationValues(-scenePoint.dx, -scenePoint.dy, 0),
+        );
 
       if (newMatrix.storage.any((v) => !v.isFinite)) {
         return null;
@@ -36,7 +42,11 @@ class TransformationEngine {
   /// Computes a new matrix for a pinch-to-zoom gesture, anchoring the [viewportFocalPoint]
   /// to the [gestureStartMatrix].
   /// Returns null if the matrix is invalid or the start scale is negligible.
-  static Matrix4? computeGestureZoom(Matrix4 gestureStartMatrix, double targetScale, Offset viewportFocalPoint) {
+  static Matrix4? computeGestureZoom(
+    Matrix4 gestureStartMatrix,
+    double targetScale,
+    Offset viewportFocalPoint,
+  ) {
     final clampedScale = targetScale.clamp(1.0, 15.0);
 
     if (clampedScale == 1.0) {
@@ -57,7 +67,9 @@ class TransformationEngine {
       final newMatrix = gestureStartMatrix.clone()
         ..multiply(Matrix4.translationValues(scenePoint.dx, scenePoint.dy, 0))
         ..multiply(Matrix4.diagonal3Values(scaleRatio, scaleRatio, 1))
-        ..multiply(Matrix4.translationValues(-scenePoint.dx, -scenePoint.dy, 0));
+        ..multiply(
+          Matrix4.translationValues(-scenePoint.dx, -scenePoint.dy, 0),
+        );
 
       if (newMatrix.storage.any((v) => !v.isFinite)) return null;
 

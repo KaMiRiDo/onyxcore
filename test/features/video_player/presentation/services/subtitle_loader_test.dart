@@ -31,7 +31,7 @@ void main() {
     test('autoLoadExternalSubtitles loads .srt file if exists', () async {
       final videoPath = '${tempDir.path}/video.mp4';
       final srtPath = '${tempDir.path}/video.srt';
-      
+
       File(videoPath).createSync();
       File(srtPath).createSync();
 
@@ -46,7 +46,7 @@ void main() {
     test('autoLoadExternalSubtitles loads .vtt file if exists', () async {
       final videoPath = '${tempDir.path}/video.mkv';
       final vttPath = '${tempDir.path}/video.vtt';
-      
+
       File(videoPath).createSync();
       File(vttPath).createSync();
 
@@ -61,7 +61,7 @@ void main() {
     test('autoLoadExternalSubtitles loads .ass file if exists', () async {
       final videoPath = '${tempDir.path}/video.avi';
       final assPath = '${tempDir.path}/video.ass';
-      
+
       File(videoPath).createSync();
       File(assPath).createSync();
 
@@ -73,19 +73,22 @@ void main() {
       verify(() => mockPlayer.setSubtitleTrack(any())).called(1);
     });
 
-    test('autoLoadExternalSubtitles does nothing if no subtitles exist', () async {
-      final videoPath = '${tempDir.path}/video.mp4';
-      
-      File(videoPath).createSync();
+    test(
+      'autoLoadExternalSubtitles does nothing if no subtitles exist',
+      () async {
+        final videoPath = '${tempDir.path}/video.mp4';
 
-      await SubtitleLoader.autoLoadExternalSubtitles(
-        player: mockPlayer,
-        videoPath: videoPath,
-      );
+        File(videoPath).createSync();
 
-      verifyNever(() => mockPlayer.setSubtitleTrack(any()));
-    });
-    
+        await SubtitleLoader.autoLoadExternalSubtitles(
+          player: mockPlayer,
+          videoPath: videoPath,
+        );
+
+        verifyNever(() => mockPlayer.setSubtitleTrack(any()));
+      },
+    );
+
     test('autoLoadExternalSubtitles catches exception gracefully', () async {
       await SubtitleLoader.autoLoadExternalSubtitles(
         player: mockPlayer,

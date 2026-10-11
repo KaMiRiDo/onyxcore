@@ -7,14 +7,16 @@ void main() {
   group('SpeedIndicator', () {
     testWidgets('shows badge when rate > 1.0', (tester) async {
       final controller = StreamController<double>.broadcast();
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: SpeedIndicator(
-            rateStream: controller.stream,
-            currentRate: 1.5,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpeedIndicator(
+              rateStream: controller.stream,
+              currentRate: 1.5,
+            ),
           ),
         ),
-      ));
+      );
 
       expect(find.text('1.50x'), findsOneWidget);
       expect(find.byIcon(Icons.speed), findsOneWidget);
@@ -28,14 +30,16 @@ void main() {
 
     testWidgets('shows badge when rate < 1.0', (tester) async {
       final controller = StreamController<double>.broadcast();
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: SpeedIndicator(
-            rateStream: controller.stream,
-            currentRate: 0.5,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpeedIndicator(
+              rateStream: controller.stream,
+              currentRate: 0.5,
+            ),
           ),
         ),
-      ));
+      );
 
       expect(find.text('0.50x'), findsOneWidget);
       expect(find.byIcon(Icons.speed), findsOneWidget);
@@ -49,23 +53,22 @@ void main() {
 
     testWidgets('hides badge when rate is near 1.0', (tester) async {
       final controller = StreamController<double>.broadcast();
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: SpeedIndicator(
-            rateStream: controller.stream,
-            currentRate: 1,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpeedIndicator(rateStream: controller.stream, currentRate: 1),
           ),
         ),
-      ));
+      );
 
       expect(find.text('1.00x'), findsNothing);
       expect(find.byIcon(Icons.speed), findsNothing);
-      
+
       // Update with exact 1.0
       controller.add(1);
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.speed), findsNothing);
-      
+
       // Update with near 1.0
       controller.add(1.005);
       await tester.pumpAndSettle();

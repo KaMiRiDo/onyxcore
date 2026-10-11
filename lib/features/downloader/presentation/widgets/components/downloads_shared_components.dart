@@ -19,9 +19,10 @@ class FallbackThumb extends StatelessWidget {
 }
 
 class CountIndicator extends StatelessWidget {
-
   const CountIndicator({
-    required this.icon, required this.count, super.key,
+    required this.icon,
+    required this.count,
+    super.key,
     this.disabled = false,
   });
   final IconData icon;
@@ -58,7 +59,6 @@ class CountIndicator extends StatelessWidget {
 }
 
 class CopyUrlButton extends StatefulWidget {
-
   const CopyUrlButton({required this.url, super.key});
   final String url;
 

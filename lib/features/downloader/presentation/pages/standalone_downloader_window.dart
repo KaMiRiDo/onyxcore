@@ -98,9 +98,11 @@ class _StandaloneDownloaderWindowState
   final List<_TrashItem> _trash = [];
   bool _isTrashView = false;
   bool _isSearchVisible = false;
-  bool _isProcessingList = false; // true while a .dml list is being decrypted & loaded
+  bool _isProcessingList =
+      false; // true while a .dml list is being decrypted & loaded
   bool _obscureUnlockPassword = true;
-  final TextEditingController _unlockPasswordController = TextEditingController();
+  final TextEditingController _unlockPasswordController =
+      TextEditingController();
   String _listFilter = 'added_desc';
   final Map<String, DownloaderViewPreferences> _viewPreferences = {};
 
@@ -288,8 +290,9 @@ class _StandaloneDownloaderWindowState
           if (index < (_controller.cache.parsedItems?.length ?? 0)) {
             final item = _controller.cache.parsedItems!.removeAt(index);
             // Phase 1.1: cancel both extractor and hydration independently.
-            _controller..cancelExtraction(item.originalUrl)
-            ..cancelHydration(item.originalUrl);
+            _controller
+              ..cancelExtraction(item.originalUrl)
+              ..cancelHydration(item.originalUrl);
             final config = _controller.cache.configs.remove(index);
             // Re-index configs
             final newConfigs = <int, DownloadConfig>{};
@@ -341,8 +344,9 @@ class _StandaloneDownloaderWindowState
         }
         if (_currentGroup!.items.isEmpty) {
           // Phase 1.1: cancel both extractor and hydration independently.
-          _controller..cancelExtraction(_currentGroup!.originalUrl)
-          ..cancelHydration(_currentGroup!.originalUrl);
+          _controller
+            ..cancelExtraction(_currentGroup!.originalUrl)
+            ..cancelHydration(_currentGroup!.originalUrl);
         }
       }
 
@@ -460,11 +464,11 @@ class _StandaloneDownloaderWindowState
               url: group.originalUrl,
               destination: groupDest,
               title: group.first.isProfile ? '$folderName Profile' : folderName,
-              downloadType: group.first.isExtractorGroup 
+              downloadType: group.first.isExtractorGroup
                   ? 'extractor'
                   : group.first.isProfile
-                      ? 'profile'
-                      : (group.first.isPlaylist ? 'playlist' : 'generic'),
+                  ? 'profile'
+                  : (group.first.isPlaylist ? 'playlist' : 'generic'),
               format: config.format,
               audioOnly: config.mode == DownloadMode.audioOnly,
               mute: config.mode == DownloadMode.mute,
@@ -545,7 +549,9 @@ class _StandaloneDownloaderWindowState
               url: group.originalUrl,
               destination: groupDest,
               title: folderName,
-              downloadType: group.first.isExtractorGroup ? 'extractor' : 'carousel',
+              downloadType: group.first.isExtractorGroup
+                  ? 'extractor'
+                  : 'carousel',
               format: config.format,
               audioOnly: config.mode == DownloadMode.audioOnly,
               mute: config.mode == DownloadMode.mute,
@@ -616,7 +622,9 @@ class _StandaloneDownloaderWindowState
             url: downloadUrl,
             destination: dest,
             title: finalTitle,
-            downloadType: info.isExtractorGroup ? 'extractor' : (info.isVideo ? 'video' : 'image'),
+            downloadType: info.isExtractorGroup
+                ? 'extractor'
+                : (info.isVideo ? 'video' : 'image'),
             format: format,
             audioOnly: config.mode == DownloadMode.audioOnly,
             mute: config.mode == DownloadMode.mute,
@@ -702,7 +710,9 @@ class _StandaloneDownloaderWindowState
             url: downloadUrl,
             destination: itemDest,
             title: finalTitle,
-            downloadType: info.isExtractorGroup ? 'extractor' : (info.isVideo ? 'video' : 'image'),
+            downloadType: info.isExtractorGroup
+                ? 'extractor'
+                : (info.isVideo ? 'video' : 'image'),
             format: format,
             audioOnly: config.mode == DownloadMode.audioOnly,
             mute: config.mode == DownloadMode.mute,
@@ -812,7 +822,7 @@ class _StandaloneDownloaderWindowState
     _currentPath = (initialPath != null && initialPath.isNotEmpty)
         ? initialPath
         : _getDefaultDownloadsPath();
-        
+
     final importListPathRaw = widget.initParams['importListPath'] as String?;
     if (importListPathRaw != null && importListPathRaw.isNotEmpty) {
       // Mark as importing immediately so the first frame shows the spinner,
@@ -820,8 +830,8 @@ class _StandaloneDownloaderWindowState
       _isProcessingList = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (mounted) {
-          final importListPath = importListPathRaw.contains('?t=') 
-              ? importListPathRaw.substring(0, importListPathRaw.indexOf('?t=')) 
+          final importListPath = importListPathRaw.contains('?t=')
+              ? importListPathRaw.substring(0, importListPathRaw.indexOf('?t='))
               : importListPathRaw;
           final name = p.basenameWithoutExtension(importListPath);
           await _controller.importListFromFile(importListPath, name);
@@ -941,7 +951,7 @@ class _StandaloneDownloaderWindowState
         });
       }
     }
-    
+
     // Handle .dml file open when the downloader window is already visible
     // (e.g. user double-clicks a .dml while the app is running).
     final newImportPathRaw = widget.initParams['importListPath'] as String?;
@@ -953,10 +963,10 @@ class _StandaloneDownloaderWindowState
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         try {
-          final actualPath = newImportPathRaw.contains('?t=') 
-              ? newImportPathRaw.substring(0, newImportPathRaw.indexOf('?t=')) 
+          final actualPath = newImportPathRaw.contains('?t=')
+              ? newImportPathRaw.substring(0, newImportPathRaw.indexOf('?t='))
               : newImportPathRaw;
-              
+
           final name = p.basenameWithoutExtension(actualPath);
           final previousPath = _controller.cache.importedListPath ?? 'default';
           _saveCurrentTabState(previousPath);
@@ -1065,28 +1075,44 @@ class _StandaloneDownloaderWindowState
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                     onPressed: () => Navigator.of(context).pop(),
-                    child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white70)),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.outfit(color: Colors.white70),
+                    ),
                   ),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       TextButton(
                         style: TextButton.styleFrom(
-                          backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                          backgroundColor: AppColors.error.withValues(
+                            alpha: 0.1,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(color: AppColors.error.withValues(alpha: 0.2)),
+                            side: BorderSide(
+                              color: AppColors.error.withValues(alpha: 0.2),
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
                         ),
                         onPressed: () {
                           Navigator.of(context).pop();
                           performClose();
                         },
-                        child: Text('Discard', style: GoogleFonts.outfit(color: AppColors.error)),
+                        child: Text(
+                          'Discard',
+                          style: GoogleFonts.outfit(color: AppColors.error),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       TextButton(
@@ -1095,28 +1121,47 @@ class _StandaloneDownloaderWindowState
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
                         ),
                         onPressed: () async {
                           Navigator.of(context).pop();
 
-                      final itemsToSave = _controller.cache.getItemsForPath(path);
-                      if (itemsToSave != null) {
-                        final file = File(path);
-                        final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
-                        if (DmlCryptoService.isDmlFile(path)) {
-                          final currentPassword = _controller.cache.currentPassword;
-                          final encryptedBytes = await DmlCryptoService.encryptInIsolate(jsonString, password: currentPassword);
-                          await file.writeAsBytes(encryptedBytes);
-                        } else {
-                          await file.writeAsString(jsonString);
-                        }
-                        setState(() {
-                          _controller.cache.setCacheChanged(path, changed: false);
-                        });
-                      }
-                    },
-                        child: Text('Save', style: GoogleFonts.outfit(color: Colors.white)),
+                          final itemsToSave = _controller.cache.getItemsForPath(
+                            path,
+                          );
+                          if (itemsToSave != null) {
+                            final file = File(path);
+                            final jsonString = await compute(
+                              _encodeJsonIsolateListSave,
+                              itemsToSave,
+                            );
+                            if (DmlCryptoService.isDmlFile(path)) {
+                              final currentPassword =
+                                  _controller.cache.currentPassword;
+                              final encryptedBytes =
+                                  await DmlCryptoService.encryptInIsolate(
+                                    jsonString,
+                                    password: currentPassword,
+                                  );
+                              await file.writeAsBytes(encryptedBytes);
+                            } else {
+                              await file.writeAsString(jsonString);
+                            }
+                            setState(() {
+                              _controller.cache.setCacheChanged(
+                                path,
+                                changed: false,
+                              );
+                            });
+                          }
+                        },
+                        child: Text(
+                          'Save',
+                          style: GoogleFonts.outfit(color: Colors.white),
+                        ),
                       ),
                     ],
                   ),
@@ -1239,148 +1284,157 @@ class _StandaloneDownloaderWindowState
             },
             child: Focus(
               focusNode: _mainFocusNode,
-          autofocus: true,
-          onKeyEvent: (node, event) {
-            if (event is KeyDownEvent) {
-              if (event.logicalKey == LogicalKeyboardKey.delete) {
-                if (_selectedIndices.isNotEmpty) {
-                  _handleDelete(HardwareKeyboard.instance.isShiftPressed);
-                  return KeyEventResult.handled;
+              autofocus: true,
+              onKeyEvent: (node, event) {
+                if (event is KeyDownEvent) {
+                  if (event.logicalKey == LogicalKeyboardKey.delete) {
+                    if (_selectedIndices.isNotEmpty) {
+                      _handleDelete(HardwareKeyboard.instance.isShiftPressed);
+                      return KeyEventResult.handled;
+                    }
+                  }
+
+                  if (HardwareKeyboard.instance.isAltPressed) {
+                    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                      if (_historyIndex > 0) {
+                        setState(() {
+                          _historyIndex--;
+                          _currentGroup = _navigationHistory[_historyIndex];
+                          _selectedIndices.clear();
+                          _lastSelectedIndex = -1;
+                        });
+                      }
+                      return KeyEventResult.handled;
+                    } else if (event.logicalKey ==
+                        LogicalKeyboardKey.arrowRight) {
+                      if (_historyIndex < _navigationHistory.length - 1) {
+                        setState(() {
+                          _historyIndex++;
+                          _currentGroup = _navigationHistory[_historyIndex];
+                          _selectedIndices.clear();
+                          _lastSelectedIndex = -1;
+                        });
+                      }
+                      return KeyEventResult.handled;
+                    } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+                      if (_selectedIndices.isNotEmpty) {
+                        _showPropertiesDialog();
+                      }
+                      return KeyEventResult.handled;
+                    }
+                  }
                 }
-              }
+                return KeyEventResult.ignored;
+              },
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final sidebarWidth = (constraints.maxWidth * 0.25).clamp(
+                    200.0,
+                    340.0,
+                  );
 
-              if (HardwareKeyboard.instance.isAltPressed) {
-                if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                  if (_historyIndex > 0) {
-                    setState(() {
-                      _historyIndex--;
-                      _currentGroup = _navigationHistory[_historyIndex];
-                      _selectedIndices.clear();
-                      _lastSelectedIndex = -1;
-                    });
-                  }
-                  return KeyEventResult.handled;
-                } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-                  if (_historyIndex < _navigationHistory.length - 1) {
-                    setState(() {
-                      _historyIndex++;
-                      _currentGroup = _navigationHistory[_historyIndex];
-                      _selectedIndices.clear();
-                      _lastSelectedIndex = -1;
-                    });
-                  }
-                  return KeyEventResult.handled;
-                } else if (event.logicalKey == LogicalKeyboardKey.enter) {
-                  if (_selectedIndices.isNotEmpty) {
-                    _showPropertiesDialog();
-                  }
-                  return KeyEventResult.handled;
-                }
-              }
-            }
-            return KeyEventResult.ignored;
-          },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final sidebarWidth = (constraints.maxWidth * 0.25).clamp(
-                200.0,
-                340.0,
-              );
+                  final mainContent = Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Left Sidebar
+                      Container(
+                        width: sidebarWidth,
+                        decoration: const BoxDecoration(
+                          color: AppColors.surfaceBase,
+                          border: Border(
+                            right: BorderSide(color: Colors.white10),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Media List Section
+                            Expanded(child: _buildMediaListSection()),
 
-              final mainContent = Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Left Sidebar
-                  Container(
-                    width: sidebarWidth,
-                    decoration: const BoxDecoration(
-                      color: AppColors.surfaceBase,
-                      border: Border(right: BorderSide(color: Colors.white10)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Media List Section
-                        Expanded(child: _buildMediaListSection()),
+                            const Divider(height: 1, color: Colors.white10),
 
-                        const Divider(height: 1, color: Colors.white10),
+                            // Active Downloads Section
+                            Expanded(child: _buildActiveDownloadsSection()),
+                          ],
+                        ),
+                      ),
 
-                        // Active Downloads Section
-                        Expanded(child: _buildActiveDownloadsSection()),
-                      ],
-                    ),
-                  ),
+                      // Right Main Content
+                      Expanded(
+                        child: Column(
+                          children: [
+                            // Header
+                            _buildHeader(),
 
-                  // Right Main Content
-                  Expanded(
-                    child: Column(
-                      children: [
-                        // Header
-                        _buildHeader(),
+                            // Contextual Action Bar
+                            _buildActionBar(),
 
-                        // Contextual Action Bar
-                        _buildActionBar(),
-
-                        // Media Grid
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              _buildMediaGrid(),
-                              if (_isProcessingList)
-                                Positioned.fill(
-                                  child: ClipRect(
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(alpha: 0.65),
-                                        ),
-                                        child: Center(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const BubbleLoader(size: 76),
-                                              const SizedBox(height: 20),
-                                              Text(
-                                                'Processing...',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodyMedium
-                                                    ?.copyWith(
-                                                      color: Colors.white,
-                                                      fontWeight: FontWeight.w600,
-                                                      letterSpacing: 0.5,
-                                                    ),
+                            // Media Grid
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  _buildMediaGrid(),
+                                  if (_isProcessingList)
+                                    Positioned.fill(
+                                      child: ClipRect(
+                                        child: BackdropFilter(
+                                          filter: ImageFilter.blur(
+                                            sigmaX: 8,
+                                            sigmaY: 8,
+                                          ),
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.65,
                                               ),
-                                            ],
+                                            ),
+                                            child: Center(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const BubbleLoader(size: 76),
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Processing...',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          letterSpacing: 0.5,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                            ],
-                          ),
+                                ],
+                              ),
+                            ),
+
+                            // Location Bar
+                            _buildLocationBar(),
+                          ],
                         ),
+                      ),
+                    ],
+                  );
 
-                        // Location Bar
-                        _buildLocationBar(),
-                      ],
-                    ),
-                  ),
-                ],
-              );
+                  if (_isProcessingList) {
+                    return AbsorbPointer(child: mainContent);
+                  }
 
-              if (_isProcessingList) {
-                return AbsorbPointer(child: mainContent);
-              }
-
-              return mainContent;
-            },
-          ),
-        ),
-      );
-      },
+                  return mainContent;
+                },
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1499,11 +1553,12 @@ class _StandaloneDownloaderWindowState
             setState(() => _isProcessingList = true);
             try {
               final name = p.basenameWithoutExtension(path.first);
-              final currentPath = _controller.cache.importedListPath ?? 'default';
+              final currentPath =
+                  _controller.cache.importedListPath ?? 'default';
               _saveCurrentTabState(currentPath);
-              
+
               await _controller.importListFromFile(path.first, name);
-              
+
               if (mounted) {
                 setState(() {
                   _controller.cache.switchList(path.first);
@@ -1515,7 +1570,10 @@ class _StandaloneDownloaderWindowState
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Failed to import list: $e', style: GoogleFonts.outfit(color: Colors.white)),
+                    content: Text(
+                      'Failed to import list: $e',
+                      style: GoogleFonts.outfit(color: Colors.white),
+                    ),
                     backgroundColor: Colors.red.shade900,
                   ),
                 );
@@ -1544,14 +1602,23 @@ class _StandaloneDownloaderWindowState
         final itemsToSave = _controller.cache.getItemsForPath(path);
         if (itemsToSave != null) {
           final file = File(path);
-          
+
           if (DmlCryptoService.isDmlFile(path)) {
-            final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
+            final jsonString = await compute(
+              _encodeJsonIsolateListSave,
+              itemsToSave,
+            );
             final currentPassword = _controller.cache.currentPassword;
-            final encryptedBytes = await DmlCryptoService.encryptInIsolate(jsonString, password: currentPassword);
+            final encryptedBytes = await DmlCryptoService.encryptInIsolate(
+              jsonString,
+              password: currentPassword,
+            );
             await file.writeAsBytes(encryptedBytes);
           } else {
-            final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
+            final jsonString = await compute(
+              _encodeJsonIsolateListSave,
+              itemsToSave,
+            );
             await file.writeAsString(jsonString);
           }
 
@@ -1579,11 +1646,14 @@ class _StandaloneDownloaderWindowState
           if (remove) {
             _controller.cache.removePasswordForPath(path);
             _controller.cache.setCacheChanged(path, changed: true);
-            
+
             final itemsToSave = _controller.cache.getItemsForPath(path);
             if (itemsToSave != null) {
               final file = File(path);
-              final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
+              final jsonString = await compute(
+                _encodeJsonIsolateListSave,
+                itemsToSave,
+              );
               await file.writeAsString(jsonString);
               setState(() {
                 _controller.cache.setCacheChanged(path, changed: false);
@@ -1598,7 +1668,8 @@ class _StandaloneDownloaderWindowState
               _controller.cache.isListChanged = true;
             }
             if (_controller.cache.importedListPath != path) {
-              final currentPath = _controller.cache.importedListPath ?? 'default';
+              final currentPath =
+                  _controller.cache.importedListPath ?? 'default';
               _saveCurrentTabState(currentPath);
               setState(() {
                 _controller.cache.switchList(path);
@@ -1612,8 +1683,14 @@ class _StandaloneDownloaderWindowState
             final itemsToSave = _controller.cache.getItemsForPath(path);
             if (itemsToSave != null) {
               final file = File(path);
-              final jsonString = await compute(_encodeJsonIsolateListSave, itemsToSave);
-              final encryptedBytes = await DmlCryptoService.encryptInIsolate(jsonString, password: password);
+              final jsonString = await compute(
+                _encodeJsonIsolateListSave,
+                itemsToSave,
+              );
+              final encryptedBytes = await DmlCryptoService.encryptInIsolate(
+                jsonString,
+                password: password,
+              );
               await file.writeAsBytes(encryptedBytes);
               setState(() {
                 _controller.cache.isListChanged = false;
@@ -1701,15 +1778,24 @@ class _StandaloneDownloaderWindowState
                                 style: GoogleFonts.outfit(color: Colors.white),
                                 decoration: InputDecoration(
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 12,
+                                  ),
                                   labelText: 'Password',
-                                  labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                                  labelStyle: GoogleFonts.outfit(
+                                    color: Colors.white70,
+                                  ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderSide: const BorderSide(color: Colors.white30),
+                                    borderSide: const BorderSide(
+                                      color: Colors.white30,
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderSide: const BorderSide(color: AppColors.violet),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.violet,
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
@@ -1718,9 +1804,15 @@ class _StandaloneDownloaderWindowState
                                   final pwd = passwordController.text;
                                   final confirm = confirmController.text;
                                   if (pwd.isEmpty) {
-                                    setState(() => errorMessage = 'Password is required');
+                                    setState(
+                                      () =>
+                                          errorMessage = 'Password is required',
+                                    );
                                   } else if (pwd != confirm) {
-                                    setState(() => errorMessage = 'Passwords do not match');
+                                    setState(
+                                      () => errorMessage =
+                                          'Passwords do not match',
+                                    );
                                   } else {
                                     Navigator.of(context).pop(pwd);
                                   }
@@ -1732,10 +1824,14 @@ class _StandaloneDownloaderWindowState
                               padding: const EdgeInsets.only(top: 2),
                               child: IconButton(
                                 icon: Icon(
-                                  obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                  obscurePassword
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: Colors.white70,
                                 ),
-                                onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                                onPressed: () => setState(
+                                  () => obscurePassword = !obscurePassword,
+                                ),
                               ),
                             ),
                           ],
@@ -1751,15 +1847,24 @@ class _StandaloneDownloaderWindowState
                                 style: GoogleFonts.outfit(color: Colors.white),
                                 decoration: InputDecoration(
                                   isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 12,
+                                  ),
                                   labelText: 'Confirm Password',
-                                  labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                                  labelStyle: GoogleFonts.outfit(
+                                    color: Colors.white70,
+                                  ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderSide: const BorderSide(color: Colors.white30),
+                                    borderSide: const BorderSide(
+                                      color: Colors.white30,
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderSide: const BorderSide(color: AppColors.violet),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.violet,
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
@@ -1768,9 +1873,15 @@ class _StandaloneDownloaderWindowState
                                   final pwd = passwordController.text;
                                   final confirm = confirmController.text;
                                   if (pwd.isEmpty) {
-                                    setState(() => errorMessage = 'Password is required');
+                                    setState(
+                                      () =>
+                                          errorMessage = 'Password is required',
+                                    );
                                   } else if (pwd != confirm) {
-                                    setState(() => errorMessage = 'Passwords do not match');
+                                    setState(
+                                      () => errorMessage =
+                                          'Passwords do not match',
+                                    );
                                   } else {
                                     Navigator.of(context).pop(pwd);
                                   }
@@ -1782,10 +1893,14 @@ class _StandaloneDownloaderWindowState
                               padding: const EdgeInsets.only(top: 2),
                               child: IconButton(
                                 icon: Icon(
-                                  obscureConfirm ? Icons.visibility : Icons.visibility_off,
+                                  obscureConfirm
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: Colors.white70,
                                 ),
-                                onPressed: () => setState(() => obscureConfirm = !obscureConfirm),
+                                onPressed: () => setState(
+                                  () => obscureConfirm = !obscureConfirm,
+                                ),
                               ),
                             ),
                           ],
@@ -1799,7 +1914,10 @@ class _StandaloneDownloaderWindowState
                       left: 0,
                       child: Text(
                         errorMessage!,
-                        style: GoogleFonts.outfit(color: AppColors.error, fontSize: 12),
+                        style: GoogleFonts.outfit(
+                          color: AppColors.error,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                 ],
@@ -1809,7 +1927,10 @@ class _StandaloneDownloaderWindowState
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white70)),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.outfit(color: Colors.white70),
+              ),
             ),
             TextButton(
               style: TextButton.styleFrom(
@@ -1817,7 +1938,10 @@ class _StandaloneDownloaderWindowState
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
               onPressed: () {
                 final pwd = passwordController.text;
@@ -1830,7 +1954,10 @@ class _StandaloneDownloaderWindowState
                   Navigator.of(context).pop(pwd);
                 }
               },
-              child: Text('Lock', style: GoogleFonts.outfit(color: Colors.white)),
+              child: Text(
+                'Lock',
+                style: GoogleFonts.outfit(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -1838,128 +1965,164 @@ class _StandaloneDownloaderWindowState
     );
   }
 
-  Future<bool> _showRemoveLockDialog(BuildContext context, String currentPassword) async {
+  Future<bool> _showRemoveLockDialog(
+    BuildContext context,
+    String currentPassword,
+  ) async {
     final passwordController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     var obscurePassword = true;
     String? errorMessage;
 
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          title: Text(
-            'Remove Password',
-            style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
-            textAlign: TextAlign.center,
-          ),
-          actionsAlignment: MainAxisAlignment.spaceBetween,
-          content: Form(
-            key: formKey,
-            child: SizedBox(
-              width: 360,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  SizedBox(
-                    width: 360,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setState) => AlertDialog(
+              backgroundColor: const Color(0xFF1E1E1E),
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              title: Text(
+                'Remove Password',
+                style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              content: Form(
+                key: formKey,
+                child: SizedBox(
+                  width: 360,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      SizedBox(
+                        width: 360,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Expanded(
-                              child: TextFormField(
-                                autofocus: true,
-                                controller: passwordController,
-                                obscureText: obscurePassword,
-                                style: GoogleFonts.outfit(color: Colors.white),
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                                  labelText: 'Current Password',
-                                  labelStyle: GoogleFonts.outfit(color: Colors.white70),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderSide: const BorderSide(color: Colors.white30),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderSide: const BorderSide(color: AppColors.violet),
-                                    borderRadius: BorderRadius.circular(8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    autofocus: true,
+                                    controller: passwordController,
+                                    obscureText: obscurePassword,
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                            horizontal: 12,
+                                          ),
+                                      labelText: 'Current Password',
+                                      labelStyle: GoogleFonts.outfit(
+                                        color: Colors.white70,
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderSide: const BorderSide(
+                                          color: Colors.white30,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderSide: const BorderSide(
+                                          color: AppColors.violet,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    validator: (_) => null,
+                                    onFieldSubmitted: (_) {
+                                      if (passwordController.text !=
+                                          currentPassword) {
+                                        setState(
+                                          () => errorMessage =
+                                              'Incorrect password',
+                                        );
+                                      } else {
+                                        Navigator.of(context).pop(true);
+                                      }
+                                    },
                                   ),
                                 ),
-                                validator: (_) => null,
-                                onFieldSubmitted: (_) {
-                                  if (passwordController.text != currentPassword) {
-                                    setState(() => errorMessage = 'Incorrect password');
-                                  } else {
-                                    Navigator.of(context).pop(true);
-                                  }
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: IconButton(
-                                icon: Icon(
-                                  obscurePassword ? Icons.visibility : Icons.visibility_off,
-                                  color: Colors.white70,
+                                const SizedBox(width: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      obscurePassword
+                                          ? Icons.visibility
+                                          : Icons.visibility_off,
+                                      color: Colors.white70,
+                                    ),
+                                    onPressed: () => setState(
+                                      () => obscurePassword = !obscurePassword,
+                                    ),
+                                  ),
                                 ),
-                                onPressed: () => setState(() => obscurePassword = !obscurePassword),
-                              ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
+                      ),
+                      if (errorMessage != null)
+                        Positioned(
+                          bottom: -20,
+                          left: 0,
+                          child: Text(
+                            errorMessage!,
+                            style: GoogleFonts.outfit(
+                              color: AppColors.error,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.outfit(color: Colors.white70),
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
                     ),
                   ),
-                  if (errorMessage != null)
-                    Positioned(
-                      bottom: -20,
-                      left: 0,
-                      child: Text(
-                        errorMessage!,
-                        style: GoogleFonts.outfit(color: AppColors.error, fontSize: 12),
-                      ),
-                    ),
-                ],
-              ),
+                  onPressed: () {
+                    if (passwordController.text != currentPassword) {
+                      setState(() => errorMessage = 'Incorrect password');
+                    } else {
+                      Navigator.of(context).pop(true);
+                    }
+                  },
+                  child: Text(
+                    'Remove',
+                    style: GoogleFonts.outfit(color: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white70)),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(
-                backgroundColor: AppColors.error,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              onPressed: () {
-                if (passwordController.text != currentPassword) {
-                  setState(() => errorMessage = 'Incorrect password');
-                } else {
-                  Navigator.of(context).pop(true);
-                }
-              },
-              child: Text('Remove', style: GoogleFonts.outfit(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   Future<void> _restoreTrash() async {
@@ -3006,7 +3169,11 @@ class _StandaloneDownloaderWindowState
               const SizedBox(height: 16),
               Text(
                 'This list is locked',
-                style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 24),
               Row(
@@ -3020,7 +3187,10 @@ class _StandaloneDownloaderWindowState
                       style: GoogleFonts.outfit(color: Colors.white),
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 12,
+                        ),
                         labelText: 'Password',
                         labelStyle: GoogleFonts.outfit(color: Colors.white70),
                         enabledBorder: OutlineInputBorder(
@@ -3038,13 +3208,22 @@ class _StandaloneDownloaderWindowState
                           final name = _controller.cache.importedListName;
                           if (path != null && name != null) {
                             try {
-                              await _controller.importListFromFile(path, name, password: value);
+                              await _controller.importListFromFile(
+                                path,
+                                name,
+                                password: value,
+                              );
                               _unlockPasswordController.clear();
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Incorrect password', style: GoogleFonts.outfit(color: Colors.white)),
+                                    content: Text(
+                                      'Incorrect password',
+                                      style: GoogleFonts.outfit(
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                     backgroundColor: AppColors.error,
                                   ),
                                 );
@@ -3060,10 +3239,14 @@ class _StandaloneDownloaderWindowState
                     padding: const EdgeInsets.only(top: 2),
                     child: IconButton(
                       icon: Icon(
-                        _obscureUnlockPassword ? Icons.visibility : Icons.visibility_off,
+                        _obscureUnlockPassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         color: Colors.white70,
                       ),
-                      onPressed: () => setState(() => _obscureUnlockPassword = !_obscureUnlockPassword),
+                      onPressed: () => setState(
+                        () => _obscureUnlockPassword = !_obscureUnlockPassword,
+                      ),
                     ),
                   ),
                 ],
@@ -3087,13 +3270,22 @@ class _StandaloneDownloaderWindowState
                       final name = _controller.cache.importedListName;
                       if (path != null && name != null) {
                         try {
-                          await _controller.importListFromFile(path, name, password: value);
+                          await _controller.importListFromFile(
+                            path,
+                            name,
+                            password: value,
+                          );
                           _unlockPasswordController.clear();
                         } catch (e) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Incorrect password', style: GoogleFonts.outfit(color: Colors.white)),
+                                content: Text(
+                                  'Incorrect password',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                  ),
+                                ),
                                 backgroundColor: AppColors.error,
                               ),
                             );
@@ -3102,7 +3294,10 @@ class _StandaloneDownloaderWindowState
                       }
                     }
                   },
-                  child: Text('Unlock', style: GoogleFonts.outfit(color: Colors.white)),
+                  child: Text(
+                    'Unlock',
+                    style: GoogleFonts.outfit(color: Colors.white),
+                  ),
                 ),
               ),
             ],
@@ -3931,7 +4126,8 @@ String? resolveStreamUrl(MediaInfo item, {MediaFormat? selectedFormat}) {
   // Let media_kit's ytdl hook handle DASH audio+video muxing natively
   // for yt-dlp extracted links. This also bypasses expired directUrls for old
   // imported JSON lists that might be missing the engineId field.
-  final isLikelyYtDlp = item.engineId == 'yt-dlp' ||
+  final isLikelyYtDlp =
+      item.engineId == 'yt-dlp' ||
       item.extractor != null ||
       item.originalUrl.contains('youtube.com') ||
       item.originalUrl.contains('youtu.be') ||

@@ -6,12 +6,14 @@ import 'package:onyxcore/features/downloader/presentation/providers/download_tas
 import 'package:onyxcore/features/downloader/services/download_history_database.dart';
 
 class DownloadHistoryEntry {
-
   const DownloadHistoryEntry({
     required this.id,
     required this.title,
     required this.statusName,
-    required this.url, required this.destination, required this.createdAt, this.downloadType = 'generic',
+    required this.url,
+    required this.destination,
+    required this.createdAt,
+    this.downloadType = 'generic',
     this.errorMessage,
     this.logs = const [],
     this.completedAt,
@@ -191,7 +193,6 @@ class DownloadHistoryNotifier extends Notifier<List<DownloadHistoryEntry>> {
 }
 
 class DownloadHistoryFilter {
-
   const DownloadHistoryFilter({this.selectedDates, this.status});
   final Set<DateTime>? selectedDates;
   final String? status;

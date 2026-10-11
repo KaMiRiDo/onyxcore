@@ -8,7 +8,6 @@ import 'package:path/path.dart' as p;
 
 /// State for the Custom File Picker.
 class FilePickerState {
-
   FilePickerState({
     required this.currentDirectory,
     this.showHiddenFiles = false,
@@ -130,10 +129,7 @@ class FilePickerNotifier extends AsyncNotifier<FilePickerState> {
             .compareTo(p.basename(b.path).toLowerCase());
       });
 
-      return currentState.copyWith(
-        contents: filtered,
-        selection: {},
-      );
+      return currentState.copyWith(contents: filtered, selection: {});
     } catch (e) {
       // If access denied or other error, return state with error but keep current path if possible
       // In a real app, you'd probably want to show a snackbar.

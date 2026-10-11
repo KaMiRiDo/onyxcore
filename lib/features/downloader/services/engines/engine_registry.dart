@@ -25,9 +25,7 @@ class EngineRegistry {
   ];
 
   /// Required runtimes — execution environments required by the engines.
-  static final List<DownloadEngine> _requiredRuntimes = [
-    DenoRuntime.instance,
-  ];
+  static final List<DownloadEngine> _requiredRuntimes = [DenoRuntime.instance];
 
   /// Optional engines — can be installed/deleted from Settings.
   /// Never block the panel; greyed out with "Install" badge if missing.
@@ -52,10 +50,7 @@ class EngineRegistry {
   static void clearRegisteredEngines() {
     _engines
       ..clear()
-      ..addAll([
-        ..._requiredEngines,
-        ..._optionalEngines,
-      ]);
+      ..addAll([..._requiredEngines, ..._optionalEngines]);
     _requiredRuntimes
       ..clear()
       ..add(DenoRuntime.instance);
@@ -109,10 +104,11 @@ class EngineRegistry {
 
     final installed = _engines.where((e) => e.isInstalled).toList();
 
-    final matching = installed
-        .where((e) => e.urlPatterns.any((p) => p.hasMatch(url)))
-        .toList()
-      ..sort((a, b) => b.priority.compareTo(a.priority));
+    final matching =
+        installed
+            .where((e) => e.urlPatterns.any((p) => p.hasMatch(url)))
+            .toList()
+          ..sort((a, b) => b.priority.compareTo(a.priority));
 
     final others = installed.where((e) => !matching.contains(e)).toList()
       ..sort((a, b) => b.priority.compareTo(a.priority));
@@ -150,8 +146,12 @@ class EngineRegistry {
 
   /// Missing required engines (and runtimes).
   static List<DownloadEngine> get missingRequired {
-    final missingEngines = requiredEngines.where((e) => !e.isInstalled).toList();
-    final missingRuntimes = _requiredRuntimes.where((e) => !e.isInstalled).toList();
+    final missingEngines = requiredEngines
+        .where((e) => !e.isInstalled)
+        .toList();
+    final missingRuntimes = _requiredRuntimes
+        .where((e) => !e.isInstalled)
+        .toList();
     return [...missingEngines, ...missingRuntimes];
   }
 

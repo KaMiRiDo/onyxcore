@@ -42,8 +42,16 @@ class SpecialImageConverter {
       if (isHeic) {
         final process = await Process.start(
           isUnix ? 'nice' : 'heif-thumbnailer',
-          isUnix 
-              ? ['-n', '19', 'heif-thumbnailer', '-s', '1920', sourcePath, uniqueTempPath]
+          isUnix
+              ? [
+                  '-n',
+                  '19',
+                  'heif-thumbnailer',
+                  '-s',
+                  '1920',
+                  sourcePath,
+                  uniqueTempPath,
+                ]
               : ['-s', '1920', sourcePath, uniqueTempPath],
         );
         await process.exitCode;
@@ -52,17 +60,50 @@ class SpecialImageConverter {
         if (!file.existsSync() || file.lengthSync() == 0) {
           final fallbackProcess = await Process.start(
             isUnix ? 'nice' : 'ffmpeg',
-            isUnix 
-                ? ['-n', '19', 'ffmpeg', '-y', '-i', sourcePath, '-vframes', '1', '-q:v', '2', '-update', '1', uniqueTempPath]
-                : ['-y', '-i', sourcePath, '-vframes', '1', '-q:v', '2', '-update', '1', uniqueTempPath],
+            isUnix
+                ? [
+                    '-n',
+                    '19',
+                    'ffmpeg',
+                    '-y',
+                    '-i',
+                    sourcePath,
+                    '-vframes',
+                    '1',
+                    '-q:v',
+                    '2',
+                    '-update',
+                    '1',
+                    uniqueTempPath,
+                  ]
+                : [
+                    '-y',
+                    '-i',
+                    sourcePath,
+                    '-vframes',
+                    '1',
+                    '-q:v',
+                    '2',
+                    '-update',
+                    '1',
+                    uniqueTempPath,
+                  ],
           );
           await fallbackProcess.exitCode;
         }
       } else if (isDng) {
         final process = await Process.start(
           isUnix ? 'nice' : 'gdk-pixbuf-thumbnailer',
-          isUnix 
-              ? ['-n', '19', 'gdk-pixbuf-thumbnailer', '-s', '1920', sourcePath, uniqueTempPath]
+          isUnix
+              ? [
+                  '-n',
+                  '19',
+                  'gdk-pixbuf-thumbnailer',
+                  '-s',
+                  '1920',
+                  sourcePath,
+                  uniqueTempPath,
+                ]
               : ['-s', '1920', sourcePath, uniqueTempPath],
         );
         await process.exitCode;

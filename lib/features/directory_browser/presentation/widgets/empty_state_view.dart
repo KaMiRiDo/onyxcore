@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class EmptyStateView extends StatelessWidget {
-
   const EmptyStateView({
-    required this.title, required this.subtitle, required this.icon, super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    super.key,
     this.onAction,
     this.actionLabel,
   });
@@ -20,11 +22,7 @@ class EmptyStateView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 160,
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          Icon(icon, size: 160, color: Colors.white.withValues(alpha: 0.08)),
           const SizedBox(height: 24),
           Text(
             title,

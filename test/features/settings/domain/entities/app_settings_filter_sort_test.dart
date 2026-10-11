@@ -12,7 +12,10 @@ void main() {
     });
 
     test('copyWith preserves fields when not overridden', () {
-      const settings = AppSettings(imageFilterSortEnabled: true, videoFilterSortEnabled: true);
+      const settings = AppSettings(
+        imageFilterSortEnabled: true,
+        videoFilterSortEnabled: true,
+      );
       final updated = settings.copyWith(autoPlayNext: false);
       expect(updated.imageFilterSortEnabled, isTrue);
       expect(updated.videoFilterSortEnabled, isTrue);

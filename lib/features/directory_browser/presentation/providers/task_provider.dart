@@ -7,13 +7,15 @@ import 'package:uuid/uuid.dart';
 
 enum FileTaskStatus { pending, running, completed, error, cancelled }
 
-class FileTask { // in bytes per second
+class FileTask {
+  // in bytes per second
 
   const FileTask({
     required this.id,
     required this.title,
     required this.subtitle,
-    required this.createdAt, double progress = 0.0,
+    required this.createdAt,
+    double progress = 0.0,
     this.status = FileTaskStatus.pending,
     this.errorMessage,
     this.isCancelled = false,

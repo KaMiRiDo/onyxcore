@@ -137,7 +137,11 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                     final isHydrating = isHydratingItem(group.originalUrl);
                     final firstItem = group.items.isNotEmpty
                         ? group.items.cast<MediaInfo?>().firstWhere(
-                            (e) => e != null && e.id != 'fetch_loading' && e.id != 'hydration_loading' && e.id != 'fetch_error',
+                            (e) =>
+                                e != null &&
+                                e.id != 'fetch_loading' &&
+                                e.id != 'hydration_loading' &&
+                                e.id != 'fetch_error',
                             orElse: () => group.items.first,
                           )
                         : null;
@@ -158,7 +162,8 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
 
                     if (isAudioFormat) {
                       typeIcon = Icons.audiotrack_rounded;
-                    } else if ((firstItem?.isExtractorGroup ?? false) && currentGroup == null) {
+                    } else if ((firstItem?.isExtractorGroup ?? false) &&
+                        currentGroup == null) {
                       typeIcon = Icons.public_rounded; // Globe icon fallback
                     } else if (firstItem?.isProfile ?? false) {
                       typeIcon = Icons.account_circle_rounded;
@@ -184,9 +189,11 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
 
                     final isItemError = currentGroup == null
                         ? (group.isError ||
-                              ((firstItem?.id == 'error' || firstItem?.id == 'fetch_error') &&
+                              ((firstItem?.id == 'error' ||
+                                      firstItem?.id == 'fetch_error') &&
                                   firstItem?.title != 'Fetching...'))
-                        : ((firstItem?.id == 'error' || firstItem?.id == 'fetch_error') &&
+                        : ((firstItem?.id == 'error' ||
+                                  firstItem?.id == 'fetch_error') &&
                               firstItem?.title != 'Fetching...');
 
                     String? thumbUrl;
@@ -211,17 +218,26 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                             (firstItem.originalUrl.startsWith('http://') ||
                                 firstItem.originalUrl.startsWith('https://'))) {
                           thumbUrl = firstItem.originalUrl;
-                        } else if (!isFetching && (firstItem?.isVideo ?? false)) {
-                          final bestVideoUrl = firstItem?.directUrl ?? firstItem?.originalUrl;
+                        } else if (!isFetching &&
+                            (firstItem?.isVideo ?? false)) {
+                          final bestVideoUrl =
+                              firstItem?.directUrl ?? firstItem?.originalUrl;
                           if (bestVideoUrl != null &&
                               bestVideoUrl.isNotEmpty &&
                               (bestVideoUrl.startsWith('http://') ||
                                   bestVideoUrl.startsWith('https://'))) {
-                            final resolvedPath = RemoteVideoThumbnailResolver.getThumbnailPath(bestVideoUrl);
+                            final resolvedPath =
+                                RemoteVideoThumbnailResolver.getThumbnailPath(
+                                  bestVideoUrl,
+                                );
                             if (resolvedPath != null) {
                               thumbUrl = 'file://$resolvedPath';
-                            } else if (!RemoteVideoThumbnailResolver.isFailed(bestVideoUrl)) {
-                              RemoteVideoThumbnailResolver.generate(bestVideoUrl);
+                            } else if (!RemoteVideoThumbnailResolver.isFailed(
+                              bestVideoUrl,
+                            )) {
+                              RemoteVideoThumbnailResolver.generate(
+                                bestVideoUrl,
+                              );
                               thumbUrl = 'generating_thumbnail';
                             }
                           }
@@ -229,7 +245,8 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                       }
                     }
 
-                    if (!isItemError && (thumbUrl == null || thumbUrl.isEmpty) &&
+                    if (!isItemError &&
+                        (thumbUrl == null || thumbUrl.isEmpty) &&
                         (firstItem?.isExtractorGroup ?? false) &&
                         currentGroup == null) {
                       final host = Uri.tryParse(group.originalUrl)?.host;
@@ -318,82 +335,89 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                               ),
                                             )
                                           : thumbUrl.startsWith('file://')
-                                              ? Image.file(
-                                                  File(thumbUrl.substring(7)),
-                                                  fit: BoxFit.contain,
-                                                  cacheWidth: 300,
-                                                  errorBuilder: (c, e, s) => Center(
-                                                    child: Icon(
-                                                      typeIcon,
-                                                      color: Colors.white24,
-                                                      size: 36,
-                                                    ),
-                                                  ),
-                                                )
-                                              : thumbUrl.startsWith('data:image/')
-                                                  ? Image.memory(
-                                                      base64Decode(
-                                                        thumbUrl.split(',').last,
-                                                      ),
-                                                      fit: BoxFit.contain,
-                                                      cacheWidth: 300,
-                                                      errorBuilder: (c, e, s) => Center(
-                                                        child: Icon(
-                                                          typeIcon,
-                                                          color: Colors.white24,
-                                                          size: 36,
-                                                        ),
-                                                      ),
-                                                    )
-                                                  : Image.network(
-                                                      thumbUrl,
-                                                      headers: const {
-                                                        'User-Agent':
-                                                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                                                      },
-                                                      fit: BoxFit.contain,
-                                                      cacheWidth: 300,
-                                                      errorBuilder: (c, e, s) {
-                                                        if (group.first.isExtractorGroup && currentGroup == null) {
-                                                          return Image.network(
-                                                            'https://www.google.com/s2/favicons?domain=${Uri.tryParse(group.originalUrl)?.host}&sz=256',
-                                                            fit: BoxFit.contain,
-                                                            errorBuilder: (c, e, s) => Center(
-                                                              child: Icon(
-                                                                typeIcon,
-                                                                color: Colors.white24,
-                                                                size: 36,
-                                                              ),
-                                                            ),
-                                                          );
-                                                        }
-                                                        return Center(
+                                          ? Image.file(
+                                              File(thumbUrl.substring(7)),
+                                              fit: BoxFit.contain,
+                                              cacheWidth: 300,
+                                              errorBuilder: (c, e, s) => Center(
+                                                child: Icon(
+                                                  typeIcon,
+                                                  color: Colors.white24,
+                                                  size: 36,
+                                                ),
+                                              ),
+                                            )
+                                          : thumbUrl.startsWith('data:image/')
+                                          ? Image.memory(
+                                              base64Decode(
+                                                thumbUrl.split(',').last,
+                                              ),
+                                              fit: BoxFit.contain,
+                                              cacheWidth: 300,
+                                              errorBuilder: (c, e, s) => Center(
+                                                child: Icon(
+                                                  typeIcon,
+                                                  color: Colors.white24,
+                                                  size: 36,
+                                                ),
+                                              ),
+                                            )
+                                          : Image.network(
+                                              thumbUrl,
+                                              headers: const {
+                                                'User-Agent':
+                                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                                              },
+                                              fit: BoxFit.contain,
+                                              cacheWidth: 300,
+                                              errorBuilder: (c, e, s) {
+                                                if (group
+                                                        .first
+                                                        .isExtractorGroup &&
+                                                    currentGroup == null) {
+                                                  return Image.network(
+                                                    'https://www.google.com/s2/favicons?domain=${Uri.tryParse(group.originalUrl)?.host}&sz=256',
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder: (c, e, s) =>
+                                                        Center(
                                                           child: Icon(
                                                             typeIcon,
-                                                            color: Colors.white24,
+                                                            color:
+                                                                Colors.white24,
                                                             size: 36,
                                                           ),
-                                                        );
-                                                      },
-                                                      loadingBuilder: (
-                                                        context,
-                                                        child,
-                                                        loadingProgress,
-                                                      ) {
-                                                        if (loadingProgress == null) {
-                                                          return child;
-                                                        }
-                                                        return Center(
-                                                          child: SizedBox(
-                                                            width: 36,
-                                                            height: 36,
-                                                            child: BubbleLoader(
-                                                              color: Colors.white24,
-                                                            ),
-                                                          ),
-                                                        );
-                                                      },
-                                                    ),
+                                                        ),
+                                                  );
+                                                }
+                                                return Center(
+                                                  child: Icon(
+                                                    typeIcon,
+                                                    color: Colors.white24,
+                                                    size: 36,
+                                                  ),
+                                                );
+                                              },
+                                              loadingBuilder:
+                                                  (
+                                                    context,
+                                                    child,
+                                                    loadingProgress,
+                                                  ) {
+                                                    if (loadingProgress ==
+                                                        null) {
+                                                      return child;
+                                                    }
+                                                    return Center(
+                                                      child: SizedBox(
+                                                        width: 36,
+                                                        height: 36,
+                                                        child: BubbleLoader(
+                                                          color: Colors.white24,
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                            ),
                                     );
                                   } else {
                                     return Center(
@@ -416,16 +440,20 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                     color: Colors.black.withValues(alpha: 0.7),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: ((firstItem?.isExtractorGroup ?? false) && currentGroup == null) 
+                                  child:
+                                      ((firstItem?.isExtractorGroup ?? false) &&
+                                          currentGroup == null)
                                       ? Image.network(
                                           'https://www.google.com/s2/favicons?domain=${Uri.tryParse(group.originalUrl)?.host}&sz=64',
                                           width: 14,
                                           height: 14,
-                                          errorBuilder: (context, error, stackTrace) => Icon(
-                                            Icons.public_rounded,
-                                            color: Colors.white,
-                                            size: 14,
-                                          ),
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Icon(
+                                                    Icons.public_rounded,
+                                                    color: Colors.white,
+                                                    size: 14,
+                                                  ),
                                         )
                                       : Icon(
                                           typeIcon,
@@ -709,10 +737,11 @@ class StandaloneWindowMediaGrid extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              if (!isItemError && (isHydrating ||
-                                  firstItem?.id == 'fetch_loading' ||
-                                  firstItem?.id == 'hydration_loading' ||
-                                  downloadingImageIndices.contains(index)))
+                              if (!isItemError &&
+                                  (isHydrating ||
+                                      firstItem?.id == 'fetch_loading' ||
+                                      firstItem?.id == 'hydration_loading' ||
+                                      downloadingImageIndices.contains(index)))
                                 Container(
                                   decoration: BoxDecoration(
                                     color: Colors.black.withValues(alpha: 0.3),

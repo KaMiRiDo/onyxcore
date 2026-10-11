@@ -32,7 +32,10 @@ void main() {
     late VideoHudCallbacks callbacks;
     late VideoHudController controller;
 
-    Widget buildTestApp(WidgetTester tester, void Function(WidgetRef, BuildContext) onBuild) {
+    Widget buildTestApp(
+      WidgetTester tester,
+      void Function(WidgetRef, BuildContext) onBuild,
+    ) {
       return ProviderScope(
         child: MaterialApp(
           home: Scaffold(
@@ -117,7 +120,9 @@ void main() {
       controller = VideoHudController(callbacks);
     }
 
-    testWidgets('startHideTimer cancels existing and creates new timer', (tester) async {
+    testWidgets('startHideTimer cancels existing and creates new timer', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
       isControlsVisible = true;
       controller.startHideTimer();
@@ -136,7 +141,9 @@ void main() {
       expect(hideTimer, isNull);
     });
 
-    testWidgets('showVolumeOverlay sets visibility and starts timer', (tester) async {
+    testWidgets('showVolumeOverlay sets visibility and starts timer', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
       controller.showVolumeOverlay();
       expect(isVolumeOverlayVisible, isTrue);
@@ -151,11 +158,13 @@ void main() {
       mounted = false;
       controller.showVolumeOverlay();
       expect(isVolumeOverlayVisible, isFalse);
-      
+
       await tester.pump(const Duration(seconds: 3)); // Clear the timer
     });
 
-    testWidgets('showSpeedOverlay sets visibility and starts timer', (tester) async {
+    testWidgets('showSpeedOverlay sets visibility and starts timer', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
       controller.showSpeedOverlay();
       expect(showSpeedOverlayVisible, isTrue);
@@ -165,7 +174,9 @@ void main() {
       expect(showSpeedOverlayVisible, isFalse);
     });
 
-    testWidgets('showSeekIndicator sets visibility and starts timer', (tester) async {
+    testWidgets('showSeekIndicator sets visibility and starts timer', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
       controller.showSeekIndicator();
       expect(isSeekIndicatorVisible, isTrue);
@@ -175,36 +186,47 @@ void main() {
       expect(isSeekIndicatorVisible, isFalse);
     });
 
-    testWidgets('onInteraction handles waking up HUD and resetting hide timer', (tester) async {
-      late WidgetRef savedRef;
-      await tester.pumpWidget(buildTestApp(tester, (ref, ctx) {
-        setupController(ref, ctx);
-        savedRef = ref;
-      }));
+    testWidgets(
+      'onInteraction handles waking up HUD and resetting hide timer',
+      (tester) async {
+        late WidgetRef savedRef;
+        await tester.pumpWidget(
+          buildTestApp(tester, (ref, ctx) {
+            setupController(ref, ctx);
+            savedRef = ref;
+          }),
+        );
 
-      // Set global HUD to false
-      Future.microtask(() => savedRef.read(previewHudVisibleProvider.notifier).state = false);
-      await tester.pumpAndSettle();
+        // Set global HUD to false
+        Future.microtask(
+          () => savedRef.read(previewHudVisibleProvider.notifier).state = false,
+        );
+        await tester.pumpAndSettle();
 
-      isControlsVisible = false;
-      controller.onInteraction();
-      
-      expect(savedRef.read(previewHudVisibleProvider), isTrue);
-      expect(isControlsVisible, isTrue);
-      expect(hideTimer, isNotNull);
-      expect(hideTimer!.isActive, isTrue);
-      
-      await tester.pump(const Duration(seconds: 2)); // Clear hide timer
-    });
+        isControlsVisible = false;
+        controller.onInteraction();
 
-    testWidgets('onInteraction ignores if closing or unmounted', (tester) async {
+        expect(savedRef.read(previewHudVisibleProvider), isTrue);
+        expect(isControlsVisible, isTrue);
+        expect(hideTimer, isNotNull);
+        expect(hideTimer!.isActive, isTrue);
+
+        await tester.pump(const Duration(seconds: 2)); // Clear hide timer
+      },
+    );
+
+    testWidgets('onInteraction ignores if closing or unmounted', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
       isClosing = true;
       controller.onInteraction();
       expect(isControlsVisible, isFalse);
     });
 
-    testWidgets('onInteraction ignores hide timer if menu visible', (tester) async {
+    testWidgets('onInteraction ignores hide timer if menu visible', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
       isAnyMenuVisible = true;
       controller.onInteraction();
@@ -242,29 +264,31 @@ void main() {
       // Call showMenu to get a properly inserted OverlayEntry
       controller.showMenu(key: key, child: const Text('Menu'), type: 'audio');
       expect(activeMenuEntry, isNotNull);
-      
+
       controller.hideMenu();
-      
+
       expect(activeMenuEntry, isNull);
       expect(isAudioMenuVisible, isFalse);
       expect(hideTimer, isNotNull);
-      
+
       await tester.pump(const Duration(seconds: 2)); // Clear hide timer
     });
 
     testWidgets('hideMenu gracefully handles unmounted state', (tester) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
-      
+
       isAudioMenuVisible = true;
       mounted = false;
       controller.hideMenu();
-      
+
       // If unmounted, setStateCallback is ignored, but hideTimer is still started.
       expect(activeMenuEntry, isNull);
       await tester.pump(const Duration(seconds: 2)); // Clear hide timer
     });
 
-    testWidgets('showMenu creates overlay and positions it correctly', (tester) async {
+    testWidgets('showMenu creates overlay and positions it correctly', (
+      tester,
+    ) async {
       final key = GlobalKey();
       await tester.pumpWidget(
         ProviderScope(
@@ -332,33 +356,38 @@ void main() {
       );
 
       // Call showMenu with 'speed'
-      controller.showMenu(key: key, child: const Text('SpeedMenu'), type: 'speed');
+      controller.showMenu(
+        key: key,
+        child: const Text('SpeedMenu'),
+        type: 'speed',
+      );
 
       expect(activeMenuEntry, isNotNull);
       expect(isSpeedMenuVisible, isTrue);
-      
+
       await tester.pump();
       expect(find.text('SpeedMenu'), findsOneWidget);
-      
+
       // Test the background tap correctly closes the menu
       await tester.tapAt(const Offset(10, 10)); // Tap far away from menu
       expect(activeMenuEntry, isNull);
-      
+
       await tester.pump(const Duration(seconds: 2)); // Clear hide timer
     });
 
-    testWidgets('showMenu aborts if unmounted or renderbox missing', (tester) async {
+    testWidgets('showMenu aborts if unmounted or renderbox missing', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp(tester, setupController));
       final key = GlobalKey();
-      
+
       // Missing renderbox
       controller.showMenu(key: key, child: const SizedBox(), type: 'audio');
       expect(activeMenuEntry, isNull);
-      
+
       mounted = false;
       controller.showMenu(key: key, child: const SizedBox(), type: 'audio');
       expect(activeMenuEntry, isNull);
     });
-
   });
 }

@@ -33,27 +33,33 @@ void main() {
     expect(state.pickDirectory, isFalse);
   });
 
-  test('initialize loads initial directory contents (filtering hidden)', () async {
-    final notifier = container.read(filePickerProvider.notifier);
-    await notifier.initialize(initialDirectory: '/home/user');
+  test(
+    'initialize loads initial directory contents (filtering hidden)',
+    () async {
+      final notifier = container.read(filePickerProvider.notifier);
+      await notifier.initialize(initialDirectory: '/home/user');
 
-    final state = container.read(filePickerProvider).value;
-    expect(state!.currentDirectory, '/home/user');
-    // From mock setup: Desktop, Documents, Downloads, Music, Pictures, Videos
-    expect(state.contents.length, 6); 
-    expect(state.contents.any((e) => e.basename == '.hidden_file'), isFalse);
-  });
+      final state = container.read(filePickerProvider).value;
+      expect(state!.currentDirectory, '/home/user');
+      // From mock setup: Desktop, Documents, Downloads, Music, Pictures, Videos
+      expect(state.contents.length, 6);
+      expect(state.contents.any((e) => e.basename == '.hidden_file'), isFalse);
+    },
+  );
 
-  test('initialize with allowedExtensions filters non-matching files', () async {
-    final notifier = container.read(filePickerProvider.notifier);
-    await notifier.initialize(
-      initialDirectory: '/home/user/Documents',
-      allowedExtensions: ['pdf'], // report.txt and notes.txt shouldn't match
-    );
+  test(
+    'initialize with allowedExtensions filters non-matching files',
+    () async {
+      final notifier = container.read(filePickerProvider.notifier);
+      await notifier.initialize(
+        initialDirectory: '/home/user/Documents',
+        allowedExtensions: ['pdf'], // report.txt and notes.txt shouldn't match
+      );
 
-    final state = container.read(filePickerProvider).value;
-    expect(state!.contents, isEmpty);
-  });
+      final state = container.read(filePickerProvider).value;
+      expect(state!.contents, isEmpty);
+    },
+  );
 
   test('initialize with pickDirectory only shows directories', () async {
     final notifier = container.read(filePickerProvider.notifier);
@@ -63,7 +69,10 @@ void main() {
     );
 
     final state = container.read(filePickerProvider).value;
-    expect(state!.contents.whereType<file_pkg.Directory>().length, state.contents.length);
+    expect(
+      state!.contents.whereType<file_pkg.Directory>().length,
+      state.contents.length,
+    );
     // Downloads has photo.png and installer.deb, so if pickDirectory is true, it should show 0 directories
     expect(state.contents, isEmpty);
   });
@@ -105,7 +114,7 @@ void main() {
   test('toggleHiddenFiles shows/hides hidden files', () async {
     final notifier = container.read(filePickerProvider.notifier);
     await notifier.initialize(initialDirectory: '/home/user');
-    
+
     await notifier.toggleHiddenFiles();
     var state = container.read(filePickerProvider).value;
     expect(state!.showHiddenFiles, isTrue);
@@ -120,11 +129,14 @@ void main() {
   test('toggleSelection adds/removes items from selection', () async {
     final notifier = container.read(filePickerProvider.notifier);
     await notifier.initialize(initialDirectory: '/home/user/Documents');
-    
+
     // Normal select
     notifier.toggleSelection('/home/user/Documents/report.txt');
     var state = container.read(filePickerProvider).value;
-    expect(state!.selection.contains('/home/user/Documents/report.txt'), isTrue);
+    expect(
+      state!.selection.contains('/home/user/Documents/report.txt'),
+      isTrue,
+    );
 
     // Ctrl+Select (add)
     notifier.toggleSelection('/home/user/Documents/notes.txt', isCtrl: true);
@@ -141,10 +153,10 @@ void main() {
   test('toggleSelection with Shift selects range', () async {
     final notifier = container.read(filePickerProvider.notifier);
     await notifier.initialize(initialDirectory: '/home/user');
-    
+
     // Select Desktop (index 0 usually)
     notifier.toggleSelection('/home/user/Desktop');
-    
+
     // Shift+Select Downloads (index 2)
     notifier.toggleSelection('/home/user/Downloads', isShift: true);
     final state = container.read(filePickerProvider).value;
@@ -154,7 +166,7 @@ void main() {
   test('clearError resets error state', () async {
     final notifier = container.read(filePickerProvider.notifier);
     await notifier.initialize(initialDirectory: '/does/not/exist');
-    
+
     var state = container.read(filePickerProvider).value;
     expect(state!.error, isNotNull);
 

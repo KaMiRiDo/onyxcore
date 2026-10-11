@@ -46,7 +46,9 @@ class ImageViewerTopBar extends ConsumerWidget {
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
                   onPressed: () {
-                    ref.read(imageFavoritesProvider.notifier).toggleFavorite(itemPath);
+                    ref
+                        .read(imageFavoritesProvider.notifier)
+                        .toggleFavorite(itemPath);
                   },
                   tooltip: 'Toggle Favorite',
                   active: isFavorite,
@@ -63,11 +65,8 @@ class ImageViewerTopBar extends ConsumerWidget {
           if (!isNetworkStream) const SizedBox(width: 8),
           _buildTopBarButton(
             icon: Icons.settings_rounded,
-            onPressed: () => SettingsDialog.show(
-              context,
-              initialTab: 1,
-              section: 'Image',
-            ),
+            onPressed: () =>
+                SettingsDialog.show(context, initialTab: 1, section: 'Image'),
             tooltip: 'Image Settings',
           ),
           const SizedBox(width: 8),
@@ -95,7 +94,9 @@ class ImageViewerTopBar extends ConsumerWidget {
       child: IconButton(
         icon: Icon(
           icon,
-          color: active ? const Color(0xFF00E5FF) : Colors.white.withValues(alpha: onPressed == null ? 0.3 : 1.0),
+          color: active
+              ? const Color(0xFF00E5FF)
+              : Colors.white.withValues(alpha: onPressed == null ? 0.3 : 1.0),
           size: 20,
         ),
         onPressed: onPressed,

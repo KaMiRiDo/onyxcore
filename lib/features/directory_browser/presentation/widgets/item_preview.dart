@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,11 +10,7 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/media_t
 /// Preview widget for items in the file grid — exact same UI as original
 /// _buildItemPreview(), _buildFileFallback(), _buildArchivalIcon(), _buildSvgIcon().
 class ItemPreview extends StatelessWidget {
-  const ItemPreview({
-    required this.item,
-    required this.zoom,
-    super.key,
-  });
+  const ItemPreview({required this.item, required this.zoom, super.key});
 
   final FileItem item;
   final double zoom;
@@ -119,7 +114,10 @@ class ItemPreview extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         gradient: LinearGradient(
-          colors: [colors[0].withValues(alpha: 0.12), colors[1].withValues(alpha: 0.06)],
+          colors: [
+            colors[0].withValues(alpha: 0.12),
+            colors[1].withValues(alpha: 0.06),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -144,11 +142,7 @@ class ItemPreview extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.02),
       ),
       child: Center(
-        child: SvgPicture.asset(
-          path,
-          width: 42 * zoom,
-          height: 42 * zoom,
-        ),
+        child: SvgPicture.asset(path, width: 42 * zoom, height: 42 * zoom),
       ),
     );
   }
@@ -156,11 +150,7 @@ class ItemPreview extends StatelessWidget {
 
 /// Title text for items in the file grid.
 class ItemTitle extends StatelessWidget {
-  const ItemTitle({
-    required this.name,
-    required this.zoom,
-    super.key,
-  });
+  const ItemTitle({required this.name, required this.zoom, super.key});
 
   final String name;
   final double zoom;

@@ -6,7 +6,9 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/conflic
 
 void main() {
   group('ConflictNotifier Widget Tests', () {
-    testWidgets('resolveConflict shows dialog and returns resolution', (WidgetTester tester) async {
+    testWidgets('resolveConflict shows dialog and returns resolution', (
+      WidgetTester tester,
+    ) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -34,7 +36,7 @@ void main() {
       );
 
       final notifier = container.read(conflictProvider.notifier);
-      
+
       final future = notifier.resolveConflict(
         fileName: 'test.txt',
         destinationPath: '/dest',
@@ -47,18 +49,22 @@ void main() {
       // Dialog should be showing
       expect(find.byType(ConflictDialog), findsOneWidget);
 
-      Navigator.of(testContext).pop(ConflictResult(ConflictResolution.replace, false));
-      
+      Navigator.of(
+        testContext,
+      ).pop(ConflictResult(ConflictResolution.replace, false));
+
       await tester.pumpAndSettle();
 
       final result = await future;
       expect(result, ConflictResolution.replace);
-      
+
       // State should be empty
       expect(container.read(conflictProvider), isEmpty);
     });
 
-    testWidgets('resolveConflict uses global resolution if applyToAll is true', (WidgetTester tester) async {
+    testWidgets('resolveConflict uses global resolution if applyToAll is true', (
+      WidgetTester tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -91,7 +97,7 @@ void main() {
       );
 
       final notifier = container.read(conflictProvider.notifier);
-      
+
       final future1 = notifier.resolveConflict(
         fileName: 'test1.txt',
         destinationPath: '/dest',
@@ -101,9 +107,11 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      Navigator.of(testContext).pop(ConflictResult(ConflictResolution.skip, true));
+      Navigator.of(
+        testContext,
+      ).pop(ConflictResult(ConflictResolution.skip, true));
       await tester.pumpAndSettle();
-      
+
       final result1 = await future1;
       expect(result1, ConflictResolution.skip);
 
@@ -125,7 +133,7 @@ void main() {
 
       // Clear global resolution
       notifier.clearGlobalResolution();
-      
+
       final future3 = notifier.resolveConflict(
         fileName: 'test3.txt',
         destinationPath: '/dest',
@@ -135,10 +143,10 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(find.byType(ConflictDialog), findsOneWidget);
-      
+
       Navigator.of(testContext).pop();
       await tester.pumpAndSettle();
-      
+
       // Defaults to skip if null result
       final result3 = await future3;
       expect(result3, ConflictResolution.skip);

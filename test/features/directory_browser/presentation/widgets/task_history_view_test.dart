@@ -45,7 +45,7 @@ class MockTaskHistoryNotifier extends TaskHistoryNotifier {
   TaskHistoryEntry? getEntry(String id) {
     return state.firstWhere((e) => e.id == id);
   }
-  
+
   @override
   void clearAll() {
     state = [];
@@ -60,17 +60,15 @@ class EmptyMockTaskHistoryNotifier extends TaskHistoryNotifier {
 }
 
 void main() {
-  testWidgets('TaskHistoryView renders empty state when no history', (tester) async {
+  testWidgets('TaskHistoryView renders empty state when no history', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           taskHistoryProvider.overrideWith(EmptyMockTaskHistoryNotifier.new),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: TaskHistoryView(),
-          ),
-        ),
+        child: const MaterialApp(home: Scaffold(body: TaskHistoryView())),
       ),
     );
 
@@ -79,17 +77,15 @@ void main() {
     expect(find.text('No history yet'), findsOneWidget);
   });
 
-  testWidgets('TaskHistoryView renders history items correctly', (tester) async {
+  testWidgets('TaskHistoryView renders history items correctly', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: TaskHistoryView(),
-          ),
-        ),
+        child: const MaterialApp(home: Scaffold(body: TaskHistoryView())),
       ),
     );
 
@@ -100,7 +96,9 @@ void main() {
     expect(find.text('Clear All History'), findsOneWidget);
   });
 
-  testWidgets('TaskHistoryView clear history button clears history', (tester) async {
+  testWidgets('TaskHistoryView clear history button clears history', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -113,14 +111,12 @@ void main() {
         ],
         child: MaterialApp(
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaler: const TextScaler.linear(0.5),
-            ),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(0.5)),
             child: child!,
           ),
-          home: const Scaffold(
-            body: TaskHistoryView(),
-          ),
+          home: const Scaffold(body: TaskHistoryView()),
         ),
       ),
     );
@@ -135,7 +131,9 @@ void main() {
     expect(find.text('Clear History'), findsOneWidget);
   });
 
-  testWidgets('TaskHistoryView click entry navigates to detail view', (tester) async {
+  testWidgets('TaskHistoryView click entry navigates to detail view', (
+    tester,
+  ) async {
     final container = ProviderContainer(
       overrides: [
         taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
@@ -145,11 +143,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
-          home: Scaffold(
-            body: TaskHistoryView(),
-          ),
-        ),
+        child: const MaterialApp(home: Scaffold(body: TaskHistoryView())),
       ),
     );
 
@@ -160,7 +154,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(container.read(selectedHistoryIdProvider), '1');
-    expect(container.read(backgroundPanelViewProvider), BackgroundPanelView.historyDetail);
+    expect(
+      container.read(backgroundPanelViewProvider),
+      BackgroundPanelView.historyDetail,
+    );
   });
 
   testWidgets('TaskHistoryView filter overlay interaction', (tester) async {
@@ -169,11 +166,7 @@ void main() {
         overrides: [
           taskHistoryProvider.overrideWith(MockTaskHistoryNotifier.new),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: TaskHistoryView(),
-          ),
-        ),
+        child: const MaterialApp(home: Scaffold(body: TaskHistoryView())),
       ),
     );
 

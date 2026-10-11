@@ -31,7 +31,7 @@ class DummyEngine extends DownloadEngine {
   String? get binaryPath => null;
   @override
   EngineUpdateInfo? get updateInfo => null;
-  
+
   @override
   Future<List<MediaInfo>> fetchMetadata({
     required String url,
@@ -158,14 +158,17 @@ void main() {
     group('2. DownloadStatus Enum', () {
       test('U-DL-TSK-04: contains exactly 6 values', () {
         expect(DownloadStatus.values.length, 6);
-        expect(DownloadStatus.values, containsAllInOrder([
-          DownloadStatus.pending,
-          DownloadStatus.running,
-          DownloadStatus.cancelling,
-          DownloadStatus.completed,
-          DownloadStatus.error,
-          DownloadStatus.cancelled,
-        ]));
+        expect(
+          DownloadStatus.values,
+          containsAllInOrder([
+            DownloadStatus.pending,
+            DownloadStatus.running,
+            DownloadStatus.cancelling,
+            DownloadStatus.completed,
+            DownloadStatus.error,
+            DownloadStatus.cancelled,
+          ]),
+        );
       });
     });
 
@@ -180,12 +183,21 @@ void main() {
         notifier = container.read(downloadTaskProvider.notifier);
         // Inject a fake task directly into state so we can test parsing without starting a real process
         notifier.state = [
-          DownloadTask(id: testId, url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now())
+          DownloadTask(
+            id: testId,
+            url: 'U',
+            destination: 'D',
+            title: 'T',
+            createdAt: DateTime.now(),
+          ),
         ];
       });
 
       test('U-DL-TSK-09: parses standard yt-dlp progress', () {
-        notifier.parseProgressForTesting(testId, '[download]  13.0% of  107.0MiB at  16.0MiB/s ETA 00:05');
+        notifier.parseProgressForTesting(
+          testId,
+          '[download]  13.0% of  107.0MiB at  16.0MiB/s ETA 00:05',
+        );
         final task = notifier.state.first;
         expect(task.progress, 0.13);
         expect(task.totalSize, '107.0MiB');
@@ -194,7 +206,10 @@ void main() {
       });
 
       test('U-DL-TSK-10: parses yt-dlp with unknown size', () {
-        notifier.parseProgressForTesting(testId, '[download]  13.0% of ~10.0MiB at Unknown B/s ETA Unknown');
+        notifier.parseProgressForTesting(
+          testId,
+          '[download]  13.0% of ~10.0MiB at Unknown B/s ETA Unknown',
+        );
         final task = notifier.state.first;
         expect(task.progress, 0.13);
         expect(task.totalSize, '~10.0MiB');
@@ -203,7 +218,10 @@ void main() {
       });
 
       test('U-DL-TSK-11: parses yt-dlp 100%', () {
-        notifier.parseProgressForTesting(testId, '[download] 100% of 10.0MiB in 00:01');
+        notifier.parseProgressForTesting(
+          testId,
+          '[download] 100% of 10.0MiB in 00:01',
+        );
         final task = notifier.state.first;
         expect(task.progress, 1.0);
       });
@@ -212,10 +230,19 @@ void main() {
         // Need to set totalItems in internal _taskArgs. We'll do it by using the public startDownload
         // but we'll cancel it so it doesn't run the backend
         notifier.state = [];
-        notifier.startDownload(url: 'U', destination: 'D', title: 'T', totalItems: 25, engine: 'dummy');
+        notifier.startDownload(
+          url: 'U',
+          destination: 'D',
+          title: 'T',
+          totalItems: 25,
+          engine: 'dummy',
+        );
         final id = notifier.state.first.id;
-        
-        notifier.parseProgressForTesting(id, '[download] Downloading video 1 of 25');
+
+        notifier.parseProgressForTesting(
+          id,
+          '[download] Downloading video 1 of 25',
+        );
         final task = notifier.state.firstWhere((t) => t.id == id);
         expect(task.completedItems, 0); // 1-based, so 0 completed
         expect(task.totalItems, 25);
@@ -223,7 +250,10 @@ void main() {
       });
 
       test('U-DL-TSK-13: strips ANSI escape codes', () {
-        notifier.parseProgressForTesting(testId, '\x1B[32m[download]\x1B[0m  50.0% of 10MiB at 1MiB/s ETA 00:10');
+        notifier.parseProgressForTesting(
+          testId,
+          '\x1B[32m[download]\x1B[0m  50.0% of 10MiB at 1MiB/s ETA 00:10',
+        );
         final task = notifier.state.first;
         expect(task.progress, 0.5);
       });
@@ -243,7 +273,10 @@ void main() {
       });
 
       test('U-DL-TSK-16: parses unknown total size (no percentage)', () {
-        notifier.parseProgressForTesting(testId, '[download] 10.0MiB at 5.0MiB/s');
+        notifier.parseProgressForTesting(
+          testId,
+          '[download] 10.0MiB at 5.0MiB/s',
+        );
         final task = notifier.state.first;
         expect(task.progress, 0.0);
         expect(task.speed, '5.0MiB/s');
@@ -251,7 +284,10 @@ void main() {
       });
 
       test('U-DL-TSK-17: parses aria2c progress', () {
-        notifier.parseProgressForTesting(testId, '[#bb8141 1.7MiB/113MiB(1%) CN:16 DL:2.7MiB ETA:41s]');
+        notifier.parseProgressForTesting(
+          testId,
+          '[#bb8141 1.7MiB/113MiB(1%) CN:16 DL:2.7MiB ETA:41s]',
+        );
         final task = notifier.state.first;
         expect(task.progress, 0.01);
         expect(task.totalSize, '1.7MiB / 113MiB');
@@ -260,13 +296,19 @@ void main() {
       });
 
       test('U-DL-TSK-18: parses aria2c download complete', () {
-        notifier.parseProgressForTesting(testId, 'Download complete: /path/file.mp4');
+        notifier.parseProgressForTesting(
+          testId,
+          'Download complete: /path/file.mp4',
+        );
         final task = notifier.state.first;
         expect(task.progress, 1.0);
       });
 
       test('U-DL-TSK-20: parses You-Get progress', () {
-        notifier.parseProgressForTesting(testId, '98.5% ( 24.0/ 24.4MB) [==============>');
+        notifier.parseProgressForTesting(
+          testId,
+          '98.5% ( 24.0/ 24.4MB) [==============>',
+        );
         final task = notifier.state.first;
         expect(task.progress, closeTo(0.985, 0.001));
         expect(task.totalSize, '24.4MB');
@@ -279,7 +321,10 @@ void main() {
       });
 
       test('U-DL-TSK-22: parses Lux progress', () {
-        notifier.parseProgressForTesting(testId, ' 50.00% |████████░░░░| 25.0/50.0 MiB 5.0 MiB/s 5s');
+        notifier.parseProgressForTesting(
+          testId,
+          ' 50.00% |████████░░░░| 25.0/50.0 MiB 5.0 MiB/s 5s',
+        );
         final task = notifier.state.first;
         expect(task.progress, 0.5);
         expect(task.totalSize, '25.0/50.0 MiB');
@@ -288,7 +333,10 @@ void main() {
       });
 
       test('U-DL-TSK-23: parses FFmpeg elapsed time', () {
-        notifier.parseProgressForTesting(testId, 'frame=  100 fps= 30 q=-1.0 size= 1024kB time=00:01:30.00 bitrate= 93.2kbits/s speed=  1x');
+        notifier.parseProgressForTesting(
+          testId,
+          'frame=  100 fps= 30 q=-1.0 size= 1024kB time=00:01:30.00 bitrate= 93.2kbits/s speed=  1x',
+        );
         final task = notifier.state.first;
         expect(task.totalSize, 'Elapsed: 00:01:30');
       });
@@ -316,43 +364,66 @@ void main() {
       setUp(() {
         notifier = container.read(downloadTaskProvider.notifier);
         notifier.state = [];
-        notifier.startDownload(url: 'U', destination: 'D', title: 'T', totalItems: 25);
+        notifier.startDownload(
+          url: 'U',
+          destination: 'D',
+          title: 'T',
+          totalItems: 25,
+        );
         id = notifier.state.first.id;
       });
 
       test('U-DL-TSK-29: aggregates progress across multiple items', () {
-        notifier.parseProgressForTesting(id, '[download] Downloading video 4 of 25'); // Sets completed=3
-        notifier.parseProgressForTesting(id, '[download]  45.0% of 10MiB'); // 45% of 4th item
-        
+        notifier.parseProgressForTesting(
+          id,
+          '[download] Downloading video 4 of 25',
+        ); // Sets completed=3
+        notifier.parseProgressForTesting(
+          id,
+          '[download]  45.0% of 10MiB',
+        ); // 45% of 4th item
+
         final task = notifier.state.firstWhere((t) => t.id == id);
         // (300 + 45) / 2500 = 0.138
         expect(task.progress, closeTo(0.138, 0.001));
       });
 
       test('U-DL-TSK-30: enforces monotonic progress', () {
-        notifier.parseProgressForTesting(id, '[download] Downloading video 4 of 25');
-        notifier.parseProgressForTesting(id, '[download]  50.0% of 10MiB'); 
+        notifier.parseProgressForTesting(
+          id,
+          '[download] Downloading video 4 of 25',
+        );
+        notifier.parseProgressForTesting(id, '[download]  50.0% of 10MiB');
         final task1 = notifier.state.firstWhere((t) => t.id == id);
         expect(task1.progress, closeTo(0.14, 0.001));
-        
+
         // Simulating an out-of-order log or parsing bug returning smaller percentage
-        notifier.parseProgressForTesting(id, '[download]  10.0% of 10MiB'); 
+        notifier.parseProgressForTesting(id, '[download]  10.0% of 10MiB');
         final task2 = notifier.state.firstWhere((t) => t.id == id);
         expect(task2.progress, closeTo(0.14, 0.001)); // Should NOT go down
       });
 
       test('U-DL-TSK-31: caps progress at 1.0', () {
-        notifier.parseProgressForTesting(id, '[download] Downloading video 26 of 25'); // completed=25
-        notifier.parseProgressForTesting(id, '[download] 100.0% of 10MiB'); 
-        
+        notifier.parseProgressForTesting(
+          id,
+          '[download] Downloading video 26 of 25',
+        ); // completed=25
+        notifier.parseProgressForTesting(id, '[download] 100.0% of 10MiB');
+
         final task = notifier.state.firstWhere((t) => t.id == id);
         expect(task.progress, 1.0);
       });
 
       test('U-DL-TSK-32: only updates speed/eta with non-empty values', () {
-        notifier.parseProgressForTesting(id, '[download]  13.0% of 100MiB at 5MiB/s ETA 00:10');
-        notifier.parseProgressForTesting(id, '[download]  14.0% of 100MiB'); // Missing speed/eta
-        
+        notifier.parseProgressForTesting(
+          id,
+          '[download]  13.0% of 100MiB at 5MiB/s ETA 00:10',
+        );
+        notifier.parseProgressForTesting(
+          id,
+          '[download]  14.0% of 100MiB',
+        ); // Missing speed/eta
+
         final task = notifier.state.firstWhere((t) => t.id == id);
         expect(task.speed, '5MiB/s'); // preserved
         expect(task.eta, '00:10'); // preserved
@@ -374,24 +445,42 @@ void main() {
       });
 
       test('U-DL-TSK-52: updates totalItems for matching URL', () {
-        final items = List.generate(20, (i) => MediaInfo(id: '$i', title: '$i', originalUrl: 'U'));
+        final items = List.generate(
+          20,
+          (i) => MediaInfo(id: '$i', title: '$i', originalUrl: 'U'),
+        );
         notifier.onHydrationFinished('hyd_url', items);
-        
+
         final task = notifier.state.firstWhere((t) => t.id == id);
         expect(task.totalItems, 20);
       });
 
       test('U-DL-TSK-53: respects filterType images', () {
         notifier.removeTask(id);
-        notifier.startDownload(url: 'hyd_url', destination: 'D', title: 'T', filterType: 'images');
+        notifier.startDownload(
+          url: 'hyd_url',
+          destination: 'D',
+          title: 'T',
+          filterType: 'images',
+        );
         id = notifier.state.first.id;
-        
+
         final items = [
           const MediaInfo(id: '1', title: '1', originalUrl: 'U'),
-          const MediaInfo(id: '2', title: '2', originalUrl: 'U', isVideo: false),
-          const MediaInfo(id: '3', title: '3', originalUrl: 'U', isVideo: false),
+          const MediaInfo(
+            id: '2',
+            title: '2',
+            originalUrl: 'U',
+            isVideo: false,
+          ),
+          const MediaInfo(
+            id: '3',
+            title: '3',
+            originalUrl: 'U',
+            isVideo: false,
+          ),
         ];
-        
+
         notifier.onHydrationFinished('hyd_url', items);
         final task = notifier.state.firstWhere((t) => t.id == id);
         expect(task.totalItems, 2); // 2 images
@@ -399,15 +488,30 @@ void main() {
 
       test('U-DL-TSK-54: respects filterType videos', () {
         notifier.removeTask(id);
-        notifier.startDownload(url: 'hyd_url', destination: 'D', title: 'T', filterType: 'videos');
+        notifier.startDownload(
+          url: 'hyd_url',
+          destination: 'D',
+          title: 'T',
+          filterType: 'videos',
+        );
         id = notifier.state.first.id;
-        
+
         final items = [
           const MediaInfo(id: '1', title: '1', originalUrl: 'U'),
-          const MediaInfo(id: '2', title: '2', originalUrl: 'U', isVideo: false),
-          const MediaInfo(id: '3', title: '3', originalUrl: 'U', isVideo: false),
+          const MediaInfo(
+            id: '2',
+            title: '2',
+            originalUrl: 'U',
+            isVideo: false,
+          ),
+          const MediaInfo(
+            id: '3',
+            title: '3',
+            originalUrl: 'U',
+            isVideo: false,
+          ),
         ];
-        
+
         notifier.onHydrationFinished('hyd_url', items);
         final task = notifier.state.firstWhere((t) => t.id == id);
         expect(task.totalItems, 1); // 1 video
@@ -416,7 +520,7 @@ void main() {
       test('U-DL-TSK-55: no-op for non-matching URLs', () {
         final items = [const MediaInfo(id: '1', title: '1', originalUrl: 'U')];
         notifier.onHydrationFinished('wrong_url', items);
-        
+
         final task = notifier.state.firstWhere((t) => t.id == id);
         expect(task.totalItems, 0); // unchanged
       });
@@ -431,104 +535,213 @@ void main() {
         notifier.state = [];
         notifier.startDownload(url: 'U', destination: 'D', title: 'T');
         final id = notifier.state.first.id;
-        
+
         expect(notifier.state.length, 1);
         notifier.removeTask(id);
         expect(notifier.state, isEmpty);
       });
 
-      test('U-DL-TSK-49: clearHistory keeps only running/pending/cancelling tasks', () {
-        final notifier = container.read(downloadTaskProvider.notifier);
-        // Inject states directly
-        notifier.state = [
-          DownloadTask(id: '1', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
-          DownloadTask(id: '2', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.completed),
-          DownloadTask(id: '3', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.error),
-          DownloadTask(id: '4', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now()),
-        ];
-        
-        notifier.clearHistory();
-        expect(notifier.state.length, 2);
-        expect(notifier.state.map((t) => t.status), containsAll([DownloadStatus.running, DownloadStatus.pending]));
-      });
+      test(
+        'U-DL-TSK-49: clearHistory keeps only running/pending/cancelling tasks',
+        () {
+          final notifier = container.read(downloadTaskProvider.notifier);
+          // Inject states directly
+          notifier.state = [
+            DownloadTask(
+              id: '1',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.running,
+            ),
+            DownloadTask(
+              id: '2',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.completed,
+            ),
+            DownloadTask(
+              id: '3',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.error,
+            ),
+            DownloadTask(
+              id: '4',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+            ),
+          ];
+
+          notifier.clearHistory();
+          expect(notifier.state.length, 2);
+          expect(
+            notifier.state.map((t) => t.status),
+            containsAll([DownloadStatus.running, DownloadStatus.pending]),
+          );
+        },
+      );
     });
-    
+
     // ═══════════════════════════════════════════════════════════════
     // Derived Providers (20)
     // ═══════════════════════════════════════════════════════════════
     group('Derived Providers', () {
-      test('U-DL-TSK-62: activeDownloadTaskProvider filters running/pending/cancelling', () {
-        final notifier = container.read(downloadTaskProvider.notifier);
-        notifier.state = [
-          DownloadTask(id: '1', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
-          DownloadTask(id: '2', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
-          DownloadTask(id: '3', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.completed),
-          DownloadTask(id: '4', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now()),
-        ];
-        
-        final active = container.read(activeDownloadTaskProvider);
-        expect(active.length, 3);
-      });
+      test(
+        'U-DL-TSK-62: activeDownloadTaskProvider filters running/pending/cancelling',
+        () {
+          final notifier = container.read(downloadTaskProvider.notifier);
+          notifier.state = [
+            DownloadTask(
+              id: '1',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.running,
+            ),
+            DownloadTask(
+              id: '2',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.running,
+            ),
+            DownloadTask(
+              id: '3',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.completed,
+            ),
+            DownloadTask(
+              id: '4',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+            ),
+          ];
 
-      test('U-DL-TSK-63: completedDownloadTaskProvider filters completed/error/cancelled', () {
-        final notifier = container.read(downloadTaskProvider.notifier);
-        notifier.state = [
-          DownloadTask(id: '1', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
-          DownloadTask(id: '2', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.cancelled),
-          DownloadTask(id: '3', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.error),
-          DownloadTask(id: '4', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.completed),
-        ];
-        
-        final completed = container.read(completedDownloadTaskProvider);
-        expect(completed.length, 3);
-      });
+          final active = container.read(activeDownloadTaskProvider);
+          expect(active.length, 3);
+        },
+      );
+
+      test(
+        'U-DL-TSK-63: completedDownloadTaskProvider filters completed/error/cancelled',
+        () {
+          final notifier = container.read(downloadTaskProvider.notifier);
+          notifier.state = [
+            DownloadTask(
+              id: '1',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.running,
+            ),
+            DownloadTask(
+              id: '2',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.cancelled,
+            ),
+            DownloadTask(
+              id: '3',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.error,
+            ),
+            DownloadTask(
+              id: '4',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.completed,
+            ),
+          ];
+
+          final completed = container.read(completedDownloadTaskProvider);
+          expect(completed.length, 3);
+        },
+      );
     });
 
     group('Download Process Lifecycle', () {
       late DownloadTaskNotifier notifier;
-      
+
       setUp(() {
         notifier = container.read(downloadTaskProvider.notifier);
       });
 
-      test('U-DL-TSK-70: onWindowClose does not crash when tasks have no process', () {
-        notifier.state = [
-          DownloadTask(id: '1', url: 'U', destination: 'D', title: 'T', createdAt: DateTime.now(), status: DownloadStatus.running),
-        ];
-        expect(() => notifier.onWindowClose(), returnsNormally);
-      });
+      test(
+        'U-DL-TSK-70: onWindowClose does not crash when tasks have no process',
+        () {
+          notifier.state = [
+            DownloadTask(
+              id: '1',
+              url: 'U',
+              destination: 'D',
+              title: 'T',
+              createdAt: DateTime.now(),
+              status: DownloadStatus.running,
+            ),
+          ];
+          expect(() => notifier.onWindowClose(), returnsNormally);
+        },
+      );
 
-      test('U-DL-TSK-71: startFolderSizeMonitor calculates progress from expectedBytes and updates speed', () async {
-        final tempDir = Directory.systemTemp.createTempSync('folder_monitor_test_');
-        addTearDown(() => tempDir.deleteSync(recursive: true));
+      test(
+        'U-DL-TSK-71: startFolderSizeMonitor calculates progress from expectedBytes and updates speed',
+        () async {
+          final tempDir = Directory.systemTemp.createTempSync(
+            'folder_monitor_test_',
+          );
+          addTearDown(() => tempDir.deleteSync(recursive: true));
 
-        const taskId = 'task_folder_monitor_1';
-        notifier.state = [
-          DownloadTask(
-            id: taskId,
-            url: 'https://test.com/album',
-            destination: tempDir.path,
-            title: 'Album',
-            createdAt: DateTime.now().subtract(const Duration(seconds: 2)),
-            status: DownloadStatus.running,
-            expectedBytes: 1000000,
-            totalItems: 5,
-            downloadType: 'carousel',
-          ),
-        ];
+          const taskId = 'task_folder_monitor_1';
+          notifier.state = [
+            DownloadTask(
+              id: taskId,
+              url: 'https://test.com/album',
+              destination: tempDir.path,
+              title: 'Album',
+              createdAt: DateTime.now().subtract(const Duration(seconds: 2)),
+              status: DownloadStatus.running,
+              expectedBytes: 1000000,
+              totalItems: 5,
+              downloadType: 'carousel',
+            ),
+          ];
 
-        // Create a 500,000 byte file in the directory
-        final testFile = File('${tempDir.path}/item1.jpg');
-        testFile.writeAsBytesSync(List.filled(500000, 0));
+          // Create a 500,000 byte file in the directory
+          final testFile = File('${tempDir.path}/item1.jpg');
+          testFile.writeAsBytesSync(List.filled(500000, 0));
 
-        // Trigger folder size check
-        await notifier.checkFolderSizeForTesting(taskId, tempDir.path);
+          // Trigger folder size check
+          await notifier.checkFolderSizeForTesting(taskId, tempDir.path);
 
-        final task = notifier.state.firstWhere((t) => t.id == taskId);
-        expect(task.downloadedBytes, 500000);
-        expect(task.progress, closeTo(0.5, 0.05));
-        expect(task.speed, isNotEmpty);
-      });
+          final task = notifier.state.firstWhere((t) => t.id == taskId);
+          expect(task.downloadedBytes, 500000);
+          expect(task.progress, closeTo(0.5, 0.05));
+          expect(task.speed, isNotEmpty);
+        },
+      );
     });
   });
 }

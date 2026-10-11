@@ -34,7 +34,6 @@ class FakeSettingsNotifier extends SettingsNotifier {
   Future<void> saveSettings(AppSettings settings) async {}
 }
 
-
 class FakeDirectoryRepository implements DirectoryRepository {
   FakeDirectoryRepository(this.initialItems);
   final List<FileItem> initialItems;
@@ -58,7 +57,7 @@ class FakeDirectoryRepository implements DirectoryRepository {
   }) async {
     deletedPaths = paths;
   }
-  
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -511,7 +510,9 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             settingsProvider.overrideWith(FakeSettingsNotifier.new),
-            directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([])),
+            directoryRepositoryProvider.overrideWithValue(
+              FakeDirectoryRepository([]),
+            ),
             imageShowHiddenProvider.overrideWith((ref) => false),
             imageFavoritesProvider.overrideWith(
               (ref) => FakeImageFavoritesNotifier(),
@@ -584,11 +585,15 @@ void main() {
       },
     );
 
-    testWidgets('Disabled Edit Button Regression Test', (WidgetTester tester) async {
+    testWidgets('Disabled Edit Button Regression Test', (
+      WidgetTester tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           settingsProvider.overrideWith(FakeSettingsNotifier.new),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
         ],
       );
       await tester.runAsync(() async {
@@ -606,17 +611,24 @@ void main() {
 
       final editIcon = find.byIcon(Icons.edit_outlined);
       expect(editIcon, findsOneWidget);
-      
-      final buttonFinder = find.ancestor(of: editIcon, matching: find.byType(IconButton));
+
+      final buttonFinder = find.ancestor(
+        of: editIcon,
+        matching: find.byType(IconButton),
+      );
       final buttonWidget = tester.widget<IconButton>(buttonFinder);
       expect(buttonWidget.onPressed, isNull); // Edit button is disabled
     });
 
-    testWidgets('Zoom → Pan Real-Image Regression Test', (WidgetTester tester) async {
+    testWidgets('Zoom → Pan Real-Image Regression Test', (
+      WidgetTester tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           settingsProvider.overrideWith(FakeSettingsNotifier.new),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
         ],
       );
       await tester.runAsync(() async {
@@ -634,7 +646,7 @@ void main() {
 
       // Ensure ImageCanvas is mounted
       expect(find.byType(Image), findsWidgets);
-      
+
       // Zoom
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendEventToBinding(
@@ -644,26 +656,32 @@ void main() {
         ),
       );
       await tester.pump();
-      
+
       // Scrub/Pan immediately
-      final gesture = await tester.startGesture(tester.getCenter(find.byType(InteractiveViewer)));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(InteractiveViewer)),
+      );
       await gesture.moveBy(const Offset(50, 50));
       await tester.pump();
-      
+
       // Verify image is still rendered
       expect(find.byType(Image), findsWidgets);
       expect(tester.takeException(), isNull);
-      
+
       await gesture.up();
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
     });
 
-    testWidgets('High-Resolution Promotion and Cancellation Test', (WidgetTester tester) async {
+    testWidgets('High-Resolution Promotion and Cancellation Test', (
+      WidgetTester tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           settingsProvider.overrideWith(FakeSettingsNotifier.new),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
         ],
       );
       await tester.runAsync(() async {
@@ -678,7 +696,7 @@ void main() {
         await Future<void>.delayed(const Duration(seconds: 1));
       });
       await tester.pumpAndSettle();
-      
+
       expect(find.byType(Image), findsWidgets);
 
       // Start interaction (pan)
@@ -692,75 +710,107 @@ void main() {
       );
       await tester.pump(); // Zoom ticks
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      
+
       final gesture = await tester.startGesture(tester.getCenter(viewer));
       await tester.pump(); // Starts interaction
-      
+
       // During active interaction, highRes image is hidden.
       await gesture.moveBy(const Offset(10, 10));
-      await tester.pump(const Duration(milliseconds: 100)); // Advance time during interaction
-      
+      await tester.pump(
+        const Duration(milliseconds: 100),
+      ); // Advance time during interaction
+
       // Still interacting -> no promotion
       await gesture.moveBy(const Offset(10, 10));
-      await tester.pump(const Duration(milliseconds: 250)); // Advance time again, > 300ms total
-      
+      await tester.pump(
+        const Duration(milliseconds: 250),
+      ); // Advance time again, > 300ms total
+
       // Still interacting, timer should have been cancelled, so no promotion
       expect(tester.takeException(), isNull);
-      
+
       // Assert actual render state during active interaction
-      final activeImages = tester.widgetList<Image>(find.byType(Image)).toList();
-      expect(activeImages.length, 1, reason: 'Only low-res image should be visible during interaction');
-      expect(activeImages.first.filterQuality, FilterQuality.low, reason: 'Quality must be low during interaction');
-      
+      final activeImages = tester
+          .widgetList<Image>(find.byType(Image))
+          .toList();
+      expect(
+        activeImages.length,
+        1,
+        reason: 'Only low-res image should be visible during interaction',
+      );
+      expect(
+        activeImages.first.filterQuality,
+        FilterQuality.low,
+        reason: 'Quality must be low during interaction',
+      );
+
       // End interaction
       await gesture.up();
       await tester.pump();
-      
+
       // Right after interaction ends, the interaction notifier is in "settling" phase (200ms delay)
       // So highRes is still hidden (1 Image), and quality is still low.
       final images = tester.widgetList<Image>(find.byType(Image)).toList();
-      expect(images.length, 1, reason: 'High-res image should not be promoted yet');
+      expect(
+        images.length,
+        1,
+        reason: 'High-res image should not be promoted yet',
+      );
       expect(images.first.filterQuality, FilterQuality.low);
-      
+
       // Wait for 100ms (not fully settled, which is 200ms)
       await tester.pump(const Duration(milliseconds: 100));
-      
+
       // Start another interaction before settle
       final gesture2 = await tester.startGesture(tester.getCenter(viewer));
       await tester.pump();
-      
+
       // Wait > 300ms, should STILL not promote
       await tester.pump(const Duration(milliseconds: 350));
-      
+
       // End final interaction
       await gesture2.up();
       await tester.pump();
-      
+
       // Now fully settle (> 300ms since last interaction ended)
       await tester.pumpAndSettle(const Duration(milliseconds: 600));
-      
+
       // Should have successfully promoted without errors
       expect(tester.takeException(), isNull);
-      
+
       // Assert actual render state after settling
       final finalImages = tester.widgetList<Image>(find.byType(Image)).toList();
-      expect(finalImages.length, 2, reason: 'Both low-res and high-res images should be rendered after promotion');
-      expect(finalImages.last.filterQuality, FilterQuality.high, reason: 'High-res image should have high quality');
+      expect(
+        finalImages.length,
+        2,
+        reason:
+            'Both low-res and high-res images should be rendered after promotion',
+      );
+      expect(
+        finalImages.last.filterQuality,
+        FilterQuality.high,
+        reason: 'High-res image should have high quality',
+      );
     });
 
-
-
-
-    testWidgets('top bar title, metadata, and standalone differences', (tester) async {
+    testWidgets('top bar title, metadata, and standalone differences', (
+      tester,
+    ) async {
       await tester.runAsync(() async {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
               settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageQueueProvider.overrideWith((ref) => [dummyPng]),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
-            child: MaterialApp(home: Scaffold(body: ImagePreviewWidget(item: dummyPng, isStandalone: true))),
+            child: MaterialApp(
+              home: Scaffold(
+                body: ImagePreviewWidget(item: dummyPng, isStandalone: true),
+              ),
+            ),
           ),
         );
         // wait for initialization finish
@@ -777,57 +827,85 @@ void main() {
       expect(find.text('test_image.png'), findsOneWidget);
 
       // Metadata string should be visible (e.g. "1/3" or "2/3")
-      expect(find.byWidgetPredicate((widget) => widget is Text && widget.data != null && RegExp(r'\d+/\d+').hasMatch(widget.data!)), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Text &&
+              widget.data != null &&
+              RegExp(r'\d+/\d+').hasMatch(widget.data!),
+        ),
+        findsOneWidget,
+      );
 
       // Popout/close buttons are hidden in standalone mode
       expect(find.byTooltip('Pop Out'), findsNothing);
       expect(find.byTooltip('Close'), findsNothing);
     });
 
-    testWidgets('network stream mode hides edit/favorite and enables playlist button', (tester) async {
-      final streamItem = FileItem(
-        path: 'http://example.com/stream.jpg',
-        name: 'stream.jpg',
-        type: FileItemType.image,
-        modified: DateTime.now(),
-      );
-      final container = ProviderContainer(
-        overrides: [
-          settingsProvider.overrideWith(FakeSettingsNotifier.new),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-        ],
-      );
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(home: Scaffold(body: ImagePreviewWidget(item: streamItem, isStandalone: true, initParams: const {'is_network_stream': true}))),
-          ),
+    testWidgets(
+      'network stream mode hides edit/favorite and enables playlist button',
+      (tester) async {
+        final streamItem = FileItem(
+          path: 'http://example.com/stream.jpg',
+          name: 'stream.jpg',
+          type: FileItemType.image,
+          modified: DateTime.now(),
         );
-        // wait for initialization
-        await Future<void>.delayed(const Duration(seconds: 1));
-      });
-      await tester.pumpAndSettle();
-      tester.takeException(); // consume NetworkImageLoadException
+        final container = ProviderContainer(
+          overrides: [
+            settingsProvider.overrideWith(FakeSettingsNotifier.new),
+            imageFavoritesProvider.overrideWith(
+              (ref) => FakeImageFavoritesNotifier(),
+            ),
+          ],
+        );
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                home: Scaffold(
+                  body: ImagePreviewWidget(
+                    item: streamItem,
+                    isStandalone: true,
+                    initParams: const {'is_network_stream': true},
+                  ),
+                ),
+              ),
+            ),
+          );
+          // wait for initialization
+          await Future<void>.delayed(const Duration(seconds: 1));
+        });
+        await tester.pumpAndSettle();
+        tester.takeException(); // consume NetworkImageLoadException
 
-      // Show HUD
-      await tester.tap(find.byType(InteractiveViewer));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300)); // wait for fade in
+        // Show HUD
+        await tester.tap(find.byType(InteractiveViewer));
+        await tester.pump();
+        await tester.pump(
+          const Duration(milliseconds: 300),
+        ); // wait for fade in
 
-      // Edit and Favorite should be hidden for network streams
-      expect(find.byIcon(Icons.edit_outlined), findsNothing);
-      expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+        // Edit and Favorite should be hidden for network streams
+        expect(find.byIcon(Icons.edit_outlined), findsNothing);
+        expect(find.byIcon(Icons.favorite_rounded), findsNothing);
 
-      // Playlist button is enabled (its onPressed is not null)
-      final playlistBtnIcon = find.byIcon(Icons.playlist_play);
-      expect(playlistBtnIcon, findsOneWidget);
-      final playlistBtn = tester.widget<IconButton>(find.ancestor(of: playlistBtnIcon, matching: find.byType(IconButton)).first);
-      expect(playlistBtn.onPressed, isNotNull);
-    });
+        // Playlist button is enabled (its onPressed is not null)
+        final playlistBtnIcon = find.byIcon(Icons.playlist_play);
+        expect(playlistBtnIcon, findsOneWidget);
+        final playlistBtn = tester.widget<IconButton>(
+          find
+              .ancestor(of: playlistBtnIcon, matching: find.byType(IconButton))
+              .first,
+        );
+        expect(playlistBtn.onPressed, isNotNull);
+      },
+    );
 
-
-    testWidgets('didUpdateWidget loads new image when path changes', (tester) async {
+    testWidgets('didUpdateWidget loads new image when path changes', (
+      tester,
+    ) async {
       final img1 = dummyPng;
       final img2 = dummyHeic;
 
@@ -837,7 +915,9 @@ void main() {
             overrides: [
               settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
               home: Scaffold(body: ImagePreviewWidget(item: img1)),
@@ -856,7 +936,9 @@ void main() {
             overrides: [
               settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
               home: Scaffold(body: ImagePreviewWidget(item: img2)),
@@ -870,90 +952,103 @@ void main() {
       expect(find.text('test_image.heic'), findsWidgets);
     });
 
-    testWidgets('responds to on_window_focus channel event by requesting focus', (tester) async {
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              settingsProvider.overrideWith(FakeSettingsNotifier.new),
-              imageShowHiddenProvider.overrideWith((ref) => false),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-            ],
-            child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(
-                  item: dummyPng,
-                  isStandalone: true,
-                  windowId: '400',
+    testWidgets(
+      'responds to on_window_focus channel event by requesting focus',
+      (tester) async {
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                settingsProvider.overrideWith(FakeSettingsNotifier.new),
+                imageShowHiddenProvider.overrideWith((ref) => false),
+                imageFavoritesProvider.overrideWith(
+                  (ref) => FakeImageFavoritesNotifier(),
+                ),
+              ],
+              child: MaterialApp(
+                home: Scaffold(
+                  body: ImagePreviewWidget(
+                    item: dummyPng,
+                    isStandalone: true,
+                    windowId: '400',
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-        await Future<void>.delayed(const Duration(seconds: 1));
-      });
-      await tester.pumpAndSettle();
-
-      final focusNodeFinder = find.byType(Focus);
-      expect(focusNodeFinder, findsWidgets);
-
-      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .handlePlatformMessage(
-            'onyxcore/window_manager',
-            const StandardMethodCodec().encodeMethodCall(
-              const MethodCall('on_window_focus', {'view_id': 400}),
-            ),
-            (data) {},
           );
-      await tester.pumpAndSettle();
-    });
+          await Future<void>.delayed(const Duration(seconds: 1));
+        });
+        await tester.pumpAndSettle();
 
-    testWidgets('handles interaction delta and focal point calculation with sidebar open', (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          settingsProvider.overrideWith(FakeSettingsNotifier.new),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([])),
-          imageShowHiddenProvider.overrideWith((ref) => false),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-        ],
-      );
+        final focusNodeFinder = find.byType(Focus);
+        expect(focusNodeFinder, findsWidgets);
 
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(item: dummyPng),
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+              'onyxcore/window_manager',
+              const StandardMethodCodec().encodeMethodCall(
+                const MethodCall('on_window_focus', {'view_id': 400}),
+              ),
+              (data) {},
+            );
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'handles interaction delta and focal point calculation with sidebar open',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            settingsProvider.overrideWith(FakeSettingsNotifier.new),
+            directoryRepositoryProvider.overrideWithValue(
+              FakeDirectoryRepository([]),
+            ),
+            imageShowHiddenProvider.overrideWith((ref) => false),
+            imageFavoritesProvider.overrideWith(
+              (ref) => FakeImageFavoritesNotifier(),
+            ),
+          ],
+        );
+
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
               ),
             ),
-          ),
+          );
+          await Future<void>.delayed(const Duration(seconds: 1));
+        });
+        await tester.pumpAndSettle();
+
+        container.read(imagePlaylistSidebarVisibleProvider.notifier).state =
+            true;
+        await tester.pumpAndSettle();
+
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
         );
-        await Future<void>.delayed(const Duration(seconds: 1));
-      });
-      await tester.pumpAndSettle();
+        await gesture.addPointer(location: Offset.zero);
+        await tester.pump();
 
-      container.read(imagePlaylistSidebarVisibleProvider.notifier).state = true;
-      await tester.pumpAndSettle();
+        await gesture.moveTo(const Offset(10, 10));
+        await tester.pump();
 
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      await tester.pump();
+        await tester.sendEventToBinding(
+          const PointerHoverEvent(position: Offset(10, 10)),
+        );
+        await tester.pump();
 
-      await gesture.moveTo(const Offset(10, 10));
-      await tester.pump();
+        await gesture.removePointer();
+      },
+    );
 
-      await tester.sendEventToBinding(
-        const PointerHoverEvent(
-          position: Offset(10, 10),
-        ),
-      );
-      await tester.pump();
-      
-      await gesture.removePointer();
-    });
-
-    testWidgets('toggles fullscreen in standalone window mode via F11', (tester) async {
+    testWidgets('toggles fullscreen in standalone window mode via F11', (
+      tester,
+    ) async {
       final logs = <MethodCall>[];
       await setupMethodChannels(logs);
 
@@ -963,7 +1058,9 @@ void main() {
             overrides: [
               settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
               home: Scaffold(
@@ -989,12 +1086,18 @@ void main() {
           isA<MethodCall>()
               .having((call) => call.method, 'method', 'set_fullscreen')
               .having((call) => call.arguments['view_id'], 'view_id', 400)
-              .having((call) => call.arguments['is_fullscreen'], 'is_fullscreen', true),
+              .having(
+                (call) => call.arguments['is_fullscreen'],
+                'is_fullscreen',
+                true,
+              ),
         ),
       );
     });
 
-    testWidgets('pops out image in a new window and clears inline navigation', (tester) async {
+    testWidgets('pops out image in a new window and clears inline navigation', (
+      tester,
+    ) async {
       final logs = <MethodCall>[];
       await setupMethodChannels(logs);
 
@@ -1003,7 +1106,9 @@ void main() {
           settingsProvider.overrideWith(FakeSettingsNotifier.new),
           previewFileProvider.overrideWith((ref) => dummyPng),
           imageShowHiddenProvider.overrideWith((ref) => false),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
         ],
       );
 
@@ -1012,9 +1117,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(item: dummyPng),
-              ),
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
             ),
           ),
         );
@@ -1034,8 +1137,11 @@ void main() {
       expect(
         logs,
         contains(
-          isA<MethodCall>()
-              .having((call) => call.method, 'method', 'create_window'),
+          isA<MethodCall>().having(
+            (call) => call.method,
+            'method',
+            'create_window',
+          ),
         ),
       );
 
@@ -1053,7 +1159,9 @@ void main() {
             overrides: [
               settingsProvider.overrideWith(FakeSettingsNotifier.new),
               imageShowHiddenProvider.overrideWith((ref) => false),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
             ],
             child: MaterialApp(
               home: Scaffold(
@@ -1122,9 +1230,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: MaterialApp(
-              home: Scaffold(
-                body: ImagePreviewWidget(item: dummyPng),
-              ),
+              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
             ),
           ),
         );
@@ -1141,68 +1247,71 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 5));
     });
 
-    testWidgets('zoom indicator updates percentage dynamically when zoom scale changes', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'zoom indicator updates percentage dynamically when zoom scale changes',
+      (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final container = ProviderContainer(
-        overrides: [
-          settingsProvider.overrideWith(FakeSettingsNotifier.new),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-        ],
-      );
-
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
+        final container = ProviderContainer(
+          overrides: [
+            settingsProvider.overrideWith(FakeSettingsNotifier.new),
+            imageFavoritesProvider.overrideWith(
+              (ref) => FakeImageFavoritesNotifier(),
             ),
+          ],
+        );
+
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                home: Scaffold(body: ImagePreviewWidget(item: dummyPng)),
+              ),
+            ),
+          );
+          await Future<void>.delayed(const Duration(seconds: 1));
+        });
+        await tester.pumpAndSettle();
+
+        final viewer = find.byType(InteractiveViewer);
+        final center = tester.getCenter(viewer);
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+
+        // Scroll with positive delta to zoom in
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: center,
+            scrollDelta: const Offset(0, 100),
           ),
         );
-        await Future<void>.delayed(const Duration(seconds: 1));
-      });
-      await tester.pumpAndSettle();
+        await tester.pump();
 
-      final viewer = find.byType(InteractiveViewer);
-      final center = tester.getCenter(viewer);
+        // Scroll again to zoom in further
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: center,
+            scrollDelta: const Offset(0, 100),
+          ),
+        );
+        await tester.pump();
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
 
-      // Scroll with positive delta to zoom in
-      await tester.sendEventToBinding(
-        PointerScrollEvent(
-          position: center,
-          scrollDelta: const Offset(0, 100),
-        ),
-      );
-      await tester.pump();
+        // Verify ImageZoomIndicator is rendered and reflects scale (1.0 * 1.05 * 1.05 = 110%)
+        expect(find.byType(ImageZoomIndicator), findsOneWidget);
+        expect(find.text('110%'), findsOneWidget);
+      },
+    );
 
-      // Scroll again to zoom in further
-      await tester.sendEventToBinding(
-        PointerScrollEvent(
-          position: center,
-          scrollDelta: const Offset(0, 100),
-        ),
-      );
-      await tester.pump();
-
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump();
-
-
-      // Verify ImageZoomIndicator is rendered and reflects scale (1.0 * 1.05 * 1.05 = 110%)
-      expect(find.byType(ImageZoomIndicator), findsOneWidget);
-      expect(find.text('110%'), findsOneWidget);
-    });
-
-
-
-
-    testWidgets('playlist button is enabled when is_network_stream is true', (tester) async {
+    testWidgets('playlist button is enabled when is_network_stream is true', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1211,7 +1320,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           settingsProvider.overrideWith(FakeSettingsNotifier.new),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
         ],
       );
 
@@ -1246,8 +1357,5 @@ void main() {
       final iconButton = tester.widget<IconButton>(playlistBtn);
       expect(iconButton.onPressed, isNotNull);
     });
-
-
   });
 }
-

@@ -7,9 +7,10 @@ import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/downloader/services/engines/engine_registry.dart';
 
 class EngineSelectorDropdown extends StatelessWidget {
-
   const EngineSelectorDropdown({
-    required this.selectedEngine, required this.onChanged, super.key,
+    required this.selectedEngine,
+    required this.onChanged,
+    super.key,
   });
   final String selectedEngine;
   final ValueChanged<String> onChanged;
@@ -17,7 +18,7 @@ class EngineSelectorDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSmallWindow = MediaQuery.of(context).size.width < 1100;
-    
+
     final engines = EngineRegistry.allEngines
         .where((e) => !e.isOptional || e.isInstalled)
         .toList();
@@ -152,9 +153,11 @@ class EngineSelectorDropdown extends StatelessWidget {
 }
 
 class GroupFilterDropdown extends StatelessWidget {
-
   const GroupFilterDropdown({
-    required this.selectedFilter, required this.isEnabled, required this.onChanged, super.key,
+    required this.selectedFilter,
+    required this.isEnabled,
+    required this.onChanged,
+    super.key,
     this.hasVideos = true,
     this.hasImages = true,
   });
@@ -167,7 +170,7 @@ class GroupFilterDropdown extends StatelessWidget {
   String _getLabel(GroupDownloadType type) {
     if (!hasVideos && hasImages) return 'Images';
     if (hasVideos && !hasImages) return 'Videos';
-    
+
     switch (type) {
       case GroupDownloadType.all:
         return 'All';
@@ -181,9 +184,11 @@ class GroupFilterDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actuallyEnabled = isEnabled && hasVideos && hasImages;
-    final displayFilter = (!hasVideos && hasImages) 
-        ? GroupDownloadType.images 
-        : (hasVideos && !hasImages) ? GroupDownloadType.videos : selectedFilter;
+    final displayFilter = (!hasVideos && hasImages)
+        ? GroupDownloadType.images
+        : (hasVideos && !hasImages)
+        ? GroupDownloadType.videos
+        : selectedFilter;
 
     return PopupMenuButton<GroupDownloadType>(
       enabled: actuallyEnabled,
@@ -233,12 +238,12 @@ class GroupFilterDropdown extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: selectedFilter != GroupDownloadType.all && actuallyEnabled
-              ? AppColors.violet.withValues(alpha: 0.1) 
+              ? AppColors.violet.withValues(alpha: 0.1)
               : Colors.white.withValues(alpha: actuallyEnabled ? 0.05 : 0.02),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selectedFilter != GroupDownloadType.all && actuallyEnabled
-                ? AppColors.violet.withValues(alpha: 0.5) 
+                ? AppColors.violet.withValues(alpha: 0.5)
                 : Colors.white.withValues(alpha: actuallyEnabled ? 0.1 : 0.05),
           ),
         ),
@@ -284,7 +289,8 @@ class DownloaderFilterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isCustom = !filterSettings.isDefault;
     final totalActive =
-        filterSettings.selectedTypes.length + filterSettings.selectedDates.length;
+        filterSettings.selectedTypes.length +
+        filterSettings.selectedDates.length;
 
     return InkWell(
       onTap: onPressed,
@@ -432,8 +438,9 @@ class DownloaderSortDropdown extends StatelessWidget {
                     style: GoogleFonts.manrope(
                       color: isSelected ? Colors.white : Colors.white70,
                       fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -526,10 +533,30 @@ class ListSortFilterDropdown extends StatelessWidget {
       },
     ];
 
-    if (hasImages) sortOptions.add({'value': 'image', 'label': 'Images', 'icon': Icons.image_outlined});
-    if (hasVideos) sortOptions.add({'value': 'video', 'label': 'Videos', 'icon': Icons.videocam_outlined});
-    if (hasPlaylists) sortOptions.add({'value': 'playlist', 'label': 'Playlists', 'icon': Icons.queue_music_rounded});
-    if (hasProfiles) sortOptions.add({'value': 'profile', 'label': 'Profiles', 'icon': Icons.person_outline_rounded});
+    if (hasImages)
+      sortOptions.add({
+        'value': 'image',
+        'label': 'Images',
+        'icon': Icons.image_outlined,
+      });
+    if (hasVideos)
+      sortOptions.add({
+        'value': 'video',
+        'label': 'Videos',
+        'icon': Icons.videocam_outlined,
+      });
+    if (hasPlaylists)
+      sortOptions.add({
+        'value': 'playlist',
+        'label': 'Playlists',
+        'icon': Icons.queue_music_rounded,
+      });
+    if (hasProfiles)
+      sortOptions.add({
+        'value': 'profile',
+        'label': 'Profiles',
+        'icon': Icons.person_outline_rounded,
+      });
 
     final activeSortOpt = sortOptions.firstWhere(
       (opt) => opt['value'] == selectedFilter,
@@ -581,7 +608,9 @@ class ListSortFilterDropdown extends StatelessWidget {
                     style: GoogleFonts.manrope(
                       color: isSelected ? Colors.white : Colors.white70,
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -595,13 +624,17 @@ class ListSortFilterDropdown extends StatelessWidget {
             Icon(
               activeSortOpt['icon']! as IconData,
               size: 16,
-              color: selectedFilter != 'added_desc' ? AppColors.violet : Colors.white70,
+              color: selectedFilter != 'added_desc'
+                  ? AppColors.violet
+                  : Colors.white70,
             ),
             const SizedBox(width: 4),
             Text(
               activeSortOpt['label']! as String,
               style: GoogleFonts.manrope(
-                color: selectedFilter != 'added_desc' ? AppColors.violet : Colors.white,
+                color: selectedFilter != 'added_desc'
+                    ? AppColors.violet
+                    : Colors.white,
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),
@@ -632,9 +665,14 @@ class ListSortFilterDropdown extends StatelessWidget {
 }
 
 class FormatSelectionDropdown extends StatelessWidget {
-
   const FormatSelectionDropdown({
-    required this.item, required this.config, required this.index, required this.onChanged, required this.getHeight, required this.matchTargetFormat, super.key,
+    required this.item,
+    required this.config,
+    required this.index,
+    required this.onChanged,
+    required this.getHeight,
+    required this.matchTargetFormat,
+    super.key,
     this.isItemLevel = false,
     this.group,
     this.getFormatBytes,
@@ -650,12 +688,16 @@ class FormatSelectionDropdown extends StatelessWidget {
   final int? Function(MediaInfo, MediaFormat?, DownloadConfig)? getFormatBytes;
 
   String getTitle(MediaFormat f) {
-    final bytes = getFormatBytes != null ? getFormatBytes!(item, f, config) : f.filesize;
+    final bytes = getFormatBytes != null
+        ? getFormatBytes!(item, f, config)
+        : f.filesize;
     final sizeText = (bytes != null)
         ? ' (${(bytes / 1024 / 1024).toStringAsFixed(1)}MB)'
         : '';
     var title = f.resolution;
-    if (f.resolution.toLowerCase() == 'original' && item.width != null && item.height != null) {
+    if (f.resolution.toLowerCase() == 'original' &&
+        item.width != null &&
+        item.height != null) {
       title = '${item.width}x${item.height}';
     } else if (f.resolution.toLowerCase() == 'audio only') {
       title = 'Audio';
@@ -779,7 +821,7 @@ class FormatSelectionDropdown extends StatelessWidget {
         orElse: () => formats.first,
       );
     }
-    
+
     final displayFormat = isItemLevel
         ? matchTargetFormat(item, currentFormat)
         : (() {
@@ -812,9 +854,7 @@ class FormatSelectionDropdown extends StatelessWidget {
       enabled: hasMultiple,
       popUpAnimationStyle: AnimationStyle.noAnimation,
       offset: const Offset(0, 36),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: const Color(0xFF1E1E1E),
       elevation: 24,
       tooltip: '',
@@ -822,7 +862,8 @@ class FormatSelectionDropdown extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 250),
       onSelected: onChanged,
       itemBuilder: (context) => formats.map<PopupMenuEntry<MediaFormat>>((f) {
-        final isSelected = !isMixed &&
+        final isSelected =
+            !isMixed &&
             displayFormat != null &&
             displayFormat.formatId == f.formatId;
 
@@ -833,8 +874,9 @@ class FormatSelectionDropdown extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color:
-                  isSelected ? AppColors.violet.withValues(alpha: 0.2) : null,
+              color: isSelected
+                  ? AppColors.violet.withValues(alpha: 0.2)
+                  : null,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -845,8 +887,9 @@ class FormatSelectionDropdown extends StatelessWidget {
                     style: GoogleFonts.outfit(
                       color: isSelected ? AppColors.violet : Colors.white70,
                       fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -883,7 +926,11 @@ class FormatSelectionDropdown extends StatelessWidget {
             ),
             if (hasMultiple) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.arrow_drop_down, color: Colors.white54, size: 16),
+              const Icon(
+                Icons.arrow_drop_down,
+                color: Colors.white54,
+                size: 16,
+              ),
             ],
           ],
         ),

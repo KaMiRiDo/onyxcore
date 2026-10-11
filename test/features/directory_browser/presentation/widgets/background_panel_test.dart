@@ -23,15 +23,13 @@ void main() {
         taskProvider.overrideWith(() => MockTaskNotifier(tasks)),
         backgroundPanelViewProvider.overrideWith((ref) => view),
       ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: BackgroundPanel(),
-        ),
-      ),
+      child: const MaterialApp(home: Scaffold(body: BackgroundPanel())),
     );
   }
 
-  testWidgets('BackgroundPanel renders empty tasks view correctly', (tester) async {
+  testWidgets('BackgroundPanel renders empty tasks view correctly', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildTestWidget(tasks: []));
     await tester.pumpAndSettle();
 
@@ -40,7 +38,9 @@ void main() {
     expect(find.byIcon(Icons.hourglass_empty_rounded), findsOneWidget);
   });
 
-  testWidgets('BackgroundPanel renders active tasks and Cancel All button', (tester) async {
+  testWidgets('BackgroundPanel renders active tasks and Cancel All button', (
+    tester,
+  ) async {
     final tasks = [
       FileTask(
         id: 'task1',
@@ -57,7 +57,9 @@ void main() {
     expect(find.text('Cancel All Tasks'), findsOneWidget);
   });
 
-  testWidgets('BackgroundPanel handles Cancel All confirmation flow', (tester) async {
+  testWidgets('BackgroundPanel handles Cancel All confirmation flow', (
+    tester,
+  ) async {
     final tasks = <FileTask>[
       FileTask(
         id: 'task1',

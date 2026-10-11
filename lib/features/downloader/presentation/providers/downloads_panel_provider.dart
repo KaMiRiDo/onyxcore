@@ -7,11 +7,7 @@ import 'package:onyxcore/features/downloader/domain/entities/download_config.dar
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
 import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
 
-enum DownloadsPanelView {
-  tasks,
-  history,
-  historyDetail,
-}
+enum DownloadsPanelView { tasks, history, historyDetail }
 
 final downloadsPanelOpenProvider = StateProvider<bool>((ref) => false);
 final downloadsPanelViewProvider = StateProvider<DownloadsPanelView>(
@@ -54,7 +50,12 @@ class _CacheState {
 }
 
 class CustomListInfo {
-  CustomListInfo({required this.path, required this.name, this.hasPassword = false, this.isLocked = false});
+  CustomListInfo({
+    required this.path,
+    required this.name,
+    this.hasPassword = false,
+    this.isLocked = false,
+  });
   final String path;
   final String name;
   final bool hasPassword;
@@ -73,15 +74,15 @@ class DownloadsListCache extends ChangeNotifier {
     _activePath = path ?? 'default';
     notifyListeners();
   }
-  
+
   bool hasCache(String path) {
     return _states.containsKey(path);
   }
-  
+
   bool isCacheChanged(String path) {
     return _states[path]?.isListChanged ?? false;
   }
-  
+
   void invalidateCache(String path) {
     _states.remove(path);
     if (_activePath == path) {
@@ -131,13 +132,20 @@ class DownloadsListCache extends ChangeNotifier {
   List<CustomListInfo> get customLists {
     final lists = <CustomListInfo>[];
     for (final entry in _states.entries) {
-      if (entry.key != 'default' && entry.value.importedListPath != null && entry.value.importedListName != null) {
-        lists.add(CustomListInfo(
-          path: entry.value.importedListPath!,
-          name: entry.value.importedListName!,
-          hasPassword: entry.value.isLocked || (entry.value.currentPassword != null && entry.value.currentPassword!.isNotEmpty),
-          isLocked: entry.value.isLocked,
-        ));
+      if (entry.key != 'default' &&
+          entry.value.importedListPath != null &&
+          entry.value.importedListName != null) {
+        lists.add(
+          CustomListInfo(
+            path: entry.value.importedListPath!,
+            name: entry.value.importedListName!,
+            hasPassword:
+                entry.value.isLocked ||
+                (entry.value.currentPassword != null &&
+                    entry.value.currentPassword!.isNotEmpty),
+            isLocked: entry.value.isLocked,
+          ),
+        );
       }
     }
     return lists;
@@ -185,7 +193,8 @@ class DownloadsListCache extends ChangeNotifier {
   bool hasPasswordForPath(String path) {
     final state = _states[path];
     if (state == null) return false;
-    return state.isLocked || (state.currentPassword != null && state.currentPassword!.isNotEmpty);
+    return state.isLocked ||
+        (state.currentPassword != null && state.currentPassword!.isNotEmpty);
   }
 
   String? getPasswordForPath(String path) {

@@ -16,7 +16,6 @@ import 'package:onyxcore/features/image_viewer/utils/special_image_converter.dar
 import 'package:path/path.dart' as p;
 
 class ImageNavigationController extends ChangeNotifier {
-
   ImageNavigationController({
     required this.isStandalone,
     required this.initParams,
@@ -60,7 +59,7 @@ class ImageNavigationController extends ChangeNotifier {
     if (isStandalone) {
       return _standalonePlaylist;
     }
-    
+
     var mediaItems = ref
         .read(filteredAndSortedImageQueueProvider)
         .where((i) => i.type == FileItemType.image)
@@ -87,7 +86,9 @@ class ImageNavigationController extends ChangeNotifier {
     final mediaItems = getPlaylist();
     if (mediaItems.isEmpty) return;
 
-    final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path);
+    final currentIndex = mediaItems.indexWhere(
+      (i) => i.path == currentItem.path,
+    );
 
     if (currentIndex == -1) {
       _isEmpty = true;
@@ -138,8 +139,9 @@ class ImageNavigationController extends ChangeNotifier {
       return;
     }
 
-    final currentIndex =
-        mediaItems.indexWhere((i) => i.path == currentItem.path);
+    final currentIndex = mediaItems.indexWhere(
+      (i) => i.path == currentItem.path,
+    );
 
     if (currentIndex == -1) {
       // Item not found — something external changed the list
@@ -178,11 +180,13 @@ class ImageNavigationController extends ChangeNotifier {
         !(isStandalone && _standalonePlaylist.isNotEmpty);
 
     if (useInitParams) {
-      _indexString = '${initParams!['currentIndex']}/${initParams!['totalCount']}';
+      _indexString =
+          '${initParams!['currentIndex']}/${initParams!['totalCount']}';
       notifyListeners();
     } else {
       final mediaItems = getPlaylist();
-      final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path) + 1;
+      final currentIndex =
+          mediaItems.indexWhere((i) => i.path == currentItem.path) + 1;
       final totalCount = mediaItems.length;
       if (currentIndex > 0) {
         _indexString = '$currentIndex/$totalCount';
@@ -194,7 +198,9 @@ class ImageNavigationController extends ChangeNotifier {
   void removeFile(String path) {
     if (isStandalone) {
       _standalonePlaylist.removeWhere((i) => i.path == path);
-      ref.read(imageQueueProvider.notifier).state = List.from(_standalonePlaylist);
+      ref.read(imageQueueProvider.notifier).state = List.from(
+        _standalonePlaylist,
+      );
       notifyListeners();
     } else {
       final queue = ref.read(imageQueueProvider);
@@ -214,7 +220,9 @@ class ImageNavigationController extends ChangeNotifier {
           list.map((e) => FileItem.fromJson(e as Map<String, dynamic>)),
         );
       } else if (initParams != null && initParams!['playlistPaths'] != null) {
-        final paths = List<String>.from(initParams!['playlistPaths'] as Iterable);
+        final paths = List<String>.from(
+          initParams!['playlistPaths'] as Iterable,
+        );
         for (final path in paths) {
           final file = File(path);
           if (file.existsSync()) {
@@ -272,33 +280,42 @@ class ImageNavigationController extends ChangeNotifier {
           );
           return result;
         });
-        
+
         images.addAll(imagesResult);
       }
 
       debugPrint('Added ${images.length} images to standalone playlist');
       _standalonePlaylist = images;
       notifyListeners();
-      
+
       ref.read(imageQueueProvider.notifier).state = _standalonePlaylist;
       unawaited(updateIndexData(currentItem));
     } catch (e) {
-      debugPrint('[ImageNavigationController] Error in initStandalonePlaylist: $e');
+      debugPrint(
+        '[ImageNavigationController] Error in initStandalonePlaylist: $e',
+      );
     }
   }
 
   Future<void> _doPrecache(String path) async {
     final pLower = path.toLowerCase();
-    final isSpecial = pLower.endsWith('.heic') || pLower.endsWith('.heif') || pLower.endsWith('.avif') || pLower.endsWith('.dng') || pLower.endsWith('.raw');
+    final isSpecial =
+        pLower.endsWith('.heic') ||
+        pLower.endsWith('.heif') ||
+        pLower.endsWith('.avif') ||
+        pLower.endsWith('.dng') ||
+        pLower.endsWith('.raw');
 
     if (isSpecial) {
-      final convertedPath = await SpecialImageConverter.convertIfNecessary(path);
+      final convertedPath = await SpecialImageConverter.convertIfNecessary(
+        path,
+      );
       if (convertedPath != null) {
         await _resolveProvider(FileImage(File(convertedPath)));
       }
     } else {
-      final provider = path.startsWith('http') 
-          ? NetworkImage(path) 
+      final provider = path.startsWith('http')
+          ? NetworkImage(path)
           : FileImage(File(path)) as ImageProvider;
       await _resolveProvider(provider);
     }
@@ -306,9 +323,13 @@ class ImageNavigationController extends ChangeNotifier {
 
   Future<void> _resolveProvider(ImageProvider provider) async {
     final completer = Completer<void>();
-    final stream = ResizeImage(provider, width: 1920, height: 1920, policy: ResizeImagePolicy.fit)
-        .resolve(ImageConfiguration.empty);
-        
+    final stream = ResizeImage(
+      provider,
+      width: 1920,
+      height: 1920,
+      policy: ResizeImagePolicy.fit,
+    ).resolve(ImageConfiguration.empty);
+
     late ImageStreamListener listener;
     listener = ImageStreamListener(
       (info, sync) {
@@ -325,7 +346,9 @@ class ImageNavigationController extends ChangeNotifier {
   }
 
   void precacheAdjacentImages(BuildContext context, FileItem currentItem) {
-    if (isStandalone && initParams != null && initParams!['preloadPaths'] != null) {
+    if (isStandalone &&
+        initParams != null &&
+        initParams!['preloadPaths'] != null) {
       final preloadList = initParams!['preloadPaths'] as List<dynamic>;
       for (final p in preloadList) {
         final path = p.toString();
@@ -340,23 +363,32 @@ class ImageNavigationController extends ChangeNotifier {
     } else if (!isStandalone && windowId == null) {
       final mediaItems = getPlaylist();
       if (mediaItems.isNotEmpty) {
-        final currentIndex = mediaItems.indexWhere((i) => i.path == currentItem.path);
+        final currentIndex = mediaItems.indexWhere(
+          (i) => i.path == currentItem.path,
+        );
         if (currentIndex != -1) {
-          
           void enqueueLevel(int level) {
-            final nextPath = mediaItems[(currentIndex + level) % mediaItems.length].path;
-            final prevPath = mediaItems[(currentIndex - level + mediaItems.length) % mediaItems.length].path;
-            
-            if (nextPath != currentItem.path && !nextPath.toLowerCase().endsWith('.svg')) {
+            final nextPath =
+                mediaItems[(currentIndex + level) % mediaItems.length].path;
+            final prevPath =
+                mediaItems[(currentIndex - level + mediaItems.length) %
+                        mediaItems.length]
+                    .path;
+
+            if (nextPath != currentItem.path &&
+                !nextPath.toLowerCase().endsWith('.svg')) {
               ImagePrecacheManager.instance.enqueuePrecache(
                 path: nextPath,
                 level: level,
                 precacheAction: (_) => _doPrecache(nextPath),
               );
             }
-            
+
             // Only precache previous for level 1
-            if (level == 1 && prevPath != currentItem.path && prevPath != nextPath && !prevPath.toLowerCase().endsWith('.svg')) {
+            if (level == 1 &&
+                prevPath != currentItem.path &&
+                prevPath != nextPath &&
+                !prevPath.toLowerCase().endsWith('.svg')) {
               ImagePrecacheManager.instance.enqueuePrecache(
                 path: prevPath,
                 level: level,
@@ -378,8 +410,13 @@ class ImageNavigationController extends ChangeNotifier {
       final newPath = history.last;
       final currentPath = ref.read(imageCurrentPathProvider);
 
-      ref.read(imagePathHistoryProvider.notifier).state = history.sublist(0, history.length - 1);
-      ref.read(imagePathForwardHistoryProvider.notifier).update((state) => [...state, currentPath]);
+      ref.read(imagePathHistoryProvider.notifier).state = history.sublist(
+        0,
+        history.length - 1,
+      );
+      ref
+          .read(imagePathForwardHistoryProvider.notifier)
+          .update((state) => [...state, currentPath]);
 
       _openPlaylistFolder(newPath);
     }
@@ -391,8 +428,11 @@ class ImageNavigationController extends ChangeNotifier {
       final newPath = forwardHistory.last;
       final currentPath = ref.read(imageCurrentPathProvider);
 
-      ref.read(imagePathForwardHistoryProvider.notifier).state = forwardHistory.sublist(0, forwardHistory.length - 1);
-      ref.read(imagePathHistoryProvider.notifier).update((state) => [...state, currentPath]);
+      ref.read(imagePathForwardHistoryProvider.notifier).state = forwardHistory
+          .sublist(0, forwardHistory.length - 1);
+      ref
+          .read(imagePathHistoryProvider.notifier)
+          .update((state) => [...state, currentPath]);
 
       _openPlaylistFolder(newPath);
     }

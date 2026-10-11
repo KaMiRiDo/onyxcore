@@ -9,7 +9,6 @@ import 'package:onyxcore/features/duplicate_detection/domain/services/fingerprin
 // ── Fakes ────────────────────────────────────────────────────────────────────
 
 class _FakeFingerprintGenerator extends Fake implements FingerprintGenerator {
-
   _FakeFingerprintGenerator({required bool supports, List<int>? bytes})
     : _supports = supports,
       _bytes = bytes;

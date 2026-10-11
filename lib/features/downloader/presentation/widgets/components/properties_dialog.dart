@@ -62,17 +62,18 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
         selectedFormat =
             widget.config!.itemFormats[info.id] ?? widget.config!.format;
       }
-      selectedFormat ??= info.formats
-          .where((f) {
-            final h = _getHeight(f.resolution);
-            return h > 0 && h <= 1080;
-          })
-          .fold<MediaFormat?>(
-            null,
-            (a, b) => a == null
-                ? b
-                : ((a.filesize ?? 0) > (b.filesize ?? 0) ? a : b),
-          ) ??
+      selectedFormat ??=
+          info.formats
+              .where((f) {
+                final h = _getHeight(f.resolution);
+                return h > 0 && h <= 1080;
+              })
+              .fold<MediaFormat?>(
+                null,
+                (a, b) => a == null
+                    ? b
+                    : ((a.filesize ?? 0) > (b.filesize ?? 0) ? a : b),
+              ) ??
           info.formats.first;
 
       if (widget.getFormatBytes != null && widget.config != null) {
@@ -83,7 +84,8 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
       if (selectedFormat.filesize != null && selectedFormat.filesize! > 0) {
         var size = selectedFormat.filesize!;
         final noAudio =
-            selectedFormat.audioCodec == 'none' || selectedFormat.audioCodec == null;
+            selectedFormat.audioCodec == 'none' ||
+            selectedFormat.audioCodec == null;
         if (noAudio &&
             !selectedFormat.resolution.toLowerCase().contains('audio') &&
             widget.config?.mode != DownloadMode.audioOnly) {
@@ -114,7 +116,8 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
     if (widget.selectedItems.isEmpty) return const SizedBox.shrink();
 
     final isSingleGroup =
-        widget.selectedItems.length == 1 && widget.selectedItems.first is MediaGroup;
+        widget.selectedItems.length == 1 &&
+        widget.selectedItems.first is MediaGroup;
     final isMulti = widget.selectedItems.length > 1;
 
     // Determine logs and error state to show if it's a single root item
@@ -422,7 +425,9 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
                                     child: Text(
                                       'Source URL',
                                       style: GoogleFonts.manrope(
-                                        color: Colors.white.withValues(alpha: 0.5),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.5,
+                                        ),
                                         fontSize: 13,
                                       ),
                                     ),
@@ -489,11 +494,17 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
                                           color: Colors.black.withValues(
                                             alpha: 0.4,
                                           ),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: Colors.white10),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white10,
+                                          ),
                                         ),
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           child: Scrollbar(
                                             controller: _logScrollController,
                                             thumbVisibility: true,
@@ -506,11 +517,12 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
                                               padding: const EdgeInsets.all(12),
                                               child: SelectableText(
                                                 logs,
-                                                style: GoogleFonts.jetBrainsMono(
-                                                  color: Colors.white70,
-                                                  fontSize: 11,
-                                                  height: 1.4,
-                                                ),
+                                                style:
+                                                    GoogleFonts.jetBrainsMono(
+                                                      color: Colors.white70,
+                                                      fontSize: 11,
+                                                      height: 1.4,
+                                                    ),
                                               ),
                                             ),
                                           ),
@@ -545,7 +557,6 @@ class _PropertiesDialogState extends State<PropertiesDialog> {
       ),
     );
   }
-
 
   Widget _buildHeaderIcon(bool isMulti, bool isVideo) {
     if (isMulti) {

@@ -19,13 +19,19 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/selec
 import 'package:onyxcore/features/directory_browser/presentation/providers/task_provider.dart';
 import 'package:onyxcore/features/file_picker/presentation/widgets/custom_file_picker_dialog.dart';
 import 'package:path/path.dart' as p;
-final analysisCurrentPathProvider = StateProvider.family<String, String>((ref, initialPath) => initialPath);
+
+final analysisCurrentPathProvider = StateProvider.family<String, String>(
+  (ref, initialPath) => initialPath,
+);
 
 final sizeFilterProvider = StateProvider<int?>((ref) => null);
 final typeFilterProvider = StateProvider<Set<FileItemType>>((ref) => {});
 final extensionFilterProvider = StateProvider<Set<String>>((ref) => {});
 
-final availableExtensionsProvider = Provider.family<Set<String>, String>((ref, analysisPath) {
+final availableExtensionsProvider = Provider.family<Set<String>, String>((
+  ref,
+  analysisPath,
+) {
   final types = ref.watch(typeFilterProvider);
   final analysis = ref.watch(directoryAnalysisProvider(analysisPath)).value;
   if (analysis == null) return {};
@@ -43,13 +49,13 @@ final availableExtensionsProvider = Provider.family<Set<String>, String>((ref, a
 });
 
 class BrowserItem {
-
   BrowserItem({
     required this.path,
     required this.name,
     required this.isDirectory,
     required this.size,
-    required this.modified, this.type,
+    required this.modified,
+    this.type,
   });
   final String path;
   final String name;
@@ -59,12 +65,12 @@ class BrowserItem {
   final DateTime modified;
 }
 
-final displayedItemsPageProvider = StateProvider.autoDispose.family<int, String>((ref, path) => 50);
+final displayedItemsPageProvider = StateProvider.autoDispose
+    .family<int, String>((ref, path) => 50);
 
 // Args for the heavy filter-only isolate step (no currentPath — that's cheap)
 @visibleForTesting
 class FilterOnlyArgs {
-
   FilterOnlyArgs({
     required this.allFiles,
     required this.typeFilter,
@@ -87,13 +93,17 @@ List<FileStatWithInfo> computeFilterOnly(FilterOnlyArgs args) {
     files = files.where((f) => f.stat.size > bytes);
   }
   if (args.typeFilter.isNotEmpty) {
-    files = files.where((f) =>
-      args.typeFilter.contains(f.type) ||
-      (args.typeFilter.contains(FileItemType.other) && f.type == FileItemType.archive)
+    files = files.where(
+      (f) =>
+          args.typeFilter.contains(f.type) ||
+          (args.typeFilter.contains(FileItemType.other) &&
+              f.type == FileItemType.archive),
     );
   }
   if (args.extFilter.isNotEmpty) {
-    files = files.where((f) => args.extFilter.contains(p.extension(f.name).toLowerCase()));
+    files = files.where(
+      (f) => args.extFilter.contains(p.extension(f.name).toLowerCase()),
+    );
   }
 
   return files.toList();
@@ -112,7 +122,10 @@ String fastDirname(String path) {
 // Replaces p.isWithin / p.relative / p.split / p.join with simple indexOf/substring
 // — gives 5-10x speedup for large filtered sets.
 @visibleForTesting
-List<BrowserItem> groupByCurrentPath(List<FileStatWithInfo> filteredFiles, String currentPath) {
+List<BrowserItem> groupByCurrentPath(
+  List<FileStatWithInfo> filteredFiles,
+  String currentPath,
+) {
   // Build prefix once — avoids repeated string concatenation in the loop
   final prefix = currentPath.endsWith('/') ? currentPath : '$currentPath/';
   final items = <String, BrowserItem>{};
@@ -144,7 +157,9 @@ List<BrowserItem> groupByCurrentPath(List<FileStatWithInfo> filteredFiles, Strin
           name: topFolder,
           isDirectory: true,
           size: existing.size + f.stat.size,
-          modified: existing.modified.isAfter(f.stat.modified) ? existing.modified : f.stat.modified,
+          modified: existing.modified.isAfter(f.stat.modified)
+              ? existing.modified
+              : f.stat.modified,
         );
       } else {
         items[folderPath] = BrowserItem(
@@ -175,27 +190,39 @@ List<BrowserItem> computeGroupByPath(GroupArgs args) =>
 
 /// Layer 1 — Heavy: filters all files in a background isolate via compute().
 /// Only re-runs when the raw file list OR filter settings change.
-final filteredFilesProvider = FutureProvider.family<List<FileStatWithInfo>, String>((ref, analysisPath) async {
-  final analysis = ref.watch(directoryAnalysisProvider(analysisPath)).value;
-  if (analysis == null) return [];
+final filteredFilesProvider =
+    FutureProvider.family<List<FileStatWithInfo>, String>((
+      ref,
+      analysisPath,
+    ) async {
+      final analysis = ref.watch(directoryAnalysisProvider(analysisPath)).value;
+      if (analysis == null) return [];
 
-  final typeFilter = ref.watch(typeFilterProvider);
-  final extFilter = ref.watch(extensionFilterProvider);
-  final sizeFilter = ref.watch(sizeFilterProvider);
+      final typeFilter = ref.watch(typeFilterProvider);
+      final extFilter = ref.watch(extensionFilterProvider);
+      final sizeFilter = ref.watch(sizeFilterProvider);
 
-  return compute(computeFilterOnly, FilterOnlyArgs(
-    allFiles: analysis.allFiles,
-    typeFilter: typeFilter,
-    extFilter: extFilter,
-    sizeFilter: sizeFilter,
-  ));
-});
+      return compute(
+        computeFilterOnly,
+        FilterOnlyArgs(
+          allFiles: analysis.allFiles,
+          typeFilter: typeFilter,
+          extFilter: extFilter,
+          sizeFilter: sizeFilter,
+        ),
+      );
+    });
 
 /// Layer 2 — Async grouping: groups the pre-filtered files by current path in a
 /// background isolate. Navigation changes ONLY trigger this provider (not Layer 1).
 /// The UI shows previous data while this runs — navigation feels instant.
-final displayedItemsProvider = FutureProvider.family<List<BrowserItem>, String>((ref, analysisPath) async {
-  final filteredFiles = await ref.watch(filteredFilesProvider(analysisPath).future);
+final displayedItemsProvider = FutureProvider.family<List<BrowserItem>, String>((
+  ref,
+  analysisPath,
+) async {
+  final filteredFiles = await ref.watch(
+    filteredFilesProvider(analysisPath).future,
+  );
   final currentPath = ref.watch(analysisCurrentPathProvider(analysisPath));
 
   // Offload to isolate for large sets; inline for small sets (avoids isolate spawn overhead)
@@ -206,7 +233,6 @@ final displayedItemsProvider = FutureProvider.family<List<BrowserItem>, String>(
 });
 
 class DirectoryAnalysisPage extends ConsumerWidget {
-
   const DirectoryAnalysisPage({required this.path, super.key});
   final String path;
 
@@ -238,101 +264,139 @@ class DirectoryAnalysisPage extends ConsumerWidget {
         child: ColoredBox(
           color: AppColors.background,
           child: analysisAsync.when(
-          data: (result) => _AnalysisView(result: result, path: path),
-          loading: () {
-            final progress = ref.watch(directoryAnalysisProgressProvider(path));
-            return Center(
-              child: Container(
-                width: 320,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E), // Match properties dialog overlay color
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
+            data: (result) => _AnalysisView(result: result, path: path),
+            loading: () {
+              final progress = ref.watch(
+                directoryAnalysisProgressProvider(path),
+              );
+              return Center(
+                child: Container(
+                  width: 320,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(
+                      0xFF1E1E1E,
+                    ), // Match properties dialog overlay color
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
                     ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 16),
-                    const CircularBubbleLoader(size: 48),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Analysis in progress ...',
-                      style: TextStyle(
-                        color: AppColors.textBody,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        blurRadius: 30,
+                        offset: const Offset(0, 10),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total files:', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
-                        Text(
-                          progress != null ? NumberFormat.decimalPattern().format(progress.totalItems) : '0',
-                          style: const TextStyle(color: AppColors.textBody, fontSize: 13, fontWeight: FontWeight.w600),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 16),
+                      const CircularBubbleLoader(size: 48),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Analysis in progress ...',
+                        style: TextStyle(
+                          color: AppColors.textBody,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total size:', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
-                        Text(
-                          progress != null ? formatBytes(progress.totalBytes) : '0 B',
-                          style: const TextStyle(color: AppColors.textBody, fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        ref.read(isAnalysisActiveProvider.notifier).set(false);
-                        ref.invalidate(directoryAnalysisProvider(path));
-                        ref.invalidate(analysisCurrentPathProvider(path));
-                        ref.invalidate(displayedItemsProvider(path));
-                        ref.invalidate(typeFilterProvider);
-                        ref.invalidate(sizeFilterProvider);
-                        ref.invalidate(extensionFilterProvider);
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.violet,
-                        minimumSize: const Size(double.infinity, 44),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total files:',
+                            style: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            progress != null
+                                ? NumberFormat.decimalPattern().format(
+                                    progress.totalItems,
+                                  )
+                                : '0',
+                            style: const TextStyle(
+                              color: AppColors.textBody,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total size:',
+                            style: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            progress != null
+                                ? formatBytes(progress.totalBytes)
+                                : '0 B',
+                            style: const TextStyle(
+                              color: AppColors.textBody,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Divider(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        height: 1,
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () {
+                          ref
+                              .read(isAnalysisActiveProvider.notifier)
+                              .set(false);
+                          ref.invalidate(directoryAnalysisProvider(path));
+                          ref.invalidate(analysisCurrentPathProvider(path));
+                          ref.invalidate(displayedItemsProvider(path));
+                          ref.invalidate(typeFilterProvider);
+                          ref.invalidate(sizeFilterProvider);
+                          ref.invalidate(extensionFilterProvider);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.violet,
+                          minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  ),
                 ),
+              );
+            },
+            error: (err, stack) => Center(
+              child: Text(
+                'Error analyzing directory:\n$err',
+                style: const TextStyle(color: AppColors.error),
               ),
-            );
-          },
-          error: (err, stack) => Center(
-            child: Text(
-              'Error analyzing directory:\n$err',
-              style: const TextStyle(color: AppColors.error),
             ),
           ),
         ),
-      ),
       ),
     );
   }
 }
 
 class _AnalysisView extends ConsumerWidget {
-
   const _AnalysisView({required this.result, required this.path});
   final DirectoryAnalysisResult result;
   final String path;
@@ -358,12 +422,14 @@ class _AnalysisView extends ConsumerWidget {
     if (result.totalBytes > 0) {
       for (final type in FileItemType.values) {
         if (result.categoryStats.containsKey(type)) {
-          percentages[type] = result.categoryStats[type]!.totalBytes / result.totalBytes;
+          percentages[type] =
+              result.categoryStats[type]!.totalBytes / result.totalBytes;
         }
       }
     }
 
-    final rawOtherStats = result.categoryStats[FileItemType.other] ?? const CategoryStats();
+    final rawOtherStats =
+        result.categoryStats[FileItemType.other] ?? const CategoryStats();
     final combinedOtherStats = CategoryStats(
       count: rawOtherStats.count,
       totalBytes: rawOtherStats.totalBytes,
@@ -412,7 +478,10 @@ class _AnalysisView extends ConsumerWidget {
               children: [
                 CustomPaint(
                   size: const Size(150, 150),
-                  painter: _DonutChartPainter(percentages: percentages, strokeWidth: 14),
+                  painter: _DonutChartPainter(
+                    percentages: percentages,
+                    strokeWidth: 14,
+                  ),
                 ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
@@ -491,7 +560,9 @@ class _AnalysisView extends ConsumerWidget {
                   child: _CategoryCard(
                     type: FileItemType.archive,
                     title: 'Archives',
-                    stats: result.categoryStats[FileItemType.archive] ?? const CategoryStats(),
+                    stats:
+                        result.categoryStats[FileItemType.archive] ??
+                        const CategoryStats(),
                     totalBytes: result.totalBytes,
                   ),
                 ),
@@ -525,12 +596,20 @@ class _AnalysisView extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.unfold_more_rounded, size: 14, color: AppColors.textMuted),
+          const Icon(
+            Icons.unfold_more_rounded,
+            size: 14,
+            color: AppColors.textMuted,
+          ),
         ],
       );
     }
 
-    List<Widget> buildBreadcrumbSegments(WidgetRef ref, String basePath, String currentPath) {
+    List<Widget> buildBreadcrumbSegments(
+      WidgetRef ref,
+      String basePath,
+      String currentPath,
+    ) {
       final relative = p.relative(currentPath, from: basePath);
       final parts = p.split(relative);
       final widgets = <Widget>[];
@@ -540,13 +619,23 @@ class _AnalysisView extends ConsumerWidget {
         accumPath = p.join(accumPath, parts[i]);
         final isLast = i == parts.length - 1;
         final currentAccumPath = accumPath; // capture for closure
-        
+
         widgets.add(
           InkWell(
-            onTap: isLast ? null : () {
-              ref.read(displayedItemsPageProvider(basePath).notifier).state = 50;
-              ref.read(analysisCurrentPathProvider(basePath).notifier).state = currentAccumPath;
-            },
+            onTap: isLast
+                ? null
+                : () {
+                    ref
+                            .read(displayedItemsPageProvider(basePath).notifier)
+                            .state =
+                        50;
+                    ref
+                            .read(
+                              analysisCurrentPathProvider(basePath).notifier,
+                            )
+                            .state =
+                        currentAccumPath;
+                  },
             child: Text(
               parts[i],
               style: TextStyle(
@@ -555,11 +644,16 @@ class _AnalysisView extends ConsumerWidget {
                 fontWeight: isLast ? FontWeight.w400 : FontWeight.w600,
               ),
             ),
-          )
+          ),
         );
 
         if (!isLast) {
-          widgets.add(const Text(' / ', style: TextStyle(color: AppColors.textMuted, fontSize: 12)));
+          widgets.add(
+            const Text(
+              ' / ',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
+          );
         }
       }
       return widgets;
@@ -580,7 +674,12 @@ class _AnalysisView extends ConsumerWidget {
           if (itemsAsync.hasError) {
             return Padding(
               padding: const EdgeInsets.all(48),
-              child: Center(child: Text('Error: ${itemsAsync.error}', style: const TextStyle(color: AppColors.error))),
+              child: Center(
+                child: Text(
+                  'Error: ${itemsAsync.error}',
+                  style: const TextStyle(color: AppColors.error),
+                ),
+              ),
             );
           }
         }
@@ -593,14 +692,22 @@ class _AnalysisView extends ConsumerWidget {
         final displayedItems = items.take(displayedCount).toList();
 
         final selectedPaths = ref.watch(selectionProvider).selectedPaths;
-        final selectedItems = items.where((item) => selectedPaths.contains(item.path)).toList();
+        final selectedItems = items
+            .where((item) => selectedPaths.contains(item.path))
+            .toList();
 
         final selectedCount = selectedItems.length;
-        final selectedSize = selectedItems.fold<int>(0, (prev, item) => prev + item.size);
+        final selectedSize = selectedItems.fold<int>(
+          0,
+          (prev, item) => prev + item.size,
+        );
 
         final currentPath = ref.watch(analysisCurrentPathProvider(path));
         final allPaths = items.map((e) => e.path).toList();
-        final parentTotalSize = items.fold<int>(0, (prev, element) => prev + element.size);
+        final parentTotalSize = items.fold<int>(
+          0,
+          (prev, element) => prev + element.size,
+        );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -610,16 +717,47 @@ class _AnalysisView extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    const Text('Path: ', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    const Text(
+                      'Path: ',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
                     InkWell(
                       onTap: () {
-                        ref.read(displayedItemsPageProvider(path).notifier).state = 50;
-                        ref.read(analysisCurrentPathProvider(path).notifier).state = path;
+                        ref
+                                .read(displayedItemsPageProvider(path).notifier)
+                                .state =
+                            50;
+                        ref
+                                .read(
+                                  analysisCurrentPathProvider(path).notifier,
+                                )
+                                .state =
+                            path;
                       },
-                      child: Text(p.basename(path).isEmpty ? path : p.basename(path), style: TextStyle(color: currentPath == path ? AppColors.textBody : AppColors.violet, fontSize: 12, fontWeight: currentPath == path ? FontWeight.w400 : FontWeight.w600)),
+                      child: Text(
+                        p.basename(path).isEmpty ? path : p.basename(path),
+                        style: TextStyle(
+                          color: currentPath == path
+                              ? AppColors.textBody
+                              : AppColors.violet,
+                          fontSize: 12,
+                          fontWeight: currentPath == path
+                              ? FontWeight.w400
+                              : FontWeight.w600,
+                        ),
+                      ),
                     ),
                     if (currentPath != path) ...[
-                      const Text(' / ', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      const Text(
+                        ' / ',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
                       ...buildBreadcrumbSegments(ref, path, currentPath),
                     ],
                   ],
@@ -627,7 +765,7 @@ class _AnalysisView extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -636,9 +774,20 @@ class _AnalysisView extends ConsumerWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        Icon(Icons.filter_list_rounded, size: 16, color: AppColors.textMuted),
+                        Icon(
+                          Icons.filter_list_rounded,
+                          size: 16,
+                          color: AppColors.textMuted,
+                        ),
                         SizedBox(width: 6),
-                        Text('Filter', style: TextStyle(color: AppColors.textBody, fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Filter',
+                          style: TextStyle(
+                            color: AppColors.textBody,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(width: 16),
@@ -671,7 +820,9 @@ class _AnalysisView extends ConsumerWidget {
                             Text(
                               '$selectedCount items selected    ',
                               style: TextStyle(
-                                color: AppColors.textBody.withValues(alpha: 0.4),
+                                color: AppColors.textBody.withValues(
+                                  alpha: 0.4,
+                                ),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -706,7 +857,7 @@ class _AnalysisView extends ConsumerWidget {
                           ],
                         ),
                       );
-                    }
+                    },
                   ),
                 ] else
                   const Spacer(),
@@ -714,7 +865,6 @@ class _AnalysisView extends ConsumerWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-
                       _ActionButton(
                         icon: Icons.delete_outline_rounded,
                         label: 'Delete',
@@ -722,25 +872,37 @@ class _AnalysisView extends ConsumerWidget {
                         onTap: () async {
                           final paths = selectedPaths.toList();
                           if (paths.isEmpty) return;
-                          
+
                           final result = await showDialog<bool>(
                             context: context,
                             builder: (context) => _AnalysisDeleteDialog(
-                              filesCount: selectedItems.where((i) => !i.isDirectory).length,
-                              foldersCount: selectedItems.where((i) => i.isDirectory).length,
+                              filesCount: selectedItems
+                                  .where((i) => !i.isDirectory)
+                                  .length,
+                              foldersCount: selectedItems
+                                  .where((i) => i.isDirectory)
+                                  .length,
                               totalSize: StringUtils.formatBytes(selectedSize),
                             ),
                           );
 
                           if (result != null) {
                             final isPermanent = result;
-                            ref.read(taskProvider.notifier).addTask(
-                              title: isPermanent ? 'Deleting ${paths.length} items' : 'Moving ${paths.length} items to Trash',
-                              subtitle: isPermanent ? 'Permanent deletion' : 'Trash',
-                              sourcePaths: paths,
-                              isLight: true,
-                            );
-                            ref.read(directoryRepositoryProvider).deleteItems(paths, permanent: isPermanent);
+                            ref
+                                .read(taskProvider.notifier)
+                                .addTask(
+                                  title: isPermanent
+                                      ? 'Deleting ${paths.length} items'
+                                      : 'Moving ${paths.length} items to Trash',
+                                  subtitle: isPermanent
+                                      ? 'Permanent deletion'
+                                      : 'Trash',
+                                  sourcePaths: paths,
+                                  isLight: true,
+                                );
+                            ref
+                                .read(directoryRepositoryProvider)
+                                .deleteItems(paths, permanent: isPermanent);
                             ref.read(selectionProvider.notifier).deselectAll();
                           }
                         },
@@ -754,29 +916,40 @@ class _AnalysisView extends ConsumerWidget {
                           final paths = selectedPaths.toList();
                           if (paths.isEmpty) return;
 
-                          final destinationList = await CustomFilePickerDialog.show(
-                            context,
-                            title: 'SELECT DESTINATION',
-                            pickDirectory: true,
-                          );
+                          final destinationList =
+                              await CustomFilePickerDialog.show(
+                                context,
+                                title: 'SELECT DESTINATION',
+                                pickDirectory: true,
+                              );
 
-                          if (destinationList == null || destinationList.isEmpty) return;
+                          if (destinationList == null ||
+                              destinationList.isEmpty)
+                            return;
                           final targetDir = destinationList.first;
 
                           final repo = ref.read(directoryRepositoryProvider);
-                          final taskId = ref.read(taskProvider.notifier).addTask(
-                            title: 'Moving ${paths.length} items',
-                            subtitle: targetDir,
-                            sourcePaths: paths,
-                          );
+                          final taskId = ref
+                              .read(taskProvider.notifier)
+                              .addTask(
+                                title: 'Moving ${paths.length} items',
+                                subtitle: targetDir,
+                                sourcePaths: paths,
+                              );
 
                           for (final source in paths) {
                             final name = p.basename(source);
                             final target = p.join(targetDir, name);
                             try {
-                              await repo.moveItemTo(source, target, taskId: taskId);
+                              await repo.moveItemTo(
+                                source,
+                                target,
+                                taskId: taskId,
+                              );
                             } catch (e) {
-                              ref.read(taskProvider.notifier).addLog(taskId, 'Failed to move $name: $e');
+                              ref
+                                  .read(taskProvider.notifier)
+                                  .addLog(taskId, 'Failed to move $name: $e');
                             }
                           }
                           ref.read(taskProvider.notifier).completeTask(taskId);
@@ -792,29 +965,40 @@ class _AnalysisView extends ConsumerWidget {
                           final paths = selectedPaths.toList();
                           if (paths.isEmpty) return;
 
-                          final destinationList = await CustomFilePickerDialog.show(
-                            context,
-                            title: 'SELECT DESTINATION',
-                            pickDirectory: true,
-                          );
+                          final destinationList =
+                              await CustomFilePickerDialog.show(
+                                context,
+                                title: 'SELECT DESTINATION',
+                                pickDirectory: true,
+                              );
 
-                          if (destinationList == null || destinationList.isEmpty) return;
+                          if (destinationList == null ||
+                              destinationList.isEmpty)
+                            return;
                           final targetDir = destinationList.first;
 
                           final repo = ref.read(directoryRepositoryProvider);
-                          final taskId = ref.read(taskProvider.notifier).addTask(
-                            title: 'Copying ${paths.length} items',
-                            subtitle: targetDir,
-                            sourcePaths: paths,
-                          );
+                          final taskId = ref
+                              .read(taskProvider.notifier)
+                              .addTask(
+                                title: 'Copying ${paths.length} items',
+                                subtitle: targetDir,
+                                sourcePaths: paths,
+                              );
 
                           for (final source in paths) {
                             final name = p.basename(source);
                             final target = p.join(targetDir, name);
                             try {
-                              await repo.copyItemTo(source, target, taskId: taskId);
+                              await repo.copyItemTo(
+                                source,
+                                target,
+                                taskId: taskId,
+                              );
                             } catch (e) {
-                              ref.read(taskProvider.notifier).addLog(taskId, 'Failed to copy $name: $e');
+                              ref
+                                  .read(taskProvider.notifier)
+                                  .addLog(taskId, 'Failed to copy $name: $e');
                             }
                           }
                           ref.read(taskProvider.notifier).completeTask(taskId);
@@ -842,52 +1026,47 @@ class _AnalysisView extends ConsumerWidget {
                     ),
                     child: Row(
                       children: [
-                          SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: Checkbox(
-                              tristate: true,
-                              value: selectedCount == 0
-                                  ? false
-                                  : (selectedCount == items.length
-                                      ? true
-                                      : null),
-                              activeColor: AppColors.violet,
-                              side: const BorderSide(
-                                color: Colors.white54,
-                                width: 1.5,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              onChanged: (val) {
-                                if (selectedCount > 0) {
-                                  ref.read(selectionProvider.notifier).deselect(
-                                      items.map((e) => e.path).toList());
-                                } else {
-                                  ref.read(selectionProvider.notifier).selectMultiple(
-                                      items.map((e) => e.path).toList());
-                                }
-                              },
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            tristate: true,
+                            value: selectedCount == 0
+                                ? false
+                                : (selectedCount == items.length ? true : null),
+                            activeColor: AppColors.violet,
+                            side: const BorderSide(
+                              color: Colors.white54,
+                              width: 1.5,
                             ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            onChanged: (val) {
+                              if (selectedCount > 0) {
+                                ref
+                                    .read(selectionProvider.notifier)
+                                    .deselect(
+                                      items.map((e) => e.path).toList(),
+                                    );
+                              } else {
+                                ref
+                                    .read(selectionProvider.notifier)
+                                    .selectMultiple(
+                                      items.map((e) => e.path).toList(),
+                                    );
+                              }
+                            },
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 3,
-                            child: buildColHeader('Name'),
-                          ),
-                          Expanded(
-                            child: buildColHeader('Type'),
-                          ),
-                          Expanded(
-                            child: buildColHeader('Size'),
-                          ),
-                          Expanded(
-                            child: buildColHeader('Last Modified'),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(flex: 3, child: buildColHeader('Name')),
+                        Expanded(child: buildColHeader('Type')),
+                        Expanded(child: buildColHeader('Size')),
+                        Expanded(child: buildColHeader('Last Modified')),
+                      ],
                     ),
+                  ),
                   const Divider(height: 1, color: AppColors.borderColor),
                   // List / Grid
                   if (items.isEmpty)
@@ -904,21 +1083,35 @@ class _AnalysisView extends ConsumerWidget {
                     ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: displayedItems.length + (displayedCount < items.length ? 1 : 0),
-                      separatorBuilder: (context, index) =>
-                          const Divider(height: 1, color: AppColors.borderColor),
+                      itemCount:
+                          displayedItems.length +
+                          (displayedCount < items.length ? 1 : 0),
+                      separatorBuilder: (context, index) => const Divider(
+                        height: 1,
+                        color: AppColors.borderColor,
+                      ),
                       itemBuilder: (context, index) {
                         if (index == displayedItems.length) {
-                           return InkWell(
-                             onTap: () {
-                               ref.read(displayedItemsPageProvider(path).notifier).update((state) => state + 50);
-                             },
-                             child: Container(
-                               padding: const EdgeInsets.symmetric(vertical: 24),
-                               alignment: Alignment.center,
-                               child: const Text('Load More', style: TextStyle(color: AppColors.violet, fontWeight: FontWeight.w600)),
-                             ),
-                           );
+                          return InkWell(
+                            onTap: () {
+                              ref
+                                  .read(
+                                    displayedItemsPageProvider(path).notifier,
+                                  )
+                                  .update((state) => state + 50);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Load More',
+                                style: TextStyle(
+                                  color: AppColors.violet,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          );
                         }
                         return _BrowserItemRow(
                           item: displayedItems[index],
@@ -927,7 +1120,7 @@ class _AnalysisView extends ConsumerWidget {
                           parentTotalSize: parentTotalSize,
                         );
                       },
-                    )
+                    ),
                 ],
               ),
             ),
@@ -939,7 +1132,6 @@ class _AnalysisView extends ConsumerWidget {
 }
 
 class _CategoryCard extends ConsumerStatefulWidget {
-
   const _CategoryCard({
     required this.type,
     required this.title,
@@ -999,8 +1191,8 @@ class _CategoryCardState extends ConsumerState<_CategoryCard> {
         ]);
     }
 
-    final percentage = widget.totalBytes > 0 
-        ? widget.stats.totalBytes / widget.totalBytes 
+    final percentage = widget.totalBytes > 0
+        ? widget.stats.totalBytes / widget.totalBytes
         : 0.0;
 
     final activeTypes = ref.watch(typeFilterProvider);
@@ -1020,92 +1212,99 @@ class _CategoryCardState extends ConsumerState<_CategoryCard> {
           ref.read(typeFilterProvider.notifier).state = types;
         },
         child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.all(16),
-        transform: Matrix4.translationValues(0, _isHovered ? -4 : 0, 0),
-        decoration: BoxDecoration(
-          color: isActive 
-              ? config.colors.first.withValues(alpha: 0.1) 
-              : Colors.white.withValues(alpha: 0.02),
-          border: Border.all(
-            color: isActive 
-                ? config.colors.first.withValues(alpha: 0.5) 
-                : (_isHovered 
-                    ? config.colors.first.withValues(alpha: 0.3) 
-                    : Colors.white.withValues(alpha: 0.05)),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.all(16),
+          transform: Matrix4.translationValues(0, _isHovered ? -4 : 0, 0),
+          decoration: BoxDecoration(
+            color: isActive
+                ? config.colors.first.withValues(alpha: 0.1)
+                : Colors.white.withValues(alpha: 0.02),
+            border: Border.all(
+              color: isActive
+                  ? config.colors.first.withValues(alpha: 0.5)
+                  : (_isHovered
+                        ? config.colors.first.withValues(alpha: 0.3)
+                        : Colors.white.withValues(alpha: 0.05)),
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: (_isHovered || isActive)
+                ? [
+                    BoxShadow(
+                      color: config.colors.first.withValues(alpha: 0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : [],
           ),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: (_isHovered || isActive) ? [
-            BoxShadow(
-              color: config.colors.first.withValues(alpha: 0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            )
-          ] : [],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: config.colors.first.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: config.colors.first.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      config.icon,
+                      color: config.colors.first,
+                      size: 20,
+                    ),
                   ),
-                  child: Icon(config.icon, color: config.colors.first, size: 20),
-                ),
-                Text(
-                  '${(percentage * 100).toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    color: config.colors.first,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                  Text(
+                    '${(percentage * 100).toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      color: config.colors.first,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                widget.title,
+                style: const TextStyle(
+                  color: AppColors.textBody,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              widget.title,
-              style: const TextStyle(
-                color: AppColors.textBody,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${widget.stats.count} items • ${StringUtils.formatBytes(widget.stats.totalBytes)}',
-              style: TextStyle(
-                color: AppColors.textMuted.withValues(alpha: 0.8),
-                fontSize: 10,
+              const SizedBox(height: 4),
+              Text(
+                '${widget.stats.count} items • ${StringUtils.formatBytes(widget.stats.totalBytes)}',
+                style: TextStyle(
+                  color: AppColors.textMuted.withValues(alpha: 0.8),
+                  fontSize: 10,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: percentage,
-                backgroundColor: Colors.white.withValues(alpha: 0.05),
-                valueColor: AlwaysStoppedAnimation<Color>(config.colors.first),
-                minHeight: 4,
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: percentage,
+                  backgroundColor: Colors.white.withValues(alpha: 0.05),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    config.colors.first,
+                  ),
+                  minHeight: 4,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
 }
 
 class _BrowserItemRow extends ConsumerStatefulWidget {
-
   const _BrowserItemRow({
     required this.item,
     required this.analysisPath,
@@ -1125,20 +1324,40 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
   bool _isHovered = false;
 
   String _formatDate(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   void _handleSelectionTap(WidgetRef ref) {
-    final isShift = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
-        HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
-    
+    final isShift =
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.shiftLeft,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.shiftRight,
+        );
+
     // Always true to enable checklist-style toggling
     const isCtrl = true;
 
     final currentIndex = widget.allPaths.indexOf(widget.item.path);
     if (currentIndex != -1) {
-      ref.read(selectionProvider.notifier).onItemTap(
+      ref
+          .read(selectionProvider.notifier)
+          .onItemTap(
             currentIndex: currentIndex,
             allPaths: widget.allPaths,
             isShift: isShift,
@@ -1149,16 +1368,25 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
 
   @override
   Widget build(BuildContext context) {
-    final config = widget.item.isDirectory 
-      ? FileIconConfig(Icons.folder_rounded, [AppColors.violet, AppColors.violet])
-      : getFileIconConfig(widget.item.name);
-      
-    final isSelected = ref.watch(selectionProvider).selectedPaths.contains(widget.item.path);
-    final percentage = widget.parentTotalSize > 0 ? widget.item.size / widget.parentTotalSize : 0.0;
+    final config = widget.item.isDirectory
+        ? FileIconConfig(Icons.folder_rounded, [
+            AppColors.violet,
+            AppColors.violet,
+          ])
+        : getFileIconConfig(widget.item.name);
+
+    final isSelected = ref
+        .watch(selectionProvider)
+        .selectedPaths
+        .contains(widget.item.path);
+    final percentage = widget.parentTotalSize > 0
+        ? widget.item.size / widget.parentTotalSize
+        : 0.0;
 
     const startColor = AppColors.cyan;
     const fullEndColor = AppColors.indigo;
-    final endColor = Color.lerp(startColor, fullEndColor, percentage) ?? startColor;
+    final endColor =
+        Color.lerp(startColor, fullEndColor, percentage) ?? startColor;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -1176,8 +1404,21 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
           onDoubleTap: () {
             if (widget.item.isDirectory) {
               // Reset pagination when drilling into subfolder
-              ref.read(displayedItemsPageProvider(widget.analysisPath).notifier).state = 50;
-              ref.read(analysisCurrentPathProvider(widget.analysisPath).notifier).state = widget.item.path;
+              ref
+                      .read(
+                        displayedItemsPageProvider(
+                          widget.analysisPath,
+                        ).notifier,
+                      )
+                      .state =
+                  50;
+              ref
+                  .read(
+                    analysisCurrentPathProvider(widget.analysisPath).notifier,
+                  )
+                  .state = widget
+                  .item
+                  .path;
             } else {
               final fileItem = FileItem(
                 path: widget.item.path,
@@ -1216,108 +1457,123 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
                 color: isSelected
                     ? Colors.white.withValues(alpha: 0.05)
                     : _isHovered
-                        ? Colors.white.withValues(alpha: 0.02)
-                        : Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    ? Colors.white.withValues(alpha: 0.02)
+                    : Colors.transparent,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: Row(
-              children: [
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Checkbox(
-                    value: isSelected,
-                    activeColor: AppColors.violet,
-                    side: BorderSide(
-                      color: _isHovered ? Colors.white54 : Colors.white24,
-                      width: 1.5,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    onChanged: (val) {
-                      if (val ?? false) {
-                        ref.read(selectionProvider.notifier).select(widget.item.path);
-                      } else {
-                        ref.read(selectionProvider.notifier).deselect([widget.item.path]);
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 3,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: config.colors.first.withValues(
-                            alpha: _isHovered || isSelected ? 0.25 : 0.15
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: _isHovered ? [
-                            BoxShadow(
-                              color: config.colors.first.withValues(alpha: 0.2),
-                              blurRadius: 8,
-                            )
-                          ] : [],
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: isSelected,
+                        activeColor: AppColors.violet,
+                        side: BorderSide(
+                          color: _isHovered ? Colors.white54 : Colors.white24,
+                          width: 1.5,
                         ),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          config.icon,
-                          size: 18,
-                          color: config.colors.first,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        onChanged: (val) {
+                          if (val ?? false) {
+                            ref
+                                .read(selectionProvider.notifier)
+                                .select(widget.item.path);
+                          } else {
+                            ref.read(selectionProvider.notifier).deselect([
+                              widget.item.path,
+                            ]);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 3,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: config.colors.first.withValues(
+                                alpha: _isHovered || isSelected ? 0.25 : 0.15,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: _isHovered
+                                  ? [
+                                      BoxShadow(
+                                        color: config.colors.first.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        blurRadius: 8,
+                                      ),
+                                    ]
+                                  : [],
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              config.icon,
+                              size: 18,
+                              color: config.colors.first,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              widget.item.name,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? AppColors.violet
+                                    : AppColors.textBody,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        widget.item.isDirectory
+                            ? 'Folder'
+                            : '${widget.item.type?.name[0].toUpperCase()}${widget.item.type?.name.substring(1)} File',
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          widget.item.name,
-                          style: TextStyle(
-                            color: isSelected ? AppColors.violet : AppColors.textBody,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                    Expanded(
+                      child: Text(
+                        StringUtils.formatBytes(widget.item.size),
+                        style: const TextStyle(
+                          color: AppColors.textBody,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    widget.item.isDirectory ? 'Folder' : '${widget.item.type?.name[0].toUpperCase()}${widget.item.type?.name.substring(1)} File',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
                     ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    StringUtils.formatBytes(widget.item.size),
-                    style: const TextStyle(
-                      color: AppColors.textBody,
-                      fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        _formatDate(widget.item.modified),
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-                Expanded(
-                  child: Text(
-                    _formatDate(widget.item.modified),
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          ],
-        ),
         ),
       ),
     );
@@ -1325,7 +1581,6 @@ class _BrowserItemRowState extends ConsumerState<_BrowserItemRow> {
 }
 
 class _ActionButton extends StatelessWidget {
-
   const _ActionButton({
     required this.icon,
     required this.label,
@@ -1377,8 +1632,12 @@ class _SizeFilterDropdown extends ConsumerWidget {
     final isActive = currentSize != null;
     final label = isActive ? '> $currentSize MB' : 'Size';
 
-    final bgColor = isActive ? AppColors.violet.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05);
-    final borderColor = isActive ? AppColors.violet.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1);
+    final bgColor = isActive
+        ? AppColors.violet.withValues(alpha: 0.15)
+        : Colors.white.withValues(alpha: 0.05);
+    final borderColor = isActive
+        ? AppColors.violet.withValues(alpha: 0.3)
+        : Colors.white.withValues(alpha: 0.1);
     final textColor = isActive ? AppColors.violet : AppColors.textBody;
 
     return MenuAnchor(
@@ -1408,10 +1667,18 @@ class _SizeFilterDropdown extends ConsumerWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(color: textColor, fontSize: 11, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 11,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_down_rounded, color: textColor, size: 14),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: textColor,
+                  size: 14,
+                ),
               ],
             ),
           ),
@@ -1420,21 +1687,53 @@ class _SizeFilterDropdown extends ConsumerWidget {
       menuChildren: [
         MenuItemButton(
           onPressed: () => ref.read(sizeFilterProvider.notifier).state = null,
-          child: const Text('All Sizes', style: TextStyle(color: AppColors.textBody, fontSize: 13)),
+          child: const Text(
+            'All Sizes',
+            style: TextStyle(color: AppColors.textBody, fontSize: 13),
+          ),
         ),
         const PopupMenuDivider(),
-        MenuItemButton(onPressed: () => ref.read(sizeFilterProvider.notifier).state = 10, child: const Text('> 10 MB', style: TextStyle(color: AppColors.textBody, fontSize: 13))),
-        MenuItemButton(onPressed: () => ref.read(sizeFilterProvider.notifier).state = 50, child: const Text('> 50 MB', style: TextStyle(color: AppColors.textBody, fontSize: 13))),
-        MenuItemButton(onPressed: () => ref.read(sizeFilterProvider.notifier).state = 100, child: const Text('> 100 MB', style: TextStyle(color: AppColors.textBody, fontSize: 13))),
-        MenuItemButton(onPressed: () => ref.read(sizeFilterProvider.notifier).state = 500, child: const Text('> 500 MB', style: TextStyle(color: AppColors.textBody, fontSize: 13))),
-        MenuItemButton(onPressed: () => ref.read(sizeFilterProvider.notifier).state = 1024, child: const Text('> 1 GB', style: TextStyle(color: AppColors.textBody, fontSize: 13))),
+        MenuItemButton(
+          onPressed: () => ref.read(sizeFilterProvider.notifier).state = 10,
+          child: const Text(
+            '> 10 MB',
+            style: TextStyle(color: AppColors.textBody, fontSize: 13),
+          ),
+        ),
+        MenuItemButton(
+          onPressed: () => ref.read(sizeFilterProvider.notifier).state = 50,
+          child: const Text(
+            '> 50 MB',
+            style: TextStyle(color: AppColors.textBody, fontSize: 13),
+          ),
+        ),
+        MenuItemButton(
+          onPressed: () => ref.read(sizeFilterProvider.notifier).state = 100,
+          child: const Text(
+            '> 100 MB',
+            style: TextStyle(color: AppColors.textBody, fontSize: 13),
+          ),
+        ),
+        MenuItemButton(
+          onPressed: () => ref.read(sizeFilterProvider.notifier).state = 500,
+          child: const Text(
+            '> 500 MB',
+            style: TextStyle(color: AppColors.textBody, fontSize: 13),
+          ),
+        ),
+        MenuItemButton(
+          onPressed: () => ref.read(sizeFilterProvider.notifier).state = 1024,
+          child: const Text(
+            '> 1 GB',
+            style: TextStyle(color: AppColors.textBody, fontSize: 13),
+          ),
+        ),
       ],
     );
   }
 }
 
 class _CustomMenuCheckbox extends StatelessWidget {
-
   const _CustomMenuCheckbox({
     required this.value,
     required this.label,
@@ -1450,7 +1749,9 @@ class _CustomMenuCheckbox extends StatelessWidget {
       onPressed: onChanged,
       closeOnActivate: false,
       style: const ButtonStyle(
-        padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+        padding: WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1462,7 +1763,9 @@ class _CustomMenuCheckbox extends StatelessWidget {
               color: value ? AppColors.violet : Colors.transparent,
               borderRadius: BorderRadius.circular(4),
               border: Border.all(
-                color: value ? AppColors.violet : Colors.white.withValues(alpha: 0.3),
+                color: value
+                    ? AppColors.violet
+                    : Colors.white.withValues(alpha: 0.3),
                 width: 1.5,
               ),
             ),
@@ -1471,7 +1774,14 @@ class _CustomMenuCheckbox extends StatelessWidget {
                 : null,
           ),
           const SizedBox(width: 12),
-          Text(label, style: const TextStyle(color: AppColors.textBody, fontSize: 13, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textBody,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -1485,18 +1795,23 @@ class _TypeFilterDropdown extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTypes = ref.watch(typeFilterProvider);
     final isActive = currentTypes.isNotEmpty;
-    
+
     var label = 'Type';
     if (isActive) {
       if (currentTypes.length == 1) {
-        label = '${currentTypes.first.name[0].toUpperCase()}${currentTypes.first.name.substring(1)}';
+        label =
+            '${currentTypes.first.name[0].toUpperCase()}${currentTypes.first.name.substring(1)}';
       } else {
         label = '${currentTypes.length} Types';
       }
     }
 
-    final bgColor = isActive ? AppColors.violet.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05);
-    final borderColor = isActive ? AppColors.violet.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1);
+    final bgColor = isActive
+        ? AppColors.violet.withValues(alpha: 0.15)
+        : Colors.white.withValues(alpha: 0.05);
+    final borderColor = isActive
+        ? AppColors.violet.withValues(alpha: 0.3)
+        : Colors.white.withValues(alpha: 0.1);
     final textColor = isActive ? AppColors.violet : AppColors.textBody;
 
     return MenuAnchor(
@@ -1526,10 +1841,18 @@ class _TypeFilterDropdown extends ConsumerWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(color: textColor, fontSize: 11, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 11,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_down_rounded, color: textColor, size: 14),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: textColor,
+                  size: 14,
+                ),
               ],
             ),
           ),
@@ -1537,13 +1860,20 @@ class _TypeFilterDropdown extends ConsumerWidget {
       },
       menuChildren: [
         MenuItemButton(
-          onPressed: isActive ? () {
-            ref.read(typeFilterProvider.notifier).state = {};
-          } : null,
-          child: const Text('Clear All', style: TextStyle(color: AppColors.violet)),
+          onPressed: isActive
+              ? () {
+                  ref.read(typeFilterProvider.notifier).state = {};
+                }
+              : null,
+          child: const Text(
+            'Clear All',
+            style: TextStyle(color: AppColors.violet),
+          ),
         ),
         const PopupMenuDivider(),
-        ...FileItemType.values.where((t) => t != FileItemType.folder).map((type) {
+        ...FileItemType.values.where((t) => t != FileItemType.folder).map((
+          type,
+        ) {
           return _CustomMenuCheckbox(
             value: currentTypes.contains(type),
             label: '${type.name[0].toUpperCase()}${type.name.substring(1)}',
@@ -1572,7 +1902,7 @@ class _ExtensionFilterDropdown extends ConsumerWidget {
     final available = ref.watch(availableExtensionsProvider(analysisPath));
     final currentExts = ref.watch(extensionFilterProvider);
     final isActive = currentExts.isNotEmpty;
-    
+
     if (available.isEmpty) return const SizedBox.shrink();
 
     var label = 'Extensions';
@@ -1584,8 +1914,12 @@ class _ExtensionFilterDropdown extends ConsumerWidget {
       }
     }
 
-    final bgColor = isActive ? AppColors.violet.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05);
-    final borderColor = isActive ? AppColors.violet.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1);
+    final bgColor = isActive
+        ? AppColors.violet.withValues(alpha: 0.15)
+        : Colors.white.withValues(alpha: 0.05);
+    final borderColor = isActive
+        ? AppColors.violet.withValues(alpha: 0.3)
+        : Colors.white.withValues(alpha: 0.1);
     final textColor = isActive ? AppColors.violet : AppColors.textBody;
 
     final exts = available.toList()..sort();
@@ -1617,10 +1951,18 @@ class _ExtensionFilterDropdown extends ConsumerWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(color: textColor, fontSize: 11, fontWeight: isActive ? FontWeight.w600 : FontWeight.normal),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 11,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_down_rounded, color: textColor, size: 14),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: textColor,
+                  size: 14,
+                ),
               ],
             ),
           ),
@@ -1628,10 +1970,15 @@ class _ExtensionFilterDropdown extends ConsumerWidget {
       },
       menuChildren: [
         MenuItemButton(
-          onPressed: isActive ? () {
-            ref.read(extensionFilterProvider.notifier).state = {};
-          } : null,
-          child: const Text('Clear All', style: TextStyle(color: AppColors.violet)),
+          onPressed: isActive
+              ? () {
+                  ref.read(extensionFilterProvider.notifier).state = {};
+                }
+              : null,
+          child: const Text(
+            'Clear All',
+            style: TextStyle(color: AppColors.violet),
+          ),
         ),
         const PopupMenuDivider(),
         ...exts.map((ext) {
@@ -1655,7 +2002,6 @@ class _ExtensionFilterDropdown extends ConsumerWidget {
 }
 
 class _FilterButton extends StatelessWidget {
-
   const _FilterButton({required this.icon, required this.label});
   final IconData icon;
   final String label;
@@ -1685,7 +2031,6 @@ class _FilterButton extends StatelessWidget {
 }
 
 class _DonutChartPainter extends CustomPainter {
-
   _DonutChartPainter({required this.percentages, this.strokeWidth = 12});
   final Map<FileItemType, double> percentages;
   final double strokeWidth;
@@ -1693,13 +2038,15 @@ class _DonutChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromCircle(
-        center: Offset(size.width / 2, size.height / 2),
-        radius: size.width / 2 - strokeWidth / 2);
+      center: Offset(size.width / 2, size.height / 2),
+      radius: size.width / 2 - strokeWidth / 2,
+    );
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.butt; // The image seems to have flat/butt caps for segments
+      ..strokeCap =
+          StrokeCap.butt; // The image seems to have flat/butt caps for segments
 
     // Draw background
     paint.color = Colors.white.withValues(alpha: 0.05);
@@ -1721,11 +2068,18 @@ class _DonutChartPainter extends CustomPainter {
     drawSegment(FileItemType.audio, const Color(0xFF7B1FA2));
     drawSegment(FileItemType.document, const Color(0xFF1565C0));
     drawSegment(FileItemType.archive, const Color(0xFFFF6F00));
-    
+
     // Calculate 'other' percentage
-    final otherPercentage = 1.0 - (percentages[FileItemType.image] ?? 0) - (percentages[FileItemType.video] ?? 0) - (percentages[FileItemType.audio] ?? 0) - (percentages[FileItemType.document] ?? 0) - (percentages[FileItemType.archive] ?? 0);
-    
-    if (otherPercentage > 0.001) { // Floating point safety
+    final otherPercentage =
+        1.0 -
+        (percentages[FileItemType.image] ?? 0) -
+        (percentages[FileItemType.video] ?? 0) -
+        (percentages[FileItemType.audio] ?? 0) -
+        (percentages[FileItemType.document] ?? 0) -
+        (percentages[FileItemType.archive] ?? 0);
+
+    if (otherPercentage > 0.001) {
+      // Floating point safety
       final sweepAngle = otherPercentage * 2 * math.pi;
       paint.color = const Color(0xFF546E7A); // Grey for other
       canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
@@ -1785,8 +2139,14 @@ class _CircularBubbleLoaderState extends State<CircularBubbleLoader>
                 final angle = (index * 2 * math.pi) / 3;
                 final bubbleSize = widget.size / 4.0;
                 final radius = widget.size / 2.0 - bubbleSize / 2.0;
-                final dx = radius * math.cos(angle) + widget.size / 2.0 - bubbleSize / 2.0;
-                final dy = radius * math.sin(angle) + widget.size / 2.0 - bubbleSize / 2.0;
+                final dx =
+                    radius * math.cos(angle) +
+                    widget.size / 2.0 -
+                    bubbleSize / 2.0;
+                final dy =
+                    radius * math.sin(angle) +
+                    widget.size / 2.0 -
+                    bubbleSize / 2.0;
 
                 return Positioned(
                   left: dx,
@@ -1795,7 +2155,9 @@ class _CircularBubbleLoaderState extends State<CircularBubbleLoader>
                     width: bubbleSize,
                     height: bubbleSize,
                     decoration: BoxDecoration(
-                      color: AppColors.violet.withValues(alpha: 1.0 - (index * 0.3)),
+                      color: AppColors.violet.withValues(
+                        alpha: 1.0 - (index * 0.3),
+                      ),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -1810,7 +2172,6 @@ class _CircularBubbleLoaderState extends State<CircularBubbleLoader>
 }
 
 class _AnalysisDeleteDialog extends StatefulWidget {
-
   const _AnalysisDeleteDialog({
     required this.filesCount,
     required this.foldersCount,
@@ -1855,17 +2216,25 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
               width: 84,
               height: 84,
               decoration: BoxDecoration(
-                color: _isPermanent ? AppColors.error.withValues(alpha: 0.05) : AppColors.violet.withValues(alpha: 0.05),
+                color: _isPermanent
+                    ? AppColors.error.withValues(alpha: 0.05)
+                    : AppColors.violet.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: _isPermanent ? AppColors.error.withValues(alpha: 0.15) : AppColors.violet.withValues(alpha: 0.15),
+                  color: _isPermanent
+                      ? AppColors.error.withValues(alpha: 0.15)
+                      : AppColors.violet.withValues(alpha: 0.15),
                   width: 1.5,
                 ),
               ),
               child: Center(
                 child: Icon(
-                  _isPermanent ? Icons.delete_forever_rounded : Icons.delete_outline_rounded,
-                  color: _isPermanent ? AppColors.error.withValues(alpha: 0.9) : AppColors.violet.withValues(alpha: 0.9),
+                  _isPermanent
+                      ? Icons.delete_forever_rounded
+                      : Icons.delete_outline_rounded,
+                  color: _isPermanent
+                      ? AppColors.error.withValues(alpha: 0.9)
+                      : AppColors.violet.withValues(alpha: 0.9),
                   size: 44,
                 ),
               ),
@@ -1908,26 +2277,38 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: _isPermanent ? AppColors.error.withValues(alpha: 0.04) : AppColors.violet.withValues(alpha: 0.04),
+                color: _isPermanent
+                    ? AppColors.error.withValues(alpha: 0.04)
+                    : AppColors.violet.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(100),
                 border: Border.all(
-                  color: _isPermanent ? AppColors.error.withValues(alpha: 0.08) : AppColors.violet.withValues(alpha: 0.08),
+                  color: _isPermanent
+                      ? AppColors.error.withValues(alpha: 0.08)
+                      : AppColors.violet.withValues(alpha: 0.08),
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    _isPermanent ? Icons.info_outline_rounded : Icons.delete_sweep_outlined,
-                    color: _isPermanent ? AppColors.error.withValues(alpha: 0.6) : AppColors.violet.withValues(alpha: 0.6),
+                    _isPermanent
+                        ? Icons.info_outline_rounded
+                        : Icons.delete_sweep_outlined,
+                    color: _isPermanent
+                        ? AppColors.error.withValues(alpha: 0.6)
+                        : AppColors.violet.withValues(alpha: 0.6),
                     size: 14,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isPermanent ? 'This action cannot be undone' : 'You can restore it from system Trash',
+                    _isPermanent
+                        ? 'This action cannot be undone'
+                        : 'You can restore it from system Trash',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
-                      color: _isPermanent ? AppColors.error.withValues(alpha: 0.6) : AppColors.violet.withValues(alpha: 0.6),
+                      color: _isPermanent
+                          ? AppColors.error.withValues(alpha: 0.6)
+                          : AppColors.violet.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.1,
                     ),
@@ -1950,7 +2331,9 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
                     width: 18,
                     height: 18,
                     decoration: BoxDecoration(
-                      color: _isPermanent ? AppColors.error : Colors.transparent,
+                      color: _isPermanent
+                          ? AppColors.error
+                          : Colors.transparent,
                       border: Border.all(
                         color: _isPermanent ? AppColors.error : Colors.white38,
                         width: 1.5,
@@ -1958,11 +2341,7 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: _isPermanent
-                        ? const Icon(
-                            Icons.check,
-                            size: 14,
-                            color: Colors.white,
-                          )
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
                         : null,
                   ),
                   const SizedBox(width: 8),
@@ -1984,7 +2363,9 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white70,
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -2007,7 +2388,9 @@ class _AnalysisDeleteDialogState extends State<_AnalysisDeleteDialog> {
                       Navigator.pop(context, _isPermanent);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _isPermanent ? AppColors.error : AppColors.violet,
+                      backgroundColor: _isPermanent
+                          ? AppColors.error
+                          : AppColors.violet,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 18),

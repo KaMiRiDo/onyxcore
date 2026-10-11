@@ -41,9 +41,7 @@ void main() {
 
   Widget buildTestWidget() {
     return ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-      ],
+      overrides: [databaseProvider.overrideWithValue(db)],
       child: MaterialApp(
         home: Scaffold(
           body: Builder(
@@ -60,7 +58,8 @@ void main() {
   }
 
   void handleZonedError(Object error, StackTrace stack) {
-    if (error.toString().contains('Failed to load font') || error.toString().contains('google_fonts')) {
+    if (error.toString().contains('Failed to load font') ||
+        error.toString().contains('google_fonts')) {
       // Ignore google_fonts network exceptions in tests
       return;
     }
@@ -73,7 +72,9 @@ void main() {
     }
   }
 
-  testWidgets('OpenWithDialog renders and shows loading initially', (tester) async {
+  testWidgets('OpenWithDialog renders and shows loading initially', (
+    tester,
+  ) async {
     await runZonedGuarded(() async {
       await tester.runAsync(() async {
         await tester.pumpWidget(buildTestWidget());
@@ -95,7 +96,7 @@ void main() {
       await tester.runAsync(() async {
         await tester.pumpWidget(buildTestWidget());
         await tester.tap(find.text('Show Dialog'));
-        await tester.pump(); 
+        await tester.pump();
 
         await tester.tap(find.text('CANCEL'));
         await tester.pump();
@@ -126,7 +127,11 @@ void main() {
           }
         }
 
-        expect(isLoading, isFalse, reason: 'OpenWithDialog failed to load within time limit');
+        expect(
+          isLoading,
+          isFalse,
+          reason: 'OpenWithDialog failed to load within time limit',
+        );
         expect(find.text('Test Editor'), findsOneWidget);
 
         // Test Search Filtering
@@ -163,7 +168,9 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 200));
         await tester.pumpAndSettle();
 
-        final resizeGesture = await tester.startGesture(tester.getBottomRight(find.byType(OpenWithDialog)));
+        final resizeGesture = await tester.startGesture(
+          tester.getBottomRight(find.byType(OpenWithDialog)),
+        );
         await resizeGesture.moveBy(const Offset(50, 50));
         await resizeGesture.up();
         await tester.pumpAndSettle();

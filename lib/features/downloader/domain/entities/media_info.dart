@@ -15,13 +15,15 @@ class MediaFormat {
   });
 
   factory MediaFormat.fromJson(Map<String, dynamic> json) {
-    var parsedFilesize = (json['filesize'] as num?)?.toInt() ??
+    var parsedFilesize =
+        (json['filesize'] as num?)?.toInt() ??
         (json['filesize_approx'] as num?)?.toInt() ??
         (json['file_size'] as num?)?.toInt() ??
         (json['size'] as num?)?.toInt();
 
     if (parsedFilesize == null) {
-      final tbr = (json['tbr'] as num?)?.toDouble() ??
+      final tbr =
+          (json['tbr'] as num?)?.toDouble() ??
           (((json['vbr'] as num?)?.toDouble() ?? 0) +
               ((json['abr'] as num?)?.toDouble() ?? 0));
       final duration = (json['duration'] as num?)?.toDouble();
@@ -37,9 +39,10 @@ class MediaFormat {
           json['resolution']?.toString() ??
           (json['height'] != null
               ? '${json['width']}x${json['height']}'
-              : ((json['vcodec'] != null && json['vcodec'] != 'none') || ['mp4', 'mkv', 'webm', 'mov'].contains(json['ext'])
-                  ? 'original'
-                  : 'audio only')),
+              : ((json['vcodec'] != null && json['vcodec'] != 'none') ||
+                        ['mp4', 'mkv', 'webm', 'mov'].contains(json['ext'])
+                    ? 'original'
+                    : 'audio only')),
       videoCodec: json['vcodec']?.toString(),
       audioCodec: json['acodec']?.toString(),
       filesize: parsedFilesize,
@@ -144,7 +147,10 @@ DateTime? _parseUploadDate(Map<String, dynamic> json, [int depth = 0]) {
   if (depth < 3) {
     for (final entry in json.entries) {
       if (entry.value is Map<String, dynamic>) {
-        final res = _parseUploadDate(entry.value as Map<String, dynamic>, depth + 1);
+        final res = _parseUploadDate(
+          entry.value as Map<String, dynamic>,
+          depth + 1,
+        );
         if (res != null) return res;
       } else if (entry.value is Map) {
         try {
@@ -295,7 +301,10 @@ class MediaInfo {
           if (originalUrl.contains('reddit.com')) {
             if (segments.length >= 2 && segments[0] == 'r') {
               if (segments.length >= 5 && segments[2] == 'comments') {
-                final slug = segments[4].replaceAll('_', ' ').replaceAll('-', ' ').trim();
+                final slug = segments[4]
+                    .replaceAll('_', ' ')
+                    .replaceAll('-', ' ')
+                    .trim();
                 if (slug.isNotEmpty) {
                   parsedTitle = slug[0].toUpperCase() + slug.substring(1);
                 } else {
@@ -332,14 +341,7 @@ class MediaInfo {
           true; // yt-dlp default assumption if vcodec missing but formats exist
     } else if (json['ext'] != null || json['extension'] != null) {
       final ext = (json['ext'] ?? json['extension']).toString().toLowerCase();
-      isVid = [
-        'mp4',
-        'webm',
-        'mkv',
-        'mov',
-        'avi',
-        'm3u8',
-      ].contains(ext);
+      isVid = ['mp4', 'webm', 'mkv', 'mov', 'avi', 'm3u8'].contains(ext);
     }
 
     return MediaInfo(
@@ -348,12 +350,21 @@ class MediaInfo {
       thumbnail:
           json['thumbnail']?.toString() ??
           (json['thumbnails'] is List && (json['thumbnails'] as List).isNotEmpty
-              ? ((json['thumbnails'] as List).last as Map<String, dynamic>)['url']?.toString()
+              ? ((json['thumbnails'] as List).last
+                        as Map<String, dynamic>)['url']
+                    ?.toString()
               : null) ??
-          (!isVid && (json['ext'] == 'jpg' || json['ext'] == 'png' || json['ext'] == 'webp' || json['ext'] == 'gif') ? json['url']?.toString() : null),
+          (!isVid &&
+                  (json['ext'] == 'jpg' ||
+                      json['ext'] == 'png' ||
+                      json['ext'] == 'webp' ||
+                      json['ext'] == 'gif')
+              ? json['url']?.toString()
+              : null),
       duration: (json['duration'] as num?)?.toInt(),
       filesize: () {
-        var size = (json['filesize'] as num?)?.toInt() ??
+        var size =
+            (json['filesize'] as num?)?.toInt() ??
             (json['filesize_approx'] as num?)?.toInt() ??
             (json['file_size'] as num?)?.toInt() ??
             (json['size'] as num?)?.toInt();
@@ -364,7 +375,8 @@ class MediaInfo {
           var hasAny = false;
           for (final f in rf) {
             if (f is Map<String, dynamic>) {
-              final s = (f['filesize'] as num?)?.toInt() ??
+              final s =
+                  (f['filesize'] as num?)?.toInt() ??
                   (f['filesize_approx'] as num?)?.toInt() ??
                   (f['file_size'] as num?)?.toInt();
               if (s != null && s > 0) {
@@ -382,7 +394,8 @@ class MediaInfo {
           var hasAny = false;
           for (final d in rd) {
             if (d is Map<String, dynamic>) {
-              final s = (d['filesize'] as num?)?.toInt() ??
+              final s =
+                  (d['filesize'] as num?)?.toInt() ??
                   (d['filesize_approx'] as num?)?.toInt() ??
                   (d['file_size'] as num?)?.toInt();
               if (s != null && s > 0) {
@@ -419,7 +432,8 @@ class MediaInfo {
       isVideo: isVid,
       isPlaylist: isPlaylist,
       itemCount: itemCount,
-      galleryIndex: json['galleryIndex'] as int? ??
+      galleryIndex:
+          json['galleryIndex'] as int? ??
           json['playlist_index'] as int? ??
           (json['num'] is int
               ? json['num'] as int

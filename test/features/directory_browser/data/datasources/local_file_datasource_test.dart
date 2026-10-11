@@ -30,7 +30,10 @@ void main() {
 
     test('createFolder creates folder inside parent', () async {
       await datasource.createFolder(tempDir.path, 'new_folder');
-      expect(Directory(p.join(tempDir.path, 'new_folder')).existsSync(), isTrue);
+      expect(
+        Directory(p.join(tempDir.path, 'new_folder')).existsSync(),
+        isTrue,
+      );
     });
 
     test('createFile creates empty file inside parent', () async {
@@ -56,7 +59,6 @@ void main() {
       expect(file.existsSync(), isFalse);
     });
 
-
     test('trashItems throws TrashFailedException when gio fails', () async {
       final file = File(p.join(tempDir.path, 'f1.txt'))..createSync();
       expect(
@@ -73,11 +75,14 @@ void main() {
       );
     });
 
-    test('deleteItemsPermanent deletes directory if file does not exist', () async {
-      final dir = Directory(p.join(tempDir.path, 'd2'))..createSync();
-      await datasource.deleteItemsPermanent([dir.path]);
-      expect(dir.existsSync(), isFalse);
-    });
+    test(
+      'deleteItemsPermanent deletes directory if file does not exist',
+      () async {
+        final dir = Directory(p.join(tempDir.path, 'd2'))..createSync();
+        await datasource.deleteItemsPermanent([dir.path]);
+        expect(dir.existsSync(), isFalse);
+      },
+    );
 
     test('restoreFromTrash throws exception when gio fails', () async {
       // Trying to restore a file that is not in trash will definitely fail gio trash --restore.
@@ -101,8 +106,11 @@ void main() {
       final f1 = File(p.join(tempDir.path, '1.txt'))..createSync();
       final f2 = File(p.join(tempDir.path, '2.txt'))..createSync();
 
-      final newPaths = await datasource.bulkRename([f1.path, f2.path], prefix: 'pre_');
-      
+      final newPaths = await datasource.bulkRename([
+        f1.path,
+        f2.path,
+      ], prefix: 'pre_');
+
       expect(newPaths, [
         p.join(tempDir.path, 'pre_1.txt'),
         p.join(tempDir.path, 'pre_2.txt'),
@@ -115,8 +123,11 @@ void main() {
       final f1 = File(p.join(tempDir.path, 'a.txt'))..createSync();
       final f2 = File(p.join(tempDir.path, 'b.txt'))..createSync();
 
-      final newPaths = await datasource.bulkRename([f1.path, f2.path], baseName: 'seq');
-      
+      final newPaths = await datasource.bulkRename([
+        f1.path,
+        f2.path,
+      ], baseName: 'seq');
+
       expect(newPaths, [
         p.join(tempDir.path, 'seq_1.txt'),
         p.join(tempDir.path, 'seq_2.txt'),
@@ -129,21 +140,23 @@ void main() {
   group('LocalFileDatasource - Copy & Move', () {
     test('copyItems copies multiple items with callbacks', () async {
       final destDir = Directory(p.join(tempDir.path, 'dest'))..createSync();
-      final f1 = File(p.join(tempDir.path, 'a.txt'))..writeAsStringSync('hello');
+      final f1 = File(p.join(tempDir.path, 'a.txt'))
+        ..writeAsStringSync('hello');
       final d1 = Directory(p.join(tempDir.path, 'd1'))..createSync();
       File(p.join(d1.path, 'b.txt')).writeAsStringSync('world');
 
-      await datasource.copyItems(
-        [f1.path, d1.path],
-        destDir.path,
-      );
+      await datasource.copyItems([f1.path, d1.path], destDir.path);
 
       expect(File(p.join(destDir.path, 'a.txt')).readAsStringSync(), 'hello');
-      expect(File(p.join(destDir.path, 'd1', 'b.txt')).readAsStringSync(), 'world');
+      expect(
+        File(p.join(destDir.path, 'd1', 'b.txt')).readAsStringSync(),
+        'world',
+      );
     });
 
     test('moveItemTo moves file to destination', () async {
-      final f1 = File(p.join(tempDir.path, 'a.txt'))..writeAsStringSync('hello');
+      final f1 = File(p.join(tempDir.path, 'a.txt'))
+        ..writeAsStringSync('hello');
       final destPath = p.join(tempDir.path, 'b.txt');
 
       await datasource.moveItemTo(f1.path, destPath);
@@ -154,32 +167,31 @@ void main() {
 
     test('moveItems moves multiple items with callbacks', () async {
       final destDir = Directory(p.join(tempDir.path, 'dest'))..createSync();
-      final f1 = File(p.join(tempDir.path, 'a.txt'))..writeAsStringSync('hello');
+      final f1 = File(p.join(tempDir.path, 'a.txt'))
+        ..writeAsStringSync('hello');
 
-      await datasource.moveItems(
-        [f1.path],
-        destDir.path,
-      );
+      await datasource.moveItems([f1.path], destDir.path);
 
       expect(File(p.join(destDir.path, 'a.txt')).readAsStringSync(), 'hello');
       expect(f1.existsSync(), isFalse);
     });
-    
-
   });
 
   group('LocalFileDatasource - Listing', () {
     test('listDirectory lists folders and files correctly', () async {
       final f1 = File(p.join(tempDir.path, 'a.txt'))..writeAsStringSync('a');
-      final f2 = File(p.join(tempDir.path, 'b.png'))..writeAsBytesSync([1, 2, 3]);
+      final f2 = File(p.join(tempDir.path, 'b.png'))
+        ..writeAsBytesSync([1, 2, 3]);
       final d1 = Directory(p.join(tempDir.path, 'dir1'))..createSync();
 
       final items = await datasource.listDirectory(tempDir.path);
 
       expect(items.length, 3);
-      final folders = items.where((e) => e.type == FileItemType.folder).toList();
+      final folders = items
+          .where((e) => e.type == FileItemType.folder)
+          .toList();
       final files = items.where((e) => e.type != FileItemType.folder).toList();
-      
+
       expect(folders.length, 1);
       expect(folders[0].name, 'dir1');
 
@@ -211,11 +223,12 @@ void main() {
 
       expect(childDir.existsSync(), isTrue);
     });
-    
+
     test('moveItemTo handles source inside destination', () async {
-      final parentDir = Directory(p.join(tempDir.path, 'parent2'))..createSync();
+      final parentDir = Directory(p.join(tempDir.path, 'parent2'))
+        ..createSync();
       File(p.join(parentDir.path, 'f.txt')).createSync();
-      final childDir = Directory(p.join(parentDir.path, 'child2')); 
+      final childDir = Directory(p.join(parentDir.path, 'child2'));
 
       await datasource.moveItemTo(parentDir.path, childDir.path);
 

@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -7,7 +6,7 @@ import 'package:onyxcore/features/audio_player/domain/utils/audio_queue_isolate.
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 void main() {
-// ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
   // Shared test infrastructure
   // ─────────────────────────────────────────────────────────────────────────
   late Directory tempDir;
@@ -79,8 +78,7 @@ void main() {
     // ── U-AUD-ISOLATE-02 ──
     test('includes folders that contain audio files', () {
       // Create real folder with 3 audio files on disk.
-      final subDir = Directory('${tempDir.path}/music_folder')
-        ..createSync();
+      final subDir = Directory('${tempDir.path}/music_folder')..createSync();
       File('${subDir.path}/track1.mp3').createSync();
       File('${subDir.path}/track2.wav').createSync();
       File('${subDir.path}/track3.flac').createSync();
@@ -105,8 +103,7 @@ void main() {
 
     // ── U-AUD-ISOLATE-03 ──
     test('excludes folders that contain zero audio files', () {
-      final subDir = Directory('${tempDir.path}/images_folder')
-        ..createSync();
+      final subDir = Directory('${tempDir.path}/images_folder')..createSync();
       File('${subDir.path}/photo1.jpg').createSync();
       File('${subDir.path}/photo2.png').createSync();
 
@@ -174,10 +171,8 @@ void main() {
     });
 
     // ── U-AUD-ISOLATE-06 ──
-    test('skips hidden sub-files in folder count when showHidden is false',
-        () {
-      final subDir = Directory('${tempDir.path}/mixed_folder')
-        ..createSync();
+    test('skips hidden sub-files in folder count when showHidden is false', () {
+      final subDir = Directory('${tempDir.path}/mixed_folder')..createSync();
       File('${subDir.path}/.hidden.mp3').createSync();
       File('${subDir.path}/visible.mp3').createSync();
 
@@ -199,10 +194,8 @@ void main() {
     });
 
     // ── U-AUD-ISOLATE-07 ──
-    test('counts hidden sub-files in folder count when showHidden is true',
-        () {
-      final subDir = Directory('${tempDir.path}/mixed_folder')
-        ..createSync();
+    test('counts hidden sub-files in folder count when showHidden is true', () {
+      final subDir = Directory('${tempDir.path}/mixed_folder')..createSync();
       File('${subDir.path}/.hidden.mp3').createSync();
       File('${subDir.path}/visible.mp3').createSync();
 
@@ -276,12 +269,10 @@ void main() {
 
     // ── U-AUD-ISOLATE-11 ──
     test('only scans one level deep (not recursive)', () {
-      final parentDir = Directory('${tempDir.path}/parent_music')
-        ..createSync();
+      final parentDir = Directory('${tempDir.path}/parent_music')..createSync();
       File('${parentDir.path}/top_level.mp3').createSync();
 
-      final nestedDir = Directory('${parentDir.path}/nested')
-        ..createSync();
+      final nestedDir = Directory('${parentDir.path}/nested')..createSync();
       File('${nestedDir.path}/nested_track.mp3').createSync();
 
       final items = [
@@ -365,8 +356,7 @@ void main() {
 
     // ── U-AUD-ISOLATE-14 ──
     test('handles folder containing mixed audio and non-audio files', () {
-      final subDir = Directory('${tempDir.path}/mixed_media')
-        ..createSync();
+      final subDir = Directory('${tempDir.path}/mixed_media')..createSync();
       File('${subDir.path}/track1.mp3').createSync();
       File('${subDir.path}/track2.flac').createSync();
       File('${subDir.path}/movie1.mp4').createSync();

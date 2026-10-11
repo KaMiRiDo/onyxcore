@@ -124,7 +124,9 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                       child: Container(
                         padding: EdgeInsets.all(4 * widget.zoom),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0F0F0).withValues(alpha: 0.95),
+                          color: const Color(
+                            0xFFF0F0F0,
+                          ).withValues(alpha: 0.95),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
@@ -201,10 +203,14 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                                     ),
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.18),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.18,
+                                        ),
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.40),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.40,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -279,7 +285,9 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF1A1A1A).withValues(alpha: 0.98),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.5),
@@ -337,9 +345,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
             child: SizedBox(
               width: 48,
               height: 48,
-              child: Center(
-                child: _buildItemPreview(scale: 0.4),
-              ),
+              child: Center(child: _buildItemPreview(scale: 0.4)),
             ),
           ),
         ),
@@ -416,7 +422,9 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           try {
             await repo.moveItems(details.data, widget.item.path);
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+            ref
+                .read(directoryItemsProvider.notifier)
+                .refresh(showLoader: false);
             ref.read(selectionProvider.notifier).deselectAll();
           } catch (e) {
             ref.read(taskProvider.notifier).failTask(taskId, e.toString());
@@ -498,7 +506,9 @@ class _ItemCardState extends ConsumerState<ItemCard> {
               );
               ref.read(taskProvider.notifier).completeTask(taskId);
               ref.read(selectionProvider.notifier).deselectAll();
-              ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+              ref
+                  .read(directoryItemsProvider.notifier)
+                  .refresh(showLoader: false);
             } catch (e) {
               ref.read(taskProvider.notifier).failTask(taskId, e.toString());
               ScaffoldMessenger.of(
@@ -611,7 +621,9 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                         rethrow;
                       }
                     }
-                    ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+                    ref
+                        .read(directoryItemsProvider.notifier)
+                        .refresh(showLoader: false);
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Error renaming: $e')),
@@ -705,7 +717,9 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                   ref.read(selectionProvider.notifier).deselectAll();
                   ref.read(selectionProvider.notifier).selectMultiple(newPaths);
                 }
-                ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+                ref
+                    .read(directoryItemsProvider.notifier)
+                    .refresh(showLoader: false);
               } catch (e) {
                 ScaffoldMessenger.of(
                   context,
@@ -773,10 +787,14 @@ class _ItemCardState extends ConsumerState<ItemCard> {
               },
             );
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+            ref
+                .read(directoryItemsProvider.notifier)
+                .refresh(showLoader: false);
           } catch (e) {
             // Rollback: restore optimistically removed items
-            ref.read(directoryItemsProvider.notifier).restoreItems(removedItems);
+            ref
+                .read(directoryItemsProvider.notifier)
+                .restoreItems(removedItems);
             ref.read(taskProvider.notifier).failTask(taskId, e.toString());
             ScaffoldMessenger.of(
               context,
@@ -802,10 +820,8 @@ class _ItemCardState extends ConsumerState<ItemCard> {
         onTap: () {
           showDialog<dynamic>(
             context: context,
-            builder: (context) => PropertiesDialog(
-              paths: paths,
-              isInTrash: isInTrash,
-            ),
+            builder: (context) =>
+                PropertiesDialog(paths: paths, isInTrash: isInTrash),
           );
         },
       ),
@@ -828,9 +844,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
       if (isSvg) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: SvgPicture.file(
-            File(widget.item.path),
-          ),
+          child: SvgPicture.file(File(widget.item.path)),
         );
       }
       return MediaThumbnailPreview(

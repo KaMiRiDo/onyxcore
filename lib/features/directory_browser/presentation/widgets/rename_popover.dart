@@ -46,7 +46,6 @@ class RenamePopover {
 }
 
 class _RenamePopoverWidget extends StatefulWidget {
-
   const _RenamePopoverWidget({
     required this.position,
     required this.paths,
@@ -137,10 +136,7 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
         widget.onClose();
       }
     } else {
-      widget.onRename({
-        'mode': _bulkMode,
-        'value': value,
-      });
+      widget.onRename({'mode': _bulkMode, 'value': value});
     }
   }
 
@@ -202,7 +198,9 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
                   decoration: BoxDecoration(
                     color: backgroundColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.5),
@@ -242,7 +240,9 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
                           border: Border.all(
                             color: _hasConflict
                                 ? AppColors.error.withValues(alpha: 0.5)
-                                : const Color(0xFF007AFF).withValues(alpha: 0.5),
+                                : const Color(
+                                    0xFF007AFF,
+                                  ).withValues(alpha: 0.5),
                           ),
                         ),
                         child: TextField(
@@ -389,7 +389,6 @@ class _RenamePopoverWidgetState extends State<_RenamePopoverWidget> {
 }
 
 class _TrianglePainter extends CustomPainter {
-
   _TrianglePainter({required this.color, required this.isUp});
   final Color color;
   final bool isUp;

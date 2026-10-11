@@ -6,10 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 
 class ContextMenuItem {
-
   const ContextMenuItem({
     required this.title,
-    required this.onTap, this.icon,
+    required this.onTap,
+    this.icon,
     this.isDestructive = false,
     this.shortcut,
     this.isDivider = false,
@@ -19,11 +19,7 @@ class ContextMenuItem {
   });
 
   factory ContextMenuItem.divider() {
-    return ContextMenuItem(
-      title: '',
-      onTap: () {},
-      isDivider: true,
-    );
+    return ContextMenuItem(title: '', onTap: () {}, isDivider: true);
   }
   final String title;
   final IconData? icon;
@@ -47,11 +43,8 @@ class ContextMenu {
     hide();
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => _ContextMenuWidget(
-        position: position,
-        items: items,
-        onClose: hide,
-      ),
+      builder: (context) =>
+          _ContextMenuWidget(position: position, items: items, onClose: hide),
     );
 
     Overlay.of(context).insert(_overlayEntry!);
@@ -64,7 +57,6 @@ class ContextMenu {
 }
 
 class _ContextMenuWidget extends StatefulWidget {
-
   const _ContextMenuWidget({
     required this.position,
     required this.items,
@@ -145,7 +137,9 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1E1E1E).withValues(alpha: 0.85),
+                            color: const Color(
+                              0xFF1E1E1E,
+                            ).withValues(alpha: 0.85),
                             border: const Border(
                               left: BorderSide(color: Colors.white12),
                               bottom: BorderSide(color: Colors.white12),
@@ -175,7 +169,9 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
                           width: menuWidth,
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF181818).withValues(alpha: 0.95),
+                            color: const Color(
+                              0xFF181818,
+                            ).withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.06),
@@ -207,10 +203,7 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
                       left: -12,
                       top: 0,
                       bottom: 0,
-                      child: Container(
-                        width: 12,
-                        color: Colors.transparent,
-                      ),
+                      child: Container(width: 12, color: Colors.transparent),
                     ),
                 ],
               ),
@@ -223,7 +216,6 @@ class _ContextMenuWidgetState extends State<_ContextMenuWidget> {
 }
 
 class _ContextMenuItemWidget extends StatefulWidget {
-
   const _ContextMenuItemWidget({
     required this.item,
     required this.onTap,
@@ -373,7 +365,9 @@ class _ContextMenuItemWidgetState extends State<_ContextMenuItemWidget> {
                 Text(
                   widget.item.shortcut!,
                   style: GoogleFonts.manrope(
-                    color: Colors.white.withValues(alpha: isEnabled ? 0.38 : 0.15),
+                    color: Colors.white.withValues(
+                      alpha: isEnabled ? 0.38 : 0.15,
+                    ),
                     fontSize: 12,
                   ),
                 ),

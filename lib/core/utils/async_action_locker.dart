@@ -5,7 +5,10 @@ class AsyncActionLocker {
   bool _isLocked = false;
   bool get isLocked => _isLocked;
 
-  Future<void> execute(Future<void> Function() action, {VoidCallback? onLockStateChanged}) async {
+  Future<void> execute(
+    Future<void> Function() action, {
+    VoidCallback? onLockStateChanged,
+  }) async {
     if (_isLocked) return;
     _isLocked = true;
     onLockStateChanged?.call();

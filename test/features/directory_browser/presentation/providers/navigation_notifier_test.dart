@@ -11,6 +11,7 @@ import 'package:onyxcore/features/settings/domain/repositories/settings_reposito
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 
 class MockSettingsRepository extends Mock implements SettingsRepository {}
+
 class MockSettingsNotifier extends SettingsNotifier {
   @override
   Future<AppSettings> build() async => AppSettings();
@@ -37,7 +38,7 @@ void main() {
         ],
       );
       // Initialize tab manager with a default tab to avoid StateError
-      // Wait a few milliseconds to ensure the new tab gets a unique ID 
+      // Wait a few milliseconds to ensure the new tab gets a unique ID
       // based on DateTime.now().millisecondsSinceEpoch
       await Future<void>.delayed(const Duration(milliseconds: 5));
       container.read(tabManagerProvider.notifier).addTab(path: initialPath);
@@ -56,7 +57,7 @@ void main() {
     test('initialize is a no-op', () {
       final notifier = container.read(navigationProvider.notifier);
       notifier.initialize('/new/path');
-      
+
       final state = container.read(navigationProvider);
       expect(state.history, [initialPath]);
       expect(state.historyIndex, 0);
@@ -65,7 +66,7 @@ void main() {
     test('navigateTo updates tab manager path and history', () {
       final notifier = container.read(navigationProvider.notifier);
       notifier.navigateTo('/new/path');
-      
+
       final state = container.read(navigationProvider);
       expect(state.history, [initialPath, '/new/path']);
       expect(state.historyIndex, 1);
@@ -94,9 +95,9 @@ void main() {
       notifier.navigateTo('/mnt/usb1/folder2');
 
       final result = notifier.handleEject('/mnt/usb1');
-      
+
       expect(result, initialPath);
-      
+
       final stateAfter = container.read(navigationProvider);
       expect(stateAfter.history.last, initialPath);
     });

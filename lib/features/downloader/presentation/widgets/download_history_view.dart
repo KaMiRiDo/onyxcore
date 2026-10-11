@@ -181,7 +181,10 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.02),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04), width: 0.5),
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.04),
+            width: 0.5,
+          ),
         ),
       ),
       child: Row(
@@ -278,7 +281,9 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
         child: Icon(
           icon,
           size: 14,
-          color: active ? AppColors.violet : Colors.white.withValues(alpha: 0.4),
+          color: active
+              ? AppColors.violet
+              : Colors.white.withValues(alpha: 0.4),
         ),
       ),
     );
@@ -899,7 +904,9 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
               child: Icon(
                 typeIcon,
                 size: 16,
-                color: isSelected ? Colors.white : typeColor.withValues(alpha: 0.8),
+                color: isSelected
+                    ? Colors.white
+                    : typeColor.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(width: 12),
@@ -1038,11 +1045,7 @@ class _DownloadHistoryViewState extends ConsumerState<DownloadHistoryView> {
 }
 
 class _ClearHistoryDialog extends ConsumerStatefulWidget {
-
-  const _ClearHistoryDialog({
-    required this.onCancel,
-    required this.onConfirm,
-  });
+  const _ClearHistoryDialog({required this.onCancel, required this.onConfirm});
   final VoidCallback onCancel;
   final void Function(DownloadHistoryFilter?) onConfirm;
 
@@ -1091,10 +1094,7 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
             _customOps
                 ? 'Select what you want to remove'
                 : 'Are you sure you want to clear all download history?',
-            style: GoogleFonts.manrope(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
+            style: GoogleFonts.manrope(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 16),
 
@@ -1188,7 +1188,9 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
                 decoration: BoxDecoration(
                   color: Colors.black26,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1254,7 +1256,6 @@ class _ClearHistoryDialogState extends ConsumerState<_ClearHistoryDialog> {
 }
 
 class _DeleteConfirmDialog extends StatelessWidget {
-
   const _DeleteConfirmDialog({
     required this.title,
     required this.message,
@@ -1300,10 +1301,7 @@ class _DeleteConfirmDialog extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             message,
-            style: GoogleFonts.manrope(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
+            style: GoogleFonts.manrope(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 24),
           Row(
@@ -1347,7 +1345,6 @@ class _DeleteConfirmDialog extends StatelessWidget {
 }
 
 class _SimpleCalendar extends StatefulWidget {
-
   const _SimpleCalendar({
     required this.selectedDates,
     required this.availableDates,

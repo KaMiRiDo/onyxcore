@@ -7,7 +7,9 @@ void main() {
   late Directory tempDir;
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('file_picker_preview_pane_test');
+    tempDir = Directory.systemTemp.createTempSync(
+      'file_picker_preview_pane_test',
+    );
   });
 
   tearDown(() {
@@ -17,9 +19,7 @@ void main() {
   testWidgets('renders empty state correctly', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: FilePickerPreviewPane(selectedPaths: []),
-        ),
+        home: Scaffold(body: FilePickerPreviewPane(selectedPaths: [])),
       ),
     );
 
@@ -27,7 +27,9 @@ void main() {
     expect(find.byIcon(Icons.remove_red_eye_rounded), findsOneWidget);
   });
 
-  testWidgets('renders multiple files with appropriate metadata', (tester) async {
+  testWidgets('renders multiple files with appropriate metadata', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 2000); // make it tall enough
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
@@ -57,7 +59,7 @@ void main() {
     expect(find.text('unknown.bin'), findsOneWidget);
 
     expect(find.text('Size unknown'), findsNWidgets(5));
-    
+
     // Check specific icons for the placeholders
     expect(find.byIcon(Icons.description_rounded), findsOneWidget);
     expect(find.byIcon(Icons.movie_rounded), findsOneWidget);
@@ -65,10 +67,15 @@ void main() {
     expect(find.byIcon(Icons.insert_drive_file_rounded), findsOneWidget);
   });
 
-  testWidgets('renders file size correctly based on size ranges', (tester) async {
-    final file1 = File('${tempDir.path}/small.txt')..writeAsBytesSync(List.filled(500, 0)); // 500 B
-    final file2 = File('${tempDir.path}/medium.txt')..writeAsBytesSync(List.filled(2048, 0)); // 2.0 KB
-    final file3 = File('${tempDir.path}/large.txt')..writeAsBytesSync(List.filled(1572864, 0)); // 1.5 MB
+  testWidgets('renders file size correctly based on size ranges', (
+    tester,
+  ) async {
+    final file1 = File('${tempDir.path}/small.txt')
+      ..writeAsBytesSync(List.filled(500, 0)); // 500 B
+    final file2 = File('${tempDir.path}/medium.txt')
+      ..writeAsBytesSync(List.filled(2048, 0)); // 2.0 KB
+    final file3 = File('${tempDir.path}/large.txt')
+      ..writeAsBytesSync(List.filled(1572864, 0)); // 1.5 MB
 
     await tester.pumpWidget(
       MaterialApp(
@@ -89,9 +96,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: FilePickerPreviewPane(
-            selectedPaths: ['/fake/path/1.txt'],
-          ),
+          body: FilePickerPreviewPane(selectedPaths: ['/fake/path/1.txt']),
         ),
       ),
     );

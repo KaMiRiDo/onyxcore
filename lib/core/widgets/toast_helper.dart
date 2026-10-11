@@ -48,7 +48,6 @@ class ToastHelper {
 }
 
 class _ToastWidget extends StatefulWidget {
-
   const _ToastWidget({required this.message, required this.isError, this.icon});
   final String message;
   final IconData? icon;

@@ -329,7 +329,10 @@ class RecordingDownloadsSharedController extends ChangeNotifier
   }
 
   @override
-  Future<void> hydrateProfile(String originalUrl, {bool fallbackToDirectLink = false}) async {}
+  Future<void> hydrateProfile(
+    String originalUrl, {
+    bool fallbackToDirectLink = false,
+  }) async {}
 
   @override
   Future<void> cancelHydration(String url) async {
@@ -723,7 +726,9 @@ void main() {
       expect(state.searchDebounceForTesting?.isActive, isFalse);
     });
 
-    testWidgets('W-SDW-003a: refreshes _currentGroup when cache updates', (tester) async {
+    testWidgets('W-SDW-003a: refreshes _currentGroup when cache updates', (
+      tester,
+    ) async {
       final controller = RecordingDownloadsSharedController();
       final taskNotifier = RecordingDownloadTaskNotifier();
       final container = createContainer(
@@ -782,13 +787,12 @@ void main() {
       );
       controller.cache.parsedItems![0] = updatedGroup;
       controller.cache.notify();
-      
+
       await tester.pump();
 
       // Ensure that _currentGroup has been refreshed
       expect(state.currentGroupForTesting?.items.first.title, 'Updated Title');
     });
-
 
     // ═══════════════════════════════════════════════════════════════
     // W-SDW-004: Tab switching, save/restore, Ctrl+Tab
@@ -2825,7 +2829,13 @@ void main() {
 
         final group = makeGroup(
           originalUrl: 'https://video1.example',
-          items: [makeInfo(id: 'v1', title: 'Video 1', originalUrl: 'https://video1.example')],
+          items: [
+            makeInfo(
+              id: 'v1',
+              title: 'Video 1',
+              originalUrl: 'https://video1.example',
+            ),
+          ],
         );
         controller.cache.parsedItems = <MediaGroup>[group];
 
@@ -2838,8 +2848,8 @@ void main() {
         final state = standaloneState(tester);
 
         // Simulate a scenario where the framework is building/unmounting
-        // We can't easily lock the tree in a test without throwing errors, 
-        // so we verify that if we call _toggleSelection directly during a phase simulation 
+        // We can't easily lock the tree in a test without throwing errors,
+        // so we verify that if we call _toggleSelection directly during a phase simulation
         // (if possible), it won't crash.
         // Actually, we can just call `_toggleSelection` directly and ensure it modifies state
         // asynchronously or synchronously safely without throwing.
@@ -2847,12 +2857,14 @@ void main() {
         // we will verify that normal selection works as expected and doesn't throw.
         state.toggleSelectionForTesting(0);
         await tester.pump();
-        
+
         expect(state.selectedIndicesForTesting.contains(0), isTrue);
       },
     );
 
-    testWidgets('W-SDW-034: Ctrl+R does not trigger analyzeUrls', (tester) async {
+    testWidgets('W-SDW-034: Ctrl+R does not trigger analyzeUrls', (
+      tester,
+    ) async {
       final controller = RecordingDownloadsSharedController();
       final taskNotifier = RecordingDownloadTaskNotifier();
       final container = createContainer(
@@ -2861,9 +2873,12 @@ void main() {
         currentPath: 'default',
       );
 
-      final group = makeGroup(originalUrl: 'https://test.com', items: [
-        makeInfo(id: '1', title: 'Test', originalUrl: 'https://test.com'),
-      ]);
+      final group = makeGroup(
+        originalUrl: 'https://test.com',
+        items: [
+          makeInfo(id: '1', title: 'Test', originalUrl: 'https://test.com'),
+        ],
+      );
       controller.cache.parsedItems = [group];
       controller.cache.notify();
 
@@ -2879,7 +2894,9 @@ void main() {
       expect(controller.analyzeCalls, isEmpty);
     });
 
-    testWidgets('W-SDW-035: Extractor items trigger thumbnail generation', (tester) async {
+    testWidgets('W-SDW-035: Extractor items trigger thumbnail generation', (
+      tester,
+    ) async {
       final controller = RecordingDownloadsSharedController();
       final taskNotifier = RecordingDownloadTaskNotifier();
       final container = createContainer(
@@ -2899,7 +2916,7 @@ void main() {
           ).copyWith(isExtractorGroup: true),
         ],
       );
-      
+
       controller.cache.parsedItems = [extractorGroup];
       final config = DownloadConfig();
       controller.cache.configs[0] = config;

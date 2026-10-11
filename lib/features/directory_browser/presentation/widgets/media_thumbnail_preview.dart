@@ -238,7 +238,6 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
     }
 
     if (_cachedThumbPath == null) {
-
       try {
         final postLookup = cacheService.lookup(
           filePath: filePath,
@@ -380,7 +379,6 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
     if (_isBroken || _hasError) {
       return _buildBrokenPlaceholder();
     }
-
 
     if (_cachedThumbPath != null) {
       if (widget.item.type == FileItemType.image) {

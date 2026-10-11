@@ -26,31 +26,44 @@ void main() {
     await db.close();
   });
 
-  testWidgets('Next and Prev buttons work in standalone mode', (WidgetTester tester) async {
-    final file1 = FileItem(path: '/test/video1.mp4', name: 'video1.mp4', type: FileItemType.video, modified: DateTime.now());
-    final file2 = FileItem(path: '/test/video2.mp4', name: 'video2.mp4', type: FileItemType.video, modified: DateTime.now());
-    final file3 = FileItem(path: '/test/video3.mp4', name: 'video3.mp4', type: FileItemType.video, modified: DateTime.now());
-    
+  testWidgets('Next and Prev buttons work in standalone mode', (
+    WidgetTester tester,
+  ) async {
+    final file1 = FileItem(
+      path: '/test/video1.mp4',
+      name: 'video1.mp4',
+      type: FileItemType.video,
+      modified: DateTime.now(),
+    );
+    final file2 = FileItem(
+      path: '/test/video2.mp4',
+      name: 'video2.mp4',
+      type: FileItemType.video,
+      modified: DateTime.now(),
+    );
+    final file3 = FileItem(
+      path: '/test/video3.mp4',
+      name: 'video3.mp4',
+      type: FileItemType.video,
+      modified: DateTime.now(),
+    );
+
     final playlist = [file1, file2, file3];
     final playlistJson = jsonEncode(playlist.map((e) => e.toJson()).toList());
 
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
-    
+
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-        ],
+        overrides: [databaseProvider.overrideWithValue(db)],
         child: MaterialApp(
           home: Scaffold(
             body: VideoPreviewWidget(
               item: file2,
               isStandalone: true,
               windowId: '1',
-              initParams: {
-                'playlistJson': playlistJson,
-              },
+              initParams: {'playlistJson': playlistJson},
             ),
           ),
         ),
@@ -60,15 +73,15 @@ void main() {
     // Initial load
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    
+
     final element = tester.element(find.byType(VideoPreviewWidget));
     final container = ProviderScope.containerOf(element);
 
     expect(container.read(previewFileProvider)?.path, '/test/video2.mp4');
-    
+
     final nextButton = find.byIcon(Icons.skip_next);
     expect(nextButton, findsOneWidget);
-    
+
     await tester.tap(nextButton);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -77,19 +90,19 @@ void main() {
 
     final prevButton = find.byIcon(Icons.skip_previous);
     expect(prevButton, findsOneWidget);
-    
+
     await tester.tap(prevButton);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    
+
     expect(container.read(previewFileProvider)?.path, '/test/video2.mp4');
-    
+
     await tester.tap(prevButton);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    
+
     expect(container.read(previewFileProvider)?.path, '/test/video1.mp4');
-    
+
     // Cleanup
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));

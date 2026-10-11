@@ -509,7 +509,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                                     Text(
                                       'Execution Logs',
                                       style: GoogleFonts.outfit(
-                                        color: Colors.white.withValues(alpha: 0.9),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -980,7 +982,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                     ),
                     TextSpan(
                       text: '  →  ',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.1)),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
                     ),
                     TextSpan(
                       text: p.basename(newPath),
@@ -989,7 +993,9 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
                             ? AppColors.violet
                             : Colors.white.withValues(alpha: 0.2),
                         decoration: exists ? TextDecoration.underline : null,
-                        decorationColor: AppColors.violet.withValues(alpha: 0.4),
+                        decorationColor: AppColors.violet.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
                     ),
                   ],
@@ -1071,7 +1077,10 @@ class _TaskHistoryDetailViewState extends ConsumerState<TaskHistoryDetailView> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04), width: 0.5),
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.04),
+            width: 0.5,
+          ),
         ),
       ),
       child: Row(

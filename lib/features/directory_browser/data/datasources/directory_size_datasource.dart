@@ -3,7 +3,9 @@ import 'dart:isolate';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final directorySizeDatasourceProvider = Provider<DirectorySizeDatasource>((ref) {
+final directorySizeDatasourceProvider = Provider<DirectorySizeDatasource>((
+  ref,
+) {
   return DirectorySizeDatasource();
 });
 
@@ -11,7 +13,7 @@ class DirectorySizeDatasource {
   Future<Map<String, int>> getDirectorySizes(List<String> paths) async {
     return Isolate.run(() {
       final result = <String, int>{};
-      
+
       if (Platform.isLinux || Platform.isMacOS) {
         const chunkSize = 500;
         for (var i = 0; i < paths.length; i += chunkSize) {
@@ -52,7 +54,7 @@ class DirectorySizeDatasource {
     if (!Platform.isLinux && !Platform.isMacOS) {
       return Isolate.run(() => _getDirectorySizeSync(path));
     }
-    
+
     try {
       final result = await Process.run('du', ['-sb', path]);
       if (result.exitCode == 0) {
@@ -63,7 +65,7 @@ class DirectorySizeDatasource {
         }
       }
     } catch (_) {}
-    
+
     return Isolate.run(() => _getDirectorySizeSync(path));
   }
 
@@ -72,7 +74,7 @@ class DirectorySizeDatasource {
       var totalSize = 0;
       final dir = Directory(path);
       if (!dir.existsSync()) return null;
-      
+
       final entities = dir.listSync(recursive: true, followLinks: false);
       for (final entity in entities) {
         if (entity is File) {

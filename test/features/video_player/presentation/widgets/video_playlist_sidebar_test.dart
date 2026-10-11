@@ -13,6 +13,7 @@ import 'package:onyxcore/features/video_player/presentation/providers/video_play
 import 'package:onyxcore/features/video_player/presentation/widgets/video_playlist_sidebar.dart';
 
 class MockDirectoryRepository extends Mock implements DirectoryRepository {}
+
 class MockAppDatabase extends Mock implements AppDatabase {}
 
 void main() {
@@ -23,17 +24,18 @@ void main() {
     setUp(() {
       mockDirectoryRepo = MockDirectoryRepository();
       mockDb = MockAppDatabase();
-      
-      when(() => mockDirectoryRepo.watchDirectory(any()))
-          .thenAnswer((_) => const Stream.empty());
-      when(() => mockDirectoryRepo.listDirectory(any()))
-          .thenAnswer((_) async => []);
-      when(() => mockDb.getVideoFavorites())
-          .thenAnswer((_) async => <String>{});
-      when(() => mockDb.addVideoFavorite(any()))
-          .thenAnswer((_) async {});
-      when(() => mockDb.removeVideoFavorite(any()))
-          .thenAnswer((_) async {});
+
+      when(
+        () => mockDirectoryRepo.watchDirectory(any()),
+      ).thenAnswer((_) => const Stream.empty());
+      when(
+        () => mockDirectoryRepo.listDirectory(any()),
+      ).thenAnswer((_) async => []);
+      when(
+        () => mockDb.getVideoFavorites(),
+      ).thenAnswer((_) async => <String>{});
+      when(() => mockDb.addVideoFavorite(any())).thenAnswer((_) async {});
+      when(() => mockDb.removeVideoFavorite(any())).thenAnswer((_) async {});
     });
 
     Widget buildTestWidget({
@@ -52,9 +54,7 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: VideoPlaylistSidebar(
-              onVideoSelected: onVideoSelected,
-            ),
+            body: VideoPlaylistSidebar(onVideoSelected: onVideoSelected),
           ),
         ),
       );
@@ -77,9 +77,7 @@ void main() {
         modified: DateTime.now(),
       );
 
-      await tester.pumpWidget(
-        buildTestWidget(initialQueue: [file1, folder1]),
-      );
+      await tester.pumpWidget(buildTestWidget(initialQueue: [file1, folder1]));
       await tester.pumpAndSettle();
 
       expect(find.text('video.mp4'), findsOneWidget);
@@ -130,10 +128,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        buildTestWidget(
-          initialQueue: [file1],
-          currentPreviewFile: file1,
-        ),
+        buildTestWidget(initialQueue: [file1], currentPreviewFile: file1),
       );
       await tester.pumpAndSettle();
 
@@ -141,9 +136,7 @@ void main() {
     });
 
     testWidgets('bottom nav taps update view mode provider', (tester) async {
-      await tester.pumpWidget(
-        buildTestWidget(initialQueue: []),
-      );
+      await tester.pumpWidget(buildTestWidget(initialQueue: []));
       await tester.pumpAndSettle();
 
       final homeBtn = find.byIcon(Icons.home_rounded);
@@ -156,20 +149,22 @@ void main() {
         await tester.pumpAndSettle();
       }
     });
-    testWidgets('shows favorites empty state text in favorites mode', (tester) async {
+    testWidgets('shows favorites empty state text in favorites mode', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             databaseProvider.overrideWithValue(mockDb),
             directoryRepositoryProvider.overrideWithValue(mockDirectoryRepo),
             videoQueueProvider.overrideWith((ref) => []),
-            videoViewModeProvider.overrideWith((ref) => VideoViewMode.favorites),
+            videoViewModeProvider.overrideWith(
+              (ref) => VideoViewMode.favorites,
+            ),
             videoIsEmptyProvider.overrideWith((ref) => true),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoPlaylistSidebar(),
-            ),
+            home: Scaffold(body: VideoPlaylistSidebar()),
           ),
         ),
       );
@@ -178,34 +173,37 @@ void main() {
       expect(find.text('No favorite files in this folder'), findsOneWidget);
     });
 
-    testWidgets('shows active indicator when playing track is inside a folder', (tester) async {
-      final folder1 = FileItem(
-        name: 'MyFolder',
-        path: '/MyFolder',
-        sizeBytes: 0,
-        itemCount: 3,
-        type: FileItemType.folder,
-        modified: DateTime.now(),
-      );
-      
-      final playingFile = FileItem(
-        name: 'video.mp4',
-        path: '/MyFolder/video.mp4',
-        sizeBytes: 1024 * 1024 * 5,
-        type: FileItemType.video,
-        modified: DateTime.now(),
-      );
+    testWidgets(
+      'shows active indicator when playing track is inside a folder',
+      (tester) async {
+        final folder1 = FileItem(
+          name: 'MyFolder',
+          path: '/MyFolder',
+          sizeBytes: 0,
+          itemCount: 3,
+          type: FileItemType.folder,
+          modified: DateTime.now(),
+        );
 
-      await tester.pumpWidget(
-        buildTestWidget(
-          initialQueue: [folder1],
-          currentPreviewFile: playingFile,
-        ),
-      );
-      await tester.pumpAndSettle();
+        final playingFile = FileItem(
+          name: 'video.mp4',
+          path: '/MyFolder/video.mp4',
+          sizeBytes: 1024 * 1024 * 5,
+          type: FileItemType.video,
+          modified: DateTime.now(),
+        );
 
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
-    });
+        await tester.pumpWidget(
+          buildTestWidget(
+            initialQueue: [folder1],
+            currentPreviewFile: playingFile,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      },
+    );
 
     testWidgets('builds context menu items correctly', (tester) async {
       final file1 = FileItem(
@@ -216,11 +214,7 @@ void main() {
         modified: DateTime.now(),
       );
 
-      await tester.pumpWidget(
-        buildTestWidget(
-          initialQueue: [file1],
-        ),
-      );
+      await tester.pumpWidget(buildTestWidget(initialQueue: [file1]));
       await tester.pumpAndSettle();
 
       final state = tester.state(find.byType(VideoPlaylistSidebar)) as dynamic;
@@ -235,7 +229,7 @@ void main() {
       expect(menuItems[2].title, 'Copy Item');
       expect(menuItems[3].title, 'Move Item');
       expect(menuItems[4].title, 'Rename Item');
-      
+
       // Test the get isCurrentlyPlaying getter
       expect(state.isCurrentlyPlaying, false);
     });
@@ -248,9 +242,9 @@ void main() {
         type: FileItemType.video,
         modified: DateTime.now(),
       );
-      
+
       List<String>? deletedPaths;
-      
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -285,7 +279,9 @@ void main() {
       expect(deletedPaths, [file1.path]);
     });
 
-    testWidgets('executes context menu actions when callbacks are null', (tester) async {
+    testWidgets('executes context menu actions when callbacks are null', (
+      tester,
+    ) async {
       final file1 = FileItem(
         name: 'video.mp4',
         path: '/video.mp4',
@@ -293,7 +289,7 @@ void main() {
         type: FileItemType.video,
         modified: DateTime.now(),
       );
-      
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -304,9 +300,7 @@ void main() {
             videoIsEmptyProvider.overrideWith((ref) => false),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoPlaylistSidebar(),
-            ),
+            home: Scaffold(body: VideoPlaylistSidebar()),
           ),
         ),
       );
@@ -322,13 +316,13 @@ void main() {
       // Trigger delete (onDelete is null, so it calls directoryRepository.moveToTrash)
       when(() => mockDirectoryRepo.moveToTrash(any())).thenAnswer((_) async {});
       menuItems[0].onTap?.call();
-      
-      // Trigger other actions. We don't pump after these because they open dialogs 
+
+      // Trigger other actions. We don't pump after these because they open dialogs
       // that might cause render overflows in tests.
-      menuItems[2].onTap?.call(); 
-      menuItems[3].onTap?.call(); 
-      menuItems[4].onTap?.call(); 
-      
+      menuItems[2].onTap?.call();
+      menuItems[3].onTap?.call();
+      menuItems[4].onTap?.call();
+
       // Hit onFavoritesNavTap directly
       state.onFavoritesNavTap();
     });
@@ -350,7 +344,8 @@ void main() {
                     children: [
                       ElevatedButton(
                         onPressed: () {
-                          ref.read(videoCurrentPathProvider.notifier).state = '/new/path';
+                          ref.read(videoCurrentPathProvider.notifier).state =
+                              '/new/path';
                         },
                         child: const Text('Change Path'),
                       ),
@@ -367,10 +362,12 @@ void main() {
 
       await tester.tap(find.text('Change Path'));
       await tester.pumpAndSettle();
-      
+
       // If it triggers setupWatcher and refreshQueue without errors, it's successful.
       // mockDirectoryRepo.listDirectory is called.
-      verify(() => mockDirectoryRepo.listDirectory(any())).called(greaterThan(0));
+      verify(
+        () => mockDirectoryRepo.listDirectory(any()),
+      ).called(greaterThan(0));
     });
   });
 }

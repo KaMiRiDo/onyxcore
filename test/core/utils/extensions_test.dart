@@ -16,14 +16,21 @@ void main() {
     test('toMmSs formats as MM:SS', () {
       expect(const Duration(seconds: 45).toMmSs(), '00:45');
       expect(const Duration(minutes: 3, seconds: 45).toMmSs(), '03:45');
-      expect(const Duration(hours: 1, minutes: 2, seconds: 3).toMmSs(), '62:03');
+      expect(
+        const Duration(hours: 1, minutes: 2, seconds: 3).toMmSs(),
+        '62:03',
+      );
     });
 
     test('toHhMmSsMss formats as HH:MM:SS.MMM', () {
       expect(const Duration(seconds: 45).toHhMmSsMss(), '00:00:45.000');
       expect(
-        const Duration(hours: 1, minutes: 2, seconds: 3, milliseconds: 123)
-            .toHhMmSsMss(),
+        const Duration(
+          hours: 1,
+          minutes: 2,
+          seconds: 3,
+          milliseconds: 123,
+        ).toHhMmSsMss(),
         '01:02:03.123',
       );
     });

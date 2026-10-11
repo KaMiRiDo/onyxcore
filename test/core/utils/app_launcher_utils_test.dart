@@ -87,12 +87,15 @@ void main() {
   });
 
   group('AppLauncherUtils', () {
-    test('scans apps, parses desktop files, and handles NoDisplay correctly', () async {
-      await IOOverrides.runWithIOOverrides(() async {
-        final appsDir = Directory('${tempDir.path}/applications')..createSync(recursive: true);
+    test(
+      'scans apps, parses desktop files, and handles NoDisplay correctly',
+      () async {
+        await IOOverrides.runWithIOOverrides(() async {
+          final appsDir = Directory('${tempDir.path}/applications')
+            ..createSync(recursive: true);
 
-        // Valid app
-        File('${appsDir.path}/test-app.desktop').writeAsStringSync('''
+          // Valid app
+          File('${appsDir.path}/test-app.desktop').writeAsStringSync('''
 [Desktop Entry]
 Name=Test App
 Exec=test-app %f
@@ -101,16 +104,16 @@ MimeType=image/png;image/jpeg;
 NoDisplay=false
 ''');
 
-        // Hidden app (NoDisplay=true)
-        File('${appsDir.path}/hidden-app.desktop').writeAsStringSync('''
+          // Hidden app (NoDisplay=true)
+          File('${appsDir.path}/hidden-app.desktop').writeAsStringSync('''
 [Desktop Entry]
 Name=Hidden App
 Exec=hidden-app
 NoDisplay=true
 ''');
 
-        // Invalid line / comments
-        File('${appsDir.path}/invalid-app.desktop').writeAsStringSync('''
+          // Invalid line / comments
+          File('${appsDir.path}/invalid-app.desktop').writeAsStringSync('''
 # Comments here
 [Some Other Entry]
 Name=Invalid
@@ -119,54 +122,75 @@ Name=Invalid App
 Exec=invalid-app
 ''');
 
-        await AppLauncherUtils.refresh();
+          await AppLauncherUtils.refresh();
 
-        final apps = AppLauncherUtils.cachedApps;
-        expect(apps.any((app) => app.id == 'test-app'), isTrue);
-        expect(apps.any((app) => app.id == 'hidden-app'), isFalse);
-        expect(apps.any((app) => app.id == 'invalid-app'), isTrue); // valid entry was found after header switch
-      }, MockAppLauncherIOOverrides(tempDir));
-    });
+          final apps = AppLauncherUtils.cachedApps;
+          expect(apps.any((app) => app.id == 'test-app'), isTrue);
+          expect(apps.any((app) => app.id == 'hidden-app'), isFalse);
+          expect(
+            apps.any((app) => app.id == 'invalid-app'),
+            isTrue,
+          ); // valid entry was found after header switch
+        }, MockAppLauncherIOOverrides(tempDir));
+      },
+    );
 
-    test('pre-scans icons with priority: scalable > high-res > low-res', () async {
-      await IOOverrides.runWithIOOverrides(() async {
-        final iconsDir = Directory('${tempDir.path}/icons')..createSync(recursive: true);
+    test(
+      'pre-scans icons with priority: scalable > high-res > low-res',
+      () async {
+        await IOOverrides.runWithIOOverrides(() async {
+          final iconsDir = Directory('${tempDir.path}/icons')
+            ..createSync(recursive: true);
 
-        // We want to test different resolution paths
-        final path48 = Directory('${iconsDir.path}/48x48/apps')..createSync(recursive: true);
-        final path256 = Directory('${iconsDir.path}/256x256/apps')..createSync(recursive: true);
-        final pathScalable = Directory('${iconsDir.path}/scalable/apps')..createSync(recursive: true);
+          // We want to test different resolution paths
+          final path48 = Directory('${iconsDir.path}/48x48/apps')
+            ..createSync(recursive: true);
+          final path256 = Directory('${iconsDir.path}/256x256/apps')
+            ..createSync(recursive: true);
+          final pathScalable = Directory('${iconsDir.path}/scalable/apps')
+            ..createSync(recursive: true);
 
-        File('${path48.path}/test-icon.png').createSync();
-        File('${path256.path}/test-icon.png').createSync();
-        final fileScalable = File('${pathScalable.path}/test-icon.svg')..createSync();
+          File('${path48.path}/test-icon.png').createSync();
+          File('${path256.path}/test-icon.png').createSync();
+          final fileScalable = File('${pathScalable.path}/test-icon.svg')
+            ..createSync();
 
-        final appsDir = Directory('${tempDir.path}/applications')..createSync(recursive: true);
-        File('${appsDir.path}/icon-priority-app.desktop').writeAsStringSync('''
+          final appsDir = Directory('${tempDir.path}/applications')
+            ..createSync(recursive: true);
+          File('${appsDir.path}/icon-priority-app.desktop').writeAsStringSync(
+            '''
 [Desktop Entry]
 Name=Priority App
 Exec=priority-app
 Icon=test-icon
 MimeType=image/png;
 NoDisplay=false
-''');
+''',
+          );
 
-        await AppLauncherUtils.refresh();
+          await AppLauncherUtils.refresh();
 
-        final apps = AppLauncherUtils.cachedApps;
-        final app = apps.firstWhere((app) => app.id == 'icon-priority-app');
-        // Scalable should be preferred over others
-        expect(app.icon, fileScalable.path);
-      }, MockAppLauncherIOOverrides(tempDir));
-    });
+          final apps = AppLauncherUtils.cachedApps;
+          final app = apps.firstWhere((app) => app.id == 'icon-priority-app');
+          // Scalable should be preferred over others
+          expect(app.icon, fileScalable.path);
+        }, MockAppLauncherIOOverrides(tempDir));
+      },
+    );
 
     test('resolves symbolic icons and stripped extensions', () async {
       await IOOverrides.runWithIOOverrides(() async {
-        final iconsDir = Directory('${tempDir.path}/icons')..createSync(recursive: true);
-        final appsDir = Directory('${tempDir.path}/applications')..createSync(recursive: true);
+        final iconsDir = Directory('${tempDir.path}/icons')
+          ..createSync(recursive: true);
+        final appsDir = Directory('${tempDir.path}/applications')
+          ..createSync(recursive: true);
 
-        final fileSymbolic = File('${iconsDir.path}/pixmaps/test-icon-symbolic.png')..createSync(recursive: true);
-        final fileStripped = File('${iconsDir.path}/pixmaps/test-icon-stripped.png')..createSync(recursive: true);
+        final fileSymbolic = File(
+          '${iconsDir.path}/pixmaps/test-icon-symbolic.png',
+        )..createSync(recursive: true);
+        final fileStripped = File(
+          '${iconsDir.path}/pixmaps/test-icon-stripped.png',
+        )..createSync(recursive: true);
 
         File('${appsDir.path}/symbolic-app.desktop').writeAsStringSync('''
 [Desktop Entry]
@@ -195,7 +219,8 @@ Icon=test-icon-stripped.png
 
     test('mocked process getRecommendedApps and getDefaultApp', () async {
       await IOOverrides.runWithIOOverrides(() async {
-        final appsDir = Directory('${tempDir.path}/applications')..createSync(recursive: true);
+        final appsDir = Directory('${tempDir.path}/applications')
+          ..createSync(recursive: true);
         File('${appsDir.path}/test-app.desktop').writeAsStringSync('''
 [Desktop Entry]
 Name=Test App
@@ -206,21 +231,29 @@ MimeType=image/png;
         await AppLauncherUtils.refresh();
 
         // 1. Mock _getMimeType process success
-        AppLauncherUtils.runProcess = (String executable, List<String> arguments) async {
-          if (executable == 'gio' && arguments[0] == 'info') {
-            return ProcessResult(0, 0, 'standard::content-type: image/png\n', '');
-          }
-          if (executable == 'gio' && arguments[0] == 'mime') {
-            return ProcessResult(0, 0, '''
+        AppLauncherUtils.runProcess =
+            (String executable, List<String> arguments) async {
+              if (executable == 'gio' && arguments[0] == 'info') {
+                return ProcessResult(
+                  0,
+                  0,
+                  'standard::content-type: image/png\n',
+                  '',
+                );
+              }
+              if (executable == 'gio' && arguments[0] == 'mime') {
+                return ProcessResult(0, 0, '''
 Default application: test-app.desktop
 Recommended applications:
   test-app.desktop
 ''', '');
-          }
-          return ProcessResult(0, 1, '', 'unknown command');
-        };
+              }
+              return ProcessResult(0, 1, '', 'unknown command');
+            };
 
-        final recommended = await AppLauncherUtils.getRecommendedApps('file.png');
+        final recommended = await AppLauncherUtils.getRecommendedApps(
+          'file.png',
+        );
         expect(recommended.any((app) => app.id == 'test-app'), isTrue);
 
         final defaultApp = await AppLauncherUtils.getDefaultApp('file.png');
@@ -240,36 +273,44 @@ Recommended applications:
       await expectLater(AppLauncherUtils.launchApp(app, 'hello'), completes);
     });
 
-    test('mocked process failures in getRecommendedApps and getDefaultApp', () async {
-      await IOOverrides.runWithIOOverrides(() async {
-        final appsDir = Directory('${tempDir.path}/applications')..createSync(recursive: true);
-        File('${appsDir.path}/test-app.desktop').writeAsStringSync('''
+    test(
+      'mocked process failures in getRecommendedApps and getDefaultApp',
+      () async {
+        await IOOverrides.runWithIOOverrides(() async {
+          final appsDir = Directory('${tempDir.path}/applications')
+            ..createSync(recursive: true);
+          File('${appsDir.path}/test-app.desktop').writeAsStringSync('''
 [Desktop Entry]
 Name=Test App
 Exec=test-app %f
 MimeType=image/png;
 ''');
 
-        await AppLauncherUtils.refresh();
+          await AppLauncherUtils.refresh();
 
-        // Mock process throwing exception
-        AppLauncherUtils.runProcess = (String executable, List<String> arguments) async {
-          throw ProcessException(executable, arguments);
-        };
+          // Mock process throwing exception
+          AppLauncherUtils.runProcess =
+              (String executable, List<String> arguments) async {
+                throw ProcessException(executable, arguments);
+              };
 
-        final recommended = await AppLauncherUtils.getRecommendedApps('file.png');
-        expect(recommended, isEmpty);
+          final recommended = await AppLauncherUtils.getRecommendedApps(
+            'file.png',
+          );
+          expect(recommended, isEmpty);
 
-        final defaultApp = await AppLauncherUtils.getDefaultApp('file.png');
-        expect(defaultApp, isNull);
-      }, MockAppLauncherIOOverrides(tempDir));
-    });
+          final defaultApp = await AppLauncherUtils.getDefaultApp('file.png');
+          expect(defaultApp, isNull);
+        }, MockAppLauncherIOOverrides(tempDir));
+      },
+    );
 
     test('handles non-UTF-8 desktop file encoding gracefully', () async {
       await IOOverrides.runWithIOOverrides(() async {
-        final appsDir = Directory('${tempDir.path}/applications')..createSync(recursive: true);
+        final appsDir = Directory('${tempDir.path}/applications')
+          ..createSync(recursive: true);
         final file = File('${appsDir.path}/non-utf8-app.desktop');
-        
+
         // Write invalid UTF-8 bytes to trigger the try-catch block
         await file.writeAsBytes([0x80, 0x81, 0x82, 0x83]);
 

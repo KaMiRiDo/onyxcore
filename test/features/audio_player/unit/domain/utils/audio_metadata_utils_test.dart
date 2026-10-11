@@ -63,7 +63,7 @@ Uint8List _createMinimalWav({int durationMs = 1000, int sampleRate = 44100}) {
 }
 
 void main() {
-// ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
   // prepareCoverArt
   // ═══════════════════════════════════════════════════════════════════════════
   group('AudioMetadataUtils.prepareCoverArt', () {
@@ -106,10 +106,7 @@ void main() {
     // ── U-AUD-META-11 ──
     test('respects custom targetSize parameter', () {
       final bytes = _createTestImage(1200, 1200);
-      final result = AudioMetadataUtils.prepareCoverArt(
-        bytes,
-        targetSize: 300,
-      );
+      final result = AudioMetadataUtils.prepareCoverArt(bytes, targetSize: 300);
 
       expect(result, isNotNull);
       final decoded = img.decodeImage(result!);
@@ -169,8 +166,9 @@ void main() {
     late Directory tempDir;
 
     setUp(() {
-      tempDir = Directory.systemTemp
-          .createTempSync('audio_metadata_utils_test_');
+      tempDir = Directory.systemTemp.createTempSync(
+        'audio_metadata_utils_test_',
+      );
     });
 
     tearDown(() {
@@ -190,8 +188,7 @@ void main() {
     }
 
     // ── U-AUD-META-16 ──
-    test('returns populated AudioProperties for a valid audio file',
-        () async {
+    test('returns populated AudioProperties for a valid audio file', () async {
       final hasFfprobe = await isFfprobeAvailable();
       if (!hasFfprobe) {
         // Skip on CI or systems without ffprobe.
@@ -199,9 +196,7 @@ void main() {
         return;
       }
 
-      final wavBytes = _createMinimalWav(
-        durationMs: 2000,
-      );
+      final wavBytes = _createMinimalWav(durationMs: 2000);
       final wavFile = File('${tempDir.path}/test_audio.wav')
         ..writeAsBytesSync(wavBytes);
 
@@ -216,34 +211,12 @@ void main() {
     // ── U-AUD-META-17 ──
     // When ffprobe is NOT available, getProperties catches the exception.
     // We test by providing a path that will fail regardless.
-    test('returns all Unknown when ffprobe fails (non-existent path)',
-        () async {
-      final props = await AudioMetadataUtils.getProperties(
-        '/this/path/absolutely/does/not/exist/audio.mp3',
-      );
-
-      expect(props.duration, 'Unknown');
-      expect(props.bitrate, 'Unknown');
-      expect(props.sampleRate, 'Unknown');
-    });
-
-    // ── U-AUD-META-18 + U-AUD-META-19 ──
-    // Non-zero exit code and empty stdout both result in all Unknown.
-    // Using a non-audio file triggers this in ffprobe.
     test(
-      'returns all Unknown for a non-audio file (text file)',
+      'returns all Unknown when ffprobe fails (non-existent path)',
       () async {
-        final hasFfprobe = await isFfprobeAvailable();
-        if (!hasFfprobe) {
-          markTestSkipped('ffprobe not available on this system');
-          return;
-        }
-
-        final textFile = File('${tempDir.path}/not_audio.txt')
-          ..writeAsStringSync('This is plain text, not audio.');
-
-        final props =
-            await AudioMetadataUtils.getProperties(textFile.path);
+        final props = await AudioMetadataUtils.getProperties(
+          '/this/path/absolutely/does/not/exist/audio.mp3',
+        );
 
         expect(props.duration, 'Unknown');
         expect(props.bitrate, 'Unknown');
@@ -251,55 +224,62 @@ void main() {
       },
     );
 
+    // ── U-AUD-META-18 + U-AUD-META-19 ──
+    // Non-zero exit code and empty stdout both result in all Unknown.
+    // Using a non-audio file triggers this in ffprobe.
+    test('returns all Unknown for a non-audio file (text file)', () async {
+      final hasFfprobe = await isFfprobeAvailable();
+      if (!hasFfprobe) {
+        markTestSkipped('ffprobe not available on this system');
+        return;
+      }
+
+      final textFile = File('${tempDir.path}/not_audio.txt')
+        ..writeAsStringSync('This is plain text, not audio.');
+
+      final props = await AudioMetadataUtils.getProperties(textFile.path);
+
+      expect(props.duration, 'Unknown');
+      expect(props.bitrate, 'Unknown');
+      expect(props.sampleRate, 'Unknown');
+    });
+
     // ── U-AUD-META-20 ──
-    test(
-      'parses bitrate from a real WAV file (format-level)',
-      () async {
-        final hasFfprobe = await isFfprobeAvailable();
-        if (!hasFfprobe) {
-          markTestSkipped('ffprobe not available on this system');
-          return;
-        }
+    test('parses bitrate from a real WAV file (format-level)', () async {
+      final hasFfprobe = await isFfprobeAvailable();
+      if (!hasFfprobe) {
+        markTestSkipped('ffprobe not available on this system');
+        return;
+      }
 
-        final wavBytes = _createMinimalWav(
-          
-        );
-        final wavFile = File('${tempDir.path}/bitrate_test.wav')
-          ..writeAsBytesSync(wavBytes);
+      final wavBytes = _createMinimalWav();
+      final wavFile = File('${tempDir.path}/bitrate_test.wav')
+        ..writeAsBytesSync(wavBytes);
 
-        final props =
-            await AudioMetadataUtils.getProperties(wavFile.path);
+      final props = await AudioMetadataUtils.getProperties(wavFile.path);
 
-        // For a 16-bit mono 44100 Hz WAV, bitrate = 44100*16*1 = 705600 bps
-        // = ~706 kbps. The exact value depends on ffprobe's format vs stream
-        // reporting, but it should NOT be Unknown.
-        expect(props.bitrate, isNot('Unknown'));
-      },
-    );
+      // For a 16-bit mono 44100 Hz WAV, bitrate = 44100*16*1 = 705600 bps
+      // = ~706 kbps. The exact value depends on ffprobe's format vs stream
+      // reporting, but it should NOT be Unknown.
+      expect(props.bitrate, isNot('Unknown'));
+    });
 
     // ── U-AUD-META-23 ──
-    test(
-      'formats sample rate with Hz suffix from a real WAV',
-      () async {
-        final hasFfprobe = await isFfprobeAvailable();
-        if (!hasFfprobe) {
-          markTestSkipped('ffprobe not available on this system');
-          return;
-        }
+    test('formats sample rate with Hz suffix from a real WAV', () async {
+      final hasFfprobe = await isFfprobeAvailable();
+      if (!hasFfprobe) {
+        markTestSkipped('ffprobe not available on this system');
+        return;
+      }
 
-        final wavBytes = _createMinimalWav(
-          durationMs: 500,
-          sampleRate: 48000,
-        );
-        final wavFile = File('${tempDir.path}/samplerate_test.wav')
-          ..writeAsBytesSync(wavBytes);
+      final wavBytes = _createMinimalWav(durationMs: 500, sampleRate: 48000);
+      final wavFile = File('${tempDir.path}/samplerate_test.wav')
+        ..writeAsBytesSync(wavBytes);
 
-        final props =
-            await AudioMetadataUtils.getProperties(wavFile.path);
+      final props = await AudioMetadataUtils.getProperties(wavFile.path);
 
-        expect(props.sampleRate, '48000 Hz');
-      },
-    );
+      expect(props.sampleRate, '48000 Hz');
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -312,8 +292,9 @@ void main() {
     late Directory tempDir;
 
     setUp(() {
-      tempDir = Directory.systemTemp
-          .createTempSync('audio_format_duration_test_');
+      tempDir = Directory.systemTemp.createTempSync(
+        'audio_format_duration_test_',
+      );
     });
 
     tearDown(() {
@@ -340,9 +321,7 @@ void main() {
       }
 
       // ~5 seconds of audio
-      final wavBytes = _createMinimalWav(
-        durationMs: 5000,
-      );
+      final wavBytes = _createMinimalWav(durationMs: 5000);
       final wavFile = File('${tempDir.path}/short_duration.wav')
         ..writeAsBytesSync(wavBytes);
 

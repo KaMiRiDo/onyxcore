@@ -23,42 +23,45 @@ void main() {
       container.dispose();
     });
 
-    test('cancelHydration clears active pids, loading state, and placeholder items', () async {
-      const testUrl = 'https://instagram.com/p/test_post';
-      final loadingItem = MediaInfo(
-        id: 'hydration_loading',
-        title: 'Loading...',
-        originalUrl: testUrl,
-      );
-      final group = MediaGroup(
-        originalUrl: testUrl,
-        items: [loadingItem],
-      );
+    test(
+      'cancelHydration clears active pids, loading state, and placeholder items',
+      () async {
+        const testUrl = 'https://instagram.com/p/test_post';
+        final loadingItem = MediaInfo(
+          id: 'hydration_loading',
+          title: 'Loading...',
+          originalUrl: testUrl,
+        );
+        final group = MediaGroup(originalUrl: testUrl, items: [loadingItem]);
 
-      cache.parsedItems = [group];
-      controller.backgroundLoadingProfiles.add(testUrl);
-      controller.activeHydrationPids[testUrl] = [99999];
+        cache.parsedItems = [group];
+        controller.backgroundLoadingProfiles.add(testUrl);
+        controller.activeHydrationPids[testUrl] = [99999];
 
-      expect(controller.backgroundLoadingProfiles.contains(testUrl), isTrue);
-      expect(controller.activeHydrationPids.containsKey(testUrl), isTrue);
+        expect(controller.backgroundLoadingProfiles.contains(testUrl), isTrue);
+        expect(controller.activeHydrationPids.containsKey(testUrl), isTrue);
 
-      await controller.cancelHydration(testUrl);
+        await controller.cancelHydration(testUrl);
 
-      expect(controller.backgroundLoadingProfiles.contains(testUrl), isFalse);
-      expect(controller.activeHydrationPids.containsKey(testUrl), isFalse);
-      expect(group.items.any((e) => e.id == 'hydration_loading'), isFalse);
-    });
+        expect(controller.backgroundLoadingProfiles.contains(testUrl), isFalse);
+        expect(controller.activeHydrationPids.containsKey(testUrl), isFalse);
+        expect(group.items.any((e) => e.id == 'hydration_loading'), isFalse);
+      },
+    );
 
     test('cancelHydration on non-hydrating URL is a safe no-op', () async {
       const nonHydratingUrl = 'https://example.com/not_loading';
-      expect(controller.backgroundLoadingProfiles.contains(nonHydratingUrl), isFalse);
-
-      await expectLater(
-        controller.cancelHydration(nonHydratingUrl),
-        completes,
+      expect(
+        controller.backgroundLoadingProfiles.contains(nonHydratingUrl),
+        isFalse,
       );
 
-      expect(controller.backgroundLoadingProfiles.contains(nonHydratingUrl), isFalse);
+      await expectLater(controller.cancelHydration(nonHydratingUrl), completes);
+
+      expect(
+        controller.backgroundLoadingProfiles.contains(nonHydratingUrl),
+        isFalse,
+      );
     });
 
     test('cancelHydration clears multiple active PIDs for a URL', () async {
@@ -72,27 +75,33 @@ void main() {
       expect(controller.backgroundLoadingProfiles.contains(testUrl), isFalse);
     });
 
-    test('recalculateFilteredStatistics handles empty MediaGroup without throwing StateError', () {
-      const emptyGroup = MediaGroup(
-        originalUrl: 'https://example.com/empty_group',
-        items: [],
-      );
-      final normalGroup = MediaGroup(
-        originalUrl: 'https://example.com/normal',
-        items: [
-          const MediaInfo(
-            id: 'item1',
-            title: 'Title',
-            originalUrl: 'https://example.com/normal',
-            filesize: 5000,
-          ),
-        ],
-      );
+    test(
+      'recalculateFilteredStatistics handles empty MediaGroup without throwing StateError',
+      () {
+        const emptyGroup = MediaGroup(
+          originalUrl: 'https://example.com/empty_group',
+          items: [],
+        );
+        final normalGroup = MediaGroup(
+          originalUrl: 'https://example.com/normal',
+          items: [
+            const MediaInfo(
+              id: 'item1',
+              title: 'Title',
+              originalUrl: 'https://example.com/normal',
+              filesize: 5000,
+            ),
+          ],
+        );
 
-      cache.parsedItems = [emptyGroup, normalGroup];
+        cache.parsedItems = [emptyGroup, normalGroup];
 
-      expect(() => controller.recalculateFilteredStatistics(), returnsNormally);
-      expect(controller.totalListSize, equals(5000));
-    });
+        expect(
+          () => controller.recalculateFilteredStatistics(),
+          returnsNormally,
+        );
+        expect(controller.totalListSize, equals(5000));
+      },
+    );
   });
 }

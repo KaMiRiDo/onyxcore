@@ -4,87 +4,95 @@ import 'package:onyxcore/features/downloader/presentation/providers/downloads_pa
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_media_list.dart';
 
 void main() {
-  testWidgets('StandaloneWindowMediaList renders basic components and interactions', (tester) async {
-    var trashTapped = false;
-    var importTapped = false;
-    var defaultListTapped = false;
+  testWidgets(
+    'StandaloneWindowMediaList renders basic components and interactions',
+    (tester) async {
+      var trashTapped = false;
+      var importTapped = false;
+      var defaultListTapped = false;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: StandaloneWindowMediaList(
-            isTrashView: false,
-            trashCount: 0,
-            activeListPath: 'default',
-            customLists: [],
-            isListChanged: (path) => false,
-            onTrashTap: () => trashTapped = true,
-            onImportTap: () => importTapped = true,
-            onListTap: (path) => defaultListTapped = path == 'default',
-            onCustomListClose: (path) {},
-            onCustomListSave: (path) {},
-            onCustomListLock: (path) {},
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StandaloneWindowMediaList(
+              isTrashView: false,
+              trashCount: 0,
+              activeListPath: 'default',
+              customLists: [],
+              isListChanged: (path) => false,
+              onTrashTap: () => trashTapped = true,
+              onImportTap: () => importTapped = true,
+              onListTap: (path) => defaultListTapped = path == 'default',
+              onCustomListClose: (path) {},
+              onCustomListSave: (path) {},
+              onCustomListLock: (path) {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Media List'), findsOneWidget);
-    expect(find.text('Trash'), findsOneWidget);
-    expect(find.text('Import'), findsOneWidget);
-    expect(find.text('Default List'), findsOneWidget);
+      expect(find.text('Media List'), findsOneWidget);
+      expect(find.text('Trash'), findsOneWidget);
+      expect(find.text('Import'), findsOneWidget);
+      expect(find.text('Default List'), findsOneWidget);
 
-    await tester.tap(find.text('Trash'));
-    expect(trashTapped, isTrue);
+      await tester.tap(find.text('Trash'));
+      expect(trashTapped, isTrue);
 
-    await tester.tap(find.text('Import'));
-    expect(importTapped, isTrue);
+      await tester.tap(find.text('Import'));
+      expect(importTapped, isTrue);
 
-    await tester.tap(find.text('Default List'));
-    expect(defaultListTapped, isTrue);
-  });
+      await tester.tap(find.text('Default List'));
+      expect(defaultListTapped, isTrue);
+    },
+  );
 
-  testWidgets('StandaloneWindowMediaList renders custom list and handles close without changes', (tester) async {
-    var customListTapped = false;
-    var customListClosed = false;
+  testWidgets(
+    'StandaloneWindowMediaList renders custom list and handles close without changes',
+    (tester) async {
+      var customListTapped = false;
+      var customListClosed = false;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: StandaloneWindowMediaList(
-            isTrashView: false,
-            trashCount: 0,
-            activeListPath: '/my-list',
-            customLists: [CustomListInfo(path: '/my-list', name: 'My List')],
-            isListChanged: (path) => false,
-            onTrashTap: () {},
-            onImportTap: () {},
-            onListTap: (path) {
-              if (path == '/my-list') customListTapped = true;
-            },
-            onCustomListClose: (path) => customListClosed = true,
-            onCustomListSave: (path) {},
-            onCustomListLock: (path) {},
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StandaloneWindowMediaList(
+              isTrashView: false,
+              trashCount: 0,
+              activeListPath: '/my-list',
+              customLists: [CustomListInfo(path: '/my-list', name: 'My List')],
+              isListChanged: (path) => false,
+              onTrashTap: () {},
+              onImportTap: () {},
+              onListTap: (path) {
+                if (path == '/my-list') customListTapped = true;
+              },
+              onCustomListClose: (path) => customListClosed = true,
+              onCustomListSave: (path) {},
+              onCustomListLock: (path) {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('My List'), findsOneWidget);
-    
-    // Tap custom list
-    await tester.tap(find.text('My List'));
-    expect(customListTapped, isTrue);
+      expect(find.text('My List'), findsOneWidget);
 
-    // Tap close icon
-    await tester.tap(find.byIcon(Icons.close));
-    await tester.pumpAndSettle();
-    
-    expect(customListClosed, isTrue);
-    expect(find.byType(AlertDialog), findsNothing);
-  });
+      // Tap custom list
+      await tester.tap(find.text('My List'));
+      expect(customListTapped, isTrue);
 
-  testWidgets('StandaloneWindowMediaList handles close with unsaved changes', (tester) async {
+      // Tap close icon
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(customListClosed, isTrue);
+      expect(find.byType(AlertDialog), findsNothing);
+    },
+  );
+
+  testWidgets('StandaloneWindowMediaList handles close with unsaved changes', (
+    tester,
+  ) async {
     var customListClosed = false;
     var customListSaved = false;
 
@@ -95,7 +103,9 @@ void main() {
             isTrashView: false,
             trashCount: 0,
             activeListPath: '/changed-list',
-            customLists: [CustomListInfo(path: '/changed-list', name: 'My Changed List')],
+            customLists: [
+              CustomListInfo(path: '/changed-list', name: 'My Changed List'),
+            ],
             isListChanged: (path) => true,
             onTrashTap: () {},
             onImportTap: () {},
@@ -137,7 +147,9 @@ void main() {
     expect(customListSaved, isTrue);
   });
 
-  testWidgets('StandaloneWindowMediaList renders json lists with red tint', (tester) async {
+  testWidgets('StandaloneWindowMediaList renders json lists with red tint', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(

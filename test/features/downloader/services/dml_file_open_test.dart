@@ -77,7 +77,8 @@ void main() {
       expect(
         occurrences,
         greaterThanOrEqualTo(4),
-        reason: 'importListPath must be handled in both initState and didUpdateWidget',
+        reason:
+            'importListPath must be handled in both initState and didUpdateWidget',
       );
     });
   });
@@ -100,20 +101,25 @@ void main() {
       expect(
         content.contains('pendingOpenFilePath'),
         isFalse,
-        reason: 'main.dart must not handle CLI args for DML files directly, it is handled via IPC',
+        reason:
+            'main.dart must not handle CLI args for DML files directly, it is handled via IPC',
       );
     });
 
-    test('my_application.cc uses G_APPLICATION_HANDLES_COMMAND_LINE (single-instance)', () {
-      final content = File(
-        'linux/runner/my_application.cc',
-      ).readAsStringSync();
+    test(
+      'my_application.cc uses G_APPLICATION_HANDLES_COMMAND_LINE (single-instance)',
+      () {
+        final content = File(
+          'linux/runner/my_application.cc',
+        ).readAsStringSync();
 
-      expect(
-        content.contains('G_APPLICATION_HANDLES_COMMAND_LINE'),
-        isTrue,
-        reason: 'Native app must be HANDLES_COMMAND_LINE (single-instance D-Bus)',
-      );
-    });
+        expect(
+          content.contains('G_APPLICATION_HANDLES_COMMAND_LINE'),
+          isTrue,
+          reason:
+              'Native app must be HANDLES_COMMAND_LINE (single-instance D-Bus)',
+        );
+      },
+    );
   });
 }

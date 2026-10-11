@@ -4,42 +4,26 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Reusable widget for displaying the current zoom level percentage.
 class ImageZoomIndicator extends StatelessWidget {
-
-  const ImageZoomIndicator({
-    required this.scale,
-    super.key,
-  });
+  const ImageZoomIndicator({required this.scale, super.key});
   final double scale;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withValues(
-            alpha: 0.1,
-          ),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(
-            sigmaX: 10,
-            sigmaY: 10,
-          ),
+          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Text(
             '${(scale * 100).toInt()}%',
             style: GoogleFonts.outfit(
-              color: Colors.white.withValues(
-                alpha: 0.9,
-              ),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 16,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,

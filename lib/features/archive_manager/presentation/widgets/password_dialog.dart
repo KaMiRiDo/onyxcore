@@ -5,7 +5,6 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/theme/app_theme.dart';
 
 class PasswordDialog extends StatefulWidget {
-
   const PasswordDialog({
     super.key,
     this.title = 'Enter Password',
@@ -129,7 +128,9 @@ class _PasswordDialogState extends State<PasswordDialog> {
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient.withOpacity(0.2),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.violet.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.violet.withValues(alpha: 0.3),
+              ),
             ),
             child: const Icon(
               Icons.lock_rounded,

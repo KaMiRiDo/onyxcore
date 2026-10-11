@@ -9,7 +9,14 @@ void main() {
 
   setUpAll(() {
     mockHome = Platform.environment['HOME'] ?? '';
-    mockAria2Path = p.join(mockHome, '.local', 'share', 'onyxcore', 'bin', 'aria2c');
+    mockAria2Path = p.join(
+      mockHome,
+      '.local',
+      'share',
+      'onyxcore',
+      'bin',
+      'aria2c',
+    );
   });
 
   setUp(Aria2Accelerator.resetCache);
@@ -44,8 +51,6 @@ void main() {
 
         expect(await Aria2Accelerator.checkIsAvailable(), isTrue);
       });
-
-
 
       test('U-DL-AR2-05: Return false if completely missing', () async {
         // Hard to ensure it's completely missing if system has it,
@@ -108,21 +113,24 @@ void main() {
     });
 
     group('5. Download Process Arguments', () {
-      test('U-DL-AR2-11: Construct precise aria2c CLI args with filename', () async {
-        // We will execute a mock aria2c
-        final file = File(mockAria2Path);
-        file.parent.createSync(recursive: true);
-        // We create a mock script that just exits 0 to avoid real download
-        file.writeAsStringSync('#!/bin/bash\nexit 0\n');
-        Process.runSync('chmod', ['+x', mockAria2Path]);
+      test(
+        'U-DL-AR2-11: Construct precise aria2c CLI args with filename',
+        () async {
+          // We will execute a mock aria2c
+          final file = File(mockAria2Path);
+          file.parent.createSync(recursive: true);
+          // We create a mock script that just exits 0 to avoid real download
+          file.writeAsStringSync('#!/bin/bash\nexit 0\n');
+          Process.runSync('chmod', ['+x', mockAria2Path]);
 
-        final process = await Aria2Accelerator.download(
-          url: 'http://test.com',
-          destination: '/tmp',
-          filename: 'test.mp4',
-        );
-        expect(await process.exitCode, 0);
-      });
+          final process = await Aria2Accelerator.download(
+            url: 'http://test.com',
+            destination: '/tmp',
+            filename: 'test.mp4',
+          );
+          expect(await process.exitCode, 0);
+        },
+      );
 
       test('U-DL-AR2-12: Omit --out flag when filename is null', () async {
         final file = File(mockAria2Path);
@@ -156,7 +164,10 @@ void main() {
 
     group('6. Downloader Args String', () {
       test('U-DL-AR2-14: Provide standardized args string for engines', () {
-        expect(Aria2Accelerator.downloaderArgs, 'aria2c:-x 16 -s 16 -k 1M --summary-interval=1');
+        expect(
+          Aria2Accelerator.downloaderArgs,
+          'aria2c:-x 16 -s 16 -k 1M --summary-interval=1',
+        );
       });
     });
   });

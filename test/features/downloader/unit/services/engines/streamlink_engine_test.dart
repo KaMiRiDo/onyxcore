@@ -41,8 +41,6 @@ void main() {
     }
   });
 
-
-
   setUp(() {
     engine = TestStreamlinkEngine(mockStreamlinkPath);
   });
@@ -59,7 +57,8 @@ void main() {
     if (!file.parent.existsSync()) {
       file.parent.createSync(recursive: true);
     }
-    final script = '''#!/bin/bash
+    final script =
+        '''#!/bin/bash
 sleep ${delayMs / 1000}
 cat << 'EOF'
 $output
@@ -77,16 +76,18 @@ EOF
           'metadata': {
             'title': 'My Stream',
             'category': 'Just Chatting',
-            'author': 'streamer'
+            'author': 'streamer',
           },
           'streams': {
             '720p': {'type': 'hls'},
-            '1080p': {'type': 'hls'}
-          }
+            '1080p': {'type': 'hls'},
+          },
         });
         setMockStreamlinkOutput(mockJson);
 
-        final infos = await engine.fetchMetadata(url: 'https://twitch.tv/streamer');
+        final infos = await engine.fetchMetadata(
+          url: 'https://twitch.tv/streamer',
+        );
         expect(infos.length, 1);
         final info = infos.first;
         expect(info.isLive, isTrue);
@@ -108,7 +109,9 @@ EOF
         final mockJson = jsonEncode({
           'plugin': 'custom',
           'metadata': {'title': 'Live'},
-          'streams': {'best': {'type': 'hls'}}
+          'streams': {
+            'best': {'type': 'hls'},
+          },
         });
         setMockStreamlinkOutput(mockJson);
 
@@ -117,7 +120,9 @@ EOF
         expect(infos.first.extractor, 'Twitch');
 
         // Kick
-        engine = TestStreamlinkEngine(mockStreamlinkPath); // Reset to clear any cache if any
+        engine = TestStreamlinkEngine(
+          mockStreamlinkPath,
+        ); // Reset to clear any cache if any
         infos = await engine.fetchMetadata(url: 'https://kick.com/a');
         expect(infos.first.extractor, 'Kick');
 
@@ -134,8 +139,8 @@ EOF
           'metadata': {'title': 'Live'},
           'streams': {
             '720p': {'type': 'hls'},
-            '1080p': {'type': 'hls'}
-          }
+            '1080p': {'type': 'hls'},
+          },
         });
         setMockStreamlinkOutput(mockJson);
 
@@ -180,14 +185,14 @@ trap '' INT
 sleep 10
 ''');
         Process.runSync('chmod', ['+x', '/tmp/ignore_sigint.sh']);
-        
+
         final process = await Process.start('/tmp/ignore_sigint.sh', []);
         final stopwatch = Stopwatch()..start();
         await StreamlinkEngine.stopGracefully(process);
         stopwatch.stop();
         // Should wait at least 3 seconds before force killing
         expect(stopwatch.elapsedMilliseconds, greaterThanOrEqualTo(2500));
-        
+
         script.deleteSync();
       });
 

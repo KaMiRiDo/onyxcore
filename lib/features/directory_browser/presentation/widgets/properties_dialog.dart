@@ -15,7 +15,8 @@ import 'package:path/path.dart' as p;
 
 class PropertiesDialog extends ConsumerStatefulWidget {
   const PropertiesDialog({
-    required this.paths, super.key,
+    required this.paths,
+    super.key,
     this.isInTrash = false,
   });
   final List<String> paths;
@@ -163,9 +164,7 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
   @override
   Widget build(BuildContext context) {
     final isMulti = widget.paths.length > 1;
-    final title = widget.paths
-        .map(p.basename)
-        .join(', ');
+    final title = widget.paths.map(p.basename).join(', ');
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -407,7 +406,9 @@ class _PropertiesDialogState extends ConsumerState<PropertiesDialog> {
       decoration: BoxDecoration(
         border: isBottom
             ? null
-            : Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+            : Border(
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+              ),
       ),
       child: Row(
         children: [

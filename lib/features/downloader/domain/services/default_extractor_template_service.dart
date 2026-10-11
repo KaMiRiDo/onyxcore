@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.dart' show CustomExtractor;
+import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.dart'
+    show CustomExtractor;
 
 // ── Kind enum ────────────────────────────────────────────────────────────────
 
@@ -179,8 +180,7 @@ async function extract(url) {
         default:
           if (rune < 0x20 || (rune >= 0x7F && rune <= 0x9F)) {
             // Control characters → \uXXXX
-            buffer
-                .write('\\u${rune.toRadixString(16).padLeft(4, '0')}');
+            buffer.write('\\u${rune.toRadixString(16).padLeft(4, '0')}');
           } else if (rune > 0xFFFF) {
             // Supplementary plane → surrogate pair
             final hi = 0xD800 + ((rune - 0x10000) >> 10);

@@ -4,10 +4,11 @@ import 'package:media_kit/media_kit.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/track_selector_menu.dart';
 
 void main() {
-  testWidgets('TrackSelectorMenu renders and selects tracks', (WidgetTester tester) async {
+  testWidgets('TrackSelectorMenu renders and selects tracks', (
+    WidgetTester tester,
+  ) async {
     dynamic selectedTrack;
     final audioTrack = AudioTrack.auto();
-
 
     await tester.pumpWidget(
       MaterialApp(
@@ -34,32 +35,37 @@ void main() {
     expect(selectedTrack, isA<AudioTrack>());
   });
 
-  testWidgets('TrackSelectorMenu shows Load External button only when provided', (WidgetTester tester) async {
-    var didTapLoadExternal = false;
-    
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: TrackSelectorMenu(
-            title: 'Subtitle',
-            selectedTrack: SubtitleTrack.auto(),
-            onTrackSelected: (_) {},
-            onLoadExternal: () {
-              didTapLoadExternal = true;
-            },
+  testWidgets(
+    'TrackSelectorMenu shows Load External button only when provided',
+    (WidgetTester tester) async {
+      var didTapLoadExternal = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TrackSelectorMenu(
+              title: 'Subtitle',
+              selectedTrack: SubtitleTrack.auto(),
+              onTrackSelected: (_) {},
+              onLoadExternal: () {
+                didTapLoadExternal = true;
+              },
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Load External Subtitle'), findsOneWidget);
-    await tester.tap(find.text('Load External Subtitle'));
-    expect(didTapLoadExternal, true);
-  });
+      expect(find.text('Load External Subtitle'), findsOneWidget);
+      await tester.tap(find.text('Load External Subtitle'));
+      expect(didTapLoadExternal, true);
+    },
+  );
 
-  testWidgets('TrackSelectorMenu handles specific track properties', (WidgetTester tester) async {
+  testWidgets('TrackSelectorMenu handles specific track properties', (
+    WidgetTester tester,
+  ) async {
     final specificTrack = AudioTrack('1', 'Eng', 'English');
-    
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(

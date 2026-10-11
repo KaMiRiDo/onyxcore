@@ -10,12 +10,13 @@ import 'package:onyxcore/features/downloader/domain/services/extractor_output_va
 import 'package:onyxcore/features/downloader/domain/services/extractor_runtime_service.dart';
 import 'package:onyxcore/features/downloader/services/deno_runtime.dart';
 
-typedef ProcessStarter = Future<Process> Function(
-  String executable,
-  List<String> arguments, {
-  Map<String, String>? environment,
-  bool runInShell,
-});
+typedef ProcessStarter =
+    Future<Process> Function(
+      String executable,
+      List<String> arguments, {
+      Map<String, String>? environment,
+      bool runInShell,
+    });
 
 class DenoExtractorRuntimeService implements ExtractorRuntimeService {
   final ProcessStarter processStarter;
@@ -231,42 +232,42 @@ try {
       }
 
       if (executablePath == null || executablePath.isEmpty) {
-        throw ExtractorException('Browser executable not found for: ${browser?.name ?? "unknown"}', '');
+        throw ExtractorException(
+          'Browser executable not found for: ${browser?.name ?? "unknown"}',
+          '',
+        );
       }
 
       env['PUPPETEER_EXECUTABLE_PATH'] = executablePath;
 
       // Lock down permissions. Only allow execution of the browser, network for websocket, and file access for the temp dir
       final allowRun = '--allow-run=$executablePath';
-      const allowNet = '--allow-net=localhost,127.0.0.1'; // Deno CDP ws connects to localhost
+      const allowNet =
+          '--allow-net=localhost,127.0.0.1'; // Deno CDP ws connects to localhost
       final allowRead = '--allow-read=${tempDir.path}';
       final allowWrite = '--allow-write=${tempDir.path}';
       const allowEnv = '--allow-env=PUPPETEER_EXECUTABLE_PATH';
 
-      process = await processStarter(
-        DenoRuntime.managedPath,
-        [
-          'run',
-          allowRun,
-          allowNet,
-          allowRead,
-          allowWrite,
-          allowEnv,
-          wrapperScriptFile.path,
-          url,
-          userScriptFile.path,
-          runtimeConfig.navigationTimeoutMs.toString(),
-          runtimeConfig.settleDelayMs.toString(),
-        ],
-        environment: env,
-      );
-      
+      process = await processStarter(DenoRuntime.managedPath, [
+        'run',
+        allowRun,
+        allowNet,
+        allowRead,
+        allowWrite,
+        allowEnv,
+        wrapperScriptFile.path,
+        url,
+        userScriptFile.path,
+        runtimeConfig.navigationTimeoutMs.toString(),
+        runtimeConfig.settleDelayMs.toString(),
+      ], environment: env);
+
       onProcessStarted?.call(process.pid);
 
       final outLogs = <String>[];
       final errLogs = <String>[];
       final allLogs = <String>[];
-      
+
       void log(String line) {
         // Sanitize logs to avoid exposing absolute temp dir paths
         final sanitized = line.replaceAll(tempDir.path, '<temp_dir>');
@@ -274,29 +275,41 @@ try {
         onLog?.call(sanitized);
       }
 
-      process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-        outLogs.add(line);
-        log(line);
-      });
+      process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            outLogs.add(line);
+            log(line);
+          });
 
-      process.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-        errLogs.add(line);
-        log(line);
-      });
+      process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            errLogs.add(line);
+            log(line);
+          });
 
       // Bounded execution timeout
       final exitCode = await process.exitCode.timeout(
         Duration(milliseconds: runtimeConfig.extractorTimeoutMs),
         onTimeout: () {
           process?.kill();
-          throw ExtractorException('Extractor execution timeout exceeded (${runtimeConfig.extractorTimeoutMs}ms)', allLogs.join('\n'));
+          throw ExtractorException(
+            'Extractor execution timeout exceeded (${runtimeConfig.extractorTimeoutMs}ms)',
+            allLogs.join('\n'),
+          );
         },
       );
 
       final fullLogs = allLogs.join('\n');
 
       if (exitCode != 0) {
-        throw ExtractorException('Extractor failed (exit code $exitCode):\n${errLogs.map((l) => l.replaceAll(tempDir.path, '<temp_dir>')).join('\n')}', fullLogs);
+        throw ExtractorException(
+          'Extractor failed (exit code $exitCode):\n${errLogs.map((l) => l.replaceAll(tempDir.path, '<temp_dir>')).join('\n')}',
+          fullLogs,
+        );
       }
 
       if (outLogs.isEmpty) {
@@ -307,12 +320,19 @@ try {
       final jsonStr = outLogs.last;
       try {
         final decoded = jsonDecode(jsonStr);
-        final validatedUrls = ExtractorOutputValidator.validateRaw(decoded, config: runtimeConfig, logs: fullLogs);
+        final validatedUrls = ExtractorOutputValidator.validateRaw(
+          decoded,
+          config: runtimeConfig,
+          logs: fullLogs,
+        );
         return ExtractorResult(validatedUrls, fullLogs);
       } on ExtractorException {
         rethrow;
       } catch (e) {
-        throw ExtractorException('Failed to parse extractor output: $e\nOutput was: $jsonStr', fullLogs);
+        throw ExtractorException(
+          'Failed to parse extractor output: $e\nOutput was: $jsonStr',
+          fullLogs,
+        );
       }
     } finally {
       process?.kill();

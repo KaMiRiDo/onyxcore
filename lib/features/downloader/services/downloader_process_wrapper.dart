@@ -112,9 +112,12 @@ class MediaDownloaderBackend {
               '$pipelineLogs[$engineId]:\n$currentLogs';
 
           successfulInfos[i] = successfulInfos[i].copyWith(
-            id: successfulInfos[i].id.isEmpty ? 'item_${url.hashCode}_$i' : successfulInfos[i].id,
+            id: successfulInfos[i].id.isEmpty
+                ? 'item_${url.hashCode}_$i'
+                : successfulInfos[i].id,
             engineId: successfulInfos[i].engineId ?? successfulEngineId,
-            errorMessage: successfulInfos[i].errorMessage ?? engineErrors[engineId],
+            errorMessage:
+                successfulInfos[i].errorMessage ?? engineErrors[engineId],
             fetchLogs: formattedSuccessLogs,
           );
           if (onProgress != null) onProgress(successfulInfos[i]);
@@ -144,9 +147,9 @@ class MediaDownloaderBackend {
               fallbackTitle = uri.pathSegments.last;
             }
           } catch (_) {}
-          
+
           final probedSize = await _probeFallbackSize(url);
-          
+
           final fallbackInfo = MediaInfo(
             id: 'fallback_${url.hashCode}',
             title: fallbackTitle,
@@ -181,7 +184,8 @@ class MediaDownloaderBackend {
 
   static Future<int?> _probeFallbackSize(String url) async {
     try {
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 3);
       final req = await client.headUrl(Uri.parse(url));
       final res = await req.close();
       if (res.contentLength > 0) {

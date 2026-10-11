@@ -6,7 +6,6 @@ import 'package:onyxcore/core/theme/app_theme.dart';
 import 'package:path/path.dart' as p;
 
 class CompressDialogResult {
-
   CompressDialogResult({
     required this.archiveName,
     required this.format,
@@ -18,7 +17,6 @@ class CompressDialogResult {
 }
 
 class CompressDialog extends StatefulWidget {
-
   const CompressDialog({required this.sourcePaths, super.key});
   final List<String> sourcePaths;
 
@@ -179,7 +177,9 @@ class _CompressDialogState extends State<CompressDialog> {
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient.withOpacity(0.2),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.violet.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.violet.withValues(alpha: 0.3),
+              ),
             ),
             child: const Icon(
               Icons.folder_zip_rounded,

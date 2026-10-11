@@ -67,7 +67,9 @@ class DownloadHistoryDatabase {
   domain.DownloadHistoryEntry _entryFromRow(DownloadHistoryEntry row) {
     final logsRaw = row.logs;
     final logs = logsRaw != null && logsRaw.isNotEmpty
-        ? (jsonDecode(logsRaw) as List<dynamic>).map((e) => e.toString()).toList()
+        ? (jsonDecode(logsRaw) as List<dynamic>)
+              .map((e) => e.toString())
+              .toList()
         : <String>[];
 
     return domain.DownloadHistoryEntry(

@@ -106,10 +106,7 @@ void main() {
         final script = service.generateScript(config);
         expect(script, contains(r'\n'));
         // Literal newline inside the string literal must not appear
-        expect(
-          script,
-          isNot(contains('querySelectorAll(".article\nimg")')),
-        );
+        expect(script, isNot(contains('querySelectorAll(".article\nimg")')));
       });
 
       test('escapes carriage return in selector', () {
@@ -179,41 +176,44 @@ void main() {
         // The querySelectorAll call must be properly closed (not prematurely).
         // Verify the string ends at the correct position by checking the call
         // ends with the expected closing sequence.
-        expect(
-          script,
-          contains(r'querySelectorAll("\")'),
-        );
+        expect(script, contains(r'querySelectorAll("\")'));
       });
 
-      test('JS injection via attribute: double-quote breakout is neutralised', () {
-        final config = DefaultExtractorConfig(
-          kind: DefaultExtractorKind.html,
-          // Payload: ");evil();//
-          // After escaping: the " becomes \" — payload stays inside JS string.
-          cssSelector: 'img',
-          attributeName: '");evil();//',
-        );
-        final script = service.generateScript(config);
-        // The " must be escaped, preventing string termination.
-        expect(script, contains(r'\"'));
-        // Verify the getAttribute call contains the escaped quote.
-        expect(script, contains(r'getAttribute("\"'));
-      });
+      test(
+        'JS injection via attribute: double-quote breakout is neutralised',
+        () {
+          final config = DefaultExtractorConfig(
+            kind: DefaultExtractorKind.html,
+            // Payload: ");evil();//
+            // After escaping: the " becomes \" — payload stays inside JS string.
+            cssSelector: 'img',
+            attributeName: '");evil();//',
+          );
+          final script = service.generateScript(config);
+          // The " must be escaped, preventing string termination.
+          expect(script, contains(r'\"'));
+          // Verify the getAttribute call contains the escaped quote.
+          expect(script, contains(r'getAttribute("\"'));
+        },
+      );
 
-      test('JS injection via selector: single-quote breakout is neutralised', () {
-        final config = DefaultExtractorConfig(
-          kind: DefaultExtractorKind.html,
-          // Payload: ');alert(2);//
-          // After escaping: the ' becomes \' — payload stays inside JS string.
-          cssSelector: "');alert(2);//",
-          attributeName: 'src',
-        );
-        final script = service.generateScript(config);
-        // The single quote must be escaped.
-        expect(script, contains(r"\'"));
-        // Verify the querySelectorAll call contains the escaped single-quote.
-        expect(script, contains("querySelectorAll(\"\\')"));
-      });
+      test(
+        'JS injection via selector: single-quote breakout is neutralised',
+        () {
+          final config = DefaultExtractorConfig(
+            kind: DefaultExtractorKind.html,
+            // Payload: ');alert(2);//
+            // After escaping: the ' becomes \' — payload stays inside JS string.
+            cssSelector: "');alert(2);//",
+            attributeName: 'src',
+          );
+          final script = service.generateScript(config);
+          // The single quote must be escaped.
+          expect(script, contains(r"\'"));
+          // Verify the querySelectorAll call contains the escaped single-quote.
+          expect(script, contains("querySelectorAll(\"\\')"));
+        },
+      );
 
       test('injection via newline in attribute: newline is escaped', () {
         final config = DefaultExtractorConfig(
@@ -227,7 +227,7 @@ void main() {
         // The literal newline must be replaced with \n escape sequence.
         expect(script, contains(r'\n'));
         // The raw (unescaped) newline must NOT appear inside the string literal.
-        expect(script, isNot(contains('getAttribute("src\nevil()'))); 
+        expect(script, isNot(contains('getAttribute("src\nevil()')));
       });
 
       test('handles safe unicode characters without escaping them', () {
@@ -264,9 +264,10 @@ void main() {
           cssSelector: '.article-content img',
           attributeName: 'data-original',
         );
-        final encoded = DefaultExtractorTemplateService.encodeMetadata(original);
-        final decoded =
-            DefaultExtractorTemplateService.decodeMetadata(encoded);
+        final encoded = DefaultExtractorTemplateService.encodeMetadata(
+          original,
+        );
+        final decoded = DefaultExtractorTemplateService.decodeMetadata(encoded);
         expect(decoded, isNotNull);
         expect(decoded!.kind, original.kind);
         expect(decoded.cssSelector, original.cssSelector);
@@ -278,8 +279,7 @@ void main() {
       test('decodes valid HTML metadata JSON', () {
         const json =
             '{"extractorKind":"html","cssSelector":".article img","attributeName":"src"}';
-        final config =
-            DefaultExtractorTemplateService.decodeMetadata(json);
+        final config = DefaultExtractorTemplateService.decodeMetadata(json);
         expect(config, isNotNull);
         expect(config!.kind, DefaultExtractorKind.html);
         expect(config.cssSelector, '.article img');
@@ -287,10 +287,7 @@ void main() {
       });
 
       test('returns null for null metadata (Phase 1 script extractors)', () {
-        expect(
-          DefaultExtractorTemplateService.decodeMetadata(null),
-          isNull,
-        );
+        expect(DefaultExtractorTemplateService.decodeMetadata(null), isNull);
       });
 
       test('returns null for malformed JSON', () {
@@ -301,50 +298,34 @@ void main() {
       });
 
       test('returns null for empty string', () {
-        expect(
-          DefaultExtractorTemplateService.decodeMetadata(''),
-          isNull,
-        );
+        expect(DefaultExtractorTemplateService.decodeMetadata(''), isNull);
       });
 
       test('returns null for JSON missing extractorKind', () {
         const json = '{"cssSelector":".img","attributeName":"src"}';
-        expect(
-          DefaultExtractorTemplateService.decodeMetadata(json),
-          isNull,
-        );
+        expect(DefaultExtractorTemplateService.decodeMetadata(json), isNull);
       });
 
       test('returns null for JSON missing cssSelector', () {
         const json = '{"extractorKind":"html","attributeName":"src"}';
-        expect(
-          DefaultExtractorTemplateService.decodeMetadata(json),
-          isNull,
-        );
+        expect(DefaultExtractorTemplateService.decodeMetadata(json), isNull);
       });
 
       test('returns null for JSON missing attributeName', () {
         const json = '{"extractorKind":"html","cssSelector":".img"}';
-        expect(
-          DefaultExtractorTemplateService.decodeMetadata(json),
-          isNull,
-        );
+        expect(DefaultExtractorTemplateService.decodeMetadata(json), isNull);
       });
 
       test('returns null for unknown extractorKind (forward-compat)', () {
         const json =
             '{"extractorKind":"future_network_type","cssSelector":".img","attributeName":"src"}';
-        expect(
-          DefaultExtractorTemplateService.decodeMetadata(json),
-          isNull,
-        );
+        expect(DefaultExtractorTemplateService.decodeMetadata(json), isNull);
       });
 
       test('ignores unknown extra fields (forward compatibility)', () {
         const json =
             '{"extractorKind":"html","cssSelector":".img","attributeName":"src","futureField":"value","anotherField":42}';
-        final config =
-            DefaultExtractorTemplateService.decodeMetadata(json);
+        final config = DefaultExtractorTemplateService.decodeMetadata(json);
         expect(config, isNotNull);
         expect(config!.kind, DefaultExtractorKind.html);
         expect(config.cssSelector, '.img');
@@ -353,7 +334,9 @@ void main() {
 
       test('returns null for non-object JSON (array)', () {
         expect(
-          DefaultExtractorTemplateService.decodeMetadata('["html",".img","src"]'),
+          DefaultExtractorTemplateService.decodeMetadata(
+            '["html",".img","src"]',
+          ),
           isNull,
         );
       });
@@ -361,19 +344,13 @@ void main() {
       test('returns null when cssSelector is null in JSON', () {
         const json =
             '{"extractorKind":"html","cssSelector":null,"attributeName":"src"}';
-        expect(
-          DefaultExtractorTemplateService.decodeMetadata(json),
-          isNull,
-        );
+        expect(DefaultExtractorTemplateService.decodeMetadata(json), isNull);
       });
 
       test('returns null when attributeName is null in JSON', () {
         const json =
             '{"extractorKind":"html","cssSelector":".img","attributeName":null}';
-        expect(
-          DefaultExtractorTemplateService.decodeMetadata(json),
-          isNull,
-        );
+        expect(DefaultExtractorTemplateService.decodeMetadata(json), isNull);
       });
     });
   });

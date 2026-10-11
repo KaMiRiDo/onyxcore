@@ -44,10 +44,8 @@ class DownloaderFilterSettings {
   }
 
   @override
-  int get hashCode => Object.hash(
-        Object.hashAll(selectedTypes),
-        Object.hashAll(selectedDates),
-      );
+  int get hashCode =>
+      Object.hash(Object.hashAll(selectedTypes), Object.hashAll(selectedDates));
 }
 
 @immutable
@@ -125,8 +123,9 @@ class DownloaderItemClassifier {
       final date = item.uploadDate;
       if (date != null) {
         final d = DateTime(date.year, date.month, date.day);
-        if (selectedDates.any((sd) =>
-            sd.year == d.year && sd.month == d.month && sd.day == d.day)) {
+        if (selectedDates.any(
+          (sd) => sd.year == d.year && sd.month == d.month && sd.day == d.day,
+        )) {
           return true;
         }
       }

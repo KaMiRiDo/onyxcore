@@ -27,15 +27,19 @@ class VideoEditorService {
         await outputDir.create(recursive: true);
       }
       final filename = sourceFile.split(Platform.pathSeparator).last;
-      final basename = filename.contains('.') ? filename.substring(0, filename.lastIndexOf('.')) : filename;
-      final ext = filename.contains('.') ? filename.substring(filename.lastIndexOf('.')) : '';
-      
+      final basename = filename.contains('.')
+          ? filename.substring(0, filename.lastIndexOf('.'))
+          : filename;
+      final ext = filename.contains('.')
+          ? filename.substring(filename.lastIndexOf('.'))
+          : '';
+
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final outputFile = '${outputDir.path}/${basename}_cut_$timestamp$ext';
 
       // Build FFMPEG filter graph or concat list
-      // For a truly lossless concat of arbitrary segments from the same file, 
-      // the concat demuxer is best, but requires a text file. 
+      // For a truly lossless concat of arbitrary segments from the same file,
+      // the concat demuxer is best, but requires a text file.
       // Alternatively, we can use the filter complex, but that requires re-encoding.
       // To keep it lossless (-c copy), we extract segments to temp files, then concat.
 
@@ -44,21 +48,25 @@ class VideoEditorService {
         final segment = segments[i];
         final tempFile = '${outputDir.path}/.temp_cut_$i$ext';
         tempFiles.add(tempFile);
-        
+
         // Extract segment
         final duration = segment.end - segment.start;
         final args = [
           '-y',
-          '-ss', _formatDuration(segment.start),
-          '-i', sourceFile,
-          '-t', _formatDuration(duration),
-          '-c', 'copy',
+          '-ss',
+          _formatDuration(segment.start),
+          '-i',
+          sourceFile,
+          '-t',
+          _formatDuration(duration),
+          '-c',
+          'copy',
           tempFile,
         ];
-        
+
         notifier.updateProgress(taskId, i / (segments.length * 2));
-        notifier.updateCurrentItem(taskId, 'Extracting segment ${i+1}');
-        
+        notifier.updateCurrentItem(taskId, 'Extracting segment ${i + 1}');
+
         final process = await Process.start('ffmpeg', args);
         process.stdout.listen((_) {});
         process.stderr.listen((_) {});
@@ -71,22 +79,28 @@ class VideoEditorService {
       notifier.updateCurrentItem(taskId, 'Merging segments...');
       final concatListPath = '${outputDir.path}/.concat_list.txt';
       final concatList = File(concatListPath);
-      final listContent = tempFiles.map((f) => "file '${f.replaceAll("'", r"'\''")}'").join('\n');
+      final listContent = tempFiles
+          .map((f) => "file '${f.replaceAll("'", r"'\''")}'")
+          .join('\n');
       await concatList.writeAsString(listContent);
 
       final concatArgs = [
         '-y',
-        '-f', 'concat',
-        '-safe', '0',
-        '-i', concatListPath,
-        '-c', 'copy',
+        '-f',
+        'concat',
+        '-safe',
+        '0',
+        '-i',
+        concatListPath,
+        '-c',
+        'copy',
         outputFile,
       ];
       final process = await Process.start('ffmpeg', concatArgs);
       process.stdout.listen((_) {});
       process.stderr.listen((_) {});
       final exitCode = await process.exitCode;
-      
+
       // Cleanup
       for (final f in tempFiles) {
         final file = File(f);
@@ -95,7 +109,7 @@ class VideoEditorService {
       if (await concatList.exists()) await concatList.delete();
 
       if (exitCode != 0) throw Exception('Failed to merge segments');
-      
+
       notifier.updateProgress(taskId, 1);
       notifier.updateCurrentItem(taskId, 'Done');
       notifier.completeTask(taskId);
@@ -121,14 +135,15 @@ class VideoEditorService {
       if (!await outputDir.exists()) {
         await outputDir.create(recursive: true);
       }
-      
+
       for (var i = 0; i < segments.length; i++) {
         final segment = segments[i];
         final duration = segment.end - segment.start;
-        
+
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final outputPattern = '${outputDir.path}/frame_seg${i}_${timestamp}_%05d.png';
-        
+        final outputPattern =
+            '${outputDir.path}/frame_seg${i}_${timestamp}_%05d.png';
+
         final args = [
           '-y',
           '-ss', _formatDuration(segment.start),
@@ -137,17 +152,18 @@ class VideoEditorService {
           '-q:v', '2', // High quality for PNG/JPEG
           outputPattern,
         ];
-        
+
         notifier.updateProgress(taskId, i / segments.length);
-        notifier.updateCurrentItem(taskId, 'Extracting segment ${i+1}');
-        
+        notifier.updateCurrentItem(taskId, 'Extracting segment ${i + 1}');
+
         final process = await Process.start('ffmpeg', args);
         process.stdout.listen((_) {});
         process.stderr.listen((_) {});
         final exitCode = await process.exitCode;
-        if (exitCode != 0) throw Exception('Failed to extract frames for segment $i');
+        if (exitCode != 0)
+          throw Exception('Failed to extract frames for segment $i');
       }
-      
+
       notifier.updateProgress(taskId, 1);
       notifier.updateCurrentItem(taskId, 'Done');
       notifier.completeTask(taskId);
@@ -160,8 +176,10 @@ class VideoEditorService {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     final twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    final threeDigitMillis =
-        duration.inMilliseconds.remainder(1000).toString().padLeft(3, '0');
+    final threeDigitMillis = duration.inMilliseconds
+        .remainder(1000)
+        .toString()
+        .padLeft(3, '0');
     return '${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds.$threeDigitMillis';
   }
 }

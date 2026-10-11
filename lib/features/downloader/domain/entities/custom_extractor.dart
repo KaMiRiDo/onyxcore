@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:onyxcore/features/downloader/domain/services/default_extractor_template_service.dart' show DefaultExtractorTemplateService;
+import 'package:onyxcore/features/downloader/domain/services/default_extractor_template_service.dart'
+    show DefaultExtractorTemplateService;
 
 @immutable
 class CustomExtractor {
@@ -72,8 +73,9 @@ class CustomExtractor {
       script: script ?? this.script,
       createdAt: createdAt ?? this.createdAt,
       modifiedAt: modifiedAt ?? this.modifiedAt,
-      metadata:
-          identical(metadata, _absent) ? this.metadata : metadata as String?,
+      metadata: identical(metadata, _absent)
+          ? this.metadata
+          : metadata as String?,
     );
   }
 

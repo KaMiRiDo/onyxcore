@@ -51,7 +51,8 @@ class DenoRuntime extends DownloadEngine {
 
   @override
   EngineUpdateInfo? get updateInfo => EngineUpdateInfo(
-    apiUrl: 'https://api.github.com/repos/denoland/deno/releases/tags/$pinnedVersion',
+    apiUrl:
+        'https://api.github.com/repos/denoland/deno/releases/tags/$pinnedVersion',
     assetName: 'deno-x86_64-unknown-linux-gnu.zip',
   );
 

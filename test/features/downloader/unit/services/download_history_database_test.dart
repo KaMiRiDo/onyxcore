@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onyxcore/core/database/app_database.dart' hide DownloadHistoryEntry;
+import 'package:onyxcore/core/database/app_database.dart'
+    hide DownloadHistoryEntry;
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/downloader/services/download_history_database.dart';
 
@@ -18,7 +19,11 @@ void main() {
     await appDb.close();
   });
 
-  DownloadHistoryEntry createDummyEntry(String id, {String statusName = 'pending', DateTime? createdAt}) {
+  DownloadHistoryEntry createDummyEntry(
+    String id, {
+    String statusName = 'pending',
+    DateTime? createdAt,
+  }) {
     return DownloadHistoryEntry(
       id: id,
       title: 'Test Video $id',
@@ -50,7 +55,7 @@ void main() {
       test('U-DL-HDB-08: Update existing entry via UPSERT', () async {
         await db.insertEntry(createDummyEntry('1'));
         await db.insertEntry(createDummyEntry('1', statusName: 'completed'));
-        
+
         final entry = await db.getEntry('1');
         expect(entry?.statusName, 'completed');
         expect(await db.getTotalCount(), 1);
@@ -74,7 +79,7 @@ void main() {
         final e1 = createDummyEntry('1', createdAt: DateTime(2023));
         final e2 = createDummyEntry('2', createdAt: DateTime(2023, 1, 3));
         final e3 = createDummyEntry('3', createdAt: DateTime(2023, 1, 2));
-        
+
         await db.insertEntry(e1);
         await db.insertEntry(e2);
         await db.insertEntry(e3);
@@ -87,9 +92,11 @@ void main() {
 
       test('U-DL-HDB-12: Respect pagination limits and offsets', () async {
         for (var i = 0; i < 10; i++) {
-          await db.insertEntry(createDummyEntry('$i', createdAt: DateTime(2023, 1, i + 1)));
+          await db.insertEntry(
+            createDummyEntry('$i', createdAt: DateTime(2023, 1, i + 1)),
+          );
         }
-        
+
         final entries = await db.getEntries(limit: 5, offset: 2);
         expect(entries.length, 5);
         // IDs inserted in order of createdAt: 0..9
@@ -129,7 +136,7 @@ void main() {
         await db.insertEntry(createDummyEntry('A'));
         await db.insertEntry(createDummyEntry('B'));
         await db.insertEntry(createDummyEntry('C'));
-        
+
         await db.deleteEntries({'A', 'C'});
         expect(await db.getTotalCount(), 1);
         expect(await db.getEntry('B'), isNotNull);
@@ -150,9 +157,12 @@ void main() {
     });
 
     group('6. File Size & Disposal', () {
-      test('U-DL-HDB-21: Return DB file size as 0 (not tracked via single file)', () {
-        expect(db.fileSize, 0);
-      });
+      test(
+        'U-DL-HDB-21: Return DB file size as 0 (not tracked via single file)',
+        () {
+          expect(db.fileSize, 0);
+        },
+      );
 
       test('U-DL-HDB-23: Close database without crash', () {
         db.dispose();
@@ -161,33 +171,46 @@ void main() {
     });
 
     group('7. Internal Row Parsing', () {
-      test('U-DL-HDB-24: Correctly deserialize all fields from DB row', () async {
-        final original = DownloadHistoryEntry(
-          id: '1',
-          title: 'Title',
-          statusName: 'error',
-          downloadType: 'audio',
-          errorMessage: 'some error',
-          url: 'http://u',
-          destination: '/d',
-          logs: ['a', 'b'],
-          createdAt: DateTime.fromMillisecondsSinceEpoch(1672531200000), // DateTime(2023, 1, 1).toUtc()
-          completedAt: DateTime.fromMillisecondsSinceEpoch(1672617600000), // DateTime(2023, 1, 2).toUtc()
-        );
-        await db.insertEntry(original);
-        final retrieved = (await db.getEntry('1'))!;
-        
-        expect(retrieved.id, original.id);
-        expect(retrieved.title, original.title);
-        expect(retrieved.statusName, original.statusName);
-        expect(retrieved.downloadType, original.downloadType);
-        expect(retrieved.errorMessage, original.errorMessage);
-        expect(retrieved.url, original.url);
-        expect(retrieved.destination, original.destination);
-        expect(retrieved.logs, original.logs);
-        expect(retrieved.createdAt.millisecondsSinceEpoch, original.createdAt.millisecondsSinceEpoch);
-        expect(retrieved.completedAt?.millisecondsSinceEpoch, original.completedAt?.millisecondsSinceEpoch);
-      });
+      test(
+        'U-DL-HDB-24: Correctly deserialize all fields from DB row',
+        () async {
+          final original = DownloadHistoryEntry(
+            id: '1',
+            title: 'Title',
+            statusName: 'error',
+            downloadType: 'audio',
+            errorMessage: 'some error',
+            url: 'http://u',
+            destination: '/d',
+            logs: ['a', 'b'],
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              1672531200000,
+            ), // DateTime(2023, 1, 1).toUtc()
+            completedAt: DateTime.fromMillisecondsSinceEpoch(
+              1672617600000,
+            ), // DateTime(2023, 1, 2).toUtc()
+          );
+          await db.insertEntry(original);
+          final retrieved = (await db.getEntry('1'))!;
+
+          expect(retrieved.id, original.id);
+          expect(retrieved.title, original.title);
+          expect(retrieved.statusName, original.statusName);
+          expect(retrieved.downloadType, original.downloadType);
+          expect(retrieved.errorMessage, original.errorMessage);
+          expect(retrieved.url, original.url);
+          expect(retrieved.destination, original.destination);
+          expect(retrieved.logs, original.logs);
+          expect(
+            retrieved.createdAt.millisecondsSinceEpoch,
+            original.createdAt.millisecondsSinceEpoch,
+          );
+          expect(
+            retrieved.completedAt?.millisecondsSinceEpoch,
+            original.completedAt?.millisecondsSinceEpoch,
+          );
+        },
+      );
 
       test('U-DL-HDB-25: Handle null completedAt column', () async {
         await db.insertEntry(createDummyEntry('1'));

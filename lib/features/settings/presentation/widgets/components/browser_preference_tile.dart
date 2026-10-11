@@ -50,8 +50,6 @@ class _BrowserPreferenceTileState extends ConsumerState<BrowserPreferenceTile> {
 
     final selected = settings.extractorBrowser ?? _defaultBrowser;
 
-
-
     return Padding(
       padding: const EdgeInsets.only(left: 24, bottom: 24),
       child: Row(
@@ -86,10 +84,10 @@ class _BrowserPreferenceTileState extends ConsumerState<BrowserPreferenceTile> {
             width: 160,
             child: OnyxDropdown<String>(
               isExpanded: true,
-              value: _browsers!.any((b) => b.id == selected) ? selected! : _browsers!.first.id,
-              options: _browsers!
-                  .map((b) => MapEntry(b.id, b.name))
-                  .toList(),
+              value: _browsers!.any((b) => b.id == selected)
+                  ? selected!
+                  : _browsers!.first.id,
+              options: _browsers!.map((b) => MapEntry(b.id, b.name)).toList(),
               disabledOptions: _browsers!
                   .where((b) => b.capability != BrowserCapability.chromium)
                   .map((b) => b.id)

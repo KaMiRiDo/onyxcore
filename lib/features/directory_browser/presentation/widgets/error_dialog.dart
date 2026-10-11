@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 
 class ErrorDialog extends StatelessWidget {
-
   const ErrorDialog({
     required this.title,
     required this.message,

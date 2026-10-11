@@ -39,7 +39,7 @@ class FakeDirectoryRepository implements DirectoryRepository {
   }) async {
     deletedPaths = paths;
   }
-  
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -56,7 +56,10 @@ class FakeThumbnailCacheService implements ThumbnailCacheService {
   }) => ThumbnailLookupResult.hit;
 
   @override
-  String? getCachedPath(String filePath, {ThumbnailSize size = ThumbnailSize.normal}) => filePath;
+  String? getCachedPath(
+    String filePath, {
+    ThumbnailSize size = ThumbnailSize.normal,
+  }) => filePath;
 
   @override
   Future<ThumbnailLookupResult> lookupAsync({
@@ -66,7 +69,10 @@ class FakeThumbnailCacheService implements ThumbnailCacheService {
   }) async => ThumbnailLookupResult.hit;
 
   @override
-  Future<String?> getCachedPathAsync(String filePath, {ThumbnailSize size = ThumbnailSize.normal}) async => filePath;
+  Future<String?> getCachedPathAsync(
+    String filePath, {
+    ThumbnailSize size = ThumbnailSize.normal,
+  }) async => filePath;
 
   @override
   Future<void> markFailed({
@@ -129,7 +135,10 @@ void main() {
       );
 
       final binding = TestWidgetsFlutterBinding.instance;
-      binding.platformDispatcher.views.first.physicalSize = const Size(1920, 1080);
+      binding.platformDispatcher.views.first.physicalSize = const Size(
+        1920,
+        1080,
+      );
       binding.platformDispatcher.views.first.devicePixelRatio = 1.0;
     });
 
@@ -139,7 +148,9 @@ void main() {
       binding.platformDispatcher.views.first.resetDevicePixelRatio();
     });
 
-    testWidgets('renders empty state when queue is empty', (WidgetTester tester) async {
+    testWidgets('renders empty state when queue is empty', (
+      WidgetTester tester,
+    ) async {
       await tester.runAsync(() async {
         await tester.pumpWidget(
           ProviderScope(
@@ -147,14 +158,18 @@ void main() {
               imageShowHiddenProvider.overrideWith((ref) => false),
               imageQueueProvider.overrideWith((ref) => []),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-              thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-              directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([])),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
+              thumbnailCacheServiceProvider.overrideWithValue(
+                FakeThumbnailCacheService(),
+              ),
+              directoryRepositoryProvider.overrideWithValue(
+                FakeDirectoryRepository([]),
+              ),
             ],
             child: const MaterialApp(
-              home: Scaffold(
-                body: ImagePlaylistSidebar(),
-              ),
+              home: Scaffold(body: ImagePlaylistSidebar()),
             ),
           ),
         );
@@ -165,7 +180,9 @@ void main() {
       expect(find.text('No image files found'), findsOneWidget);
     });
 
-    testWidgets('renders items and handles double tap', (WidgetTester tester) async {
+    testWidgets('renders items and handles double tap', (
+      WidgetTester tester,
+    ) async {
       FileItem? tappedItem;
 
       await tester.runAsync(() async {
@@ -173,11 +190,19 @@ void main() {
           ProviderScope(
             overrides: [
               imageShowHiddenProvider.overrideWith((ref) => false),
-              imageQueueProvider.overrideWith((ref) => [dummyImage, dummyFolder]),
+              imageQueueProvider.overrideWith(
+                (ref) => [dummyImage, dummyFolder],
+              ),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-              thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-              directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage, dummyFolder])),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
+              thumbnailCacheServiceProvider.overrideWithValue(
+                FakeThumbnailCacheService(),
+              ),
+              directoryRepositoryProvider.overrideWithValue(
+                FakeDirectoryRepository([dummyImage, dummyFolder]),
+              ),
             ],
             child: MaterialApp(
               home: Scaffold(
@@ -201,7 +226,6 @@ void main() {
       expect(find.text('Image File • 2.0 MB'), findsOneWidget);
       expect(find.text('5 Image Files'), findsOneWidget);
 
-
       await tester.tap(find.text('image1.jpg'));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.text('image1.jpg'));
@@ -209,19 +233,31 @@ void main() {
       expect(tappedItem?.path, dummyImage.path);
     });
 
-    testWidgets('renders favorites empty state when in favorites mode', (tester) async {
+    testWidgets('renders favorites empty state when in favorites mode', (
+      tester,
+    ) async {
       await tester.runAsync(() async {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              imageViewModeProvider.overrideWith((ref) => ImageViewMode.favorites),
+              imageViewModeProvider.overrideWith(
+                (ref) => ImageViewMode.favorites,
+              ),
               imageQueueProvider.overrideWith((ref) => []),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-              thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-              directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([])),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
+              thumbnailCacheServiceProvider.overrideWithValue(
+                FakeThumbnailCacheService(),
+              ),
+              directoryRepositoryProvider.overrideWithValue(
+                FakeDirectoryRepository([]),
+              ),
             ],
-            child: const MaterialApp(home: Scaffold(body: ImagePlaylistSidebar())),
+            child: const MaterialApp(
+              home: Scaffold(body: ImagePlaylistSidebar()),
+            ),
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -230,26 +266,38 @@ void main() {
       expect(find.text('No favorite files in this folder'), findsOneWidget);
     });
 
-    testWidgets('active item logic correctly matches preview file', (tester) async {
+    testWidgets('active item logic correctly matches preview file', (
+      tester,
+    ) async {
       await tester.runAsync(() async {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              imageQueueProvider.overrideWith((ref) => [dummyImage, dummyFolder]),
+              imageQueueProvider.overrideWith(
+                (ref) => [dummyImage, dummyFolder],
+              ),
               previewFileProvider.overrideWith((ref) => dummyImage),
               imageIsEmptyProvider.overrideWith((ref) => false),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-              thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-              directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage, dummyFolder])),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
+              thumbnailCacheServiceProvider.overrideWithValue(
+                FakeThumbnailCacheService(),
+              ),
+              directoryRepositoryProvider.overrideWithValue(
+                FakeDirectoryRepository([dummyImage, dummyFolder]),
+              ),
             ],
-            child: const MaterialApp(home: Scaffold(body: ImagePlaylistSidebar())),
+            child: const MaterialApp(
+              home: Scaffold(body: ImagePlaylistSidebar()),
+            ),
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
       await tester.pumpAndSettle();
-      
+
       // Active indicator icon should be present for dummyImage
       expect(find.byIcon(Icons.remove_red_eye_rounded), findsOneWidget);
     });
@@ -259,21 +307,31 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              imageQueueProvider.overrideWith((ref) => [dummyImage, dummyFolder]),
+              imageQueueProvider.overrideWith(
+                (ref) => [dummyImage, dummyFolder],
+              ),
               previewFileProvider.overrideWith((ref) => dummyImage),
               imageIsEmptyProvider.overrideWith((ref) => true),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-              thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-              directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage, dummyFolder])),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
+              thumbnailCacheServiceProvider.overrideWithValue(
+                FakeThumbnailCacheService(),
+              ),
+              directoryRepositoryProvider.overrideWithValue(
+                FakeDirectoryRepository([dummyImage, dummyFolder]),
+              ),
             ],
-            child: const MaterialApp(home: Scaffold(body: ImagePlaylistSidebar())),
+            child: const MaterialApp(
+              home: Scaffold(body: ImagePlaylistSidebar()),
+            ),
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
       await tester.pumpAndSettle();
-      
+
       // Since imageIsEmptyProvider is true, active indicator should be hidden
       expect(find.byIcon(Icons.remove_red_eye_rounded), findsNothing);
     });
@@ -286,9 +344,15 @@ void main() {
             overrides: [
               imageQueueProvider.overrideWith((ref) => [dummyImage]),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-              thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-              directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
+              thumbnailCacheServiceProvider.overrideWithValue(
+                FakeThumbnailCacheService(),
+              ),
+              directoryRepositoryProvider.overrideWithValue(
+                FakeDirectoryRepository([dummyImage]),
+              ),
             ],
             child: MaterialApp(
               home: Scaffold(
@@ -309,7 +373,7 @@ void main() {
       // Right click to open context menu (buttons: kSecondaryButton = 2 in tests)
       await tester.tap(find.text('image1.jpg'), buttons: 2);
       await tester.pumpAndSettle();
-      
+
       expect(find.text('Move to Trash'), findsOneWidget);
       expect(find.text('Copy Item'), findsOneWidget);
       expect(find.text('Move Item'), findsOneWidget);
@@ -321,28 +385,40 @@ void main() {
       expect(deleteCalled, isTrue);
     });
 
-
-
     testWidgets('renders correct subtitle for edge cases', (tester) async {
       final imgPath = p.join(tempDir.path, 'nosize.jpg');
-      File(imgPath).writeAsBytesSync([0, 1, 2]); 
+      File(imgPath).writeAsBytesSync([0, 1, 2]);
       final imageNoSize = FileItem(
-        path: imgPath, name: 'nosize.jpg', type: FileItemType.image, modified: DateTime.now(),
+        path: imgPath,
+        name: 'nosize.jpg',
+        type: FileItemType.image,
+        modified: DateTime.now(),
       );
-      
+
       final folderPath = p.join(tempDir.path, 'folder2');
       Directory(folderPath).createSync();
       final folderNoCount = FileItem(
-        path: folderPath, name: 'folder2', type: FileItemType.folder, modified: DateTime.now(),
+        path: folderPath,
+        name: 'folder2',
+        type: FileItemType.folder,
+        modified: DateTime.now(),
       );
 
       final container = ProviderContainer(
         overrides: [
-          imageQueueProvider.overrideWith((ref) => [imageNoSize, folderNoCount]),
+          imageQueueProvider.overrideWith(
+            (ref) => [imageNoSize, folderNoCount],
+          ),
           imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([imageNoSize, folderNoCount])),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
+          thumbnailCacheServiceProvider.overrideWithValue(
+            FakeThumbnailCacheService(),
+          ),
+          directoryRepositoryProvider.overrideWithValue(
+            FakeDirectoryRepository([imageNoSize, folderNoCount]),
+          ),
         ],
       );
 
@@ -350,7 +426,9 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const MaterialApp(home: Scaffold(body: ImagePlaylistSidebar())),
+            child: const MaterialApp(
+              home: Scaffold(body: ImagePlaylistSidebar()),
+            ),
           ),
         );
         // Do NOT wait for refreshQueue to complete, because it will overwrite our injected queue
@@ -360,12 +438,20 @@ void main() {
       await tester.pump(); // pump once to render initial state
 
       expect(find.text('nosize.jpg'), findsOneWidget);
-      expect(find.text('Image File'), findsOneWidget); // specific text without size
+      expect(
+        find.text('Image File'),
+        findsOneWidget,
+      ); // specific text without size
       expect(find.text('folder2'), findsOneWidget);
-      expect(find.text('Folder'), findsOneWidget); // specific text without count
+      expect(
+        find.text('Folder'),
+        findsOneWidget,
+      ); // specific text without count
     });
 
-    testWidgets('handles default moveToTrash when onDelete callback is null', (tester) async {
+    testWidgets('handles default moveToTrash when onDelete callback is null', (
+      tester,
+    ) async {
       final fakeRepo = FakeDirectoryRepository([dummyImage]);
       await tester.runAsync(() async {
         await tester.pumpWidget(
@@ -373,8 +459,12 @@ void main() {
             overrides: [
               imageQueueProvider.overrideWith((ref) => [dummyImage]),
               imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-              imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-              thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
+              imageFavoritesProvider.overrideWith(
+                (ref) => FakeImageFavoritesNotifier(),
+              ),
+              thumbnailCacheServiceProvider.overrideWithValue(
+                FakeThumbnailCacheService(),
+              ),
               directoryRepositoryProvider.overrideWithValue(fakeRepo),
             ],
             child: const MaterialApp(
@@ -398,14 +488,22 @@ void main() {
       expect(fakeRepo.deletedPaths!.first, dummyImage.path);
     });
 
-    testWidgets('triggers buildListeners on imageCurrentPathProvider change', (tester) async {
+    testWidgets('triggers buildListeners on imageCurrentPathProvider change', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           imageQueueProvider.overrideWith((ref) => [dummyImage]),
           imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
+          thumbnailCacheServiceProvider.overrideWithValue(
+            FakeThumbnailCacheService(),
+          ),
+          directoryRepositoryProvider.overrideWithValue(
+            FakeDirectoryRepository([dummyImage]),
+          ),
         ],
       );
 
@@ -414,9 +512,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: const MaterialApp(
-              home: Scaffold(
-                body: ImagePlaylistSidebar(),
-              ),
+              home: Scaffold(body: ImagePlaylistSidebar()),
             ),
           ),
         );
@@ -425,19 +521,28 @@ void main() {
       await tester.pumpAndSettle();
 
       // Trigger listener by changing imageCurrentPathProvider
-      container.read(imageCurrentPathProvider.notifier).state = '/some/new/path';
+      container.read(imageCurrentPathProvider.notifier).state =
+          '/some/new/path';
       await tester.pump();
       // Verify no exceptions thrown and buildListeners processed path change
     });
 
-    testWidgets('handles double tap when empty state is active', (tester) async {
+    testWidgets('handles double tap when empty state is active', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           imageQueueProvider.overrideWith((ref) => [dummyImage]),
           imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
+          thumbnailCacheServiceProvider.overrideWithValue(
+            FakeThumbnailCacheService(),
+          ),
+          directoryRepositoryProvider.overrideWithValue(
+            FakeDirectoryRepository([dummyImage]),
+          ),
         ],
       );
       container.read(imageIsEmptyProvider.notifier).state = true;
@@ -477,9 +582,15 @@ void main() {
         overrides: [
           imageQueueProvider.overrideWith((ref) => [dummyImage]),
           imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
+          thumbnailCacheServiceProvider.overrideWithValue(
+            FakeThumbnailCacheService(),
+          ),
+          directoryRepositoryProvider.overrideWithValue(
+            FakeDirectoryRepository([dummyImage]),
+          ),
         ],
       );
 
@@ -488,9 +599,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: const MaterialApp(
-              home: Scaffold(
-                body: ImagePlaylistSidebar(),
-              ),
+              home: Scaffold(body: ImagePlaylistSidebar()),
             ),
           ),
         );
@@ -500,7 +609,9 @@ void main() {
 
       expect(container.read(imageViewModeProvider), ImageViewMode.home);
 
-      final state = tester.state<PlaylistSidebarBaseState>(find.byType(ImagePlaylistSidebar));
+      final state = tester.state<PlaylistSidebarBaseState>(
+        find.byType(ImagePlaylistSidebar),
+      );
 
       // ignore: cascade_invocations
       state.onFavoritesNavTap();
@@ -518,9 +629,15 @@ void main() {
         overrides: [
           imageQueueProvider.overrideWith((ref) => [dummyImage]),
           imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
+          thumbnailCacheServiceProvider.overrideWithValue(
+            FakeThumbnailCacheService(),
+          ),
+          directoryRepositoryProvider.overrideWithValue(
+            FakeDirectoryRepository([dummyImage]),
+          ),
         ],
       );
 
@@ -529,9 +646,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: const MaterialApp(
-              home: Scaffold(
-                body: ImagePlaylistSidebar(),
-              ),
+              home: Scaffold(body: ImagePlaylistSidebar()),
             ),
           ),
         );
@@ -551,9 +666,15 @@ void main() {
         overrides: [
           imageQueueProvider.overrideWith((ref) => [dummyImage]),
           imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
+          thumbnailCacheServiceProvider.overrideWithValue(
+            FakeThumbnailCacheService(),
+          ),
+          directoryRepositoryProvider.overrideWithValue(
+            FakeDirectoryRepository([dummyImage]),
+          ),
         ],
       );
 
@@ -562,9 +683,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: const MaterialApp(
-              home: Scaffold(
-                body: ImagePlaylistSidebar(),
-              ),
+              home: Scaffold(body: ImagePlaylistSidebar()),
             ),
           ),
         );
@@ -584,9 +703,15 @@ void main() {
         overrides: [
           imageQueueProvider.overrideWith((ref) => [dummyImage]),
           imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
+          imageFavoritesProvider.overrideWith(
+            (ref) => FakeImageFavoritesNotifier(),
+          ),
+          thumbnailCacheServiceProvider.overrideWithValue(
+            FakeThumbnailCacheService(),
+          ),
+          directoryRepositoryProvider.overrideWithValue(
+            FakeDirectoryRepository([dummyImage]),
+          ),
         ],
       );
 
@@ -595,9 +720,7 @@ void main() {
           UncontrolledProviderScope(
             container: container,
             child: const MaterialApp(
-              home: Scaffold(
-                body: ImagePlaylistSidebar(),
-              ),
+              home: Scaffold(body: ImagePlaylistSidebar()),
             ),
           ),
         );
@@ -612,36 +735,44 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('hides bottom navigation and favorites when isNetworkStream is true', (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          imageQueueProvider.overrideWith((ref) => [dummyImage]),
-          imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
-          imageFavoritesProvider.overrideWith((ref) => FakeImageFavoritesNotifier()),
-          thumbnailCacheServiceProvider.overrideWithValue(FakeThumbnailCacheService()),
-          directoryRepositoryProvider.overrideWithValue(FakeDirectoryRepository([dummyImage])),
-        ],
-      );
+    testWidgets(
+      'hides bottom navigation and favorites when isNetworkStream is true',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            imageQueueProvider.overrideWith((ref) => [dummyImage]),
+            imagePlaylistSidebarVisibleProvider.overrideWith((ref) => true),
+            imageFavoritesProvider.overrideWith(
+              (ref) => FakeImageFavoritesNotifier(),
+            ),
+            thumbnailCacheServiceProvider.overrideWithValue(
+              FakeThumbnailCacheService(),
+            ),
+            directoryRepositoryProvider.overrideWithValue(
+              FakeDirectoryRepository([dummyImage]),
+            ),
+          ],
+        );
 
-      await tester.runAsync(() async {
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: const MaterialApp(
-              home: Scaffold(
-                body: ImagePlaylistSidebar(isNetworkStream: true),
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: const MaterialApp(
+                home: Scaffold(
+                  body: ImagePlaylistSidebar(isNetworkStream: true),
+                ),
               ),
             ),
-          ),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-      });
-      await tester.pumpAndSettle();
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        });
+        await tester.pumpAndSettle();
 
-      expect(find.text('Favorites'), findsNothing);
-      expect(find.text('Home'), findsNothing);
-      expect(find.text('Playlist'), findsOneWidget);
-    });
+        expect(find.text('Favorites'), findsNothing);
+        expect(find.text('Home'), findsNothing);
+        expect(find.text('Playlist'), findsOneWidget);
+      },
+    );
   });
 }
-

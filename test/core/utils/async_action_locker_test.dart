@@ -29,7 +29,7 @@ void main() {
 
       // Start the action but don't await immediately
       final future1 = locker.execute(slowAction);
-      
+
       // Attempt to start it again while the first is running
       final future2 = locker.execute(slowAction);
 

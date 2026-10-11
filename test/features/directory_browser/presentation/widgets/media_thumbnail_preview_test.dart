@@ -34,10 +34,7 @@ void main() {
   });
 
   setUp(() {
-    testSession = ThumbnailSession(
-      folderPath: '/path/to',
-      tabId: 'test_tab',
-    );
+    testSession = ThumbnailSession(folderPath: '/path/to', tabId: 'test_tab');
   });
 
   tearDown(() {
@@ -50,20 +47,26 @@ void main() {
     }
   });
 
-  testWidgets('MediaThumbnailPreview handles unplayable video gracefully', (tester) async {
+  testWidgets('MediaThumbnailPreview handles unplayable video gracefully', (
+    tester,
+  ) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookupAsync(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.failed);
-    when(() => mockCacheService.markFailed(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-          kind: any(named: 'kind'),
-        )).thenAnswer((_) async {});
+    when(
+      () => mockCacheService.lookupAsync(
+        filePath: any(named: 'filePath'),
+        mtime: any(named: 'mtime'),
+        sizeBytes: any(named: 'sizeBytes'),
+      ),
+    ).thenAnswer((_) async => ThumbnailLookupResult.failed);
+    when(
+      () => mockCacheService.markFailed(
+        filePath: any(named: 'filePath'),
+        mtime: any(named: 'mtime'),
+        sizeBytes: any(named: 'sizeBytes'),
+        kind: any(named: 'kind'),
+      ),
+    ).thenAnswer((_) async {});
 
     final item = FileItem(
       path: '/path/to/nonexistent/video.mp4',
@@ -76,17 +79,16 @@ void main() {
       ProviderScope(
         overrides: [
           thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+          activeThumbnailSessionProvider.overrideWith(
+            () => FakeThumbnailSessionManager(testSession),
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(
             body: SizedBox(
               width: 150,
               height: 120,
-              child: MediaThumbnailPreview(
-                item: item,
-                zoom: 1,
-              ),
+              child: MediaThumbnailPreview(item: item, zoom: 1),
             ),
           ),
         ),
@@ -96,18 +98,24 @@ void main() {
     expect(find.byType(MediaThumbnailPreview), findsOneWidget);
   });
 
-  testWidgets('MediaThumbnailPreview loads cached thumbnail for video', (tester) async {
+  testWidgets('MediaThumbnailPreview loads cached thumbnail for video', (
+    tester,
+  ) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookupAsync(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
-    
+    when(
+      () => mockCacheService.lookupAsync(
+        filePath: any(named: 'filePath'),
+        mtime: any(named: 'mtime'),
+        sizeBytes: any(named: 'sizeBytes'),
+      ),
+    ).thenAnswer((_) async => ThumbnailLookupResult.hit);
+
     final tempVideoThumb = File('test/resources/media/dummy.png');
 
-    when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => tempVideoThumb.path);
+    when(
+      () => mockCacheService.getCachedPathAsync(any()),
+    ).thenAnswer((_) async => tempVideoThumb.path);
 
     final item = FileItem(
       path: '/path/to/video.mp4',
@@ -121,17 +129,16 @@ void main() {
         ProviderScope(
           overrides: [
             thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+            activeThumbnailSessionProvider.overrideWith(
+              () => FakeThumbnailSessionManager(testSession),
+            ),
           ],
           child: MaterialApp(
             home: Scaffold(
               body: SizedBox(
                 width: 150,
                 height: 120,
-                child: MediaThumbnailPreview(
-                  item: item,
-                  zoom: 1,
-                ),
+                child: MediaThumbnailPreview(item: item, zoom: 1),
               ),
             ),
           ),
@@ -144,19 +151,26 @@ void main() {
     expect(find.byType(CustomPaint), findsWidgets);
   });
 
-  testWidgets('MediaThumbnailPreview loads cached thumbnail for image', (tester) async {
+  testWidgets('MediaThumbnailPreview loads cached thumbnail for image', (
+    tester,
+  ) async {
     final mockCacheService = MockThumbnailCacheService();
     when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookupAsync(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
-        
-    final tempImageThumb = File('${tempDir.path}/cached_image_test.jpg')..createSync();
+    when(
+      () => mockCacheService.lookupAsync(
+        filePath: any(named: 'filePath'),
+        mtime: any(named: 'mtime'),
+        sizeBytes: any(named: 'sizeBytes'),
+      ),
+    ).thenAnswer((_) async => ThumbnailLookupResult.hit);
+
+    final tempImageThumb = File('${tempDir.path}/cached_image_test.jpg')
+      ..createSync();
     addTearDown(tempImageThumb.deleteSync);
 
-    when(() => mockCacheService.getCachedPathAsync(any())).thenAnswer((_) async => tempImageThumb.path);
+    when(
+      () => mockCacheService.getCachedPathAsync(any()),
+    ).thenAnswer((_) async => tempImageThumb.path);
 
     final item = FileItem(
       path: '/path/to/image.jpg',
@@ -170,17 +184,16 @@ void main() {
         ProviderScope(
           overrides: [
             thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+            activeThumbnailSessionProvider.overrideWith(
+              () => FakeThumbnailSessionManager(testSession),
+            ),
           ],
           child: MaterialApp(
             home: Scaffold(
               body: SizedBox(
                 width: 150,
                 height: 120,
-                child: MediaThumbnailPreview(
-                  item: item,
-                  zoom: 1,
-                ),
+                child: MediaThumbnailPreview(item: item, zoom: 1),
               ),
             ),
           ),
@@ -193,322 +206,375 @@ void main() {
     expect(find.byType(ClipRRect), findsWidgets);
   });
 
-  testWidgets('MediaThumbnailPreview runs fallback thumbnail generation and didUpdateWidget', (tester) async {
-    final mockCacheService = MockThumbnailCacheService();
-    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    
-    // For item1, return miss to trigger enqueueing
-    when(() => mockCacheService.lookupAsync(
+  testWidgets(
+    'MediaThumbnailPreview runs fallback thumbnail generation and didUpdateWidget',
+    (tester) async {
+      final mockCacheService = MockThumbnailCacheService();
+      when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+
+      // For item1, return miss to trigger enqueueing
+      when(
+        () => mockCacheService.lookupAsync(
           filePath: '/path/to/test_image.xyz',
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.miss);
+        ),
+      ).thenAnswer((_) async => ThumbnailLookupResult.miss);
 
-    // For item2, return hit to avoid triggering a second enqueueing that would clog the queue
-    when(() => mockCacheService.lookupAsync(
+      // For item2, return hit to avoid triggering a second enqueueing that would clog the queue
+      when(
+        () => mockCacheService.lookupAsync(
           filePath: '/path/to/another_image.xyz',
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
+        ),
+      ).thenAnswer((_) async => ThumbnailLookupResult.hit);
 
-    final tempImageThumb = File('${tempDir.path}/cached_another_test.jpg')..createSync();
-    addTearDown(tempImageThumb.deleteSync);
-    when(() => mockCacheService.getCachedPathAsync('/path/to/another_image.xyz')).thenAnswer((_) async => tempImageThumb.path);
+      final tempImageThumb = File('${tempDir.path}/cached_another_test.jpg')
+        ..createSync();
+      addTearDown(tempImageThumb.deleteSync);
+      when(
+        () => mockCacheService.getCachedPathAsync('/path/to/another_image.xyz'),
+      ).thenAnswer((_) async => tempImageThumb.path);
 
-    when(() => mockCacheService.markFailed(
+      when(
+        () => mockCacheService.markFailed(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
           kind: any(named: 'kind'),
-        )).thenAnswer((_) async {});
-    when(() => mockCacheService.storeThumbnail(
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockCacheService.storeThumbnail(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
           kind: any(named: 'kind'),
           thumbnailFile: any(named: 'thumbnailFile'),
-        )).thenAnswer((_) async {});
+        ),
+      ).thenAnswer((_) async {});
 
-    final item1 = FileItem(
-      path: '/path/to/test_image.xyz',
-      name: 'test_image.xyz',
-      type: FileItemType.image,
-      sizeBytes: 1024,
-      modified: DateTime.now(),
-    );
+      final item1 = FileItem(
+        path: '/path/to/test_image.xyz',
+        name: 'test_image.xyz',
+        type: FileItemType.image,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
+      );
 
-    final item2 = FileItem(
-      path: '/path/to/another_image.xyz',
-      name: 'another_image.xyz',
-      type: FileItemType.image,
-      sizeBytes: 1024,
-      modified: DateTime.now(),
-    );
+      final item2 = FileItem(
+        path: '/path/to/another_image.xyz',
+        name: 'another_image.xyz',
+        type: FileItemType.image,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
+      );
 
-    var tapped = false;
+      var tapped = false;
 
-    await tester.runAsync(() async {
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+              activeThumbnailSessionProvider.overrideWith(
+                () => FakeThumbnailSessionManager(testSession),
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: StatefulBuilder(
+                  builder: (context, setState) {
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: 150,
+                          height: 120,
+                          child: MediaThumbnailPreview(
+                            item: tapped ? item2 : item1,
+                            zoom: 1,
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => setState(() => tapped = true),
+                          child: const Text('Change'),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+      });
+
+      await tester.pumpAndSettle();
+
+      // Trigger didUpdateWidget
+      await tester.tap(find.text('Change'));
+      await tester.pumpAndSettle();
+    },
+  );
+
+  test(
+    'ThumbnailSession deduplicates concurrent enqueueCandidate calls for the same path',
+    () async {
+      final mockCache = MockThumbnailCacheService();
+      when(
+        () => mockCache.lookup(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        ),
+      ).thenReturn(ThumbnailLookupResult.miss);
+      when(
+        () => mockCache.markFailed(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+          kind: any(named: 'kind'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final session = ThumbnailSession(
+        folderPath: '/path/to',
+        tabId: 'tab_test',
+        cacheService: mockCache,
+      );
+      addTearDown(session.dispose);
+
+      const c = ThumbnailCandidate(
+        path: 'file1.jpg',
+        type: FileItemType.image,
+        modifiedEpochMs: 0,
+        sizeBytes: 1024,
+      );
+      session.updateViewportInterest(candidates: [c], visiblePaths: {c.path});
+
+      final f1 = session.enqueueCandidate(c);
+      final f2 = session.enqueueCandidate(c); // should be deduplicated
+
+      final results = await Future.wait([
+        f1,
+        f2,
+      ]).timeout(const Duration(seconds: 5));
+      // Both futures must resolve and return the same outcome
+      expect(results[0], equals(results[1]));
+    },
+  );
+
+  testWidgets(
+    'MediaThumbnailPreview gracefully handles corrupted or missing cached image without crashing',
+    (tester) async {
+      final mockCacheService = MockThumbnailCacheService();
+      when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+      when(
+        () => mockCacheService.lookupAsync(
+          filePath: any(named: 'filePath'),
+          mtime: any(named: 'mtime'),
+          sizeBytes: any(named: 'sizeBytes'),
+        ),
+      ).thenAnswer((_) async => ThumbnailLookupResult.hit);
+      when(
+        () => mockCacheService.getCachedPathAsync(
+          any(),
+          size: any(named: 'size'),
+        ),
+      ).thenAnswer((_) async => '/tmp/nonexistent_image_thumb.jpg');
+
+      final item = FileItem(
+        path: '/path/to/corrupt.jpg',
+        name: 'corrupt.jpg',
+        type: FileItemType.image,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
+      );
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-            activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
+            activeThumbnailSessionProvider.overrideWith(
+              () => FakeThumbnailSessionManager(testSession),
+            ),
           ],
           child: MaterialApp(
             home: Scaffold(
-              body: StatefulBuilder(
-                builder: (context, setState) {
-                  return Column(
-                    children: [
-                      SizedBox(
-                        width: 150,
-                        height: 120,
-                        child: MediaThumbnailPreview(
-                          item: tapped ? item2 : item1,
-                          zoom: 1,
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => setState(() => tapped = true),
-                        child: const Text('Change'),
-                      ),
-                    ],
-                  );
-                },
+              body: SizedBox(
+                width: 150,
+                height: 120,
+                child: MediaThumbnailPreview(item: item, zoom: 1),
               ),
             ),
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
-    });
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MediaThumbnailPreview), findsOneWidget);
+    },
+  );
 
-    // Trigger didUpdateWidget
-    await tester.tap(find.text('Change'));
-    await tester.pumpAndSettle();
-  });
-
-  test('ThumbnailSession deduplicates concurrent enqueueCandidate calls for the same path', () async {
-    final mockCache = MockThumbnailCacheService();
-    when(() => mockCache.lookup(
+  testWidgets(
+    'MediaThumbnailPreview displays broken image placeholder when lookup result is failed',
+    (tester) async {
+      final mockCacheService = MockThumbnailCacheService();
+      when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+      when(
+        () => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenReturn(ThumbnailLookupResult.miss);
-    when(() => mockCache.markFailed(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-          kind: any(named: 'kind'),
-        )).thenAnswer((_) async {});
+        ),
+      ).thenAnswer((_) async => ThumbnailLookupResult.failed);
 
-    final session = ThumbnailSession(
-      folderPath: '/path/to',
-      tabId: 'tab_test',
-      cacheService: mockCache,
-    );
-    addTearDown(session.dispose);
+      final item = FileItem(
+        path: '/path/to/corrupt_image.png',
+        name: 'corrupt_image.png',
+        type: FileItemType.image,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
+      );
 
-    const c = ThumbnailCandidate(
-      path: 'file1.jpg',
-      type: FileItemType.image,
-      modifiedEpochMs: 0,
-      sizeBytes: 1024,
-    );
-    session.updateViewportInterest(candidates: [c], visiblePaths: {c.path});
-
-    final f1 = session.enqueueCandidate(c);
-    final f2 = session.enqueueCandidate(c); // should be deduplicated
-
-    final results = await Future.wait([f1, f2]).timeout(const Duration(seconds: 5));
-    // Both futures must resolve and return the same outcome
-    expect(results[0], equals(results[1]));
-  });
-
-  testWidgets('MediaThumbnailPreview gracefully handles corrupted or missing cached image without crashing', (tester) async {
-    final mockCacheService = MockThumbnailCacheService();
-    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookupAsync(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.hit);
-    when(() => mockCacheService.getCachedPathAsync(any(), size: any(named: 'size')))
-        .thenAnswer((_) async => '/tmp/nonexistent_image_thumb.jpg');
-
-    final item = FileItem(
-      path: '/path/to/corrupt.jpg',
-      name: 'corrupt.jpg',
-      type: FileItemType.image,
-      sizeBytes: 1024,
-      modified: DateTime.now(),
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 150,
-              height: 120,
-              child: MediaThumbnailPreview(
-                item: item,
-                zoom: 1,
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+            activeThumbnailSessionProvider.overrideWith(
+              () => FakeThumbnailSessionManager(testSession),
+            ),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 150,
+                height: 120,
+                child: MediaThumbnailPreview(item: item, zoom: 1),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
+      await tester.pumpAndSettle();
 
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.byType(MediaThumbnailPreview), findsOneWidget);
-  });
+      expect(find.byType(SvgPicture), findsOneWidget);
+    },
+  );
 
-
-  testWidgets('MediaThumbnailPreview displays broken image placeholder when lookup result is failed', (tester) async {
-    final mockCacheService = MockThumbnailCacheService();
-    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookupAsync(
+  testWidgets(
+    'MediaThumbnailPreview displays broken video placeholder when lookup result is failed',
+    (tester) async {
+      final mockCacheService = MockThumbnailCacheService();
+      when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+      when(
+        () => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.failed);
+        ),
+      ).thenAnswer((_) async => ThumbnailLookupResult.failed);
 
-    final item = FileItem(
-      path: '/path/to/corrupt_image.png',
-      name: 'corrupt_image.png',
-      type: FileItemType.image,
-      sizeBytes: 1024,
-      modified: DateTime.now(),
-    );
+      final item = FileItem(
+        path: '/path/to/corrupt_video.mkv',
+        name: 'corrupt_video.mkv',
+        type: FileItemType.video,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 150,
-              height: 120,
-              child: MediaThumbnailPreview(
-                item: item,
-                zoom: 1,
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+            activeThumbnailSessionProvider.overrideWith(
+              () => FakeThumbnailSessionManager(testSession),
+            ),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 150,
+                height: 120,
+                child: MediaThumbnailPreview(item: item, zoom: 1),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byType(SvgPicture), findsOneWidget);
-  });
-
-  testWidgets('MediaThumbnailPreview displays broken video placeholder when lookup result is failed', (tester) async {
-    final mockCacheService = MockThumbnailCacheService();
-    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookupAsync(
+      expect(find.byType(SvgPicture), findsOneWidget);
+    },
+  );
+  testWidgets(
+    'MediaThumbnailPreview displays default svg icon centered when thumbnail is missing',
+    (tester) async {
+      final mockCacheService = MockThumbnailCacheService();
+      when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
+      when(
+        () => mockCacheService.lookupAsync(
           filePath: any(named: 'filePath'),
           mtime: any(named: 'mtime'),
           sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.failed);
+        ),
+      ).thenAnswer((_) async => ThumbnailLookupResult.miss);
 
-    final item = FileItem(
-      path: '/path/to/corrupt_video.mkv',
-      name: 'corrupt_video.mkv',
-      type: FileItemType.video,
-      sizeBytes: 1024,
-      modified: DateTime.now(),
-    );
+      final item = FileItem(
+        path: '/path/to/missing_thumbnail_image.jpg',
+        name: 'missing_thumbnail_image.jpg',
+        type: FileItemType.image,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 150,
-              height: 120,
-              child: MediaThumbnailPreview(
-                item: item,
-                zoom: 1,
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
+            activeThumbnailSessionProvider.overrideWith(
+              () => FakeThumbnailSessionManager(testSession),
+            ),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 150,
+                height: 120,
+                child: MediaThumbnailPreview(item: item, zoom: 1),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byType(SvgPicture), findsOneWidget);
-  });
-  testWidgets('MediaThumbnailPreview displays default svg icon centered when thumbnail is missing', (tester) async {
-    final mockCacheService = MockThumbnailCacheService();
-    when(mockCacheService.ensureLoaded).thenAnswer((_) async {});
-    when(() => mockCacheService.lookupAsync(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.miss);
+      final svgFinder = find.byType(SvgPicture);
+      expect(svgFinder, findsOneWidget);
 
-    final item = FileItem(
-      path: '/path/to/missing_thumbnail_image.jpg',
-      name: 'missing_thumbnail_image.jpg',
-      type: FileItemType.image,
-      sizeBytes: 1024,
-      modified: DateTime.now(),
-    );
+      // Verify it is wrapped in Center and SizedBox.expand
+      final centerFinder = find.ancestor(
+        of: svgFinder,
+        matching: find.byType(Center),
+      );
+      expect(
+        centerFinder,
+        findsWidgets,
+      ); // Can be multiple if nested but should at least find one
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-          activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(testSession)),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 150,
-              height: 120,
-              child: MediaThumbnailPreview(
-                item: item,
-                zoom: 1,
-              ),
-            ),
-          ),
+      // Verify it does NOT have a Container with BoxDecoration (dark cover)
+      // SvgPicture itself uses a few basic widgets internally, but shouldn't be wrapped in a custom decorated Container in _buildSvgIcon
+
+      final decoratedContainerFinder = find.descendant(
+        of: find.byType(MediaThumbnailPreview),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Container && widget.decoration != null,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final svgFinder = find.byType(SvgPicture);
-    expect(svgFinder, findsOneWidget);
-    
-    // Verify it is wrapped in Center and SizedBox.expand
-    final centerFinder = find.ancestor(of: svgFinder, matching: find.byType(Center));
-    expect(centerFinder, findsWidgets); // Can be multiple if nested but should at least find one
-    
-    // Verify it does NOT have a Container with BoxDecoration (dark cover)
-    // SvgPicture itself uses a few basic widgets internally, but shouldn't be wrapped in a custom decorated Container in _buildSvgIcon
-    
-    final decoratedContainerFinder = find.descendant(
-      of: find.byType(MediaThumbnailPreview), 
-      matching: find.byWidgetPredicate((widget) => widget is Container && widget.decoration != null)
-    );
-    expect(decoratedContainerFinder, findsNothing);
-  });
+      );
+      expect(decoratedContainerFinder, findsNothing);
+    },
+  );
 }

@@ -20,10 +20,15 @@ import 'package:onyxcore/features/video_player/presentation/providers/video_play
 import 'package:onyxcore/features/video_player/presentation/state/video_player_state.dart';
 
 class MockPlayer extends Mock implements Player {}
+
 class FakePlayerState extends Fake implements PlayerState {}
+
 class MockPlayerState extends Mock implements PlayerState {}
+
 class MockPlayerStream extends Mock implements PlayerStream {}
-class MockVideoPlayerDisplayState extends Mock implements VideoPlayerDisplayState {}
+
+class MockVideoPlayerDisplayState extends Mock
+    implements VideoPlayerDisplayState {}
 
 class MockAppDatabase extends Mock implements AppDatabase {}
 
@@ -45,7 +50,7 @@ class MockSettingsNotifier extends SettingsNotifier {
 class MockVideoFavoritesNotifier extends VideoFavoritesNotifier {
   @override
   Set<String> get state => {};
-  
+
   @override
   void toggleFavorite(String path) {}
 }
@@ -78,7 +83,6 @@ void main() {
     late ValueNotifier<bool> playingNotifier;
     late double playbackSpeed;
 
-
     late bool onToggleMuteCalled;
     late bool onToggleFullscreenCalled;
     late bool onNavigateMediaCalled;
@@ -92,7 +96,7 @@ void main() {
       mockPlayer = MockPlayer();
       mockPlayerState = MockPlayerState();
       when(() => mockPlayer.state).thenReturn(mockPlayerState);
-            mockStream = MockPlayerStream();
+      mockStream = MockPlayerStream();
       when(() => mockPlayer.stream).thenReturn(mockStream);
       when(() => mockPlayer.playOrPause()).thenAnswer((_) async {});
       when(() => mockPlayer.play()).thenAnswer((_) async {});
@@ -102,8 +106,12 @@ void main() {
       when(() => mockStream.buffer).thenAnswer((_) => const Stream.empty());
       when(() => mockStream.volume).thenAnswer((_) => const Stream.empty());
       when(() => mockStream.track).thenAnswer((_) => const Stream.empty());
-      when(() => mockPlayerState.duration).thenReturn(const Duration(minutes: 5));
-      when(() => mockPlayerState.position).thenReturn(const Duration(minutes: 1));
+      when(
+        () => mockPlayerState.duration,
+      ).thenReturn(const Duration(minutes: 5));
+      when(
+        () => mockPlayerState.position,
+      ).thenReturn(const Duration(minutes: 1));
       when(() => mockPlayerState.buffer).thenReturn(const Duration(minutes: 1));
       when(() => mockPlayerState.playing).thenReturn(true);
       when(() => mockPlayerState.volume).thenReturn(100);
@@ -135,7 +143,7 @@ void main() {
       when(() => displayState.showSnapshotToast).thenReturn(false);
       when(() => displayState.isEmpty).thenReturn(false);
       when(() => displayState.hasError).thenReturn(false);
-      
+
       currentItem = FileItem(
         name: 'test.mp4',
         path: '/test.mp4',
@@ -147,7 +155,6 @@ void main() {
       selectedFormatId = null;
       playingNotifier = ValueNotifier<bool>(true);
       playbackSpeed = 1.0;
-
 
       onToggleMuteCalled = false;
       onToggleFullscreenCalled = false;
@@ -161,7 +168,10 @@ void main() {
 
     final menuNotifier = ValueNotifier<Widget?>(null);
 
-    Widget buildTestApp(WidgetTester tester, {List<VideoMarker> markers = const []}) {
+    Widget buildTestApp(
+      WidgetTester tester, {
+      List<VideoMarker> markers = const [],
+    }) {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -171,7 +181,9 @@ void main() {
           settingsProvider.overrideWith(MockSettingsNotifier.new),
           databaseProvider.overrideWithValue(MockAppDatabase()),
           videoPlaylistSidebarVisibleProvider.overrideWith((ref) => false),
-          videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
+          videoFavoritesProvider.overrideWith(
+            (ref) => MockVideoFavoritesNotifier(),
+          ),
           videoAutoPlaySessionProvider.overrideWith((ref) => true),
           videoMarkersProvider.overrideWith((ref, id) => markers),
         ],
@@ -183,41 +195,45 @@ void main() {
                 return Stack(
                   children: [
                     VideoBottomControls(
-                  displayState: displayState,
-                  player: mockPlayer,
-                  currentItem: currentItem,
-                  displayPosition: displayPosition,
-                  availableFormats: availableFormats,
-                  selectedFormatId: selectedFormatId,
-                  onResolutionChanged: (f) {},
-                  onInteraction: () {},
-                  onShowSeekIndicator: () {},
-                  onToggleMute: () => onToggleMuteCalled = true,
-                  onToggleFullscreen: () => onToggleFullscreenCalled = true,
-                  onNavigateMedia: (v) => onNavigateMediaCalled = true,
-                  onShowMenu: ({required key, required child, required type}) {
-                    onShowMenuCalled = true;
-                    Future.microtask(() {
-                      menuNotifier.value = child;
-                    });
-                  },
-                  onOpenMarkerEditor: (m) {},
-                  audioKey: GlobalKey(),
-                  subtitleKey: GlobalKey(),
-                  speedKey: GlobalKey(),
-                  resolutionKey: GlobalKey(),
-                  onMarkerMenuVisibilityChanged: (v) {},
-                  onStepSeek: ({required isForward}) => onStepSeekCalled = true,
-                  onStartFastSeek: ({required isForward}) => onStartFastSeekCalled = true,
-                  onStopFastSeek: () => onStopFastSeekCalled = true,
-                  playingNotifier: playingNotifier,
-                  playbackSpeed: playbackSpeed,
-                ),
-                if (menuChildWidget != null)
-                  Positioned.fill(child: menuChildWidget),
-              ],
-            );
-          }),
+                      displayState: displayState,
+                      player: mockPlayer,
+                      currentItem: currentItem,
+                      displayPosition: displayPosition,
+                      availableFormats: availableFormats,
+                      selectedFormatId: selectedFormatId,
+                      onResolutionChanged: (f) {},
+                      onInteraction: () {},
+                      onShowSeekIndicator: () {},
+                      onToggleMute: () => onToggleMuteCalled = true,
+                      onToggleFullscreen: () => onToggleFullscreenCalled = true,
+                      onNavigateMedia: (v) => onNavigateMediaCalled = true,
+                      onShowMenu:
+                          ({required key, required child, required type}) {
+                            onShowMenuCalled = true;
+                            Future.microtask(() {
+                              menuNotifier.value = child;
+                            });
+                          },
+                      onOpenMarkerEditor: (m) {},
+                      audioKey: GlobalKey(),
+                      subtitleKey: GlobalKey(),
+                      speedKey: GlobalKey(),
+                      resolutionKey: GlobalKey(),
+                      onMarkerMenuVisibilityChanged: (v) {},
+                      onStepSeek: ({required isForward}) =>
+                          onStepSeekCalled = true,
+                      onStartFastSeek: ({required isForward}) =>
+                          onStartFastSeekCalled = true,
+                      onStopFastSeek: () => onStopFastSeekCalled = true,
+                      playingNotifier: playingNotifier,
+                      playbackSpeed: playbackSpeed,
+                    ),
+                    if (menuChildWidget != null)
+                      Positioned.fill(child: menuChildWidget),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       );
@@ -228,7 +244,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
       addTearDown(() => tester.view.resetDevicePixelRatio());
-      
+
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
 
@@ -236,7 +252,9 @@ void main() {
       expect(find.byType(Slider), findsWidgets);
     });
 
-    testWidgets('play/pause button toggles state based on playingNotifier', (tester) async {
+    testWidgets('play/pause button toggles state based on playingNotifier', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -244,18 +262,22 @@ void main() {
 
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
+
       expect(find.byIcon(Icons.pause), findsOneWidget);
-      
+
       final gesture = tester.widget<GestureDetector>(
-        find.ancestor(
-          of: find.byIcon(Icons.pause),
-          matching: find.byWidgetPredicate((w) => w is GestureDetector && w.onTap != null),
-        ).first
+        find
+            .ancestor(
+              of: find.byIcon(Icons.pause),
+              matching: find.byWidgetPredicate(
+                (w) => w is GestureDetector && w.onTap != null,
+              ),
+            )
+            .first,
       );
       gesture.onTap!();
       await tester.pumpAndSettle();
-      
+
       verify(() => mockPlayer.playOrPause()).called(1);
     });
 
@@ -267,21 +289,30 @@ void main() {
 
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
-      final forwardButton = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.forward_10), matching: find.byType(IconButton)));
-      forwardButton.onPressed!();
-      expect(onStepSeekCalled, isTrue);
-      
-      // Test long press
-      final gesture = tester.widget<GestureDetector>(
+
+      final forwardButton = tester.widget<IconButton>(
         find.ancestor(
           of: find.byIcon(Icons.forward_10),
-          matching: find.byWidgetPredicate((w) => w is GestureDetector && w.onLongPressStart != null),
-        ).first
+          matching: find.byType(IconButton),
+        ),
+      );
+      forwardButton.onPressed!();
+      expect(onStepSeekCalled, isTrue);
+
+      // Test long press
+      final gesture = tester.widget<GestureDetector>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.forward_10),
+              matching: find.byWidgetPredicate(
+                (w) => w is GestureDetector && w.onLongPressStart != null,
+              ),
+            )
+            .first,
       );
       gesture.onLongPressStart!(const LongPressStartDetails());
       expect(onStartFastSeekCalled, isTrue);
-      
+
       gesture.onLongPressEnd!(const LongPressEndDetails());
       expect(onStopFastSeekCalled, isTrue);
     });
@@ -294,18 +325,30 @@ void main() {
 
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
-      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.volume_up), matching: find.byType(IconButton)));
+
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.volume_up),
+          matching: find.byType(IconButton),
+        ),
+      );
       button.onPressed!();
       expect(onToggleMuteCalled, isTrue);
     });
 
     testWidgets('Resolution menu tap', (tester) async {
       when(() => displayState.isNetworkStream).thenReturn(true);
-      availableFormats = [const MediaFormat(formatId: '1', formatString: 'mp4', extension: 'mp4', resolution: '1920x1080')];
+      availableFormats = [
+        const MediaFormat(
+          formatId: '1',
+          formatString: 'mp4',
+          extension: 'mp4',
+          resolution: '1920x1080',
+        ),
+      ];
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
+
       final buttonFinder = find.byType(PopupMenuButton<MediaFormat>);
       // Pop up menu button does not have an onPressed. It has onSelected, etc. We can just tap it.
       await tester.tap(buttonFinder.first);
@@ -320,8 +363,13 @@ void main() {
 
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
-      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.fullscreen_rounded), matching: find.byType(IconButton)));
+
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.fullscreen_rounded),
+          matching: find.byType(IconButton),
+        ),
+      );
       button.onPressed!();
       expect(onToggleFullscreenCalled, isTrue);
     });
@@ -333,78 +381,15 @@ void main() {
       addTearDown(() => tester.view.resetDevicePixelRatio());
 
       final settingsNotifier = MockSettingsNotifier();
-      
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             databaseProvider.overrideWithValue(MockAppDatabase()),
             settingsProvider.overrideWith(() => settingsNotifier),
-            videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
-            videoMarkersProvider.overrideWith((ref, path) => []),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: Stack(
-                children: [
-                  VideoBottomControls(
-                displayState: displayState,
-                player: mockPlayer,
-                currentItem: currentItem,
-                displayPosition: displayPosition,
-                availableFormats: availableFormats,
-                selectedFormatId: selectedFormatId,
-                onResolutionChanged: (f) {},
-                onInteraction: () {},
-                onShowSeekIndicator: () {},
-                onToggleMute: () {},
-                onToggleFullscreen: () {},
-                onNavigateMedia: (_) {},
-                onShowMenu: ({required child, required key, required type}) {},
-                onOpenMarkerEditor: (_) {},
-                audioKey: GlobalKey(),
-                subtitleKey: GlobalKey(),
-                speedKey: GlobalKey(),
-                resolutionKey: GlobalKey(),
-                onMarkerMenuVisibilityChanged: (_) {},
-                onStepSeek: ({required isForward}) {},
-                onStartFastSeek: ({required isForward}) {},
-                onStopFastSeek: () {},
-                playingNotifier: playingNotifier,
-                playbackSpeed: playbackSpeed,
-              ),
-                ],
-              ),
+            videoFavoritesProvider.overrideWith(
+              (ref) => MockVideoFavoritesNotifier(),
             ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final textFinder = find.text('05:00');
-      expect(textFinder, findsOneWidget);
-
-      final gesture = find.ancestor(of: textFinder, matching: find.byType(GestureDetector)).first;
-      await tester.tap(gesture);
-      await tester.pumpAndSettle();
-
-      expect(settingsNotifier.updateCalled, isTrue, reason: 'Toggling time text should update settings');
-      expect(settingsNotifier.lastSettings.videoShowRemainingTime, isTrue, reason: 'Settings should reflect new state');
-    });
-    
-    testWidgets('progress bar updates immediately on seek', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-      addTearDown(() => tester.view.resetDevicePixelRatio());
-
-      final settingsNotifier = MockSettingsNotifier();
-      
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            databaseProvider.overrideWithValue(MockAppDatabase()),
-            settingsProvider.overrideWith(() => settingsNotifier),
-            videoFavoritesProvider.overrideWith((ref) => MockVideoFavoritesNotifier()),
             videoMarkersProvider.overrideWith((ref, path) => []),
           ],
           child: MaterialApp(
@@ -424,7 +409,86 @@ void main() {
                     onToggleMute: () {},
                     onToggleFullscreen: () {},
                     onNavigateMedia: (_) {},
-                    onShowMenu: ({required child, required key, required type}) {},
+                    onShowMenu:
+                        ({required child, required key, required type}) {},
+                    onOpenMarkerEditor: (_) {},
+                    audioKey: GlobalKey(),
+                    subtitleKey: GlobalKey(),
+                    speedKey: GlobalKey(),
+                    resolutionKey: GlobalKey(),
+                    onMarkerMenuVisibilityChanged: (_) {},
+                    onStepSeek: ({required isForward}) {},
+                    onStartFastSeek: ({required isForward}) {},
+                    onStopFastSeek: () {},
+                    playingNotifier: playingNotifier,
+                    playbackSpeed: playbackSpeed,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final textFinder = find.text('05:00');
+      expect(textFinder, findsOneWidget);
+
+      final gesture = find
+          .ancestor(of: textFinder, matching: find.byType(GestureDetector))
+          .first;
+      await tester.tap(gesture);
+      await tester.pumpAndSettle();
+
+      expect(
+        settingsNotifier.updateCalled,
+        isTrue,
+        reason: 'Toggling time text should update settings',
+      );
+      expect(
+        settingsNotifier.lastSettings.videoShowRemainingTime,
+        isTrue,
+        reason: 'Settings should reflect new state',
+      );
+    });
+
+    testWidgets('progress bar updates immediately on seek', (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+      addTearDown(() => tester.view.resetDevicePixelRatio());
+
+      final settingsNotifier = MockSettingsNotifier();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(MockAppDatabase()),
+            settingsProvider.overrideWith(() => settingsNotifier),
+            videoFavoritesProvider.overrideWith(
+              (ref) => MockVideoFavoritesNotifier(),
+            ),
+            videoMarkersProvider.overrideWith((ref, path) => []),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Stack(
+                children: [
+                  VideoBottomControls(
+                    displayState: displayState,
+                    player: mockPlayer,
+                    currentItem: currentItem,
+                    displayPosition: displayPosition,
+                    availableFormats: availableFormats,
+                    selectedFormatId: selectedFormatId,
+                    onResolutionChanged: (f) {},
+                    onInteraction: () {},
+                    onShowSeekIndicator: () {},
+                    onToggleMute: () {},
+                    onToggleFullscreen: () {},
+                    onNavigateMedia: (_) {},
+                    onShowMenu:
+                        ({required child, required key, required type}) {},
                     onOpenMarkerEditor: (_) {},
                     audioKey: GlobalKey(),
                     subtitleKey: GlobalKey(),
@@ -451,13 +515,20 @@ void main() {
 
       // Tap on the slider at 50%
       await tester.tap(find.byType(Slider).first, pointer: 1);
-      await tester.pump(); // Pump once, not pumpAndSettle, because timers might be running!
+      await tester
+          .pump(); // Pump once, not pumpAndSettle, because timers might be running!
 
       final newSlider = tester.widget<Slider>(find.byType(Slider).first);
-      expect(newSlider.value, isNot(initialValue), reason: 'Slider value should update immediately on tap');
+      expect(
+        newSlider.value,
+        isNot(initialValue),
+        reason: 'Slider value should update immediately on tap',
+      );
     });
 
-    testWidgets('renders all HUD controls even if hasError is true', (tester) async {
+    testWidgets('renders all HUD controls even if hasError is true', (
+      tester,
+    ) async {
       when(() => displayState.hasError).thenReturn(true);
       when(() => displayState.isEmpty).thenReturn(false);
 
@@ -487,67 +558,76 @@ void main() {
       expect(find.byIcon(Icons.playlist_play), findsOneWidget);
     });
 
-    testWidgets('slider events (onChangeStart, onChanged, onChangeEnd) cover scrub state and timers', (tester) async {
-      await tester.pumpWidget(buildTestApp(tester));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'slider events (onChangeStart, onChanged, onChangeEnd) cover scrub state and timers',
+      (tester) async {
+        await tester.pumpWidget(buildTestApp(tester));
+        await tester.pumpAndSettle();
 
-      final sliderFinder = find.byType(Slider);
-      final slider = tester.widget<Slider>(sliderFinder.first);
+        final sliderFinder = find.byType(Slider);
+        final slider = tester.widget<Slider>(sliderFinder.first);
 
-      // Trigger onChangeStart
-      slider.onChangeStart!(0.5);
-      await tester.pump();
-      verify(() => mockPlayer.pause()).called(1); // pause is called during start
+        // Trigger onChangeStart
+        slider.onChangeStart!(0.5);
+        await tester.pump();
+        verify(
+          () => mockPlayer.pause(),
+        ).called(1); // pause is called during start
 
-      // Trigger onChanged (twice quickly to test throttle)
-      slider.onChanged!(0.6);
-      slider.onChanged!(0.7);
-      await tester.pump();
-      verify(() => mockPlayer.seek(any())).called(greaterThanOrEqualTo(1)); // _performSeek is called
+        // Trigger onChanged (twice quickly to test throttle)
+        slider.onChanged!(0.6);
+        slider.onChanged!(0.7);
+        await tester.pump();
+        verify(
+          () => mockPlayer.seek(any()),
+        ).called(greaterThanOrEqualTo(1)); // _performSeek is called
 
-      // Wait for throttle timer
-      await tester.pump(const Duration(milliseconds: 150));
+        // Wait for throttle timer
+        await tester.pump(const Duration(milliseconds: 150));
 
-      // Trigger onChangeEnd
-      slider.onChangeEnd!(0.8);
-      await tester.pump();
-      
-      // Cleanup timer should run after 1 sec
-      await tester.pump(const Duration(seconds: 1));
-      
-      // We can also test didUpdateWidget by pumping a new widget with a different displayState
-      final newDisplayState = MockVideoPlayerDisplayState();
-      when(() => newDisplayState.isHudVisible).thenReturn(true);
-      when(() => newDisplayState.showRemainingTime).thenReturn(true); // Changed
-      when(() => newDisplayState.isEmpty).thenReturn(false);
-      // add necessary mocks for newDisplayState as well
-      when(() => newDisplayState.isMarkerEditorActive).thenReturn(false);
-      when(() => newDisplayState.isAudioMenuVisible).thenReturn(false);
-      when(() => newDisplayState.isSubtitleMenuVisible).thenReturn(false);
-      when(() => newDisplayState.isSpeedMenuVisible).thenReturn(false);
-      when(() => newDisplayState.isStandalone).thenReturn(false);
-      when(() => newDisplayState.isMuted).thenReturn(false);
-      when(() => newDisplayState.isOpening).thenReturn(false);
-      when(() => newDisplayState.isSeekLoading).thenReturn(false);
-      when(() => newDisplayState.isSeekingToInitial).thenReturn(false);
-      when(() => newDisplayState.isSmartBuffering).thenReturn(false);
-      when(() => newDisplayState.isMarkerMenuVisible).thenReturn(false);
-      when(() => newDisplayState.isNetworkStream).thenReturn(false);
-      when(() => newDisplayState.isFastSeeking).thenReturn(false);
-      when(() => newDisplayState.isScrubbing).thenReturn(false);
-      when(() => newDisplayState.isControlsVisible).thenReturn(true);
-      when(() => newDisplayState.isGlobalHudVisible).thenReturn(true);
-      when(() => newDisplayState.isVolumeOverlayVisible).thenReturn(false);
-      when(() => newDisplayState.showSpeedOverlayVisible).thenReturn(false);
-      when(() => newDisplayState.isSeekIndicatorVisible).thenReturn(false);
-      when(() => newDisplayState.showFlash).thenReturn(false);
-      when(() => newDisplayState.showSnapshotToast).thenReturn(false);
-      when(() => newDisplayState.hasError).thenReturn(false);
-      
-      displayState = newDisplayState;
-      await tester.pumpWidget(buildTestApp(tester));
-      await tester.pumpAndSettle();
-    });
+        // Trigger onChangeEnd
+        slider.onChangeEnd!(0.8);
+        await tester.pump();
+
+        // Cleanup timer should run after 1 sec
+        await tester.pump(const Duration(seconds: 1));
+
+        // We can also test didUpdateWidget by pumping a new widget with a different displayState
+        final newDisplayState = MockVideoPlayerDisplayState();
+        when(() => newDisplayState.isHudVisible).thenReturn(true);
+        when(
+          () => newDisplayState.showRemainingTime,
+        ).thenReturn(true); // Changed
+        when(() => newDisplayState.isEmpty).thenReturn(false);
+        // add necessary mocks for newDisplayState as well
+        when(() => newDisplayState.isMarkerEditorActive).thenReturn(false);
+        when(() => newDisplayState.isAudioMenuVisible).thenReturn(false);
+        when(() => newDisplayState.isSubtitleMenuVisible).thenReturn(false);
+        when(() => newDisplayState.isSpeedMenuVisible).thenReturn(false);
+        when(() => newDisplayState.isStandalone).thenReturn(false);
+        when(() => newDisplayState.isMuted).thenReturn(false);
+        when(() => newDisplayState.isOpening).thenReturn(false);
+        when(() => newDisplayState.isSeekLoading).thenReturn(false);
+        when(() => newDisplayState.isSeekingToInitial).thenReturn(false);
+        when(() => newDisplayState.isSmartBuffering).thenReturn(false);
+        when(() => newDisplayState.isMarkerMenuVisible).thenReturn(false);
+        when(() => newDisplayState.isNetworkStream).thenReturn(false);
+        when(() => newDisplayState.isFastSeeking).thenReturn(false);
+        when(() => newDisplayState.isScrubbing).thenReturn(false);
+        when(() => newDisplayState.isControlsVisible).thenReturn(true);
+        when(() => newDisplayState.isGlobalHudVisible).thenReturn(true);
+        when(() => newDisplayState.isVolumeOverlayVisible).thenReturn(false);
+        when(() => newDisplayState.showSpeedOverlayVisible).thenReturn(false);
+        when(() => newDisplayState.isSeekIndicatorVisible).thenReturn(false);
+        when(() => newDisplayState.showFlash).thenReturn(false);
+        when(() => newDisplayState.showSnapshotToast).thenReturn(false);
+        when(() => newDisplayState.hasError).thenReturn(false);
+
+        displayState = newDisplayState;
+        await tester.pumpWidget(buildTestApp(tester));
+        await tester.pumpAndSettle();
+      },
+    );
 
     testWidgets('mouse region hover and exit events', (tester) async {
       await tester.pumpWidget(buildTestApp(tester));
@@ -564,70 +644,89 @@ void main() {
       final box = tester.renderObject(mouseRegionFinder) as RenderBox;
       final localPos = Offset(50, 80);
       final globalPos = box.localToGlobal(localPos);
-      
+
       await gesture.moveTo(globalPos);
       await tester.pump();
 
       // Simulate exit
       await gesture.moveTo(const Offset(-100, -100));
       await tester.pump(const Duration(milliseconds: 300));
-      
+
       await gesture.removePointer();
     });
 
     testWidgets('fast seek buttons trigger onLongPressCancel', (tester) async {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
+
       final gesture = tester.widget<GestureDetector>(
-        find.ancestor(
-          of: find.byIcon(Icons.forward_10),
-          matching: find.byWidgetPredicate((w) => w is GestureDetector && w.onLongPressCancel != null),
-        ).first
+        find
+            .ancestor(
+              of: find.byIcon(Icons.forward_10),
+              matching: find.byWidgetPredicate(
+                (w) => w is GestureDetector && w.onLongPressCancel != null,
+              ),
+            )
+            .first,
       );
       gesture.onLongPressCancel!();
       expect(onStopFastSeekCalled, isTrue);
     });
-    
-    testWidgets('timeline marker interaction (hover, tap, menu)', (tester) async {
-      final marker = VideoMarker(id: '1', content: 'Test Marker', timestamp: const Duration(minutes: 2));
-      
+
+    testWidgets('timeline marker interaction (hover, tap, menu)', (
+      tester,
+    ) async {
+      final marker = VideoMarker(
+        id: '1',
+        content: 'Test Marker',
+        timestamp: const Duration(minutes: 2),
+      );
+
       await tester.pumpWidget(buildTestApp(tester, markers: [marker]));
       await tester.pumpAndSettle();
 
       // Ensure marker is rendered
-      final markerFinder = find.byType(InkWell); // TimelineMarker uses InkWell inside
+      final markerFinder = find.byType(
+        InkWell,
+      ); // TimelineMarker uses InkWell inside
       expect(markerFinder, findsWidgets);
 
       // Simulate tap on marker
       await tester.tap(markerFinder.first);
       await tester.pump();
-      
+
       // Simulate hover
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.addPointer(location: tester.getCenter(markerFinder.first));
       await tester.pump();
-      
+
       await gesture.moveTo(const Offset(-100, -100));
       await tester.pump();
       await gesture.removePointer();
     });
 
     testWidgets('covers hours formatting in duration', (tester) async {
-      when(() => mockPlayerState.position).thenReturn(const Duration(hours: 1, minutes: 1));
+      when(
+        () => mockPlayerState.position,
+      ).thenReturn(const Duration(hours: 1, minutes: 1));
       when(() => mockPlayerState.duration).thenReturn(const Duration(hours: 2));
-      
+
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
+
       expect(find.text('2:00:00'), findsOneWidget);
     });
 
     testWidgets('favorites toggle interaction', (tester) async {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
-      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.favorite_border_rounded), matching: find.byType(IconButton)));
+
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.favorite_border_rounded),
+          matching: find.byType(IconButton),
+        ),
+      );
       button.onPressed!();
       await tester.pumpAndSettle();
     });
@@ -635,8 +734,13 @@ void main() {
     testWidgets('autoplay toggle interaction', (tester) async {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
-      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.autorenew_rounded), matching: find.byType(IconButton)));
+
+      final button = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.autorenew_rounded),
+          matching: find.byType(IconButton),
+        ),
+      );
       button.onPressed!();
       await tester.pumpAndSettle();
     });
@@ -658,11 +762,18 @@ void main() {
       );
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
-      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.subtitles_outlined), matching: find.byType(IconButton)).first);
+
+      final button = tester.widget<IconButton>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.subtitles_outlined),
+              matching: find.byType(IconButton),
+            )
+            .first,
+      );
       button.onPressed!();
       await tester.pumpAndSettle();
-      
+
       expect(onShowMenuCalled, isTrue);
     });
 
@@ -683,35 +794,56 @@ void main() {
       );
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
-      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.audiotrack_rounded), matching: find.byType(IconButton)).first);
+
+      final button = tester.widget<IconButton>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.audiotrack_rounded),
+              matching: find.byType(IconButton),
+            )
+            .first,
+      );
       button.onPressed!();
       await tester.pumpAndSettle();
-      
+
       expect(onShowMenuCalled, isTrue);
     });
 
     testWidgets('Speed menu tap', (tester) async {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
+
       final button = tester.widget<TextButton>(find.byType(TextButton).first);
       button.onPressed!();
       await tester.pumpAndSettle();
-      
+
       expect(onShowMenuCalled, isTrue);
     });
 
     testWidgets('Navigate media next/prev interactions', (tester) async {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
-      
-      final nextBtn = tester.widget<IconButton>(find.ancestor(of: find.byTooltip('Next Video'), matching: find.byType(IconButton)).first);
+
+      final nextBtn = tester.widget<IconButton>(
+        find
+            .ancestor(
+              of: find.byTooltip('Next Video'),
+              matching: find.byType(IconButton),
+            )
+            .first,
+      );
       nextBtn.onPressed!();
       expect(onNavigateMediaCalled, isTrue);
-      
+
       onNavigateMediaCalled = false;
-      final prevBtn = tester.widget<IconButton>(find.ancestor(of: find.byTooltip('Previous Video'), matching: find.byType(IconButton)).first);
+      final prevBtn = tester.widget<IconButton>(
+        find
+            .ancestor(
+              of: find.byTooltip('Previous Video'),
+              matching: find.byType(IconButton),
+            )
+            .first,
+      );
       prevBtn.onPressed!();
       expect(onNavigateMediaCalled, isTrue);
     });
@@ -729,7 +861,14 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
 
-      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.subtitles_outlined), matching: find.byType(IconButton)).first);
+      final button = tester.widget<IconButton>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.subtitles_outlined),
+              matching: find.byType(IconButton),
+            )
+            .first,
+      );
       button.onPressed!();
       await tester.pumpAndSettle();
 
@@ -751,7 +890,14 @@ void main() {
       await tester.pumpWidget(buildTestApp(tester));
       await tester.pumpAndSettle();
 
-      final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.audiotrack_rounded), matching: find.byType(IconButton)).first);
+      final button = tester.widget<IconButton>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.audiotrack_rounded),
+              matching: find.byType(IconButton),
+            )
+            .first,
+      );
       button.onPressed!();
       await tester.pumpAndSettle();
 

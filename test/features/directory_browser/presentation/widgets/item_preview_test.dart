@@ -27,23 +27,29 @@ void main() {
   setUp(() {
     mockCacheService = MockThumbnailCacheService();
     when(() => mockCacheService.ensureLoaded()).thenAnswer((_) async {});
-    when(() => mockCacheService.lookup(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-        )).thenReturn(ThumbnailLookupResult.miss);
-    when(() => mockCacheService.lookupAsync(
-          filePath: any(named: 'filePath'),
-          mtime: any(named: 'mtime'),
-          sizeBytes: any(named: 'sizeBytes'),
-        )).thenAnswer((_) async => ThumbnailLookupResult.miss);
+    when(
+      () => mockCacheService.lookup(
+        filePath: any(named: 'filePath'),
+        mtime: any(named: 'mtime'),
+        sizeBytes: any(named: 'sizeBytes'),
+      ),
+    ).thenReturn(ThumbnailLookupResult.miss);
+    when(
+      () => mockCacheService.lookupAsync(
+        filePath: any(named: 'filePath'),
+        mtime: any(named: 'mtime'),
+        sizeBytes: any(named: 'sizeBytes'),
+      ),
+    ).thenAnswer((_) async => ThumbnailLookupResult.miss);
   });
 
   Widget buildTestWidget({required FileItem item, double zoom = 1.0}) {
     return ProviderScope(
       overrides: [
         thumbnailCacheServiceProvider.overrideWithValue(mockCacheService),
-        activeThumbnailSessionProvider.overrideWith(() => FakeThumbnailSessionManager(null)),
+        activeThumbnailSessionProvider.overrideWith(
+          () => FakeThumbnailSessionManager(null),
+        ),
       ],
       child: MaterialApp(
         home: Scaffold(

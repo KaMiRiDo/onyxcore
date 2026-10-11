@@ -86,10 +86,7 @@ void main() {
     });
 
     test('encode returns valid JSON string', () {
-      final params = WindowParams(
-        viewerType: ViewerType.image,
-        file: fileItem,
-      );
+      final params = WindowParams(viewerType: ViewerType.image, file: fileItem);
 
       final encoded = params.encode();
       final decoded = jsonDecode(encoded);

@@ -9,12 +9,15 @@ class ImageGestureHandler {
 
   void handlePointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
-      final ctrl = HardwareKeyboard.instance.isControlPressed ||
-          HardwareKeyboard.instance.logicalKeysPressed
-              .contains(LogicalKeyboardKey.controlLeft) ||
-          HardwareKeyboard.instance.logicalKeysPressed
-              .contains(LogicalKeyboardKey.controlRight);
-      
+      final ctrl =
+          HardwareKeyboard.instance.isControlPressed ||
+          HardwareKeyboard.instance.logicalKeysPressed.contains(
+            LogicalKeyboardKey.controlLeft,
+          ) ||
+          HardwareKeyboard.instance.logicalKeysPressed.contains(
+            LogicalKeyboardKey.controlRight,
+          );
+
       if (ctrl) {
         final delta = event.scrollDelta.dy;
         if (delta != 0) {
@@ -30,7 +33,7 @@ class ImageGestureHandler {
         final delta = event.scrollDelta;
         const sensitivity = 5;
         zoomController.applyTranslation(
-          Offset(-delta.dx * sensitivity, -delta.dy * sensitivity)
+          Offset(-delta.dx * sensitivity, -delta.dy * sensitivity),
         );
       }
     }
@@ -41,11 +44,14 @@ class ImageGestureHandler {
   }
 
   void handlePanZoomUpdate(PointerPanZoomUpdateEvent event) {
-    final ctrl = HardwareKeyboard.instance.isControlPressed ||
-        HardwareKeyboard.instance.logicalKeysPressed
-            .contains(LogicalKeyboardKey.controlLeft) ||
-        HardwareKeyboard.instance.logicalKeysPressed
-            .contains(LogicalKeyboardKey.controlRight);
+    final ctrl =
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.controlLeft,
+        ) ||
+        HardwareKeyboard.instance.logicalKeysPressed.contains(
+          LogicalKeyboardKey.controlRight,
+        );
 
     if (ctrl) {
       // Zoom via trackpad pinch while holding ctrl (often maps to panDelta)
@@ -56,7 +62,8 @@ class ImageGestureHandler {
     } else {
       if (event.scale != 1.0) {
         zoomController.updatePinchGesture(event.scale, event.localPosition);
-      } else if (event.panDelta != Offset.zero && zoomController.currentScale > 1.05) {
+      } else if (event.panDelta != Offset.zero &&
+          zoomController.currentScale > 1.05) {
         zoomController.applyTranslation(event.panDelta);
       }
     }

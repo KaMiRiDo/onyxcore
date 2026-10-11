@@ -16,7 +16,9 @@ void main() {
       tempDir = await Directory.systemTemp.createTemp('analysis_test');
 
       // Create some files
-      File('${tempDir.path}/a.txt').writeAsStringSync('hello world'); // 11 bytes
+      File(
+        '${tempDir.path}/a.txt',
+      ).writeAsStringSync('hello world'); // 11 bytes
       File('${tempDir.path}/img.png').writeAsBytesSync([1, 2, 3, 4]); // 4 bytes
     });
 
@@ -53,7 +55,9 @@ void main() {
       expect(result.allFiles, isEmpty);
       sub.close();
     });
-    testWidgets('removeFilesFromAnalysis updates state correctly', (WidgetTester tester) async {
+    testWidgets('removeFilesFromAnalysis updates state correctly', (
+      WidgetTester tester,
+    ) async {
       final fakeResult = DirectoryAnalysisResult(
         path: tempDir.path,
         totalItems: 2,
@@ -87,7 +91,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            directoryAnalysisProvider(tempDir.path).overrideWith((ref) => fakeResult),
+            directoryAnalysisProvider(
+              tempDir.path,
+            ).overrideWith((ref) => fakeResult),
           ],
           child: MaterialApp(
             home: Consumer(
@@ -101,16 +107,25 @@ void main() {
       );
 
       // Pre-populate state
-      capturedRef!.read(directoryAnalysisStateProvider(tempDir.path).notifier).state = AsyncData(fakeResult);
+      capturedRef!
+          .read(directoryAnalysisStateProvider(tempDir.path).notifier)
+          .state = AsyncData(
+        fakeResult,
+      );
 
       final fileToRemove = '${tempDir.path}/a.txt';
       removeFilesFromAnalysis(capturedRef!, tempDir.path, [fileToRemove]);
 
-      final updatedState = capturedRef!.read(directoryAnalysisStateProvider(tempDir.path));
+      final updatedState = capturedRef!.read(
+        directoryAnalysisStateProvider(tempDir.path),
+      );
       expect(updatedState?.value?.totalItems, 1);
       expect(updatedState?.value?.allFiles.length, 1);
       expect(updatedState?.value?.allFiles.first.name, 'img.png');
-      expect(updatedState?.value?.categoryStats[FileItemType.document]?.count, 0);
+      expect(
+        updatedState?.value?.categoryStats[FileItemType.document]?.count,
+        0,
+      );
       expect(updatedState?.value?.categoryStats[FileItemType.image]?.count, 1);
     });
   });

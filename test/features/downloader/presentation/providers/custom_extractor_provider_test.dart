@@ -13,9 +13,7 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-      ],
+      overrides: [databaseProvider.overrideWithValue(db)],
     );
   });
 
@@ -121,55 +119,56 @@ void main() {
     });
 
     test(
-        'existing Phase 1 extractor without metadata continues to work (metadata is null)',
-        () async {
-      final extractor = CustomExtractor(
-        id: '1',
-        name: 'Legacy Script Extractor',
-        script: 'async function extract(url) { return []; }',
-        createdAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
-        modifiedAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
-        // No metadata
-      );
+      'existing Phase 1 extractor without metadata continues to work (metadata is null)',
+      () async {
+        final extractor = CustomExtractor(
+          id: '1',
+          name: 'Legacy Script Extractor',
+          script: 'async function extract(url) { return []; }',
+          createdAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+          modifiedAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+          // No metadata
+        );
 
-      final notifier = container.read(customExtractorsProvider.notifier);
-      await notifier.addExtractor(extractor);
+        final notifier = container.read(customExtractorsProvider.notifier);
+        await notifier.addExtractor(extractor);
 
-      final value = await container.read(customExtractorsProvider.future);
-      expect(value.first.metadata, isNull);
-    });
+        final value = await container.read(customExtractorsProvider.future);
+        expect(value.first.metadata, isNull);
+      },
+    );
 
-    test('updateExtractor updates metadata (editing a default extractor)',
-        () async {
-      const originalMeta =
-          '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}';
-      final extractor = CustomExtractor(
-        id: '1',
-        name: 'HTML Extractor',
-        script: 'async function extract(url) { return []; }',
-        createdAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
-        modifiedAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
-        metadata: originalMeta,
-      );
+    test(
+      'updateExtractor updates metadata (editing a default extractor)',
+      () async {
+        const originalMeta =
+            '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}';
+        final extractor = CustomExtractor(
+          id: '1',
+          name: 'HTML Extractor',
+          script: 'async function extract(url) { return []; }',
+          createdAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+          modifiedAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+          metadata: originalMeta,
+        );
 
-      final notifier = container.read(customExtractorsProvider.notifier);
-      await notifier.addExtractor(extractor);
+        final notifier = container.read(customExtractorsProvider.notifier);
+        await notifier.addExtractor(extractor);
 
-      const updatedMeta =
-          '{"extractorKind":"html","cssSelector":".article img","attributeName":"data-src"}';
-      final updated = extractor.copyWith(
-        metadata: updatedMeta,
-        modifiedAt:
-            DateTime.fromMillisecondsSinceEpoch(1700000001000),
-      );
-      await notifier.updateExtractor(updated);
+        const updatedMeta =
+            '{"extractorKind":"html","cssSelector":".article img","attributeName":"data-src"}';
+        final updated = extractor.copyWith(
+          metadata: updatedMeta,
+          modifiedAt: DateTime.fromMillisecondsSinceEpoch(1700000001000),
+        );
+        await notifier.updateExtractor(updated);
 
-      final value = await container.read(customExtractorsProvider.future);
-      expect(value.first.metadata, updatedMeta);
-    });
+        final value = await container.read(customExtractorsProvider.future);
+        expect(value.first.metadata, updatedMeta);
+      },
+    );
 
-    test('metadata is reloaded correctly on subsequent provider build',
-        () async {
+    test('metadata is reloaded correctly on subsequent provider build', () async {
       const metadata =
           '{"extractorKind":"html","cssSelector":".gallery img","attributeName":"data-original"}';
       final extractor = CustomExtractor(

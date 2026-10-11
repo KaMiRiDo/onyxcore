@@ -9,9 +9,10 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'package:onyxcore/features/video_player/presentation/lifecycle/player_initializer.dart';
 
 class MockPlayer extends Mock implements Player {}
+
 class MockPlatform extends Mock implements PlatformPlayer {
   final Map<String, String> properties = {};
-  
+
   Future<void> setProperty(String property, String value) async {
     properties[property] = value;
   }
@@ -20,19 +21,22 @@ class MockPlatform extends Mock implements PlatformPlayer {
 class MockSettingsNotifier extends SettingsNotifier {
   MockSettingsNotifier(this.settings);
   final AppSettings settings;
-  
+
   @override
   Future<AppSettings> build() async => settings;
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  
+
   group('PlayerInitializer', () {
     late MockPlayer mockPlayer;
     late MockPlatform mockPlatform;
 
-    Future<WidgetRef> getTestRef(WidgetTester tester, AppSettings settings) async {
+    Future<WidgetRef> getTestRef(
+      WidgetTester tester,
+      AppSettings settings,
+    ) async {
       late WidgetRef capturedRef;
       await tester.pumpWidget(
         ProviderScope(
@@ -63,24 +67,26 @@ void main() {
       mockPlatform = MockPlatform();
       when(() => mockPlayer.platform).thenReturn(mockPlatform);
       when(() => mockPlayer.setVolume(any())).thenAnswer((_) async {});
-      
+
       // Mock path_provider channel to prevent hanging during getTemporaryDirectory()
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        (MethodCall methodCall) async {
-          if (methodCall.method == 'getTemporaryDirectory') {
-            return '.';
-          }
-          return null;
-        },
-      );
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (MethodCall methodCall) async {
+              if (methodCall.method == 'getTemporaryDirectory') {
+                return '.';
+              }
+              return null;
+            },
+          );
     });
 
     tearDown(() {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        null,
-      );
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
     });
 
     testWidgets('configures local stream settings correctly', (tester) async {
@@ -101,30 +107,45 @@ void main() {
       // Shared settings
       expect(mockPlatform.properties['hr-seek'], equals('yes'));
       expect(mockPlatform.properties['vd-lavc-dr'], equals('no'));
-      expect(mockPlatform.properties['hwdec'], equals('vaapi,nvdec,vdpau,auto-safe'));
-      
+      expect(
+        mockPlatform.properties['hwdec'],
+        equals('vaapi,nvdec,vdpau,auto-safe'),
+      );
+
       verify(() => mockPlayer.setVolume(30)).called(1);
     });
 
-    testWidgets('configures network stream settings correctly with yt-dlp params', (tester) async {
-      final ref = await getTestRef(tester, const AppSettings());
+    testWidgets(
+      'configures network stream settings correctly with yt-dlp params',
+      (tester) async {
+        final ref = await getTestRef(tester, const AppSettings());
 
-      await PlayerInitializer.configure(
-        player: mockPlayer,
-        isNetworkStream: true,
-        initParams: {
-          'selectedFormatId': '137',
-          'audioUrl': 'https://example.com/audio.m4a',
-        },
-        ref: ref,
-      );
+        await PlayerInitializer.configure(
+          player: mockPlayer,
+          isNetworkStream: true,
+          initParams: {
+            'selectedFormatId': '137',
+            'audioUrl': 'https://example.com/audio.m4a',
+          },
+          ref: ref,
+        );
 
-      // Network settings
-      expect(mockPlatform.properties['ytdl-format'], equals('137+bestaudio/best'));
-      expect(mockPlatform.properties['audio-file'], equals('https://example.com/audio.m4a'));
-      expect(mockPlatform.properties['demuxer-readahead-secs'], equals('120'));
-      expect(mockPlatform.properties['cache-pause'], equals('yes'));
-    });
+        // Network settings
+        expect(
+          mockPlatform.properties['ytdl-format'],
+          equals('137+bestaudio/best'),
+        );
+        expect(
+          mockPlatform.properties['audio-file'],
+          equals('https://example.com/audio.m4a'),
+        );
+        expect(
+          mockPlatform.properties['demuxer-readahead-secs'],
+          equals('120'),
+        );
+        expect(mockPlatform.properties['cache-pause'], equals('yes'));
+      },
+    );
 
     testWidgets('configures network stream without initParams', (tester) async {
       final ref = await getTestRef(tester, const AppSettings());
@@ -137,13 +158,19 @@ void main() {
       );
 
       // Default yt-dlp
-      expect(mockPlatform.properties['ytdl-format'], equals('bestvideo+bestaudio/best'));
+      expect(
+        mockPlatform.properties['ytdl-format'],
+        equals('bestvideo+bestaudio/best'),
+      );
     });
 
-    testWidgets('configures hwdec when auto and cached is available', (tester) async {
-      final ref = await getTestRef(tester, const AppSettings(
-        cachedResolvedHwDec: 'vaapi',
-      ));
+    testWidgets('configures hwdec when auto and cached is available', (
+      tester,
+    ) async {
+      final ref = await getTestRef(
+        tester,
+        const AppSettings(cachedResolvedHwDec: 'vaapi'),
+      );
 
       await PlayerInitializer.configure(
         player: mockPlayer,
@@ -156,9 +183,10 @@ void main() {
     });
 
     testWidgets('configures hwdec when manual selection', (tester) async {
-      final ref = await getTestRef(tester, const AppSettings(
-        selectedHwDec: 'nvdec',
-      ));
+      final ref = await getTestRef(
+        tester,
+        const AppSettings(selectedHwDec: 'nvdec'),
+      );
 
       await PlayerInitializer.configure(
         player: mockPlayer,

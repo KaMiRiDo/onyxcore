@@ -12,7 +12,6 @@ import 'package:onyxcore/features/audio_player/presentation/widgets/waveform_scr
 import 'package:path/path.dart' as p;
 
 class HeroAudioPlayer extends ConsumerWidget {
-
   const HeroAudioPlayer({
     super.key,
     this.onNextPressed,
@@ -150,10 +149,7 @@ class HeroAudioPlayer extends ConsumerWidget {
                               shaderCallback: (bounds) => const LinearGradient(
                                 begin: Alignment.topRight,
                                 end: Alignment.bottomLeft,
-                                colors: [
-                                  AppColors.magenta,
-                                  AppColors.violet,
-                                ],
+                                colors: [AppColors.magenta, AppColors.violet],
                               ).createShader(bounds),
                               child: const Icon(
                                 Icons.music_note_rounded,
@@ -215,7 +211,6 @@ class HeroAudioPlayer extends ConsumerWidget {
 }
 
 class AutoScrollingText extends StatefulWidget {
-
   const AutoScrollingText({required this.text, required this.style, super.key});
   final String text;
   final TextStyle style;
@@ -291,10 +286,7 @@ class _AutoScrollingTextState extends State<AutoScrollingText>
           return Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.only(right: 64),
-            child: Text(
-              widget.text,
-              style: widget.style,
-            ),
+            child: Text(widget.text, style: widget.style),
           );
         },
       ),

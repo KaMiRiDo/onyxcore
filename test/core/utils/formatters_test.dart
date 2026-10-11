@@ -7,7 +7,10 @@ void main() {
       expect(formatDuration(Duration.zero), '00:00');
       expect(formatDuration(const Duration(seconds: 5)), '00:05');
       expect(formatDuration(const Duration(minutes: 12, seconds: 34)), '12:34');
-      expect(formatDuration(const Duration(hours: 1, minutes: 2, seconds: 3)), '62:03');
+      expect(
+        formatDuration(const Duration(hours: 1, minutes: 2, seconds: 3)),
+        '62:03',
+      );
     });
   });
 
@@ -41,14 +44,20 @@ void main() {
 
     test('truncates middle preserving short extension', () {
       expect(
-        truncateMiddle('very_long_file_name_with_lots_of_words.pdf', maxLength: 20),
+        truncateMiddle(
+          'very_long_file_name_with_lots_of_words.pdf',
+          maxLength: 20,
+        ),
         'very_long_fil....pdf',
       );
     });
 
     test('does not preserve extension if extension is too long', () {
       expect(
-        truncateMiddle('very_long_file_name_with_lots_of_words.extensionlong', maxLength: 20),
+        truncateMiddle(
+          'very_long_file_name_with_lots_of_words.extensionlong',
+          maxLength: 20,
+        ),
         'very_long_file_na...',
       );
     });

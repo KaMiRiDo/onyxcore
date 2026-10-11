@@ -58,7 +58,6 @@ class _BubbleLoaderState extends State<BubbleLoader>
 }
 
 class BubblePainter extends CustomPainter {
-
   BubblePainter({required this.progress, required this.color});
   final double progress;
   final Color color;
@@ -84,10 +83,7 @@ class BubblePainter extends CustomPainter {
       final paint = Paint()
         ..sharedGradient(
           Rect.fromCircle(center: bubbleCenter, radius: bubbleRadius),
-          [
-            color.withValues(alpha: 0.8),
-            color.withValues(alpha: 0.4),
-          ],
+          [color.withValues(alpha: 0.8), color.withValues(alpha: 0.4)],
         );
 
       canvas.drawCircle(bubbleCenter, bubbleRadius, paint);

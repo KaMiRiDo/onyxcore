@@ -12,7 +12,7 @@ void main() {
         extractorId: 'ext-1',
         extractorName: 'My Extractor',
       );
-      
+
       expect(info.isExtractorGroup, true);
       expect(info.extractorId, 'ext-1');
       expect(info.extractorName, 'My Extractor');
@@ -24,13 +24,13 @@ void main() {
         title: 'Test',
         originalUrl: 'http://test.com',
       );
-      
+
       final modified = info.copyWith(
         isExtractorGroup: true,
         extractorId: 'ext-1',
         extractorName: 'My Extractor',
       );
-      
+
       expect(modified.isExtractorGroup, true);
       expect(modified.extractorId, 'ext-1');
       expect(modified.extractorName, 'My Extractor');
@@ -45,10 +45,10 @@ void main() {
         extractorId: 'ext-1',
         extractorName: 'My Extractor',
       );
-      
+
       final map = info.toMap();
       final decoded = MediaInfo.fromMap(map);
-      
+
       expect(decoded.isExtractorGroup, true);
       expect(decoded.extractorId, 'ext-1');
       expect(decoded.extractorName, 'My Extractor');

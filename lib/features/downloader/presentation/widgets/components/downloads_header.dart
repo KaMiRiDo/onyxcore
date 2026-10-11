@@ -39,7 +39,11 @@ class DownloadsHeader extends ConsumerWidget {
             message: 'Open in Window',
             waitDuration: const Duration(milliseconds: 500),
             child: IconButton(
-              icon: Icon(Icons.open_in_new_rounded, size: 18, color: Colors.white70),
+              icon: Icon(
+                Icons.open_in_new_rounded,
+                size: 18,
+                color: Colors.white70,
+              ),
               onPressed: () {
                 PersistentViewerManager.openMedia(
                   WindowParams(
@@ -54,12 +58,20 @@ class DownloadsHeader extends ConsumerWidget {
                     initParams: {
                       'width': math.max(
                         950,
-                        ref.read(settingsProvider).value?.downloaderWidth.toInt() ??
+                        ref
+                                .read(settingsProvider)
+                                .value
+                                ?.downloaderWidth
+                                .toInt() ??
                             950,
                       ),
                       'height': math.max(
                         700,
-                        ref.read(settingsProvider).value?.downloaderHeight.toInt() ??
+                        ref
+                                .read(settingsProvider)
+                                .value
+                                ?.downloaderHeight
+                                .toInt() ??
                             700,
                       ),
                     },

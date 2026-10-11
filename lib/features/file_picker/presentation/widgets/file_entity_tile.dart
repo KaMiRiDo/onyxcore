@@ -5,7 +5,6 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:path/path.dart' as p;
 
 class FileEntityTile extends StatelessWidget {
-
   const FileEntityTile({
     required this.entity,
     required this.isSelected,
@@ -58,11 +57,7 @@ class FileEntityTile extends StatelessWidget {
                   ),
                 )
               else
-                Icon(
-                  _getFileIcon(name),
-                  color: Colors.white70,
-                  size: 20,
-                ),
+                Icon(_getFileIcon(name), color: Colors.white70, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(

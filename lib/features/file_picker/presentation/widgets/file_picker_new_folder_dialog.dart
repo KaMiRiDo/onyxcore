@@ -6,7 +6,8 @@ class FilePickerNewFolderDialog extends StatefulWidget {
   const FilePickerNewFolderDialog({super.key});
 
   @override
-  State<FilePickerNewFolderDialog> createState() => _FilePickerNewFolderDialogState();
+  State<FilePickerNewFolderDialog> createState() =>
+      _FilePickerNewFolderDialogState();
 }
 
 class _FilePickerNewFolderDialogState extends State<FilePickerNewFolderDialog> {
@@ -60,10 +61,7 @@ class _FilePickerNewFolderDialogState extends State<FilePickerNewFolderDialog> {
               child: TextField(
                 controller: _controller,
                 autofocus: true,
-                style: GoogleFonts.manrope(
-                  color: Colors.white,
-                  fontSize: 14,
-                ),
+                style: GoogleFonts.manrope(color: Colors.white, fontSize: 14),
                 onSubmitted: (_) => _handleSubmit(),
                 decoration: InputDecoration(
                   hintText: 'Enter folder name',
@@ -87,7 +85,10 @@ class _FilePickerNewFolderDialogState extends State<FilePickerNewFolderDialog> {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -112,7 +113,10 @@ class _FilePickerNewFolderDialogState extends State<FilePickerNewFolderDialog> {
                       onTap: _handleSubmit,
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
                         child: Text(
                           'Create',
                           style: GoogleFonts.manrope(

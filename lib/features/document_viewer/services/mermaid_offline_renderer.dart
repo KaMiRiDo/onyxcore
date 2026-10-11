@@ -133,7 +133,7 @@ class MermaidOfflineRenderer {
       debugPrint('MermaidOfflineRenderer: No Chromium browser found.');
       return null;
     }
-    
+
     if (!DenoRuntime.instance.isInstalled) {
       debugPrint('MermaidOfflineRenderer: Deno runtime is not installed.');
       return null;

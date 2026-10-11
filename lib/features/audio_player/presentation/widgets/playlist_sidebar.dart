@@ -20,7 +20,12 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/context
 import 'package:path/path.dart' as p;
 
 class PlaylistSidebar extends PlaylistSidebarBase {
-  const PlaylistSidebar({super.key, super.onDelete, super.onMove, super.onReload});
+  const PlaylistSidebar({
+    super.key,
+    super.onDelete,
+    super.onMove,
+    super.onReload,
+  });
 
   @override
   ConsumerState<PlaylistSidebar> createState() => _PlaylistSidebarState();
@@ -108,9 +113,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
               context,
               selection,
               onRename: (oldPath, newPath) {
-                ref
-                    .read(directoryCacheProvider)
-                    .invalidate(p.dirname(oldPath));
+                ref.read(directoryCacheProvider).invalidate(p.dirname(oldPath));
                 final showHidden = ref.read(audioShowHiddenProvider);
                 final isHidden = p.basename(newPath).startsWith('.');
 
@@ -210,11 +213,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
       ref.read(audioPlayingQueueProvider.notifier).state = queue;
       final playlist = Playlist(
         queue
-            .map(
-              (f) => Media(
-                MediaUriHelper.getSafeMediaUri(f.path),
-              ),
-            )
+            .map((f) => Media(MediaUriHelper.getSafeMediaUri(f.path)))
             .toList(),
         index: realIndex,
       );
@@ -317,9 +316,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Container(
-          color: Colors.black.withValues(alpha: 0.5),
-        ),
+        Container(color: Colors.black.withValues(alpha: 0.5)),
         Center(
           child: ShaderMask(
             shaderCallback: (bounds) => const LinearGradient(
@@ -357,11 +354,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
   Widget? buildActiveIndicator(bool isPlaying) {
     return isPlaying
         ? const PlayingEqAnimation()
-        : const Icon(
-            Icons.pause_rounded,
-            color: AppColors.magenta,
-            size: 16,
-          );
+        : const Icon(Icons.pause_rounded, color: AppColors.magenta, size: 16);
   }
 
   @override
@@ -380,8 +373,7 @@ class _PlaylistSidebarState extends PlaylistSidebarBaseState<PlaylistSidebar> {
   }
 
   @override
-  bool get isCurrentlyPlaying =>
-      ref.watch(audioPlayingProvider).value ?? false;
+  bool get isCurrentlyPlaying => ref.watch(audioPlayingProvider).value ?? false;
 
   // ── Bottom Nav ─────────────────────────────────────────────────────────────
 

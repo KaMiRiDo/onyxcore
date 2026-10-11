@@ -10,7 +10,10 @@ import 'package:path/path.dart' as p;
 
 class VideoEditorOverlay extends ConsumerWidget {
   const VideoEditorOverlay({
-    required this.controller, required this.sourceFile, required this.onClose, super.key,
+    required this.controller,
+    required this.sourceFile,
+    required this.onClose,
+    super.key,
   });
 
   final VideoController controller;
@@ -53,7 +56,9 @@ class VideoEditorOverlay extends ConsumerWidget {
             width: 380,
             decoration: BoxDecoration(
               color: const Color(0xFF1E1E1E), // Dark background for sidebar
-              border: Border(left: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+              border: Border(
+                left: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+              ),
             ),
             child: _SidebarView(sourceFile: sourceFile),
           ),
@@ -87,7 +92,11 @@ class VideoEditorOverlay extends ConsumerWidget {
           Expanded(
             child: Text(
               fileName,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -99,20 +108,24 @@ class VideoEditorOverlay extends ConsumerWidget {
   }
 
   Widget _buildAddSegmentButton(BuildContext context, WidgetRef ref) {
-    final pendingStart = ref.watch(videoEditorProvider.select((s) => s.pendingSegmentStart));
+    final pendingStart = ref.watch(
+      videoEditorProvider.select((s) => s.pendingSegmentStart),
+    );
     return Positioned(
       bottom: 24,
       right: 24,
       child: FloatingActionButton(
         heroTag: 'add_segment',
-        backgroundColor: pendingStart == null 
-            ? Theme.of(context).colorScheme.primary 
+        backgroundColor: pendingStart == null
+            ? Theme.of(context).colorScheme.primary
             : Colors.amber,
         foregroundColor: Colors.white,
         onPressed: () {
           final position = controller.player.state.position;
           final duration = controller.player.state.duration;
-          ref.read(videoEditorProvider.notifier).markTimestamp(position, duration);
+          ref
+              .read(videoEditorProvider.notifier)
+              .markTimestamp(position, duration);
         },
         child: const Icon(Icons.add, size: 32),
       ),
@@ -121,7 +134,7 @@ class VideoEditorOverlay extends ConsumerWidget {
 
   Widget _buildTimelineArea(BuildContext context, WidgetRef ref) {
     final segments = ref.watch(videoEditorProvider.select((s) => s.segments));
-    
+
     return Container(
       height: 100,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -134,24 +147,34 @@ class VideoEditorOverlay extends ConsumerWidget {
               builder: (context, snapshot) {
                 final position = snapshot.data ?? Duration.zero;
                 final duration = controller.player.state.duration;
-                
+
                 return LayoutBuilder(
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
-                    
+
                     return GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTapDown: (details) {
                         if (duration.inMilliseconds == 0) return;
                         final newPos = Duration(
-                          milliseconds: (details.localPosition.dx / width * duration.inMilliseconds).clamp(0, duration.inMilliseconds).toInt(),
+                          milliseconds:
+                              (details.localPosition.dx /
+                                      width *
+                                      duration.inMilliseconds)
+                                  .clamp(0, duration.inMilliseconds)
+                                  .toInt(),
                         );
                         controller.player.seek(newPos);
                       },
                       onPanUpdate: (details) {
                         if (duration.inMilliseconds == 0) return;
                         final newPos = Duration(
-                          milliseconds: (details.localPosition.dx / width * duration.inMilliseconds).clamp(0, duration.inMilliseconds).toInt(),
+                          milliseconds:
+                              (details.localPosition.dx /
+                                      width *
+                                      duration.inMilliseconds)
+                                  .clamp(0, duration.inMilliseconds)
+                                  .toInt(),
                         );
                         controller.player.seek(newPos);
                       },
@@ -169,14 +192,19 @@ class VideoEditorOverlay extends ConsumerWidget {
                           ),
                           // Segments Overlay
                           ...segments.map((seg) {
-                            if (duration.inMilliseconds == 0) return const SizedBox.shrink();
-                            
-                            final startRatio = seg.start.inMilliseconds / duration.inMilliseconds;
-                            final endRatio = seg.end.inMilliseconds / duration.inMilliseconds;
-                            
+                            if (duration.inMilliseconds == 0)
+                              return const SizedBox.shrink();
+
+                            final startRatio =
+                                seg.start.inMilliseconds /
+                                duration.inMilliseconds;
+                            final endRatio =
+                                seg.end.inMilliseconds /
+                                duration.inMilliseconds;
+
                             final left = startRatio * width;
                             final segWidth = (endRatio - startRatio) * width;
-                            
+
                             return Positioned(
                               left: left,
                               width: segWidth,
@@ -184,7 +212,10 @@ class VideoEditorOverlay extends ConsumerWidget {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.black,
-                                  border: Border.all(color: Colors.white70, width: 2),
+                                  border: Border.all(
+                                    color: Colors.white70,
+                                    width: 2,
+                                  ),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                               ),
@@ -193,7 +224,11 @@ class VideoEditorOverlay extends ConsumerWidget {
                           // Playhead
                           if (duration.inMilliseconds > 0)
                             Positioned(
-                              left: (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0) * width,
+                              left:
+                                  (position.inMilliseconds /
+                                          duration.inMilliseconds)
+                                      .clamp(0.0, 1.0) *
+                                  width,
                               top: 0,
                               bottom: 0,
                               child: Container(
@@ -204,7 +239,7 @@ class VideoEditorOverlay extends ConsumerWidget {
                         ],
                       ),
                     );
-                  }
+                  },
                 );
               },
             ),
@@ -219,8 +254,22 @@ class VideoEditorOverlay extends ConsumerWidget {
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_formatDuration(position), style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
-                  Text(_formatDuration(duration), style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
+                  Text(
+                    _formatDuration(position),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    _formatDuration(duration),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               );
             },
@@ -249,28 +298,32 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
     super.dispose();
   }
 
-  void _onTrim(BuildContext context, WidgetRef ref, List<VideoSegment> segments, String sourceFile) {
-    ref.read(videoEditorServiceProvider).trimAndMerge(
-          segments,
-          sourceFile,
-        );
-    
+  void _onTrim(
+    BuildContext context,
+    WidgetRef ref,
+    List<VideoSegment> segments,
+    String sourceFile,
+  ) {
+    ref.read(videoEditorServiceProvider).trimAndMerge(segments, sourceFile);
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Processing started in background...')),
     );
   }
 
-  void _onExtract(BuildContext context, WidgetRef ref, List<VideoSegment> segments, String sourceFile) {
+  void _onExtract(
+    BuildContext context,
+    WidgetRef ref,
+    List<VideoSegment> segments,
+    String sourceFile,
+  ) {
     final dir = p.dirname(sourceFile);
     final name = p.basenameWithoutExtension(sourceFile);
     final outputDir = p.join(dir, '${name}_frames');
     Directory(outputDir).createSync(recursive: true);
-    
-    ref.read(videoEditorServiceProvider).extractFrames(
-          segments,
-          sourceFile,
-        );
-    
+
+    ref.read(videoEditorServiceProvider).extractFrames(segments, sourceFile);
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Extraction started in background...')),
     );
@@ -279,7 +332,7 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
   @override
   Widget build(BuildContext context) {
     final segments = ref.watch(videoEditorProvider.select((s) => s.segments));
-    
+
     // Auto scroll when new segment is added
     if (segments.length > _prevCount) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -301,7 +354,11 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
           padding: const EdgeInsets.all(24),
           child: const Text(
             'Segments',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ),
         const Divider(height: 1, color: Colors.white12),
@@ -317,7 +374,8 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: segments.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final seg = segments[index];
                     return _SegmentTile(segment: seg, index: index);
@@ -332,25 +390,45 @@ class _SidebarViewState extends ConsumerState<_SidebarView> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.cut, color: Theme.of(context).colorScheme.primary),
+                  icon: Icon(
+                    Icons.cut,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   tooltip: 'Trim & Merge',
-                  onPressed: segments.isEmpty ? null : () => _onTrim(context, ref, segments, widget.sourceFile),
+                  onPressed: segments.isEmpty
+                      ? null
+                      : () =>
+                            _onTrim(context, ref, segments, widget.sourceFile),
                 ),
               ),
               const SizedBox(width: 16),
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.collections, color: Theme.of(context).colorScheme.primary),
+                  icon: Icon(
+                    Icons.collections,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   tooltip: 'Extract Frames',
-                  onPressed: segments.isEmpty ? null : () => _onExtract(context, ref, segments, widget.sourceFile),
+                  onPressed: segments.isEmpty
+                      ? null
+                      : () => _onExtract(
+                          context,
+                          ref,
+                          segments,
+                          widget.sourceFile,
+                        ),
                 ),
               ),
             ],
@@ -379,7 +457,9 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
   @override
   void initState() {
     super.initState();
-    _startCtrl = TextEditingController(text: _formatDuration(widget.segment.start));
+    _startCtrl = TextEditingController(
+      text: _formatDuration(widget.segment.start),
+    );
     _endCtrl = TextEditingController(text: _formatDuration(widget.segment.end));
 
     _startFocus.addListener(() {
@@ -393,7 +473,8 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
   @override
   void didUpdateWidget(covariant _SegmentTile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.segment.start != widget.segment.start && !_startFocus.hasFocus) {
+    if (oldWidget.segment.start != widget.segment.start &&
+        !_startFocus.hasFocus) {
       _startCtrl.text = _formatDuration(widget.segment.start);
     }
     if (oldWidget.segment.end != widget.segment.end && !_endFocus.hasFocus) {
@@ -413,7 +494,12 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
   void _submitStart(String val) {
     final parsed = _parseDuration(val);
     if (parsed != null && parsed < widget.segment.end) {
-      ref.read(videoEditorProvider.notifier).updateSegment(widget.segment.id, widget.segment.copyWith(start: parsed));
+      ref
+          .read(videoEditorProvider.notifier)
+          .updateSegment(
+            widget.segment.id,
+            widget.segment.copyWith(start: parsed),
+          );
     } else {
       _startCtrl.text = _formatDuration(widget.segment.start);
     }
@@ -422,7 +508,12 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
   void _submitEnd(String val) {
     final parsed = _parseDuration(val);
     if (parsed != null && parsed > widget.segment.start) {
-      ref.read(videoEditorProvider.notifier).updateSegment(widget.segment.id, widget.segment.copyWith(end: parsed));
+      ref
+          .read(videoEditorProvider.notifier)
+          .updateSegment(
+            widget.segment.id,
+            widget.segment.copyWith(end: parsed),
+          );
     } else {
       _endCtrl.text = _formatDuration(widget.segment.end);
     }
@@ -433,7 +524,12 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
     return Stack(
       children: [
         Container(
-          padding: const EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 16),
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: 16,
+          ),
           decoration: BoxDecoration(
             color: const Color(0xFF121212),
             borderRadius: BorderRadius.circular(12),
@@ -451,9 +547,14 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
                     child: TextField(
                       controller: _startCtrl,
                       focusNode: _startFocus,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace', color: Colors.white, fontSize: 13),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
                       decoration: const InputDecoration(
-                        isDense: true, 
+                        isDense: true,
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -467,9 +568,14 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
                       controller: _endCtrl,
                       focusNode: _endFocus,
                       textAlign: TextAlign.right,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace', color: Colors.white, fontSize: 13),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
                       decoration: const InputDecoration(
-                        isDense: true, 
+                        isDense: true,
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -486,28 +592,58 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
                   DropdownButton<double>(
                     value: widget.segment.speed,
                     items: [0.25, 0.5, 1.0, 1.25, 1.5, 2.0]
-                        .map((s) => DropdownMenuItem(value: s, child: Text('${s}x', style: const TextStyle(color: Colors.white))))
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(
+                              '${s}x',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        )
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
-                        ref.read(videoEditorProvider.notifier).updateSegment(widget.segment.id, widget.segment.copyWith(speed: val));
+                        ref
+                            .read(videoEditorProvider.notifier)
+                            .updateSegment(
+                              widget.segment.id,
+                              widget.segment.copyWith(speed: val),
+                            );
                       }
                     },
                     underline: const SizedBox(),
                     dropdownColor: Colors.grey.shade900,
-                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                    icon: const Icon(
+                      Icons.arrow_drop_down,
+                      color: Colors.white54,
+                    ),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   // Mute Button aligned next to Speed
                   Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: IconButton(
-                      icon: Icon(widget.segment.isMuted ? Icons.volume_off : Icons.volume_up, size: 18, color: Theme.of(context).colorScheme.primary),
-                      onPressed: () => ref.read(videoEditorProvider.notifier).toggleMute(widget.segment.id),
+                      icon: Icon(
+                        widget.segment.isMuted
+                            ? Icons.volume_off
+                            : Icons.volume_up,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      onPressed: () => ref
+                          .read(videoEditorProvider.notifier)
+                          .toggleMute(widget.segment.id),
                       constraints: const BoxConstraints(),
                       padding: const EdgeInsets.all(8),
                     ),
@@ -515,8 +651,14 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
                   const Spacer(),
                   // Delete Button
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
-                    onPressed: () => ref.read(videoEditorProvider.notifier).deleteSegment(widget.segment.id),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: Colors.redAccent,
+                    ),
+                    onPressed: () => ref
+                        .read(videoEditorProvider.notifier)
+                        .deleteSegment(widget.segment.id),
                     constraints: const BoxConstraints(),
                     padding: EdgeInsets.zero,
                   ),
@@ -537,7 +679,11 @@ class _SegmentTileState extends ConsumerState<_SegmentTile> {
             ),
             child: Text(
               '${widget.index + 1}',
-              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),

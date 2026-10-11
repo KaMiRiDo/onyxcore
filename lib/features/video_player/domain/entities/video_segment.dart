@@ -14,11 +14,7 @@ class VideoSegment extends Equatable {
     required Duration start,
     required Duration end,
   }) {
-    return VideoSegment(
-      id: const Uuid().v4(),
-      start: start,
-      end: end,
-    );
+    return VideoSegment(id: const Uuid().v4(), start: start, end: end);
   }
 
   final String id;

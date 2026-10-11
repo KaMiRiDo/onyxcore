@@ -11,11 +11,7 @@ void main() {
   group('ImageZoomIndicator', () {
     testWidgets('renders correct percentage text at scale 1.0', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: ImageZoomIndicator(scale: 1),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: ImageZoomIndicator(scale: 1))),
       );
 
       expect(find.text('100%'), findsOneWidget);
@@ -23,11 +19,7 @@ void main() {
 
     testWidgets('renders correct percentage text at scale 1.5', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: ImageZoomIndicator(scale: 1.5),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: ImageZoomIndicator(scale: 1.5))),
       );
 
       expect(find.text('150%'), findsOneWidget);

@@ -5,25 +5,22 @@ import 'package:onyxcore/features/image_viewer/presentation/engines/transformati
 import 'package:onyxcore/features/image_viewer/presentation/engines/zoom_animation_engine.dart';
 
 class ImageZoomController extends ChangeNotifier {
-  
-  ImageZoomController({
-    required this.animationEngine,
-    this.qualityNotifier,
-  }) {
+  ImageZoomController({required this.animationEngine, this.qualityNotifier}) {
     transformationController.addListener(_onTransformationChanged);
   }
-  final TransformationController transformationController = TransformationController();
+  final TransformationController transformationController =
+      TransformationController();
   final ZoomAnimationEngine animationEngine;
   final InteractionQualityNotifier? qualityNotifier;
-  
+
   double _initialScale = 1;
   final ValueNotifier<double> scaleNotifier = ValueNotifier(1);
   Matrix4 _gestureStartMatrix = Matrix4.identity();
   double _scrubAccumulatedScale = 1;
-  
+
   bool _isPanZoomGesture = false;
   bool _isInteracting = false;
-  
+
   Size _viewportSize = Size.zero;
   Size get viewportSize => _viewportSize;
   Size? _imageSize;
@@ -78,24 +75,29 @@ class ImageZoomController extends ChangeNotifier {
   void updatePinchGesture(double scale, Offset focalPoint) {
     _setZoomFromGesture(_initialScale * scale, focalPoint);
   }
-  
+
   void applyTranslation(Offset delta) {
     final translation = Matrix4.translationValues(delta.dx, delta.dy, 0);
-    final nextMatrix = (translation * transformationController.value) as Matrix4;
-    
+    final nextMatrix =
+        (translation * transformationController.value) as Matrix4;
+
     if (nextMatrix.storage.any((v) => !v.isFinite)) {
       return;
     }
     transformationController.value = nextMatrix;
   }
-  
-  void setZoom(double newScale, {required Offset focalPoint, bool animate = true}) {
+
+  void setZoom(
+    double newScale, {
+    required Offset focalPoint,
+    bool animate = true,
+  }) {
     final nextMatrix = TransformationEngine.computeZoom(
       transformationController.value,
       newScale,
       focalPoint,
     );
-    
+
     if (nextMatrix == null) return;
 
     if (animate) {
@@ -111,7 +113,7 @@ class ImageZoomController extends ChangeNotifier {
       targetScale,
       viewportFocalPoint,
     );
-    
+
     if (nextMatrix == null) return;
     transformationController.value = nextMatrix;
   }
@@ -123,7 +125,7 @@ class ImageZoomController extends ChangeNotifier {
 
   void _onTransformationChanged() {
     if (_viewportSize == Size.zero) return;
-    
+
     final clamped = MatrixClampEngine.clamp(
       transformationController.value,
       _viewportSize,
@@ -147,7 +149,7 @@ class ImageZoomController extends ChangeNotifier {
       // No longer notifyListeners() on every scale tick for the controller itself, the ValueNotifier does it!
     }
   }
-  
+
   void reset() {
     transformationController.value = Matrix4.identity();
     scaleNotifier.value = 1.0;

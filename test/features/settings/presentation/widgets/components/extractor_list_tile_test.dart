@@ -5,7 +5,8 @@ import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.da
 import 'package:onyxcore/features/downloader/presentation/providers/custom_extractor_provider.dart';
 import 'package:onyxcore/features/settings/presentation/widgets/components/extractor_list_tile.dart';
 
-class MockCustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>> implements CustomExtractorNotifier {
+class MockCustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>>
+    implements CustomExtractorNotifier {
   @override
   Future<List<CustomExtractor>> build() async {
     return [
@@ -37,15 +38,17 @@ class MockCustomExtractorNotifier extends AsyncNotifier<List<CustomExtractor>> i
 }
 
 void main() {
-  testWidgets('ExtractorListTile renders list of extractors', (WidgetTester tester) async {
+  testWidgets('ExtractorListTile renders list of extractors', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          customExtractorsProvider.overrideWith(MockCustomExtractorNotifier.new),
+          customExtractorsProvider.overrideWith(
+            MockCustomExtractorNotifier.new,
+          ),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: ExtractorListTile()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ExtractorListTile())),
       ),
     );
 

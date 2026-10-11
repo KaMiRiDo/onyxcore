@@ -15,7 +15,9 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
         width: 400,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: Theme.of(context).colorScheme.outlineVariant,
@@ -25,7 +27,11 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.download_rounded, size: 48, color: Colors.blueAccent),
+            const Icon(
+              Icons.download_rounded,
+              size: 48,
+              color: Colors.blueAccent,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Missing Required Dependencies',
@@ -46,7 +52,9 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: Colors.redAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: Colors.redAccent.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Text(
                   updateState.error!,
@@ -59,7 +67,9 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
                 child: LinearProgressIndicator(
                   value: updateState.progress,
                   minHeight: 12,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHigh,
                   color: Colors.blueAccent,
                 ),
               ),
@@ -74,7 +84,9 @@ class DownloadsMissingBinariesView extends ConsumerWidget {
             ] else
               ElevatedButton.icon(
                 onPressed: () async {
-                  await ref.read(downloaderUpdateProvider.notifier).updateBinaries();
+                  await ref
+                      .read(downloaderUpdateProvider.notifier)
+                      .updateBinaries();
                   await ref.read(downloaderReadinessProvider.notifier).retry();
                 },
                 icon: const Icon(Icons.download),

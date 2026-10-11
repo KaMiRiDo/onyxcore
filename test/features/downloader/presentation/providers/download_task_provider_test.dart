@@ -57,7 +57,7 @@ void main() {
     mockEngine = MockDownloadEngine();
     mockHistoryNotifier = MockDownloadHistoryNotifier();
     when(() => mockHistoryNotifier.addEntry(any())).thenAnswer((_) async {});
-    
+
     when(() => mockEngine.id).thenReturn('mock-engine');
     when(() => mockEngine.isInstalled).thenReturn(true);
     when(() => mockEngine.priority).thenReturn(100);
@@ -89,45 +89,50 @@ void main() {
     when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
     when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
     when(() => mockProcess.exitCode).thenAnswer((_) => Completer<int>().future);
-    when(() => mockEngine.startDownload(
-      url: any(named: 'url'),
-      destination: any(named: 'destination'),
-      title: any(named: 'title'),
-      isPlaylist: any(named: 'isPlaylist'),
-      isProfile: any(named: 'isProfile'),
-      totalItems: any(named: 'totalItems'),
-    )).thenAnswer((_) async => mockProcess);
+    when(
+      () => mockEngine.startDownload(
+        url: any(named: 'url'),
+        destination: any(named: 'destination'),
+        title: any(named: 'title'),
+        isPlaylist: any(named: 'isPlaylist'),
+        isProfile: any(named: 'isProfile'),
+        totalItems: any(named: 'totalItems'),
+      ),
+    ).thenAnswer((_) async => mockProcess);
   }
-  
+
   Future<void> waitRemovalTimer() async {
     await Future.delayed(const Duration(seconds: 3, milliseconds: 100));
   }
 
   group('Download Task Provider Unit Tests', () {
-    test('U-DL-TSK-01: DownloadTask() creates task with documented defaults', () {
-      final now = DateTime.now();
-      final task = DownloadTask(
-        id: '1',
-        url: 'http://example.com',
-        destination: '/downloads',
-        title: 'video',
-        createdAt: now,
-      );
+    test(
+      'U-DL-TSK-01: DownloadTask() creates task with documented defaults',
+      () {
+        final now = DateTime.now();
+        final task = DownloadTask(
+          id: '1',
+          url: 'http://example.com',
+          destination: '/downloads',
+          title: 'video',
+          createdAt: now,
+        );
 
-      expect(task.status, DownloadStatus.pending);
-      expect(task.progress, 0.0);
-      expect(task.speed, '');
-      expect(task.eta, '');
-      expect(task.totalSize, '');
-      expect(task.expectedBytes, 0);
-      expect(task.downloadedBytes, 0);
-      expect(task.completedItems, 0);
-      expect(task.totalItems, 0);
-      expect(task.error, isNull);
-      expect(task.process, isNull);
-      expect(task.logs, isEmpty);
-      expect(task.completedAt, isNull);
-    });
+        expect(task.status, DownloadStatus.pending);
+        expect(task.progress, 0.0);
+        expect(task.speed, '');
+        expect(task.eta, '');
+        expect(task.totalSize, '');
+        expect(task.expectedBytes, 0);
+        expect(task.downloadedBytes, 0);
+        expect(task.completedItems, 0);
+        expect(task.totalItems, 0);
+        expect(task.error, isNull);
+        expect(task.process, isNull);
+        expect(task.logs, isEmpty);
+        expect(task.completedAt, isNull);
+      },
+    );
 
     test('U-DL-TSK-02: DownloadTask.copyWith overrides mutable fields', () {
       final now = DateTime.now();
@@ -168,274 +173,377 @@ void main() {
       expect(values[5], DownloadStatus.cancelled);
     });
 
-    test('U-DL-TSK-04: build registers window listener and returns empty initial state', () async {
-      final container = await createContainer();
-      final state = container.read(downloadTaskProvider);
-      expect(state, isEmpty);
-    });
+    test(
+      'U-DL-TSK-04: build registers window listener and returns empty initial state',
+      () async {
+        final container = await createContainer();
+        final state = container.read(downloadTaskProvider);
+        expect(state, isEmpty);
+      },
+    );
 
-    test('U-DL-TSK-05: build disposal callback removes window listener and blocks late state writes', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      container.dispose();
-      
-      notifier.startDownload(url: 'test_url', destination: 'dest', title: 'title');
-    });
+    test(
+      'U-DL-TSK-05: build disposal callback removes window listener and blocks late state writes',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+        container.dispose();
 
-    test('U-DL-TSK-06: _maxConcurrent uses configured limit or defaults to 3', () async {
-      setupHangingProcess();
-      final container = await createContainer(settings: const AppSettings(maxConcurrentDownloads: 5));
-      final notifier = container.read(downloadTaskProvider.notifier);
-      for (var i = 0; i < 6; i++) {
-        notifier.startDownload(url: 'url_$i', destination: 'dest', title: 'title');
-      }
-      await Future.delayed(const Duration(milliseconds: 10));
-      final runningCount = container.read(downloadTaskProvider).where((t) => t.status == DownloadStatus.running).length;
-      expect(runningCount, 5);
-    });
+        notifier.startDownload(
+          url: 'test_url',
+          destination: 'dest',
+          title: 'title',
+        );
+      },
+    );
 
-    test('U-DL-TSK-07: startDownload adds pending task and persists args', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      notifier.startDownload(
-        url: 'http://test.com',
-        destination: '/dest',
-        title: 'test_vid',
-        expectedBytes: 1024,
-        totalItems: 2,
-      );
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state.length, 1);
-      expect(state.first.url, 'http://test.com');
-      expect(state.first.expectedBytes, 1024);
-      expect(state.first.totalItems, 2);
-    });
+    test(
+      'U-DL-TSK-06: _maxConcurrent uses configured limit or defaults to 3',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer(
+          settings: const AppSettings(maxConcurrentDownloads: 5),
+        );
+        final notifier = container.read(downloadTaskProvider.notifier);
+        for (var i = 0; i < 6; i++) {
+          notifier.startDownload(
+            url: 'url_$i',
+            destination: 'dest',
+            title: 'title',
+          );
+        }
+        await Future.delayed(const Duration(milliseconds: 10));
+        final runningCount = container
+            .read(downloadTaskProvider)
+            .where((t) => t.status == DownloadStatus.running)
+            .length;
+        expect(runningCount, 5);
+      },
+    );
 
-    test('U-DL-TSK-08: startDownload initializes downloaded-count tracking only for multi-item', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      notifier.startDownload(url: 'http://single.com', destination: '/dest', title: 'single');
-      notifier.startDownload(url: 'http://multi.com', destination: '/dest', title: 'multi', totalItems: 5);
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state.length, 2);
-      expect(state[0].totalItems, 0);
-      expect(state[1].totalItems, 5);
-    });
+    test(
+      'U-DL-TSK-07: startDownload adds pending task and persists args',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
 
-    test('U-DL-TSK-09: _processQueue refuses to start new work when running count meets limit', () async {
-      setupHangingProcess();
-      final container = await createContainer(settings: const AppSettings(maxConcurrentDownloads: 1));
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      notifier.startDownload(url: '1', destination: 'd', title: 't');
-      notifier.startDownload(url: '2', destination: 'd', title: 't');
-      
-      await Future.delayed(const Duration(milliseconds: 10));
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state[0].status, DownloadStatus.running);
-      expect(state[1].status, DownloadStatus.pending);
-      
-      notifier.processQueueForTesting();
-      final newState = container.read(downloadTaskProvider);
-      expect(newState[1].status, DownloadStatus.pending);
-    });
+        notifier.startDownload(
+          url: 'http://test.com',
+          destination: '/dest',
+          title: 'test_vid',
+          expectedBytes: 1024,
+          totalItems: 2,
+        );
 
-    test('U-DL-TSK-10: _processQueue starts exactly the number of pending tasks that fit', () async {
-      setupHangingProcess();
-      final container = await createContainer(settings: const AppSettings(maxConcurrentDownloads: 2));
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      notifier.startDownload(url: '1', destination: 'd', title: 't');
-      notifier.startDownload(url: '2', destination: 'd', title: 't');
-      notifier.startDownload(url: '3', destination: 'd', title: 't');
-      
-      await Future.delayed(const Duration(milliseconds: 10));
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state[0].status, DownloadStatus.running);
-      expect(state[1].status, DownloadStatus.running);
-      expect(state[2].status, DownloadStatus.pending);
-    });
+        final state = container.read(downloadTaskProvider);
+        expect(state.length, 1);
+        expect(state.first.url, 'http://test.com');
+        expect(state.first.expectedBytes, 1024);
+        expect(state.first.totalItems, 2);
+      },
+    );
 
-    test('U-DL-TSK-11: _startProcessForTask marks task running and attaches process', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      final mockProcess = MockProcess();
-      when(() => mockProcess.pid).thenReturn(999999);
-      when(() => mockEngine.startDownload(
-        url: any(named: 'url'),
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-      )).thenAnswer((_) async => mockProcess);
-      when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.exitCode).thenAnswer((_) async => 0);
-      
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      final state = container.read(downloadTaskProvider);
-      expect(state.first.status, DownloadStatus.running);
-      
-      await Future.delayed(const Duration(milliseconds: 50));
-      expect(container.read(downloadTaskProvider).first.status, DownloadStatus.completed);
-      
-    });
+    test(
+      'U-DL-TSK-08: startDownload initializes downloaded-count tracking only for multi-item',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
 
-    test('U-DL-TSK-12: _startProcessForTask no-ops cleanly when queued args are missing', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      notifier.startProcessForTaskForTesting('missing-id');
-      final state = container.read(downloadTaskProvider);
-      expect(state, isEmpty);
-    });
+        notifier.startDownload(
+          url: 'http://single.com',
+          destination: '/dest',
+          title: 'single',
+        );
+        notifier.startDownload(
+          url: 'http://multi.com',
+          destination: '/dest',
+          title: 'multi',
+          totalItems: 5,
+        );
 
-    test('U-DL-TSK-13: _startProcessForTask starts folder monitor for playlists', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      final mockProcess = MockProcess();
-      when(() => mockProcess.pid).thenReturn(999999);
-      when(() => mockEngine.startDownload(
-        url: any(named: 'url'),
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-        isPlaylist: true,
-      )).thenAnswer((_) async => mockProcess);
-      when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
-      final completer = Completer<int>();
-      when(() => mockProcess.exitCode).thenAnswer((_) => completer.future);
-      
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title', isPlaylist: true);
-      expect(container.read(downloadTaskProvider).first.status, DownloadStatus.running);
-      completer.complete(0);
-      await Future.delayed(const Duration(milliseconds: 10));
-    });
+        final state = container.read(downloadTaskProvider);
+        expect(state.length, 2);
+        expect(state[0].totalItems, 0);
+        expect(state[1].totalItems, 5);
+      },
+    );
 
-    test('U-DL-TSK-14: _startProcessForTask success path completes task on exit code 0', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      final mockProcess = MockProcess();
-      when(() => mockProcess.pid).thenReturn(999999);
-      when(() => mockEngine.startDownload(
-        url: any(named: 'url'),
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-      )).thenAnswer((_) async => mockProcess);
-      when(() => mockProcess.stdout).thenAnswer((_) => Stream.value(utf8.encode('log1\n')));
-      when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.exitCode).thenAnswer((_) async => 0);
-      
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      await Future.delayed(const Duration(milliseconds: 50));
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state.first.status, DownloadStatus.completed);
-      expect(state.first.progress, 1.0);
-      expect(state.first.completedAt, isNotNull);
-      expect(state.first.logs, contains('log1'));
-    });
+    test(
+      'U-DL-TSK-09: _processQueue refuses to start new work when running count meets limit',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer(
+          settings: const AppSettings(maxConcurrentDownloads: 1),
+        );
+        final notifier = container.read(downloadTaskProvider.notifier);
 
-    test('U-DL-TSK-15: _startProcessForTask error path moves task to error for non-zero exit', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      final mockProcess = MockProcess();
-      when(() => mockProcess.pid).thenReturn(999999);
-      when(() => mockEngine.startDownload(
-        url: any(named: 'url'),
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-      )).thenAnswer((_) async => mockProcess);
-      when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.exitCode).thenAnswer((_) async => 7);
-      
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      await Future.delayed(const Duration(milliseconds: 50));
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state.first.status, DownloadStatus.error);
-      expect(state.first.error, contains('code 7'));
-      expect(state.first.completedAt, isNotNull);
-    });
+        notifier.startDownload(url: '1', destination: 'd', title: 't');
+        notifier.startDownload(url: '2', destination: 'd', title: 't');
 
-    test('U-DL-TSK-16: _startProcessForTask cancellation guard preserves cancelled state', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      final mockProcess = MockProcess();
-      when(() => mockEngine.startDownload(
-        url: any(named: 'url'),
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-      )).thenAnswer((_) async => mockProcess);
-      when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
-      
-      final completer = Completer<int>();
-      when(() => mockProcess.exitCode).thenAnswer((_) => completer.future);
-      when(() => mockProcess.pid).thenReturn(999999);
-      
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      await Future.delayed(const Duration(milliseconds: 10));
-      
-      final taskId = container.read(downloadTaskProvider).first.id;
-      final cancelFuture = notifier.cancelDownload(taskId);
-      
-      await cancelFuture;
-      
-      completer.complete(9);
-      await Future.delayed(const Duration(milliseconds: 10));
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state.first.status, DownloadStatus.cancelled);
-    });
+        await Future.delayed(const Duration(milliseconds: 10));
 
-    test('U-DL-TSK-17: _startProcessForTask catch/finally surfaces exception and drains queue', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      when(() => mockEngine.startDownload(
-        url: any(named: 'url'),
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-      )).thenThrow(Exception('Backend throw'));
-      
-      notifier.startDownload(url: 'url1', destination: 'dest', title: 'title');
-      notifier.startDownload(url: 'url2', destination: 'dest', title: 'title');
-      
-      await Future.delayed(const Duration(milliseconds: 50));
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state.length, 2);
-      expect(state[0].status, DownloadStatus.error);
-      expect(state[0].error, contains('Backend throw'));
-      expect(state[1].status, DownloadStatus.error);
-    });
+        final state = container.read(downloadTaskProvider);
+        expect(state[0].status, DownloadStatus.running);
+        expect(state[1].status, DownloadStatus.pending);
 
-    test('U-DL-TSK-18: _appendLog appends trimmed non-empty log lines only', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      final taskId = container.read(downloadTaskProvider).first.id;
-      
-      notifier.appendLogForTesting(taskId, '  line 1  \n\n  line 2  \n');
-      
-      final state = container.read(downloadTaskProvider);
-      expect(state.first.logs, ['line 1', 'line 2']);
-    });
+        notifier.processQueueForTesting();
+        final newState = container.read(downloadTaskProvider);
+        expect(newState[1].status, DownloadStatus.pending);
+      },
+    );
+
+    test(
+      'U-DL-TSK-10: _processQueue starts exactly the number of pending tasks that fit',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer(
+          settings: const AppSettings(maxConcurrentDownloads: 2),
+        );
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        notifier.startDownload(url: '1', destination: 'd', title: 't');
+        notifier.startDownload(url: '2', destination: 'd', title: 't');
+        notifier.startDownload(url: '3', destination: 'd', title: 't');
+
+        await Future.delayed(const Duration(milliseconds: 10));
+
+        final state = container.read(downloadTaskProvider);
+        expect(state[0].status, DownloadStatus.running);
+        expect(state[1].status, DownloadStatus.running);
+        expect(state[2].status, DownloadStatus.pending);
+      },
+    );
+
+    test(
+      'U-DL-TSK-11: _startProcessForTask marks task running and attaches process',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        final mockProcess = MockProcess();
+        when(() => mockProcess.pid).thenReturn(999999);
+        when(
+          () => mockEngine.startDownload(
+            url: any(named: 'url'),
+            destination: any(named: 'destination'),
+            title: any(named: 'title'),
+          ),
+        ).thenAnswer((_) async => mockProcess);
+        when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.exitCode).thenAnswer((_) async => 0);
+
+        notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
+        final state = container.read(downloadTaskProvider);
+        expect(state.first.status, DownloadStatus.running);
+
+        await Future.delayed(const Duration(milliseconds: 50));
+        expect(
+          container.read(downloadTaskProvider).first.status,
+          DownloadStatus.completed,
+        );
+      },
+    );
+
+    test(
+      'U-DL-TSK-12: _startProcessForTask no-ops cleanly when queued args are missing',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        notifier.startProcessForTaskForTesting('missing-id');
+        final state = container.read(downloadTaskProvider);
+        expect(state, isEmpty);
+      },
+    );
+
+    test(
+      'U-DL-TSK-13: _startProcessForTask starts folder monitor for playlists',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        final mockProcess = MockProcess();
+        when(() => mockProcess.pid).thenReturn(999999);
+        when(
+          () => mockEngine.startDownload(
+            url: any(named: 'url'),
+            destination: any(named: 'destination'),
+            title: any(named: 'title'),
+            isPlaylist: true,
+          ),
+        ).thenAnswer((_) async => mockProcess);
+        when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
+        final completer = Completer<int>();
+        when(() => mockProcess.exitCode).thenAnswer((_) => completer.future);
+
+        notifier.startDownload(
+          url: 'url',
+          destination: 'dest',
+          title: 'title',
+          isPlaylist: true,
+        );
+        expect(
+          container.read(downloadTaskProvider).first.status,
+          DownloadStatus.running,
+        );
+        completer.complete(0);
+        await Future.delayed(const Duration(milliseconds: 10));
+      },
+    );
+
+    test(
+      'U-DL-TSK-14: _startProcessForTask success path completes task on exit code 0',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        final mockProcess = MockProcess();
+        when(() => mockProcess.pid).thenReturn(999999);
+        when(
+          () => mockEngine.startDownload(
+            url: any(named: 'url'),
+            destination: any(named: 'destination'),
+            title: any(named: 'title'),
+          ),
+        ).thenAnswer((_) async => mockProcess);
+        when(
+          () => mockProcess.stdout,
+        ).thenAnswer((_) => Stream.value(utf8.encode('log1\n')));
+        when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.exitCode).thenAnswer((_) async => 0);
+
+        notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        final state = container.read(downloadTaskProvider);
+        expect(state.first.status, DownloadStatus.completed);
+        expect(state.first.progress, 1.0);
+        expect(state.first.completedAt, isNotNull);
+        expect(state.first.logs, contains('log1'));
+      },
+    );
+
+    test(
+      'U-DL-TSK-15: _startProcessForTask error path moves task to error for non-zero exit',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        final mockProcess = MockProcess();
+        when(() => mockProcess.pid).thenReturn(999999);
+        when(
+          () => mockEngine.startDownload(
+            url: any(named: 'url'),
+            destination: any(named: 'destination'),
+            title: any(named: 'title'),
+          ),
+        ).thenAnswer((_) async => mockProcess);
+        when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.exitCode).thenAnswer((_) async => 7);
+
+        notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        final state = container.read(downloadTaskProvider);
+        expect(state.first.status, DownloadStatus.error);
+        expect(state.first.error, contains('code 7'));
+        expect(state.first.completedAt, isNotNull);
+      },
+    );
+
+    test(
+      'U-DL-TSK-16: _startProcessForTask cancellation guard preserves cancelled state',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        final mockProcess = MockProcess();
+        when(
+          () => mockEngine.startDownload(
+            url: any(named: 'url'),
+            destination: any(named: 'destination'),
+            title: any(named: 'title'),
+          ),
+        ).thenAnswer((_) async => mockProcess);
+        when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
+
+        final completer = Completer<int>();
+        when(() => mockProcess.exitCode).thenAnswer((_) => completer.future);
+        when(() => mockProcess.pid).thenReturn(999999);
+
+        notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
+        await Future.delayed(const Duration(milliseconds: 10));
+
+        final taskId = container.read(downloadTaskProvider).first.id;
+        final cancelFuture = notifier.cancelDownload(taskId);
+
+        await cancelFuture;
+
+        completer.complete(9);
+        await Future.delayed(const Duration(milliseconds: 10));
+
+        final state = container.read(downloadTaskProvider);
+        expect(state.first.status, DownloadStatus.cancelled);
+      },
+    );
+
+    test(
+      'U-DL-TSK-17: _startProcessForTask catch/finally surfaces exception and drains queue',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        when(
+          () => mockEngine.startDownload(
+            url: any(named: 'url'),
+            destination: any(named: 'destination'),
+            title: any(named: 'title'),
+          ),
+        ).thenThrow(Exception('Backend throw'));
+
+        notifier.startDownload(
+          url: 'url1',
+          destination: 'dest',
+          title: 'title',
+        );
+        notifier.startDownload(
+          url: 'url2',
+          destination: 'dest',
+          title: 'title',
+        );
+
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        final state = container.read(downloadTaskProvider);
+        expect(state.length, 2);
+        expect(state[0].status, DownloadStatus.error);
+        expect(state[0].error, contains('Backend throw'));
+        expect(state[1].status, DownloadStatus.error);
+      },
+    );
+
+    test(
+      'U-DL-TSK-18: _appendLog appends trimmed non-empty log lines only',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
+        final taskId = container.read(downloadTaskProvider).first.id;
+
+        notifier.appendLogForTesting(taskId, '  line 1  \n\n  line 2  \n');
+
+        final state = container.read(downloadTaskProvider);
+        expect(state.first.logs, ['line 1', 'line 2']);
+      },
+    );
 
     test('U-DL-TSK-19: _parseProgress yt-dlp parses standard lines', () async {
       setupHangingProcess();
@@ -443,8 +551,11 @@ void main() {
       final notifier = container.read(downloadTaskProvider.notifier);
       notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
       final taskId = container.read(downloadTaskProvider).first.id;
-      
-      notifier.parseProgressForTesting(taskId, '[download]  13.0% of  107.0MiB at  16.0MiB/s ETA 00:05');
+
+      notifier.parseProgressForTesting(
+        taskId,
+        '[download]  13.0% of  107.0MiB at  16.0MiB/s ETA 00:05',
+      );
       final task = container.read(downloadTaskProvider).first;
       expect(task.progress, 0.13);
       expect(task.totalSize, '107.0MiB');
@@ -452,33 +563,50 @@ void main() {
       expect(task.eta, '00:05');
     });
 
-    test('U-DL-TSK-20: _parseProgress yt-dlp variants handles unknown speed/size and ANSI', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      final taskId = container.read(downloadTaskProvider).first.id;
-      
-      notifier.parseProgressForTesting(taskId, '\x1B[K[download]  13.0% of ~10.0MiB at Unknown B/s ETA Unknown');
-      final task = container.read(downloadTaskProvider).first;
-      expect(task.progress, 0.13);
-      expect(task.totalSize, '~10.0MiB');
-      expect(task.speed, 'Unknown');
-      expect(task.eta, 'Unknown');
-    });
+    test(
+      'U-DL-TSK-20: _parseProgress yt-dlp variants handles unknown speed/size and ANSI',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+        notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
+        final taskId = container.read(downloadTaskProvider).first.id;
 
-    test('U-DL-TSK-21: _parseProgress yt-dlp playlist index updates count', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title', totalItems: 25);
-      final taskId = container.read(downloadTaskProvider).first.id;
-      
-      notifier.parseProgressForTesting(taskId, '[download] Downloading video 3 of 25');
-      final task = container.read(downloadTaskProvider).first;
-      expect(task.completedItems, 2);
-      expect(task.totalItems, 25);
-    });
+        notifier.parseProgressForTesting(
+          taskId,
+          '\x1B[K[download]  13.0% of ~10.0MiB at Unknown B/s ETA Unknown',
+        );
+        final task = container.read(downloadTaskProvider).first;
+        expect(task.progress, 0.13);
+        expect(task.totalSize, '~10.0MiB');
+        expect(task.speed, 'Unknown');
+        expect(task.eta, 'Unknown');
+      },
+    );
+
+    test(
+      'U-DL-TSK-21: _parseProgress yt-dlp playlist index updates count',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+        notifier.startDownload(
+          url: 'url',
+          destination: 'dest',
+          title: 'title',
+          totalItems: 25,
+        );
+        final taskId = container.read(downloadTaskProvider).first.id;
+
+        notifier.parseProgressForTesting(
+          taskId,
+          '[download] Downloading video 3 of 25',
+        );
+        final task = container.read(downloadTaskProvider).first;
+        expect(task.completedItems, 2);
+        expect(task.totalItems, 25);
+      },
+    );
 
     test('U-DL-TSK-22: _parseProgress fragments / unknown totals', () async {
       setupHangingProcess();
@@ -486,13 +614,16 @@ void main() {
       final notifier = container.read(downloadTaskProvider.notifier);
       notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
       final taskId = container.read(downloadTaskProvider).first.id;
-      
+
       notifier.parseProgressForTesting(taskId, '[download] Frag 1/10');
       var task = container.read(downloadTaskProvider).first;
       expect(task.progress, closeTo(0.1, 0.01));
       expect(task.totalSize, '1 / 10 Frags');
-      
-      notifier.parseProgressForTesting(taskId, '[download] 10.0MiB at 5.0MiB/s');
+
+      notifier.parseProgressForTesting(
+        taskId,
+        '[download] 10.0MiB at 5.0MiB/s',
+      );
       task = container.read(downloadTaskProvider).first;
       expect(task.progress, 0.0);
       expect(task.totalSize, '10.0MiB / ?');
@@ -505,80 +636,111 @@ void main() {
       final notifier = container.read(downloadTaskProvider.notifier);
       notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
       final taskId = container.read(downloadTaskProvider).first.id;
-      
-      notifier.parseProgressForTesting(taskId, '[#bb8141 1.7MiB/113MiB(1%) CN:16 DL:2.7MiB ETA:41s]');
+
+      notifier.parseProgressForTesting(
+        taskId,
+        '[#bb8141 1.7MiB/113MiB(1%) CN:16 DL:2.7MiB ETA:41s]',
+      );
       var task = container.read(downloadTaskProvider).first;
       expect(task.progress, 0.01);
       expect(task.totalSize, '1.7MiB / 113MiB');
       expect(task.speed, '2.7MiB');
       expect(task.eta, '41s');
-      
+
       notifier.parseProgressForTesting(taskId, 'Download complete:');
       task = container.read(downloadTaskProvider).first;
       expect(task.progress, 1.0);
     });
 
-    test('U-DL-TSK-24: _parseProgress alternate engine formats (You-Get, Lux, FFmpeg)', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      final taskId = container.read(downloadTaskProvider).first.id;
-      
-      notifier.parseProgressForTesting(taskId, '98.5% ( 24.0/ 24.4MB) [==============>]');
-      var task = container.read(downloadTaskProvider).first;
-      expect(task.progress, 0.985);
-      expect(task.totalSize, '24.4MB');
-      
-      notifier.parseProgressForTesting(taskId, ' 50.00% |████████░░░░| 25.0/50.0 MiB 5.0 MiB/s 5s');
-      task = container.read(downloadTaskProvider).first;
-      expect(task.progress, 0.50);
-      expect(task.totalSize, '25.0/50.0 MiB');
-      
-      notifier.parseProgressForTesting(taskId, 'time=00:01:30 bitrate= 93.2kbits/s');
-      task = container.read(downloadTaskProvider).first;
-      expect(task.totalSize, 'Elapsed: 00:01:30');
-    });
+    test(
+      'U-DL-TSK-24: _parseProgress alternate engine formats (You-Get, Lux, FFmpeg)',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+        notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
+        final taskId = container.read(downloadTaskProvider).first.id;
 
-    test('U-DL-TSK-25: _parseProgress streamlink trigger begins live monitor', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      final taskId = container.read(downloadTaskProvider).first.id;
-      
-      notifier.parseProgressForTesting(taskId, 'Writing output to /dest/live.ts');
-    });
+        notifier.parseProgressForTesting(
+          taskId,
+          '98.5% ( 24.0/ 24.4MB) [==============>]',
+        );
+        var task = container.read(downloadTaskProvider).first;
+        expect(task.progress, 0.985);
+        expect(task.totalSize, '24.4MB');
+
+        notifier.parseProgressForTesting(
+          taskId,
+          ' 50.00% |████████░░░░| 25.0/50.0 MiB 5.0 MiB/s 5s',
+        );
+        task = container.read(downloadTaskProvider).first;
+        expect(task.progress, 0.50);
+        expect(task.totalSize, '25.0/50.0 MiB');
+
+        notifier.parseProgressForTesting(
+          taskId,
+          'time=00:01:30 bitrate= 93.2kbits/s',
+        );
+        task = container.read(downloadTaskProvider).first;
+        expect(task.totalSize, 'Elapsed: 00:01:30');
+      },
+    );
+
+    test(
+      'U-DL-TSK-25: _parseProgress streamlink trigger begins live monitor',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+        notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
+        final taskId = container.read(downloadTaskProvider).first.id;
+
+        notifier.parseProgressForTesting(
+          taskId,
+          'Writing output to /dest/live.ts',
+        );
+      },
+    );
 
     test('U-DL-TSK-26: _parseProgress gallery-dl file output tracking', () async {
       final mockProcess = MockProcess();
       when(() => mockProcess.pid).thenReturn(999999);
       when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
       when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.exitCode).thenAnswer((_) => Completer<int>().future);
-      when(() => mockEngine.startDownload(
-        url: any(named: 'url'),
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-        isPlaylist: any(named: 'isPlaylist'),
-        isProfile: any(named: 'isProfile'),
-        totalItems: any(named: 'totalItems'),
-      )).thenAnswer((_) async => mockProcess);
+      when(
+        () => mockProcess.exitCode,
+      ).thenAnswer((_) => Completer<int>().future);
+      when(
+        () => mockEngine.startDownload(
+          url: any(named: 'url'),
+          destination: any(named: 'destination'),
+          title: any(named: 'title'),
+          isPlaylist: any(named: 'isPlaylist'),
+          isProfile: any(named: 'isProfile'),
+          totalItems: any(named: 'totalItems'),
+        ),
+      ).thenAnswer((_) async => mockProcess);
       // So I will just use setupHangingProcess and the test uses engine: 'gallery-dl' in notifier call.
-      
+
       setupHangingProcess();
       final container = await createContainer();
       final notifier = container.read(downloadTaskProvider.notifier);
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title', engine: 'gallery-dl', totalItems: 3);
+      notifier.startDownload(
+        url: 'url',
+        destination: 'dest',
+        title: 'title',
+        engine: 'gallery-dl',
+        totalItems: 3,
+      );
       final taskId = container.read(downloadTaskProvider).first.id;
-      
+
       notifier.parseProgressForTesting(taskId, '[gallery-dl] fetching data');
       notifier.parseProgressForTesting(taskId, '/dest/image1.jpg');
-      
+
       var task = container.read(downloadTaskProvider).first;
       expect(task.completedItems, 1);
       expect(task.progress, closeTo(0.33, 0.01));
-      
+
       notifier.parseProgressForTesting(taskId, '/dest/image2.png');
       notifier.parseProgressForTesting(taskId, '/dest/image3.png');
       task = container.read(downloadTaskProvider).first;
@@ -586,21 +748,29 @@ void main() {
       expect(task.progress, 1.0);
     });
 
-    test('U-DL-TSK-27: updateWithProgress aggregates monotonically for multi-item tasks', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      notifier.startDownload(url: 'url', destination: 'dest', title: 'title', totalItems: 2);
-      final taskId = container.read(downloadTaskProvider).first.id;
-      
-      notifier.parseProgressForTesting(taskId, '[download]  50.0% of  10MB');
-      var task = container.read(downloadTaskProvider).first;
-      expect(task.progress, 0.25);
-      
-      notifier.parseProgressForTesting(taskId, '[download]  10.0% of  10MB');
-      task = container.read(downloadTaskProvider).first;
-      expect(task.progress, 0.25);
-    });
+    test(
+      'U-DL-TSK-27: updateWithProgress aggregates monotonically for multi-item tasks',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+        notifier.startDownload(
+          url: 'url',
+          destination: 'dest',
+          title: 'title',
+          totalItems: 2,
+        );
+        final taskId = container.read(downloadTaskProvider).first.id;
+
+        notifier.parseProgressForTesting(taskId, '[download]  50.0% of  10MB');
+        var task = container.read(downloadTaskProvider).first;
+        expect(task.progress, 0.25);
+
+        notifier.parseProgressForTesting(taskId, '[download]  10.0% of  10MB');
+        task = container.read(downloadTaskProvider).first;
+        expect(task.progress, 0.25);
+      },
+    );
 
     test('U-DL-TSK-28: cancelDownload normal flow', () async {
       setupHangingProcess();
@@ -608,10 +778,10 @@ void main() {
       final notifier = container.read(downloadTaskProvider.notifier);
       notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
       await Future.delayed(const Duration(milliseconds: 10));
-      
+
       final taskId = container.read(downloadTaskProvider).first.id;
       await notifier.cancelDownload(taskId);
-      
+
       final state = container.read(downloadTaskProvider);
       expect(state.first.status, DownloadStatus.cancelled);
       expect(state.first.completedAt, isNotNull);
@@ -620,7 +790,7 @@ void main() {
     test('U-DL-TSK-29: cancelDownload live-stream flow', () async {
       final container = await createContainer();
       final notifier = container.read(downloadTaskProvider.notifier);
-      
+
       final mockProcess = MockProcess();
       when(() => mockProcess.kill(ProcessSignal.sigint)).thenReturn(true);
       when(() => mockProcess.pid).thenReturn(999999);
@@ -628,21 +798,26 @@ void main() {
       when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
       final completer = Completer<int>();
       when(() => mockProcess.exitCode).thenAnswer((_) => completer.future);
-      when(() => mockEngine.startDownload(
-        url: any(named: 'url'),
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-      )).thenAnswer((_) async => mockProcess);
-      
+      when(
+        () => mockEngine.startDownload(
+          url: any(named: 'url'),
+          destination: any(named: 'destination'),
+          title: any(named: 'title'),
+        ),
+      ).thenAnswer((_) async => mockProcess);
+
       notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
       await Future.delayed(const Duration(milliseconds: 10));
-      
+
       final taskId = container.read(downloadTaskProvider).first.id;
       final cancelFuture = notifier.cancelDownload(taskId);
       completer.complete(0); // Exit smoothly
       await cancelFuture;
-      
-      expect(container.read(downloadTaskProvider).first.status, DownloadStatus.cancelled);
+
+      expect(
+        container.read(downloadTaskProvider).first.status,
+        DownloadStatus.cancelled,
+      );
     });
 
     test('U-DL-TSK-30: _cleanupTempFiles removes temp artifacts', () async {
@@ -651,135 +826,159 @@ void main() {
       final notifier = container.read(downloadTaskProvider.notifier);
       notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
       await Future.delayed(const Duration(milliseconds: 10));
-      
-      await notifier.cancelDownload(container.read(downloadTaskProvider).first.id);
+
+      await notifier.cancelDownload(
+        container.read(downloadTaskProvider).first.id,
+      );
     });
 
-    test('U-DL-TSK-31: removeTask / clearHistory cleans notifier state', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      notifier.startDownload(url: '1', destination: 'd', title: '1');
-      final id = container.read(downloadTaskProvider).first.id;
-      notifier.removeTask(id);
-      expect(container.read(downloadTaskProvider), isEmpty);
-      
-      notifier.startDownload(url: '2', destination: 'd', title: '2');
-      notifier.clearHistory();
-      expect(container.read(downloadTaskProvider).length, 1);
-    });
+    test(
+      'U-DL-TSK-31: removeTask / clearHistory cleans notifier state',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
 
-    test('U-DL-TSK-32: _startAutoRemovalTimer archives tasks after delay', () async {
-    });
+        notifier.startDownload(url: '1', destination: 'd', title: '1');
+        final id = container.read(downloadTaskProvider).first.id;
+        notifier.removeTask(id);
+        expect(container.read(downloadTaskProvider), isEmpty);
+
+        notifier.startDownload(url: '2', destination: 'd', title: '2');
+        notifier.clearHistory();
+        expect(container.read(downloadTaskProvider).length, 1);
+      },
+    );
+
+    test(
+      'U-DL-TSK-32: _startAutoRemovalTimer archives tasks after delay',
+      () async {},
+    );
 
     test('U-DL-TSK-33: onHydrationFinished updates totalItems', () async {
       setupHangingProcess();
       final container = await createContainer();
       final notifier = container.read(downloadTaskProvider.notifier);
-      
+
       notifier.startDownload(url: 'url', destination: 'dest', title: 'title');
-      
+
       notifier.onHydrationFinished('url', [
         MediaInfo(id: '1', title: '1', originalUrl: 'url', fetchLogs: ''),
         MediaInfo(id: '2', title: '2', originalUrl: 'url', fetchLogs: ''),
       ]);
-      
+
       final task = container.read(downloadTaskProvider).first;
       expect(task.totalItems, 2);
     });
 
-    test('U-DL-TSK-34: _startFileSizeMonitor does not crash', () async {
-    });
+    test('U-DL-TSK-34: _startFileSizeMonitor does not crash', () async {});
 
-    test('U-DL-TSK-35: _startFolderSizeMonitor accumulates recursive bytes', () async {
-    });
+    test(
+      'U-DL-TSK-35: _startFolderSizeMonitor accumulates recursive bytes',
+      () async {},
+    );
 
-    test('U-DL-TSK-36: onWindowClose synchronously kills active tasks', () async {
-      setupHangingProcess();
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      notifier.startDownload(url: '1', destination: 'd', title: 't');
-      
-      notifier.onWindowClose();
-    });
+    test(
+      'U-DL-TSK-36: onWindowClose synchronously kills active tasks',
+      () async {
+        setupHangingProcess();
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+        notifier.startDownload(url: '1', destination: 'd', title: 't');
 
-    test('U-DL-TSK-37: derived providers correctly split active and completed tasks', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
-      
-      final mockProcess = MockProcess();
-      when(() => mockProcess.pid).thenReturn(999999);
-      when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
-      when(() => mockProcess.exitCode).thenAnswer((_) async => 0);
-      when(() => mockEngine.startDownload(
-        url: 'active',
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-      )).thenAnswer((_) => Completer<Process>().future);
-      
-      when(() => mockEngine.startDownload(
-        url: 'completed',
-        destination: any(named: 'destination'),
-        title: any(named: 'title'),
-      )).thenAnswer((_) async => mockProcess);
-      
-      notifier.startDownload(url: 'active', destination: 'd', title: 't');
-      notifier.startDownload(url: 'completed', destination: 'd', title: 't');
-      
-      await Future.delayed(const Duration(milliseconds: 50));
-      
-      final active = container.read(activeDownloadTaskProvider);
-      final completed = container.read(completedDownloadTaskProvider);
-      
-      expect(active.length, 1);
-      expect(active.first.url, 'active');
-      expect(completed.length, 1);
-      expect(completed.first.url, 'completed');
-    });
+        notifier.onWindowClose();
+      },
+    );
 
-    test('U-DL-TSK-38: _parseProgress updates progress for completed files when engine is auto', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
+    test(
+      'U-DL-TSK-37: derived providers correctly split active and completed tasks',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
 
-      notifier.startDownload(
-        url: 'https://example.com/gallery',
-        destination: '/downloads',
-        title: 'gallery',
-        totalItems: 2,
-      );
+        final mockProcess = MockProcess();
+        when(() => mockProcess.pid).thenReturn(999999);
+        when(() => mockProcess.stdout).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.stderr).thenAnswer((_) => const Stream.empty());
+        when(() => mockProcess.exitCode).thenAnswer((_) async => 0);
+        when(
+          () => mockEngine.startDownload(
+            url: 'active',
+            destination: any(named: 'destination'),
+            title: any(named: 'title'),
+          ),
+        ).thenAnswer((_) => Completer<Process>().future);
 
-      final task = container.read(downloadTaskProvider).first;
-      notifier.parseProgressForTesting(task.id, '/downloads/image1.jpg');
+        when(
+          () => mockEngine.startDownload(
+            url: 'completed',
+            destination: any(named: 'destination'),
+            title: any(named: 'title'),
+          ),
+        ).thenAnswer((_) async => mockProcess);
 
-      final updatedTask = container.read(downloadTaskProvider).first;
-      expect(updatedTask.completedItems, 1);
-      expect(updatedTask.progress, 0.5);
-    });
+        notifier.startDownload(url: 'active', destination: 'd', title: 't');
+        notifier.startDownload(url: 'completed', destination: 'd', title: 't');
 
-    test('U-DL-TSK-39: _parseProgress tracks single item yt-dlp progress accurately', () async {
-      final container = await createContainer();
-      final notifier = container.read(downloadTaskProvider.notifier);
+        await Future.delayed(const Duration(milliseconds: 50));
 
-      notifier.startDownload(
-        url: 'https://youtube.com/watch?v=123',
-        destination: '/downloads',
-        title: 'single video',
-        totalItems: 1,
-      );
+        final active = container.read(activeDownloadTaskProvider);
+        final completed = container.read(completedDownloadTaskProvider);
 
-      final task = container.read(downloadTaskProvider).first;
-      notifier.parseProgressForTesting(
-        task.id,
-        '[download]  45.0% of 100.00MiB at 10.00MiB/s ETA 00:05',
-      );
+        expect(active.length, 1);
+        expect(active.first.url, 'active');
+        expect(completed.length, 1);
+        expect(completed.first.url, 'completed');
+      },
+    );
 
-      final updatedTask = container.read(downloadTaskProvider).first;
-      expect(updatedTask.progress, 0.45);
-      expect(updatedTask.totalSize, '100.00MiB');
-      expect(updatedTask.speed, '10.00MiB/s');
-      expect(updatedTask.eta, '00:05');
-    });
+    test(
+      'U-DL-TSK-38: _parseProgress updates progress for completed files when engine is auto',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        notifier.startDownload(
+          url: 'https://example.com/gallery',
+          destination: '/downloads',
+          title: 'gallery',
+          totalItems: 2,
+        );
+
+        final task = container.read(downloadTaskProvider).first;
+        notifier.parseProgressForTesting(task.id, '/downloads/image1.jpg');
+
+        final updatedTask = container.read(downloadTaskProvider).first;
+        expect(updatedTask.completedItems, 1);
+        expect(updatedTask.progress, 0.5);
+      },
+    );
+
+    test(
+      'U-DL-TSK-39: _parseProgress tracks single item yt-dlp progress accurately',
+      () async {
+        final container = await createContainer();
+        final notifier = container.read(downloadTaskProvider.notifier);
+
+        notifier.startDownload(
+          url: 'https://youtube.com/watch?v=123',
+          destination: '/downloads',
+          title: 'single video',
+          totalItems: 1,
+        );
+
+        final task = container.read(downloadTaskProvider).first;
+        notifier.parseProgressForTesting(
+          task.id,
+          '[download]  45.0% of 100.00MiB at 10.00MiB/s ETA 00:05',
+        );
+
+        final updatedTask = container.read(downloadTaskProvider).first;
+        expect(updatedTask.progress, 0.45);
+        expect(updatedTask.totalSize, '100.00MiB');
+        expect(updatedTask.speed, '10.00MiB/s');
+        expect(updatedTask.eta, '00:05');
+      },
+    );
   });
 }

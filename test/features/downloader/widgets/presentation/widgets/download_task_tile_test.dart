@@ -25,13 +25,9 @@ void main() {
 
   Widget createTestWidget(DownloadTask task) {
     return ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(appDb),
-      ],
+      overrides: [databaseProvider.overrideWithValue(appDb)],
       child: MaterialApp(
-        home: Scaffold(
-          body: DownloadTaskTile(task: task),
-        ),
+        home: Scaffold(body: DownloadTaskTile(task: task)),
       ),
     );
   }
@@ -56,7 +52,9 @@ void main() {
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('W-DL-TIL-02: Render Running state with metrics', (tester) async {
+    testWidgets('W-DL-TIL-02: Render Running state with metrics', (
+      tester,
+    ) async {
       final task = DownloadTask(
         id: '1',
         url: 'http://test',
@@ -73,7 +71,7 @@ void main() {
 
       expect(find.text('Running'), findsOneWidget);
       expect(find.text('50.0%'), findsOneWidget);
-      
+
       final richTextFinder = find.byType(RichText).last;
       expect(richTextFinder, findsOneWidget);
       final richText = tester.widget<RichText>(richTextFinder);
@@ -166,13 +164,15 @@ void main() {
       );
 
       await tester.pumpWidget(createTestWidget(task));
-      
+
       final richTextFinder = find.byType(RichText).last;
       final richText = tester.widget<RichText>(richTextFinder);
       expect(richText.text.toPlainText(), contains('3/10'));
     });
 
-    testWidgets('W-DL-TIL-08: Estimate Global ETA for Playlists', (tester) async {
+    testWidgets('W-DL-TIL-08: Estimate Global ETA for Playlists', (
+      tester,
+    ) async {
       final task = DownloadTask(
         id: '1',
         url: 'http://test',
@@ -186,7 +186,7 @@ void main() {
       );
 
       await tester.pumpWidget(createTestWidget(task));
-      
+
       final richTextFinder = find.byType(RichText).last;
       final richText = tester.widget<RichText>(richTextFinder);
       // Since it's 50% done in 60s, remaining should be ~60s. So 1m 00s
@@ -206,13 +206,12 @@ void main() {
       );
 
       await tester.pumpWidget(createTestWidget(task));
-      
+
       final richTextFinder = find.byType(RichText).last;
       final richText = tester.widget<RichText>(richTextFinder);
       expect(richText.text.toPlainText(), contains('15 MB'));
       expect(richText.text.toPlainText(), contains('500 KB/s'));
     });
-
 
     testWidgets('W-DL-TIL-11: Very long title truncation', (tester) async {
       final task = DownloadTask(
@@ -224,7 +223,7 @@ void main() {
       );
 
       await tester.pumpWidget(createTestWidget(task));
-      
+
       final textFinder = find.text('A' * 200);
       expect(textFinder, findsOneWidget);
       final titleText = tester.widget<Text>(textFinder);
@@ -245,10 +244,10 @@ void main() {
       );
 
       await tester.pumpWidget(createTestWidget(task));
-      
+
       await tester.tap(find.byIcon(Icons.close_rounded));
       await tester.pumpAndSettle();
-      
+
       expect(find.text('Cancel this download?'), findsOneWidget);
       expect(find.text('Yes, Cancel'), findsOneWidget);
       expect(find.text('No'), findsOneWidget);
@@ -266,20 +265,20 @@ void main() {
       );
 
       await tester.pumpWidget(createTestWidget(task));
-      
+
       await tester.tap(find.byIcon(Icons.close_rounded));
       await tester.pumpAndSettle();
-      
+
       await tester.tap(find.text('No'));
       await tester.pumpAndSettle();
       expect(find.text('Cancel this download?'), findsNothing);
-      
+
       await tester.tap(find.byIcon(Icons.close_rounded));
       await tester.pumpAndSettle();
-      
+
       await tester.tap(find.text('Yes, Cancel'));
       await tester.pumpAndSettle();
-      
+
       expect(find.text('Cancel this download?'), findsNothing);
     });
 
@@ -294,65 +293,71 @@ void main() {
       );
 
       await tester.pumpWidget(createTestWidget(task));
-      
+
       expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
-      
+
       await tester.tap(find.byIcon(Icons.delete_outline_rounded));
       await tester.pumpAndSettle();
     });
 
-    testWidgets('W-DL-TIL-15: Render size ratio and calculated ETA accurately', (tester) async {
-      final task = DownloadTask(
-        id: '1',
-        url: 'http://test',
-        destination: '/test',
-        title: 'Grouped Download',
-        status: DownloadStatus.running,
-        totalItems: 3,
-        completedItems: 1,
-        expectedBytes: 10 * 1024 * 1024, // 10 MB
-        downloadedBytes: 3 * 1024 * 1024, // 3 MB
-        progress: 0.3,
-        speed: '1.5 MB/s',
-        eta: '5s',
-        createdAt: DateTime.now(),
-      );
+    testWidgets(
+      'W-DL-TIL-15: Render size ratio and calculated ETA accurately',
+      (tester) async {
+        final task = DownloadTask(
+          id: '1',
+          url: 'http://test',
+          destination: '/test',
+          title: 'Grouped Download',
+          status: DownloadStatus.running,
+          totalItems: 3,
+          completedItems: 1,
+          expectedBytes: 10 * 1024 * 1024, // 10 MB
+          downloadedBytes: 3 * 1024 * 1024, // 3 MB
+          progress: 0.3,
+          speed: '1.5 MB/s',
+          eta: '5s',
+          createdAt: DateTime.now(),
+        );
 
-      await tester.pumpWidget(createTestWidget(task));
+        await tester.pumpWidget(createTestWidget(task));
 
-      final richTextFinder = find.byType(RichText).last;
-      final richText = tester.widget<RichText>(richTextFinder);
-      final text = richText.text.toPlainText();
+        final richTextFinder = find.byType(RichText).last;
+        final richText = tester.widget<RichText>(richTextFinder);
+        final text = richText.text.toPlainText();
 
-      expect(text, contains('1/3'));
-      expect(text, contains('3.0 MB / 10.0 MB'));
-      expect(text, contains('1.5 MB/s'));
-      expect(text, contains('ETA 5s'));
-    });
+        expect(text, contains('1/3'));
+        expect(text, contains('3.0 MB / 10.0 MB'));
+        expect(text, contains('1.5 MB/s'));
+        expect(text, contains('ETA 5s'));
+      },
+    );
 
-    testWidgets('W-DL-TIL-16: Compute ETA from size ratio when task.eta is empty', (tester) async {
-      final task = DownloadTask(
-        id: '1',
-        url: 'http://test',
-        destination: '/test',
-        title: 'Single Video',
-        status: DownloadStatus.running,
-        expectedBytes: 100 * 1024 * 1024, // 100 MB
-        downloadedBytes: 50 * 1024 * 1024, // 50 MB
-        progress: 0.5,
-        speed: '10 MB/s',
-        createdAt: DateTime.now().subtract(const Duration(seconds: 5)),
-      );
+    testWidgets(
+      'W-DL-TIL-16: Compute ETA from size ratio when task.eta is empty',
+      (tester) async {
+        final task = DownloadTask(
+          id: '1',
+          url: 'http://test',
+          destination: '/test',
+          title: 'Single Video',
+          status: DownloadStatus.running,
+          expectedBytes: 100 * 1024 * 1024, // 100 MB
+          downloadedBytes: 50 * 1024 * 1024, // 50 MB
+          progress: 0.5,
+          speed: '10 MB/s',
+          createdAt: DateTime.now().subtract(const Duration(seconds: 5)),
+        );
 
-      await tester.pumpWidget(createTestWidget(task));
+        await tester.pumpWidget(createTestWidget(task));
 
-      final richTextFinder = find.byType(RichText).last;
-      final richText = tester.widget<RichText>(richTextFinder);
-      final text = richText.text.toPlainText();
+        final richTextFinder = find.byType(RichText).last;
+        final richText = tester.widget<RichText>(richTextFinder);
+        final text = richText.text.toPlainText();
 
-      expect(text, contains('50.0 MB / 100.0 MB'));
-      expect(text, contains('10 MB/s'));
-      expect(text, contains('ETA 5s'));
-    });
+        expect(text, contains('50.0 MB / 100.0 MB'));
+        expect(text, contains('10 MB/s'));
+        expect(text, contains('ETA 5s'));
+      },
+    );
   });
 }

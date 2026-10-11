@@ -11,9 +11,9 @@ import 'package:onyxcore/features/audio_player/domain/utils/audio_metadata_utils
 import 'package:path/path.dart' as p;
 
 class AudioPropertiesDialog extends StatefulWidget {
-
   const AudioPropertiesDialog({
-    required this.path, super.key,
+    required this.path,
+    super.key,
     this.testTag,
     this.testProperties,
     this.testStat,
@@ -289,7 +289,9 @@ class _AudioPropertiesDialogState extends State<AudioPropertiesDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.1),
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,

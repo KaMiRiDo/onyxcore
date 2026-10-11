@@ -51,9 +51,7 @@ void main(List<String> args) async {
 
   runWidget(
     ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-      ],
+      overrides: [databaseProvider.overrideWithValue(db)],
       child: const OnyxCoreMultiViewApp(),
     ),
   );
@@ -66,7 +64,8 @@ class OnyxCoreMultiViewApp extends StatefulWidget {
   State<OnyxCoreMultiViewApp> createState() => _OnyxCoreMultiViewAppState();
 }
 
-class _OnyxCoreMultiViewAppState extends State<OnyxCoreMultiViewApp> with WidgetsBindingObserver {
+class _OnyxCoreMultiViewAppState extends State<OnyxCoreMultiViewApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -95,10 +94,7 @@ class _OnyxCoreMultiViewAppState extends State<OnyxCoreMultiViewApp> with Widget
   Widget build(BuildContext context) {
     return ViewCollection(
       views: PlatformDispatcher.instance.views.map((FlutterView view) {
-        return View(
-          view: view,
-          child: _buildChildForView(view),
-        );
+        return View(view: view, child: _buildChildForView(view));
       }).toList(),
     );
   }

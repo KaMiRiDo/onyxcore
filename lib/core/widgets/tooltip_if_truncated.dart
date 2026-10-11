@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class TooltipIfTruncated extends StatelessWidget {
-
   const TooltipIfTruncated({
-    required this.text, super.key,
+    required this.text,
+    super.key,
     this.style,
     this.maxLines = 1,
     this.tooltipMessage,

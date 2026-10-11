@@ -38,8 +38,12 @@ void main() {
 
     setUp(() {
       mockSettingsRepository = MockSettingsRepository();
-      when(() => mockSettingsRepository.load()).thenAnswer((_) async => AppSettings());
-      when(() => mockSettingsRepository.setFolderSort(any(), any())).thenAnswer((_) async {});
+      when(
+        () => mockSettingsRepository.load(),
+      ).thenAnswer((_) async => AppSettings());
+      when(
+        () => mockSettingsRepository.setFolderSort(any(), any()),
+      ).thenAnswer((_) async {});
 
       container = ProviderContainer(
         overrides: [
@@ -92,9 +96,9 @@ void main() {
     test('closeTab does not remove the last tab', () {
       final tabManager = container.read(tabManagerProvider.notifier);
       final state = container.read(tabManagerProvider);
-      
+
       tabManager.closeTab(state.tabs[0].id);
-      
+
       final newState = container.read(tabManagerProvider);
       expect(newState.tabs.length, 1);
     });
@@ -102,10 +106,10 @@ void main() {
     test('switchTab changes active tab', () {
       final tabManager = container.read(tabManagerProvider.notifier);
       tabManager.addTab(path: '/test/path1');
-      
+
       tabManager.switchTab(0);
       expect(container.read(tabManagerProvider).activeTabIndex, 0);
-      
+
       tabManager.switchTab(1);
       expect(container.read(tabManagerProvider).activeTabIndex, 1);
     });
@@ -129,14 +133,14 @@ void main() {
       final tabId = container.read(tabManagerProvider).activeTab.id;
 
       tabManager.updateTabPath(tabId, '/new/path');
-      
+
       var state = container.read(tabManagerProvider);
       expect(state.activeTab.currentPath, '/new/path');
       expect(state.activeTab.history.length, 2);
       expect(state.activeTab.historyIndex, 1);
 
       tabManager.navigateBack(tabId);
-      
+
       tabManager.updateTabPath(tabId, '/another/path');
       state = container.read(tabManagerProvider);
       expect(state.activeTab.history.length, 2); // Overwrote forward history
@@ -152,13 +156,19 @@ void main() {
       tabManager.updateTabPath(tabId, '/path3');
 
       tabManager.navigateBack(tabId);
-      expect(container.read(tabManagerProvider).activeTab.currentPath, '/path2');
+      expect(
+        container.read(tabManagerProvider).activeTab.currentPath,
+        '/path2',
+      );
 
       tabManager.navigateBack(tabId);
       // Depending on initial path, it goes back
-      
+
       tabManager.navigateForward(tabId);
-      expect(container.read(tabManagerProvider).activeTab.currentPath, '/path2');
+      expect(
+        container.read(tabManagerProvider).activeTab.currentPath,
+        '/path2',
+      );
     });
 
     test('Property update methods update tab state', () {
@@ -172,50 +182,85 @@ void main() {
       expect(container.read(tabManagerProvider).activeTab.searchQuery, 'query');
 
       tabManager.setAnalysisActive(tabId, active: true);
-      expect(container.read(tabManagerProvider).activeTab.isAnalysisActive, true);
+      expect(
+        container.read(tabManagerProvider).activeTab.isAnalysisActive,
+        true,
+      );
 
       tabManager.setLocationEditing(tabId, active: true);
-      expect(container.read(tabManagerProvider).activeTab.isLocationEditing, true);
+      expect(
+        container.read(tabManagerProvider).activeTab.isLocationEditing,
+        true,
+      );
 
       tabManager.setRefreshing(tabId, refreshing: true);
       expect(container.read(tabManagerProvider).activeTab.isRefreshing, true);
 
-      final initialCount = container.read(tabManagerProvider).activeTab.refreshCount;
+      final initialCount = container
+          .read(tabManagerProvider)
+          .activeTab
+          .refreshCount;
       tabManager.incrementRefreshCount(tabId);
-      expect(container.read(tabManagerProvider).activeTab.refreshCount, initialCount + 1);
-    });
-
-    test('updateSortSettings sets sort order and updates settingsProvider', () async {
-      mockSettingsNotifier.finishInitialLoad(AppSettings());
-      final tabManager = container.read(tabManagerProvider.notifier);
-      final tabId = container.read(tabManagerProvider).activeTab.id;
-
-      tabManager.updateSortSettings(tabId, const SortSettings(option: SortOption.lastModified));
-      
-      final state = container.read(tabManagerProvider);
-      expect(state.activeTab.sortSettings.option, SortOption.lastModified);
-
-      verify(() => mockSettingsRepository.setFolderSort(any(), SortOption.lastModified)).called(1);
-    });
-
-    test('TabManager listens to settingsProvider and automatically updates initial sort', () async {
-      // 1. Initially, TabManager assigns the fallback aToZ since settingsProvider is still loading.
-      expect(container.read(tabManagerProvider).activeTab.sortSettings.option, SortOption.aToZ);
-      
-      // 2. We simulate the settingsProvider finally finishing its async load.
-      // We pass an AppSettings where the initial path has a saved sort preference of 'size'.
-      final initialPath = container.read(tabManagerProvider).activeTab.currentPath;
-      final newSettings = AppSettings(
-        gallerySortSettings: {initialPath: SortOption.sizeSmallToLarge.name},
+      expect(
+        container.read(tabManagerProvider).activeTab.refreshCount,
+        initialCount + 1,
       );
-      
-      mockSettingsNotifier.finishInitialLoad(newSettings);
-      
-      // Wait briefly for Riverpod listeners to trigger.
-      await Future.delayed(Duration.zero);
-      
-      // 3. The TabManager should have caught the transition and updated its tabs automatically.
-      expect(container.read(tabManagerProvider).activeTab.sortSettings.option, SortOption.sizeSmallToLarge);
     });
+
+    test(
+      'updateSortSettings sets sort order and updates settingsProvider',
+      () async {
+        mockSettingsNotifier.finishInitialLoad(AppSettings());
+        final tabManager = container.read(tabManagerProvider.notifier);
+        final tabId = container.read(tabManagerProvider).activeTab.id;
+
+        tabManager.updateSortSettings(
+          tabId,
+          const SortSettings(option: SortOption.lastModified),
+        );
+
+        final state = container.read(tabManagerProvider);
+        expect(state.activeTab.sortSettings.option, SortOption.lastModified);
+
+        verify(
+          () => mockSettingsRepository.setFolderSort(
+            any(),
+            SortOption.lastModified,
+          ),
+        ).called(1);
+      },
+    );
+
+    test(
+      'TabManager listens to settingsProvider and automatically updates initial sort',
+      () async {
+        // 1. Initially, TabManager assigns the fallback aToZ since settingsProvider is still loading.
+        expect(
+          container.read(tabManagerProvider).activeTab.sortSettings.option,
+          SortOption.aToZ,
+        );
+
+        // 2. We simulate the settingsProvider finally finishing its async load.
+        // We pass an AppSettings where the initial path has a saved sort preference of 'size'.
+        final initialPath = container
+            .read(tabManagerProvider)
+            .activeTab
+            .currentPath;
+        final newSettings = AppSettings(
+          gallerySortSettings: {initialPath: SortOption.sizeSmallToLarge.name},
+        );
+
+        mockSettingsNotifier.finishInitialLoad(newSettings);
+
+        // Wait briefly for Riverpod listeners to trigger.
+        await Future.delayed(Duration.zero);
+
+        // 3. The TabManager should have caught the transition and updated its tabs automatically.
+        expect(
+          container.read(tabManagerProvider).activeTab.sortSettings.option,
+          SortOption.sizeSmallToLarge,
+        );
+      },
+    );
   });
 }

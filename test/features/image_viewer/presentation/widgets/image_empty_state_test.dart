@@ -11,11 +11,7 @@ void main() {
   group('ImageEmptyState', () {
     testWidgets('renders empty state correctly', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: ImageEmptyState(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: ImageEmptyState())),
       );
 
       // Should find the icon
@@ -26,10 +22,12 @@ void main() {
 
       // Verify the colored box background
       final coloredBox = tester.widget<ColoredBox>(
-        find.descendant(
-          of: find.byType(ImageEmptyState),
-          matching: find.byType(ColoredBox),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(ImageEmptyState),
+              matching: find.byType(ColoredBox),
+            )
+            .first,
       );
       expect(coloredBox.color, const Color(0xFF121212));
     });

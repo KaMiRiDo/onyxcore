@@ -12,7 +12,8 @@ class ExtractorDropdown extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final extractors = ref.watch(customExtractorsProvider).value ?? [];
     final controller = ref.watch(downloadsSharedControllerProvider);
-    final isEnabled = ref.watch(settingsProvider).value?.customExtractorsEnabled ?? false;
+    final isEnabled =
+        ref.watch(settingsProvider).value?.customExtractorsEnabled ?? false;
 
     final isSmallWindow = MediaQuery.of(context).size.width < 1100;
 
@@ -51,7 +52,9 @@ class ExtractorDropdown extends ConsumerWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: isSelected ? Colors.white.withAlpha(15) : Colors.transparent,
+              color: isSelected
+                  ? Colors.white.withAlpha(15)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -60,7 +63,9 @@ class ExtractorDropdown extends ConsumerWidget {
                 Icon(
                   Icons.extension_rounded,
                   size: isSmallWindow ? 12 : 16,
-                  color: isEnabled ? Colors.white : Colors.white.withValues(alpha: 0.3),
+                  color: isEnabled
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.3),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -69,7 +74,9 @@ class ExtractorDropdown extends ConsumerWidget {
                     fontSize: isSmallWindow ? 11 : 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                     color: isEnabled
-                        ? (isSelected ? Colors.white : Colors.white.withValues(alpha: 0.8))
+                        ? (isSelected
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.8))
                         : Colors.white.withValues(alpha: 0.3),
                   ),
                 ),

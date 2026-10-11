@@ -78,9 +78,7 @@ class TaskProgressButton extends ConsumerWidget {
                 ]
               : null,
         ),
-        child: Center(
-          child: content,
-        ),
+        child: Center(child: content),
       ),
     );
   }

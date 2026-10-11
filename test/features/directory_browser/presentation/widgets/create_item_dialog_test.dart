@@ -38,9 +38,9 @@ void main() {
                 );
                 // Optionally show result in UI for testing
                 if (result != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Result: $result')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Result: $result')));
                 }
               },
               child: const Text('Show Dialog'),
@@ -72,27 +72,30 @@ void main() {
     expect(find.text('New Folder'), findsOneWidget);
   });
 
-  testWidgets('CreateItemDialog validates invalid characters and existing names', (tester) async {
-    await pumpTestWidget(tester, buildTestWidget());
-    await tester.tap(find.text('Show Dialog'));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'CreateItemDialog validates invalid characters and existing names',
+    (tester) async {
+      await pumpTestWidget(tester, buildTestWidget());
+      await tester.tap(find.text('Show Dialog'));
+      await tester.pumpAndSettle();
 
-    // Type invalid chars
-    await tester.enterText(find.byType(TextField), 'bad/name');
-    await tester.pumpAndSettle();
-    expect(find.text('Name contains invalid characters'), findsOneWidget);
+      // Type invalid chars
+      await tester.enterText(find.byType(TextField), 'bad/name');
+      await tester.pumpAndSettle();
+      expect(find.text('Name contains invalid characters'), findsOneWidget);
 
-    // Type existing name
-    await tester.enterText(find.byType(TextField), 'existing_folder');
-    await tester.pumpAndSettle();
-    expect(find.textContaining('already exists'), findsOneWidget);
+      // Type existing name
+      await tester.enterText(find.byType(TextField), 'existing_folder');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('already exists'), findsOneWidget);
 
-    // Type valid name
-    await tester.enterText(find.byType(TextField), 'new_folder');
-    await tester.pumpAndSettle();
-    expect(find.textContaining('already exists'), findsNothing);
-    expect(find.text('Name contains invalid characters'), findsNothing);
-  });
+      // Type valid name
+      await tester.enterText(find.byType(TextField), 'new_folder');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('already exists'), findsNothing);
+      expect(find.text('Name contains invalid characters'), findsNothing);
+    },
+  );
 
   testWidgets('CreateItemDialog submits correctly', (tester) async {
     await pumpTestWidget(tester, buildTestWidget());

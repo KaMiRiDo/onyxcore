@@ -47,47 +47,67 @@ void main() {
     }
   });
 
-  test('generateMediaThumbnail creates thumbnails for all dummy formats successfully', () async {
-    final mediaDir = Directory('test/resources/media');
-    if (!mediaDir.existsSync()) {
-      fail('Media resources directory not found. Tests must run from project root.');
-    }
+  test(
+    'generateMediaThumbnail creates thumbnails for all dummy formats successfully',
+    () async {
+      final mediaDir = Directory('test/resources/media');
+      if (!mediaDir.existsSync()) {
+        fail(
+          'Media resources directory not found. Tests must run from project root.',
+        );
+      }
 
-    final dummyFiles = mediaDir.listSync().whereType<File>().toList();
-    expect(dummyFiles.isNotEmpty, isTrue, reason: 'No dummy files found in test/resources/media');
-
-    for (final file in dummyFiles) {
-      final ext = p.extension(file.path).toLowerCase();
-      final isVideo = ext == '.mp4';
-
-      final item = FileItem(
-        path: file.path,
-        name: p.basename(file.path),
-        type: isVideo ? FileItemType.video : FileItemType.image,
-        sizeBytes: file.lengthSync(),
-        modified: file.lastModifiedSync(),
-      );
-
-      // Extend interest so the session treats this as a current job
-      final candidate = ThumbnailCandidate.fromFileItem(item);
-      session.updateViewportInterest(
-        candidates: [candidate],
-        visiblePaths: {item.path},
-      );
-
-      final outcome = await session.enqueueCandidate(candidate);
-
+      final dummyFiles = mediaDir.listSync().whereType<File>().toList();
       expect(
-        outcome,
-        ThumbnailJobOutcome.success,
-        reason: 'Failed to generate thumbnail for format: $ext',
+        dummyFiles.isNotEmpty,
+        isTrue,
+        reason: 'No dummy files found in test/resources/media',
       );
 
-      // Verify a file was actually placed in the cache and has size > 0
-      final expectedPath = ThumbnailCacheService.computeCachePath(file.path, ThumbnailSize.normal);
-      final cacheFile = File(expectedPath);
-      expect(cacheFile.existsSync(), isTrue, reason: 'Cache file missing for $ext at $expectedPath');
-      expect(cacheFile.lengthSync() > 0, isTrue, reason: 'Cache file is empty for $ext');
-    }
-  });
+      for (final file in dummyFiles) {
+        final ext = p.extension(file.path).toLowerCase();
+        final isVideo = ext == '.mp4';
+
+        final item = FileItem(
+          path: file.path,
+          name: p.basename(file.path),
+          type: isVideo ? FileItemType.video : FileItemType.image,
+          sizeBytes: file.lengthSync(),
+          modified: file.lastModifiedSync(),
+        );
+
+        // Extend interest so the session treats this as a current job
+        final candidate = ThumbnailCandidate.fromFileItem(item);
+        session.updateViewportInterest(
+          candidates: [candidate],
+          visiblePaths: {item.path},
+        );
+
+        final outcome = await session.enqueueCandidate(candidate);
+
+        expect(
+          outcome,
+          ThumbnailJobOutcome.success,
+          reason: 'Failed to generate thumbnail for format: $ext',
+        );
+
+        // Verify a file was actually placed in the cache and has size > 0
+        final expectedPath = ThumbnailCacheService.computeCachePath(
+          file.path,
+          ThumbnailSize.normal,
+        );
+        final cacheFile = File(expectedPath);
+        expect(
+          cacheFile.existsSync(),
+          isTrue,
+          reason: 'Cache file missing for $ext at $expectedPath',
+        );
+        expect(
+          cacheFile.lengthSync() > 0,
+          isTrue,
+          reason: 'Cache file is empty for $ext',
+        );
+      }
+    },
+  );
 }

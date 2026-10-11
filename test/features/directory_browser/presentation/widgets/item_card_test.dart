@@ -19,9 +19,9 @@ class MockSelectionNotifier extends SelectionNotifier {
 
   @override
   SelectionState build() => SelectionState(
-        selectedPaths: initialPaths,
-        isSelectionMode: initialPaths.isNotEmpty,
-      );
+    selectedPaths: initialPaths,
+    isSelectionMode: initialPaths.isNotEmpty,
+  );
 
   @override
   void selectMultiple(List<String> paths, {bool isCtrl = false}) {
@@ -139,22 +139,26 @@ void main() {
     return ProviderScope(
       overrides: [
         directoryRepositoryProvider.overrideWithValue(mockRepo),
-        selectionProvider.overrideWith(() => selectionNotifier ?? MockSelectionNotifier()),
-        currentPathProvider.overrideWith(() => MockCurrentPathNotifier(initialPath: currentPath)),
-        pinnedItemsProvider.overrideWith(() => pinnedNotifier ?? MockPinnedItemsNotifier()),
+        selectionProvider.overrideWith(
+          () => selectionNotifier ?? MockSelectionNotifier(),
+        ),
+        currentPathProvider.overrideWith(
+          () => MockCurrentPathNotifier(initialPath: currentPath),
+        ),
+        pinnedItemsProvider.overrideWith(
+          () => pinnedNotifier ?? MockPinnedItemsNotifier(),
+        ),
         clipboardProvider.overrideWith(FakeClipboardNotifier.new),
         taskProvider.overrideWith(MockTaskNotifier.new),
         directoryItemsProvider.overrideWith(MockDirectoryItemsNotifier.new),
       ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: child,
-        ),
-      ),
+      child: MaterialApp(home: Scaffold(body: child)),
     );
   }
 
-  testWidgets('ItemCard renders item name and responds to tap/double tap', (tester) async {
+  testWidgets('ItemCard renders item name and responds to tap/double tap', (
+    tester,
+  ) async {
     final item = FileItem(
       path: '/home/user/document.txt',
       name: 'document.txt',
@@ -188,10 +192,14 @@ void main() {
 
     expect(find.text('document.txt'), findsOneWidget);
 
-    final gestureDetector = tester.widget<GestureDetector>(find.descendant(
-      of: find.byType(ItemCard),
-      matching: find.byType(GestureDetector),
-    ).first);
+    final gestureDetector = tester.widget<GestureDetector>(
+      find
+          .descendant(
+            of: find.byType(ItemCard),
+            matching: find.byType(GestureDetector),
+          )
+          .first,
+    );
 
     gestureDetector.onTap?.call();
     await tester.pumpAndSettle();
@@ -211,7 +219,9 @@ void main() {
       modified: DateTime.now(),
     );
 
-    final pinnedNotifier = MockPinnedItemsNotifier(initialPinned: {'/home/user/document.txt': 1});
+    final pinnedNotifier = MockPinnedItemsNotifier(
+      initialPinned: {'/home/user/document.txt': 1},
+    );
 
     await tester.pumpWidget(
       buildTestApp(
@@ -238,50 +248,58 @@ void main() {
     expect(find.byIcon(Icons.push_pin), findsOneWidget);
   });
 
-  testWidgets('ItemCard renders restore icon when in Trash and triggers restore', (tester) async {
-    final item = FileItem(
-      path: 'trash://home/user/document.txt',
-      name: 'document.txt',
-      type: FileItemType.document,
-      sizeBytes: 1024,
-      modified: DateTime.now(),
-    );
+  testWidgets(
+    'ItemCard renders restore icon when in Trash and triggers restore',
+    (tester) async {
+      final item = FileItem(
+        path: 'trash://home/user/document.txt',
+        name: 'document.txt',
+        type: FileItemType.document,
+        sizeBytes: 1024,
+        modified: DateTime.now(),
+      );
 
-    await tester.pumpWidget(
-      buildTestApp(
-        currentPath: 'Trash/files',
-        child: SizedBox(
-          width: 150,
-          height: 200,
-          child: ItemCard(
-            item: item,
-            zoom: 1,
-            isSelected: false,
-            isHovered: false,
-            onHoverChanged: (v) {},
-            onTap: () {},
-            onDoubleTap: () {},
+      await tester.pumpWidget(
+        buildTestApp(
+          currentPath: 'Trash/files',
+          child: SizedBox(
+            width: 150,
+            height: 200,
+            child: ItemCard(
+              item: item,
+              zoom: 1,
+              isSelected: false,
+              isHovered: false,
+              onHoverChanged: (v) {},
+              onTap: () {},
+              onDoubleTap: () {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    final restoreFinder = find.byIcon(Icons.history_rounded);
-    expect(restoreFinder, findsOneWidget);
+      final restoreFinder = find.byIcon(Icons.history_rounded);
+      expect(restoreFinder, findsOneWidget);
 
-    final restoreGestureDetector = tester.widget<GestureDetector>(
-      find.descendant(
-        of: find.byType(Tooltip),
-        matching: find.byType(GestureDetector),
-      ).first,
-    );
-    restoreGestureDetector.onTap?.call();
-    await tester.pumpAndSettle();
+      final restoreGestureDetector = tester.widget<GestureDetector>(
+        find
+            .descendant(
+              of: find.byType(Tooltip),
+              matching: find.byType(GestureDetector),
+            )
+            .first,
+      );
+      restoreGestureDetector.onTap?.call();
+      await tester.pumpAndSettle();
 
-    expect(mockRepo.restoreFromTrashPaths, contains('trash://home/user/document.txt'));
-  });
+      expect(
+        mockRepo.restoreFromTrashPaths,
+        contains('trash://home/user/document.txt'),
+      );
+    },
+  );
 
   testWidgets('ItemCard shows context menu on secondary tap', (tester) async {
     final item = FileItem(
@@ -377,7 +395,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Drag file into folder
-    final dragGesture = await tester.startGesture(tester.getCenter(find.text('file.txt')));
+    final dragGesture = await tester.startGesture(
+      tester.getCenter(find.text('file.txt')),
+    );
     await dragGesture.moveTo(tester.getCenter(find.text('folder')));
     await dragGesture.up();
     await tester.pumpAndSettle();
@@ -386,9 +406,12 @@ void main() {
     expect(mockRepo.moveItemsDestination, '/home/user/folder');
   });
 
-  testWidgets('ItemCard handles lock icon and middle-truncation', (tester) async {
+  testWidgets('ItemCard handles lock icon and middle-truncation', (
+    tester,
+  ) async {
     final item = FileItem(
-      path: '/home/user/this_is_a_very_very_long_file_name_that_should_be_truncated.txt',
+      path:
+          '/home/user/this_is_a_very_very_long_file_name_that_should_be_truncated.txt',
       name: 'this_is_a_very_very_long_file_name_that_should_be_truncated.txt',
       type: FileItemType.document,
       sizeBytes: 1024,

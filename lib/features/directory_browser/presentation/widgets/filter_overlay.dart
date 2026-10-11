@@ -42,7 +42,6 @@ class FilterOverlay {
 }
 
 class _FilterOverlayWidget extends StatefulWidget {
-
   const _FilterOverlayWidget({
     required this.position,
     required this.initialSettings,
@@ -117,7 +116,9 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E26),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.5),
@@ -402,10 +403,7 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
               letterSpacing: 1.2,
             ),
           ),
-          if (trailing != null) ...[
-            const Spacer(),
-            trailing,
-          ],
+          if (trailing != null) ...[const Spacer(), trailing],
         ],
       ),
     );
@@ -681,7 +679,9 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
             decoration: BoxDecoration(
               color: Colors.redAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: Colors.redAccent.withValues(alpha: 0.2),
+              ),
             ),
             child: Row(
               children: [
@@ -761,16 +761,13 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
                   }
                   widget.onApply(_settings);
                 },
-                style:
-                    ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ).copyWith(
-                      elevation: WidgetStateProperty.all(0),
-                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ).copyWith(elevation: WidgetStateProperty.all(0)),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -812,9 +809,10 @@ class DropdownMenuItemData<T> {
 }
 
 class FilterCalendar extends StatefulWidget {
-
   const FilterCalendar({
-    required this.selectedDates, required this.onDatesChanged, super.key,
+    required this.selectedDates,
+    required this.onDatesChanged,
+    super.key,
   });
   final Set<DateTime> selectedDates;
   final ValueChanged<Set<DateTime>> onDatesChanged;

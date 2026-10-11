@@ -4,7 +4,9 @@ import 'package:onyxcore/features/video_player/presentation/widgets/gradient_sli
 
 void main() {
   group('GradientRectSliderTrackShape', () {
-    testWidgets('paints inactive, active, and buffer tracks correctly', (tester) async {
+    testWidgets('paints inactive, active, and buffer tracks correctly', (
+      tester,
+    ) async {
       const gradient = LinearGradient(colors: [Colors.red, Colors.blue]);
       final trackShape = GradientRectSliderTrackShape(
         gradient: gradient,
@@ -22,10 +24,7 @@ void main() {
                     trackShape: trackShape,
                     inactiveTrackColor: Colors.grey,
                   ),
-                  child: Slider(
-                    value: 0.25,
-                    onChanged: (v) {},
-                  ),
+                  child: Slider(value: 0.25, onChanged: (v) {}),
                 ),
               ),
             ),
@@ -37,12 +36,10 @@ void main() {
       final sliderFinder = find.byType(Slider);
       expect(sliderFinder, findsOneWidget);
     });
-    
+
     testWidgets('paints correctly without bufferProgress', (tester) async {
       const gradient = LinearGradient(colors: [Colors.red, Colors.blue]);
-      final trackShape = GradientRectSliderTrackShape(
-        gradient: gradient,
-      );
+      final trackShape = GradientRectSliderTrackShape(gradient: gradient);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -55,10 +52,7 @@ void main() {
                     trackShape: trackShape,
                     inactiveTrackColor: Colors.grey,
                   ),
-                  child: Slider(
-                    value: 0.25,
-                    onChanged: (v) {},
-                  ),
+                  child: Slider(value: 0.25, onChanged: (v) {}),
                 ),
               ),
             ),

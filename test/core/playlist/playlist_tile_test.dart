@@ -20,7 +20,8 @@ void main() {
       String subtitle = 'Subtitle',
       VoidCallback? onTap,
       VoidCallback? onDoubleTap,
-      void Function(TapDownDetails details, BuildContext context)? onSecondaryTapDown,
+      void Function(TapDownDetails details, BuildContext context)?
+      onSecondaryTapDown,
       Widget? activeIndicator,
       Widget? coverArt,
     }) {
@@ -51,10 +52,12 @@ void main() {
     });
 
     testWidgets('renders active state with activeIndicator', (tester) async {
-      await tester.pumpWidget(buildTile(
-        isActive: true,
-        activeIndicator: const Icon(Icons.play_arrow),
-      ));
+      await tester.pumpWidget(
+        buildTile(
+          isActive: true,
+          activeIndicator: const Icon(Icons.play_arrow),
+        ),
+      );
 
       // The text color might change, but the text should still be there
       expect(find.text('test_song.mp3'), findsOneWidget);
@@ -62,9 +65,7 @@ void main() {
     });
 
     testWidgets('renders custom cover art', (tester) async {
-      await tester.pumpWidget(buildTile(
-        coverArt: const Icon(Icons.album),
-      ));
+      await tester.pumpWidget(buildTile(coverArt: const Icon(Icons.album)));
 
       expect(find.byIcon(Icons.album), findsOneWidget);
       // The default icon shouldn't be found
@@ -73,9 +74,7 @@ void main() {
 
     testWidgets('triggers onTap', (tester) async {
       var tapped = false;
-      await tester.pumpWidget(buildTile(
-        onTap: () => tapped = true,
-      ));
+      await tester.pumpWidget(buildTile(onTap: () => tapped = true));
 
       await tester.tap(find.byType(MediaTile));
       expect(tapped, isTrue);
@@ -83,9 +82,9 @@ void main() {
 
     testWidgets('triggers onDoubleTap', (tester) async {
       var doubleTapped = false;
-      await tester.pumpWidget(buildTile(
-        onDoubleTap: () => doubleTapped = true,
-      ));
+      await tester.pumpWidget(
+        buildTile(onDoubleTap: () => doubleTapped = true),
+      );
 
       final center = tester.getCenter(find.byType(MediaTile));
       await tester.tapAt(center);
@@ -98,11 +97,15 @@ void main() {
 
     testWidgets('triggers onSecondaryTapDown', (tester) async {
       var secondaryTapped = false;
-      await tester.pumpWidget(buildTile(
-        onSecondaryTapDown: (details, context) => secondaryTapped = true,
-      ));
+      await tester.pumpWidget(
+        buildTile(
+          onSecondaryTapDown: (details, context) => secondaryTapped = true,
+        ),
+      );
 
-      final gesture = tester.widget<GestureDetector>(find.byType(GestureDetector).first);
+      final gesture = tester.widget<GestureDetector>(
+        find.byType(GestureDetector).first,
+      );
       gesture.onSecondaryTapDown?.call(TapDownDetails());
 
       expect(secondaryTapped, isTrue);
@@ -116,22 +119,26 @@ void main() {
         modified: DateTime.now(),
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: MediaTile(
-            item: folderItem,
-            isActive: false,
-            isSelected: false,
-            subtitle: 'Folder Subtitle',
-            defaultMediaIcon: Icons.music_note,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MediaTile(
+              item: folderItem,
+              isActive: false,
+              isSelected: false,
+              subtitle: 'Folder Subtitle',
+              defaultMediaIcon: Icons.music_note,
+            ),
           ),
         ),
-      ));
+      );
 
       expect(find.byIcon(Icons.folder_rounded), findsOneWidget);
     });
 
-    testWidgets('renders thumbnail image and handles errorBuilder', (tester) async {
+    testWidgets('renders thumbnail image and handles errorBuilder', (
+      tester,
+    ) async {
       final itemWithThumb = FileItem(
         name: 'test_song.mp3',
         path: '/path/to/test_song.mp3',
@@ -141,24 +148,26 @@ void main() {
         sizeBytes: 1024,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: MediaTile(
-            item: itemWithThumb,
-            isActive: false,
-            isSelected: false,
-            subtitle: 'Subtitle',
-            defaultMediaIcon: Icons.music_note,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MediaTile(
+              item: itemWithThumb,
+              isActive: false,
+              isSelected: false,
+              subtitle: 'Subtitle',
+              defaultMediaIcon: Icons.music_note,
+            ),
           ),
         ),
-      ));
+      );
 
       // It should try to render the image
       expect(find.byType(Image), findsOneWidget);
-      
+
       // We can't easily wait for the file read to fail in a generic pump,
       // but providing an invalid path will invoke the errorBuilder.
-      // The default icon (music_note) should also be present because 
+      // The default icon (music_note) should also be present because
       // of `hasImage: true` overlay and the errorBuilder rendering it again.
       expect(find.byIcon(Icons.music_note), findsWidgets);
     });

@@ -3,7 +3,9 @@ import 'package:mocktail/mocktail.dart';
 import 'package:onyxcore/features/downloader/domain/entities/custom_extractor.dart';
 import 'package:onyxcore/features/downloader/domain/services/extractor_runtime_service.dart';
 
-class MockExtractorRuntimeService extends Mock implements ExtractorRuntimeService {}
+class MockExtractorRuntimeService extends Mock
+    implements ExtractorRuntimeService {}
+
 class FakeCustomExtractor extends Fake implements CustomExtractor {}
 
 void main() {
@@ -23,17 +25,19 @@ void main() {
       );
 
       // Define behavior
-      when(() => mockService.execute(
-        any(),
-        any(),
-        browser: any(named: 'browser'),
-        config: any(named: 'config'),
-        onLog: any(named: 'onLog'),
-        onProcessStarted: any(named: 'onProcessStarted'),
-      )).thenAnswer((_) async => ExtractorResult([
-        'http://media.com/1.mp4',
-      ], 'test log'));
-      
+      when(
+        () => mockService.execute(
+          any(),
+          any(),
+          browser: any(named: 'browser'),
+          config: any(named: 'config'),
+          onLog: any(named: 'onLog'),
+          onProcessStarted: any(named: 'onProcessStarted'),
+        ),
+      ).thenAnswer(
+        (_) async => ExtractorResult(['http://media.com/1.mp4'], 'test log'),
+      );
+
       final results = await mockService.execute(extractor, 'http://test.com');
       expect(results.urls.length, 1);
       expect(results.urls.first, 'http://media.com/1.mp4');

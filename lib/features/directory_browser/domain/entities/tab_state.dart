@@ -5,7 +5,6 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 import 'package:path/path.dart' as p;
 
 class TabState {
-
   TabState({
     required this.id,
     required this.currentPath,

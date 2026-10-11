@@ -147,7 +147,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                     ? 'From: ${p.dirname(task.sourcePaths![0])}'
                                     : 'From: ${task.sourcePaths!.length} items from ${p.dirname(task.sourcePaths![0])}',
                                 style: GoogleFonts.manrope(
-                                  color: AppColors.textMuted.withValues(alpha: 0.7),
+                                  color: AppColors.textMuted.withValues(
+                                    alpha: 0.7,
+                                  ),
                                   fontSize: 11,
                                 ),
                               ),
@@ -158,7 +160,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                               child: Text(
                                 'To: ${StringUtils.truncateMiddle(task.targetPath!, maxLength: 40)}',
                                 style: GoogleFonts.manrope(
-                                  color: AppColors.textMuted.withValues(alpha: 0.7),
+                                  color: AppColors.textMuted.withValues(
+                                    alpha: 0.7,
+                                  ),
                                   fontSize: 11,
                                 ),
                               ),
@@ -174,7 +178,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                   child: Text(
                                     'Processing: ${StringUtils.truncateMiddle(task.currentItem!, maxLength: 35)}',
                                     style: GoogleFonts.manrope(
-                                      color: AppColors.violet.withValues(alpha: 0.7),
+                                      color: AppColors.violet.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -256,7 +262,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                             builder: (context, animatedProgress, _) {
                               return LinearProgressIndicator(
                                 value: animatedProgress,
-                                backgroundColor: Colors.white.withValues(alpha: 0.06),
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.06,
+                                ),
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   task.status == FileTaskStatus.pending
                                       ? Colors.white.withValues(alpha: 0.1)
@@ -296,7 +304,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                               Text(
                                 '${StringUtils.formatBytes(task.processedSizeBytes)} / ${task.totalSizeBytes > 0 ? StringUtils.formatBytes(task.totalSizeBytes) : '?'}',
                                 style: GoogleFonts.manrope(
-                                  color: AppColors.textMuted.withValues(alpha: 0.6),
+                                  color: AppColors.textMuted.withValues(
+                                    alpha: 0.6,
+                                  ),
                                   fontSize: 11,
                                 ),
                               ),
@@ -305,7 +315,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                 Text(
                                   '${StringUtils.formatBytes(task.speed!.toInt())}/s',
                                   style: GoogleFonts.manrope(
-                                    color: AppColors.violet.withValues(alpha: 0.7),
+                                    color: AppColors.violet.withValues(
+                                      alpha: 0.7,
+                                    ),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -317,7 +329,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                                 Text(
                                   '${(task.progress * 100).toStringAsFixed(1)}%',
                                   style: GoogleFonts.manrope(
-                                    color: AppColors.textMuted.withValues(alpha: 0.6),
+                                    color: AppColors.textMuted.withValues(
+                                      alpha: 0.6,
+                                    ),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -382,7 +396,9 @@ class _TaskTileState extends ConsumerState<TaskTile> {
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.04),
+                      ),
                     ),
                     child: ListView.builder(
                       controller: _logScrollController,
@@ -407,9 +423,7 @@ class _TaskTileState extends ConsumerState<TaskTile> {
             ],
           ),
           if (_showCancelConfirm)
-            Positioned.fill(
-              child: _buildCancelConfirmation(),
-            ),
+            Positioned.fill(child: _buildCancelConfirmation()),
         ],
       ),
     );

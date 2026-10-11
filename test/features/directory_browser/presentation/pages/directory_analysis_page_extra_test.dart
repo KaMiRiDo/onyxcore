@@ -21,23 +21,29 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'mock_utils.dart';
 
 class MockDirectoryRepository extends Mock implements DirectoryRepository {}
+
 class MockSettingsNotifier extends SettingsNotifier {
   @override
   Future<AppSettings> build() async => AppSettings();
 }
+
 class MockPinnedItemsNotifier extends PinnedItemsNotifier {
   @override
   Future<Map<String, int>> build() async => {};
 }
+
 class MockTabManager extends TabManager {
   @override
   TabManagerState build() {
     return TabManagerState(
-      tabs: [TabState(id: 'mock-tab-id', currentPath: '/mock', history: ['/mock'])],
+      tabs: [
+        TabState(id: 'mock-tab-id', currentPath: '/mock', history: ['/mock']),
+      ],
       activeTabIndex: 0,
     );
   }
 }
+
 class MockSelectionNotifier extends SelectionNotifier {
   @override
   SelectionState build() => SelectionState.empty;
@@ -51,7 +57,7 @@ void main() {
     late MockDirectoryRepository mockRepo;
     late AppDatabase mockDb;
     late MockSettingsRepository mockSettingsRepo;
-    
+
     setUp(() async {
       mockRepo = MockDirectoryRepository();
       mockDb = getMockDb();
@@ -86,25 +92,35 @@ void main() {
           settingsProvider.overrideWith(MockSettingsNotifier.new),
           pinnedItemsProvider.overrideWith(MockPinnedItemsNotifier.new),
           tabManagerProvider.overrideWith(MockTabManager.new),
-          directoryAnalysisProvider('/mock').overrideWith((ref) => Future.value(initialData)),
+          directoryAnalysisProvider(
+            '/mock',
+          ).overrideWith((ref) => Future.value(initialData)),
           if (extraOverrides != null) ...extraOverrides.cast(),
         ],
         child: const MaterialApp(
-          home: Scaffold(
-            body: DirectoryAnalysisPage(path: '/mock'),
-          ),
+          home: Scaffold(body: DirectoryAnalysisPage(path: '/mock')),
         ),
       );
     }
-    
+
     final mockData = DirectoryAnalysisResult(
       path: '/mock',
       totalItems: 5,
       totalBytes: 1000,
       diskUsage: null,
       allFiles: [
-        FileStatWithInfo(name: 'f1.txt', path: '/mock/f1.txt', stat: FileStatData(size: 100, modified: DateTime.now()), type: FileItemType.document),
-        FileStatWithInfo(name: 'sub', path: '/mock/sub', stat: FileStatData(size: 0, modified: DateTime.now()), type: FileItemType.folder),
+        FileStatWithInfo(
+          name: 'f1.txt',
+          path: '/mock/f1.txt',
+          stat: FileStatData(size: 100, modified: DateTime.now()),
+          type: FileItemType.document,
+        ),
+        FileStatWithInfo(
+          name: 'sub',
+          path: '/mock/sub',
+          stat: FileStatData(size: 0, modified: DateTime.now()),
+          type: FileItemType.folder,
+        ),
       ],
       categoryStats: {
         FileItemType.document: CategoryStats(count: 1, totalBytes: 100),
@@ -117,8 +133,9 @@ void main() {
       },
     );
 
-
-    testWidgets('Renders DirectoryAnalysisPage with initial data', (tester) async {
+    testWidgets('Renders DirectoryAnalysisPage with initial data', (
+      tester,
+    ) async {
       await pumpTestWidget(tester, createTestableWidget(initialData: mockData));
       await tester.pump();
       expect(find.byType(DirectoryAnalysisPage), findsOneWidget);

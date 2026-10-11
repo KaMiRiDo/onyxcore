@@ -33,9 +33,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          home: Scaffold(
-            body: TaskTile(task: task),
-          ),
+          home: Scaffold(body: TaskTile(task: task)),
         ),
       ),
     );
@@ -63,9 +61,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          home: Scaffold(
-            body: TaskTile(task: task),
-          ),
+          home: Scaffold(body: TaskTile(task: task)),
         ),
       ),
     );
@@ -76,55 +72,54 @@ void main() {
     expect(find.text('Error'), findsOneWidget);
   });
 
-  testWidgets('TaskTile renders running state correctly and supports logs/cancel', (tester) async {
-    final mockNotifier = MockTaskNotifier();
-    final task = FileTask(
-      id: '3',
-      title: 'Delete Files',
-      subtitle: 'Deleting...',
-      status: FileTaskStatus.running,
-      createdAt: DateTime.now(),
-      processedCount: 2,
-      totalCount: 5,
-      totalSizeBytes: 1024,
-      sourcePaths: ['/a/b.txt'],
-      logs: ['Delete start', 'Deleting first file'],
-    );
+  testWidgets(
+    'TaskTile renders running state correctly and supports logs/cancel',
+    (tester) async {
+      final mockNotifier = MockTaskNotifier();
+      final task = FileTask(
+        id: '3',
+        title: 'Delete Files',
+        subtitle: 'Deleting...',
+        status: FileTaskStatus.running,
+        createdAt: DateTime.now(),
+        processedCount: 2,
+        totalCount: 5,
+        totalSizeBytes: 1024,
+        sourcePaths: ['/a/b.txt'],
+        logs: ['Delete start', 'Deleting first file'],
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          taskProvider.overrideWith(() => mockNotifier),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: TaskTile(task: task),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [taskProvider.overrideWith(() => mockNotifier)],
+          child: MaterialApp(
+            home: Scaffold(body: TaskTile(task: task)),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('Delete Files'), findsOneWidget);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.text('Delete Files'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
-    // Expand logs
-    await tester.tap(find.text('Logs'));
-    await tester.pumpAndSettle();
-    expect(find.text('Delete start'), findsOneWidget);
+      // Expand logs
+      await tester.tap(find.text('Logs'));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete start'), findsOneWidget);
 
-    // Click Cancel Button
-    await tester.tap(find.byIcon(Icons.close_rounded));
-    await tester.pumpAndSettle();
+      // Click Cancel Button
+      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.pumpAndSettle();
 
-    // Verify cancel confirmation overlay
-    expect(find.text('Cancel this task?'), findsOneWidget);
+      // Verify cancel confirmation overlay
+      expect(find.text('Cancel this task?'), findsOneWidget);
 
-    // Confirm cancel
-    await tester.tap(find.text('Yes, Cancel'));
-    await tester.pumpAndSettle();
+      // Confirm cancel
+      await tester.tap(find.text('Yes, Cancel'));
+      await tester.pumpAndSettle();
 
-    expect(mockNotifier.cancelledTaskIds, contains('3'));
-  });
+      expect(mockNotifier.cancelledTaskIds, contains('3'));
+    },
+  );
 }

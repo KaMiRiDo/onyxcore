@@ -45,6 +45,7 @@ class VideoKeyboardCallbacks {
   final void Function() stopVolumeAdjust;
   final void Function() toggleMute;
   final void Function() takeScreenshot;
+
   /// Triggers the sort/filter operation (move file to `Filtered` subfolder).
   final Future<void> Function() filterSort;
   final void Function() openMarkerEditor;
@@ -189,7 +190,9 @@ class VideoKeyboardHandler {
         if (event is KeyDownEvent) {
           if (isAltPressed) {
             // Alt+S → Filter Sort (move to Filtered folder)
-            final isFilterSortEnabled = ref.read(settingsProvider).value?.videoFilterSortEnabled ?? false;
+            final isFilterSortEnabled =
+                ref.read(settingsProvider).value?.videoFilterSortEnabled ??
+                false;
             if (isFilterSortEnabled) {
               callbacks.filterSort();
             }

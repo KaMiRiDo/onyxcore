@@ -14,11 +14,7 @@ import 'package:onyxcore/core/widgets/bubble_loader.dart';
 import 'package:onyxcore/features/settings/data/repositories/settings_repository_impl.dart';
 
 class OpenWithDialog extends ConsumerStatefulWidget {
-
-  const OpenWithDialog({
-    required this.filePath,
-    super.key,
-  });
+  const OpenWithDialog({required this.filePath, super.key});
   final String filePath;
 
   static Future<void> show(BuildContext context, String filePath) {
@@ -154,7 +150,8 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
         targetTop += 62.0; // Tile height
         if (_searchQuery.isEmpty) {
           if (i == 0 && _defaultApp != null) targetTop += 42.0; // Header height
-          if (i == (_defaultApp != null ? 1 : 0) && _recommendedApps.isNotEmpty) {
+          if (i == (_defaultApp != null ? 1 : 0) &&
+              _recommendedApps.isNotEmpty) {
             targetTop += 42.0;
           }
           if (i == (_defaultApp != null ? 1 : 0) + _recommendedApps.length) {
@@ -256,7 +253,9 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                         filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161616).withValues(alpha: 0.95),
+                            color: const Color(
+                              0xFF161616,
+                            ).withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.08),
@@ -588,7 +587,9 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       ),
       child: Row(
         children: [
@@ -602,9 +603,7 @@ class _OpenWithDialogState extends ConsumerState<OpenWithDialog> {
                 fontSize: 12,
               ),
             ),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white38,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.white38),
           ),
           const Spacer(),
           TextButton(

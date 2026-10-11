@@ -43,8 +43,6 @@ void main() {
     }
   });
 
-
-
   setUp(() {
     engine = TestYouGetEngine(mockYouGetPath);
   });
@@ -61,7 +59,8 @@ void main() {
     if (!file.parent.existsSync()) {
       file.parent.createSync(recursive: true);
     }
-    final script = '''#!/bin/bash
+    final script =
+        '''#!/bin/bash
 sleep ${delayMs / 1000}
 cat << 'EOF' >&1
 $output
@@ -98,9 +97,9 @@ exit $exitCode
             'flv': {
               'container': 'flv',
               'quality': '1080p High',
-              'size': 1048576
-            }
-          }
+              'size': 1048576,
+            },
+          },
         });
         setMockYouGetOutput(mockJson);
 
@@ -128,7 +127,7 @@ exit $exitCode
       test('U-DL-YGT-05: Handle process errors', () async {
         // Exit code 1
         setMockYouGetOutput('{"error": "some stderr"}', exitCode: 1);
-        
+
         // Wait, if exitCode is 1 but stdout has JSON, YouGetEngine parses it.
         // Let's output empty stdout and some stderr. Wait, our mock script writes to stdout.
         // Let's write directly to stderr.
@@ -149,10 +148,16 @@ exit 1
 
       test('U-DL-YGT-06: Malformed JSON array', () async {
         setMockYouGetOutput('{"title": "incomplete"');
-        
+
         expect(
           () => engine.fetchMetadata(url: 'http://video.com/1'),
-          throwsA(predicate((e) => e.toString().contains('Could not find JSON') || e.toString().contains('Unexpected end of input'))),
+          throwsA(
+            predicate(
+              (e) =>
+                  e.toString().contains('Could not find JSON') ||
+                  e.toString().contains('Unexpected end of input'),
+            ),
+          ),
         );
       });
     });
@@ -163,21 +168,34 @@ exit 1
         final process = await engine.startDownload(
           url: 'http://video.com/1',
           destination: '/tmp',
-          format: const MediaFormat(formatId: 'flv', extension: 'flv', resolution: '1080p', formatString: '1080p (flv)'),
+          format: const MediaFormat(
+            formatId: 'flv',
+            extension: 'flv',
+            resolution: '1080p',
+            formatString: '1080p (flv)',
+          ),
         );
         expect(await process.exitCode, 0);
       });
 
-      test('U-DL-YGT-08: Construct download args with title and destination', () async {
-        setMockYouGetOutput('');
-        final process = await engine.startDownload(
-          url: 'http://video.com/1',
-          destination: '/tmp',
-          title: 'My Video',
-          format: const MediaFormat(formatId: 'mp4', extension: 'mp4', resolution: '1080p', formatString: '1080p (mp4)'),
-        );
-        expect(await process.exitCode, 0);
-      });
+      test(
+        'U-DL-YGT-08: Construct download args with title and destination',
+        () async {
+          setMockYouGetOutput('');
+          final process = await engine.startDownload(
+            url: 'http://video.com/1',
+            destination: '/tmp',
+            title: 'My Video',
+            format: const MediaFormat(
+              formatId: 'mp4',
+              extension: 'mp4',
+              resolution: '1080p',
+              formatString: '1080p (mp4)',
+            ),
+          );
+          expect(await process.exitCode, 0);
+        },
+      );
 
       test('U-DL-YGT-09: Missing output directory', () async {
         // Even if directory is missing, startDownload returns a Process. The wrapper handles failures.

@@ -2,7 +2,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 class ImageKeyboardHandler {
-
   ImageKeyboardHandler({
     required this.onClose,
     required this.onDelete,
@@ -36,6 +35,7 @@ class ImageKeyboardHandler {
   final bool isStandalone;
   final bool isWindowed;
   final bool Function() getIsFilterSortEnabled;
+
   /// Triggers the sort/filter operation (Alt+S).
   final Future<void> Function() onFilterSort;
 
@@ -46,7 +46,7 @@ class ImageKeyboardHandler {
     final alt = HardwareKeyboard.instance.isAltPressed;
     final shift = HardwareKeyboard.instance.isShiftPressed;
 
-    final isCloseShortcut = 
+    final isCloseShortcut =
         (ctrl && event.logicalKey == LogicalKeyboardKey.keyW) ||
         event.logicalKey == LogicalKeyboardKey.escape ||
         event.logicalKey == LogicalKeyboardKey.backspace ||
@@ -62,8 +62,9 @@ class ImageKeyboardHandler {
     if (isCloseShortcut) {
       if (!isWindowed && event is KeyDownEvent) {
         if (event.logicalKey == LogicalKeyboardKey.backspace ||
-            (alt && (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-                event.logicalKey == LogicalKeyboardKey.arrowRight))) {
+            (alt &&
+                (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+                    event.logicalKey == LogicalKeyboardKey.arrowRight))) {
           if (isSidebarOpen() && alt) {
             if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
               onNavigateHistoryBackward();
@@ -73,8 +74,8 @@ class ImageKeyboardHandler {
             return KeyEventResult.handled; // Consume to prevent navigation
           }
         }
-        
-        if (event.logicalKey == LogicalKeyboardKey.escape || 
+
+        if (event.logicalKey == LogicalKeyboardKey.escape ||
             (event.logicalKey == LogicalKeyboardKey.backspace && !alt)) {
           onClose();
           return KeyEventResult.handled;

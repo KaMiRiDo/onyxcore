@@ -7,13 +7,13 @@ import 'package:onyxcore/features/directory_browser/presentation/providers/task_
 
 /// A single entry in the task history.
 class TaskHistoryEntry {
-
   const TaskHistoryEntry({
     required this.id,
     required this.title,
     required this.subtitle,
     required this.statusName,
-    required this.createdAt, this.errorMessage,
+    required this.createdAt,
+    this.errorMessage,
     this.processedCount = 0,
     this.totalCount = 0,
     this.processedSizeBytes = 0,
@@ -266,7 +266,6 @@ class TaskHistoryNotifier extends Notifier<List<TaskHistoryEntry>> {
 }
 
 class TaskHistoryFilter {
-
   const TaskHistoryFilter({this.selectedDates, this.operationType});
   final Set<DateTime>? selectedDates;
   final String? operationType;

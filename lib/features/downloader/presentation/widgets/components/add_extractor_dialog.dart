@@ -19,8 +19,7 @@ class AddExtractorDialog extends ConsumerStatefulWidget {
   final CustomExtractor? extractor;
 
   @override
-  ConsumerState<AddExtractorDialog> createState() =>
-      _AddExtractorDialogState();
+  ConsumerState<AddExtractorDialog> createState() => _AddExtractorDialogState();
 }
 
 class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
@@ -50,8 +49,9 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
     DefaultExtractorConfig? existingConfig;
 
     if (editing != null) {
-      existingConfig =
-          DefaultExtractorTemplateService.decodeMetadata(editing.metadata);
+      existingConfig = DefaultExtractorTemplateService.decodeMetadata(
+        editing.metadata,
+      );
       if (existingConfig == null) {
         _isScriptMode = true;
       }
@@ -59,11 +59,13 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
 
     _nameController = TextEditingController(text: editing?.name ?? '');
     _scriptController = TextEditingController(text: editing?.script ?? '');
-    _selectorController =
-        TextEditingController(text: existingConfig?.cssSelector ?? '');
-    _attributeController =
-        TextEditingController(text: existingConfig?.attributeName ?? '');
-    
+    _selectorController = TextEditingController(
+      text: existingConfig?.cssSelector ?? '',
+    );
+    _attributeController = TextEditingController(
+      text: existingConfig?.attributeName ?? '',
+    );
+
     if (existingConfig != null) {
       _selectedKind = existingConfig.kind.name;
     }
@@ -94,10 +96,10 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
     final attribute = _attributeController.text.trim();
 
     final nameErr = DefaultExtractorValidator.validateExtractorName(name);
-    final selectorErr =
-        DefaultExtractorValidator.validateCssSelector(selector);
-    final attributeErr =
-        DefaultExtractorValidator.validateAttributeName(attribute);
+    final selectorErr = DefaultExtractorValidator.validateCssSelector(selector);
+    final attributeErr = DefaultExtractorValidator.validateAttributeName(
+      attribute,
+    );
 
     setState(() {
       _nameError = nameErr;
@@ -107,8 +109,9 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
 
     if (nameErr != null || selectorErr != null || attributeErr != null) return;
 
-    final kind = DefaultExtractorKind.values
-        .firstWhere((k) => k.name == _selectedKind);
+    final kind = DefaultExtractorKind.values.firstWhere(
+      (k) => k.name == _selectedKind,
+    );
     final config = DefaultExtractorConfig(
       kind: kind,
       cssSelector: selector,
@@ -184,11 +187,7 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: const LinearGradient(
-            colors: [
-              AppColors.magenta,
-              AppColors.violet,
-              AppColors.indigo,
-            ],
+            colors: [AppColors.magenta, AppColors.violet, AppColors.indigo],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -206,7 +205,9 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                    bottom: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
                   ),
                 ),
                 child: Row(
@@ -245,7 +246,14 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                     if (!isEditing) ...[
                       Row(
                         children: [
-                          Text('Script Mode', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, fontWeight: FontWeight.bold)),
+                          Text(
+                            'Script Mode',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           OnyxSwitch(
                             value: _isScriptMode,
@@ -255,7 +263,7 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                           ),
                           const SizedBox(width: 16),
                         ],
-                      )
+                      ),
                     ],
                     Container(
                       decoration: BoxDecoration(
@@ -263,7 +271,11 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+                        icon: const Icon(
+                          Icons.close,
+                          color: Colors.white70,
+                          size: 18,
+                        ),
                         onPressed: () => Navigator.of(context).pop(),
                         splashRadius: 24,
                       ),
@@ -275,12 +287,17 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: _isScriptMode ? _buildScriptMode() : _buildDefaultMode(),
+                  child: _isScriptMode
+                      ? _buildScriptMode()
+                      : _buildDefaultMode(),
                 ),
               ),
               // Actions
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -288,7 +305,10 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                       onPressed: () => Navigator.of(context).pop(),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.textMuted,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                       child: const Text('Cancel'),
                     ),
@@ -319,7 +339,10 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                         ),
                         child: Text(
                           isEditing ? 'Update' : 'Create',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
@@ -358,9 +381,10 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
               onChanged: (_) {
                 if (_nameError != null) {
                   setState(() {
-                    _nameError = DefaultExtractorValidator.validateExtractorName(
-                      _nameController.text.trim(),
-                    );
+                    _nameError =
+                        DefaultExtractorValidator.validateExtractorName(
+                          _nameController.text.trim(),
+                        );
                   });
                 }
               },
@@ -403,8 +427,8 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                   setState(() {
                     _selectorError =
                         DefaultExtractorValidator.validateCssSelector(
-                      _selectorController.text.trim(),
-                    );
+                          _selectorController.text.trim(),
+                        );
                   });
                 }
               },
@@ -431,8 +455,8 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                   setState(() {
                     _attributeError =
                         DefaultExtractorValidator.validateAttributeName(
-                      _attributeController.text.trim(),
-                    );
+                          _attributeController.text.trim(),
+                        );
                   });
                 }
               },
@@ -468,8 +492,7 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
             onChanged: (val) {
               if (_nameError != null) {
                 setState(() {
-                  _nameError =
-                      DefaultExtractorValidator.validateExtractorName(
+                  _nameError = DefaultExtractorValidator.validateExtractorName(
                     _nameController.text.trim(),
                   );
                 });
@@ -499,24 +522,35 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
               children: [
                 // Top header for language
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
+                    ),
                     color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(8),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         'Language',
-                        style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       OnyxDropdown<String>(
                         value: 'js',
-                        options: const [
-                          MapEntry('js', 'JavaScript'),
-                        ],
+                        options: const [MapEntry('js', 'JavaScript')],
                         onChanged: (_) {},
                       ),
                     ],
@@ -530,10 +564,19 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                     maxLines: null,
                     expands: true,
                     textAlignVertical: TextAlignVertical.top,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13, height: 1.5, color: Colors.white),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      height: 1.5,
+                      color: Colors.white,
+                    ),
                     decoration: InputDecoration(
-                      hintText: 'async function extract(url) {\n  // document is available.\n  // Return Array<String> of URLs.\n  return [];\n}',
-                      hintStyle: const TextStyle(color: Colors.white24, fontFamily: 'monospace'),
+                      hintText:
+                          'async function extract(url) {\n  // document is available.\n  // Return Array<String> of URLs.\n  return [];\n}',
+                      hintStyle: const TextStyle(
+                        color: Colors.white24,
+                        fontFamily: 'monospace',
+                      ),
                       errorText: _scriptBodyError,
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.all(16),
@@ -541,7 +584,8 @@ class _AddExtractorDialogState extends ConsumerState<AddExtractorDialog> {
                     onChanged: (_) {
                       if (_scriptBodyError != null) {
                         setState(() {
-                          _scriptBodyError = _scriptController.text.trim().isEmpty
+                          _scriptBodyError =
+                              _scriptController.text.trim().isEmpty
                               ? 'Script cannot be empty.'
                               : null;
                         });
@@ -595,8 +639,8 @@ class _CustomInputField extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: errorText != null 
-                    ? Colors.red.withValues(alpha: 0.5) 
+                color: errorText != null
+                    ? Colors.red.withValues(alpha: 0.5)
                     : Colors.white.withValues(alpha: 0.1),
               ),
             ),

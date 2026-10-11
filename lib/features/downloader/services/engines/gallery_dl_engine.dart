@@ -142,13 +142,16 @@ class GalleryDlEngine extends DownloadEngine {
     void Function(int pid)? onProcessStarted,
   }) async {
     var effectiveUrl = url;
-    if ((effectiveUrl.contains('twitter.com') || effectiveUrl.contains('x.com')) &&
+    if ((effectiveUrl.contains('twitter.com') ||
+            effectiveUrl.contains('x.com')) &&
         isSocialProfile(effectiveUrl)) {
       final uri = Uri.tryParse(effectiveUrl);
       if (uri != null &&
           uri.pathSegments.isNotEmpty &&
           uri.pathSegments.length == 1) {
-        effectiveUrl = effectiveUrl.endsWith('/') ? '${effectiveUrl}media' : '$effectiveUrl/media';
+        effectiveUrl = effectiveUrl.endsWith('/')
+            ? '${effectiveUrl}media'
+            : '$effectiveUrl/media';
       }
     }
 
@@ -318,11 +321,9 @@ class GalleryDlEngine extends DownloadEngine {
             currentBlock.writeCharCode(c);
             var blockComplete = false;
             if (isOuterArray) {
-              blockComplete =
-                  braceCount == 0 && bracketCount == 1 && !inString;
+              blockComplete = braceCount == 0 && bracketCount == 1 && !inString;
             } else {
-              blockComplete =
-                  braceCount == 0 && bracketCount == 0 && !inString;
+              blockComplete = braceCount == 0 && bracketCount == 0 && !inString;
             }
 
             if (blockComplete) {
@@ -480,13 +481,16 @@ class GalleryDlEngine extends DownloadEngine {
     String? itemsRange,
   }) async {
     var effectiveUrl = url;
-    if ((effectiveUrl.contains('twitter.com') || effectiveUrl.contains('x.com')) &&
+    if ((effectiveUrl.contains('twitter.com') ||
+            effectiveUrl.contains('x.com')) &&
         isSocialProfile(effectiveUrl)) {
       final uri = Uri.tryParse(effectiveUrl);
       if (uri != null &&
           uri.pathSegments.isNotEmpty &&
           uri.pathSegments.length == 1) {
-        effectiveUrl = effectiveUrl.endsWith('/') ? '${effectiveUrl}media' : '$effectiveUrl/media';
+        effectiveUrl = effectiveUrl.endsWith('/')
+            ? '${effectiveUrl}media'
+            : '$effectiveUrl/media';
       }
     }
 
@@ -598,7 +602,8 @@ class GalleryDlEngine extends DownloadEngine {
 
         final output = await res.transform(utf8.decoder).join();
         final data = jsonDecode(output) as Map<String, dynamic>;
-        final user = (data['data'] as Map?)?['user'] as Map<String, dynamic>? ?? {};
+        final user =
+            (data['data'] as Map?)?['user'] as Map<String, dynamic>? ?? {};
 
         if (user.isEmpty) {
           return null;
@@ -617,7 +622,9 @@ class GalleryDlEngine extends DownloadEngine {
           extractor: 'instagram',
           isProfile: true,
           itemCount:
-              (user['edge_owner_to_timeline_media'] as Map?)?['count'] as int? ?? 0,
+              (user['edge_owner_to_timeline_media'] as Map?)?['count']
+                  as int? ??
+              0,
           originalUrl: url,
         );
 
@@ -641,10 +648,14 @@ class GalleryDlEngine extends DownloadEngine {
 
             var itemTitle = title; // default to profile title
             final captionEdges =
-                (node['edge_media_to_caption'] as Map?)?['edges'] as List<dynamic>? ?? [];
+                (node['edge_media_to_caption'] as Map?)?['edges']
+                    as List<dynamic>? ??
+                [];
             if (captionEdges.isNotEmpty) {
               itemTitle =
-                  ((captionEdges.first as Map?)?['node'] as Map?)?['text']?.toString() ?? itemTitle;
+                  ((captionEdges.first as Map?)?['node'] as Map?)?['text']
+                      ?.toString() ??
+                  itemTitle;
             }
 
             results.add(
@@ -720,7 +731,8 @@ class GalleryDlEngine extends DownloadEngine {
               if (sharedMeta['video_versions'] is List &&
                   (sharedMeta['video_versions'] as List).isNotEmpty) {
                 final versions = List<Map<dynamic, dynamic>>.from(
-                  (sharedMeta['video_versions'] as List).whereType<Map<dynamic, dynamic>>(),
+                  (sharedMeta['video_versions'] as List)
+                      .whereType<Map<dynamic, dynamic>>(),
                 );
                 if (versions.isNotEmpty) {
                   versions.sort((a, b) {
@@ -745,9 +757,11 @@ class GalleryDlEngine extends DownloadEngine {
               final mediaMap = sharedMeta['media'] as Map?;
               final redditVideoMediaMap = mediaMap?['reddit_video'] as Map?;
               final secureMediaMap = sharedMeta['secure_media'] as Map?;
-              final redditVideoSecureMediaMap = secureMediaMap?['reddit_video'] as Map?;
+              final redditVideoSecureMediaMap =
+                  secureMediaMap?['reddit_video'] as Map?;
               final previewMap = sharedMeta['preview'] as Map?;
-              final redditVideoPreviewMap = previewMap?['reddit_video_preview'] as Map?;
+              final redditVideoPreviewMap =
+                  previewMap?['reddit_video_preview'] as Map?;
 
               if (redditVideoMediaMap?['fallback_url'] != null) {
                 fileUrl = redditVideoMediaMap!['fallback_url'].toString();
@@ -834,14 +848,12 @@ class GalleryDlEngine extends DownloadEngine {
               }
               if (thumb == null && sharedMeta['preview'] is Map) {
                 try {
-                  final images = (sharedMeta['preview'] as Map)['images'] as List;
+                  final images =
+                      (sharedMeta['preview'] as Map)['images'] as List;
                   if (images.isNotEmpty && images.first is Map) {
                     final firstImg = images.first as Map;
                     final source = firstImg['source'] as Map?;
-                    thumb = source?['url']?.toString().replaceAll(
-                      '&amp;',
-                      '&',
-                    );
+                    thumb = source?['url']?.toString().replaceAll('&amp;', '&');
                   }
                 } catch (_) {}
               }
@@ -863,8 +875,10 @@ class GalleryDlEngine extends DownloadEngine {
                   sharedMeta['vcodec'] != null ||
                   sharedMeta['video_url'] != null ||
                   ((sharedMeta['media'] as Map?)?['reddit_video'] != null) ||
-                  ((sharedMeta['preview'] as Map?)?['reddit_video_preview'] != null) ||
-                  ((sharedMeta['secure_media'] as Map?)?['reddit_video'] != null)) {
+                  ((sharedMeta['preview'] as Map?)?['reddit_video_preview'] !=
+                      null) ||
+                  ((sharedMeta['secure_media'] as Map?)?['reddit_video'] !=
+                      null)) {
                 isVid = true;
               }
               if (fileUrl != null) {

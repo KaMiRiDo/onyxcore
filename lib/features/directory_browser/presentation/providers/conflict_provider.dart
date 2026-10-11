@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/conflict_dialog.dart';
 
 class ConflictRequest {
-
   ConflictRequest({
     required this.fileName,
     required this.destinationPath,

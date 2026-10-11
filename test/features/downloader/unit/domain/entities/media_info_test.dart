@@ -33,27 +33,29 @@ void main() {
         expect(format.url, 'https://example.com/video.mp4');
       });
 
-      test('U-DL-FMT-02: constructs resolution from width and height if resolution missing', () {
-        final json = {
-          'format_id': '137',
-          'ext': 'mp4',
-          'width': 1920,
-          'height': 1080,
-          'format': '137',
-        };
-        final format = MediaFormat.fromJson(json);
-        expect(format.resolution, '1920x1080');
-      });
+      test(
+        'U-DL-FMT-02: constructs resolution from width and height if resolution missing',
+        () {
+          final json = {
+            'format_id': '137',
+            'ext': 'mp4',
+            'width': 1920,
+            'height': 1080,
+            'format': '137',
+          };
+          final format = MediaFormat.fromJson(json);
+          expect(format.resolution, '1920x1080');
+        },
+      );
 
-      test('U-DL-FMT-03: fallbacks to "audio only" if no resolution or dimensions exist', () {
-        final json = {
-          'format_id': '140',
-          'ext': 'm4a',
-          'format': '140',
-        };
-        final format = MediaFormat.fromJson(json);
-        expect(format.resolution, 'audio only');
-      });
+      test(
+        'U-DL-FMT-03: fallbacks to "audio only" if no resolution or dimensions exist',
+        () {
+          final json = {'format_id': '140', 'ext': 'm4a', 'format': '140'};
+          final format = MediaFormat.fromJson(json);
+          expect(format.resolution, 'audio only');
+        },
+      );
 
       test('U-DL-FMT-04: parses filesize_approx if filesize is null', () {
         final json = {
@@ -67,27 +69,25 @@ void main() {
         expect(format.filesize, 5000);
       });
 
-      test('U-DL-FMT-05: defaults empty strings for missing required fields', () {
-        final format = MediaFormat.fromJson(const {});
-        expect(format.formatId, '');
-        expect(format.extension, '');
-        expect(format.formatString, '');
-      });
+      test(
+        'U-DL-FMT-05: defaults empty strings for missing required fields',
+        () {
+          final format = MediaFormat.fromJson(const {});
+          expect(format.formatId, '');
+          expect(format.extension, '');
+          expect(format.formatString, '');
+        },
+      );
 
       test('U-DL-FMT-06: parses nullable codec fields', () {
-        final json = {
-          'vcodec': 'avc1',
-          'acodec': 'mp4a',
-        };
+        final json = {'vcodec': 'avc1', 'acodec': 'mp4a'};
         final format = MediaFormat.fromJson(json);
         expect(format.videoCodec, 'avc1');
         expect(format.audioCodec, 'mp4a');
       });
 
       test('U-DL-FMT-07: handles format_id as integer in JSON', () {
-        final json = {
-          'format_id': 137,
-        };
+        final json = {'format_id': 137};
         final format = MediaFormat.fromJson(json);
         expect(format.formatId, '137');
       });
@@ -97,30 +97,33 @@ void main() {
     // 2. MediaFormat — JSON Serialization
     // ═══════════════════════════════════════════════════════════════
     group('MediaFormat — JSON Serialization', () {
-      test('U-DL-FMT-08: serializes format object back to exact JSON structure', () {
-        const format = MediaFormat(
-          formatId: '137',
-          extension: 'mp4',
-          resolution: '1920x1080',
-          videoCodec: 'avc1',
-          audioCodec: 'mp4a',
-          filesize: 10000,
-          formatNote: '1080p',
-          formatString: '137 - 1080p',
-          url: 'https://example.com',
-        );
+      test(
+        'U-DL-FMT-08: serializes format object back to exact JSON structure',
+        () {
+          const format = MediaFormat(
+            formatId: '137',
+            extension: 'mp4',
+            resolution: '1920x1080',
+            videoCodec: 'avc1',
+            audioCodec: 'mp4a',
+            filesize: 10000,
+            formatNote: '1080p',
+            formatString: '137 - 1080p',
+            url: 'https://example.com',
+          );
 
-        final json = format.toJson();
-        expect(json['format_id'], '137');
-        expect(json['ext'], 'mp4');
-        expect(json['resolution'], '1920x1080');
-        expect(json['vcodec'], 'avc1');
-        expect(json['acodec'], 'mp4a');
-        expect(json['filesize'], 10000);
-        expect(json['format_note'], '1080p');
-        expect(json['format'], '137 - 1080p');
-        expect(json['url'], 'https://example.com');
-      });
+          final json = format.toJson();
+          expect(json['format_id'], '137');
+          expect(json['ext'], 'mp4');
+          expect(json['resolution'], '1920x1080');
+          expect(json['vcodec'], 'avc1');
+          expect(json['acodec'], 'mp4a');
+          expect(json['filesize'], 10000);
+          expect(json['format_note'], '1080p');
+          expect(json['format'], '137 - 1080p');
+          expect(json['url'], 'https://example.com');
+        },
+      );
 
       test('U-DL-FMT-09: omits null fields in serialization', () {
         const format = MediaFormat(
@@ -169,41 +172,109 @@ void main() {
     // 3. MediaFormat — Equality & HashCode
     // ═══════════════════════════════════════════════════════════════
     group('MediaFormat — Equality & HashCode', () {
-      test('U-DL-FMT-11: considers formats equal if formatId and formatString match', () {
-        const a = MediaFormat(formatId: '1', extension: 'mp4', resolution: '1080p', formatString: '1 - best', filesize: 100);
-        const b = MediaFormat(formatId: '1', extension: 'mkv', resolution: '720p', formatString: '1 - best', filesize: 200);
-        expect(a == b, isTrue);
-      });
+      test(
+        'U-DL-FMT-11: considers formats equal if formatId and formatString match',
+        () {
+          const a = MediaFormat(
+            formatId: '1',
+            extension: 'mp4',
+            resolution: '1080p',
+            formatString: '1 - best',
+            filesize: 100,
+          );
+          const b = MediaFormat(
+            formatId: '1',
+            extension: 'mkv',
+            resolution: '720p',
+            formatString: '1 - best',
+            filesize: 200,
+          );
+          expect(a == b, isTrue);
+        },
+      );
 
       test('U-DL-FMT-12: considers formats unequal if formatId differs', () {
-        const a = MediaFormat(formatId: '1', extension: 'mp4', resolution: '1080p', formatString: 'best');
-        const b = MediaFormat(formatId: '2', extension: 'mp4', resolution: '1080p', formatString: 'best');
+        const a = MediaFormat(
+          formatId: '1',
+          extension: 'mp4',
+          resolution: '1080p',
+          formatString: 'best',
+        );
+        const b = MediaFormat(
+          formatId: '2',
+          extension: 'mp4',
+          resolution: '1080p',
+          formatString: 'best',
+        );
         expect(a == b, isFalse);
       });
 
-      test('U-DL-FMT-13: considers formats unequal if formatString differs', () {
-        const a = MediaFormat(formatId: '1', extension: 'mp4', resolution: '1080p', formatString: '1 - best');
-        const b = MediaFormat(formatId: '1', extension: 'mp4', resolution: '1080p', formatString: '1 - worst');
-        expect(a == b, isFalse);
-      });
+      test(
+        'U-DL-FMT-13: considers formats unequal if formatString differs',
+        () {
+          const a = MediaFormat(
+            formatId: '1',
+            extension: 'mp4',
+            resolution: '1080p',
+            formatString: '1 - best',
+          );
+          const b = MediaFormat(
+            formatId: '1',
+            extension: 'mp4',
+            resolution: '1080p',
+            formatString: '1 - worst',
+          );
+          expect(a == b, isFalse);
+        },
+      );
 
       test('U-DL-FMT-14: passes identity check', () {
-        const a = MediaFormat(formatId: '1', extension: 'mp4', resolution: '1080p', formatString: '1 - best');
+        const a = MediaFormat(
+          formatId: '1',
+          extension: 'mp4',
+          resolution: '1080p',
+          formatString: '1 - best',
+        );
         expect(identical(a, a), isTrue);
         expect(a == a, isTrue);
       });
 
       test('U-DL-FMT-15: generates identical hash codes for equal objects', () {
-        const a = MediaFormat(formatId: '1', extension: 'mp4', resolution: '1080p', formatString: '1 - best', filesize: 100);
-        const b = MediaFormat(formatId: '1', extension: 'mkv', resolution: '720p', formatString: '1 - best', filesize: 200);
+        const a = MediaFormat(
+          formatId: '1',
+          extension: 'mp4',
+          resolution: '1080p',
+          formatString: '1 - best',
+          filesize: 100,
+        );
+        const b = MediaFormat(
+          formatId: '1',
+          extension: 'mkv',
+          resolution: '720p',
+          formatString: '1 - best',
+          filesize: 200,
+        );
         expect(a.hashCode, equals(b.hashCode));
       });
 
-      test('U-DL-FMT-16: generates different hash codes for unequal objects', () {
-        const a = MediaFormat(formatId: '1', extension: 'mp4', resolution: '1080p', formatString: 'best');
-        const b = MediaFormat(formatId: '2', extension: 'mp4', resolution: '1080p', formatString: 'best');
-        expect(a.hashCode, isNot(equals(b.hashCode)));
-      });
+      test(
+        'U-DL-FMT-16: generates different hash codes for unequal objects',
+        () {
+          const a = MediaFormat(
+            formatId: '1',
+            extension: 'mp4',
+            resolution: '1080p',
+            formatString: 'best',
+          );
+          const b = MediaFormat(
+            formatId: '2',
+            extension: 'mp4',
+            resolution: '1080p',
+            formatString: 'best',
+          );
+          expect(a.hashCode, isNot(equals(b.hashCode)));
+        },
+      );
     });
   });
 
@@ -217,7 +288,7 @@ void main() {
           'id': 'abc',
           'title': 'My Video',
           'formats': [
-            {'format_id': '137', 'ext': 'mp4'}
+            {'format_id': '137', 'ext': 'mp4'},
           ],
           'duration': 120,
           'extractor': 'youtube',
@@ -234,10 +305,7 @@ void main() {
       });
 
       test('U-DL-MIN-02: gracefully handles missing non-required fields', () {
-        final json = {
-          'id': 'abc',
-          'title': 'My Video',
-        };
+        final json = {'id': 'abc', 'title': 'My Video'};
         final info = MediaInfo.fromJson(json);
 
         expect(info.filesize, isNull);
@@ -245,10 +313,15 @@ void main() {
         expect(info.duration, isNull);
       });
 
-      test('U-DL-MIN-03: uses originalUrl parameter when webpage_url is absent', () {
-        final info = MediaInfo.fromJson({'id': '1'}, originalUrl: 'https://example.com');
-        expect(info.originalUrl, 'https://example.com');
-      });
+      test(
+        'U-DL-MIN-03: uses originalUrl parameter when webpage_url is absent',
+        () {
+          final info = MediaInfo.fromJson({
+            'id': '1',
+          }, originalUrl: 'https://example.com');
+          expect(info.originalUrl, 'https://example.com');
+        },
+      );
 
       test('U-DL-MIN-04: fallbacks originalUrl to webpage_url from JSON', () {
         final json = {'webpage_url': 'https://example.com'};
@@ -295,16 +368,25 @@ void main() {
         expect(info.title, 'My Video');
       });
 
-      test('U-DL-MIN-10: extracts path segment from URL when title is empty', () {
-        final info = MediaInfo.fromJson({'title': ''}, originalUrl: 'https://example.com/my-page/file');
-        expect(info.title, 'my-page');
-      });
+      test(
+        'U-DL-MIN-10: extracts path segment from URL when title is empty',
+        () {
+          final info = MediaInfo.fromJson({
+            'title': '',
+          }, originalUrl: 'https://example.com/my-page/file');
+          expect(info.title, 'my-page');
+        },
+      );
 
       test('U-DL-MIN-11: prepends @ for Instagram/X/Twitter URLs', () {
-        final info1 = MediaInfo.fromJson({'title': ''}, originalUrl: 'https://instagram.com/johndoe');
+        final info1 = MediaInfo.fromJson({
+          'title': '',
+        }, originalUrl: 'https://instagram.com/johndoe');
         expect(info1.title, '@johndoe');
 
-        final info2 = MediaInfo.fromJson({'title': ''}, originalUrl: 'https://x.com/janedoe');
+        final info2 = MediaInfo.fromJson({
+          'title': '',
+        }, originalUrl: 'https://x.com/janedoe');
         expect(info2.title, '@janedoe');
       });
 
@@ -319,7 +401,9 @@ void main() {
       });
 
       test('U-DL-MIN-14: handles unparseable URL in title fallback', () {
-        final info = MediaInfo.fromJson({'title': ''}, originalUrl: ':::invalid');
+        final info = MediaInfo.fromJson({
+          'title': '',
+        }, originalUrl: ':::invalid');
         expect(info.title, 'Unknown Title');
       });
     });
@@ -340,7 +424,9 @@ void main() {
 
       test('U-DL-MIN-17: defaults to video if formats exist but no vcodec', () {
         final info = MediaInfo.fromJson({
-          'formats': [{'ext': 'mp4'}]
+          'formats': [
+            {'ext': 'mp4'},
+          ],
         });
         expect(info.isVideo, isTrue);
       });
@@ -366,14 +452,17 @@ void main() {
       });
 
       test('U-DL-MIN-21: extracts itemCount from playlist_count', () {
-        final info = MediaInfo.fromJson({'_type': 'playlist', 'playlist_count': 25});
+        final info = MediaInfo.fromJson({
+          '_type': 'playlist',
+          'playlist_count': 25,
+        });
         expect(info.itemCount, 25);
       });
 
       test('U-DL-MIN-22: extracts itemCount from entries list length', () {
         final info = MediaInfo.fromJson({
           '_type': 'playlist',
-          'entries': [1, 2, 3]
+          'entries': [1, 2, 3],
         });
         expect(info.itemCount, 3);
       });
@@ -393,16 +482,19 @@ void main() {
         expect(info.thumbnail, 'https://img.jpg');
       });
 
-      test('U-DL-MIN-25: extracts thumbnail from thumbnails list (last element)', () {
-        final json = {
-          'thumbnails': [
-            {'url': 'a'},
-            {'url': 'b'}
-          ]
-        };
-        final info = MediaInfo.fromJson(json);
-        expect(info.thumbnail, 'b');
-      });
+      test(
+        'U-DL-MIN-25: extracts thumbnail from thumbnails list (last element)',
+        () {
+          final json = {
+            'thumbnails': [
+              {'url': 'a'},
+              {'url': 'b'},
+            ],
+          };
+          final info = MediaInfo.fromJson(json);
+          expect(info.thumbnail, 'b');
+        },
+      );
 
       test('U-DL-MIN-26: handles empty thumbnails list', () {
         final json = {'thumbnails': []};
@@ -424,7 +516,11 @@ void main() {
 
       test('U-DL-MIN-28: overrides multiple fields', () {
         const info = MediaInfo(id: '1', title: 'T', originalUrl: 'U');
-        final newInfo = info.copyWith(isProfile: true, thumbnail: 'url', galleryIndex: 5);
+        final newInfo = info.copyWith(
+          isProfile: true,
+          thumbnail: 'url',
+          galleryIndex: 5,
+        );
 
         expect(newInfo.isProfile, isTrue);
         expect(newInfo.thumbnail, 'url');
@@ -433,7 +529,12 @@ void main() {
       });
 
       test('U-DL-MIN-29: no-arg call preserves all fields', () {
-        const info = MediaInfo(id: '1', title: 'T', originalUrl: 'U', isVideo: false);
+        const info = MediaInfo(
+          id: '1',
+          title: 'T',
+          originalUrl: 'U',
+          isVideo: false,
+        );
         final newInfo = info.copyWith();
         expect(newInfo.id, info.id);
         expect(newInfo.title, info.title);
@@ -443,7 +544,10 @@ void main() {
 
       test('U-DL-MIN-30: overrides engineId and fetchLogs', () {
         const info = MediaInfo(id: '1', title: 'T', originalUrl: 'U');
-        final newInfo = info.copyWith(engineId: 'gallery-dl', fetchLogs: 'log...');
+        final newInfo = info.copyWith(
+          engineId: 'gallery-dl',
+          fetchLogs: 'log...',
+        );
         expect(newInfo.engineId, 'gallery-dl');
         expect(newInfo.fetchLogs, 'log...');
       });
@@ -459,8 +563,18 @@ void main() {
           title: 'T',
           originalUrl: 'U',
           formats: [
-            MediaFormat(formatId: 'a', extension: 'b', resolution: 'c', formatString: 'd'),
-            MediaFormat(formatId: 'e', extension: 'f', resolution: 'g', formatString: 'h'),
+            MediaFormat(
+              formatId: 'a',
+              extension: 'b',
+              resolution: 'c',
+              formatString: 'd',
+            ),
+            MediaFormat(
+              formatId: 'e',
+              extension: 'f',
+              resolution: 'g',
+              formatString: 'h',
+            ),
           ],
         );
         final map = info.toMap();
@@ -483,7 +597,12 @@ void main() {
         final map = info.toMap();
         expect(map.containsKey('isLive'), isFalse);
 
-        const info2 = MediaInfo(id: '2', title: 'T2', originalUrl: 'U2', isLive: true);
+        const info2 = MediaInfo(
+          id: '2',
+          title: 'T2',
+          originalUrl: 'U2',
+          isLive: true,
+        );
         final map2 = info2.toMap();
         expect(map2['isLive'], isTrue);
       });
@@ -525,10 +644,7 @@ void main() {
       });
 
       test('U-DL-MIN-36: provides default values for missing keys', () {
-        final map = {
-          'id': '1',
-          'originalUrl': 'U',
-        };
+        final map = {'id': '1', 'originalUrl': 'U'};
         final info = MediaInfo.fromMap(map);
         expect(info.title, '');
         expect(info.isVideo, isTrue);
@@ -544,7 +660,10 @@ void main() {
     // ═══════════════════════════════════════════════════════════════
     group('MediaGroup — Construction & Getters', () {
       test('U-DL-GRP-01: returns true if 1 item in group', () {
-        const group = MediaGroup(originalUrl: 'U', items: [MediaInfo(id: '1', title: 'T', originalUrl: 'U')]);
+        const group = MediaGroup(
+          originalUrl: 'U',
+          items: [MediaInfo(id: '1', title: 'T', originalUrl: 'U')],
+        );
         expect(group.isSingle, isTrue);
       });
 
@@ -596,85 +715,141 @@ void main() {
     // 12. MediaGroup — Total Filesize Estimation
     // ═══════════════════════════════════════════════════════════════
     group('MediaGroup — Total Filesize Estimation', () {
-      test('U-DL-GRP-07: sums exact filesizes correctly if all have known sizes', () {
-        const group = MediaGroup(
-          originalUrl: 'U',
-          items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 10485760), // 10MB
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: 5242880), // 5MB
-          ],
-        );
-        expect(group.totalFilesize, 15728640);
-      });
+      test(
+        'U-DL-GRP-07: sums exact filesizes correctly if all have known sizes',
+        () {
+          const group = MediaGroup(
+            originalUrl: 'U',
+            items: [
+              MediaInfo(
+                id: '1',
+                title: 'T',
+                originalUrl: 'U',
+                filesize: 10485760,
+              ), // 10MB
+              MediaInfo(
+                id: '2',
+                title: 'T',
+                originalUrl: 'U',
+                filesize: 5242880,
+              ), // 5MB
+            ],
+          );
+          expect(group.totalFilesize, 15728640);
+        },
+      );
 
-      test('U-DL-GRP-08: estimates missing video sizes using average of known videos', () {
-        const group = MediaGroup(
-          originalUrl: 'U',
-          items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 10485760), // 10MB
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
-          ],
-        );
-        // Average is 10MB. 10MB (known) + 10MB (estimated) = 20MB
-        expect(group.totalFilesize, 20971520);
-      });
+      test(
+        'U-DL-GRP-08: estimates missing video sizes using average of known videos',
+        () {
+          const group = MediaGroup(
+            originalUrl: 'U',
+            items: [
+              MediaInfo(
+                id: '1',
+                title: 'T',
+                originalUrl: 'U',
+                filesize: 10485760,
+              ), // 10MB
+              MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
+            ],
+          );
+          // Average is 10MB. 10MB (known) + 10MB (estimated) = 20MB
+          expect(group.totalFilesize, 20971520);
+        },
+      );
 
-      test('U-DL-GRP-09: estimates missing image sizes using average of known images', () {
-        const group = MediaGroup(
-          originalUrl: 'U',
-          items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 2097152, isVideo: false), // 2MB
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', isVideo: false),
-          ],
-        );
-        // Average is 2MB. 2MB + 2MB = 4MB
-        expect(group.totalFilesize, 4194304);
-      });
+      test(
+        'U-DL-GRP-09: estimates missing image sizes using average of known images',
+        () {
+          const group = MediaGroup(
+            originalUrl: 'U',
+            items: [
+              MediaInfo(
+                id: '1',
+                title: 'T',
+                originalUrl: 'U',
+                filesize: 2097152,
+                isVideo: false,
+              ), // 2MB
+              MediaInfo(id: '2', title: 'T', originalUrl: 'U', isVideo: false),
+            ],
+          );
+          // Average is 2MB. 2MB + 2MB = 4MB
+          expect(group.totalFilesize, 4194304);
+        },
+      );
 
-      test('U-DL-GRP-10: fallbacks to hardcoded video constant if NO videos have known sizes', () {
-        const group = MediaGroup(
-          originalUrl: 'U',
-          items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U'),
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
-          ],
-        );
-        // 2 videos * 15MB = 30MB
-        expect(group.totalFilesize, 30 * 1024 * 1024);
-      });
+      test(
+        'U-DL-GRP-10: fallbacks to hardcoded video constant if NO videos have known sizes',
+        () {
+          const group = MediaGroup(
+            originalUrl: 'U',
+            items: [
+              MediaInfo(id: '1', title: 'T', originalUrl: 'U'),
+              MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
+            ],
+          );
+          // 2 videos * 15MB = 30MB
+          expect(group.totalFilesize, 30 * 1024 * 1024);
+        },
+      );
 
-      test('U-DL-GRP-11: fallbacks to hardcoded image constant if NO images have known sizes', () {
-        const group = MediaGroup(
-          originalUrl: 'U',
-          items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', isVideo: false),
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', isVideo: false),
-          ],
-        );
-        // 2 images * 1MB = 2MB
-        expect(group.totalFilesize, 2 * 1024 * 1024);
-      });
+      test(
+        'U-DL-GRP-11: fallbacks to hardcoded image constant if NO images have known sizes',
+        () {
+          const group = MediaGroup(
+            originalUrl: 'U',
+            items: [
+              MediaInfo(id: '1', title: 'T', originalUrl: 'U', isVideo: false),
+              MediaInfo(id: '2', title: 'T', originalUrl: 'U', isVideo: false),
+            ],
+          );
+          // 2 images * 1MB = 2MB
+          expect(group.totalFilesize, 2 * 1024 * 1024);
+        },
+      );
 
-      test('U-DL-GRP-12: mixed video + image with mixed known/unknown sizes', () {
-        const group = MediaGroup(
-          originalUrl: 'U',
-          items: [
-            MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 10 * 1024 * 1024),
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
-            MediaInfo(id: '3', title: 'T', originalUrl: 'U', filesize: 2 * 1024 * 1024, isVideo: false),
-            MediaInfo(id: '4', title: 'T', originalUrl: 'U', isVideo: false),
-          ],
-        );
-        // Vid: 10 + 10 = 20MB. Img: 2 + 2 = 4MB. Total = 24MB.
-        expect(group.totalFilesize, 24 * 1024 * 1024);
-      });
+      test(
+        'U-DL-GRP-12: mixed video + image with mixed known/unknown sizes',
+        () {
+          const group = MediaGroup(
+            originalUrl: 'U',
+            items: [
+              MediaInfo(
+                id: '1',
+                title: 'T',
+                originalUrl: 'U',
+                filesize: 10 * 1024 * 1024,
+              ),
+              MediaInfo(id: '2', title: 'T', originalUrl: 'U'),
+              MediaInfo(
+                id: '3',
+                title: 'T',
+                originalUrl: 'U',
+                filesize: 2 * 1024 * 1024,
+                isVideo: false,
+              ),
+              MediaInfo(id: '4', title: 'T', originalUrl: 'U', isVideo: false),
+            ],
+          );
+          // Vid: 10 + 10 = 20MB. Img: 2 + 2 = 4MB. Total = 24MB.
+          expect(group.totalFilesize, 24 * 1024 * 1024);
+        },
+      );
 
       test('U-DL-GRP-13: excludes error items from total size', () {
         const group = MediaGroup(
           originalUrl: 'U',
           items: [
             MediaInfo(id: '1', title: 'T', originalUrl: 'U', filesize: 100),
-            MediaInfo(id: '2', title: 'T', originalUrl: 'U', filesize: 200, isError: true),
+            MediaInfo(
+              id: '2',
+              title: 'T',
+              originalUrl: 'U',
+              filesize: 200,
+              isError: true,
+            ),
           ],
         );
         expect(group.totalFilesize, 100);
@@ -721,8 +896,8 @@ void main() {
           'originalUrl': 'U',
           'items': [
             {'id': '1', 'title': 'T1'},
-            {'id': '2', 'title': 'T2'}
-          ]
+            {'id': '2', 'title': 'T2'},
+          ],
         };
         final group = MediaGroup.fromMap(map);
         expect(group.originalUrl, 'U');
@@ -734,9 +909,7 @@ void main() {
       test('U-DL-GRP-18: supports round-trip serialization', () {
         const original = MediaGroup(
           originalUrl: 'U',
-          items: [
-            MediaInfo(id: '1', title: 'T1', originalUrl: 'U'),
-          ],
+          items: [MediaInfo(id: '1', title: 'T1', originalUrl: 'U')],
         );
         final map = original.toMap();
         final result = MediaGroup.fromMap(map);

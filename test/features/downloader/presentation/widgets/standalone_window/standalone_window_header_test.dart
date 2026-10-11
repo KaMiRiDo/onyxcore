@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/presentation/widgets/standalone_window/standalone_window_header.dart';
 
 void main() {
-  testWidgets('StandaloneWindowHeader renders and interacts correctly', (tester) async {
+  testWidgets('StandaloneWindowHeader renders and interacts correctly', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -37,7 +39,7 @@ void main() {
 
     // Verify text field exists
     expect(find.byType(TextField), findsOneWidget);
-    
+
     // Verify fetch button exists and triggers callback
     expect(find.text('Fetch'), findsOneWidget);
     await tester.tap(find.text('Fetch'));

@@ -82,11 +82,7 @@ class YouGetEngine extends DownloadEngine {
       'bin',
       'pip',
     );
-    return Process.start(venvPip, [
-      'install',
-      '--force-reinstall',
-      'you-get',
-    ]);
+    return Process.start(venvPip, ['install', '--force-reinstall', 'you-get']);
   }
 
   @override
@@ -100,11 +96,7 @@ class YouGetEngine extends DownloadEngine {
       'bin',
       'pip',
     );
-    return Process.start(venvPip, [
-      'uninstall',
-      '-y',
-      'you-get',
-    ]);
+    return Process.start(venvPip, ['uninstall', '-y', 'you-get']);
   }
 
   @override
@@ -302,10 +294,7 @@ class YouGetEngine extends DownloadEngine {
     // 2. Download via aria2c
     // For simplicity in the initial implementation, we use you-get directly.
 
-    final args = <String>[
-      '-o',
-      destination,
-    ];
+    final args = <String>['-o', destination];
 
     if (title != null) {
       final safeTitle = title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');

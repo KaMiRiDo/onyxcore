@@ -18,7 +18,9 @@ class MockAppDatabase extends Mock implements AppDatabase {
     when(getAudioFavorites).thenAnswer((_) async => <String>{});
     when(() => pruneMetadataCache(any())).thenAnswer((_) async => <String>[]);
     when(getAllMetadataCache).thenAnswer((_) async => <MetadataCacheEntry>[]);
-    when(getAllThumbnailEntries).thenAnswer((_) async => <ThumbnailCacheEntry>[]);
+    when(
+      getAllThumbnailEntries,
+    ).thenAnswer((_) async => <ThumbnailCacheEntry>[]);
     when(() => getPlaybackPosition(any())).thenAnswer((_) async => null);
     when(() => savePlaybackPosition(any(), any())).thenAnswer((_) async {});
   }
@@ -26,7 +28,8 @@ class MockAppDatabase extends Mock implements AppDatabase {
 
 class MockSettingsNotifierEnabled extends SettingsNotifier {
   @override
-  Future<AppSettings> build() async => const AppSettings(audioFilterSortEnabled: true);
+  Future<AppSettings> build() async =>
+      const AppSettings(audioFilterSortEnabled: true);
 }
 
 class MockSettingsNotifierDisabled extends SettingsNotifier {
@@ -43,7 +46,11 @@ void main() {
       return ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(MockAppDatabase()),
-          settingsProvider.overrideWith(isFilterSortEnabled ? MockSettingsNotifierEnabled.new : MockSettingsNotifierDisabled.new),
+          settingsProvider.overrideWith(
+            isFilterSortEnabled
+                ? MockSettingsNotifierEnabled.new
+                : MockSettingsNotifierDisabled.new,
+          ),
         ],
         child: MaterialApp(
           home: AudioPlayerView(
@@ -60,7 +67,9 @@ void main() {
       );
     }
 
-    testWidgets('shows FilterSortButton when audioFilterSortEnabled is true', (tester) async {
+    testWidgets('shows FilterSortButton when audioFilterSortEnabled is true', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -77,7 +86,9 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
-    testWidgets('hides FilterSortButton when audioFilterSortEnabled is false', (tester) async {
+    testWidgets('hides FilterSortButton when audioFilterSortEnabled is false', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -94,7 +105,9 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
-    testWidgets('FilterSortButton is positioned at bottom right', (tester) async {
+    testWidgets('FilterSortButton is positioned at bottom right', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -121,7 +134,9 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
-    testWidgets('shows empty state when last audio is filter-sorted', (tester) async {
+    testWidgets('shows empty state when last audio is filter-sorted', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -157,7 +172,9 @@ void main() {
       });
       await tester.pumpAndSettle();
 
-      final btn = tester.widget<FilterSortButton>(find.byType(FilterSortButton));
+      final btn = tester.widget<FilterSortButton>(
+        find.byType(FilterSortButton),
+      );
       await tester.runAsync(() async {
         btn.onPressed();
         await Future<void>.delayed(const Duration(seconds: 1));

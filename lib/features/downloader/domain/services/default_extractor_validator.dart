@@ -1,4 +1,5 @@
-import 'package:onyxcore/features/downloader/domain/services/default_extractor_template_service.dart' show DefaultExtractorTemplateService;
+import 'package:onyxcore/features/downloader/domain/services/default_extractor_template_service.dart'
+    show DefaultExtractorTemplateService;
 
 /// Validation logic for default extractor fields.
 ///

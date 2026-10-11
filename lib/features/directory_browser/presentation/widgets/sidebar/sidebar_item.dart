@@ -84,11 +84,14 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
 
     final Widget content = Row(
       children: [
-        if (widget.isActive) ShaderMask(
-                shaderCallback: (bounds) =>
-                    AppTheme.primaryGradient.createShader(bounds),
-                child: Icon(widget.icon, size: 20, color: Colors.white),
-              ) else Icon(widget.icon, color: AppColors.textMuted, size: 20),
+        if (widget.isActive)
+          ShaderMask(
+            shaderCallback: (bounds) =>
+                AppTheme.primaryGradient.createShader(bounds),
+            child: Icon(widget.icon, size: 20, color: Colors.white),
+          )
+        else
+          Icon(widget.icon, color: AppColors.textMuted, size: 20),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -194,7 +197,9 @@ class _SidebarItemState extends ConsumerState<SidebarItem> {
           try {
             await repo.moveItems(details.data, widget.path);
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
+            ref
+                .read(directoryItemsProvider.notifier)
+                .refresh(showLoader: false);
             ref.read(selectionProvider.notifier).deselectAll();
           } catch (e) {
             ref.read(taskProvider.notifier).failTask(taskId, e.toString());

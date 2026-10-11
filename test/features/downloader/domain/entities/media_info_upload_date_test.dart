@@ -64,7 +64,10 @@ void main() {
 
       final info = MediaInfo.fromJson(json);
       expect(info.uploadDate, isNotNull);
-      expect(info.uploadDate!.millisecondsSinceEpoch, equals(1684070400 * 1000));
+      expect(
+        info.uploadDate!.millisecondsSinceEpoch,
+        equals(1684070400 * 1000),
+      );
     });
 
     test('parses created_at and post_date correctly', () {
@@ -173,7 +176,10 @@ void main() {
       };
       final info1 = MediaInfo.fromJson(json1);
       expect(info1.uploadDate, isNotNull);
-      expect(info1.uploadDate!.millisecondsSinceEpoch, equals(1684070400 * 1000));
+      expect(
+        info1.uploadDate!.millisecondsSinceEpoch,
+        equals(1684070400 * 1000),
+      );
 
       final json2 = {
         'id': 'redditUtc2',
@@ -183,7 +189,10 @@ void main() {
       };
       final info2 = MediaInfo.fromJson(json2);
       expect(info2.uploadDate, isNotNull);
-      expect(info2.uploadDate!.millisecondsSinceEpoch, equals(1684070400 * 1000));
+      expect(
+        info2.uploadDate!.millisecondsSinceEpoch,
+        equals(1684070400 * 1000),
+      );
     });
 
     test('parses Twitter/X created_at format correctly', () {
@@ -218,33 +227,35 @@ void main() {
       expect(info.uploadDate!.minute, equals(30));
     });
 
-    test('parses uploadDate from nested metadata structures (node, post, media)', () {
-      final jsonNode = {
-        'id': 'igNode',
-        'title': 'Instagram Node Post',
-        'originalUrl': 'https://instagram.com/p/abc',
-        'node': {
-          'taken_at_timestamp': 1684070400,
-        },
-      };
-      final infoNode = MediaInfo.fromJson(jsonNode);
-      expect(infoNode.uploadDate, isNotNull);
-      expect(infoNode.uploadDate!.millisecondsSinceEpoch, equals(1684070400 * 1000));
+    test(
+      'parses uploadDate from nested metadata structures (node, post, media)',
+      () {
+        final jsonNode = {
+          'id': 'igNode',
+          'title': 'Instagram Node Post',
+          'originalUrl': 'https://instagram.com/p/abc',
+          'node': {'taken_at_timestamp': 1684070400},
+        };
+        final infoNode = MediaInfo.fromJson(jsonNode);
+        expect(infoNode.uploadDate, isNotNull);
+        expect(
+          infoNode.uploadDate!.millisecondsSinceEpoch,
+          equals(1684070400 * 1000),
+        );
 
-      final jsonPost = {
-        'id': 'postNested',
-        'title': 'Nested Post',
-        'originalUrl': 'https://example.com/post/1',
-        'post': {
-          'date': '2024-05-20 18:00:00',
-        },
-      };
-      final infoPost = MediaInfo.fromJson(jsonPost);
-      expect(infoPost.uploadDate, isNotNull);
-      expect(infoPost.uploadDate!.year, equals(2024));
-      expect(infoPost.uploadDate!.month, equals(5));
-      expect(infoPost.uploadDate!.day, equals(20));
-    });
+        final jsonPost = {
+          'id': 'postNested',
+          'title': 'Nested Post',
+          'originalUrl': 'https://example.com/post/1',
+          'post': {'date': '2024-05-20 18:00:00'},
+        };
+        final infoPost = MediaInfo.fromJson(jsonPost);
+        expect(infoPost.uploadDate, isNotNull);
+        expect(infoPost.uploadDate!.year, equals(2024));
+        expect(infoPost.uploadDate!.month, equals(5));
+        expect(infoPost.uploadDate!.day, equals(20));
+      },
+    );
 
     test('returns null gracefully on malformed date strings', () {
       final json = {
@@ -260,7 +271,9 @@ void main() {
   });
 
   group('PropertiesDialog Uploaded Date display', () {
-    testWidgets('displays uploaded date and time when time is available', (tester) async {
+    testWidgets('displays uploaded date and time when time is available', (
+      tester,
+    ) async {
       final date = DateTime(2023, 5, 14, 15, 45); // 3:45 PM
       final group = MediaGroup(
         originalUrl: 'https://example.com/group',
@@ -276,11 +289,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: PropertiesDialog(
-              selectedItems: [group],
-            ),
-          ),
+          home: Scaffold(body: PropertiesDialog(selectedItems: [group])),
         ),
       );
 
@@ -290,33 +299,34 @@ void main() {
       expect(find.textContaining(formatted), findsOneWidget);
     });
 
-    testWidgets('displays uploaded date (without time) when time is midnight (00:00:00)', (tester) async {
-      final date = DateTime(2023, 5, 14);
-      final item = MediaInfo(
-        id: 'inner1',
-        title: 'Inner Photo',
-        originalUrl: 'https://example.com/photo',
-        isVideo: false,
-        uploadDate: date,
-      );
+    testWidgets(
+      'displays uploaded date (without time) when time is midnight (00:00:00)',
+      (tester) async {
+        final date = DateTime(2023, 5, 14);
+        final item = MediaInfo(
+          id: 'inner1',
+          title: 'Inner Photo',
+          originalUrl: 'https://example.com/photo',
+          isVideo: false,
+          uploadDate: date,
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PropertiesDialog(
-              selectedItems: [item],
-            ),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: PropertiesDialog(selectedItems: [item])),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      final formatted = DateFormat('MMM d, yyyy').format(date);
-      expect(find.textContaining(formatted), findsOneWidget);
-    });
+        final formatted = DateFormat('MMM d, yyyy').format(date);
+        expect(find.textContaining(formatted), findsOneWidget);
+      },
+    );
 
-    testWidgets('displays Uploaded: Unknown when uploadDate is null', (tester) async {
+    testWidgets('displays Uploaded: Unknown when uploadDate is null', (
+      tester,
+    ) async {
       const item = MediaInfo(
         id: 'innerNoDate',
         title: 'Photo No Date',
@@ -326,11 +336,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: PropertiesDialog(
-              selectedItems: [item],
-            ),
-          ),
+          home: Scaffold(body: PropertiesDialog(selectedItems: [item])),
         ),
       );
 
@@ -339,66 +345,78 @@ void main() {
       expect(find.text('Uploaded: Unknown'), findsOneWidget);
     });
 
-    testWidgets('close cross button is positioned at top right corner of dialog card', (tester) async {
-      const item = MediaInfo(
-        id: 'itemClose',
-        title: 'Short Title',
-        originalUrl: 'https://example.com/close',
-      );
+    testWidgets(
+      'close cross button is positioned at top right corner of dialog card',
+      (tester) async {
+        const item = MediaInfo(
+          id: 'itemClose',
+          title: 'Short Title',
+          originalUrl: 'https://example.com/close',
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: PropertiesDialog(
-                selectedItems: const [item],
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: PropertiesDialog(selectedItems: const [item]),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      final closeBtnFinder = find.byType(IconButton);
-      expect(closeBtnFinder, findsOneWidget);
+        final closeBtnFinder = find.byType(IconButton);
+        expect(closeBtnFinder, findsOneWidget);
 
-      final closeBtnRect = tester.getRect(closeBtnFinder);
-      // The dialog container has width 420, centered in 800 width (left=190, right=610)
-      // The close button right edge should be near right edge (within 24px of dialog card edge, not center)
-      expect(closeBtnRect.right, greaterThan(580));
-    });
+        final closeBtnRect = tester.getRect(closeBtnFinder);
+        // The dialog container has width 420, centered in 800 width (left=190, right=610)
+        // The close button right edge should be near right edge (within 24px of dialog card edge, not center)
+        expect(closeBtnRect.right, greaterThan(580));
+      },
+    );
   });
 
   group('MediaInfo title fallback parsing', () {
-    test('extracts title directly from Reddit comments URL when json title is missing', () {
-      final info = MediaInfo.fromJson(
-        {},
-        originalUrl: 'https://www.reddit.com/r/InsideMollywood/comments/1example/looks_like_a_warning_sign_for_many/',
-      );
-      expect(info.title, 'Looks like a warning sign for many');
-    });
+    test(
+      'extracts title directly from Reddit comments URL when json title is missing',
+      () {
+        final info = MediaInfo.fromJson(
+          {},
+          originalUrl:
+              'https://www.reddit.com/r/InsideMollywood/comments/1example/looks_like_a_warning_sign_for_many/',
+        );
+        expect(info.title, 'Looks like a warning sign for many');
+      },
+    );
 
-    test('extracts subreddit name from subreddit URL when json title is missing', () {
-      final info = MediaInfo.fromJson(
-        {},
-        originalUrl: 'https://www.reddit.com/r/InsideMollywood/',
-      );
-      expect(info.title, 'r/InsideMollywood');
-    });
+    test(
+      'extracts subreddit name from subreddit URL when json title is missing',
+      () {
+        final info = MediaInfo.fromJson(
+          {},
+          originalUrl: 'https://www.reddit.com/r/InsideMollywood/',
+        );
+        expect(info.title, 'r/InsideMollywood');
+      },
+    );
 
-    test('extracts username from Reddit user profile URL when json title is missing', () {
-      final info = MediaInfo.fromJson(
-        {},
-        originalUrl: 'https://www.reddit.com/user/Icy_Beach4427/',
-      );
-      expect(info.title, 'u/Icy_Beach4427');
-    });
+    test(
+      'extracts username from Reddit user profile URL when json title is missing',
+      () {
+        final info = MediaInfo.fromJson(
+          {},
+          originalUrl: 'https://www.reddit.com/user/Icy_Beach4427/',
+        );
+        expect(info.title, 'u/Icy_Beach4427');
+      },
+    );
 
     test('prefers json title over URL slug when json title is present', () {
       final info = MediaInfo.fromJson(
         {'title': 'Looks like a warning sign for many 😅'},
-        originalUrl: 'https://www.reddit.com/r/InsideMollywood/comments/1example/looks_like_a_warning_sign_for_many/',
+        originalUrl:
+            'https://www.reddit.com/r/InsideMollywood/comments/1example/looks_like_a_warning_sign_for_many/',
       );
       expect(info.title, 'Looks like a warning sign for many 😅');
     });

@@ -1,9 +1,8 @@
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/audio_player/domain/entities/audio_track.dart';
 
 void main() {
-group('AudioTrack Entity', () {
+  group('AudioTrack Entity', () {
     // ── U-AUD-TRACK-01 ──
     test('creates an AudioTrack with all required fields', () {
       const track = AudioTrack(

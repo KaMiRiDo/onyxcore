@@ -18,7 +18,6 @@ import 'package:onyxcore/features/settings/presentation/providers/settings_provi
 import 'package:path/path.dart' as p;
 
 class CustomFilePickerDialog extends ConsumerStatefulWidget {
-
   const CustomFilePickerDialog({
     this.title,
     this.allowMultiple = false,
@@ -141,7 +140,7 @@ class _CustomFilePickerDialogState
   Future<void> _handleCreateFolder() async {
     final currentPath = ref.read(filePickerProvider).value?.currentDirectory;
     if (currentPath == null) return;
-    
+
     final folderName = await showDialog<String>(
       context: context,
       builder: (ctx) => const FilePickerNewFolderDialog(),
@@ -150,9 +149,14 @@ class _CustomFilePickerDialogState
     if (folderName != null && folderName.isNotEmpty) {
       final newFolderPath = p.join(currentPath, folderName);
       try {
-        await ref.read(fileSystemServiceProvider).getDirectory(newFolderPath).create();
+        await ref
+            .read(fileSystemServiceProvider)
+            .getDirectory(newFolderPath)
+            .create();
         // navigate into new directory
-        await ref.read(filePickerProvider.notifier).goToDirectory(newFolderPath);
+        await ref
+            .read(filePickerProvider.notifier)
+            .goToDirectory(newFolderPath);
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -169,7 +173,11 @@ class _CustomFilePickerDialogState
 
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true): _handleCreateFolder,
+        const SingleActivator(
+          LogicalKeyboardKey.keyN,
+          control: true,
+          shift: true,
+        ): _handleCreateFolder,
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () =>
             ref.read(filePickerProvider.notifier).goBack(),
         const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () =>
@@ -233,11 +241,10 @@ class _CustomFilePickerDialogState
                                 ),
 
                                 // Main List
-                                Expanded(
-                                  child: _buildMainContent(stateAsync),
-                                ),
+                                Expanded(child: _buildMainContent(stateAsync)),
 
-                                if (!widget.saveMode && !widget.pickDirectory) ...[
+                                if (!widget.saveMode &&
+                                    !widget.pickDirectory) ...[
                                   // Preview Pane
                                   Container(
                                     width: 1,
@@ -535,9 +542,9 @@ class _CustomFilePickerDialogState
       data: (state) {
         if (state.error != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.error!)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.error!)));
             ref.read(filePickerProvider.notifier).clearError();
           });
         }
@@ -637,7 +644,7 @@ class _CustomFilePickerDialogState
       }
       return true;
     }
-    
+
     if (widget.pickDirectory) {
       if (state == null) return false;
       // if selection is empty, we allow picking the current directory
@@ -686,7 +693,9 @@ class _CustomFilePickerDialogState
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.2),
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       ),
       child: Row(
         children: [

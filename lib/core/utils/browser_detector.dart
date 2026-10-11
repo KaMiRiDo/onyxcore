@@ -108,38 +108,54 @@ class BrowserDetector {
   static Future<List<BrowserInfo>> getExtractorBrowsers() async {
     final installed = await getInstalledBrowsers();
     final results = <BrowserInfo>[];
-    
+
     for (final browser in installed) {
       var cap = BrowserCapability.other;
-      if (browser.contains('chrome') || browser.contains('chromium') || browser.contains('brave') || browser.contains('edge') || browser.contains('vivaldi') || browser.contains('opera')) {
+      if (browser.contains('chrome') ||
+          browser.contains('chromium') ||
+          browser.contains('brave') ||
+          browser.contains('edge') ||
+          browser.contains('vivaldi') ||
+          browser.contains('opera')) {
         cap = BrowserCapability.chromium;
       } else if (browser.contains('firefox')) {
         cap = BrowserCapability.firefox;
       }
-      
-      results.add(BrowserInfo(
-        id: browser,
-        name: _formatBrowserName(browser),
-        capability: cap,
-      ));
+
+      results.add(
+        BrowserInfo(
+          id: browser,
+          name: _formatBrowserName(browser),
+          capability: cap,
+        ),
+      );
     }
-    
+
     return results;
   }
 
   static String _formatBrowserName(String id) {
     switch (id) {
-      case 'google-chrome': return 'Google Chrome';
-      case 'chrome': return 'Chrome';
-      case 'chromium': return 'Chromium';
+      case 'google-chrome':
+        return 'Google Chrome';
+      case 'chrome':
+        return 'Chrome';
+      case 'chromium':
+        return 'Chromium';
       case 'brave':
-      case 'brave-browser': return 'Brave';
-      case 'vivaldi': return 'Vivaldi';
-      case 'opera': return 'Opera';
+      case 'brave-browser':
+        return 'Brave';
+      case 'vivaldi':
+        return 'Vivaldi';
+      case 'opera':
+        return 'Opera';
       case 'edge':
-      case 'microsoft-edge': return 'Microsoft Edge';
-      case 'firefox': return 'Firefox';
-      default: return id;
+      case 'microsoft-edge':
+        return 'Microsoft Edge';
+      case 'firefox':
+        return 'Firefox';
+      default:
+        return id;
     }
   }
 }

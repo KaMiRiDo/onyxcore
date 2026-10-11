@@ -7,7 +7,8 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/string_utils.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
-import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart' as domain;
+import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart'
+    as domain;
 import 'package:onyxcore/features/downloader/presentation/providers/download_history_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:path/path.dart' as p;
@@ -15,8 +16,8 @@ import 'package:path/path.dart' as p;
 /// FutureProvider to look up a single history entry by ID asynchronously.
 final _downloadHistoryEntryProvider =
     FutureProvider.family<domain.DownloadHistoryEntry?, String>((ref, id) {
-  return ref.read(downloadHistoryProvider.notifier).getEntry(id);
-});
+      return ref.read(downloadHistoryProvider.notifier).getEntry(id);
+    });
 
 class DownloadHistoryDetailView extends ConsumerStatefulWidget {
   const DownloadHistoryDetailView({super.key});
@@ -67,11 +68,6 @@ class _DownloadHistoryDetailViewState
     domain.DownloadHistoryEntry entry,
     String entryId,
   ) {
-
-
-
-
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -163,7 +159,9 @@ class _DownloadHistoryDetailViewState
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,7 +412,9 @@ class _DownloadHistoryDetailViewState
                                   decoration: BoxDecoration(
                                     border: Border(
                                       bottom: BorderSide(
-                                        color: Colors.white.withValues(alpha: 0.04),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.04,
+                                        ),
                                         width: 0.5,
                                       ),
                                     ),
@@ -425,7 +425,9 @@ class _DownloadHistoryDetailViewState
                                         Icons.insert_drive_file_rounded,
                                         size: 16,
                                         color: exists
-                                            ? AppColors.violet.withValues(alpha: 0.6)
+                                            ? AppColors.violet.withValues(
+                                                alpha: 0.6,
+                                              )
                                             : Colors.white24,
                                       ),
                                       const SizedBox(width: 12),
@@ -434,7 +436,9 @@ class _DownloadHistoryDetailViewState
                                           p.basename(path),
                                           style: GoogleFonts.manrope(
                                             color: exists
-                                                ? Colors.white.withValues(alpha: 0.8)
+                                                ? Colors.white.withValues(
+                                                    alpha: 0.8,
+                                                  )
                                                 : Colors.white54,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,
@@ -596,7 +600,9 @@ class _DownloadHistoryDetailViewState
                                 Text(
                                   '${entry.logs.length} entries recorded',
                                   style: GoogleFonts.manrope(
-                                    color: AppColors.textMuted.withValues(alpha: 0.5),
+                                    color: AppColors.textMuted.withValues(
+                                      alpha: 0.5,
+                                    ),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -800,10 +806,7 @@ class _DownloadHistoryDetailViewState
       child: onTap != null && exists
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: onTap,
-                child: content,
-              ),
+              child: GestureDetector(onTap: onTap, child: content),
             )
           : content,
     );

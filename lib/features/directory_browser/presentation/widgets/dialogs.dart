@@ -75,16 +75,12 @@ Future<String?> showInputDialog({
 }) async {
   return showDialog<String>(
     context: context,
-    builder: (context) => _InputDialog(
-      title: title,
-      hint: hint,
-      initialValue: initialValue,
-    ),
+    builder: (context) =>
+        _InputDialog(title: title, hint: hint, initialValue: initialValue),
   );
 }
 
 class _InputDialog extends StatefulWidget {
-
   const _InputDialog({
     required this.title,
     required this.hint,
@@ -134,7 +130,9 @@ class _InputDialogState extends State<_InputDialog> {
           hintText: widget.hint,
           hintStyle: GoogleFonts.manrope(color: Colors.white30),
           enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.violet.withValues(alpha: 0.5)),
+            borderSide: BorderSide(
+              color: AppColors.violet.withValues(alpha: 0.5),
+            ),
           ),
           focusedBorder: const UnderlineInputBorder(
             borderSide: BorderSide(color: AppColors.violet),
@@ -170,7 +168,6 @@ class _InputDialogState extends State<_InputDialog> {
 
 /// A reusable confirmation dialog with destructive/normal styling.
 class ConfirmDialog extends StatelessWidget {
-
   const ConfirmDialog({
     required this.title,
     required this.message,
@@ -399,7 +396,9 @@ class _PermanentDeleteDialogState extends State<PermanentDeleteDialog> {
               decoration: BoxDecoration(
                 color: AppColors.error.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(100),
-                border: Border.all(color: AppColors.error.withValues(alpha: 0.08)),
+                border: Border.all(
+                  color: AppColors.error.withValues(alpha: 0.08),
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -477,7 +476,9 @@ class _PermanentDeleteDialogState extends State<PermanentDeleteDialog> {
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white70,
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -558,9 +559,10 @@ class _PermanentDeleteDialogState extends State<PermanentDeleteDialog> {
 
 /// A specialized, high-fidelity confirmation dialog for viewer deletions (Trash vs. Permanent).
 class ViewerDeleteDialog extends StatelessWidget {
-
   const ViewerDeleteDialog({
-    required this.fileName, required this.permanent, super.key,
+    required this.fileName,
+    required this.permanent,
+    super.key,
     this.onDontAskAgainChanged,
   });
   final String fileName;
@@ -743,7 +745,9 @@ class ViewerDeleteDialog extends StatelessWidget {
                       onPressed: () => Navigator.pop(context, false),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white70,
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),

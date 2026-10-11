@@ -7,7 +7,9 @@ import 'package:onyxcore/features/video_player/presentation/widgets/editor/video
 
 void main() {
   group('VideoEditorOverlay', () {
-    testWidgets('renders close button and it triggers onClose callback', (tester) async {
+    testWidgets('renders close button and it triggers onClose callback', (
+      tester,
+    ) async {
       MediaKit.ensureInitialized();
       final player = Player();
       final controller = VideoController(player);

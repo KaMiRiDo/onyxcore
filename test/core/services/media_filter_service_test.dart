@@ -30,12 +30,15 @@ void main() {
         expect(dest, equals('/home/user/Music/Filtered/my song.mp3'));
       });
 
-      test('already in Filtered folder – destination stays in same Filtered', () {
-        const filePath = '/home/user/Videos/Filtered/movie.mp4';
-        final dest = MediaFilterService.resolveDestination(filePath);
-        // When already inside a Filtered folder it should create nested
-        expect(dest, equals('/home/user/Videos/Filtered/Filtered/movie.mp4'));
-      });
+      test(
+        'already in Filtered folder – destination stays in same Filtered',
+        () {
+          const filePath = '/home/user/Videos/Filtered/movie.mp4';
+          final dest = MediaFilterService.resolveDestination(filePath);
+          // When already inside a Filtered folder it should create nested
+          expect(dest, equals('/home/user/Videos/Filtered/Filtered/movie.mp4'));
+        },
+      );
     });
 
     group('moveToFiltered', () {
@@ -77,7 +80,9 @@ void main() {
         await MediaFilterService.moveToFiltered(srcFile.path);
 
         // The new file overwrites (rename behavior)
-        final content = await File('${filteredDir.path}/clip.mp4').readAsString();
+        final content = await File(
+          '${filteredDir.path}/clip.mp4',
+        ).readAsString();
         expect(content, equals('new content'));
       });
     });

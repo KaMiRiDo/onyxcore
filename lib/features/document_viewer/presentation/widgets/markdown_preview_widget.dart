@@ -39,7 +39,6 @@ class FilterSortIntent extends Intent {
   const FilterSortIntent();
 }
 
-
 class DualPaneIntent extends Intent {
   const DualPaneIntent();
 }
@@ -274,7 +273,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
       debugPrint('[DocumentViewer] FilterSort: move failed: $e');
       return;
     }
-    
+
     // Refresh directory since an item was moved
     if (!widget.isStandalone) {
       final repo = ref.read(directoryRepositoryProvider);
@@ -283,7 +282,7 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
       // ignore: unawaited_futures
       ref.read(directoryItemsProvider.notifier).refresh(showLoader: false);
     }
-    
+
     // Close the viewer
     if (widget.isStandalone) {
       windowManager.close();
@@ -771,7 +770,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
         actions: <Type, Action<Intent>>{
           FilterSortIntent: CallbackAction<FilterSortIntent>(
             onInvoke: (intent) {
-              final isFilterSortEnabled = ref.read(settingsProvider).value?.documentFilterSortEnabled ?? false;
+              final isFilterSortEnabled =
+                  ref.read(settingsProvider).value?.documentFilterSortEnabled ??
+                  false;
               if (isFilterSortEnabled) {
                 _handleFilterSort();
               }
@@ -916,7 +917,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                                                       child: Container(
                                                         width: 2,
                                                         color: Colors.white
-                                                            .withValues(alpha: 0.1),
+                                                            .withValues(
+                                                              alpha: 0.1,
+                                                            ),
                                                       ),
                                                     ),
                                                   ),
@@ -1043,14 +1046,22 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
                     },
                     child: _buildSearchOverlay(),
                   ),
-                
+
                 // ── Filter Sort Button (Alt+S) ────────────
-                if (ref.watch(settingsProvider).value?.documentFilterSortEnabled ?? false)
+                if (ref
+                        .watch(settingsProvider)
+                        .value
+                        ?.documentFilterSortEnabled ??
+                    false)
                   Positioned(
                     right: 20,
                     bottom: 20,
                     child: FilterSortButton(
-                      hudVisible: _isControlsVisible && (widget.windowId != null || widget.isStandalone || _isGlobalHudVisible),
+                      hudVisible:
+                          _isControlsVisible &&
+                          (widget.windowId != null ||
+                              widget.isStandalone ||
+                              _isGlobalHudVisible),
                       onPressed: _handleFilterSort,
                     ),
                   ),
@@ -2032,7 +2043,9 @@ class _MarkdownPreviewWidgetState extends ConsumerState<MarkdownPreviewWidget>
               color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.5),
+                color: Theme.of(
+                  context,
+                ).colorScheme.error.withValues(alpha: 0.5),
               ),
             ),
             child: Column(

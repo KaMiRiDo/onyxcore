@@ -9,7 +9,6 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/rename_
 import 'package:path/path.dart' as p;
 
 class RenameDialog extends StatefulWidget {
-
   const RenameDialog({required this.paths, super.key});
   final List<String> paths;
 
@@ -165,7 +164,9 @@ class _RenameDialogState extends State<RenameDialog> {
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient.withOpacity(0.2),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.violet.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.violet.withValues(alpha: 0.3),
+              ),
             ),
             child: const Icon(
               Icons.edit_note_rounded,
@@ -237,7 +238,9 @@ class _RenameDialogState extends State<RenameDialog> {
               : Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: active ? AppColors.violet : Colors.white.withValues(alpha: 0.05),
+            color: active
+                ? AppColors.violet
+                : Colors.white.withValues(alpha: 0.05),
           ),
         ),
         child: Row(

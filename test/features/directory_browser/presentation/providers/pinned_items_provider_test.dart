@@ -14,9 +14,7 @@ void main() {
     setUp(() async {
       db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
       container = ProviderContainer(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-        ],
+        overrides: [databaseProvider.overrideWithValue(db)],
       );
     });
 
@@ -27,9 +25,14 @@ void main() {
 
     test('initial state loads from database', () async {
       // Pre-populate database
-      await db.into(db.pinnedItems).insert(
-        PinnedItemsCompanion.insert(itemPath: '/test/path', pinnedAt: 12345),
-      );
+      await db
+          .into(db.pinnedItems)
+          .insert(
+            PinnedItemsCompanion.insert(
+              itemPath: '/test/path',
+              pinnedAt: 12345,
+            ),
+          );
 
       final state = await container.read(pinnedItemsProvider.future);
       expect(state.length, 1);
@@ -38,7 +41,7 @@ void main() {
 
     test('pinItem adds item to database and state', () async {
       final notifier = container.read(pinnedItemsProvider.notifier);
-      
+
       // Wait for initial load
       await container.read(pinnedItemsProvider.future);
 
@@ -52,15 +55,23 @@ void main() {
     });
 
     test('unpinItem removes item from database and state', () async {
-      await db.into(db.pinnedItems).insert(
-        PinnedItemsCompanion.insert(itemPath: '/to/unpin', pinnedAt: DateTime.now().millisecondsSinceEpoch),
-      );
+      await db
+          .into(db.pinnedItems)
+          .insert(
+            PinnedItemsCompanion.insert(
+              itemPath: '/to/unpin',
+              pinnedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
 
       final notifier = container.read(pinnedItemsProvider.notifier);
-      
+
       // Wait for initial load
       await container.read(pinnedItemsProvider.future);
-      expect(container.read(pinnedItemsProvider).value!.containsKey('/to/unpin'), isTrue);
+      expect(
+        container.read(pinnedItemsProvider).value!.containsKey('/to/unpin'),
+        isTrue,
+      );
 
       await notifier.unpinItem('/to/unpin');
 

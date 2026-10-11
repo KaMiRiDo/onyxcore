@@ -21,7 +21,8 @@ void main() {
 
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1600, 1000);
     view.devicePixelRatio = 1.0;
 
@@ -34,7 +35,8 @@ void main() {
   });
 
   tearDownAll(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
@@ -42,11 +44,7 @@ void main() {
   Widget createPanelTestWidget(ProviderContainer container) {
     return UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(
-        home: Scaffold(
-          body: DownloadsPanel(),
-        ),
-      ),
+      child: const MaterialApp(home: Scaffold(body: DownloadsPanel())),
     );
   }
 
@@ -54,12 +52,16 @@ void main() {
     late AppDatabase appDb;
 
     setUp(() {
-      appDb = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
+      appDb = AppDatabase.forTesting(
+        DatabaseConnection(NativeDatabase.memory()),
+      );
     });
 
     // ── 1. Top-Level Panel & Navigation ──
 
-    testWidgets('W-DL-PNL-01: Navigate based on downloadsPanelViewProvider', (tester) async {
+    testWidgets('W-DL-PNL-01: Navigate based on downloadsPanelViewProvider', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           settingsProvider.overrideWith(MockSettingsNotifier.new),
@@ -69,7 +71,8 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      container.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.tasks;
+      container.read(downloadsPanelViewProvider.notifier).state =
+          DownloadsPanelView.tasks;
 
       await tester.pumpWidget(createPanelTestWidget(container));
       await tester.pump(const Duration(milliseconds: 500));
@@ -87,7 +90,8 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      container.read(downloadsPanelViewProvider.notifier).state = DownloadsPanelView.history;
+      container.read(downloadsPanelViewProvider.notifier).state =
+          DownloadsPanelView.history;
 
       await tester.pumpWidget(createPanelTestWidget(container));
       await tester.pump(const Duration(milliseconds: 500));

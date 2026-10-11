@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:onyxcore/features/image_viewer/presentation/controllers/interaction_quality_notifier.dart';
 
 class ZoomAnimationEngine {
-
   ZoomAnimationEngine({
     required AnimationController animationController,
     required this.onTick,
@@ -24,24 +23,23 @@ class ZoomAnimationEngine {
   }
 
   void _onAnimationStatusChanged(AnimationStatus status) {
-    if (status == AnimationStatus.forward || status == AnimationStatus.reverse) {
+    if (status == AnimationStatus.forward ||
+        status == AnimationStatus.reverse) {
       qualityNotifier?.onInteractionStart();
-    } else if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
+    } else if (status == AnimationStatus.completed ||
+        status == AnimationStatus.dismissed) {
       qualityNotifier?.onInteractionEnd();
     }
   }
 
   bool get isAnimating => _animationController.isAnimating;
-  
+
   Animation<Matrix4>? get currentAnimation => _zoomAnimation;
 
   void animateMatrix(Matrix4 start, Matrix4 end) {
     _animationController.stop();
     _zoomAnimation = Matrix4Tween(begin: start, end: end).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
     _animationController.forward(from: 0);
   }

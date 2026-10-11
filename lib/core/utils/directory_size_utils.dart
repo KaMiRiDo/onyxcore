@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 
 /// Represents a progress update from the directory size calculation isolate.
 class DirectorySizeUpdate {
-
   DirectorySizeUpdate({
     required this.size,
     required this.filesCount,
@@ -21,7 +20,6 @@ class DirectorySizeUpdate {
 
 /// The arguments passed to the Isolate.
 class DirectorySizeArgs {
-
   DirectorySizeArgs({
     required this.paths,
     required this.sendPort,

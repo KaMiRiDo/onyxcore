@@ -37,10 +37,22 @@ void main() {
 
     test('isAnyMenuVisible returns true if any menu is visible', () {
       expect(defaultState.isAnyMenuVisible, isFalse);
-      expect(defaultState.copyWith(isAudioMenuVisible: true).isAnyMenuVisible, isTrue);
-      expect(defaultState.copyWith(isSubtitleMenuVisible: true).isAnyMenuVisible, isTrue);
-      expect(defaultState.copyWith(isSpeedMenuVisible: true).isAnyMenuVisible, isTrue);
-      expect(defaultState.copyWith(isMarkerMenuVisible: true).isAnyMenuVisible, isTrue);
+      expect(
+        defaultState.copyWith(isAudioMenuVisible: true).isAnyMenuVisible,
+        isTrue,
+      );
+      expect(
+        defaultState.copyWith(isSubtitleMenuVisible: true).isAnyMenuVisible,
+        isTrue,
+      );
+      expect(
+        defaultState.copyWith(isSpeedMenuVisible: true).isAnyMenuVisible,
+        isTrue,
+      );
+      expect(
+        defaultState.copyWith(isMarkerMenuVisible: true).isAnyMenuVisible,
+        isTrue,
+      );
     });
 
     test('isHudVisible correctly calculates visibility based on dependencies', () {
@@ -56,17 +68,24 @@ void main() {
       expect(defaultState.copyWith(windowId: '1').isHudVisible, isTrue);
 
       // If global hud is visible, it should be visible
-      expect(defaultState.copyWith(isGlobalHudVisible: true).isHudVisible, isTrue);
+      expect(
+        defaultState.copyWith(isGlobalHudVisible: true).isHudVisible,
+        isTrue,
+      );
 
       // If scroll lock axis is active, hud should be hidden regardless
       expect(
-        defaultState.copyWith(isGlobalHudVisible: true, scrollLockAxis: 'vertical').isHudVisible,
+        defaultState
+            .copyWith(isGlobalHudVisible: true, scrollLockAxis: 'vertical')
+            .isHudVisible,
         isFalse,
       );
 
       // If controls, marker editor and menu are all false, hud is hidden
       expect(
-        defaultState.copyWith(isGlobalHudVisible: true, isControlsVisible: false).isHudVisible,
+        defaultState
+            .copyWith(isGlobalHudVisible: true, isControlsVisible: false)
+            .isHudVisible,
         isFalse,
       );
     });

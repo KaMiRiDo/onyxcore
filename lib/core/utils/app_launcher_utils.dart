@@ -5,12 +5,13 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 class AppInfo {
-
   AppInfo({
     required this.id,
     required this.name,
     required this.exec,
-    required this.mimeTypes, required this.desktopFilePath, this.icon,
+    required this.mimeTypes,
+    required this.desktopFilePath,
+    this.icon,
   });
   final String id;
   final String name;
@@ -35,10 +36,12 @@ class AppLauncherUtils {
   static Map<String, String> get extensionMimeCache => _extensionMimeCache;
 
   @visibleForTesting
-  static Map<String, List<String>> get mimeRecommendedCache => _mimeRecommendedCache;
+  static Map<String, List<String>> get mimeRecommendedCache =>
+      _mimeRecommendedCache;
 
   @visibleForTesting
-  static Future<ProcessResult> Function(String, List<String>) runProcess = Process.run;
+  static Future<ProcessResult> Function(String, List<String>) runProcess =
+      Process.run;
 
   static List<AppInfo> get cachedApps => _cachedApps;
   static bool get isScanning => _isScanning;

@@ -8,7 +8,9 @@ void main() {
     group('validateExtractorName', () {
       test('accepts a valid name', () {
         expect(
-          DefaultExtractorValidator.validateExtractorName('ABC Image Extractor'),
+          DefaultExtractorValidator.validateExtractorName(
+            'ABC Image Extractor',
+          ),
           isNull,
         );
       });
@@ -19,16 +21,15 @@ void main() {
 
       test('accepts a name with special characters', () {
         expect(
-          DefaultExtractorValidator.validateExtractorName('My-Site_Extractor 2.0'),
+          DefaultExtractorValidator.validateExtractorName(
+            'My-Site_Extractor 2.0',
+          ),
           isNull,
         );
       });
 
       test('rejects an empty name', () {
-        expect(
-          DefaultExtractorValidator.validateExtractorName(''),
-          isNotNull,
-        );
+        expect(DefaultExtractorValidator.validateExtractorName(''), isNotNull);
       });
 
       test('rejects a whitespace-only name (spaces)', () {
@@ -55,10 +56,7 @@ void main() {
 
       test('accepts a name of exactly 255 characters', () {
         final maxLen = 'a' * 255;
-        expect(
-          DefaultExtractorValidator.validateExtractorName(maxLen),
-          isNull,
-        );
+        expect(DefaultExtractorValidator.validateExtractorName(maxLen), isNull);
       });
     });
 
@@ -107,17 +105,11 @@ void main() {
       });
 
       test('rejects an empty selector', () {
-        expect(
-          DefaultExtractorValidator.validateCssSelector(''),
-          isNotNull,
-        );
+        expect(DefaultExtractorValidator.validateCssSelector(''), isNotNull);
       });
 
       test('rejects a whitespace-only selector', () {
-        expect(
-          DefaultExtractorValidator.validateCssSelector('   '),
-          isNotNull,
-        );
+        expect(DefaultExtractorValidator.validateCssSelector('   '), isNotNull);
       });
 
       test('rejects a selector containing a null byte', () {
@@ -210,10 +202,7 @@ void main() {
       });
 
       test('rejects an empty attribute', () {
-        expect(
-          DefaultExtractorValidator.validateAttributeName(''),
-          isNotNull,
-        );
+        expect(DefaultExtractorValidator.validateAttributeName(''), isNotNull);
       });
 
       test('rejects a whitespace-only attribute', () {

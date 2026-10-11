@@ -36,9 +36,18 @@ void main() {
       expect(decoded.title, entry.title);
       expect(decoded.subtitle, entry.subtitle);
       expect(decoded.statusName, entry.statusName);
-      expect(decoded.createdAt.toIso8601String(), entry.createdAt.toIso8601String());
-      expect(decoded.startedAt?.toIso8601String(), entry.startedAt?.toIso8601String());
-      expect(decoded.completedAt?.toIso8601String(), entry.completedAt?.toIso8601String());
+      expect(
+        decoded.createdAt.toIso8601String(),
+        entry.createdAt.toIso8601String(),
+      );
+      expect(
+        decoded.startedAt?.toIso8601String(),
+        entry.startedAt?.toIso8601String(),
+      );
+      expect(
+        decoded.completedAt?.toIso8601String(),
+        entry.completedAt?.toIso8601String(),
+      );
       expect(decoded.errorMessage, entry.errorMessage);
       expect(decoded.processedCount, entry.processedCount);
       expect(decoded.totalCount, entry.totalCount);
@@ -47,7 +56,7 @@ void main() {
       expect(decoded.logs, entry.logs);
       expect(decoded.sourcePaths, entry.sourcePaths);
       expect(decoded.targetPath, entry.targetPath);
-      
+
       expect(decoded.duration?.inSeconds, 1);
     });
   });
@@ -70,8 +79,11 @@ void main() {
     test('copyWith updates correctly', () {
       const filter = TaskHistoryFilter();
       final d = DateTime.now();
-      
-      final updated = filter.copyWith(selectedDates: {d}, operationType: 'Delete');
+
+      final updated = filter.copyWith(
+        selectedDates: {d},
+        operationType: 'Delete',
+      );
       expect(updated.selectedDates, {d});
       expect(updated.operationType, 'Delete');
 
@@ -99,7 +111,7 @@ void main() {
 
     test('toggle adds and removes item', () {
       final notifier = container.read(historySelectionProvider.notifier);
-      
+
       notifier.toggle('item1');
       expect(container.read(historySelectionProvider), {'item1'});
 
@@ -130,7 +142,7 @@ void main() {
       final home = io.Platform.environment['HOME'] ?? '/tmp';
       historyFile = io.File('$home/.config/onyxcore/task_history.json');
       backupFile = io.File('$home/.config/onyxcore/task_history.json.bak');
-      
+
       if (historyFile.existsSync()) {
         historyFile.renameSync(backupFile.path);
       }
@@ -162,10 +174,10 @@ void main() {
       notifier.addEntry(task);
       expect(notifier.totalEntries, 1);
       expect(notifier.getEntry('task1'), isNotNull);
-      
+
       final state = container.read(taskHistoryProvider);
       expect(state.length, 1);
-      
+
       // Should persist
       expect(historyFile.existsSync(), isTrue);
       expect(notifier.historyFileSize, greaterThan(0));
@@ -182,7 +194,7 @@ void main() {
         });
       }
       historyFile.writeAsStringSync(jsonEncode(fakeEntries));
-      
+
       container.dispose();
       container = ProviderContainer();
       final notifier = container.read(taskHistoryProvider.notifier);
@@ -196,43 +208,47 @@ void main() {
       state = container.read(taskHistoryProvider);
       expect(state.length, 55);
       expect(notifier.hasMore, isFalse);
-      
+
       notifier.deleteEntry('t0');
       expect(notifier.totalEntries, 54);
-      
+
       notifier.deleteEntries({'t1', 't2'});
       expect(notifier.totalEntries, 52);
     });
 
     test('can delete filtered and clear all', () {
       final notifier = container.read(taskHistoryProvider.notifier);
-      
-      notifier.addEntry(FileTask(
-        id: 't1',
-        title: 'Copy something',
-        subtitle: 'Copying...',
-        createdAt: DateTime.now(),
-        status: FileTaskStatus.completed,
-      ));
-      
-      notifier.addEntry(FileTask(
-        id: 't2',
-        title: 'Delete something',
-        subtitle: 'Deleting...',
-        createdAt: DateTime.now(),
-        status: FileTaskStatus.completed,
-      ));
+
+      notifier.addEntry(
+        FileTask(
+          id: 't1',
+          title: 'Copy something',
+          subtitle: 'Copying...',
+          createdAt: DateTime.now(),
+          status: FileTaskStatus.completed,
+        ),
+      );
+
+      notifier.addEntry(
+        FileTask(
+          id: 't2',
+          title: 'Delete something',
+          subtitle: 'Deleting...',
+          createdAt: DateTime.now(),
+          status: FileTaskStatus.completed,
+        ),
+      );
 
       expect(notifier.totalEntries, 2);
 
       notifier.deleteFiltered(const TaskHistoryFilter(operationType: 'Delete'));
       expect(notifier.totalEntries, 1);
       expect(notifier.getEntry('t2'), isNull);
-      
+
       notifier.clearAll();
       expect(notifier.totalEntries, 0);
     });
-    
+
     test('providers work correctly', () {
       final task = FileTask(
         id: 't1',
@@ -246,8 +262,9 @@ void main() {
       final dates = container.read(availableDatesProvider);
       expect(dates.length, 1);
 
-      container.read(taskHistoryFilterProvider.notifier).state = const TaskHistoryFilter(operationType: 'Move');
-      
+      container.read(taskHistoryFilterProvider.notifier).state =
+          const TaskHistoryFilter(operationType: 'Move');
+
       final filtered = container.read(filteredTaskHistoryProvider);
       expect(filtered.length, 1);
       expect(filtered.first.id, 't1');

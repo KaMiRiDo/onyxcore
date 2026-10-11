@@ -19,8 +19,9 @@ void main() {
     const tPosition = 5000;
 
     test('should save position using AppDatabase', () async {
-      when(() => mockDb.savePlaybackPosition(any(), any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockDb.savePlaybackPosition(any(), any()),
+      ).thenAnswer((_) async {});
 
       await repository.savePosition(tPath, tPosition);
 
@@ -28,8 +29,9 @@ void main() {
     });
 
     test('should get position from AppDatabase', () async {
-      when(() => mockDb.getPlaybackPosition(any()))
-          .thenAnswer((_) async => tPosition);
+      when(
+        () => mockDb.getPlaybackPosition(any()),
+      ).thenAnswer((_) async => tPosition);
 
       final result = await repository.getPosition(tPath);
 
@@ -37,14 +39,18 @@ void main() {
       verify(() => mockDb.getPlaybackPosition(tPath)).called(1);
     });
 
-    test('should return null when getting position if not in AppDatabase', () async {
-      when(() => mockDb.getPlaybackPosition(any()))
-          .thenAnswer((_) async => null);
+    test(
+      'should return null when getting position if not in AppDatabase',
+      () async {
+        when(
+          () => mockDb.getPlaybackPosition(any()),
+        ).thenAnswer((_) async => null);
 
-      final result = await repository.getPosition(tPath);
+        final result = await repository.getPosition(tPath);
 
-      expect(result, isNull);
-      verify(() => mockDb.getPlaybackPosition(tPath)).called(1);
-    });
+        expect(result, isNull);
+        verify(() => mockDb.getPlaybackPosition(tPath)).called(1);
+      },
+    );
   });
 }

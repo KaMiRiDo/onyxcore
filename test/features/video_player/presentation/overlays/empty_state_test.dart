@@ -6,22 +6,20 @@ void main() {
   group('VideoEmptyState Widget Tests', () {
     testWidgets('Renders correctly in non-standalone mode', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: VideoEmptyState(),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: VideoEmptyState())),
       );
 
       expect(find.byType(VideoEmptyState), findsOneWidget);
       expect(find.byIcon(Icons.videocam_off_rounded), findsOneWidget);
       expect(find.text('No video files to play next.'), findsOneWidget);
-      
+
       // Close button should not be present
       expect(find.byIcon(Icons.close_rounded), findsNothing);
     });
 
-    testWidgets('Renders close button in standalone mode and handles tap', (tester) async {
+    testWidgets('Renders close button in standalone mode and handles tap', (
+      tester,
+    ) async {
       var closeCalled = false;
       await tester.pumpWidget(
         MaterialApp(

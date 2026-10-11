@@ -83,7 +83,8 @@ void main() {
 
     test('copyWith preserves metadata when not overridden', () {
       final date = DateTime.fromMillisecondsSinceEpoch(1000);
-      const metadata = '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}';
+      const metadata =
+          '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}';
       final a = CustomExtractor(
         id: '1',
         name: 'test',
@@ -98,7 +99,8 @@ void main() {
 
     test('copyWith can override metadata', () {
       final date = DateTime.fromMillisecondsSinceEpoch(1000);
-      const metadata = '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}';
+      const metadata =
+          '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}';
       final a = CustomExtractor(
         id: '1',
         name: 'test',
@@ -213,7 +215,8 @@ void main() {
         script: 'script',
         createdAt: date,
         modifiedAt: date,
-        metadata: '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}',
+        metadata:
+            '{"extractorKind":"html","cssSelector":".img","attributeName":"src"}',
       );
       final withoutMeta = CustomExtractor(
         id: '1',

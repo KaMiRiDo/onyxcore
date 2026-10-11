@@ -6,7 +6,6 @@ import 'package:audiotags/audiotags.dart';
 import 'package:image/image.dart' as img;
 
 class AudioProperties {
-
   AudioProperties({
     required this.duration,
     required this.bitrate,

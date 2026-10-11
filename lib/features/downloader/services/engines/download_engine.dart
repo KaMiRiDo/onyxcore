@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:onyxcore/features/downloader/domain/entities/media_info.dart';
-import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart' show MediaDownloaderBackend;
+import 'package:onyxcore/features/downloader/services/downloader_process_wrapper.dart'
+    show MediaDownloaderBackend;
 
 /// The type of download engine — determines how processes are spawned.
 enum EngineType {
@@ -20,7 +21,6 @@ enum EngineType {
 
 /// Information needed to download/update an engine binary from a GitHub release.
 class EngineUpdateInfo {
-
   const EngineUpdateInfo({
     required this.apiUrl,
     required this.assetName,
@@ -33,7 +33,6 @@ class EngineUpdateInfo {
 
 /// Exception thrown when an engine fetches some metadata but times out before finishing.
 class PartialMetadataException implements Exception {
-
   const PartialMetadataException({
     required this.partialInfos,
     required this.message,

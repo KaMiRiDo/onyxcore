@@ -36,8 +36,12 @@ void main() {
       controller = VideoScreenshotController(callbacks);
     });
 
-    testWidgets('takeScreenshot shows flash and toast immediately', (tester) async {
-      await tester.pumpWidget(const SizedBox()); // Provide basic test environment
+    testWidgets('takeScreenshot shows flash and toast immediately', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const SizedBox(),
+      ); // Provide basic test environment
 
       // Call takeScreenshot
       // It will throw an exception internally in ScreenshotService because path_provider is not mocked,

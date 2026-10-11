@@ -5,8 +5,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 enum SpeedControlOption {
   off('Off'),
   releaseToNormal('Release to Normal'),
-  releaseToFix('Release to Fix')
-  ;
+  releaseToFix('Release to Fix');
 
   const SpeedControlOption(this.label);
   final String label;
@@ -276,13 +275,19 @@ class AppSettings extends Equatable {
           documentSearchUseRegex ?? this.documentSearchUseRegex,
       audioPlayerVolume: audioPlayerVolume ?? this.audioPlayerVolume,
       videoPlayerVolume: videoPlayerVolume ?? this.videoPlayerVolume,
-      videoShowRemainingTime: videoShowRemainingTime ?? this.videoShowRemainingTime,
-      customExtractorsEnabled: customExtractorsEnabled ?? this.customExtractorsEnabled,
+      videoShowRemainingTime:
+          videoShowRemainingTime ?? this.videoShowRemainingTime,
+      customExtractorsEnabled:
+          customExtractorsEnabled ?? this.customExtractorsEnabled,
       extractorBrowser: extractorBrowser ?? this.extractorBrowser,
-      imageFilterSortEnabled: imageFilterSortEnabled ?? this.imageFilterSortEnabled,
-      videoFilterSortEnabled: videoFilterSortEnabled ?? this.videoFilterSortEnabled,
-      audioFilterSortEnabled: audioFilterSortEnabled ?? this.audioFilterSortEnabled,
-      documentFilterSortEnabled: documentFilterSortEnabled ?? this.documentFilterSortEnabled,
+      imageFilterSortEnabled:
+          imageFilterSortEnabled ?? this.imageFilterSortEnabled,
+      videoFilterSortEnabled:
+          videoFilterSortEnabled ?? this.videoFilterSortEnabled,
+      audioFilterSortEnabled:
+          audioFilterSortEnabled ?? this.audioFilterSortEnabled,
+      documentFilterSortEnabled:
+          documentFilterSortEnabled ?? this.documentFilterSortEnabled,
     );
   }
 

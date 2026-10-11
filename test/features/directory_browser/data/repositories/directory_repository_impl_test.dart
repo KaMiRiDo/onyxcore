@@ -9,8 +9,12 @@ import 'package:onyxcore/features/directory_browser/data/repositories/directory_
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 class MockLocalFileDatasource extends Mock implements LocalFileDatasource {}
-class MockDirectoryCache extends Mock implements DirectoryCache<List<FileItem>> {}
+
+class MockDirectoryCache extends Mock
+    implements DirectoryCache<List<FileItem>> {}
+
 class MockDirectoryWatcher extends Mock implements DirectoryWatcher {}
+
 class MockThumbnailCacheService extends Mock implements ThumbnailCacheService {}
 
 void main() {
@@ -35,8 +39,12 @@ void main() {
     mockWatcher = MockDirectoryWatcher();
     mockThumbnailCacheService = MockThumbnailCacheService();
 
-    when(() => mockThumbnailCacheService.removeEntries(any())).thenAnswer((_) async {});
-    when(() => mockThumbnailCacheService.removeEntriesForFolder(any())).thenAnswer((_) async {});
+    when(
+      () => mockThumbnailCacheService.removeEntries(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockThumbnailCacheService.removeEntriesForFolder(any()),
+    ).thenAnswer((_) async {});
 
     repository = DirectoryRepositoryImpl(
       datasource: mockDatasource,
@@ -57,31 +65,45 @@ void main() {
       verifyNever(() => mockDatasource.listDirectory(any()));
     });
 
-    test('listDirectory fetches from datasource and updates cache if cache is miss', () async {
-      when(() => mockCache.get(tPath)).thenReturn(null);
-      when(() => mockDatasource.listDirectory(tPath)).thenAnswer((_) async => tItems);
-      when(() => mockCache.put(tPath, tItems)).thenReturn(null);
+    test(
+      'listDirectory fetches from datasource and updates cache if cache is miss',
+      () async {
+        when(() => mockCache.get(tPath)).thenReturn(null);
+        when(
+          () => mockDatasource.listDirectory(tPath),
+        ).thenAnswer((_) async => tItems);
+        when(() => mockCache.put(tPath, tItems)).thenReturn(null);
 
-      final result = await repository.listDirectory(tPath);
+        final result = await repository.listDirectory(tPath);
 
-      expect(result, tItems);
-      verify(() => mockCache.get(tPath)).called(1);
-      verify(() => mockDatasource.listDirectory(tPath)).called(1);
-      verify(() => mockCache.put(tPath, tItems)).called(1);
-    });
+        expect(result, tItems);
+        verify(() => mockCache.get(tPath)).called(1);
+        verify(() => mockDatasource.listDirectory(tPath)).called(1);
+        verify(() => mockCache.put(tPath, tItems)).called(1);
+      },
+    );
 
-    test('createFolder delegates to datasource and invalidates cache', () async {
-      when(() => mockDatasource.createFolder(tPath, 'new_folder')).thenAnswer((_) async {});
-      when(() => mockCache.invalidate(tPath)).thenReturn(null);
+    test(
+      'createFolder delegates to datasource and invalidates cache',
+      () async {
+        when(
+          () => mockDatasource.createFolder(tPath, 'new_folder'),
+        ).thenAnswer((_) async {});
+        when(() => mockCache.invalidate(tPath)).thenReturn(null);
 
-      await repository.createFolder(tPath, 'new_folder');
+        await repository.createFolder(tPath, 'new_folder');
 
-      verify(() => mockDatasource.createFolder(tPath, 'new_folder')).called(1);
-      verify(() => mockCache.invalidate(tPath)).called(1);
-    });
+        verify(
+          () => mockDatasource.createFolder(tPath, 'new_folder'),
+        ).called(1);
+        verify(() => mockCache.invalidate(tPath)).called(1);
+      },
+    );
 
     test('createFile delegates to datasource and invalidates cache', () async {
-      when(() => mockDatasource.createFile(tPath, 'new_file.txt')).thenAnswer((_) async {});
+      when(
+        () => mockDatasource.createFile(tPath, 'new_file.txt'),
+      ).thenAnswer((_) async {});
       when(() => mockCache.invalidate(tPath)).thenReturn(null);
 
       await repository.createFile(tPath, 'new_file.txt');
@@ -90,27 +112,35 @@ void main() {
       verify(() => mockCache.invalidate(tPath)).called(1);
     });
 
-    test('deleteItems permanent true calls deleteItemsPermanent and invalidates parent', () async {
-      final paths = ['/path/to/folder/f1.txt'];
-      when(() => mockDatasource.deleteItemsPermanent(paths)).thenAnswer((_) async {});
-      when(() => mockCache.invalidate('/path/to/folder')).thenReturn(null);
+    test(
+      'deleteItems permanent true calls deleteItemsPermanent and invalidates parent',
+      () async {
+        final paths = ['/path/to/folder/f1.txt'];
+        when(
+          () => mockDatasource.deleteItemsPermanent(paths),
+        ).thenAnswer((_) async {});
+        when(() => mockCache.invalidate('/path/to/folder')).thenReturn(null);
 
-      await repository.deleteItems(paths, permanent: true);
+        await repository.deleteItems(paths, permanent: true);
 
-      verify(() => mockDatasource.deleteItemsPermanent(paths)).called(1);
-      verify(() => mockCache.invalidate('/path/to/folder')).called(1);
-    });
+        verify(() => mockDatasource.deleteItemsPermanent(paths)).called(1);
+        verify(() => mockCache.invalidate('/path/to/folder')).called(1);
+      },
+    );
 
-    test('deleteItems permanent false calls moveToTrash and invalidates parent', () async {
-      final paths = ['/path/to/folder/f1.txt'];
-      when(() => mockDatasource.moveToTrash(paths)).thenAnswer((_) async {});
-      when(() => mockCache.invalidate('/path/to/folder')).thenReturn(null);
+    test(
+      'deleteItems permanent false calls moveToTrash and invalidates parent',
+      () async {
+        final paths = ['/path/to/folder/f1.txt'];
+        when(() => mockDatasource.moveToTrash(paths)).thenAnswer((_) async {});
+        when(() => mockCache.invalidate('/path/to/folder')).thenReturn(null);
 
-      await repository.deleteItems(paths, permanent: false);
+        await repository.deleteItems(paths, permanent: false);
 
-      verify(() => mockDatasource.moveToTrash(paths)).called(1);
-      verify(() => mockCache.invalidate('/path/to/folder')).called(1);
-    });
+        verify(() => mockDatasource.moveToTrash(paths)).called(1);
+        verify(() => mockCache.invalidate('/path/to/folder')).called(1);
+      },
+    );
 
     test('moveToTrash delegates and invalidates parent', () async {
       final paths = ['/path/to/folder/f1.txt'];
@@ -125,7 +155,9 @@ void main() {
 
     test('restoreFromTrash delegates and invalidates parent', () async {
       final paths = ['/path/to/folder/f1.txt'];
-      when(() => mockDatasource.restoreFromTrash(paths)).thenAnswer((_) async {});
+      when(
+        () => mockDatasource.restoreFromTrash(paths),
+      ).thenAnswer((_) async {});
       when(() => mockCache.invalidate('/path/to/folder')).thenReturn(null);
 
       await repository.restoreFromTrash(paths);
@@ -148,7 +180,9 @@ void main() {
     test('copyItems delegates and invalidates destination', () async {
       final sources = ['/src/f1.txt'];
       const dest = '/dest';
-      when(() => mockDatasource.copyItems(sources, dest)).thenAnswer((_) async {});
+      when(
+        () => mockDatasource.copyItems(sources, dest),
+      ).thenAnswer((_) async {});
       when(() => mockCache.invalidate(dest)).thenReturn(null);
 
       await repository.copyItems(sources, dest);
@@ -174,7 +208,9 @@ void main() {
     test('moveItems delegates and invalidates correctly', () async {
       final sources = ['/src/f1.txt'];
       const dest = '/dest';
-      when(() => mockDatasource.moveItems(sources, dest)).thenAnswer((_) async {});
+      when(
+        () => mockDatasource.moveItems(sources, dest),
+      ).thenAnswer((_) async {});
       when(() => mockCache.invalidate(dest)).thenReturn(null);
       when(() => mockCache.invalidateRecursive('/src/f1.txt')).thenReturn(null);
       when(() => mockCache.invalidate('/src')).thenReturn(null);
@@ -208,7 +244,9 @@ void main() {
     test('renameItem delegates and invalidates correctly', () async {
       const path = '/src/f1.txt';
       const newPath = '/src/f2.txt';
-      when(() => mockDatasource.renameItem(path, 'f2.txt')).thenAnswer((_) async => newPath);
+      when(
+        () => mockDatasource.renameItem(path, 'f2.txt'),
+      ).thenAnswer((_) async => newPath);
       when(() => mockCache.invalidateRecursive(path)).thenReturn(null);
       when(() => mockCache.invalidate('/src')).thenReturn(null);
 
@@ -223,7 +261,9 @@ void main() {
     test('bulkRename delegates and invalidates correctly', () async {
       final paths = ['/src/f1.txt', '/src/f2.txt'];
       final newPaths = ['/src/pre_f1.txt', '/src/pre_f2.txt'];
-      when(() => mockDatasource.bulkRename(paths, prefix: 'pre_')).thenAnswer((_) async => newPaths);
+      when(
+        () => mockDatasource.bulkRename(paths, prefix: 'pre_'),
+      ).thenAnswer((_) async => newPaths);
       when(() => mockCache.invalidateRecursive(any())).thenReturn(null);
       when(() => mockCache.invalidate('/src')).thenReturn(null);
 
@@ -262,7 +302,7 @@ void main() {
 
       verify(() => mockCache.invalidateRecursive(tPath)).called(1);
     });
-    
+
     test('parent invalidation logic handles root edge cases', () async {
       // test when path is /f1.txt, parent should be /
       final paths = ['/f1.txt'];
@@ -274,41 +314,73 @@ void main() {
       verify(() => mockCache.invalidate('/')).called(1);
     });
 
-    test('deleteItems invalidates thumbnail cache and folder entries', () async {
-      final paths = ['/path/to/folder/f1.jpg', '/path/to/folder/subfolder'];
-      when(() => mockDatasource.deleteItemsPermanent(paths)).thenAnswer((_) async {});
-      when(() => mockCache.invalidate('/path/to/folder')).thenReturn(null);
+    test(
+      'deleteItems invalidates thumbnail cache and folder entries',
+      () async {
+        final paths = ['/path/to/folder/f1.jpg', '/path/to/folder/subfolder'];
+        when(
+          () => mockDatasource.deleteItemsPermanent(paths),
+        ).thenAnswer((_) async {});
+        when(() => mockCache.invalidate('/path/to/folder')).thenReturn(null);
 
-      await repository.deleteItems(paths, permanent: true);
+        await repository.deleteItems(paths, permanent: true);
 
-      verify(() => mockThumbnailCacheService.removeEntries(paths)).called(1);
-      verify(() => mockThumbnailCacheService.removeEntriesForFolder('/path/to/folder/f1.jpg')).called(1);
-      verify(() => mockThumbnailCacheService.removeEntriesForFolder('/path/to/folder/subfolder')).called(1);
-    });
+        verify(() => mockThumbnailCacheService.removeEntries(paths)).called(1);
+        verify(
+          () => mockThumbnailCacheService.removeEntriesForFolder(
+            '/path/to/folder/f1.jpg',
+          ),
+        ).called(1);
+        verify(
+          () => mockThumbnailCacheService.removeEntriesForFolder(
+            '/path/to/folder/subfolder',
+          ),
+        ).called(1);
+      },
+    );
 
     test('moveItemTo invalidates thumbnail cache for source', () async {
-      when(() => mockDatasource.moveItemTo('/src/photo.jpg', '/dst/photo.jpg')).thenAnswer((_) async {});
-      when(() => mockCache.invalidateRecursive('/src/photo.jpg')).thenReturn(null);
-      when(() => mockCache.invalidateRecursive('/dst/photo.jpg')).thenReturn(null);
+      when(
+        () => mockDatasource.moveItemTo('/src/photo.jpg', '/dst/photo.jpg'),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockCache.invalidateRecursive('/src/photo.jpg'),
+      ).thenReturn(null);
+      when(
+        () => mockCache.invalidateRecursive('/dst/photo.jpg'),
+      ).thenReturn(null);
       when(() => mockCache.invalidate('/src')).thenReturn(null);
       when(() => mockCache.invalidate('/dst')).thenReturn(null);
 
       await repository.moveItemTo('/src/photo.jpg', '/dst/photo.jpg');
 
-      verify(() => mockThumbnailCacheService.removeEntries(['/src/photo.jpg'])).called(1);
-      verify(() => mockThumbnailCacheService.removeEntriesForFolder('/src/photo.jpg')).called(1);
+      verify(
+        () => mockThumbnailCacheService.removeEntries(['/src/photo.jpg']),
+      ).called(1);
+      verify(
+        () =>
+            mockThumbnailCacheService.removeEntriesForFolder('/src/photo.jpg'),
+      ).called(1);
     });
 
     test('renameItem invalidates thumbnail cache for old path', () async {
-      when(() => mockDatasource.renameItem('/path/old.png', 'new.png')).thenAnswer((_) async => '/path/new.png');
-      when(() => mockCache.invalidateRecursive('/path/old.png')).thenReturn(null);
+      when(
+        () => mockDatasource.renameItem('/path/old.png', 'new.png'),
+      ).thenAnswer((_) async => '/path/new.png');
+      when(
+        () => mockCache.invalidateRecursive('/path/old.png'),
+      ).thenReturn(null);
       when(() => mockCache.invalidate('/path')).thenReturn(null);
 
       final res = await repository.renameItem('/path/old.png', 'new.png');
 
       expect(res, '/path/new.png');
-      verify(() => mockThumbnailCacheService.removeEntries(['/path/old.png'])).called(1);
-      verify(() => mockThumbnailCacheService.removeEntriesForFolder('/path/old.png')).called(1);
+      verify(
+        () => mockThumbnailCacheService.removeEntries(['/path/old.png']),
+      ).called(1);
+      verify(
+        () => mockThumbnailCacheService.removeEntriesForFolder('/path/old.png'),
+      ).called(1);
     });
   });
 }

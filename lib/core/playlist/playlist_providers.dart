@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:onyxcore/core/database/app_database.dart';
 import 'package:onyxcore/core/database/database_provider.dart';
-import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart' show PlaylistSidebarBase;
+import 'package:onyxcore/core/playlist/playlist_sidebar_base.dart'
+    show PlaylistSidebarBase;
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/sort_settings.dart';
@@ -18,7 +19,6 @@ enum MediaType { audio, video, image }
 /// [_mediaType]. The Drift [AppDatabase] is accessed via the Riverpod ref
 /// stored in [_ref].
 abstract class MediaFavoritesNotifier extends StateNotifier<Set<String>> {
-
   MediaFavoritesNotifier(this._mediaType) : super({}) {
     // _ref is injected by the factory provider immediately after construction.
   }
@@ -145,7 +145,6 @@ List<FileItem> sortAndFilterQueue({
 /// This avoids virtual dispatch overhead on every `ref.watch` call by using
 /// a concrete data object instead of abstract getters.
 class PlaylistProviderConfig {
-
   const PlaylistProviderConfig({
     required this.currentPathProvider,
     required this.rootPathProvider,

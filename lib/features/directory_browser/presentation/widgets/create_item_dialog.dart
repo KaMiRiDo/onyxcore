@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 
 class CreateItemDialog extends StatefulWidget {
-
   const CreateItemDialog({
     required this.currentPath,
     required this.existingNames,
@@ -172,7 +171,10 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+          width: 1.5,
+        ),
       ),
       child: Center(
         child: Icon(
@@ -339,32 +341,35 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                       ),
               ),
               const SizedBox(width: 12),
-              if (isSelected) ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [
-                          AppColors.magenta,
-                          AppColors.violet,
-                          AppColors.indigo,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ).createShader(bounds),
-                      child: Text(
-                        title,
-                        style: GoogleFonts.manrope(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ) else Text(
-                      title,
-                      style: GoogleFonts.manrope(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+              if (isSelected)
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [
+                      AppColors.magenta,
+                      AppColors.violet,
+                      AppColors.indigo,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ).createShader(bounds),
+                  child: Text(
+                    title,
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
+                  ),
+                )
+              else
+                Text(
+                  title,
+                  style: GoogleFonts.manrope(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               const Spacer(),
               Container(
                 width: 20,
@@ -391,11 +396,7 @@ class _CreateItemDialogState extends State<CreateItemDialog> {
                 ),
                 child: isSelected
                     ? const Center(
-                        child: Icon(
-                          Icons.check,
-                          size: 12,
-                          color: Colors.white,
-                        ),
+                        child: Icon(Icons.check, size: 12, color: Colors.white),
                       )
                     : null,
               ),

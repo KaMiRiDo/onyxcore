@@ -10,7 +10,8 @@ class DummyWidget extends StatefulWidget {
   State<DummyWidget> createState() => DummyWidgetState();
 }
 
-class DummyWidgetState extends State<DummyWidget> with DownloadsPanelHelpersMixin {
+class DummyWidgetState extends State<DummyWidget>
+    with DownloadsPanelHelpersMixin {
   @override
   Widget build(BuildContext context) => const SizedBox();
 }
@@ -29,7 +30,10 @@ void main() {
       });
 
       test('U-DL-HLP-02: Add ellipsis in middle if longer than maxLength', () {
-        expect(helper.trimMiddleForTesting('This is a very long string', 11), 'This...ring');
+        expect(
+          helper.trimMiddleForTesting('This is a very long string', 11),
+          'This...ring',
+        );
       });
 
       test('U-DL-HLP-03: Format seconds < 60', () {
@@ -88,11 +92,51 @@ void main() {
           title: 'Test Video',
           originalUrl: 'http://test',
           formats: [
-            MediaFormat(formatString: 'test', formatId: '1', resolution: '1920x1080', videoCodec: 'avc', audioCodec: 'aac', filesize: 50 * 1024 * 1024, extension: 'mp4'),
-            MediaFormat(formatString: 'test', formatId: '2', resolution: '1920x1080', videoCodec: 'avc', audioCodec: 'none', filesize: 45 * 1024 * 1024, extension: 'mp4'),
-            MediaFormat(formatString: 'test', formatId: '3', resolution: '1280x720', videoCodec: 'avc', audioCodec: 'aac', filesize: 25 * 1024 * 1024, extension: 'mp4'),
-            MediaFormat(formatString: 'test', formatId: '4', resolution: 'audio only', videoCodec: 'none', audioCodec: 'aac', filesize: 5 * 1024 * 1024, extension: 'm4a'),
-            MediaFormat(formatString: 'test', formatId: '5', resolution: '1920x1080', videoCodec: 'avc', audioCodec: 'aac', filesize: 60 * 1024 * 1024, extension: 'mp4'), // Larger 1080p
+            MediaFormat(
+              formatString: 'test',
+              formatId: '1',
+              resolution: '1920x1080',
+              videoCodec: 'avc',
+              audioCodec: 'aac',
+              filesize: 50 * 1024 * 1024,
+              extension: 'mp4',
+            ),
+            MediaFormat(
+              formatString: 'test',
+              formatId: '2',
+              resolution: '1920x1080',
+              videoCodec: 'avc',
+              audioCodec: 'none',
+              filesize: 45 * 1024 * 1024,
+              extension: 'mp4',
+            ),
+            MediaFormat(
+              formatString: 'test',
+              formatId: '3',
+              resolution: '1280x720',
+              videoCodec: 'avc',
+              audioCodec: 'aac',
+              filesize: 25 * 1024 * 1024,
+              extension: 'mp4',
+            ),
+            MediaFormat(
+              formatString: 'test',
+              formatId: '4',
+              resolution: 'audio only',
+              videoCodec: 'none',
+              audioCodec: 'aac',
+              filesize: 5 * 1024 * 1024,
+              extension: 'm4a',
+            ),
+            MediaFormat(
+              formatString: 'test',
+              formatId: '5',
+              resolution: '1920x1080',
+              videoCodec: 'avc',
+              audioCodec: 'aac',
+              filesize: 60 * 1024 * 1024,
+              extension: 'mp4',
+            ), // Larger 1080p
           ],
         );
       });
@@ -103,7 +147,18 @@ void main() {
 
       test('U-DL-HLP-15: Return null if item has no formats', () {
         item.formats.clear();
-        expect(helper.matchTargetFormat(item, MediaFormat(formatString: 'test', formatId: '1', resolution: '1080p', extension: 'mp4')), isNull);
+        expect(
+          helper.matchTargetFormat(
+            item,
+            MediaFormat(
+              formatString: 'test',
+              formatId: '1',
+              resolution: '1080p',
+              extension: 'mp4',
+            ),
+          ),
+          isNull,
+        );
       });
 
       test('U-DL-HLP-16: Return exact match if available', () {
@@ -113,20 +168,35 @@ void main() {
       });
 
       test('U-DL-HLP-17: Fallback to audio if target is audio only', () {
-        final target = MediaFormat(formatString: 'test', formatId: 'unknown', resolution: 'audio only', extension: 'mp3');
+        final target = MediaFormat(
+          formatString: 'test',
+          formatId: 'unknown',
+          resolution: 'audio only',
+          extension: 'mp3',
+        );
         final matched = helper.matchTargetFormat(item, target);
         expect(matched?.formatId, '4');
       });
 
       test('U-DL-HLP-18: Fallback to video <= target height', () {
-        final target = MediaFormat(formatString: 'test', formatId: 'unknown', resolution: '1080p', extension: 'mp4');
+        final target = MediaFormat(
+          formatString: 'test',
+          formatId: 'unknown',
+          resolution: '1080p',
+          extension: 'mp4',
+        );
         final matched = helper.matchTargetFormat(item, target);
         // Should pick the best 1080p format without audio because it sorts by noAudio first
         expect(matched?.formatId, '2');
       });
 
       test('U-DL-HLP-19: Prefer video without embedded audio', () {
-        final target = MediaFormat(formatString: 'test', formatId: 'unknown', resolution: '1080p', extension: 'mp4');
+        final target = MediaFormat(
+          formatString: 'test',
+          formatId: 'unknown',
+          resolution: '1080p',
+          extension: 'mp4',
+        );
         final matched = helper.matchTargetFormat(item, target);
         expect(matched?.audioCodec, 'none');
       });
@@ -134,7 +204,12 @@ void main() {
       test('U-DL-HLP-20: Tie-break equal heights by filesize', () {
         // Remove the audio=none option to force tie-break on filesize between format 1 (50MB) and 5 (60MB)
         item.formats.removeWhere((f) => f.audioCodec == 'none');
-        final target = MediaFormat(formatString: 'test', formatId: 'unknown', resolution: '1080p', extension: 'mp4');
+        final target = MediaFormat(
+          formatString: 'test',
+          formatId: 'unknown',
+          resolution: '1080p',
+          extension: 'mp4',
+        );
         final matched = helper.matchTargetFormat(item, target);
         expect(matched?.formatId, '5'); // The 60MB one
       });
@@ -151,8 +226,24 @@ void main() {
           originalUrl: 'http://test',
           directUrl: 'http://direct',
           formats: [
-            MediaFormat(formatString: 'test', formatId: '1', resolution: '1920x1080', videoCodec: 'avc', audioCodec: 'none', filesize: 45 * 1024 * 1024, extension: 'mp4'),
-            MediaFormat(formatString: 'test', formatId: '2', resolution: 'audio only', videoCodec: 'none', audioCodec: 'aac', filesize: 5 * 1024 * 1024, extension: 'm4a'),
+            MediaFormat(
+              formatString: 'test',
+              formatId: '1',
+              resolution: '1920x1080',
+              videoCodec: 'avc',
+              audioCodec: 'none',
+              filesize: 45 * 1024 * 1024,
+              extension: 'mp4',
+            ),
+            MediaFormat(
+              formatString: 'test',
+              formatId: '2',
+              resolution: 'audio only',
+              videoCodec: 'none',
+              audioCodec: 'aac',
+              filesize: 5 * 1024 * 1024,
+              extension: 'm4a',
+            ),
           ],
         );
         config = DownloadConfig();
@@ -160,20 +251,41 @@ void main() {
 
       test('U-DL-HLP-21: Use format.filesize if available', () {
         final format = item.formats[0];
-        expect(helper.getFormatBytesForTesting(item, format, config), 50 * 1024 * 1024);
+        expect(
+          helper.getFormatBytesForTesting(item, format, config),
+          50 * 1024 * 1024,
+        );
       });
 
       test('U-DL-HLP-22: Use _resolvedFileSizes cache if available', () {
-        final format = MediaFormat(formatString: 'test', formatId: 'unknown', resolution: '720p', extension: 'mp4', audioCodec: 'aac'); // no filesize
+        final format = MediaFormat(
+          formatString: 'test',
+          formatId: 'unknown',
+          resolution: '720p',
+          extension: 'mp4',
+          audioCodec: 'aac',
+        ); // no filesize
         helper.resolvedFileSizesForTesting['test_item'] = 200;
         expect(helper.getFormatBytesForTesting(item, format, config), 200);
       });
 
-      test('U-DL-HLP-23: Trigger _fetchLazySize if URL present and cache miss', () {
-        final format = MediaFormat(formatString: 'test', formatId: 'unknown', resolution: '720p', extension: 'mp4', audioCodec: 'aac'); // no filesize
-        expect(helper.getFormatBytesForTesting(item, format, config), isNull);
-        expect(helper.fetchingFileSizesForTesting.contains('test_item'), isTrue);
-      });
+      test(
+        'U-DL-HLP-23: Trigger _fetchLazySize if URL present and cache miss',
+        () {
+          final format = MediaFormat(
+            formatString: 'test',
+            formatId: 'unknown',
+            resolution: '720p',
+            extension: 'mp4',
+            audioCodec: 'aac',
+          ); // no filesize
+          expect(helper.getFormatBytesForTesting(item, format, config), isNull);
+          expect(
+            helper.fetchingFileSizesForTesting.contains('test_item'),
+            isTrue,
+          );
+        },
+      );
 
       test('U-DL-HLP-24: Estimate combined size for video without audio', () {
         final format = item.formats[0]; // Video without audio
@@ -185,12 +297,25 @@ void main() {
       test('U-DL-HLP-25: Estimate size for audio-only mode', () {
         config.mode = DownloadMode.audioOnly;
         // The helper should find the best audio format and use its size
-        final dummyFormat = MediaFormat(formatString: 'test', formatId: 'any', resolution: 'audio only', extension: 'm4a');
-        expect(helper.getFormatBytesForTesting(item, dummyFormat, config), 5 * 1024 * 1024);
+        final dummyFormat = MediaFormat(
+          formatString: 'test',
+          formatId: 'any',
+          resolution: 'audio only',
+          extension: 'm4a',
+        );
+        expect(
+          helper.getFormatBytesForTesting(item, dummyFormat, config),
+          5 * 1024 * 1024,
+        );
       });
 
       test('U-DL-HLP-26: _getFileSize formats valid bytes as string', () {
-        config.format = MediaFormat(formatString: 'test', formatId: 'any', resolution: '1080p', extension: 'mp4');
+        config.format = MediaFormat(
+          formatString: 'test',
+          formatId: 'any',
+          resolution: '1080p',
+          extension: 'mp4',
+        );
         expect(helper.getFileSizeForTesting(item, config), '50.0 MB');
       });
     });
@@ -204,11 +329,30 @@ void main() {
 
       test('U-DL-HLP-27: Ignore profiles and playlists in calculation', () {
         final group = MediaGroup(
-          originalUrl: 'g', items: [
-            MediaInfo(id: '1', title: '1', originalUrl: 'u1', filesize: 10 * 1024 * 1024, formats: []),
-            MediaInfo(id: '2', title: '2', originalUrl: 'u2', isProfile: true, formats: []),
-            MediaInfo(id: '3', title: '3', originalUrl: 'u3', isPlaylist: true, formats: []),
-          ]
+          originalUrl: 'g',
+          items: [
+            MediaInfo(
+              id: '1',
+              title: '1',
+              originalUrl: 'u1',
+              filesize: 10 * 1024 * 1024,
+              formats: [],
+            ),
+            MediaInfo(
+              id: '2',
+              title: '2',
+              originalUrl: 'u2',
+              isProfile: true,
+              formats: [],
+            ),
+            MediaInfo(
+              id: '3',
+              title: '3',
+              originalUrl: 'u3',
+              isPlaylist: true,
+              formats: [],
+            ),
+          ],
         );
         expect(helper.getGroupBytesForTesting(group, config), 10 * 1024 * 1024);
       });
@@ -216,42 +360,101 @@ void main() {
       test('U-DL-HLP-28: Respect config.groupFilter', () {
         config.groupFilter = GroupDownloadType.images;
         final group = MediaGroup(
-          originalUrl: 'g', items: [
-            MediaInfo(id: '1', title: '1', originalUrl: 'u1', filesize: 10 * 1024 * 1024, formats: []),
-            MediaInfo(id: '2', title: '2', originalUrl: 'u2', isVideo: false, filesize: 2 * 1024 * 1024, formats: []), // Image
-          ]
+          originalUrl: 'g',
+          items: [
+            MediaInfo(
+              id: '1',
+              title: '1',
+              originalUrl: 'u1',
+              filesize: 10 * 1024 * 1024,
+              formats: [],
+            ),
+            MediaInfo(
+              id: '2',
+              title: '2',
+              originalUrl: 'u2',
+              isVideo: false,
+              filesize: 2 * 1024 * 1024,
+              formats: [],
+            ), // Image
+          ],
         );
         expect(helper.getGroupBytesForTesting(group, config), 2 * 1024 * 1024);
       });
 
-      test('U-DL-HLP-29: Estimate missing video sizes using average of known videos', () {
-        final group = MediaGroup(
-          originalUrl: 'g', items: [
-            MediaInfo(id: '1', title: '1', originalUrl: 'u1', filesize: 10 * 1024 * 1024, formats: []),
-            MediaInfo(id: '2', title: '2', originalUrl: 'u2', formats: []), // Missing size
-          ]
-        );
-        // Average is 10MB, total is 20MB
-        expect(helper.getGroupBytesForTesting(group, config), 20 * 1024 * 1024);
-      });
+      test(
+        'U-DL-HLP-29: Estimate missing video sizes using average of known videos',
+        () {
+          final group = MediaGroup(
+            originalUrl: 'g',
+            items: [
+              MediaInfo(
+                id: '1',
+                title: '1',
+                originalUrl: 'u1',
+                filesize: 10 * 1024 * 1024,
+                formats: [],
+              ),
+              MediaInfo(
+                id: '2',
+                title: '2',
+                originalUrl: 'u2',
+                formats: [],
+              ), // Missing size
+            ],
+          );
+          // Average is 10MB, total is 20MB
+          expect(
+            helper.getGroupBytesForTesting(group, config),
+            20 * 1024 * 1024,
+          );
+        },
+      );
 
-      test('U-DL-HLP-30: Estimate missing image sizes using average of known images', () {
-        final group = MediaGroup(
-          originalUrl: 'g', items: [
-            MediaInfo(id: '1', title: '1', originalUrl: 'u1', isVideo: false, filesize: 2 * 1024 * 1024, formats: []),
-            MediaInfo(id: '2', title: '2', originalUrl: 'u2', isVideo: false, formats: []), // Missing size
-          ]
-        );
-        // Average is 2MB, total is 4MB
-        expect(helper.getGroupBytesForTesting(group, config), 4 * 1024 * 1024);
-      });
+      test(
+        'U-DL-HLP-30: Estimate missing image sizes using average of known images',
+        () {
+          final group = MediaGroup(
+            originalUrl: 'g',
+            items: [
+              MediaInfo(
+                id: '1',
+                title: '1',
+                originalUrl: 'u1',
+                isVideo: false,
+                filesize: 2 * 1024 * 1024,
+                formats: [],
+              ),
+              MediaInfo(
+                id: '2',
+                title: '2',
+                originalUrl: 'u2',
+                isVideo: false,
+                formats: [],
+              ), // Missing size
+            ],
+          );
+          // Average is 2MB, total is 4MB
+          expect(
+            helper.getGroupBytesForTesting(group, config),
+            4 * 1024 * 1024,
+          );
+        },
+      );
 
       test('U-DL-HLP-31: Fallback to constants if no known sizes', () {
         final group = MediaGroup(
-          originalUrl: 'g', items: [
+          originalUrl: 'g',
+          items: [
             MediaInfo(id: '1', title: '1', originalUrl: 'u1', formats: []),
-            MediaInfo(id: '2', title: '2', originalUrl: 'u2', isVideo: false, formats: []),
-          ]
+            MediaInfo(
+              id: '2',
+              title: '2',
+              originalUrl: 'u2',
+              isVideo: false,
+              formats: [],
+            ),
+          ],
         );
         // 1 video fallback = 15MB, 1 image fallback = 1MB. Total = 16MB
         expect(helper.getGroupBytesForTesting(group, config), 16 * 1024 * 1024);

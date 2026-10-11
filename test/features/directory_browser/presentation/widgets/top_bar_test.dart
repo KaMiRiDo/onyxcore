@@ -14,12 +14,7 @@ class MockTabManager extends TabManager {
   @override
   TabManagerState build() {
     return TabManagerState(
-      tabs: [
-        TabState(
-          id: '1',
-          currentPath: '/home/user/docs',
-        ),
-      ],
+      tabs: [TabState(id: '1', currentPath: '/home/user/docs')],
       activeTabIndex: 0,
     );
   }
@@ -46,7 +41,9 @@ class MockSettingsNotifier extends SettingsNotifier {
 }
 
 void main() {
-  testWidgets('TopBar renders correctly, toggles search and visibility', (tester) async {
+  testWidgets('TopBar renders correctly, toggles search and visibility', (
+    tester,
+  ) async {
     final container = ProviderContainer(
       overrides: [
         tabManagerProvider.overrideWith(MockTabManager.new),
@@ -59,11 +56,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
-          home: Scaffold(
-            body: TopBar(),
-          ),
-        ),
+        child: const MaterialApp(home: Scaffold(body: TopBar())),
       ),
     );
 
@@ -71,10 +64,10 @@ void main() {
 
     // Verify breadcrumbs are rendered
     expect(find.text('docs'), findsWidgets);
-    
+
     // Verify search button is rendered
     expect(find.byIcon(Icons.manage_search), findsOneWidget);
-    
+
     // Trigger search active state manually to verify notifier works
     container.read(isSearchActiveProvider.notifier).set(true);
     await tester.pumpAndSettle();
@@ -83,7 +76,9 @@ void main() {
 
     // Find the search TextField specifically
     final searchTextField = find.byWidgetPredicate(
-      (widget) => widget is TextField && widget.decoration?.hintText == 'Search in docs...',
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'Search in docs...',
     );
     expect(searchTextField, findsOneWidget);
 

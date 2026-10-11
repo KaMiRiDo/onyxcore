@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 class LineNumbersPainter extends CustomPainter {
-
   LineNumbersPainter({
     required this.editorKey,
     required this.controller,

@@ -2,7 +2,16 @@
 ///
 /// This file is intentionally Flutter-free so it can be used inside
 /// background isolates for directory listing.
-enum FileItemType { folder, image, video, audio, document, archive, downloaderList, other }
+enum FileItemType {
+  folder,
+  image,
+  video,
+  audio,
+  document,
+  archive,
+  downloaderList,
+  other,
+}
 
 /// Extension for OnyxCore's encrypted downloader media list format.
 const kDmlExtension = '.dml';

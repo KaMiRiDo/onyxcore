@@ -4,7 +4,6 @@ import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/features/audio_player/presentation/providers/audio_player_providers.dart';
 
 class AudioControlsBar extends ConsumerWidget {
-
   const AudioControlsBar({
     super.key,
     this.onNextPressed,
@@ -35,7 +34,8 @@ class AudioControlsBar extends ConsumerWidget {
                   Consumer(
                     builder: (context, ref, child) {
                       final currentTrack = ref.watch(currentTrackProvider);
-                      if (currentTrack == null) return const SizedBox(width: 48);
+                      if (currentTrack == null)
+                        return const SizedBox(width: 48);
                       final isFavorite = ref
                           .watch(audioFavoritesProvider)
                           .contains(currentTrack.path);
@@ -45,7 +45,9 @@ class AudioControlsBar extends ConsumerWidget {
                           isFavorite
                               ? Icons.favorite_rounded
                               : Icons.favorite_border_rounded,
-                          color: isFavorite ? AppColors.magenta : Colors.white70,
+                          color: isFavorite
+                              ? AppColors.magenta
+                              : Colors.white70,
                         ),
                         onPressed: () {
                           ref
@@ -60,13 +62,18 @@ class AudioControlsBar extends ConsumerWidget {
                     final isAutoPlay = ref.watch(audioAutoPlaySessionProvider);
                     return IconButton(
                       icon: Icon(
-                        isAutoPlay ? Icons.autorenew_rounded : Icons.sync_disabled_rounded,
+                        isAutoPlay
+                            ? Icons.autorenew_rounded
+                            : Icons.sync_disabled_rounded,
                         color: isAutoPlay ? AppColors.magenta : Colors.white70,
                       ),
                       onPressed: () {
-                        ref.read(audioAutoPlaySessionProvider.notifier).state = !isAutoPlay;
+                        ref.read(audioAutoPlaySessionProvider.notifier).state =
+                            !isAutoPlay;
                       },
-                      tooltip: isAutoPlay ? 'Autoplay Next: ON' : 'Autoplay Next: OFF',
+                      tooltip: isAutoPlay
+                          ? 'Autoplay Next: ON'
+                          : 'Autoplay Next: OFF',
                     );
                   },
                 ),

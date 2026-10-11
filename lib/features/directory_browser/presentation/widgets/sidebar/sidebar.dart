@@ -29,9 +29,7 @@ class Sidebar extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF161616),
         border: Border(
-          right: BorderSide(
-            color: Colors.white.withValues(alpha: 0.05),
-          ),
+          right: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       padding: const EdgeInsets.only(top: 24, bottom: 12),
@@ -78,7 +76,6 @@ class Sidebar extends ConsumerWidget {
 
           // Navigation Items
           const SizedBox(height: 24),
-
 
           // Scrollable Navigation Area
           Expanded(

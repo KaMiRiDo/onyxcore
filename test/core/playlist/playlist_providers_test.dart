@@ -15,10 +15,33 @@ import 'package:onyxcore/features/directory_browser/domain/entities/sort_setting
 void main() {
   group('sortAndFilterQueue', () {
     final now = DateTime.now();
-    final itemA = FileItem(name: 'A.mp3', path: '/A.mp3', type: FileItemType.audio, modified: now.subtract(const Duration(days: 1)), sizeBytes: 100);
-    final itemB = FileItem(name: 'B.mp3', path: '/B.mp3', type: FileItemType.audio, modified: now.subtract(const Duration(days: 2)), sizeBytes: 200);
-    final folder1 = FileItem(name: 'ZFolder', path: '/ZFolder', type: FileItemType.folder, modified: now);
-    final itemC = FileItem(name: 'C.mp3', path: '/C.mp3', type: FileItemType.audio, modified: now.subtract(const Duration(days: 3)), sizeBytes: 50);
+    final itemA = FileItem(
+      name: 'A.mp3',
+      path: '/A.mp3',
+      type: FileItemType.audio,
+      modified: now.subtract(const Duration(days: 1)),
+      sizeBytes: 100,
+    );
+    final itemB = FileItem(
+      name: 'B.mp3',
+      path: '/B.mp3',
+      type: FileItemType.audio,
+      modified: now.subtract(const Duration(days: 2)),
+      sizeBytes: 200,
+    );
+    final folder1 = FileItem(
+      name: 'ZFolder',
+      path: '/ZFolder',
+      type: FileItemType.folder,
+      modified: now,
+    );
+    final itemC = FileItem(
+      name: 'C.mp3',
+      path: '/C.mp3',
+      type: FileItemType.audio,
+      modified: now.subtract(const Duration(days: 3)),
+      sizeBytes: 50,
+    );
 
     final queue = [itemA, itemB, folder1, itemC];
 
@@ -177,9 +200,7 @@ void main() {
     setUp(() async {
       db = AppDatabase.forTesting(DatabaseConnection(NativeDatabase.memory()));
       container = ProviderContainer(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-        ],
+        overrides: [databaseProvider.overrideWithValue(db)],
       );
     });
 
@@ -191,10 +212,10 @@ void main() {
     test('initializes with empty set if database is empty', () async {
       final refProvider = Provider<Ref>((ref) => ref);
       final ref = container.read(refProvider);
-      
+
       final notifier = _TestAudioFavoritesNotifier();
-      notifier.setRef(ref); 
-      
+      notifier.setRef(ref);
+
       // Wait for init to complete
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(notifier.state, isEmpty);
@@ -202,18 +223,19 @@ void main() {
 
     // We can just use a real provider to test it properly, e.g. a dummy StateNotifierProvider
     test('toggles favorite status', () async {
-      final testProvider = StateNotifierProvider<MediaFavoritesNotifier, Set<String>>((ref) {
-        final notifier = _TestAudioFavoritesNotifier();
-        notifier.setRef(ref);
-        return notifier;
-      });
+      final testProvider =
+          StateNotifierProvider<MediaFavoritesNotifier, Set<String>>((ref) {
+            final notifier = _TestAudioFavoritesNotifier();
+            notifier.setRef(ref);
+            return notifier;
+          });
 
       // Wait for initial async load
       container.read(testProvider);
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
       final notifier = container.read(testProvider.notifier);
-      
+
       notifier.toggleFavorite('/path/to/file.mp3');
       expect(container.read(testProvider), contains('/path/to/file.mp3'));
 

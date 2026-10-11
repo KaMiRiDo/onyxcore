@@ -28,10 +28,13 @@ void main() {
       expect(info.assetName, 'deno-x86_64-unknown-linux-gnu.zip');
     });
 
-    test('getLatestVersion returns the pinned version, not dynamic latest', () async {
-      final version = await DenoRuntime.instance.getLatestVersion();
-      expect(version, DenoRuntime.pinnedVersion);
-    });
+    test(
+      'getLatestVersion returns the pinned version, not dynamic latest',
+      () async {
+        final version = await DenoRuntime.instance.getLatestVersion();
+        expect(version, DenoRuntime.pinnedVersion);
+      },
+    );
 
     test('isInstalled returns false when binary does not exist', () {
       // Assuming a clean test environment where it doesn't exist

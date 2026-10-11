@@ -54,7 +54,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(wasTapped, true);
-    
+
     // Menu should be closed
     expect(find.text('Copy'), findsNothing);
   });
@@ -64,12 +64,7 @@ void main() {
       ContextMenuItem(
         title: 'New',
         onTap: () {},
-        subItems: [
-          ContextMenuItem(
-            title: 'Folder',
-            onTap: () {},
-          ),
-        ],
+        subItems: [ContextMenuItem(title: 'Folder', onTap: () {})],
       ),
     ];
 
@@ -97,21 +92,16 @@ void main() {
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: tester.getCenter(find.text('New')));
     await tester.pumpAndSettle();
-    
+
     // Submenu delay
     await tester.pump(const Duration(milliseconds: 300));
-    
+
     // Submenu item should be visible
     expect(find.text('Folder'), findsOneWidget);
   });
 
   testWidgets('ContextMenu hides when tapping outside', (tester) async {
-    final items = [
-      ContextMenuItem(
-        title: 'Copy',
-        onTap: () {},
-      ),
-    ];
+    final items = [ContextMenuItem(title: 'Copy', onTap: () {})];
 
     await tester.pumpWidget(
       MaterialApp(

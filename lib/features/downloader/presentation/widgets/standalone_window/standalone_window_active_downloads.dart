@@ -5,7 +5,9 @@ import 'package:onyxcore/features/downloader/presentation/widgets/download_task_
 
 class StandaloneWindowActiveDownloads extends StatelessWidget {
   const StandaloneWindowActiveDownloads({
-    required this.tasks, required this.onCancelAll, super.key,
+    required this.tasks,
+    required this.onCancelAll,
+    super.key,
   });
 
   final List<DownloadTask> tasks;

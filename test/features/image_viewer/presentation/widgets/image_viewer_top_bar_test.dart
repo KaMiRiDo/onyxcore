@@ -112,7 +112,9 @@ void main() {
       expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
     });
 
-    testWidgets('hides edit and favorite buttons in network stream mode', (tester) async {
+    testWidgets('hides edit and favorite buttons in network stream mode', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTopBar(
           title: 'test_title.png',
@@ -133,7 +135,9 @@ void main() {
       expect(find.byIcon(Icons.settings_rounded), findsOneWidget);
     });
 
-    testWidgets('renders all actions and handles favorite toggle', (tester) async {
+    testWidgets('renders all actions and handles favorite toggle', (
+      tester,
+    ) async {
       const path = '/path/test_title.png';
       await tester.pumpWidget(
         buildTopBar(
@@ -182,7 +186,10 @@ void main() {
       );
 
       final editIcon = find.byIcon(Icons.edit_outlined);
-      final buttonFinder = find.ancestor(of: editIcon, matching: find.byType(IconButton));
+      final buttonFinder = find.ancestor(
+        of: editIcon,
+        matching: find.byType(IconButton),
+      );
       final buttonWidget = tester.widget<IconButton>(buttonFinder);
       expect(buttonWidget.onPressed, isNull);
     });

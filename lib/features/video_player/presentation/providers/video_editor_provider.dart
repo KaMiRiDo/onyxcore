@@ -59,7 +59,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorState> {
     } else {
       // Finalize the segment end time
       final start = state.pendingSegmentStart!;
-      
+
       if (timestamp <= start) {
         // Ignore invalid end time
         return;
@@ -111,5 +111,5 @@ class VideoEditorNotifier extends Notifier<VideoEditorState> {
 
 final videoEditorProvider =
     NotifierProvider<VideoEditorNotifier, VideoEditorState>(
-  VideoEditorNotifier.new,
-);
+      VideoEditorNotifier.new,
+    );

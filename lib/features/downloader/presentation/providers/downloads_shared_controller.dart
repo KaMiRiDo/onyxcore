@@ -66,7 +66,6 @@ String _encodeJsonIsolate(_ExportMessage msg) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DownloadsSharedController extends ChangeNotifier {
-
   DownloadsSharedController(this.ref);
   final Ref ref;
 
@@ -86,8 +85,6 @@ class DownloadsSharedController extends ChangeNotifier {
     }
   }
 
-
-
   bool _isDisposed = false;
 
   @override
@@ -100,7 +97,7 @@ class DownloadsSharedController extends ChangeNotifier {
       }
     }
     activeHydrationPids.clear();
-    
+
     for (final pids in activeExtractorPids.values) {
       for (final pid in pids) {
         ProcessUtils.killProcessTreeSync(pid);
@@ -151,8 +148,10 @@ class DownloadsSharedController extends ChangeNotifier {
       for (final item in itemGrp.items) {
         if (item.isError) continue;
 
-        if (config?.groupFilter == GroupDownloadType.images && item.isVideo) continue;
-        if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo) continue;
+        if (config?.groupFilter == GroupDownloadType.images && item.isVideo)
+          continue;
+        if (config?.groupFilter == GroupDownloadType.videos && !item.isVideo)
+          continue;
 
         if (item.isVideo) {
           groupVideos++;
@@ -160,8 +159,9 @@ class DownloadsSharedController extends ChangeNotifier {
           groupImages++;
         }
       }
-      
-      if (itemGrp.items.isNotEmpty && (itemGrp.first.isPlaylist || itemGrp.first.isProfile)) {
+
+      if (itemGrp.items.isNotEmpty &&
+          (itemGrp.first.isPlaylist || itemGrp.first.isProfile)) {
         hasUnderestimatedSize = true;
       }
 
@@ -175,14 +175,21 @@ class DownloadsSharedController extends ChangeNotifier {
   int getGroupBytes(MediaGroup group, DownloadConfig config) {
     if (config.mode == DownloadMode.normal) {
       if (config.groupFilter == GroupDownloadType.images) {
-        return group.items.where((i) => !i.isVideo).fold(0, (sum, item) => sum + (item.filesize ?? 0));
+        return group.items
+            .where((i) => !i.isVideo)
+            .fold(0, (sum, item) => sum + (item.filesize ?? 0));
       } else if (config.groupFilter == GroupDownloadType.videos) {
-        return group.items.where((i) => i.isVideo).fold(0, (sum, item) => sum + (item.filesize ?? 0));
+        return group.items
+            .where((i) => i.isVideo)
+            .fold(0, (sum, item) => sum + (item.filesize ?? 0));
       }
       return group.totalFilesize;
     } else {
       if (config.itemFormats.isEmpty) return 0;
-      return config.itemFormats.values.fold(0, (sum, fmt) => sum + (fmt?.filesize ?? 0));
+      return config.itemFormats.values.fold(
+        0,
+        (sum, fmt) => sum + (fmt?.filesize ?? 0),
+      );
     }
   }
 
@@ -195,13 +202,20 @@ class DownloadsSharedController extends ChangeNotifier {
   }
 
   Future<void> analyzeUrls(String text) async {
-    final urls = text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
+    final urls = text
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
     if (urls.isEmpty) return;
 
     cache.parsedItems ??= [];
 
     for (final url in urls) {
-      final existingIndex = cache.parsedItems!.indexWhere((existing) => existing.originalUrl == url);
+      final existingIndex = cache.parsedItems!.indexWhere(
+        (existing) => existing.originalUrl == url,
+      );
       final placeholderInfo = MediaInfo(
         id: 'fetch_loading',
         title: 'Fetching...',
@@ -209,16 +223,23 @@ class DownloadsSharedController extends ChangeNotifier {
         isVideo: false,
         isExtractorGroup: true,
       );
-      
+
       if (existingIndex == -1) {
-        cache.parsedItems!.add(MediaGroup(originalUrl: url, items: [placeholderInfo]));
+        cache.parsedItems!.add(
+          MediaGroup(originalUrl: url, items: [placeholderInfo]),
+        );
         backgroundLoadingProfiles.add(url);
         cache.configs[cache.parsedItems!.length - 1] = DownloadConfig(
-           engine: selectedEngine,
+          engine: selectedEngine,
         );
       } else {
         final group = cache.parsedItems![existingIndex];
-        group.items.removeWhere((e) => e.id == 'fetch_loading' || e.id == 'hydration_loading' || e.id == 'fetch_error');
+        group.items.removeWhere(
+          (e) =>
+              e.id == 'fetch_loading' ||
+              e.id == 'hydration_loading' ||
+              e.id == 'fetch_error',
+        );
         group.items.insert(0, placeholderInfo);
         backgroundLoadingProfiles.add(url);
       }
@@ -231,7 +252,7 @@ class DownloadsSharedController extends ChangeNotifier {
     final settings = ref.read(settingsProvider).value;
     final browser = settings?.downloadBrowser;
     final extractorsEnabled = settings?.customExtractorsEnabled ?? false;
-    
+
     // Check if we have an active custom extractor
     CustomExtractor? activeExtractor;
     if (extractorsEnabled && _selectedExtractorId != 'none') {
@@ -251,27 +272,41 @@ class DownloadsSharedController extends ChangeNotifier {
         // Phase 1.1 Refactor 2: only access the runtime service when an
         // extractor is actually selected, keeping the no-extractor path pure.
         final runtimeService = ref.read(extractorRuntimeServiceProvider);
-        unawaited(_runExtractorPipeline(url, activeExtractor, runtimeService, extractorBrowser));
+        unawaited(
+          _runExtractorPipeline(
+            url,
+            activeExtractor,
+            runtimeService,
+            extractorBrowser,
+          ),
+        );
       } else {
         unawaited(_runStandardPipeline(url, [url], browser, false, null));
       }
     }
   }
 
-  Future<void> _runExtractorPipeline(String originalUrl, CustomExtractor extractor, ExtractorRuntimeService runtimeService, String? browserId) async {
+  Future<void> _runExtractorPipeline(
+    String originalUrl,
+    CustomExtractor extractor,
+    ExtractorRuntimeService runtimeService,
+    String? browserId,
+  ) async {
     BrowserInfo? browserInfo;
     final browsers = await BrowserDetector.getExtractorBrowsers();
-    final targetBrowserId = browserId ?? await BrowserDetector.getDefaultBrowser();
+    final targetBrowserId =
+        browserId ?? await BrowserDetector.getDefaultBrowser();
 
     if (targetBrowserId != null) {
       for (final b in browsers) {
-        if (b.id == targetBrowserId && b.capability == BrowserCapability.chromium) {
+        if (b.id == targetBrowserId &&
+            b.capability == BrowserCapability.chromium) {
           browserInfo = b;
           break;
         }
       }
     }
-    
+
     if (browserInfo == null) {
       for (final b in browsers) {
         if (b.capability == BrowserCapability.chromium) {
@@ -283,10 +318,10 @@ class DownloadsSharedController extends ChangeNotifier {
 
     try {
       final logsBuffer = StringBuffer()..writeln('--- Extractor Logs ---');
-      
+
       final result = await runtimeService.execute(
-        extractor, 
-        originalUrl, 
+        extractor,
+        originalUrl,
         browser: browserInfo,
         onProcessStarted: (pid) {
           activeExtractorPids.putIfAbsent(originalUrl, () => []).add(pid);
@@ -295,13 +330,19 @@ class DownloadsSharedController extends ChangeNotifier {
         onLog: (line) {
           logsBuffer.writeln(line);
           if (cache.parsedItems != null) {
-            final index = cache.parsedItems!.indexWhere((g) => g.originalUrl == originalUrl);
+            final index = cache.parsedItems!.indexWhere(
+              (g) => g.originalUrl == originalUrl,
+            );
             if (index != -1) {
               final group = cache.parsedItems![index];
-              final existingIndex = group.items.indexWhere((e) => e.id == 'fetch_loading');
+              final existingIndex = group.items.indexWhere(
+                (e) => e.id == 'fetch_loading',
+              );
               if (existingIndex != -1) {
                 final item = group.items[existingIndex];
-                final updatedItem = item.copyWith(fetchLogs: logsBuffer.toString());
+                final updatedItem = item.copyWith(
+                  fetchLogs: logsBuffer.toString(),
+                );
                 group.items[existingIndex] = updatedItem;
                 cache.notify();
               }
@@ -313,22 +354,39 @@ class DownloadsSharedController extends ChangeNotifier {
       activeExtractorPids.remove(originalUrl);
 
       if (result.urls.isEmpty) {
-        _handlePipelineError(originalUrl, 'Extractor returned no URLs', result.logs);
+        _handlePipelineError(
+          originalUrl,
+          'Extractor returned no URLs',
+          result.logs,
+        );
         return;
       }
-      
+
       // Pass the extracted URLs to the standard engine pipeline
-      await _runStandardPipeline(originalUrl, result.urls, browserId, true, result.logs, fallbackToDirectLink: true);
+      await _runStandardPipeline(
+        originalUrl,
+        result.urls,
+        browserId,
+        true,
+        result.logs,
+        fallbackToDirectLink: true,
+      );
     } catch (e) {
       activeExtractorPids.remove(originalUrl);
-      final logs = e is ExtractorException ? '--- Extractor Logs ---\n${e.logs}' : null;
+      final logs = e is ExtractorException
+          ? '--- Extractor Logs ---\n${e.logs}'
+          : null;
       _handlePipelineError(originalUrl, e.toString(), logs);
     }
   }
 
-  void _handlePipelineError(String originalUrl, String errorMessage, String? logs) {
+  void _handlePipelineError(
+    String originalUrl,
+    String errorMessage,
+    String? logs,
+  ) {
     if (_isDisposed) return;
-    
+
     // If it's no longer in backgroundLoadingProfiles, it was intentionally cancelled.
     if (!backgroundLoadingProfiles.contains(originalUrl)) {
       activeHydrationPids.remove(originalUrl);
@@ -341,7 +399,9 @@ class DownloadsSharedController extends ChangeNotifier {
     activeExtractorPids.remove(originalUrl);
 
     if (cache.parsedItems != null) {
-      final index = cache.parsedItems!.indexWhere((g) => g.originalUrl == originalUrl);
+      final index = cache.parsedItems!.indexWhere(
+        (g) => g.originalUrl == originalUrl,
+      );
       if (index != -1) {
         final errorInfo = MediaInfo(
           id: 'fetch_error',
@@ -353,7 +413,12 @@ class DownloadsSharedController extends ChangeNotifier {
           isError: true,
         );
         final group = cache.parsedItems![index];
-        group.items.removeWhere((e) => e.id == 'fetch_loading' || e.id == 'hydration_loading' || e.id == 'fetch_error');
+        group.items.removeWhere(
+          (e) =>
+              e.id == 'fetch_loading' ||
+              e.id == 'hydration_loading' ||
+              e.id == 'fetch_error',
+        );
         if (group.items.isEmpty) {
           group.items.add(errorInfo);
         } else {
@@ -366,161 +431,220 @@ class DownloadsSharedController extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
-  Future<void> _runStandardPipeline(String originalUrl, List<String> urls, String? targetBrowserId, bool isFromExtractor, String? extractorLogs, {bool fallbackToDirectLink = false}) async {
+  Future<void> _runStandardPipeline(
+    String originalUrl,
+    List<String> urls,
+    String? targetBrowserId,
+    bool isFromExtractor,
+    String? extractorLogs, {
+    bool fallbackToDirectLink = false,
+  }) async {
     if (_isDisposed) return;
     await MediaDownloaderBackend.analyzeUrls(
-      urls,
-      engine: selectedEngine,
-      browser: targetBrowserId,
-      fallbackToDirectLink: fallbackToDirectLink,
-      onProgress: (MediaInfo info) {
-        if (cache.parsedItems != null) {
-          final groupIndex = cache.parsedItems!.indexWhere((g) => g.originalUrl == originalUrl);
-          if (groupIndex != -1) {
-            final group = cache.parsedItems![groupIndex];
-            
-            final processedInfo = isFromExtractor
-                ? info.copyWith(
-                    isExtractorGroup: true,
-                    extractorId: _selectedExtractorId,
-                    extractorName: 'Custom Extractor',
-                    fetchLogs: (extractorLogs != null && extractorLogs.isNotEmpty)
-                        ? '--- Extractor Logs ---\n$extractorLogs\n\n--- Standard Logs ---\n${info.fetchLogs ?? ""}'
-                        : info.fetchLogs,
-                  )
-                : info;
+          urls,
+          engine: selectedEngine,
+          browser: targetBrowserId,
+          fallbackToDirectLink: fallbackToDirectLink,
+          onProgress: (MediaInfo info) {
+            if (cache.parsedItems != null) {
+              final groupIndex = cache.parsedItems!.indexWhere(
+                (g) => g.originalUrl == originalUrl,
+              );
+              if (groupIndex != -1) {
+                final group = cache.parsedItems![groupIndex];
 
-            final existsIndex = group.items.indexWhere((existing) => existing.id == processedInfo.id);
-            if (existsIndex == -1) {
-              group.items.add(processedInfo);
-            } else {
-              group.items[existsIndex] = processedInfo;
-            }
+                final processedInfo = isFromExtractor
+                    ? info.copyWith(
+                        isExtractorGroup: true,
+                        extractorId: _selectedExtractorId,
+                        extractorName: 'Custom Extractor',
+                        fetchLogs:
+                            (extractorLogs != null && extractorLogs.isNotEmpty)
+                            ? '--- Extractor Logs ---\n$extractorLogs\n\n--- Standard Logs ---\n${info.fetchLogs ?? ""}'
+                            : info.fetchLogs,
+                      )
+                    : info;
 
-            if (processedInfo.id != 'fetch_loading') {
-              final loadingIndex = group.items.indexWhere((e) => e.id == 'fetch_loading');
-              if (loadingIndex != -1 && loadingIndex < group.items.length - 1) {
-                final loadingItem = group.items.removeAt(loadingIndex);
-                group.items.add(loadingItem);
+                final existsIndex = group.items.indexWhere(
+                  (existing) => existing.id == processedInfo.id,
+                );
+                if (existsIndex == -1) {
+                  group.items.add(processedInfo);
+                } else {
+                  group.items[existsIndex] = processedInfo;
+                }
+
+                if (processedInfo.id != 'fetch_loading') {
+                  final loadingIndex = group.items.indexWhere(
+                    (e) => e.id == 'fetch_loading',
+                  );
+                  if (loadingIndex != -1 &&
+                      loadingIndex < group.items.length - 1) {
+                    final loadingItem = group.items.removeAt(loadingIndex);
+                    group.items.add(loadingItem);
+                  }
+                }
+
+                cache.notify();
+                recalculateFilteredStatistics();
               }
             }
+          },
+          onProcessStarted: (pid) {
+            if (_isDisposed) return;
+            activeHydrationPids.putIfAbsent(originalUrl, () => []).add(pid);
+            if (!_isDisposed) notifyListeners();
+          },
+          isCancelled: () {
+            if (_isDisposed) return true;
+            // If the URL is no longer in backgroundLoadingProfiles, it was cancelled
+            return !backgroundLoadingProfiles.contains(originalUrl);
+          },
+        )
+        .then((items) {
+          if (_isDisposed) return;
 
-            cache.notify();
-            recalculateFilteredStatistics();
+          // If it's no longer in backgroundLoadingProfiles, it was intentionally cancelled.
+          // Do not replace the list or show errors.
+          if (!backgroundLoadingProfiles.contains(originalUrl)) {
+            activeHydrationPids.remove(originalUrl);
+            return;
           }
-        }
-      },
-      onProcessStarted: (pid) {
-        if (_isDisposed) return;
-        activeHydrationPids.putIfAbsent(originalUrl, () => []).add(pid);
-        if (!_isDisposed) notifyListeners();
-      },
-      isCancelled: () {
-        if (_isDisposed) return true;
-        // If the URL is no longer in backgroundLoadingProfiles, it was cancelled
-        return !backgroundLoadingProfiles.contains(originalUrl);
-      },
-    ).then((items) {
-      if (_isDisposed) return;
-      
-      // If it's no longer in backgroundLoadingProfiles, it was intentionally cancelled.
-      // Do not replace the list or show errors.
-      if (!backgroundLoadingProfiles.contains(originalUrl)) {
-        activeHydrationPids.remove(originalUrl);
-        return;
-      }
-      
-      backgroundLoadingProfiles.remove(originalUrl);
-      activeHydrationPids.remove(originalUrl);
 
-      if (cache.parsedItems != null) {
-        final index = cache.parsedItems!.indexWhere((g) => g.originalUrl == originalUrl);
-        if (index != -1) {
-          if (items.isEmpty) {
-            final errorInfo = MediaInfo(
-              id: 'fetch_error',
-              title: 'Error processing URL',
-              originalUrl: originalUrl,
-              errorMessage: 'No media found or extraction failed',
-              fetchLogs: isFromExtractor ? '--- Extractor Logs ---\n$extractorLogs' : null,
-              isVideo: false,
+          backgroundLoadingProfiles.remove(originalUrl);
+          activeHydrationPids.remove(originalUrl);
+
+          if (cache.parsedItems != null) {
+            final index = cache.parsedItems!.indexWhere(
+              (g) => g.originalUrl == originalUrl,
             );
-            final group = cache.parsedItems![index];
-            group.items.removeWhere((e) => e.id == 'fetch_loading' || e.id == 'hydration_loading' || e.id == 'fetch_error');
-            if (group.items.isEmpty) {
-              group.items.add(errorInfo);
-            } else {
-              group.items.insert(0, errorInfo);
-            }
-          } else {
-            // Apply extractor metadata if this came from an extractor
-            final finalItems = isFromExtractor
-                ? items.map((i) => i.copyWith(
-                      isExtractorGroup: true,
-                      extractorId: _selectedExtractorId,
-                      extractorName: 'Custom Extractor',
-                      fetchLogs: (extractorLogs != null && extractorLogs.isNotEmpty)
-                          ? '--- Extractor Logs ---\n$extractorLogs\n\n--- Standard Logs ---\n${i.fetchLogs ?? ""}'
-                          : i.fetchLogs,
-                    )).toList()
-                : items;
-                
-            cache.parsedItems![index] = MediaGroup(originalUrl: originalUrl, items: finalItems);
-            
-            // Mirror the non-extractor path: trigger deep hydration for playlists/profiles.
-            if (finalItems.isNotEmpty && (finalItems.first.isPlaylist || finalItems.first.isProfile)) {
-              hydrateProfile(originalUrl, fallbackToDirectLink: fallbackToDirectLink);
-            }
-          }
-          cache.notify();
-          recalculateFilteredStatistics();
-        }
-      }
-      if (!_isDisposed) notifyListeners();
-    }).catchError((Object e) {
-      if (_isDisposed) return;
-      
-      if (!backgroundLoadingProfiles.contains(originalUrl)) {
-        activeHydrationPids.remove(originalUrl);
-        return;
-      }
+            if (index != -1) {
+              if (items.isEmpty) {
+                final errorInfo = MediaInfo(
+                  id: 'fetch_error',
+                  title: 'Error processing URL',
+                  originalUrl: originalUrl,
+                  errorMessage: 'No media found or extraction failed',
+                  fetchLogs: isFromExtractor
+                      ? '--- Extractor Logs ---\n$extractorLogs'
+                      : null,
+                  isVideo: false,
+                );
+                final group = cache.parsedItems![index];
+                group.items.removeWhere(
+                  (e) =>
+                      e.id == 'fetch_loading' ||
+                      e.id == 'hydration_loading' ||
+                      e.id == 'fetch_error',
+                );
+                if (group.items.isEmpty) {
+                  group.items.add(errorInfo);
+                } else {
+                  group.items.insert(0, errorInfo);
+                }
+              } else {
+                // Apply extractor metadata if this came from an extractor
+                final finalItems = isFromExtractor
+                    ? items
+                          .map(
+                            (i) => i.copyWith(
+                              isExtractorGroup: true,
+                              extractorId: _selectedExtractorId,
+                              extractorName: 'Custom Extractor',
+                              fetchLogs:
+                                  (extractorLogs != null &&
+                                      extractorLogs.isNotEmpty)
+                                  ? '--- Extractor Logs ---\n$extractorLogs\n\n--- Standard Logs ---\n${i.fetchLogs ?? ""}'
+                                  : i.fetchLogs,
+                            ),
+                          )
+                          .toList()
+                    : items;
 
-      backgroundLoadingProfiles.remove(originalUrl);
-      activeHydrationPids.remove(originalUrl);
-      if (cache.parsedItems != null) {
-        final index = cache.parsedItems!.indexWhere((g) => g.originalUrl == originalUrl);
-        if (index != -1) {
-          final errorInfo = MediaInfo(
-            id: 'fetch_error',
-            title: 'Extraction Error',
-            originalUrl: originalUrl,
-            errorMessage: e.toString(),
-            fetchLogs: isFromExtractor ? '--- Extractor Logs ---\n$extractorLogs' : null,
-            isVideo: false,
-          );
-          final group = cache.parsedItems![index];
-          group.items.removeWhere((e) => e.id == 'fetch_loading' || e.id == 'hydration_loading' || e.id == 'fetch_error');
-          if (group.items.isEmpty) {
-            group.items.add(errorInfo);
-          } else {
-            group.items.insert(0, errorInfo);
+                cache.parsedItems![index] = MediaGroup(
+                  originalUrl: originalUrl,
+                  items: finalItems,
+                );
+
+                // Mirror the non-extractor path: trigger deep hydration for playlists/profiles.
+                if (finalItems.isNotEmpty &&
+                    (finalItems.first.isPlaylist ||
+                        finalItems.first.isProfile)) {
+                  hydrateProfile(
+                    originalUrl,
+                    fallbackToDirectLink: fallbackToDirectLink,
+                  );
+                }
+              }
+              cache.notify();
+              recalculateFilteredStatistics();
+            }
           }
-          cache.notify();
-          recalculateFilteredStatistics();
-        }
-      }
-      if (!_isDisposed) notifyListeners();
-    });
+          if (!_isDisposed) notifyListeners();
+        })
+        .catchError((Object e) {
+          if (_isDisposed) return;
+
+          if (!backgroundLoadingProfiles.contains(originalUrl)) {
+            activeHydrationPids.remove(originalUrl);
+            return;
+          }
+
+          backgroundLoadingProfiles.remove(originalUrl);
+          activeHydrationPids.remove(originalUrl);
+          if (cache.parsedItems != null) {
+            final index = cache.parsedItems!.indexWhere(
+              (g) => g.originalUrl == originalUrl,
+            );
+            if (index != -1) {
+              final errorInfo = MediaInfo(
+                id: 'fetch_error',
+                title: 'Extraction Error',
+                originalUrl: originalUrl,
+                errorMessage: e.toString(),
+                fetchLogs: isFromExtractor
+                    ? '--- Extractor Logs ---\n$extractorLogs'
+                    : null,
+                isVideo: false,
+              );
+              final group = cache.parsedItems![index];
+              group.items.removeWhere(
+                (e) =>
+                    e.id == 'fetch_loading' ||
+                    e.id == 'hydration_loading' ||
+                    e.id == 'fetch_error',
+              );
+              if (group.items.isEmpty) {
+                group.items.add(errorInfo);
+              } else {
+                group.items.insert(0, errorInfo);
+              }
+              cache.notify();
+              recalculateFilteredStatistics();
+            }
+          }
+          if (!_isDisposed) notifyListeners();
+        });
   }
 
-  Future<void> hydrateProfile(String url, {bool fallbackToDirectLink = false}) async {
+  Future<void> hydrateProfile(
+    String url, {
+    bool fallbackToDirectLink = false,
+  }) async {
     backgroundLoadingProfiles.add(url);
     if (!_isDisposed) notifyListeners();
 
     try {
       final browser = ref.read(settingsProvider).value?.downloadBrowser;
-      final isPlaylist = cache.parsedItems?.any((g) => g.originalUrl == url && g.items.isNotEmpty && g.items.first.isPlaylist) ?? false;
-      
+      final isPlaylist =
+          cache.parsedItems?.any(
+            (g) =>
+                g.originalUrl == url &&
+                g.items.isNotEmpty &&
+                g.items.first.isPlaylist,
+          ) ??
+          false;
+
       final items = await MediaDownloaderBackend.analyzeUrls(
         [url],
         engine: selectedEngine,
@@ -540,12 +664,16 @@ class DownloadsSharedController extends ChangeNotifier {
         onProgress: (MediaInfo info) {
           if (_isDisposed) return;
           if (cache.parsedItems != null) {
-            final groupIndex = cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
+            final groupIndex = cache.parsedItems!.indexWhere(
+              (g) => g.originalUrl == url,
+            );
             if (groupIndex != -1) {
               final group = cache.parsedItems![groupIndex];
               if (info.isProfile && group.items.any((e) => e.isProfile)) return;
 
-              final existsIndex = group.items.indexWhere((existing) => existing.id == info.id);
+              final existsIndex = group.items.indexWhere(
+                (existing) => existing.id == info.id,
+              );
               if (existsIndex == -1) {
                 group.items.add(info);
               } else {
@@ -553,15 +681,20 @@ class DownloadsSharedController extends ChangeNotifier {
               }
 
               if (info.id != 'hydration_loading') {
-                final loadingIndex = group.items.indexWhere((e) => e.id == 'hydration_loading');
-                if (loadingIndex != -1 && loadingIndex < group.items.length - 1) {
+                final loadingIndex = group.items.indexWhere(
+                  (e) => e.id == 'hydration_loading',
+                );
+                if (loadingIndex != -1 &&
+                    loadingIndex < group.items.length - 1) {
                   final loadingItem = group.items.removeAt(loadingIndex);
                   group.items.add(loadingItem);
                 }
               }
 
               if (group.items.isNotEmpty && group.items.first.isPlaylist) {
-                group.items[0] = group.items[0].copyWith(fetchLogs: info.fetchLogs);
+                group.items[0] = group.items[0].copyWith(
+                  fetchLogs: info.fetchLogs,
+                );
               }
 
               pendingStatsUpdate++;
@@ -579,11 +712,19 @@ class DownloadsSharedController extends ChangeNotifier {
       activeHydrationPids.remove(url);
 
       if (cache.parsedItems != null) {
-        final groupIndex = cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
+        final groupIndex = cache.parsedItems!.indexWhere(
+          (g) => g.originalUrl == url,
+        );
         if (groupIndex != -1) {
           final group = cache.parsedItems![groupIndex];
-          final playlistInfo = group.items.isNotEmpty && group.items.first.isPlaylist ? group.items.first : null;
-          final isGenericGroup = playlistInfo?.extractor?.toLowerCase() == 'generic' || (items.isNotEmpty && items.any((i) => i.extractor?.toLowerCase() == 'generic'));
+          final playlistInfo =
+              group.items.isNotEmpty && group.items.first.isPlaylist
+              ? group.items.first
+              : null;
+          final isGenericGroup =
+              playlistInfo?.extractor?.toLowerCase() == 'generic' ||
+              (items.isNotEmpty &&
+                  items.any((i) => i.extractor?.toLowerCase() == 'generic'));
 
           if (isGenericGroup) {
             items.sort((a, b) {
@@ -601,7 +742,12 @@ class DownloadsSharedController extends ChangeNotifier {
             final errorMsg = items.isNotEmpty ? items.first.errorMessage : null;
             final fetchLogs = items.isNotEmpty ? items.first.fetchLogs : null;
             if (errorMsg != null || fetchLogs != null) {
-              group.items.add(playlistInfo.copyWith(errorMessage: errorMsg, fetchLogs: fetchLogs));
+              group.items.add(
+                playlistInfo.copyWith(
+                  errorMessage: errorMsg,
+                  fetchLogs: fetchLogs,
+                ),
+              );
             } else {
               group.items.add(playlistInfo);
             }
@@ -613,7 +759,10 @@ class DownloadsSharedController extends ChangeNotifier {
             final formatSet = <String, MediaFormat>{};
             for (final vid in group.items) {
               if (vid.isVideo) {
-                final sortedFormats = vid.formats.toList()..sort((a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0));
+                final sortedFormats = vid.formats.toList()
+                  ..sort(
+                    (a, b) => (b.filesize ?? 0).compareTo(a.filesize ?? 0),
+                  );
                 for (final f in sortedFormats) {
                   if (!formatSet.containsKey(f.resolution)) {
                     formatSet[f.resolution] = f;
@@ -652,7 +801,9 @@ class DownloadsSharedController extends ChangeNotifier {
       backgroundLoadingProfiles.remove(url);
       activeHydrationPids.remove(url);
       if (cache.parsedItems != null) {
-        final groupIndex = cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
+        final groupIndex = cache.parsedItems!.indexWhere(
+          (g) => g.originalUrl == url,
+        );
         if (groupIndex != -1) {
           final group = cache.parsedItems![groupIndex];
           group.items.removeWhere((e) => e.id == 'hydration_loading');
@@ -681,10 +832,11 @@ class DownloadsSharedController extends ChangeNotifier {
         await ProcessUtils.killProcessTree(pid);
       }
     }
-    
+
     if (cache.parsedItems != null) {
-      final groupIndex =
-          cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
+      final groupIndex = cache.parsedItems!.indexWhere(
+        (g) => g.originalUrl == url,
+      );
       if (groupIndex != -1) {
         final group = cache.parsedItems![groupIndex];
         group.items.removeWhere(
@@ -709,12 +861,14 @@ class DownloadsSharedController extends ChangeNotifier {
         await ProcessUtils.killProcessTree(pid);
       }
     }
-    
+
     if (cache.parsedItems != null) {
       final index = cache.parsedItems!.indexWhere((g) => g.originalUrl == url);
       if (index != -1) {
         final group = cache.parsedItems![index];
-        group.items.removeWhere((e) => e.id == 'hydration_loading' || e.id == 'fetch_loading');
+        group.items.removeWhere(
+          (e) => e.id == 'hydration_loading' || e.id == 'fetch_loading',
+        );
         if (group.items.isEmpty) {
           cache.parsedItems!.removeAt(index);
         }
@@ -725,7 +879,11 @@ class DownloadsSharedController extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
-  Future<void> importListFromFile(String path, String fileName, {String? password}) async {
+  Future<void> importListFromFile(
+    String path,
+    String fileName, {
+    String? password,
+  }) async {
     try {
       if (cache.hasCache(path)) {
         final existingItems = cache.getItemsForPath(path);
@@ -750,13 +908,17 @@ class DownloadsSharedController extends ChangeNotifier {
         ..isLocked = false
         ..currentPassword = password;
 
-      if (DmlCryptoService.isDmlFile(path) || DmlCryptoService.isJsonFile(path)) {
+      if (DmlCryptoService.isDmlFile(path) ||
+          DmlCryptoService.isJsonFile(path)) {
         try {
           String jsonString;
           if (DmlCryptoService.isDmlFile(path)) {
             final bytes = await file.readAsBytes();
             try {
-              jsonString = await DmlCryptoService.decryptInIsolate(bytes, password: password);
+              jsonString = await DmlCryptoService.decryptInIsolate(
+                bytes,
+                password: password,
+              );
             } on DmlLockedException {
               cache.isLocked = true;
               cache.parsedItems = null;
@@ -808,7 +970,8 @@ class DownloadsSharedController extends ChangeNotifier {
     try {
       final file = File(path);
 
-      if (DmlCryptoService.isDmlFile(path) || DmlCryptoService.isJsonFile(path)) {
+      if (DmlCryptoService.isDmlFile(path) ||
+          DmlCryptoService.isJsonFile(path)) {
         // Pass data directly to isolate (do not serialize on UI thread to prevent GTK freeze).
         final itemsData = cache.parsedItems ?? [];
         final statistics = <String, dynamic>{
@@ -821,7 +984,11 @@ class DownloadsSharedController extends ChangeNotifier {
           // jsonEncode + AES-GCM encrypt on a background isolate.
           final encryptedBytes = await compute(
             _encryptExportIsolate,
-            _ExportMessage(itemsData, statistics, password: cache.currentPassword),
+            _ExportMessage(
+              itemsData,
+              statistics,
+              password: cache.currentPassword,
+            ),
           );
           await file.writeAsBytes(encryptedBytes);
         } else {
@@ -833,7 +1000,8 @@ class DownloadsSharedController extends ChangeNotifier {
           await file.writeAsString(jsonString);
         }
       } else {
-        final urls = cache.parsedItems
+        final urls =
+            cache.parsedItems
                 ?.map((g) => g.originalUrl)
                 .where((u) => u.isNotEmpty)
                 .toList() ??
@@ -850,6 +1018,7 @@ class DownloadsSharedController extends ChangeNotifier {
   }
 }
 
-final downloadsSharedControllerProvider = ChangeNotifierProvider<DownloadsSharedController>((ref) {
-  return DownloadsSharedController(ref);
-});
+final downloadsSharedControllerProvider =
+    ChangeNotifierProvider<DownloadsSharedController>((ref) {
+      return DownloadsSharedController(ref);
+    });

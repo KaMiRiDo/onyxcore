@@ -37,14 +37,14 @@ void main() {
 
       final snapshotsDir = Directory(p.join(tempDir.path, 'Snapshots'));
       expect(snapshotsDir.existsSync(), isTrue);
-      
+
       final files = snapshotsDir.listSync();
       expect(files.length, 1);
-      
+
       final savedFile = files.first as File;
       expect(savedFile.path.endsWith('.png'), isTrue);
       expect(savedFile.path.contains('test_video_'), isTrue);
-      
+
       final savedBytes = savedFile.readAsBytesSync();
       expect(savedBytes, equals(fakeBytes));
     });
@@ -62,7 +62,9 @@ void main() {
     });
 
     test('captureAndSave handles exceptions gracefully', () async {
-      when(() => mockPlayer.screenshot()).thenThrow(Exception('test exception'));
+      when(
+        () => mockPlayer.screenshot(),
+      ).thenThrow(Exception('test exception'));
 
       // Should not throw, but catch and print
       await ScreenshotService.captureAndSave(

@@ -32,15 +32,18 @@ void main() {
       expect(updated.processedSizeBytes, 100);
       expect(updated.totalSizeBytes, 1000);
     });
-    
+
     test('estimatedRemaining calculates correctly', () {
       final now = DateTime.now();
       var t = FileTask(id: '1', title: 'A', subtitle: 'B', createdAt: now);
       expect(t.estimatedRemaining, isNull);
 
-      t = t.copyWith(startedAt: now.subtract(const Duration(seconds: 10)), progress: 0.5);
+      t = t.copyWith(
+        startedAt: now.subtract(const Duration(seconds: 10)),
+        progress: 0.5,
+      );
       expect(t.estimatedRemaining?.inSeconds, 10);
-      
+
       t = t.copyWith(isSyncing: true, progress: 1);
       expect(t.estimatedRemaining, isNull);
       expect(t.progress, 0.99); // syncing clamped
@@ -80,14 +83,14 @@ void main() {
     test('updateProgress and counts updates stream task', () {
       final notifier = container.read(taskProvider.notifier);
       final id = notifier.addTask(title: 'T1', subtitle: 'S1');
-      
+
       notifier.updateProgress(id, 0.5);
       notifier.updateItemCounts(id, 5, 10);
       notifier.updateByteCounts(id, 50, 100);
 
       final state = container.read(taskProvider);
       final task = state.first;
-      
+
       expect(task.processedCount, 5);
       expect(task.totalCount, 10);
       expect(task.progress, 0.5);
@@ -96,9 +99,9 @@ void main() {
     test('completeTask updates status', () {
       final notifier = container.read(taskProvider.notifier);
       final id = notifier.addTask(title: 'T1', subtitle: 'S1');
-      
+
       notifier.completeTask(id);
-      
+
       final state = container.read(taskProvider);
       final task = state.firstWhere((t) => t.id == id);
       expect(task.status, FileTaskStatus.completed);
@@ -107,9 +110,9 @@ void main() {
     test('failTask updates status to error', () {
       final notifier = container.read(taskProvider.notifier);
       final id = notifier.addTask(title: 'T1', subtitle: 'S1');
-      
+
       notifier.failTask(id, 'Failed!');
-      
+
       final state = container.read(taskProvider);
       final task = state.firstWhere((t) => t.id == id);
       expect(task.status, FileTaskStatus.error);
@@ -119,9 +122,9 @@ void main() {
     test('cancelTask marks task as cancelled', () {
       final notifier = container.read(taskProvider.notifier);
       final id = notifier.addTask(title: 'T1', subtitle: 'S1');
-      
+
       notifier.cancelTask(id);
-      
+
       final state = container.read(taskProvider);
       final task = state.firstWhere((t) => t.id == id);
       expect(task.isCancelled, isTrue);
@@ -130,19 +133,19 @@ void main() {
     test('removeTask removes task from state', () {
       final notifier = container.read(taskProvider.notifier);
       final id = notifier.addTask(title: 'T1', subtitle: 'S1');
-      
+
       expect(container.read(taskProvider).length, 1);
-      
+
       notifier.removeTask(id);
-      
+
       expect(container.read(taskProvider), isEmpty);
     });
 
     test('getters work correctly', () {
       final notifier = container.read(taskProvider.notifier);
-      
+
       notifier.maxConcurrent = 1;
-      
+
       // Heavy task
       notifier.addTask(title: 'H1', subtitle: 'H1');
       // Another heavy task (pending)
@@ -155,30 +158,30 @@ void main() {
       expect(notifier.pendingTasks.length, 1);
       expect(notifier.hasActiveHeavyTasks, isTrue);
       expect(notifier.hasActiveTasks, isTrue);
-      
+
       // Progress calculation
       notifier.updateProgress(notifier.runningTasks[0].id, 0.5);
       expect(notifier.totalProgress, greaterThan(0));
-      
+
       notifier.failTask(notifier.runningTasks[0].id, 'err');
       expect(notifier.hasErrors, isTrue);
-      
+
       expect(notifier.historyTasks.length, 1);
     });
-    
+
     test('setSyncing, addLog, refreshTasks, currentItem work', () {
       final notifier = container.read(taskProvider.notifier);
       final id = notifier.addTask(title: 'T', subtitle: 'S');
-      
+
       notifier.setSyncing(id);
       expect(container.read(taskProvider).first.isSyncing, isTrue);
-      
+
       notifier.addLog(id, 'Log msg');
       expect(container.read(taskProvider).first.logs, ['Log msg']);
-      
+
       notifier.updateCurrentItem(id, 'file.txt');
       expect(container.read(taskProvider).first.currentItem, 'file.txt');
-      
+
       notifier.refreshTasks();
     });
 
@@ -186,22 +189,22 @@ void main() {
       final notifier = container.read(taskProvider.notifier);
       notifier.addTask(title: 'T1', subtitle: 'S1');
       notifier.addTask(title: 'T2', subtitle: 'S2');
-      
+
       await notifier.cancelAllTasks();
-      
+
       final state = container.read(taskProvider);
       expect(state.every((t) => t.isCancelled), isTrue);
-      
+
       notifier.clearHistory();
       expect(container.read(taskProvider), isEmpty);
     });
-    
+
     test('isTaskCancelled and port registration', () async {
       final notifier = container.read(taskProvider.notifier);
       final id = notifier.addTask(title: 'T', subtitle: 'S');
-      
+
       expect(notifier.isTaskCancelled(id), isFalse);
-      
+
       notifier.cancelTask(id);
       expect(notifier.isTaskCancelled(id), isTrue);
     });

@@ -7,14 +7,16 @@ import 'package:onyxcore/features/image_viewer/presentation/controllers/image_zo
 import 'package:onyxcore/features/image_viewer/presentation/engines/zoom_animation_engine.dart';
 
 class MockZoomAnimationEngine extends ZoomAnimationEngine {
-  MockZoomAnimationEngine() : super(animationController: AnimationController(vsync: const TestVSync()), onTick: (_) {});
+  MockZoomAnimationEngine()
+    : super(
+        animationController: AnimationController(vsync: const TestVSync()),
+        onTick: (_) {},
+      );
 }
 
 class MockImageZoomController extends ImageZoomController {
-  MockImageZoomController() : super(
-    animationEngine: MockZoomAnimationEngine(),
-  );
-  
+  MockImageZoomController() : super(animationEngine: MockZoomAnimationEngine());
+
   double _mockCurrentScale = 1;
   @override
   double get currentScale => _mockCurrentScale;
@@ -28,7 +30,11 @@ class MockImageZoomController extends ImageZoomController {
   bool lastSetZoomAnimate = true;
 
   @override
-  void setZoom(double newScale, {required Offset focalPoint, bool animate = true}) {
+  void setZoom(
+    double newScale, {
+    required Offset focalPoint,
+    bool animate = true,
+  }) {
     setZoomCalls++;
     lastSetZoomAnimate = animate;
   }
@@ -71,17 +77,17 @@ void main() {
     });
 
     test('handlePointerSignal without ctrl zooms if scroll up', () {
-      // With HardwareKeyboard mocking being difficult without integration test widget, 
+      // With HardwareKeyboard mocking being difficult without integration test widget,
       // we assume default is ctrl NOT pressed.
-      
+
       // Wait, in plain dart test, HardwareKeyboard.instance.logicalKeysPressed is empty.
       final event = PointerScrollEvent(scrollDelta: const Offset(0, 10));
       handler.handlePointerSignal(event);
-      
+
       // If ctrl is not pressed, and scale is 1.0, it shouldn't translate
       expect(mockController.applyTranslationCalls, equals(0));
       expect(mockController.setZoomCalls, equals(0));
-      
+
       // If scale > 1.05, it should translate
       mockController._mockCurrentScale = 2.0;
       handler.handlePointerSignal(event);
@@ -104,23 +110,33 @@ void main() {
       final eventPinch = PointerPanZoomUpdateEvent(scale: 2);
       handler.handlePanZoomUpdate(eventPinch);
       expect(mockController.updatePinchGestureCalls, equals(1));
-      
+
       mockController._mockCurrentScale = 2.0;
-      final eventTranslate = PointerPanZoomUpdateEvent(panDelta: const Offset(10, 10));
+      final eventTranslate = PointerPanZoomUpdateEvent(
+        panDelta: const Offset(10, 10),
+      );
       handler.handlePanZoomUpdate(eventTranslate);
       expect(mockController.applyTranslationCalls, equals(1));
     });
 
-    testWidgets('continuous wheel input does not restart zoom animations', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: Text('test'))));
+    testWidgets('continuous wheel input does not restart zoom animations', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: Text('test'))),
+      );
       await simulateKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      
+
       final event = PointerScrollEvent(scrollDelta: const Offset(0, 10));
       handler.handlePointerSignal(event);
-      
+
       expect(mockController.setZoomCalls, equals(1));
-      expect(mockController.lastSetZoomAnimate, equals(false), reason: 'Continuous scroll should not restart animation');
-      
+      expect(
+        mockController.lastSetZoomAnimate,
+        equals(false),
+        reason: 'Continuous scroll should not restart animation',
+      );
+
       await simulateKeyUpEvent(LogicalKeyboardKey.controlLeft);
     });
   });

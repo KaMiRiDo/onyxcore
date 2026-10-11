@@ -43,11 +43,19 @@ class DmlCryptoService {
   // App-internal key for DML encryption.
   static const _appSecret = 'OnyxCoreDMLKey_2026_SecureStorage!';
 
-  static final Uint8List _magicBytes =
-      Uint8List.fromList([0x44, 0x4D, 0x4C, 0x01]); // "DML\x01"
-      
-  static final Uint8List _magicBytesLocked =
-      Uint8List.fromList([0x44, 0x4D, 0x4C, 0x02]); // "DML\x02"
+  static final Uint8List _magicBytes = Uint8List.fromList([
+    0x44,
+    0x4D,
+    0x4C,
+    0x01,
+  ]); // "DML\x01"
+
+  static final Uint8List _magicBytesLocked = Uint8List.fromList([
+    0x44,
+    0x4D,
+    0x4C,
+    0x02,
+  ]); // "DML\x02"
 
   // ── Sync (for small payloads or already-isolated callers) ─────────────────
 
@@ -90,7 +98,7 @@ class DmlCryptoService {
       if (dmlBytes[i] != _magicBytesLocked[i]) isLocked = false;
       if (dmlBytes[i] != _magicBytes[i]) isDefault = false;
     }
-    
+
     if (!isLocked && !isDefault) {
       throw const FormatException('Invalid DML file: incorrect magic bytes');
     }
@@ -122,27 +130,30 @@ class DmlCryptoService {
         throw const DmlLockedException('Incorrect password');
       }
       throw const FormatException(
-          'Failed to decrypt DML file (tampered or corrupt)');
+        'Failed to decrypt DML file (tampered or corrupt)',
+      );
     }
   }
 
   // ── Async isolate variants (use these from the UI thread) ─────────────────
 
   /// Encrypts [jsonPayload] on a background isolate so the UI stays responsive.
-  static Future<Uint8List> encryptInIsolate(String jsonPayload, {String? password}) =>
-      compute(_encryptIsolateEntry, _EncryptParams(jsonPayload, password));
+  static Future<Uint8List> encryptInIsolate(
+    String jsonPayload, {
+    String? password,
+  }) => compute(_encryptIsolateEntry, _EncryptParams(jsonPayload, password));
 
   /// Decrypts [dmlBytes] on a background isolate so the UI stays responsive.
-  static Future<String> decryptInIsolate(Uint8List dmlBytes, {String? password}) =>
-      compute(_decryptIsolateEntry, _DecryptParams(dmlBytes, password));
+  static Future<String> decryptInIsolate(
+    Uint8List dmlBytes, {
+    String? password,
+  }) => compute(_decryptIsolateEntry, _DecryptParams(dmlBytes, password));
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  static bool isDmlFile(String path) =>
-      path.toLowerCase().endsWith('.dml');
+  static bool isDmlFile(String path) => path.toLowerCase().endsWith('.dml');
 
-  static bool isJsonFile(String path) =>
-      path.toLowerCase().endsWith('.json');
+  static bool isJsonFile(String path) => path.toLowerCase().endsWith('.json');
 
   static Uint8List _deriveKey(String password) {
     final bytes = utf8.encode(password);

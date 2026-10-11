@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class MarkdownSyntaxHighlighter extends TextEditingController {
-
   MarkdownSyntaxHighlighter({
     super.text,
     this.searchQuery = '',
@@ -17,7 +16,8 @@ class MarkdownSyntaxHighlighter extends TextEditingController {
   @override
   TextSpan buildTextSpan({
     required BuildContext context,
-    required bool withComposing, TextStyle? style,
+    required bool withComposing,
+    TextStyle? style,
   }) {
     final children = <TextSpan>[];
     final source = text;

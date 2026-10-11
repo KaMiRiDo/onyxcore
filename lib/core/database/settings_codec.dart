@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:onyxcore/core/database/app_database.dart' show AppDatabase, Settings;
+import 'package:onyxcore/core/database/app_database.dart'
+    show AppDatabase, Settings;
 
 /// Centralized helpers for encoding/decoding values stored in the [Settings]
 /// Drift table. All settings serialization goes through these helpers so that

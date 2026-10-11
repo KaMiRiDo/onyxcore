@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class InteractionQualityNotifier extends ChangeNotifier {
   bool _isActive = false;
   bool get isActive => _isActive;
-  
+
   Timer? _settleTimer;
   static const _settleDelay = Duration(milliseconds: 200);
 

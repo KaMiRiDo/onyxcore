@@ -117,9 +117,7 @@ class _RubberBandOverlayState extends ConsumerState<RubberBandOverlay> {
 
     final combined = Set<String>.from(_initialSelection)
       ..addAll(currentRectPaths);
-    ref
-        .read(selectionProvider.notifier)
-        .selectMultiple(combined.toList());
+    ref.read(selectionProvider.notifier).selectMultiple(combined.toList());
   }
 }
 

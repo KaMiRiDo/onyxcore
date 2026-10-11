@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_shared_controller.dart';
 
-
 void main() {
   group('importListFromFile Edge Cases', () {
     late ProviderContainer container;
@@ -27,7 +26,9 @@ void main() {
     test('reloads from file if cached state is empty', () async {
       final exportPath = '${tempDir.path}/test_export.json';
       final file = File(exportPath);
-      await file.writeAsString('{"items":[{"originalUrl":"https://example.com"}]}');
+      await file.writeAsString(
+        '{"items":[{"originalUrl":"https://example.com"}]}',
+      );
 
       // Prime the cache with an empty state manually
       cache.switchList(exportPath);

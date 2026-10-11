@@ -8,7 +8,6 @@ import 'package:onyxcore/features/downloader/services/engines/engine_registry.da
 import 'package:path/path.dart' as p;
 
 class DownloaderUpdateState {
-
   const DownloaderUpdateState({
     this.isUpdating = false,
     this.progress = 0.0,
@@ -51,7 +50,8 @@ class DownloaderUpdateState {
       installedVersions: installedVersions ?? this.installedVersions,
       latestVersions: latestVersions ?? this.latestVersions,
       isCheckingForUpdates: isCheckingForUpdates ?? this.isCheckingForUpdates,
-      currentUpdatingEngineName: currentUpdatingEngineName ?? this.currentUpdatingEngineName,
+      currentUpdatingEngineName:
+          currentUpdatingEngineName ?? this.currentUpdatingEngineName,
     );
   }
 }
@@ -101,21 +101,23 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
     if (!venvDir.existsSync()) {
       final res = await Process.run('python3', ['-m', 'venv', venvPath]);
       if (res.exitCode != 0) {
-        throw Exception('Failed to create global virtual environment: ${res.stderr}');
+        throw Exception(
+          'Failed to create global virtual environment: ${res.stderr}',
+        );
       }
     }
   }
 
   Future<void> updateAll({bool defaultOnly = false}) async {
     if (state.isUpdating) return;
-    
+
     try {
       await _ensureGlobalVenv();
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return;
     }
-    
+
     state = state.copyWith(
       isUpdating: true,
       progress: 0,
@@ -128,7 +130,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
       final vLat = state.latestVersions[e.id];
       final isUpdateAvailable = vInst != vLat && e.isInstalled;
       final isMissingRequired = !e.isInstalled && !e.isOptional;
-      
+
       if (!isUpdateAvailable && !isMissingRequired) return false;
       if (defaultOnly && e.isOptional) return false;
       return true;
@@ -168,12 +170,16 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
           final processFuture = engine.install();
           if (processFuture != null) {
             final process = await processFuture;
-            unawaited(process.stdout.drain<void>()); // Consume stdout to prevent pipe deadlock
+            unawaited(
+              process.stdout.drain<void>(),
+            ); // Consume stdout to prevent pipe deadlock
             final stderrFuture = process.stderr.transform(utf8.decoder).join();
             final exitCode = await process.exitCode;
             if (exitCode != 0) {
               final stderrStr = await stderrFuture;
-              throw Exception('${engine.displayName} installation failed: $stderrStr');
+              throw Exception(
+                '${engine.displayName} installation failed: $stderrStr',
+              );
             }
           }
         }
@@ -214,7 +220,9 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
       // Only install engines that are actually missing
       final engines = EngineRegistry.missingRequired
-          .where((e) => e.updateInfo != null || e.engineType == EngineType.python)
+          .where(
+            (e) => e.updateInfo != null || e.engineType == EngineType.python,
+          )
           .toList();
       if (engines.isEmpty) {
         state = const DownloaderUpdateState(progress: 1);
@@ -224,19 +232,23 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
       for (var i = 0; i < engines.length; i++) {
         final engine = engines[i];
-        
+
         state = state.copyWith(currentUpdatingEngineName: engine.displayName);
 
         if (engine.engineType == EngineType.python) {
           final processFuture = engine.install();
           if (processFuture != null) {
             final process = await processFuture;
-            unawaited(process.stdout.drain<void>()); // Consume stdout to prevent pipe deadlock
+            unawaited(
+              process.stdout.drain<void>(),
+            ); // Consume stdout to prevent pipe deadlock
             final stderrFuture = process.stderr.transform(utf8.decoder).join();
             final exitCode = await process.exitCode;
             if (exitCode != 0) {
               final stderrStr = await stderrFuture;
-              throw Exception('${engine.displayName} installation failed: $stderrStr');
+              throw Exception(
+                '${engine.displayName} installation failed: $stderrStr',
+              );
             }
           }
         } else if (engine.updateInfo != null && engine.binaryPath != null) {
@@ -287,22 +299,28 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         final processFuture = engine.install();
         if (processFuture != null) {
           final process = await processFuture;
-          unawaited(process.stdout.drain<void>()); // Consume stdout to prevent pipe deadlock
+          unawaited(
+            process.stdout.drain<void>(),
+          ); // Consume stdout to prevent pipe deadlock
           final stderrFuture = process.stderr.transform(utf8.decoder).join();
           final exitCode = await process.exitCode;
           if (exitCode != 0) {
             final stderrStr = await stderrFuture;
-            throw Exception('${engine.displayName} installation failed: $stderrStr');
+            throw Exception(
+              '${engine.displayName} installation failed: $stderrStr',
+            );
           }
         }
       }
 
       // Clean up progress upon completion
-      final updatedProgress = Map<String, double>.from(state.engineProgress)..remove(engine.id);
+      final updatedProgress = Map<String, double>.from(state.engineProgress)
+        ..remove(engine.id);
       state = state.copyWith(engineProgress: updatedProgress);
       await checkForUpdates(clearError: false);
     } catch (e) {
-      final updatedProgress = Map<String, double>.from(state.engineProgress)..remove(engine.id);
+      final updatedProgress = Map<String, double>.from(state.engineProgress)
+        ..remove(engine.id);
       state = state.copyWith(
         error: '${engine.id}:$e',
         engineProgress: updatedProgress,
@@ -321,7 +339,7 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
     final newEngineProgress = Map<String, double>.from(state.engineProgress);
     newEngineProgress[engine.id] = -1.0; // -1 represents indeterminate progress
-    
+
     final newRemoving = Set<String>.from(state.removingEngines);
     if (isRemoving) newRemoving.add(engine.id);
 
@@ -336,14 +354,18 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         await _ensureGlobalVenv();
       }
       final process = await processFuture;
-      unawaited(process.stdout.drain<void>()); // Consume stdout to prevent pipe deadlock
+      unawaited(
+        process.stdout.drain<void>(),
+      ); // Consume stdout to prevent pipe deadlock
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
       final exitCode = await process.exitCode;
       final stderr = await stderrFuture;
 
-      final updatedProgress = Map<String, double>.from(state.engineProgress)..remove(engine.id);
+      final updatedProgress = Map<String, double>.from(state.engineProgress)
+        ..remove(engine.id);
 
-      final updatedRemoving = Set<String>.from(state.removingEngines)..remove(engine.id);
+      final updatedRemoving = Set<String>.from(state.removingEngines)
+        ..remove(engine.id);
 
       if (exitCode != 0) {
         state = state.copyWith(
@@ -359,9 +381,11 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
         await checkForUpdates(clearError: false);
       }
     } catch (e) {
-      final updatedProgress = Map<String, double>.from(state.engineProgress)..remove(engine.id);
-      
-      final updatedRemoving = Set<String>.from(state.removingEngines)..remove(engine.id);
+      final updatedProgress = Map<String, double>.from(state.engineProgress)
+        ..remove(engine.id);
+
+      final updatedRemoving = Set<String>.from(state.removingEngines)
+        ..remove(engine.id);
 
       state = state.copyWith(
         error: '${engine.id}:$e',
@@ -374,10 +398,14 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
   Future<void> _downloadLatestRelease({
     required String apiUrl,
     required String assetName,
-    required String savePath, required double progressWeight, required double progressOffset, String? checksumAssetName,
+    required String savePath,
+    required double progressWeight,
+    required double progressOffset,
+    String? checksumAssetName,
     String? engineId,
   }) async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 60);
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 60);
 
     try {
       final req = await client.getUrl(Uri.parse(apiUrl));
@@ -390,7 +418,8 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
       final resBody = await res.transform(utf8.decoder).join();
       final json = jsonDecode(resBody) as Map<String, dynamic>;
-      final assets = (json['assets'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
+      final assets = (json['assets'] as List<dynamic>?)
+          ?.cast<Map<String, dynamic>>();
 
       if (assets == null || assets.isEmpty) {
         throw Exception('No assets found in the release');
@@ -425,11 +454,15 @@ class DownloaderUpdateNotifier extends Notifier<DownloaderUpdateState> {
 
       final isTarGz = assetName.endsWith('.tar.gz');
       final isZip = assetName.endsWith('.zip');
-      final targetPath = isTarGz ? '$savePath.tar.gz' : (isZip ? '$savePath.zip' : savePath);
+      final targetPath = isTarGz
+          ? '$savePath.tar.gz'
+          : (isZip ? '$savePath.zip' : savePath);
       final file = File(targetPath);
       final sink = file.openWrite();
 
-      await for (final chunk in downloadRes.timeout(const Duration(seconds: 60))) {
+      await for (final chunk in downloadRes.timeout(
+        const Duration(seconds: 60),
+      )) {
         sink.add(chunk);
         downloaded += chunk.length;
 

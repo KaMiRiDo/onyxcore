@@ -48,8 +48,6 @@ void main() {
     }
   });
 
-
-
   setUp(() {
     // Backup real binary if exists
     if (luxBinaryFile.existsSync()) {
@@ -72,7 +70,8 @@ void main() {
   });
 
   void setMockLuxOutput(String output, {int delayMs = 0}) {
-    final script = '''#!/bin/bash
+    final script =
+        '''#!/bin/bash
 sleep ${delayMs / 1000}
 cat << 'EOF'
 $output
@@ -88,7 +87,10 @@ EOF
         // LuxEngine currently uses a hardcoded path in ~/.local/share/onyxcore/bin/lux
         // It does not dynamically resolve like streamlink or you-get.
         final home = Platform.environment['HOME'] ?? '';
-        expect(LuxEngine().binaryPath, p.join(home, '.local', 'share', 'onyxcore', 'bin', 'lux'));
+        expect(
+          LuxEngine().binaryPath,
+          p.join(home, '.local', 'share', 'onyxcore', 'bin', 'lux'),
+        );
       });
 
       test('U-DL-LUX-02: Fallback to which if not in common paths', () {
@@ -108,9 +110,11 @@ EOF
             '1080p': {
               'quality': '1080p High',
               'size': 1048576,
-              'parts': [{'ext': 'mp4'}]
-            }
-          }
+              'parts': [
+                {'ext': 'mp4'},
+              ],
+            },
+          },
         });
         setMockLuxOutput(mockJson);
 
@@ -128,7 +132,7 @@ EOF
         // If streams object is missing, it should just yield an empty format list
         final mockJson = jsonEncode({
           'url': 'http://video.com/1',
-          'title': 'Missing Streams Video'
+          'title': 'Missing Streams Video',
         });
         setMockLuxOutput(mockJson);
 
@@ -141,7 +145,7 @@ EOF
         // Handled naturally by the bash script outputting all at once
         final mockJson = jsonEncode([
           {'url': 'v1', 'title': 't1'},
-          {'url': 'v2', 'title': 't2'}
+          {'url': 'v2', 'title': 't2'},
         ]);
         setMockLuxOutput(mockJson);
 
@@ -169,26 +173,39 @@ EOF
       test('U-DL-LUX-07: Construct proper -f argument', () async {
         // We just verify startDownload doesn't crash, but it actually spawns the mocked script.
         setMockLuxOutput(''); // It will execute the bash script and exit 0.
-        
+
         final process = await engine.startDownload(
           url: 'http://video.com/1',
           destination: '/tmp',
-          format: const MediaFormat(formatId: 'mp4', extension: 'mp4', resolution: '1080p', formatString: '1080p (mp4)'),
+          format: const MediaFormat(
+            formatId: 'mp4',
+            extension: 'mp4',
+            resolution: '1080p',
+            formatString: '1080p (mp4)',
+          ),
         );
         final exitCode = await process.exitCode;
         expect(exitCode, 0);
       });
 
-      test('U-DL-LUX-08: Construct download args with output and threads', () async {
-        setMockLuxOutput(''); 
-        final process = await engine.startDownload(
-          url: 'http://video.com/1',
-          destination: '/tmp',
-          title: 'My Video',
-          format: const MediaFormat(formatId: '1080p', extension: 'mp4', resolution: '1080p', formatString: '1080p (mp4)'),
-        );
-        expect(await process.exitCode, 0);
-      });
+      test(
+        'U-DL-LUX-08: Construct download args with output and threads',
+        () async {
+          setMockLuxOutput('');
+          final process = await engine.startDownload(
+            url: 'http://video.com/1',
+            destination: '/tmp',
+            title: 'My Video',
+            format: const MediaFormat(
+              formatId: '1080p',
+              extension: 'mp4',
+              resolution: '1080p',
+              formatString: '1080p (mp4)',
+            ),
+          );
+          expect(await process.exitCode, 0);
+        },
+      );
 
       test('U-DL-LUX-09: Path contains spaces', () async {
         setMockLuxOutput('');

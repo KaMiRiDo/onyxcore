@@ -8,7 +8,6 @@ import 'package:onyxcore/core/platform/disk_usage.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 
 class CategoryStats {
-
   const CategoryStats({this.count = 0, this.totalBytes = 0});
   final int count;
   final int totalBytes;
@@ -22,7 +21,6 @@ class CategoryStats {
 }
 
 class DirectoryAnalysisResult {
-
   const DirectoryAnalysisResult({
     required this.path,
     required this.totalItems,
@@ -40,17 +38,12 @@ class DirectoryAnalysisResult {
 }
 
 class FileStatData {
-
-  const FileStatData({
-    required this.size,
-    required this.modified,
-  });
+  const FileStatData({required this.size, required this.modified});
   final int size;
   final DateTime modified;
 }
 
 class FileStatWithInfo {
-
   const FileStatWithInfo({
     required this.path,
     required this.name,
@@ -64,7 +57,6 @@ class FileStatWithInfo {
 }
 
 class _AnalysisParams {
-
   _AnalysisParams(this.path, this.sendPort);
   final String path;
   final SendPort sendPort;
@@ -133,7 +125,9 @@ Future<DirectoryAnalysisResult> _analyzeDirectoryInIsolate(
           );
 
           if (totalItems % 1000 == 0) {
-            params.sendPort.send(DirectoryAnalysisProgress(totalItems, totalBytes));
+            params.sendPort.send(
+              DirectoryAnalysisProgress(totalItems, totalBytes),
+            );
           }
         } catch (_) {}
       }
@@ -163,69 +157,82 @@ Future<void> _isolateEntry(_IsolateMessage msg) async {
   msg.sendPort.send(result);
 }
 
-final directoryAnalysisProgressProvider = StateProvider.autoDispose.family<DirectoryAnalysisProgress?, String>((ref, path) {
-  return null;
-});
+final directoryAnalysisProgressProvider = StateProvider.autoDispose
+    .family<DirectoryAnalysisProgress?, String>((ref, path) {
+      return null;
+    });
 
-final directoryAnalysisStateProvider = StateProvider.autoDispose.family<AsyncValue<DirectoryAnalysisResult>?, String>((ref, path) {
-  return null;
-});
+final directoryAnalysisStateProvider = StateProvider.autoDispose
+    .family<AsyncValue<DirectoryAnalysisResult>?, String>((ref, path) {
+      return null;
+    });
 
-final directoryAnalysisProvider = FutureProvider.autoDispose.family<DirectoryAnalysisResult, String>((ref, path) async {
-  final cached = ref.watch(directoryAnalysisStateProvider(path));
-  if (cached != null) {
-    if (cached.hasError) throw cached.error!;
-    return cached.value!;
-  }
+final directoryAnalysisProvider = FutureProvider.autoDispose
+    .family<DirectoryAnalysisResult, String>((ref, path) async {
+      final cached = ref.watch(directoryAnalysisStateProvider(path));
+      if (cached != null) {
+        if (cached.hasError) throw cached.error!;
+        return cached.value!;
+      }
 
-  // 1. Get disk usage in main thread
-  final diskUsage = await getDiskUsage(path);
+      // 1. Get disk usage in main thread
+      final diskUsage = await getDiskUsage(path);
 
-  // 2. Spawn isolate for recursive traversal
-  final receivePort = ReceivePort();
-  final isolate = await Isolate.spawn(
-    _isolateEntry,
-    _IsolateMessage(_AnalysisParams(path, receivePort.sendPort), receivePort.sendPort),
-  );
+      // 2. Spawn isolate for recursive traversal
+      final receivePort = ReceivePort();
+      final isolate = await Isolate.spawn(
+        _isolateEntry,
+        _IsolateMessage(
+          _AnalysisParams(path, receivePort.sendPort),
+          receivePort.sendPort,
+        ),
+      );
 
-  ref.onDispose(() {
-    isolate.kill(priority: Isolate.immediate);
-    receivePort.close();
-  });
+      ref.onDispose(() {
+        isolate.kill(priority: Isolate.immediate);
+        receivePort.close();
+      });
 
-  DirectoryAnalysisResult? result;
-  await for (final message in receivePort) {
-    if (message is DirectoryAnalysisProgress) {
-      ref.read(directoryAnalysisProgressProvider(path).notifier).state = message;
-    } else if (message is DirectoryAnalysisResult) {
-      result = message;
-      break;
-    }
-  }
-  
-  isolate.kill();
+      DirectoryAnalysisResult? result;
+      await for (final message in receivePort) {
+        if (message is DirectoryAnalysisProgress) {
+          ref.read(directoryAnalysisProgressProvider(path).notifier).state =
+              message;
+        } else if (message is DirectoryAnalysisResult) {
+          result = message;
+          break;
+        }
+      }
 
-  if (result == null) {
-    throw Exception('Analysis failed to return a result.');
-  }
+      isolate.kill();
 
-  return DirectoryAnalysisResult(
-    path: result.path,
-    totalItems: result.totalItems,
-    totalBytes: result.totalBytes,
-    diskUsage: diskUsage,
-    categoryStats: result.categoryStats,
-    allFiles: result.allFiles,
-  );
-});
+      if (result == null) {
+        throw Exception('Analysis failed to return a result.');
+      }
 
-void removeFilesFromAnalysis(WidgetRef ref, String path, List<String> pathsToRemove) {
+      return DirectoryAnalysisResult(
+        path: result.path,
+        totalItems: result.totalItems,
+        totalBytes: result.totalBytes,
+        diskUsage: diskUsage,
+        categoryStats: result.categoryStats,
+        allFiles: result.allFiles,
+      );
+    });
+
+void removeFilesFromAnalysis(
+  WidgetRef ref,
+  String path,
+  List<String> pathsToRemove,
+) {
   final currentAsync = ref.read(directoryAnalysisProvider(path));
   if (!currentAsync.hasValue) return;
   final currentResult = currentAsync.value!;
 
   final pathsSet = pathsToRemove.toSet();
-  final newAllFiles = currentResult.allFiles.where((f) => !pathsSet.contains(f.path)).toList();
+  final newAllFiles = currentResult.allFiles
+      .where((f) => !pathsSet.contains(f.path))
+      .toList();
 
   // Recompute stats
   var totalItems = 0;
@@ -259,5 +266,7 @@ void removeFilesFromAnalysis(WidgetRef ref, String path, List<String> pathsToRem
     allFiles: newAllFiles,
   );
 
-  ref.read(directoryAnalysisStateProvider(path).notifier).state = AsyncData(newResult);
+  ref.read(directoryAnalysisStateProvider(path).notifier).state = AsyncData(
+    newResult,
+  );
 }

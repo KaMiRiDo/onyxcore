@@ -61,22 +61,19 @@ class _ImageCanvasState extends State<ImageCanvas> {
         : FileImage(File(widget.imagePath)) as ImageProvider;
 
     _imageStream = baseProvider.resolve(ImageConfiguration.empty);
-    _imageStreamListener = ImageStreamListener(
-      (imageInfo, synchronousCall) {
-        if (!mounted) return;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            widget.onImageSizeResolved?.call(
-              Size(
-                imageInfo.image.width.toDouble(),
-                imageInfo.image.height.toDouble(),
-              ),
-            );
-          }
-        });
-      },
-      onError: (_, __) {},
-    );
+    _imageStreamListener = ImageStreamListener((imageInfo, synchronousCall) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.onImageSizeResolved?.call(
+            Size(
+              imageInfo.image.width.toDouble(),
+              imageInfo.image.height.toDouble(),
+            ),
+          );
+        }
+      });
+    }, onError: (_, __) {});
     _imageStream?.addListener(_imageStreamListener!);
   }
 
@@ -186,13 +183,15 @@ class _ImageCanvasState extends State<ImageCanvas> {
       if (isNetwork) {
         return SvgPicture.network(
           widget.imagePath,
-          placeholderBuilder: (_) => const Center(child: BubbleLoader(size: 60)),
+          placeholderBuilder: (_) =>
+              const Center(child: BubbleLoader(size: 60)),
           errorBuilder: errorBuilder,
         );
       } else {
         return SvgPicture.file(
           File(widget.imagePath),
-          placeholderBuilder: (_) => const Center(child: BubbleLoader(size: 60)),
+          placeholderBuilder: (_) =>
+              const Center(child: BubbleLoader(size: 60)),
           errorBuilder: errorBuilder,
         );
       }
@@ -257,4 +256,3 @@ class _ImageCanvasState extends State<ImageCanvas> {
     );
   }
 }
-

@@ -268,7 +268,8 @@ class YtDlpEngine extends DownloadEngine {
                 originalUrl: url,
               );
               if (info.galleryIndex == null) {
-                final idx = json['playlist_index'] as int? ??
+                final idx =
+                    json['playlist_index'] as int? ??
                     json['n_entries'] as int? ??
                     (parsedInfos.length + 1);
                 info = info.copyWith(galleryIndex: idx);
@@ -382,7 +383,8 @@ class YtDlpEngine extends DownloadEngine {
     if (directUrl == null || directUrl.isEmpty) return info;
 
     try {
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 3);
       final req = await client.headUrl(Uri.parse(directUrl));
 
       final headers = json['http_headers'] as Map<String, dynamic>?;
@@ -518,10 +520,6 @@ class YtDlpEngine extends DownloadEngine {
           '${Platform.environment['PATH'] ?? ''}:${p.dirname(DenoRuntime.managedPath)}:/usr/local/bin:/opt/homebrew/bin',
     };
 
-    return Process.start(
-      binaryPath!,
-      args,
-      environment: customEnv,
-    );
+    return Process.start(binaryPath!, args, environment: customEnv);
   }
 }

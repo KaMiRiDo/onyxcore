@@ -1,5 +1,6 @@
 /// Formatting utilities used across the application.
 library;
+
 import 'package:flutter/widgets.dart';
 
 /// Formats a [Duration] as MM:SS.

@@ -1,5 +1,5 @@
-import 'package:onyxcore/core/platform/directory_watcher.dart' show DirectoryWatcher;
-
+import 'package:onyxcore/core/platform/directory_watcher.dart'
+    show DirectoryWatcher;
 
 /// In-memory LRU cache for directory listings.
 ///
