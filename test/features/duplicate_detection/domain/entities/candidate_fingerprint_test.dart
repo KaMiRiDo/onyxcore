@@ -61,5 +61,13 @@ void main() {
       final fp2 = CandidateFingerprint(candidatePath: '/b.jpg', bytes: tBytes);
       expect(fp1, isNot(equals(fp2)));
     });
+
+    test('toHexString formats exactly 64 hex characters', () {
+      final bytes = List<int>.generate(32, (i) => i);
+      final fp = CandidateFingerprint(candidatePath: '/a.jpg', bytes: bytes);
+      final hex = fp.toHexString();
+      expect(hex.length, 64);
+      expect(hex, startsWith('000102030405060708090a0b0c0d0e0f'));
+    });
   });
 }

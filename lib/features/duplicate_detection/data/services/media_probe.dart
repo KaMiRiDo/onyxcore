@@ -10,4 +10,14 @@ class MediaProbe {
   /// Runs `ffprobe` with the given [args] and returns the [ProcessResult].
   Future<ProcessResult> runFfprobe(List<String> args) =>
       Process.run('ffprobe', args);
+
+  /// Runs `ffmpeg` with the given [args] and returns the [ProcessResult].
+  Future<ProcessResult> runFfmpeg(
+    List<String> args, {
+    bool binaryOutput = true,
+  }) => Process.run(
+    'ffmpeg',
+    args,
+    stdoutEncoding: binaryOutput ? null : systemEncoding,
+  );
 }

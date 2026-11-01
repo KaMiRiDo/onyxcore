@@ -8,6 +8,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_utils.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
+import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/archive_manager/presentation/providers/archive_provider.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
@@ -802,7 +804,27 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           }
         },
       ),
-      if (widget.item.type == FileItemType.folder)
+      if (widget.item.type == FileItemType.folder) ...[
+        if (!isInTrash)
+          ContextMenuItem(
+            title: 'Compare Folders...',
+            icon: Icons.compare_arrows_rounded,
+            onTap: () {
+              final destPath = (paths.length > 1) ? paths[1] : null;
+              unawaited(
+                PersistentViewerManager.openMedia(
+                  WindowParams(
+                    viewerType: ViewerType.duplicateCompare,
+                    file: widget.item,
+                    initParams: {
+                      'sourceFolder': widget.item.path,
+                      if (destPath != null) 'destinationFolder': destPath,
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
         ContextMenuItem(
           title: 'Open in Terminal',
           icon: Icons.terminal_rounded,
@@ -812,6 +834,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
             ]);
           },
         ),
+      ],
       ContextMenuItem.divider(),
       ContextMenuItem(
         title: 'Properties',

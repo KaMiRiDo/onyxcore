@@ -1,5 +1,31 @@
 import 'package:equatable/equatable.dart';
 
+/// The nature of a duplicate match found by Stage 2.
+enum MatchType {
+  /// Exact match: 100% identical 256-bit fingerprint.
+  exact,
+
+  /// Perceptual match: fingerprints meet or exceed the similarity threshold.
+  perceptual,
+}
+
+/// Record of an individual candidate file failure during comparison.
+class ComparisonFailure extends Equatable {
+  const ComparisonFailure({required this.candidatePath, required this.error});
+
+  /// Path to the candidate that encountered an error.
+  final String candidatePath;
+
+  /// Error description.
+  final String error;
+
+  @override
+  String toString() => 'ComparisonFailure($candidatePath): $error';
+
+  @override
+  List<Object?> get props => [candidatePath, error];
+}
+
 /// A single source → destination match pair.
 ///
 /// Immutable: the matched pair is determined by Stage 2 fingerprint comparison
@@ -9,6 +35,7 @@ class MatchedPair extends Equatable {
     required this.sourcePath,
     required this.destinationPath,
     required this.similarityScore,
+    this.matchType = MatchType.exact,
   });
 
   /// Absolute path of the source candidate file.
@@ -18,13 +45,18 @@ class MatchedPair extends Equatable {
   final String destinationPath;
 
   /// Similarity score in the range [0.0, 1.0] where 1.0 is an exact match.
-  ///
-  /// The precise meaning of the score is determined by the Stage 2
-  /// fingerprinting/comparison implementation.
   final double similarityScore;
 
+  /// Whether this match is exact or perceptual.
+  final MatchType matchType;
+
   @override
-  List<Object?> get props => [sourcePath, destinationPath, similarityScore];
+  List<Object?> get props => [
+    sourcePath,
+    destinationPath,
+    similarityScore,
+    matchType,
+  ];
 }
 
 /// Duplicate matches found for a single source file.
@@ -48,7 +80,7 @@ class DuplicateMatch extends Equatable {
   /// Convenience getter: the number of destination files that matched.
   int get matchCount => destinationMatches.length;
 
-  /// [true] when this source file has at least one destination match.
+  /// `true` when this source file has at least one destination match.
   bool get hasMatches => destinationMatches.isNotEmpty;
 
   @override
@@ -69,10 +101,11 @@ class ComparisonResult extends Equatable {
     required this.totalSourceCandidates,
     required this.totalDestinationCandidates,
     required this.completedAt,
+    this.failures = const [],
   });
 
   /// Opaque identifier linking this result to its originating
-  /// [ComparisonRequest].
+  /// comparison request.
   final String requestId;
 
   /// All source files that have at least one destination match.
@@ -87,10 +120,13 @@ class ComparisonResult extends Equatable {
   /// Timestamp when the comparison run completed.
   final DateTime completedAt;
 
+  /// Failures encountered during the comparison run.
+  final List<ComparisonFailure> failures;
+
   /// Convenience getter: total number of source files with at least one match.
   int get matchedSourceCount => matches.length;
 
-  /// Convenience getter: [true] when no matches were found.
+  /// Convenience getter: `true` when no matches were found.
   bool get isEmpty => matches.isEmpty;
 
   @override
@@ -100,5 +136,6 @@ class ComparisonResult extends Equatable {
     totalSourceCandidates,
     totalDestinationCandidates,
     completedAt,
+    failures,
   ];
 }

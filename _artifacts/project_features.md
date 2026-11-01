@@ -2001,7 +2001,7 @@ The Custom Extractor system allows power users to write JavaScript scripts that 
 
 ---
 
-### 14. Duplicate Detection (Phase 1 & 2)
+### 14. Duplicate Detection (Phases 1, 2, 3, 4, 5 & 6)
 
 A robust, highly decoupled domain layer designed to handle finding duplicate files across folders natively.
 
@@ -2013,10 +2013,38 @@ A robust, highly decoupled domain layer designed to handle finding duplicate fil
   - **Header-Only Extraction**: Reads metadata without decoding full media files (e.g., using `ffprobe` for video/audio, and custom binary parsers for images) to respect strict 1MB RAM constraints.
   - **Normalization & Tolerant Compatibility**: Uses ratio-based orientation and 5-second bucketing logic to gracefully group slightly mismatched media (e.g., 99.8% aspect ratios, 1-second drift) preventing false negatives.
   - **Pair Generation**: Efficiently groups compatible multi-file sets and filters out solitary/incompatible candidates, emitting paired streams via `Stage1Pipeline`.
+- **Stage 2 (Fingerprinting & Matching — Phase 3)**: Content-based 256-bit fingerprinting and comparison over candidate cluster pairs.
+  - **Type-Specific 256-Bit Fingerprinting**:
+    - **Images**: 17x16 luminance grid Difference Hash (dHash) producing 256 bits. Resolution-independent (e.g., 1080p matches 480p), format-independent (e.g., PNG matches JPG), with immediate memory release upon decoding.
+    - **Videos**: Bounded 4-frame perceptual sampling at 20%, 40%, 60%, 80% duration via `ffmpeg` scaling to 9x8 grayscale rawvideo (72 bytes/frame * 4 frames = 256 bits). Decodes only target frames via fast seek without reading full video.
+    - **Audio**: Bounded 4-segment acoustic sub-band energy tracking at 20%, 40%, 60%, 80% duration downsampled to 8 kHz mono 8-bit PCM (64 bits/segment * 4 segments = 256 bits). Evaluates acoustic frequency band energy without loading full audio files into memory.
+    - **Other / Documents / Archives**: Explicitly unsupported for fingerprinting; throws `FingerprintGenerationException` and records `ComparisonFailure` without false-positive matching.
+  - **Hamming Distance Comparator**: Constant-time precomputed popcount table computing bitwise distance across 32-byte fingerprints with normalized similarity score `1.0 - (distance / 256.0)`.
+  - **Configurable Thresholds (`ComparisonThresholdConfig`)**: Distinguishes exact vs. perceptual matches with domain-configured thresholds (image: 0.92, video: 0.90, audio: 0.90) and `exactMatchOnly` toggle.
+  - **Run-Scoped In-Memory Cache (`FingerprintCache`)**: Ensures each candidate's fingerprint is generated at most once per comparison run even when participating in multiple cluster pairs, and is cleared upon completion or cancellation. Zero persistent storage.
+  - **End-to-End Orchestrator (`DefaultComparisonOrchestrator`)**: Combines Stage 1 and Stage 2 into a single unified pipeline with bounded concurrency, cancellation support, progress reporting, and aggregate `ComparisonResult` output (including 1-to-1 and 1-to-many matches).
+- **Dedicated Compare Window & Multi-View Integration (Phase 4)**:
+  - **Multi-View Integration**: Introduces `ViewerType.duplicateCompare` seamlessly routed via `PersistentViewerManager.buildView(viewId)` into `CompareWindow`. Window reuse and foreground presentation are maintained through standard `PersistentViewerManager.openMedia(WindowParams(...))`.
+  - **Folder Selection & Validation**: `CompareConfigNotifier` manages folder paths and category (`ComparisonCategory`), performing validation against empty paths, missing/inaccessible directories, and identical source/destination paths. Integrates existing `CustomFilePickerDialog` for native directory picking.
+  - **Processing Lifecycle & Runner**: `ComparisonRunnerNotifier` connects the presentation layer to `DefaultComparisonOrchestrator` via `comparisonOrchestratorProvider`. Protects against repeated double-click submissions, propagates granular stream progress to `CompareProgressView`, and safely cancels running pipelines upon user cancellation or window destruction.
+  - **Directory Browser Context Menu**: Adds "Compare Folders..." action to folder item context menus in `ItemCard`, automatically opening the comparison setup with the selected folder pre-populated.
+- **Duplicate Comparison Results UI (Phase 5)**:
+  - **Side-by-Side Comparison Layout**: `DuplicateGroupCard` clearly distinguishes source and destination files with colored role badges (`SOURCE` in violet, `DESTINATION` in teal). On desktop/wide screens (>= 720px), source and destination(s) are presented side-by-side with comparison arrows.
+  - **One-to-Many Match Support**: Gracefully displays one source file matching multiple destination files in a stacked destination column, preserving individual match types and similarity scores.
+  - **Comprehensive File Metadata**: `FileComparisonTile` displays filename, path, formatted size (`StringUtils.formatBytes`), media type icon, and normalized aspect ratio/dimensions without reading or decoding entire media files.
+  - **Lazy Previews & Memory Safety**: Image previews load lazily via `Image.file` with bounded decode cache (`cacheWidth: 300`, `cacheHeight: 300`), releasing image buffers upon scroll-out. Audio, video, and unreadable files safely display fallback icons without invoking ffmpeg or decoding full files.
+  - **Interactive Controls**: Users can expand/collapse individual groups, use "Expand All" / "Collapse All" in the summary bar, trigger "New Comparison" to return to setup, and inspect any file using `PersistentViewerManager.openMedia`.
+  - **Complete State Coverage**: Fully handles idle/setup, real-time progress, cancelled (`ComparisonStatus.cancelled`), error, completed with matches, and completed with zero matches ("No Duplicates Found" empty state).
+  - **Zero Destructive Operations**: No file deletion, renaming, or moving is present in this phase.
+- **Integration, Performance & Final QA (Phase 6)**:
+  - **End-to-End Real-Media Validation**: Verified complete workflow (Folder Selection → Recursive Discovery → Category Filtering → Stage 1 Clustering → Stage 2 Fingerprinting → Duplicate Matching → Results UI) using real multi-directory file fixtures and binary image generators.
+  - **Defect Resolution**: Fixed pipeline request ID tracking in `Stage1Pipeline`, resolved narrow-viewport header overflows in `CompareResultsView`, and eliminated test variable warnings.
+  - **Performance & Resource Bounding**: Confirmed $O(\text{cluster})$ candidate pair generation without constructing full Cartesian products, bounded 300×300px preview memory footprints, run-scoped fingerprint caching preventing redundant generation, and prompt cancellation releasing native resources.
 - **Isolate Safety & Serializability**: Progress streams, requests, and metadata models are designed with primitive-heavy, `Equatable`-based fields to guarantee seamless serialization across `Isolate` port boundaries without tight coupling.
 - **Strict Single-Method Contracts**: Adheres to Dart 3 `abstract interface class` paradigms for singular algorithmic strategies, successfully fixing all strict `very_good_analysis` compliance lints.
-- **Test-Driven Reliability**: Phase 1 & 2 implementations guarantee zero analyzer warnings, supported by 144 passing tests covering the entire Stage 1 lifecycle.
+- **Test-Driven Reliability**: Phase 1 through 6 implementations guarantee zero analyzer warnings, supported by 228 passing tests covering domain algorithms, pipelines, window parameters, providers, presentation widgets, and end-to-end integration workflows.
 
 ---
 
-*Generated: 2026-10-06 | Comprehensive audit of 230+ Dart source files across 10 feature modules, core infrastructure, and services layer.*
+*Generated: 2026-10-24 | Comprehensive audit of 250+ Dart source files across 10 feature modules, core infrastructure, and services layer.*
+

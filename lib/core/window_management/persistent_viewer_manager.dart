@@ -12,6 +12,7 @@ import 'package:onyxcore/features/directory_browser/domain/entities/file_item.da
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/document_viewer/presentation/widgets/markdown_preview_widget.dart';
 import 'package:onyxcore/features/downloader/presentation/pages/standalone_downloader_window.dart';
+import 'package:onyxcore/features/duplicate_detection/presentation/widgets/compare_window.dart';
 import 'package:onyxcore/features/image_viewer/presentation/widgets/image_preview_widget.dart';
 import 'package:onyxcore/features/video_player/presentation/widgets/video_preview_widget.dart';
 import 'package:path/path.dart' as p;
@@ -303,6 +304,12 @@ class PersistentViewerManager {
               key: const ValueKey('downloader'),
               windowId: viewId,
               initParams: params.initParams,
+            );
+          case ViewerType.duplicateCompare:
+            content = CompareWindow(
+              key: ValueKey('duplicate_compare_$viewId'),
+              windowId: viewId,
+              initialParams: params,
             );
           case ViewerType.unsupported:
             content = Center(

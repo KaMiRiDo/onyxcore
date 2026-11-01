@@ -4,7 +4,15 @@ import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
 /// Supported viewer types for standalone windows.
-enum ViewerType { video, image, markdown, audio, downloader, unsupported }
+enum ViewerType {
+  video,
+  image,
+  markdown,
+  audio,
+  downloader,
+  duplicateCompare,
+  unsupported,
+}
 
 /// Parameters passed to a secondary window to initialize a viewer.
 class WindowParams {

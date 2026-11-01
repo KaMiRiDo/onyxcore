@@ -25,9 +25,10 @@ class Stage1Pipeline {
     final failures = <Stage1Failure>[];
 
     progress.add(
-      const ComparisonProgress.idle(
-        'req1',
-      ).copyWith(status: ComparisonStatus.discovering),
+      ComparisonProgress(
+        requestId: request.sourceFolder,
+        status: ComparisonStatus.discovering,
+      ),
     );
 
     // 1. Discover Source

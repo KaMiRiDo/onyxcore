@@ -7,16 +7,37 @@ import 'package:onyxcore/features/duplicate_detection/data/services/media_probe.
 import 'package:onyxcore/features/duplicate_detection/data/services/strategies/video_media_strategy.dart';
 import 'package:onyxcore/features/duplicate_detection/domain/entities/comparison_candidate.dart';
 import 'package:onyxcore/features/duplicate_detection/domain/entities/stage1_metadata.dart';
+import 'package:onyxcore/features/duplicate_detection/domain/services/fingerprint_generator.dart';
 import 'package:path/path.dart' as p;
 
 class FakeMediaProbe extends MediaProbe {
-  FakeMediaProbe(this.stdout, this.exitCode);
+  FakeMediaProbe(
+    this.stdout,
+    this.exitCode, {
+    this.ffmpegOutputBytes,
+    this.ffmpegExitCode = 0,
+  });
+
   final String stdout;
   final int exitCode;
+  final List<int>? ffmpegOutputBytes;
+  final int ffmpegExitCode;
+  final List<List<String>> ffmpegCalls = [];
 
   @override
   Future<ProcessResult> runFfprobe(List<String> args) async {
     return ProcessResult(0, exitCode, stdout, '');
+  }
+
+  @override
+  Future<ProcessResult> runFfmpeg(
+    List<String> args, {
+    bool binaryOutput = true,
+  }) async {
+    ffmpegCalls.add(args);
+    // 72 bytes = 9x8 raw grayscale frame
+    final bytes = ffmpegOutputBytes ?? List.generate(72, (i) => (i * 7) % 256);
+    return ProcessResult(0, ffmpegExitCode, bytes, '');
   }
 }
 
@@ -87,5 +108,62 @@ void main() {
         );
       },
     );
+
+    group('Stage 2 Video Fingerprint Generation', () {
+      test('samples bounded 4 frames and produces 256-bit fingerprint', () async {
+        const jsonOutput = '''
+        {
+          "format": {"duration": "100.0"}
+        }
+        ''';
+        final probe = FakeMediaProbe(jsonOutput, 0);
+        final strategy = VideoMediaStrategy(probe);
+        final candidate = createCandidate('vid.mp4', FileItemType.video);
+
+        final fp = await strategy.generate(candidate);
+
+        expect(fp.bytes.length, 32);
+        expect(fp.candidatePath, candidate.file.path);
+        // Expect exactly 4 frame samples
+        expect(probe.ffmpegCalls.length, 4);
+
+        // Verify ffmpeg arguments used bounded fast seeking and small 9x8 raw frames
+        for (final args in probe.ffmpegCalls) {
+          expect(args, contains('-ss'));
+          expect(args, contains('scale=9:8,format=gray'));
+          expect(args, contains('rawvideo'));
+        }
+      });
+
+      test(
+        'deterministic: identical sampled frames produce identical fingerprint',
+        () async {
+          const jsonOutput = '{"format": {"duration": "60.0"}}';
+          final probe = FakeMediaProbe(jsonOutput, 0);
+          final strategy = VideoMediaStrategy(probe);
+          final candidate = createCandidate('vid.mp4', FileItemType.video);
+
+          final fp1 = await strategy.generate(candidate);
+          final fp2 = await strategy.generate(candidate);
+
+          expect(fp1.bytes, equals(fp2.bytes));
+        },
+      );
+
+      test(
+        'throws FingerprintGenerationException on ffmpeg execution failure',
+        () async {
+          const jsonOutput = '{"format": {"duration": "60.0"}}';
+          final probe = FakeMediaProbe(jsonOutput, 0, ffmpegExitCode: 1);
+          final strategy = VideoMediaStrategy(probe);
+          final candidate = createCandidate('vid.mp4', FileItemType.video);
+
+          expect(
+            () => strategy.generate(candidate),
+            throwsA(isA<FingerprintGenerationException>()),
+          );
+        },
+      );
+    });
   });
 }

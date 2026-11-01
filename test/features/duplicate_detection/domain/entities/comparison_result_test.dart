@@ -31,13 +31,47 @@ void main() {
       expect(tPair, isNot(equals(other)));
     });
 
-    test('inequal when similarityScore differs', () {
-      const other = MatchedPair(
+    test('supports matchType exact and perceptual', () {
+      const exactPair = MatchedPair(
         sourcePath: '/source/a.jpg',
         destinationPath: '/dest/a.jpg',
-        similarityScore: 0.5,
+        similarityScore: 1,
       );
-      expect(tPair, isNot(equals(other)));
+      const perceptualPair = MatchedPair(
+        sourcePath: '/source/a.jpg',
+        destinationPath: '/dest/a.jpg',
+        similarityScore: 0.95,
+        matchType: MatchType.perceptual,
+      );
+      expect(exactPair.matchType, MatchType.exact);
+      expect(perceptualPair.matchType, MatchType.perceptual);
+      expect(exactPair, isNot(equals(perceptualPair)));
+    });
+  });
+
+  // ── ComparisonFailure ───────────────────────────────────────────────────────
+
+  group('ComparisonFailure', () {
+    test('carries candidatePath and error', () {
+      const failure = ComparisonFailure(
+        candidatePath: '/source/corrupt.jpg',
+        error: 'corrupted image header',
+      );
+      expect(failure.candidatePath, '/source/corrupt.jpg');
+      expect(failure.error, 'corrupted image header');
+      expect(failure.toString(), contains('/source/corrupt.jpg'));
+    });
+
+    test('supports value equality via Equatable', () {
+      const f1 = ComparisonFailure(
+        candidatePath: '/source/a.jpg',
+        error: 'fail',
+      );
+      const f2 = ComparisonFailure(
+        candidatePath: '/source/a.jpg',
+        error: 'fail',
+      );
+      expect(f1, equals(f2));
     });
   });
 
@@ -124,6 +158,32 @@ void main() {
     test('isEmpty is false when matches are present', () {
       expect(tResult.isEmpty, isFalse);
     });
+
+    test(
+      'failures defaults to empty and can store ComparisonFailure items',
+      () {
+        expect(tResult.failures, isEmpty);
+
+        final resultWithFailures = ComparisonResult(
+          requestId: 'req-001',
+          matches: const [],
+          totalSourceCandidates: 10,
+          totalDestinationCandidates: 10,
+          completedAt: tCompletedAt,
+          failures: const [
+            ComparisonFailure(
+              candidatePath: '/source/bad.jpg',
+              error: 'cannot decode',
+            ),
+          ],
+        );
+        expect(resultWithFailures.failures.length, 1);
+        expect(
+          resultWithFailures.failures.first.candidatePath,
+          '/source/bad.jpg',
+        );
+      },
+    );
 
     test('isEmpty is true when no matches exist', () {
       final emptyResult = ComparisonResult(

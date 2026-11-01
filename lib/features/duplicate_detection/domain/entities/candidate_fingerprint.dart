@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-/// An opaque 256-bit fingerprint of a [ComparisonCandidate].
+/// An opaque 256-bit fingerprint of a comparison candidate.
 ///
 /// Fingerprints are generated once per candidate by the Stage 2 layer and then
 /// compared in-memory as compact byte arrays.  The underlying media is
@@ -22,6 +22,15 @@ class CandidateFingerprint extends Equatable {
 
   /// Raw 256-bit fingerprint data (exactly 32 bytes).
   final List<int> bytes;
+
+  /// Formats the 32-byte fingerprint as a 64-character lowercase hex string.
+  String toHexString() {
+    final buffer = StringBuffer();
+    for (final b in bytes) {
+      buffer.write((b & 0xFF).toRadixString(16).padLeft(2, '0'));
+    }
+    return buffer.toString();
+  }
 
   @override
   List<Object?> get props => [candidatePath, bytes];
