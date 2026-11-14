@@ -107,6 +107,8 @@ class Stage2Pipeline {
               currentStageLabel: 'Generating 256-bit fingerprints',
             ),
           );
+          // Yield to event loop so UI animations and loader can paint smoothly
+          await Future<void>.delayed(Duration.zero);
           return fp;
         } catch (e) {
           failures.add(

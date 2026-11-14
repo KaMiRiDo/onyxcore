@@ -69,5 +69,135 @@ void main() {
         ComparisonCategory.images,
       );
     });
+
+    testWidgets(
+      'options container is centered and constrained to at most half viewport width on wide display',
+      (tester) async {
+        tester.view.physicalSize = const Size(1200, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(body: CompareSetupView(onStart: () {})),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final titleFinder = find.text('Cross-Folder Duplicate Detection');
+        expect(titleFinder, findsOneWidget);
+
+        final formBoxFinder = find.ancestor(
+          of: titleFinder,
+          matching: find.byType(ConstrainedBox),
+        );
+        expect(formBoxFinder, findsWidgets);
+
+        var foundConstrained = false;
+        for (final element in tester.widgetList<ConstrainedBox>(formBoxFinder)) {
+          if (element.constraints.maxWidth <= 600.0 &&
+              element.constraints.maxWidth > 0) {
+            foundConstrained = true;
+            break;
+          }
+        }
+        expect(
+          foundConstrained,
+          isTrue,
+          reason: 'Form container must have maxWidth <= 50% viewport width (600px)',
+        );
+
+        final startButtonFinder = find.widgetWithText(
+          FilledButton,
+          'Start Comparison',
+        );
+        expect(startButtonFinder, findsOneWidget);
+        final buttonRect = tester.getRect(startButtonFinder);
+        expect(buttonRect.width, lessThanOrEqualTo(600.0));
+        expect(
+          (buttonRect.center.dx - 600).abs(),
+          lessThan(20.0),
+          reason: 'Options container should be centered in the window',
+        );
+      },
+    );
+
+    testWidgets(
+      'options container adapts responsively when window size reduces',
+      (tester) async {
+        tester.view.physicalSize = const Size(500, 700);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(body: CompareSetupView(onStart: () {})),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Cross-Folder Duplicate Detection'), findsOneWidget);
+        expect(find.text('Start Comparison'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'options and fields are enclosed in a styled card box matching app theme',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(body: CompareSetupView(onStart: () {})),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final titleFinder = find.text('Cross-Folder Duplicate Detection');
+        expect(titleFinder, findsOneWidget);
+
+        // Find the container enclosing the form Column
+        final containerFinder = find.ancestor(
+          of: titleFinder,
+          matching: find.byType(Container),
+        );
+        expect(containerFinder, findsWidgets);
+
+        // Find the specific card box with theme decoration
+        Container? cardContainer;
+        for (final element in tester.widgetList<Container>(containerFinder)) {
+          final dec = element.decoration;
+          if (dec is BoxDecoration &&
+              dec.borderRadius != null &&
+              dec.color != null &&
+              dec.boxShadow != null) {
+            cardContainer = element;
+            break;
+          }
+        }
+
+        expect(
+          cardContainer,
+          isNotNull,
+          reason: 'Options must be in a decorated card container with background, border, radius, and shadow',
+        );
+        final decoration = cardContainer!.decoration! as BoxDecoration;
+        expect(decoration.color, isNotNull);
+        expect(decoration.borderRadius, isNotNull);
+        expect(decoration.border, isNotNull);
+        expect(decoration.boxShadow, isNotEmpty);
+      },
+    );
   });
 }

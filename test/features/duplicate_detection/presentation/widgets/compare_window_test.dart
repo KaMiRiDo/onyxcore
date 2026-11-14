@@ -6,6 +6,7 @@ import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 import 'package:onyxcore/features/duplicate_detection/domain/entities/comparison_progress.dart';
 import 'package:onyxcore/features/duplicate_detection/domain/entities/comparison_result.dart';
+import 'package:onyxcore/features/duplicate_detection/presentation/providers/compare_config_notifier.dart';
 import 'package:onyxcore/features/duplicate_detection/presentation/providers/comparison_runner_notifier.dart';
 import 'package:onyxcore/features/duplicate_detection/presentation/widgets/compare_progress_view.dart';
 import 'package:onyxcore/features/duplicate_detection/presentation/widgets/compare_results_view.dart';
@@ -151,5 +152,93 @@ void main() {
       expect(find.text('Access Denied'), findsOneWidget);
       expect(find.text('Reconfigure'), findsOneWidget);
     });
+
+    testWidgets(
+      'resets comparison state and configuration when window is disposed/closed',
+      (tester) async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: CompareWindow(windowId: 101, initialParams: tParams),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(container.read(compareConfigProvider).sourceFolder, '/source');
+        expect(container.read(compareConfigProvider).destinationFolder, '/dest');
+
+        // Unmount / close the CompareWindow
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: SizedBox()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // State must be cleared on window close
+        expect(container.read(compareConfigProvider).sourceFolder, '');
+        expect(container.read(compareConfigProvider).destinationFolder, '');
+        expect(container.read(comparisonRunnerProvider).isProcessing, isFalse);
+        expect(container.read(comparisonRunnerProvider).result, isNull);
+      },
+    );
+
+    testWidgets(
+      'starts fresh session when reopened with different params',
+      (tester) async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        // First session with /source and /dest
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: CompareWindow(windowId: 101, initialParams: tParams),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(container.read(compareConfigProvider).sourceFolder, '/source');
+        expect(container.read(compareConfigProvider).destinationFolder, '/dest');
+
+        // Close the window
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(home: SizedBox()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Second session with only new source
+        final tParams2 = WindowParams(
+          viewerType: ViewerType.duplicateCompare,
+          file: tFile,
+          initParams: {'sourceFolder': '/new_source'},
+        );
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: CompareWindow(windowId: 102, initialParams: tParams2),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(container.read(compareConfigProvider).sourceFolder, '/new_source');
+        // Destination folder should be empty in fresh session, not stale '/dest'
+        expect(container.read(compareConfigProvider).destinationFolder, '');
+      },
+    );
   });
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
@@ -63,37 +64,44 @@ class ImageMediaStrategy implements MediaTypeStrategy, FingerprintGenerator {
       }
 
       final bytes = await file.readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) {
-        throw FingerprintGenerationException(
-          candidate.file.path,
-          'Failed to decode image data',
-        );
-      }
 
-      // Resize to 17x16 for 16x16 horizontal gradient dHash (256 bits)
-      final resized = img.copyResize(
-        decoded,
-        width: 17,
-        height: 16,
-        interpolation: img.Interpolation.linear,
-      );
-
-      final fpBytes = Uint8List(32);
-      var bitIndex = 0;
-
-      for (var y = 0; y < 16; y++) {
-        for (var x = 0; x < 16; x++) {
-          final p1 = resized.getPixel(x, y);
-          final p2 = resized.getPixel(x + 1, y);
-          if (p1.luminanceNormalized > p2.luminanceNormalized) {
-            final bytePos = bitIndex ~/ 8;
-            final bitOffset = 7 - (bitIndex % 8);
-            fpBytes[bytePos] |= 1 << bitOffset;
-          }
-          bitIndex++;
+      // Offload heavy image decoding, resizing, and 256-bit dHash generation
+      // to a background isolate so the UI event loop and loader never freeze.
+      final fpBytes = await Isolate.run(() {
+        final decoded = img.decodeImage(bytes);
+        if (decoded == null) {
+          throw FingerprintGenerationException(
+            candidate.file.path,
+            'Failed to decode image data',
+          );
         }
-      }
+
+        // Resize to 17x16 for 16x16 horizontal gradient dHash (256 bits)
+        final resized = img.copyResize(
+          decoded,
+          width: 17,
+          height: 16,
+          interpolation: img.Interpolation.linear,
+        );
+
+        final result = Uint8List(32);
+        var bitIndex = 0;
+
+        for (var y = 0; y < 16; y++) {
+          for (var x = 0; x < 16; x++) {
+            final p1 = resized.getPixel(x, y);
+            final p2 = resized.getPixel(x + 1, y);
+            if (p1.luminanceNormalized > p2.luminanceNormalized) {
+              final bytePos = bitIndex ~/ 8;
+              final bitOffset = 7 - (bitIndex % 8);
+              result[bytePos] |= 1 << bitOffset;
+            }
+            bitIndex++;
+          }
+        }
+
+        return result;
+      });
 
       return CandidateFingerprint(
         candidatePath: candidate.file.path,

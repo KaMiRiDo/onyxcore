@@ -11,6 +11,7 @@ struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
   FlView* main_view;
+  GtkWindow* main_window;
   FlMethodChannel* window_channel;
 };
 
@@ -111,7 +112,11 @@ static gboolean on_main_window_focus_in(GtkWidget* widget, GdkEventFocus* event,
 }
 
 static GtkWindow* get_window_by_view_id(MyApplication* self, int64_t target_id) {
-  if (target_id == fl_view_get_id(self->main_view)) {
+  if (target_id == 0) {
+    if (self->main_window) return self->main_window;
+  }
+  if (self->main_view && target_id == fl_view_get_id(self->main_view)) {
+    if (self->main_window) return self->main_window;
     GList* windows = gtk_application_get_windows(GTK_APPLICATION(self));
     if (windows) return GTK_WINDOW(windows->data);
   } else {
@@ -123,6 +128,9 @@ static GtkWindow* get_window_by_view_id(MyApplication* self, int64_t target_id) 
         return w;
       }
     }
+  }
+  if (target_id == 0 && self->main_window) {
+    return self->main_window;
   }
   return nullptr;
 }
@@ -181,6 +189,9 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
     g_signal_connect(new_window, "destroy", G_CALLBACK(on_secondary_window_destroy), nullptr);
     g_signal_connect(new_window, "delete-event", G_CALLBACK(on_secondary_window_delete), nullptr);
     g_signal_connect(new_window, "focus-in-event", G_CALLBACK(on_secondary_window_focus_in), new_view);
+    g_signal_connect(new_view, "button-press-event", G_CALLBACK(on_app_input_event), NULL);
+    g_signal_connect(new_view, "key-press-event", G_CALLBACK(on_app_input_event), NULL);
+    g_signal_connect(new_view, "touch-event", G_CALLBACK(on_app_input_event), NULL);
     // Show window immediately so user doesn't perceive a delay while waiting for first-frame
     gtk_widget_show(GTK_WIDGET(new_window));
     g_signal_connect_swapped(new_view, "first-frame", G_CALLBACK(secondary_first_frame_cb), self);
@@ -229,7 +240,26 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
       
       GtkWindow* target_window = get_window_by_view_id(self, target_id);
       if (target_window) {
-        gtk_window_present_with_time(target_window, global_last_user_time);
+        guint32 event_time = gtk_get_current_event_time();
+        if (event_time == 0) {
+          event_time = global_last_user_time;
+        }
+#ifdef GDK_WINDOWING_X11
+        GdkWindow* gdk_win = gtk_widget_get_window(GTK_WIDGET(target_window));
+        if (gdk_win && GDK_IS_X11_WINDOW(gdk_win)) {
+          if (event_time == 0) {
+            event_time = gdk_x11_get_server_time(gdk_win);
+          }
+          gdk_window_show(gdk_win);
+          gdk_window_raise(gdk_win);
+          gdk_window_focus(gdk_win, event_time != 0 ? event_time : GDK_CURRENT_TIME);
+        }
+#endif
+        if (event_time != 0) {
+          gtk_window_present_with_time(target_window, event_time);
+        } else {
+          gtk_window_present(target_window);
+        }
         // Also grab focus for the child view if it exists
         GtkWidget* child = gtk_bin_get_child(GTK_BIN(target_window));
         if (child && GTK_IS_WIDGET(child)) {
@@ -361,6 +391,8 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  self->main_window = window;
+  g_object_set_data(G_OBJECT(window), "view_id", GINT_TO_POINTER(0));
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu

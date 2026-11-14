@@ -39,142 +39,196 @@ class CompareSetupView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(compareConfigProvider);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Cross-Folder Duplicate Detection',
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.sizeOf(context).width;
+        // On larger screens, options container is at most half the viewport width.
+        // Adaptively allow up to available width on narrow screens so it stays responsive and doesn't break.
+        final maxWidth = screenWidth > 800
+            ? screenWidth * 0.5
+            : (screenWidth > 500 ? 500.0 : constraints.maxWidth);
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight > 48
+                  ? constraints.maxHeight - 48
+                  : 0,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Compare two directories to identify identical or matching media files across folders.',
-            style: GoogleFonts.inter(fontSize: 13, color: Colors.white70),
-          ),
-          const SizedBox(height: 24),
-
-          // Source Folder
-          _buildFolderField(
-            context,
-            ref,
-            label: 'Source Folder',
-            path: config.sourceFolder,
-            isSource: true,
-          ),
-          const SizedBox(height: 16),
-
-          // Destination Folder
-          _buildFolderField(
-            context,
-            ref,
-            label: 'Destination Folder',
-            path: config.destinationFolder,
-            isSource: false,
-          ),
-          const SizedBox(height: 24),
-
-          // Category Selector
-          Text(
-            'Category',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: ComparisonCategory.values.map((cat) {
-              final isSelected = config.category == cat;
-              final label = _categoryLabel(cat);
-              return ChoiceChip(
-                label: Text(label),
-                selected: isSelected,
-                onSelected: (selected) {
-                  if (selected) {
-                    ref.read(compareConfigProvider.notifier).setCategory(cat);
-                  }
-                },
-                selectedColor: AppColors.violet,
-                backgroundColor: const Color(0xFF222222),
-                labelStyle: GoogleFonts.inter(
-                  color: isSelected ? Colors.white : Colors.white70,
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-
-          // Validation Error Message
-          if (config.errorMessage != null &&
-              config.errorMessage!.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.redAccent.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    color: Colors.redAccent,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      config.errorMessage!,
-                      style: GoogleFonts.inter(
-                        color: Colors.redAccent,
-                        fontSize: 13,
-                      ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: Container(
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cross-Folder Duplicate Detection',
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Compare two directories to identify identical or matching media files across folders.',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
 
-          // Start Button
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: FilledButton.icon(
-              onPressed: config.isValid ? onStart : null,
-              icon: const Icon(Icons.compare_arrows_rounded, size: 18),
-              label: Text(
-                'Start Comparison',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.violet,
-                disabledBackgroundColor: Colors.white12,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                      // Source Folder
+                      _buildFolderField(
+                        context,
+                        ref,
+                        label: 'Source Folder',
+                        path: config.sourceFolder,
+                        isSource: true,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Destination Folder
+                      _buildFolderField(
+                        context,
+                        ref,
+                        label: 'Destination Folder',
+                        path: config.destinationFolder,
+                        isSource: false,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Category Selector
+                      Text(
+                        'Category',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ComparisonCategory.values.map((cat) {
+                          final isSelected = config.category == cat;
+                          final label = _categoryLabel(cat);
+                          return ChoiceChip(
+                            label: Text(label),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                ref
+                                    .read(compareConfigProvider.notifier)
+                                    .setCategory(cat);
+                              }
+                            },
+                            selectedColor: AppColors.violet,
+                            backgroundColor: const Color(0xFF141414),
+                            labelStyle: GoogleFonts.inter(
+                              color: isSelected ? Colors.white : Colors.white70,
+                              fontSize: 13,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Validation Error Message
+                      if (config.errorMessage != null &&
+                          config.errorMessage!.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.redAccent.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline_rounded,
+                                color: Colors.redAccent,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  config.errorMessage!,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.redAccent,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Start Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: FilledButton.icon(
+                          onPressed: config.isValid ? onStart : null,
+                          icon: const Icon(
+                            Icons.compare_arrows_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'Start Comparison',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.violet,
+                            disabledBackgroundColor: Colors.white12,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -206,7 +260,7 @@ class CompareSetupView extends ConsumerWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
+                  color: const Color(0xFF141414),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.white12),
                 ),

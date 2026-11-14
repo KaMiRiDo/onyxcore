@@ -111,6 +111,9 @@ class PersistentViewerManager {
     mainWindowFocusTrigger.value = 0;
   }
 
+  @visibleForTesting
+  static WindowParams? getParamsForView(int viewId) => _viewParams[viewId]?.value;
+
   static Future<void> openMedia(WindowParams params) async {
     try {
       final type = params.viewerType;

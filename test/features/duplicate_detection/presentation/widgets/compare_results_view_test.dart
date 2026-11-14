@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart' hide ComparisonResult;
 import 'package:onyxcore/features/duplicate_detection/domain/entities/comparison_result.dart';
 import 'package:onyxcore/features/duplicate_detection/presentation/widgets/compare_results_view.dart';
@@ -26,10 +27,9 @@ void main() {
       } catch (_) {}
     });
 
-    testWidgets('renders empty state when result has no matches', (
+    testWidgets('renders empty state without New Comparison button', (
       tester,
     ) async {
-      var newCompClicked = false;
       final emptyResult = ComparisonResult(
         requestId: '/source',
         matches: const [],
@@ -43,7 +43,6 @@ void main() {
           home: Scaffold(
             body: CompareResultsView(
               result: emptyResult,
-              onNewComparison: () => newCompClicked = true,
             ),
           ),
         ),
@@ -54,15 +53,11 @@ void main() {
         find.textContaining('Analyzed 12 source and 25 destination candidates'),
         findsOneWidget,
       );
-      final newCompBtn = find.text('New Comparison');
-      expect(newCompBtn, findsOneWidget);
-      await tester.tap(newCompBtn);
-      await tester.pump();
-
-      expect(newCompClicked, isTrue);
+      // New Comparison button should NOT be present anywhere
+      expect(find.text('New Comparison'), findsNothing);
     });
 
-    testWidgets('renders summary header and group cards when matches exist', (
+    testWidgets('renders summary header and group cards without New Comparison button', (
       tester,
     ) async {
       final result = ComparisonResult(
@@ -93,6 +88,7 @@ void main() {
       expect(find.textContaining('1 Duplicate Group'), findsOneWidget);
       expect(find.textContaining('5 source / 8 destination'), findsOneWidget);
       expect(find.byType(DuplicateGroupCard), findsOneWidget);
+      expect(find.text('New Comparison'), findsNothing);
     });
 
     testWidgets('Expand All and Collapse All toggle group cards', (
@@ -130,6 +126,54 @@ void main() {
 
       // Now collapsed
       expect(find.text('Expand All'), findsOneWidget);
+    });
+
+    testWidgets('Ctrl + ] collapses all matches and Ctrl + [ expands all matches', (
+      tester,
+    ) async {
+      final result = ComparisonResult(
+        requestId: '/source',
+        matches: [
+          DuplicateMatch(
+            sourcePath: src.path,
+            destinationMatches: [
+              MatchedPair(
+                sourcePath: src.path,
+                destinationPath: dest.path,
+                similarityScore: 1,
+              ),
+            ],
+          ),
+        ],
+        totalSourceCandidates: 5,
+        totalDestinationCandidates: 8,
+        completedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: CompareResultsView(result: result)),
+        ),
+      );
+
+      // Initially expanded
+      expect(find.text('Collapse All'), findsOneWidget);
+
+      // Press Ctrl + ] to collapse all matches
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Expand All'), findsOneWidget);
+
+      // Press Ctrl + [ to expand all matches
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Collapse All'), findsOneWidget);
     });
   });
 }

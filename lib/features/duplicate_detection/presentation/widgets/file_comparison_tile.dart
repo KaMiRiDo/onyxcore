@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
@@ -9,6 +11,9 @@ import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
 import 'package:onyxcore/features/duplicate_detection/domain/entities/comparison_result.dart';
 import 'package:onyxcore/features/duplicate_detection/domain/services/stage1_normalizer.dart';
 import 'package:path/path.dart' as p;
@@ -17,13 +22,14 @@ import 'package:path/path.dart' as p;
 ///
 /// Lazily loads image previews with bounded memory decoding, displays media metadata,
 /// indicates match confidence/type for destinations, and provides inspect/open actions.
-class FileComparisonTile extends StatelessWidget {
+class FileComparisonTile extends ConsumerWidget {
   const FileComparisonTile({
     required this.filePath,
     required this.isSource,
     this.matchType,
     this.similarityScore,
     this.onOpen,
+    this.onLocate,
     super.key,
   });
 
@@ -32,9 +38,10 @@ class FileComparisonTile extends StatelessWidget {
   final MatchType? matchType;
   final double? similarityScore;
   final VoidCallback? onOpen;
+  final VoidCallback? onLocate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final fileName = p.basename(filePath);
     final fileType = classifyFileType(filePath);
     final file = File(filePath);
@@ -45,7 +52,6 @@ class FileComparisonTile extends StatelessWidget {
         : null;
 
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(10),
@@ -55,102 +61,127 @@ class FileComparisonTile extends StatelessWidget {
               : Colors.tealAccent.withValues(alpha: 0.25),
         ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Thumbnail / Preview box
-          _buildPreview(fileType, exists),
-          const SizedBox(width: 12),
-          // Metadata and details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top row: Source/Destination badge + Match Type badge (if dest)
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    _buildRoleBadge(),
-                    if (!isSource && matchType != null) _buildMatchBadge(),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                // File name
-                Tooltip(
-                  message: filePath,
-                  child: Text(
-                    fileName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                // Path
-                Tooltip(
-                  message: filePath,
-                  child: Text(
-                    filePath,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: Colors.white54,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Metadata chips row
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    _buildMetaChip(
-                      icon: Icons.data_usage_rounded,
-                      text: sizeBytes != null
-                          ? StringUtils.formatBytes(sizeBytes)
-                          : 'Unavailable',
-                      isError: !exists,
-                    ),
-                    _buildMetaChip(
-                      icon: _mediaTypeIcon(fileType),
-                      text: fileType.name.toUpperCase(),
-                    ),
-                    if (aspectRatio != null)
-                      _buildMetaChip(
-                        icon: Icons.aspect_ratio_rounded,
-                        text: aspectRatio,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Double-clickable tile body (preview + metadata)
+            Expanded(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onDoubleTap: () {
+                    if (onOpen != null) {
+                      onOpen!();
+                    } else {
+                      _defaultOpenMedia(context, fileType, exists, sizeBytes);
+                    }
+                  },
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Thumbnail / Preview box
+                      _buildPreview(fileType, exists),
+                      const SizedBox(width: 12),
+                      // Metadata and details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Top row: Source/Destination badge + Match Type badge (if dest)
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                _buildRoleBadge(),
+                                if (!isSource && matchType != null)
+                                  _buildMatchBadge(),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            // File name
+                            Tooltip(
+                              message: filePath,
+                              child: Text(
+                                fileName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            // Path
+                            Tooltip(
+                              message: filePath,
+                              child: Text(
+                                filePath,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Metadata chips row
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                _buildMetaChip(
+                                  icon: Icons.data_usage_rounded,
+                                  text: sizeBytes != null
+                                      ? StringUtils.formatBytes(sizeBytes)
+                                      : 'Unavailable',
+                                  isError: !exists,
+                                ),
+                                _buildMetaChip(
+                                  icon: _mediaTypeIcon(fileType),
+                                  text: fileType.name.toUpperCase(),
+                                ),
+                                if (aspectRatio != null)
+                                  _buildMetaChip(
+                                    icon: Icons.aspect_ratio_rounded,
+                                    text: aspectRatio,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          // Open / Inspect Action
-          IconButton(
-            icon: const Icon(
-              Icons.open_in_new_rounded,
-              size: 18,
-              color: Colors.white70,
+            const SizedBox(width: 8),
+            // Top link button: locates in directory browser, never opens viewer directly
+            IconButton(
+              icon: const Icon(
+                Icons.link_rounded,
+                size: 18,
+                color: Colors.white70,
+              ),
+              tooltip: 'Locate in Directory',
+              onPressed: () {
+                if (onLocate != null) {
+                  onLocate!();
+                } else {
+                  _defaultLocateInFolder(ref);
+                }
+              },
             ),
-            tooltip: 'Open File',
-            onPressed: () {
-              if (onOpen != null) {
-                onOpen!();
-              } else {
-                _defaultOpenMedia(context, fileType, exists, sizeBytes);
-              }
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -331,6 +362,27 @@ class FileComparisonTile extends StatelessWidget {
     return null;
   }
 
+  void _defaultLocateInFolder(WidgetRef ref) {
+    try {
+      final exists =
+          File(filePath).existsSync() || Directory(filePath).existsSync();
+      final targetDir = Directory(filePath).existsSync()
+          ? filePath
+          : p.dirname(filePath);
+      if (Directory(targetDir).existsSync()) {
+        ref.read(navigationProvider.notifier).navigateTo(targetDir);
+        ref.read(currentPathProvider.notifier).state = targetDir;
+        if (exists && !Directory(filePath).existsSync()) {
+          ref.read(selectionProvider.notifier).deselectAll();
+          ref.read(selectionProvider.notifier).select(filePath);
+        }
+      }
+      unawaited(PersistentViewerManager.presentWindow(0));
+    } catch (e) {
+      debugPrint('[FileComparisonTile] Failed to locate in folder: $e');
+    }
+  }
+
   void _defaultOpenMedia(
     BuildContext context,
     FileItemType type,
@@ -353,10 +405,26 @@ class FileComparisonTile extends StatelessWidget {
                 ? ViewerType.audio
                 : (type == FileItemType.document
                       ? ViewerType.markdown
-                      : ViewerType.image));
+                      : (type == FileItemType.image
+                            ? ViewerType.image
+                            : ViewerType.unsupported)));
 
-      PersistentViewerManager.openMedia(
-        WindowParams(viewerType: viewerType, file: item, initParams: {}),
+      unawaited(
+        PersistentViewerManager.openMedia(
+          WindowParams(
+            viewerType: viewerType,
+            file: item,
+            initParams: {
+              'preloadPaths': [filePath],
+              if (type == FileItemType.image || type == FileItemType.video)
+                'playlistPaths': [filePath],
+              if (type == FileItemType.image) ...{
+                'currentIndex': 1,
+                'totalCount': 1,
+              },
+            },
+          ),
+        ),
       );
     } catch (e) {
       debugPrint('[FileComparisonTile] Failed to open media: $e');

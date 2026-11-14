@@ -85,6 +85,12 @@ class CompareConfigNotifier extends Notifier<CompareConfigState> {
     state = state.copyWith(category: category);
   }
 
+  void reset() {
+    if (ref.mounted) {
+      state = const CompareConfigState();
+    }
+  }
+
   void validate() {
     final src = state.sourceFolder.trim();
     final dst = state.destinationFolder.trim();

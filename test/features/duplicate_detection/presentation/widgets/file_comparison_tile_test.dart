@@ -98,29 +98,116 @@ void main() {
       expect(find.textContaining('Unavailable'), findsOneWidget);
     });
 
-    testWidgets('triggers onOpen when inspect/open button is tapped', (
-      tester,
-    ) async {
-      var opened = false;
+    testWidgets(
+      'clicking on top link button triggers onLocate and does not invoke onOpen',
+      (tester) async {
+        var opened = false;
+        var located = false;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: FileComparisonTile(
-              filePath: sourceFile.path,
-              isSource: true,
-              onOpen: () => opened = true,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FileComparisonTile(
+                filePath: sourceFile.path,
+                isSource: true,
+                onOpen: () => opened = true,
+                onLocate: () => located = true,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final openBtn = find.byTooltip('Open File');
-      expect(openBtn, findsOneWidget);
-      await tester.tap(openBtn);
-      await tester.pump();
+        final linkBtn = find.byTooltip('Locate in Directory');
+        expect(linkBtn, findsOneWidget);
+        await tester.tap(linkBtn);
+        await tester.pumpAndSettle();
 
-      expect(opened, isTrue);
-    });
+        expect(located, isTrue);
+        expect(opened, isFalse);
+      },
+    );
+
+    testWidgets(
+      'double clicking on tile triggers onOpen to open in respective viewer',
+      (tester) async {
+        var opened = false;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FileComparisonTile(
+                filePath: sourceFile.path,
+                isSource: true,
+                onOpen: () => opened = true,
+              ),
+            ),
+          ),
+        );
+
+        final tileFinder = find.byType(FileComparisonTile);
+        await tester.tap(tileFinder);
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(tileFinder);
+        await tester.pumpAndSettle();
+
+        expect(opened, isTrue);
+      },
+    );
+
+    testWidgets(
+      'double clicking on file name text triggers onOpen reliably',
+      (tester) async {
+        var opened = false;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FileComparisonTile(
+                filePath: sourceFile.path,
+                isSource: true,
+                onOpen: () => opened = true,
+              ),
+            ),
+          ),
+        );
+
+        final fileNameFinder = find.text('photo_source.jpg');
+        expect(fileNameFinder, findsOneWidget);
+        await tester.tap(fileNameFinder);
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(fileNameFinder);
+        await tester.pumpAndSettle();
+
+        expect(opened, isTrue);
+      },
+    );
+
+    testWidgets(
+      'double clicking on thumbnail preview triggers onOpen reliably',
+      (tester) async {
+        var opened = false;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FileComparisonTile(
+                filePath: sourceFile.path,
+                isSource: true,
+                onOpen: () => opened = true,
+              ),
+            ),
+          ),
+        );
+
+        final previewFinder = find.byType(Image);
+        expect(previewFinder, findsOneWidget);
+        await tester.tap(previewFinder);
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(previewFinder);
+        await tester.pumpAndSettle();
+
+        expect(opened, isTrue);
+      },
+    );
   });
 }

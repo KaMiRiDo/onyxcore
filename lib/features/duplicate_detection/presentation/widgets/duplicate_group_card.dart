@@ -16,6 +16,7 @@ class DuplicateGroupCard extends StatelessWidget {
     this.isExpanded = true,
     this.onToggleExpanded,
     this.onOpenFile,
+    this.onLocateFile,
     super.key,
   });
 
@@ -23,6 +24,7 @@ class DuplicateGroupCard extends StatelessWidget {
   final bool isExpanded;
   final VoidCallback? onToggleExpanded;
   final void Function(String filePath)? onOpenFile;
+  final void Function(String filePath)? onLocateFile;
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +131,9 @@ class DuplicateGroupCard extends StatelessWidget {
                     onOpen: onOpenFile != null
                         ? () => onOpenFile!(match.sourcePath)
                         : null,
+                    onLocate: onLocateFile != null
+                        ? () => onLocateFile!(match.sourcePath)
+                        : null,
                   );
 
                   final destinationTiles = Column(
@@ -148,6 +153,11 @@ class DuplicateGroupCard extends StatelessWidget {
                               match.destinationMatches[i].similarityScore,
                           onOpen: onOpenFile != null
                               ? () => onOpenFile!(
+                                  match.destinationMatches[i].destinationPath,
+                                )
+                              : null,
+                          onLocate: onLocateFile != null
+                              ? () => onLocateFile!(
                                   match.destinationMatches[i].destinationPath,
                                 )
                               : null,

@@ -122,7 +122,7 @@ class ComparisonRunnerNotifier extends Notifier<ComparisonRunnerState> {
 
   void cancel() {
     _cancellationToken?.cancel();
-    if (state.isProcessing) {
+    if (ref.mounted && state.isProcessing) {
       state = state.copyWith(
         isProcessing: false,
         progress: ComparisonProgress.cancelled(state.progress?.requestId ?? ''),
@@ -133,7 +133,9 @@ class ComparisonRunnerNotifier extends Notifier<ComparisonRunnerState> {
 
   void reset() {
     cancel();
-    state = const ComparisonRunnerState();
+    if (ref.mounted) {
+      state = const ComparisonRunnerState();
+    }
   }
 
   void dispose() {

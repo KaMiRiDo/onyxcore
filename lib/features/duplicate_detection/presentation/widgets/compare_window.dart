@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:onyxcore/core/theme/app_colors.dart';
+import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/duplicate_detection/domain/entities/comparison_category.dart';
 import 'package:onyxcore/features/duplicate_detection/domain/entities/comparison_progress.dart';
@@ -27,34 +28,76 @@ class CompareWindow extends ConsumerStatefulWidget {
 }
 
 class _CompareWindowState extends ConsumerState<CompareWindow> {
+  late final ComparisonRunnerNotifier _runnerNotifier;
+  late final CompareConfigNotifier _configNotifier;
+
   @override
   void initState() {
     super.initState();
+    _runnerNotifier = ref.read(comparisonRunnerProvider.notifier);
+    _configNotifier = ref.read(compareConfigProvider.notifier);
+    PersistentViewerManager.getFocusTrigger(widget.windowId)
+        .addListener(_onWindowFocus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _applyInitialParams();
     });
   }
 
+  void _onWindowFocus() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void didUpdateWidget(CompareWindow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.windowId != oldWidget.windowId) {
+      PersistentViewerManager.getFocusTrigger(oldWidget.windowId)
+          .removeListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(widget.windowId)
+          .addListener(_onWindowFocus);
+    }
+    if (widget.initialParams != oldWidget.initialParams) {
+      _applyInitialParams();
+    }
+  }
+
+  @override
+  void dispose() {
+    PersistentViewerManager.getFocusTrigger(widget.windowId)
+        .removeListener(_onWindowFocus);
+    Future.microtask(() {
+      _runnerNotifier.reset();
+      _configNotifier.reset();
+    });
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    super.dispose();
+  }
+
   void _applyInitialParams() {
+    _runnerNotifier.reset();
+    _configNotifier.reset();
+
     final init = widget.initialParams.initParams;
     final source =
         init['sourceFolder'] as String? ?? widget.initialParams.file.path;
     final dest = init['destinationFolder'] as String?;
     final catName = init['category'] as String?;
 
-    final notifier = ref.read(compareConfigProvider.notifier);
     if (source.isNotEmpty) {
-      notifier.setSourceFolder(source);
+      _configNotifier.setSourceFolder(source);
     }
     if (dest != null && dest.isNotEmpty) {
-      notifier.setDestinationFolder(dest);
+      _configNotifier.setDestinationFolder(dest);
     }
     if (catName != null) {
       final category = ComparisonCategory.values.firstWhere(
         (c) => c.name == catName,
         orElse: () => ComparisonCategory.all,
       );
-      notifier.setCategory(category);
+      _configNotifier.setCategory(category);
     }
   }
 
@@ -187,8 +230,11 @@ class _CompareWindowState extends ConsumerState<CompareWindow> {
     }
 
     if (state.result != null) {
+      final config = ref.watch(compareConfigProvider);
       return CompareResultsView(
         result: state.result!,
+        sourceFolder: config.sourceFolder,
+        destinationFolder: config.destinationFolder,
         onNewComparison: () =>
             ref.read(comparisonRunnerProvider.notifier).reset(),
       );

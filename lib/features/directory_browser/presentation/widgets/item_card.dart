@@ -177,16 +177,18 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                               ref
                                   .read(selectionProvider.notifier)
                                   .deselectAll();
-                              ref
+                              await ref
                                   .read(directoryItemsProvider.notifier)
                                   .refresh(showLoader: false);
                             } catch (e) {
                               ref
                                   .read(taskProvider.notifier)
                                   .failTask(taskId, e.toString());
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error restoring: $e')),
-                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error restoring: $e')),
+                                );
+                              }
                             }
                           },
                           // Glassmorphism: SizedBox → ClipOval → Stack(blur fill + centered icon)
@@ -323,10 +325,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           : [widget.item.path],
       dragAnchorStrategy:
           (Draggable<Object> draggable, BuildContext context, Offset position) {
-            return const Offset(
-              0,
-              0,
-            ); // Position cursor at top-left of the miniature container
+            return Offset.zero; // Position cursor at top-left of the miniature container
           },
       feedback: RepaintBoundary(
         child: Material(
@@ -424,7 +423,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
           try {
             await repo.moveItems(details.data, widget.item.path);
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref
+            await ref
                 .read(directoryItemsProvider.notifier)
                 .refresh(showLoader: false);
             ref.read(selectionProvider.notifier).deselectAll();
@@ -484,6 +483,21 @@ class _ItemCardState extends ConsumerState<ItemCard> {
     final pinnedMap = pinnedAsync.value ?? const {};
     final isPinned = pinnedMap.containsKey(widget.item.path);
 
+    final allItems = ref.read(directoryItemsProvider).value ?? [];
+    final itemMap = {for (final item in allItems) item.path: item};
+
+    bool isPathFolder(String path) {
+      final item = itemMap[path];
+      if (item != null) return item.type == FileItemType.folder;
+      if (path == widget.item.path) return widget.item.type == FileItemType.folder;
+      return Directory(path).existsSync();
+    }
+
+    final allFolders = paths.every(isPathFolder);
+    final canCompare =
+        !isInTrash && allFolders && (paths.length == 1 || paths.length == 2);
+    final compareTitle = paths.length == 1 ? 'Compare with' : 'Compare Folders';
+
     final menuItems = [
       if (isInTrash) ...[
         ContextMenuItem(
@@ -508,14 +522,16 @@ class _ItemCardState extends ConsumerState<ItemCard> {
               );
               ref.read(taskProvider.notifier).completeTask(taskId);
               ref.read(selectionProvider.notifier).deselectAll();
-              ref
+              await ref
                   .read(directoryItemsProvider.notifier)
                   .refresh(showLoader: false);
             } catch (e) {
               ref.read(taskProvider.notifier).failTask(taskId, e.toString());
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('Error restoring: $e')));
+              if (context.mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error restoring: $e')));
+              }
             }
           },
         ),
@@ -623,13 +639,15 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                         rethrow;
                       }
                     }
-                    ref
+                    await ref
                         .read(directoryItemsProvider.notifier)
                         .refresh(showLoader: false);
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error renaming: $e')),
-                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error renaming: $e')),
+                      );
+                    }
                   } finally {
                     ref.read(mainFocusNodeProvider).requestFocus();
                   }
@@ -719,13 +737,15 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                   ref.read(selectionProvider.notifier).deselectAll();
                   ref.read(selectionProvider.notifier).selectMultiple(newPaths);
                 }
-                ref
+                await ref
                     .read(directoryItemsProvider.notifier)
                     .refresh(showLoader: false);
               } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
+                }
               } finally {
                 ref.read(mainFocusNodeProvider).requestFocus();
               }
@@ -789,7 +809,7 @@ class _ItemCardState extends ConsumerState<ItemCard> {
               },
             );
             ref.read(taskProvider.notifier).completeTask(taskId);
-            ref
+            await ref
                 .read(directoryItemsProvider.notifier)
                 .refresh(showLoader: false);
           } catch (e) {
@@ -798,33 +818,45 @@ class _ItemCardState extends ConsumerState<ItemCard> {
                 .read(directoryItemsProvider.notifier)
                 .restoreItems(removedItems);
             ref.read(taskProvider.notifier).failTask(taskId, e.toString());
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+            if (context.mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+            }
           }
         },
       ),
-      if (widget.item.type == FileItemType.folder) ...[
-        if (!isInTrash)
-          ContextMenuItem(
-            title: 'Compare Folders...',
-            icon: Icons.compare_arrows_rounded,
-            onTap: () {
-              final destPath = (paths.length > 1) ? paths[1] : null;
-              unawaited(
-                PersistentViewerManager.openMedia(
-                  WindowParams(
-                    viewerType: ViewerType.duplicateCompare,
-                    file: widget.item,
-                    initParams: {
-                      'sourceFolder': widget.item.path,
-                      if (destPath != null) 'destinationFolder': destPath,
-                    },
-                  ),
+      if (canCompare)
+        ContextMenuItem(
+          title: compareTitle,
+          icon: Icons.compare_arrows_rounded,
+          onTap: () {
+            final firstItem =
+                itemMap[paths[0]] ??
+                (paths[0] == widget.item.path
+                    ? widget.item
+                    : FileItem(
+                        path: paths[0],
+                        name: p.basename(paths[0]),
+                        type: FileItemType.folder,
+                        modified: DateTime.now(),
+                      ));
+            final destPath = (paths.length > 1) ? paths[1] : null;
+            unawaited(
+              PersistentViewerManager.openMedia(
+                WindowParams(
+                  viewerType: ViewerType.duplicateCompare,
+                  file: firstItem,
+                  initParams: {
+                    'sourceFolder': paths[0],
+                    if (destPath != null) 'destinationFolder': destPath,
+                  },
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
+        ),
+      if (widget.item.type == FileItemType.folder) ...[
         ContextMenuItem(
           title: 'Open in Terminal',
           icon: Icons.terminal_rounded,
