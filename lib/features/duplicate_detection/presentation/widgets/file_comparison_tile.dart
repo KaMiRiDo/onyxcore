@@ -11,6 +11,7 @@ import 'package:onyxcore/core/window_management/persistent_viewer_manager.dart';
 import 'package:onyxcore/core/window_management/window_params.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
+import 'package:onyxcore/features/directory_browser/presentation/providers/clipboard_provider.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/directory_providers.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/navigation_notifier.dart';
 import 'package:onyxcore/features/directory_browser/presentation/providers/selection_notifier.dart';
@@ -22,12 +23,14 @@ import 'package:path/path.dart' as p;
 ///
 /// Lazily loads image previews with bounded memory decoding, displays media metadata,
 /// indicates match confidence/type for destinations, and provides inspect/open actions.
-class FileComparisonTile extends ConsumerWidget {
+class FileComparisonTile extends StatelessWidget {
   const FileComparisonTile({
     required this.filePath,
     required this.isSource,
     this.matchType,
     this.similarityScore,
+    this.isSelected = false,
+    this.onToggleSelect,
     this.onOpen,
     this.onLocate,
     super.key,
@@ -37,6 +40,61 @@ class FileComparisonTile extends ConsumerWidget {
   final bool isSource;
   final MatchType? matchType;
   final double? similarityScore;
+  final bool isSelected;
+  final VoidCallback? onToggleSelect;
+  final VoidCallback? onOpen;
+  final VoidCallback? onLocate;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasScope =
+        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() !=
+        null;
+    if (!hasScope) {
+      return ProviderScope(
+        child: _FileComparisonTileContent(
+          filePath: filePath,
+          isSource: isSource,
+          matchType: matchType,
+          similarityScore: similarityScore,
+          isSelected: isSelected,
+          onToggleSelect: onToggleSelect,
+          onOpen: onOpen,
+          onLocate: onLocate,
+        ),
+      );
+    }
+    return _FileComparisonTileContent(
+      filePath: filePath,
+      isSource: isSource,
+      matchType: matchType,
+      similarityScore: similarityScore,
+      isSelected: isSelected,
+      onToggleSelect: onToggleSelect,
+      onOpen: onOpen,
+      onLocate: onLocate,
+    );
+  }
+}
+
+class _FileComparisonTileContent extends ConsumerWidget {
+  const _FileComparisonTileContent({
+    required this.filePath,
+    required this.isSource,
+    this.matchType,
+    this.similarityScore,
+    this.isSelected = false,
+    this.onToggleSelect,
+    this.onOpen,
+    this.onLocate,
+  });
+
+  final String filePath;
+  final bool isSource;
+  final MatchType? matchType;
+  final double? similarityScore;
+  final bool isSelected;
+  final VoidCallback? onToggleSelect;
   final VoidCallback? onOpen;
   final VoidCallback? onLocate;
 
@@ -51,14 +109,29 @@ class FileComparisonTile extends ConsumerWidget {
         ? _tryGetAspectRatio(filePath)
         : null;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+    final clipboard = ref.watch(clipboardProvider);
+    final isInClipboard = clipboard.paths.contains(filePath);
+    final isCut = clipboard.isCut && isInClipboard;
+    final isCopy = clipboard.isCopy && isInClipboard;
+    final opacity = isCut ? 0.4 : (isCopy ? 0.55 : 1.0);
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      opacity: opacity,
+      child: Container(
+        decoration: BoxDecoration(
+        color: isSelected
+            ? AppColors.violet.withValues(alpha: 0.15)
+            : const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isSource
-              ? AppColors.violet.withValues(alpha: 0.3)
-              : Colors.tealAccent.withValues(alpha: 0.25),
+          color: isSelected
+              ? AppColors.violet
+              : (isSource
+                  ? AppColors.violet.withValues(alpha: 0.3)
+                  : Colors.tealAccent.withValues(alpha: 0.25)),
+          width: isSelected ? 1.5 : 1.0,
         ),
       ),
       child: Padding(
@@ -66,6 +139,25 @@ class FileComparisonTile extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Checkbox for item selection
+            Padding(
+              padding: const EdgeInsets.only(top: 2, right: 6),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: Checkbox(
+                  value: isSelected,
+                  activeColor: AppColors.violet,
+                  checkColor: Colors.white,
+                  side: const BorderSide(color: Colors.white54, width: 1.5),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  onChanged: onToggleSelect != null
+                      ? (_) => onToggleSelect!()
+                      : null,
+                ),
+              ),
+            ),
             // Double-clickable tile body (preview + metadata)
             Expanded(
               child: MouseRegion(
@@ -100,6 +192,18 @@ class FileComparisonTile extends ConsumerWidget {
                                 _buildRoleBadge(),
                                 if (!isSource && matchType != null)
                                   _buildMatchBadge(),
+                                if (isCut)
+                                  _buildActionBadge(
+                                    label: 'Cut',
+                                    icon: Icons.content_cut_rounded,
+                                    color: AppColors.violet,
+                                  ),
+                                if (isCopy)
+                                  _buildActionBadge(
+                                    label: 'Copied',
+                                    icon: Icons.content_copy_rounded,
+                                    color: AppColors.violet,
+                                  ),
                               ],
                             ),
                             const SizedBox(height: 6),
@@ -182,6 +286,41 @@ class FileComparisonTile extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    ),
+  );
+  }
+
+  Widget _buildActionBadge({
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

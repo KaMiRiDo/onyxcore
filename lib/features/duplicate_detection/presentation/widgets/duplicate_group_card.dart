@@ -14,6 +14,14 @@ class DuplicateGroupCard extends StatelessWidget {
   const DuplicateGroupCard({
     required this.match,
     this.isExpanded = true,
+    this.isGroupSelected = false,
+    this.onToggleSelectGroup,
+    this.isDestinationGroupSelected,
+    this.onToggleSelectDestinationGroup,
+    this.isSourceGroupSelected,
+    this.onToggleSelectSourceGroup,
+    this.selectedPaths,
+    this.onToggleSelectPath,
     this.onToggleExpanded,
     this.onOpenFile,
     this.onLocateFile,
@@ -22,6 +30,14 @@ class DuplicateGroupCard extends StatelessWidget {
 
   final DuplicateMatch match;
   final bool isExpanded;
+  final bool? isGroupSelected;
+  final VoidCallback? onToggleSelectGroup;
+  final bool? isDestinationGroupSelected;
+  final VoidCallback? onToggleSelectDestinationGroup;
+  final bool? isSourceGroupSelected;
+  final VoidCallback? onToggleSelectSourceGroup;
+  final Set<String>? selectedPaths;
+  final void Function(String filePath)? onToggleSelectPath;
   final VoidCallback? onToggleExpanded;
   final void Function(String filePath)? onOpenFile;
   final void Function(String filePath)? onLocateFile;
@@ -33,6 +49,8 @@ class DuplicateGroupCard extends StatelessWidget {
     final primaryPair = match.destinationMatches.isNotEmpty
         ? match.destinationMatches.first
         : null;
+    final isSourceSelected = selectedPaths?.contains(match.sourcePath) ??
+        (isSourceGroupSelected ?? false);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -56,6 +74,25 @@ class DuplicateGroupCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
+                  // Source side checkbox
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Checkbox(
+                      value: isSourceSelected,
+                      activeColor: AppColors.violet,
+                      checkColor: Colors.white,
+                      side: const BorderSide(color: Colors.white54, width: 1.5),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: onToggleSelectSourceGroup != null
+                          ? (_) => onToggleSelectSourceGroup!()
+                          : (onToggleSelectPath != null
+                              ? (_) => onToggleSelectPath!(match.sourcePath)
+                              : null),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   const Icon(
                     Icons.folder_copy_rounded,
                     color: AppColors.violet,
@@ -73,6 +110,24 @@ class DuplicateGroupCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Destination side checkbox
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Checkbox(
+                      value: isDestinationGroupSelected,
+                      tristate: true,
+                      activeColor: Colors.tealAccent,
+                      checkColor: Colors.black,
+                      side: const BorderSide(color: Colors.white54, width: 1.5),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: onToggleSelectDestinationGroup != null
+                          ? (_) => onToggleSelectDestinationGroup!()
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -125,9 +180,15 @@ class DuplicateGroupCard extends StatelessWidget {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 720;
+                  final sourceSelected =
+                      selectedPaths?.contains(match.sourcePath) ?? false;
                   final sourceTile = FileComparisonTile(
                     filePath: match.sourcePath,
                     isSource: true,
+                    isSelected: sourceSelected,
+                    onToggleSelect: onToggleSelectPath != null
+                        ? () => onToggleSelectPath!(match.sourcePath)
+                        : null,
                     onOpen: onOpenFile != null
                         ? () => onOpenFile!(match.sourcePath)
                         : null,
@@ -138,7 +199,57 @@ class DuplicateGroupCard extends StatelessWidget {
 
                   final destinationTiles = Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: InkWell(
+                          onTap: onToggleSelectDestinationGroup,
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: Checkbox(
+                                    value: isDestinationGroupSelected,
+                                    tristate: true,
+                                    activeColor: AppColors.violet,
+                                    checkColor: Colors.white,
+                                    side: const BorderSide(
+                                      color: Colors.white54,
+                                      width: 1.5,
+                                    ),
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                    onChanged:
+                                        onToggleSelectDestinationGroup != null
+                                            ? (_) =>
+                                                onToggleSelectDestinationGroup!()
+                                            : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Select All (${match.destinationMatches.length} ${match.destinationMatches.length == 1 ? "match" : "matches"})',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                       for (
                         var i = 0;
                         i < match.destinationMatches.length;
@@ -148,6 +259,16 @@ class DuplicateGroupCard extends StatelessWidget {
                         FileComparisonTile(
                           filePath: match.destinationMatches[i].destinationPath,
                           isSource: false,
+                          isSelected:
+                              selectedPaths?.contains(
+                                match.destinationMatches[i].destinationPath,
+                              ) ??
+                              false,
+                          onToggleSelect: onToggleSelectPath != null
+                              ? () => onToggleSelectPath!(
+                                  match.destinationMatches[i].destinationPath,
+                                )
+                              : null,
                           matchType: match.destinationMatches[i].matchType,
                           similarityScore:
                               match.destinationMatches[i].similarityScore,
@@ -167,7 +288,8 @@ class DuplicateGroupCard extends StatelessWidget {
                   );
 
                   if (isWide) {
-                    return Row(
+                    return Flex(
+                      direction: Axis.horizontal,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(child: sourceTile),

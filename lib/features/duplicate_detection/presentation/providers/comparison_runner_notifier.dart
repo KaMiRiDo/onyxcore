@@ -138,6 +138,14 @@ class ComparisonRunnerNotifier extends Notifier<ComparisonRunnerState> {
     }
   }
 
+  /// Removes matching items from the current result by their file paths.
+  void removePaths(Set<String> paths) {
+    if (state.result != null) {
+      final updated = state.result!.removePaths(paths);
+      state = state.copyWith(result: updated);
+    }
+  }
+
   void dispose() {
     _cancellationToken?.cancel();
     _cleanup();

@@ -42,6 +42,8 @@ import 'package:onyxcore/features/directory_browser/presentation/widgets/sidebar
 import 'package:onyxcore/features/directory_browser/presentation/widgets/top_bar.dart';
 import 'package:onyxcore/features/directory_browser/presentation/widgets/unified_side_panel.dart';
 import 'package:onyxcore/features/downloader/presentation/providers/downloads_panel_provider.dart';
+import 'package:onyxcore/features/duplicate_detection/presentation/providers/compare_selection_notifier.dart';
+import 'package:onyxcore/features/duplicate_detection/presentation/providers/comparison_runner_notifier.dart';
 import 'package:onyxcore/features/settings/presentation/providers/settings_providers.dart';
 import 'package:path/path.dart' as p;
 
@@ -1250,6 +1252,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
                 .read(taskProvider.notifier)
                 .registerPort(taskId, port, isolate: isolate),
           );
+          ref.read(comparisonRunnerProvider.notifier).removePaths({op.source});
+          ref.read(compareSelectionProvider.notifier).removePaths({op.source});
         } else {
           // Trigger a refresh at the start to show the file as soon as it's created
           if (ref.read(currentPathProvider) == targetDir) {
@@ -1390,6 +1394,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
             ref.read(taskProvider.notifier).updateItemCounts(taskId, p, t);
           },
         );
+        ref.read(comparisonRunnerProvider.notifier).removePaths(paths.toSet());
+        ref.read(compareSelectionProvider.notifier).removePaths(paths);
       } else {
         try {
           await repo.trashItems(
@@ -1401,6 +1407,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
               ref.read(taskProvider.notifier).updateItemCounts(taskId, p, t);
             },
           );
+          ref.read(comparisonRunnerProvider.notifier).removePaths(paths.toSet());
+          ref.read(compareSelectionProvider.notifier).removePaths(paths);
         } on TrashFailedException {
           ref
               .read(taskProvider.notifier)
@@ -1443,6 +1451,8 @@ extension _GalleryPageStateShortcuts on _GalleryPageState {
                       .updateItemCounts(permanentTaskId, p, t);
                 },
               );
+              ref.read(comparisonRunnerProvider.notifier).removePaths(paths.toSet());
+              ref.read(compareSelectionProvider.notifier).removePaths(paths);
               ref.read(taskProvider.notifier).completeTask(permanentTaskId);
             } catch (err) {
               ref

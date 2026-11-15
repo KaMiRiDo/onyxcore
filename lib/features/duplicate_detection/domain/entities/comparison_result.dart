@@ -129,6 +129,44 @@ class ComparisonResult extends Equatable {
   /// Convenience getter: `true` when no matches were found.
   bool get isEmpty => matches.isEmpty;
 
+  /// Returns a new [ComparisonResult] with the given [pathsToRemove] excluded.
+  ///
+  /// Any [DuplicateMatch] whose `sourcePath` is in [pathsToRemove] is dropped.
+  /// Any destination match whose `destinationPath` is in [pathsToRemove] is dropped.
+  /// If a [DuplicateMatch] is left with no destination matches, it is dropped.
+  ComparisonResult removePaths(Set<String> pathsToRemove) {
+    if (pathsToRemove.isEmpty || matches.isEmpty) {
+      return this;
+    }
+
+    final updatedMatches = <DuplicateMatch>[];
+    for (final match in matches) {
+      if (pathsToRemove.contains(match.sourcePath)) {
+        continue;
+      }
+      final remainingDests = match.destinationMatches
+          .where((p) => !pathsToRemove.contains(p.destinationPath))
+          .toList();
+      if (remainingDests.isNotEmpty) {
+        updatedMatches.add(
+          DuplicateMatch(
+            sourcePath: match.sourcePath,
+            destinationMatches: remainingDests,
+          ),
+        );
+      }
+    }
+
+    return ComparisonResult(
+      requestId: requestId,
+      matches: updatedMatches,
+      totalSourceCandidates: totalSourceCandidates,
+      totalDestinationCandidates: totalDestinationCandidates,
+      completedAt: completedAt,
+      failures: failures,
+    );
+  }
+
   @override
   List<Object?> get props => [
     requestId,
