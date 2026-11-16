@@ -290,5 +290,133 @@ void main() {
       expect(result.matches, isEmpty);
       expect(events.any((e) => e.status == ComparisonStatus.cancelled), isTrue);
     });
+
+    test(
+      'processedFiles counter reflects unique candidates and never exceeds totalFiles in large clusters',
+      () async {
+        final sources = List.generate(
+          5,
+          (i) => _makeCandidate('/source/img_$i.jpg', isSource: true),
+        );
+        final dests = List.generate(
+          5,
+          (i) => _makeCandidate('/dest/img_$i.jpg', isSource: false),
+        );
+
+        final cluster = Stage1Cluster(
+          key: clusterKey,
+          sourceCandidates: sources,
+          destinationCandidates: dests,
+        );
+        final stage1Result = Stage1Result(
+          pairs: [ClusterPair(cluster, cluster)],
+          failures: const [],
+        );
+
+        final generator = _FakeGenerator({
+          for (final s in sources) s.file.path: List.filled(32, 1),
+          for (final d in dests) d.file.path: List.filled(32, 1),
+        });
+
+        final progressCtrl = StreamController<ComparisonProgress>.broadcast();
+        final progressEvents = <ComparisonProgress>[];
+        progressCtrl.stream.listen(progressEvents.add);
+
+        final pipeline = Stage2Pipeline(generator: generator);
+        await pipeline.run(
+          tRequest,
+          stage1Result: stage1Result,
+          progress: progressCtrl,
+          token: CancellationToken(),
+        );
+
+        for (final event in progressEvents) {
+          if (event.totalFiles > 0) {
+            expect(event.processedFiles, lessThanOrEqualTo(event.totalFiles));
+          }
+        }
+        expect(progressEvents.last.processedFiles, 10);
+        expect(progressEvents.last.totalFiles, 10);
+      },
+    );
+
+    test(
+      'prevents self-matching when source and destination point to identical file path',
+      () async {
+        final sharedCandidateSrc = _makeCandidate(
+          '/folder/photo.jpg',
+          isSource: true,
+        );
+        final sharedCandidateDst = _makeCandidate(
+          '/folder/photo.jpg',
+          isSource: false,
+        );
+
+        final cluster = Stage1Cluster(
+          key: clusterKey,
+          sourceCandidates: [sharedCandidateSrc],
+          destinationCandidates: [sharedCandidateDst],
+        );
+        final stage1Result = Stage1Result(
+          pairs: [ClusterPair(cluster, cluster)],
+          failures: const [],
+        );
+
+        final generator = _FakeGenerator({
+          '/folder/photo.jpg': List.filled(32, 0xFF),
+        });
+
+        final pipeline = Stage2Pipeline(generator: generator);
+        final result = await pipeline.run(
+          tRequest,
+          stage1Result: stage1Result,
+          progress: StreamController<ComparisonProgress>.broadcast(),
+          token: CancellationToken(),
+        );
+
+        // A file must never be reported as a duplicate of itself
+        expect(result.matches, isEmpty);
+      },
+    );
+
+    test(
+      'deduplicates failure entries when candidate fails fingerprinting',
+      () async {
+        final corruptSrc = _makeCandidate('/source/corrupt.jpg', isSource: true);
+        final dsts = List.generate(
+          3,
+          (i) => _makeCandidate('/dest/d$i.jpg', isSource: false),
+        );
+
+        final cluster = Stage1Cluster(
+          key: clusterKey,
+          sourceCandidates: [corruptSrc],
+          destinationCandidates: dsts,
+        );
+        final stage1Result = Stage1Result(
+          pairs: [ClusterPair(cluster, cluster)],
+          failures: const [],
+        );
+
+        final generator = _FakeGenerator(
+          {for (final d in dsts) d.file.path: List.filled(32, 0)},
+          failingPaths: {'/source/corrupt.jpg'},
+        );
+
+        final pipeline = Stage2Pipeline(generator: generator);
+        final result = await pipeline.run(
+          tRequest,
+          stage1Result: stage1Result,
+          progress: StreamController<ComparisonProgress>.broadcast(),
+          token: CancellationToken(),
+        );
+
+        // Even with 3 destination comparisons, corruptSrc must only have 1 failure entry
+        final failuresForCorrupt = result.failures.where(
+          (f) => f.candidatePath == '/source/corrupt.jpg',
+        );
+        expect(failuresForCorrupt.length, 1);
+      },
+    );
   });
 }

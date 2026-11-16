@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,6 +36,7 @@ class _CompareWindowState extends ConsumerState<CompareWindow> {
   late final ComparisonRunnerNotifier _runnerNotifier;
   late final CompareConfigNotifier _configNotifier;
   late final CompareSelectionNotifier _selectionNotifier;
+  bool _isVerifying = false;
 
   @override
   void initState() {
@@ -41,8 +44,9 @@ class _CompareWindowState extends ConsumerState<CompareWindow> {
     _runnerNotifier = ref.read(comparisonRunnerProvider.notifier);
     _configNotifier = ref.read(compareConfigProvider.notifier);
     _selectionNotifier = ref.read(compareSelectionProvider.notifier);
-    PersistentViewerManager.getFocusTrigger(widget.windowId)
-        .addListener(_onWindowFocus);
+    PersistentViewerManager.getFocusTrigger(
+      widget.windowId,
+    ).addListener(_onWindowFocus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _applyInitialParams();
     });
@@ -50,30 +54,41 @@ class _CompareWindowState extends ConsumerState<CompareWindow> {
 
   void _onWindowFocus() {
     if (mounted) {
-      _verifyExistingFiles();
-      setState(() {});
+      unawaited(_verifyExistingFiles());
     }
   }
 
-  void _verifyExistingFiles() {
-    final result = ref.read(comparisonRunnerProvider).result;
-    if (result == null || result.isEmpty) return;
-    final missing = <String>{};
-    for (final match in result.matches) {
-      if (!File(match.sourcePath).existsSync() &&
-          !Directory(match.sourcePath).existsSync()) {
-        missing.add(match.sourcePath);
-      }
-      for (final dest in match.destinationMatches) {
-        if (!File(dest.destinationPath).existsSync() &&
-            !Directory(dest.destinationPath).existsSync()) {
-          missing.add(dest.destinationPath);
+  Future<void> _verifyExistingFiles() async {
+    if (_isVerifying) return;
+    _isVerifying = true;
+    try {
+      final result = ref.read(comparisonRunnerProvider).result;
+      if (result == null || result.isEmpty) return;
+      final paths = <String>{};
+      for (final match in result.matches) {
+        paths.add(match.sourcePath);
+        for (final dest in match.destinationMatches) {
+          paths.add(dest.destinationPath);
         }
       }
-    }
-    if (missing.isNotEmpty) {
-      _runnerNotifier.removePaths(missing);
-      _selectionNotifier.removePaths(missing);
+
+      final missing = await Isolate.run(() {
+        final missingSet = <String>{};
+        for (final path in paths) {
+          if (!File(path).existsSync() && !Directory(path).existsSync()) {
+            missingSet.add(path);
+          }
+        }
+        return missingSet;
+      });
+
+      if (mounted && missing.isNotEmpty) {
+        _runnerNotifier.removePaths(missing);
+        _selectionNotifier.removePaths(missing);
+        setState(() {});
+      }
+    } finally {
+      _isVerifying = false;
     }
   }
 
@@ -81,10 +96,12 @@ class _CompareWindowState extends ConsumerState<CompareWindow> {
   void didUpdateWidget(CompareWindow oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.windowId != oldWidget.windowId) {
-      PersistentViewerManager.getFocusTrigger(oldWidget.windowId)
-          .removeListener(_onWindowFocus);
-      PersistentViewerManager.getFocusTrigger(widget.windowId)
-          .addListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        oldWidget.windowId,
+      ).removeListener(_onWindowFocus);
+      PersistentViewerManager.getFocusTrigger(
+        widget.windowId,
+      ).addListener(_onWindowFocus);
     }
     if (widget.initialParams != oldWidget.initialParams) {
       _applyInitialParams();
@@ -93,8 +110,9 @@ class _CompareWindowState extends ConsumerState<CompareWindow> {
 
   @override
   void dispose() {
-    PersistentViewerManager.getFocusTrigger(widget.windowId)
-        .removeListener(_onWindowFocus);
+    PersistentViewerManager.getFocusTrigger(
+      widget.windowId,
+    ).removeListener(_onWindowFocus);
     Future.microtask(() {
       _runnerNotifier.reset();
       _configNotifier.reset();

@@ -89,6 +89,10 @@ class _FileComparisonTileContent extends ConsumerWidget {
     this.onLocate,
   });
 
+  static final Map<String, String?> _aspectRatioCache = {};
+  static final Map<String, int?> _fileSizeCache = {};
+  static final Map<String, bool> _existsCache = {};
+
   final String filePath;
   final bool isSource;
   final MatchType? matchType;
@@ -98,14 +102,23 @@ class _FileComparisonTileContent extends ConsumerWidget {
   final VoidCallback? onOpen;
   final VoidCallback? onLocate;
 
+  bool _checkExists(File file) {
+    final cached = _existsCache[file.path];
+    if (cached != null) return cached;
+    final exists = file.existsSync();
+    _existsCache[file.path] = exists;
+    return exists;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fileName = p.basename(filePath);
     final fileType = classifyFileType(filePath);
     final file = File(filePath);
-    final exists = file.existsSync();
+    final exists = _checkExists(file);
     final sizeBytes = exists ? _tryGetFileSize(file) : null;
-    final aspectRatio = (exists && fileType == FileItemType.image)
+    final isSvg = filePath.toLowerCase().endsWith('.svg');
+    final aspectRatio = (exists && fileType == FileItemType.image && !isSvg)
         ? _tryGetAspectRatio(filePath)
         : null;
 
@@ -115,12 +128,8 @@ class _FileComparisonTileContent extends ConsumerWidget {
     final isCopy = clipboard.isCopy && isInClipboard;
     final opacity = isCut ? 0.4 : (isCopy ? 0.55 : 1.0);
 
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-      opacity: opacity,
-      child: Container(
-        decoration: BoxDecoration(
+    final tileContent = Container(
+      decoration: BoxDecoration(
         color: isSelected
             ? AppColors.violet.withValues(alpha: 0.15)
             : const Color(0xFF1E1E1E),
@@ -129,8 +138,8 @@ class _FileComparisonTileContent extends ConsumerWidget {
           color: isSelected
               ? AppColors.violet
               : (isSource
-                  ? AppColors.violet.withValues(alpha: 0.3)
-                  : Colors.tealAccent.withValues(alpha: 0.25)),
+                    ? AppColors.violet.withValues(alpha: 0.3)
+                    : Colors.tealAccent.withValues(alpha: 0.25)),
           width: isSelected ? 1.5 : 1.0,
         ),
       ),
@@ -287,8 +296,18 @@ class _FileComparisonTileContent extends ConsumerWidget {
           ],
         ),
       ),
-    ),
-  );
+    );
+
+    if (opacity == 1.0) {
+      return tileContent;
+    }
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      opacity: opacity,
+      child: tileContent,
+    );
   }
 
   Widget _buildActionBadge({
@@ -391,7 +410,9 @@ class _FileComparisonTileContent extends ConsumerWidget {
       );
     }
 
-    if (type == FileItemType.image) {
+    final isSvg = filePath.toLowerCase().endsWith('.svg');
+
+    if (type == FileItemType.image && !isSvg) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -400,8 +421,10 @@ class _FileComparisonTileContent extends ConsumerWidget {
           color: Colors.black38,
           child: Image.file(
             File(filePath),
-            cacheWidth: 300,
-            cacheHeight: 300,
+            gaplessPlayback: true,
+            cacheWidth: 160,
+            cacheHeight: 160,
+            filterQuality: FilterQuality.low,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => const Center(
               child: Icon(
@@ -484,20 +507,32 @@ class _FileComparisonTileContent extends ConsumerWidget {
   }
 
   int? _tryGetFileSize(File file) {
+    if (_fileSizeCache.containsKey(file.path)) {
+      return _fileSizeCache[file.path];
+    }
     try {
-      return file.lengthSync();
+      final size = file.lengthSync();
+      _fileSizeCache[file.path] = size;
+      return size;
     } catch (_) {
+      _fileSizeCache[file.path] = null;
       return null;
     }
   }
 
   String? _tryGetAspectRatio(String path) {
+    if (_aspectRatioCache.containsKey(path)) {
+      return _aspectRatioCache[path];
+    }
     try {
       final ratio = MediaMetadataDatasource.parseImageDimensions(path);
       if (ratio != null) {
-        return Stage1Normalizer.normalizeAspectRatioFromRatio(ratio);
+        final group = Stage1Normalizer.normalizeAspectRatioFromRatio(ratio);
+        _aspectRatioCache[path] = group;
+        return group;
       }
     } catch (_) {}
+    _aspectRatioCache[path] = null;
     return null;
   }
 

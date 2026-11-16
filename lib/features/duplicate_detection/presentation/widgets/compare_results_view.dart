@@ -151,6 +151,69 @@ class _CompareResultsContentState
     extends ConsumerState<_CompareResultsContent> {
   final Set<String> _collapsedSourcePaths = {};
   late final FocusNode _focusNode;
+  static const String _allMatchesOption = 'All Matches';
+  String _selectedMatchFilter = _allMatchesOption;
+
+  String _formatMatchLabel(MatchedPair pair) {
+    if (pair.matchType == MatchType.exact) {
+      return 'Exact Match';
+    }
+    final pct = (pair.similarityScore * 100).toInt();
+    return '$pct% Similarity';
+  }
+
+  List<String> get _availableMatchFilterOptions {
+    final optionsSet = <String>{};
+    for (final match in widget.result.matches) {
+      for (final dest in match.destinationMatches) {
+        optionsSet.add(_formatMatchLabel(dest));
+      }
+    }
+    final list = optionsSet.toList()
+      ..sort((a, b) {
+        if (a == 'Exact Match') return -1;
+        if (b == 'Exact Match') return 1;
+        final aNum = int.tryParse(a.split('%').first) ?? 0;
+        final bNum = int.tryParse(b.split('%').first) ?? 0;
+        return bNum.compareTo(aNum);
+      });
+    return [_allMatchesOption, ...list];
+  }
+
+  Map<String, int> get _matchFilterCounts {
+    final counts = <String, int>{};
+    var total = 0;
+    for (final match in widget.result.matches) {
+      for (final dest in match.destinationMatches) {
+        final label = _formatMatchLabel(dest);
+        counts[label] = (counts[label] ?? 0) + 1;
+        total++;
+      }
+    }
+    counts[_allMatchesOption] = total;
+    return counts;
+  }
+
+  List<DuplicateMatch> get _filteredMatches {
+    if (_selectedMatchFilter == _allMatchesOption) {
+      return widget.result.matches;
+    }
+    final filtered = <DuplicateMatch>[];
+    for (final match in widget.result.matches) {
+      final matchingDests = match.destinationMatches.where((pair) {
+        return _formatMatchLabel(pair) == _selectedMatchFilter;
+      }).toList();
+      if (matchingDests.isNotEmpty) {
+        filtered.add(
+          DuplicateMatch(
+            sourcePath: match.sourcePath,
+            destinationMatches: matchingDests,
+          ),
+        );
+      }
+    }
+    return filtered;
+  }
 
   @override
   void initState() {
@@ -292,25 +355,51 @@ class _CompareResultsContentState
   }
 
   List<String> get _allSourcePaths =>
-      widget.result.matches.map((m) => m.sourcePath).toList();
+      _filteredMatches.map((m) => m.sourcePath).toList();
 
-  List<String> get _allDestinationPaths => widget.result.matches
+  List<String> get _allDestinationPaths => _filteredMatches
       .expand((m) => m.destinationMatches.map((d) => d.destinationPath))
       .toList();
 
   void _toggleAllSources() {
-    ref.read(compareSelectionProvider.notifier).toggleGroup(_allSourcePaths);
+    final visibleSources = _allSourcePaths;
+    final isAllSelected = _computeGroupSelected(
+          ref.read(compareSelectionProvider),
+          visibleSources,
+        ) ??
+        false;
+
+    if (isAllSelected) {
+      ref.read(compareSelectionProvider.notifier).removePaths(visibleSources);
+    } else {
+      if (_selectedMatchFilter != _allMatchesOption) {
+        ref.read(compareSelectionProvider.notifier).reset();
+      }
+      ref.read(compareSelectionProvider.notifier).selectAll(visibleSources);
+    }
   }
 
   void _toggleAllDestinations() {
-    ref
-        .read(compareSelectionProvider.notifier)
-        .toggleGroup(_allDestinationPaths);
+    final visibleDests = _allDestinationPaths;
+    final isAllSelected = _computeGroupSelected(
+          ref.read(compareSelectionProvider),
+          visibleDests,
+        ) ??
+        false;
+
+    if (isAllSelected) {
+      ref.read(compareSelectionProvider.notifier).removePaths(visibleDests);
+    } else {
+      if (_selectedMatchFilter != _allMatchesOption) {
+        ref.read(compareSelectionProvider.notifier).reset();
+      }
+      ref.read(compareSelectionProvider.notifier).selectAll(visibleDests);
+    }
   }
 
   void _selectAll() {
     final allPaths = <String>{};
-    for (final m in widget.result.matches) {
+    for (final m in _filteredMatches) {
       allPaths.add(m.sourcePath);
       for (final d in m.destinationMatches) {
         allPaths.add(d.destinationPath);
@@ -341,8 +430,9 @@ class _CompareResultsContentState
               Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color:
-                      (iconColor ?? AppColors.violet).withValues(alpha: 0.25),
+                  color: (iconColor ?? AppColors.violet).withValues(
+                    alpha: 0.25,
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -371,10 +461,7 @@ class _CompareResultsContentState
         elevation: 14,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: borderColor ?? AppColors.violet,
-            width: 1.5,
-          ),
+          side: BorderSide(color: borderColor ?? AppColors.violet, width: 1.5),
         ),
         margin: const EdgeInsets.fromLTRB(28, 0, 28, 28),
         duration: duration,
@@ -535,6 +622,22 @@ class _CompareResultsContentState
     }
   }
 
+  bool? _computeGroupSelected(Set<String> selected, Iterable<String> paths) {
+    final pathList = paths.toList();
+    if (pathList.isEmpty) return false;
+
+    var selectedCount = 0;
+    for (final p in pathList) {
+      if (selected.contains(p)) {
+        selectedCount++;
+      }
+    }
+
+    if (selectedCount == 0) return false;
+    if (selectedCount == pathList.length) return true;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalGroups = widget.result.matches.length;
@@ -596,8 +699,9 @@ class _CompareResultsContentState
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color:
-                                      AppColors.violet.withValues(alpha: 0.15),
+                                  color: AppColors.violet.withValues(
+                                    alpha: 0.15,
+                                  ),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Icon(
@@ -631,8 +735,9 @@ class _CompareResultsContentState
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: Colors.tealAccent
-                                      .withValues(alpha: 0.15),
+                                  color: Colors.tealAccent.withValues(
+                                    alpha: 0.15,
+                                  ),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Icon(
@@ -720,151 +825,160 @@ class _CompareResultsContentState
             ),
             // Action Toolbar (Always visible, clean, buttons disabled when empty)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: const BoxDecoration(
                 color: Color(0xFF19191D),
                 border: Border(bottom: BorderSide(color: Colors.white10)),
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selectedPaths.isNotEmpty
-                            ? AppColors.violet
-                            : Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${selectedPaths.length} selected',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: selectedPaths.isNotEmpty
-                              ? Colors.white
-                              : Colors.white38,
-                        ),
+              child: Row(
+                children: [
+                  // Left side: Action tools
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selectedPaths.isNotEmpty
+                                  ? AppColors.violet
+                                  : Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${selectedPaths.length} selected',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: selectedPaths.isNotEmpty
+                                    ? Colors.white
+                                    : Colors.white38,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed:
+                                selectedPaths.isNotEmpty ? _deselectAll : null,
+                            icon: Icon(
+                              Icons.clear_rounded,
+                              size: 16,
+                              color: selectedPaths.isNotEmpty
+                                  ? Colors.white70
+                                  : Colors.white24,
+                            ),
+                            label: Text(
+                              'Clear',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: selectedPaths.isNotEmpty
+                                    ? Colors.white70
+                                    : Colors.white24,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          TextButton.icon(
+                            onPressed:
+                                selectedPaths.isNotEmpty ? _handleCopy : null,
+                            icon: Icon(
+                              Icons.content_copy_rounded,
+                              size: 15,
+                              color: selectedPaths.isNotEmpty
+                                  ? Colors.white
+                                  : Colors.white24,
+                            ),
+                            label: Text(
+                              'Copy',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: selectedPaths.isNotEmpty
+                                    ? Colors.white
+                                    : Colors.white24,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          TextButton.icon(
+                            onPressed:
+                                selectedPaths.isNotEmpty ? _handleCut : null,
+                            icon: Icon(
+                              Icons.content_cut_rounded,
+                              size: 15,
+                              color: selectedPaths.isNotEmpty
+                                  ? Colors.white
+                                  : Colors.white24,
+                            ),
+                            label: Text(
+                              'Move',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: selectedPaths.isNotEmpty
+                                    ? Colors.white
+                                    : Colors.white24,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          TextButton.icon(
+                            onPressed: selectedPaths.isNotEmpty
+                                ? () => _handleDelete(permanent: false)
+                                : null,
+                            icon: Icon(
+                              Icons.delete_outline_rounded,
+                              size: 15,
+                              color: selectedPaths.isNotEmpty
+                                  ? Colors.white
+                                  : Colors.white24,
+                            ),
+                            label: Text(
+                              'Trash',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: selectedPaths.isNotEmpty
+                                    ? Colors.white
+                                    : Colors.white24,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          TextButton.icon(
+                            onPressed: selectedPaths.isNotEmpty
+                                ? () => _handleDelete(permanent: true)
+                                : null,
+                            icon: Icon(
+                              Icons.delete_forever_rounded,
+                              size: 15,
+                              color: selectedPaths.isNotEmpty
+                                  ? Colors.redAccent
+                                  : Colors.white24,
+                            ),
+                            label: Text(
+                              'Delete Permanently',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: selectedPaths.isNotEmpty
+                                    ? Colors.redAccent
+                                    : Colors.white24,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: selectedPaths.isNotEmpty ? _deselectAll : null,
-                      icon: Icon(
-                        Icons.clear_rounded,
-                        size: 16,
-                        color: selectedPaths.isNotEmpty
-                            ? Colors.white70
-                            : Colors.white24,
-                      ),
-                      label: Text(
-                        'Clear',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: selectedPaths.isNotEmpty
-                              ? Colors.white70
-                              : Colors.white24,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    TextButton.icon(
-                      onPressed: selectedPaths.isNotEmpty ? _handleCopy : null,
-                      icon: Icon(
-                        Icons.content_copy_rounded,
-                        size: 15,
-                        color: selectedPaths.isNotEmpty
-                            ? Colors.white
-                            : Colors.white24,
-                      ),
-                      label: Text(
-                        'Copy',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: selectedPaths.isNotEmpty
-                              ? Colors.white
-                              : Colors.white24,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    TextButton.icon(
-                      onPressed: selectedPaths.isNotEmpty ? _handleCut : null,
-                      icon: Icon(
-                        Icons.content_cut_rounded,
-                        size: 15,
-                        color: selectedPaths.isNotEmpty
-                            ? Colors.white
-                            : Colors.white24,
-                      ),
-                      label: Text(
-                        'Move',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: selectedPaths.isNotEmpty
-                              ? Colors.white
-                              : Colors.white24,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    TextButton.icon(
-                      onPressed: selectedPaths.isNotEmpty
-                          ? () => _handleDelete(permanent: false)
-                          : null,
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        size: 15,
-                        color: selectedPaths.isNotEmpty
-                            ? Colors.white
-                            : Colors.white24,
-                      ),
-                      label: Text(
-                        'Trash',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: selectedPaths.isNotEmpty
-                              ? Colors.white
-                              : Colors.white24,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    TextButton.icon(
-                      onPressed: selectedPaths.isNotEmpty
-                          ? () => _handleDelete(permanent: true)
-                          : null,
-                      icon: Icon(
-                        Icons.delete_forever_rounded,
-                        size: 15,
-                        color: selectedPaths.isNotEmpty
-                            ? Colors.redAccent
-                            : Colors.white24,
-                      ),
-                      label: Text(
-                        'Delete Permanently',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: selectedPaths.isNotEmpty
-                              ? Colors.redAccent
-                              : Colors.white24,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildMatchFilterDropdown(),
+                ],
               ),
             ),
             // Section Headers for Source & Destination
@@ -882,12 +996,14 @@ class _CompareResultsContentState
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final isWide = constraints.maxWidth >= 720;
-                    final isAllSourcesSelected = ref
-                        .watch(compareSelectionProvider.notifier)
-                        .isGroupSelected(_allSourcePaths);
-                    final isAllDestinationsSelected = ref
-                        .watch(compareSelectionProvider.notifier)
-                        .isGroupSelected(_allDestinationPaths);
+                    final isAllSourcesSelected = _computeGroupSelected(
+                      selectedPaths,
+                      _allSourcePaths,
+                    );
+                    final isAllDestinationsSelected = _computeGroupSelected(
+                      selectedPaths,
+                      _allDestinationPaths,
+                    );
 
                     final sourceHeader = _buildSectionHeader(
                       label: 'SOURCE FOLDER',
@@ -930,45 +1046,91 @@ class _CompareResultsContentState
               ),
             // Virtualized Results List
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: widget.result.matches.length,
-                itemBuilder: (context, index) {
-                  final match = widget.result.matches[index];
-                  final isExpanded = !_collapsedSourcePaths.contains(
-                    match.sourcePath,
-                  );
-                  final destPaths = match.destinationMatches
-                      .map((d) => d.destinationPath)
-                      .toList();
-                  final isDestGroupSelected = ref
-                      .watch(compareSelectionProvider.notifier)
-                      .isGroupSelected(destPaths);
+              child: Builder(
+                builder: (context) {
+                  final filtered = _filteredMatches;
+                  if (filtered.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.filter_list_off_rounded,
+                              size: 40,
+                              color: Colors.white30,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No matches found for "$_selectedMatchFilter"',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedMatchFilter = _allMatchesOption;
+                                });
+                                ref
+                                    .read(compareSelectionProvider.notifier)
+                                    .deselectAll();
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Reset to All Matches'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
 
-                  return DuplicateGroupCard(
-                    key: ValueKey(match.sourcePath),
-                    match: match,
-                    isExpanded: isExpanded,
-                    isSourceGroupSelected:
-                        selectedPaths.contains(match.sourcePath),
-                    onToggleSelectSourceGroup: () {
-                      ref
-                          .read(compareSelectionProvider.notifier)
-                          .toggle(match.sourcePath);
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final match = filtered[index];
+                      final isExpanded = !_collapsedSourcePaths.contains(
+                        match.sourcePath,
+                      );
+                      final destPaths = match.destinationMatches
+                          .map((d) => d.destinationPath)
+                          .toList();
+                      final isDestGroupSelected = _computeGroupSelected(
+                        selectedPaths,
+                        destPaths,
+                      );
+
+                      return DuplicateGroupCard(
+                        key: ValueKey(match.sourcePath),
+                        match: match,
+                        isExpanded: isExpanded,
+                        isSourceGroupSelected:
+                            selectedPaths.contains(match.sourcePath),
+                        onToggleSelectSourceGroup: () {
+                          ref
+                              .read(compareSelectionProvider.notifier)
+                              .toggle(match.sourcePath);
+                        },
+                        isDestinationGroupSelected: isDestGroupSelected,
+                        onToggleSelectDestinationGroup: () {
+                          ref
+                              .read(compareSelectionProvider.notifier)
+                              .toggleGroup(destPaths);
+                        },
+                        selectedPaths: selectedPaths,
+                        onToggleSelectPath: (path) {
+                          ref.read(compareSelectionProvider.notifier).toggle(path);
+                        },
+                        onToggleExpanded: () => _toggleGroup(match.sourcePath),
+                        onOpenFile: widget.onOpenFile,
+                        onLocateFile: widget.onLocateFile,
+                      );
                     },
-                    isDestinationGroupSelected: isDestGroupSelected,
-                    onToggleSelectDestinationGroup: () {
-                      ref
-                          .read(compareSelectionProvider.notifier)
-                          .toggleGroup(destPaths);
-                    },
-                    selectedPaths: selectedPaths,
-                    onToggleSelectPath: (path) {
-                      ref.read(compareSelectionProvider.notifier).toggle(path);
-                    },
-                    onToggleExpanded: () => _toggleGroup(match.sourcePath),
-                    onOpenFile: widget.onOpenFile,
-                    onLocateFile: widget.onLocateFile,
                   );
                 },
               ),
@@ -1048,6 +1210,115 @@ class _CompareResultsContentState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMatchFilterDropdown() {
+    final isFilterActive = _selectedMatchFilter != _allMatchesOption;
+    final options = _availableMatchFilterOptions;
+    final counts = _matchFilterCounts;
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          color: const Color(0xFF202026),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Colors.white12),
+          ),
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        tooltip: 'Filter matches by status',
+        initialValue: _selectedMatchFilter,
+        onSelected: (value) {
+          setState(() {
+            _selectedMatchFilter = value;
+          });
+          ref.read(compareSelectionProvider.notifier).deselectAll();
+        },
+        itemBuilder: (context) {
+          return options.map((opt) {
+            final isSelected = opt == _selectedMatchFilter;
+            final count = counts[opt] ?? 0;
+            return PopupMenuItem<String>(
+              value: opt,
+              height: 38,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isSelected
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    size: 16,
+                    color: isSelected ? AppColors.violet : Colors.white38,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    opt,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? Colors.white : Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '($count)',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: isSelected ? AppColors.violet : Colors.white38,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isFilterActive
+                ? AppColors.violet.withValues(alpha: 0.15)
+                : const Color(0xFF222226),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isFilterActive ? AppColors.violet : Colors.white24,
+              width: isFilterActive ? 1.5 : 1.0,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isFilterActive
+                    ? Icons.filter_alt_rounded
+                    : Icons.filter_list_rounded,
+                size: 15,
+                color: isFilterActive ? AppColors.violet : Colors.white60,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _selectedMatchFilter,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight:
+                      isFilterActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isFilterActive ? Colors.white : Colors.white70,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_drop_down_rounded,
+                size: 18,
+                color: isFilterActive ? AppColors.violet : Colors.white54,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

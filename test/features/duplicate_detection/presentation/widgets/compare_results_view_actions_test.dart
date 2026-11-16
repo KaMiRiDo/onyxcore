@@ -224,7 +224,7 @@ void main() {
       expect(find.widgetWithText(TextButton, 'Clear'), findsOneWidget);
     });
 
-    testWidgets('group destination Select All selects only that group destinations', (
+    testWidgets('group destination checkbox in header selects only that group destinations without inner select all', (
       tester,
     ) async {
       await tester.pumpWidget(buildTestWidget());
@@ -234,17 +234,23 @@ void main() {
         tester.element(find.byType(CompareResultsView)),
       );
 
-      // Group 1 has 2 destination matches: dst1 and dst2
-      final group1DestSelectAll = find.widgetWithText(Row, 'Select All (2 matches)');
-      expect(group1DestSelectAll, findsOneWidget);
+      // Inner Select All row must NOT exist
+      expect(find.textContaining('Select All ('), findsNothing);
 
-      final group1Checkbox = find.descendant(
-        of: group1DestSelectAll,
-        matching: find.byType(Checkbox),
+      // Group 1 card has destination checkbox in its header
+      final group1 = find.byKey(ValueKey(src1.path));
+      expect(group1, findsOneWidget);
+
+      final group1Header = find.descendant(
+        of: group1,
+        matching: find.widgetWithText(Row, '2 Matches'),
       );
-      expect(group1Checkbox, findsOneWidget);
+      final group1DestCheckbox = find.descendant(
+        of: group1Header,
+        matching: find.byType(Checkbox),
+      ).last;
 
-      await tester.tap(group1Checkbox);
+      await tester.tap(group1DestCheckbox);
       await tester.pumpAndSettle();
 
       final selected = container.read(compareSelectionProvider);

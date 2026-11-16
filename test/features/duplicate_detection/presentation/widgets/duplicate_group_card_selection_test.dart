@@ -85,7 +85,7 @@ void main() {
       expect(destToggled, isTrue);
     });
 
-    testWidgets('destination side in group has a group-level Select All checkbox for destination items', (
+    testWidgets('group-level destination checkbox in header handles selection without inner select all row', (
       tester,
     ) async {
       final match = DuplicateMatch(
@@ -122,20 +122,17 @@ void main() {
         ),
       );
 
-      // Must find the group destination Select All checkbox
-      final destSelectAllFinder = find.widgetWithText(
-        Row,
-        'Select All (2 matches)',
-      );
-      expect(destSelectAllFinder, findsOneWidget);
+      // Inner 'Select All' row should NOT exist
+      expect(find.textContaining('Select All'), findsNothing);
 
-      final destCheckbox = find.descendant(
-        of: destSelectAllFinder,
+      // The group header's destination checkbox handles group selection
+      final matchHeaderFinder = find.widgetWithText(Row, '2 Matches');
+      final headerDestCheckbox = find.descendant(
+        of: matchHeaderFinder,
         matching: find.byType(Checkbox),
-      );
-      expect(destCheckbox, findsOneWidget);
+      ).last;
 
-      await tester.tap(destCheckbox);
+      await tester.tap(headerDestCheckbox);
       await tester.pump();
 
       expect(destGroupToggled, isTrue);

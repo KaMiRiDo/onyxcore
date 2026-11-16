@@ -44,6 +44,7 @@ class DuplicateGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >= 750;
     final fileName = p.basename(match.sourcePath);
     final count = match.matchCount;
     final primaryPair = match.destinationMatches.isNotEmpty
@@ -177,9 +178,8 @@ class DuplicateGroupCard extends StatelessWidget {
             const Divider(color: Colors.white10, height: 1),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 720;
+              child: Builder(
+                builder: (context) {
                   final sourceSelected =
                       selectedPaths?.contains(match.sourcePath) ?? false;
                   final sourceTile = FileComparisonTile(
@@ -201,55 +201,6 @@ class DuplicateGroupCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: InkWell(
-                          onTap: onToggleSelectDestinationGroup,
-                          borderRadius: BorderRadius.circular(4),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: Checkbox(
-                                    value: isDestinationGroupSelected,
-                                    tristate: true,
-                                    activeColor: AppColors.violet,
-                                    checkColor: Colors.white,
-                                    side: const BorderSide(
-                                      color: Colors.white54,
-                                      width: 1.5,
-                                    ),
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    visualDensity: VisualDensity.compact,
-                                    onChanged:
-                                        onToggleSelectDestinationGroup != null
-                                            ? (_) =>
-                                                onToggleSelectDestinationGroup!()
-                                            : null,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Select All (${match.destinationMatches.length} ${match.destinationMatches.length == 1 ? "match" : "matches"})',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white70,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
                       for (
                         var i = 0;
                         i < match.destinationMatches.length;

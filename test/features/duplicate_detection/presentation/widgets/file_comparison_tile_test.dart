@@ -209,5 +209,52 @@ void main() {
         expect(opened, isTrue);
       },
     );
+
+    testWidgets(
+      'FileComparisonTile enables gaplessPlayback and bounds image decode cache to avoid flicker',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FileComparisonTile(
+                filePath: sourceFile.path,
+                isSource: true,
+              ),
+            ),
+          ),
+        );
+
+        final imageFinder = find.byType(Image);
+        expect(imageFinder, findsOneWidget);
+
+        final imageWidget = tester.widget<Image>(imageFinder);
+        expect(imageWidget.gaplessPlayback, isTrue);
+
+        final resizeProvider = imageWidget.image as ResizeImage;
+        expect(resizeProvider.width, lessThanOrEqualTo(160));
+        expect(resizeProvider.height, lessThanOrEqualTo(160));
+      },
+    );
+
+    testWidgets(
+      'FileComparisonTile safely handles SVG files without passing them to bitmap Image.file',
+      (tester) async {
+        final svgFile = File('${tempDir.path}/vector_icon.svg')
+          ..writeAsStringSync(
+            '<svg width="100" height="100"><circle cx="50" cy="50" r="40"/></svg>',
+          );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FileComparisonTile(filePath: svgFile.path, isSource: true),
+            ),
+          ),
+        );
+
+        expect(find.byType(Image), findsNothing);
+        expect(find.byIcon(Icons.image_rounded), findsNWidgets(2));
+      },
+    );
   });
 }
