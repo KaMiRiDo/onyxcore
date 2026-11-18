@@ -895,11 +895,23 @@ class _ItemCardState extends ConsumerState<ItemCard> {
         scale: scale,
       );
     } else if (widget.item.type == FileItemType.image) {
+      if (widget.item.isBroken) {
+        return MediaThumbnailPreview(
+          item: widget.item,
+          zoom: scale ?? widget.zoom,
+        );
+      }
       final isSvg = widget.item.name.toLowerCase().endsWith('.svg');
       if (isSvg) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: SvgPicture.file(File(widget.item.path)),
+          child: SvgPicture.file(
+            File(widget.item.path),
+            placeholderBuilder: (_) => MediaThumbnailPreview(
+              item: widget.item,
+              zoom: scale ?? widget.zoom,
+            ),
+          ),
         );
       }
       return MediaThumbnailPreview(

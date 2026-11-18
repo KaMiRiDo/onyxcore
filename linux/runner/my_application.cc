@@ -13,13 +13,81 @@ struct _MyApplication {
   FlView* main_view;
   GtkWindow* main_window;
   FlMethodChannel* window_channel;
+  int64_t last_focused_view_id;
+  int64_t previous_focused_view_id;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
-// Called when first Flutter frame received.
 static guint32 global_last_user_time = 0; // GDK_CURRENT_TIME is 0
 
+static GtkWindow* get_window_by_view_id(MyApplication* self, int64_t target_id);
+
+// Present a GTK window cleanly and grab focus for its Flutter view
+static void present_gtk_window_cleanly(GtkWindow* window) {
+  if (!window || !gtk_widget_get_visible(GTK_WIDGET(window))) {
+    return;
+  }
+  
+  guint32 event_time = gtk_get_current_event_time();
+  if (event_time == 0) {
+    event_time = global_last_user_time;
+  }
+#ifdef GDK_WINDOWING_X11
+  GdkWindow* gdk_win = gtk_widget_get_window(GTK_WIDGET(window));
+  if (gdk_win && GDK_IS_X11_WINDOW(gdk_win)) {
+    if (event_time == 0) {
+      event_time = gdk_x11_get_server_time(gdk_win);
+    }
+    gdk_window_show(gdk_win);
+    gdk_window_raise(gdk_win);
+    gdk_window_focus(gdk_win, event_time != 0 ? event_time : GDK_CURRENT_TIME);
+  }
+#endif
+  if (event_time != 0) {
+    gtk_window_present_with_time(window, event_time);
+  } else {
+    gtk_window_present(window);
+  }
+  
+  GtkWidget* child = gtk_bin_get_child(GTK_BIN(window));
+  if (child && GTK_IS_WIDGET(child)) {
+    gtk_widget_grab_focus(child);
+  }
+}
+
+// Restore focus cleanly when a secondary window is closed
+static void restore_focus_after_secondary_close(MyApplication* self, GtkWidget* closing_widget) {
+  gpointer parent_data = g_object_get_data(G_OBJECT(closing_widget), "parent_view_id");
+  int64_t parent_id = parent_data ? GPOINTER_TO_INT(parent_data) : 0;
+  
+  GtkWindow* target_parent = nullptr;
+  if (parent_id != 0) {
+    target_parent = get_window_by_view_id(self, parent_id);
+  }
+  
+  // If explicit parent window is found and visible, present it
+  if (target_parent && gtk_widget_get_visible(GTK_WIDGET(target_parent)) && GTK_WIDGET(target_parent) != closing_widget) {
+    present_gtk_window_cleanly(target_parent);
+    return;
+  }
+  
+  // Fallback to previous focused window if valid and visible
+  if (self->previous_focused_view_id != 0) {
+    GtkWindow* prev_window = get_window_by_view_id(self, self->previous_focused_view_id);
+    if (prev_window && gtk_widget_get_visible(GTK_WIDGET(prev_window)) && GTK_WIDGET(prev_window) != closing_widget) {
+      present_gtk_window_cleanly(prev_window);
+      return;
+    }
+  }
+  
+  // Final fallback to main window
+  if (self->main_window && gtk_widget_get_visible(GTK_WIDGET(self->main_window)) && GTK_WIDGET(self->main_window) != closing_widget) {
+    present_gtk_window_cleanly(self->main_window);
+  }
+}
+
+// Input event tracker to capture user interaction timestamp
 static gboolean on_app_input_event(GtkWidget *widget, GdkEvent *event, gpointer data) {
   guint32 time = gdk_event_get_time(event);
   if (time != 0) { // 0 is GDK_CURRENT_TIME
@@ -78,9 +146,24 @@ static gboolean on_secondary_window_delete(GtkWidget* widget, GdkEvent* event, g
   // Hide the window immediately so the user perceives no lag.
   gtk_widget_hide(widget);
 
+  // Return focus to parent or previous window cleanly
+  restore_focus_after_secondary_close(app, widget);
+
   // Return TRUE to prevent GTK from destroying the window immediately.
-  // Dart side will call close_window to cleanly destroy it.
+  // Window remains persistent and will be shown again when media is opened.
   return TRUE;
+}
+
+static void on_main_window_destroy(GtkWidget* widget, gpointer data) {
+  MyApplication* self = MY_APPLICATION(data);
+  GList* windows = gtk_application_get_windows(GTK_APPLICATION(self));
+  while (windows != nullptr) {
+    GtkWindow* w = GTK_WINDOW(windows->data);
+    windows = windows->next;
+    if (w != GTK_WINDOW(widget)) {
+      gtk_widget_destroy(GTK_WIDGET(w));
+    }
+  }
 }
 
 
@@ -91,22 +174,34 @@ static gboolean on_secondary_window_focus_in(GtkWidget* widget, GdkEventFocus* e
   }
   
   MyApplication* app = MY_APPLICATION(g_application_get_default());
-  if (app && app->window_channel) {
+  if (app) {
     int64_t view_id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "view_id"));
-    g_autoptr(FlValue) args = fl_value_new_map();
-    fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
-    fl_method_channel_invoke_method(app->window_channel, "on_window_focus", args, nullptr, nullptr, nullptr);
+    if (app->last_focused_view_id != view_id) {
+      app->previous_focused_view_id = app->last_focused_view_id;
+      app->last_focused_view_id = view_id;
+    }
+    if (app->window_channel) {
+      g_autoptr(FlValue) args = fl_value_new_map();
+      fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
+      fl_method_channel_invoke_method(app->window_channel, "on_window_focus", args, nullptr, nullptr, nullptr);
+    }
   }
   return FALSE;
 }
 
 static gboolean on_main_window_focus_in(GtkWidget* widget, GdkEventFocus* event, gpointer data) {
   MyApplication* app = MY_APPLICATION(g_application_get_default());
-  if (app && app->window_channel && app->main_view) {
-    int64_t view_id = fl_view_get_id(app->main_view);
-    g_autoptr(FlValue) args = fl_value_new_map();
-    fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
-    fl_method_channel_invoke_method(app->window_channel, "on_window_focus", args, nullptr, nullptr, nullptr);
+  if (app) {
+    if (app->last_focused_view_id != 0) {
+      app->previous_focused_view_id = app->last_focused_view_id;
+      app->last_focused_view_id = 0;
+    }
+    if (app->window_channel && app->main_view) {
+      int64_t view_id = fl_view_get_id(app->main_view);
+      g_autoptr(FlValue) args = fl_value_new_map();
+      fl_value_set_string_take(args, "view_id", fl_value_new_int(view_id));
+      fl_method_channel_invoke_method(app->window_channel, "on_window_focus", args, nullptr, nullptr, nullptr);
+    }
   }
   return FALSE;
 }
@@ -205,6 +300,14 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
     int64_t view_id = fl_view_get_id(new_view);
     g_object_set_data(G_OBJECT(new_window), "view_id", GINT_TO_POINTER((int)view_id));
     
+    FlValue* parent_id_val = fl_value_lookup_string(args, "parent_view_id");
+    if (parent_id_val && fl_value_get_type(parent_id_val) == FL_VALUE_TYPE_INT) {
+      int64_t parent_id = fl_value_get_int(parent_id_val);
+      if (parent_id != 0) {
+        g_object_set_data(G_OBJECT(new_window), "parent_view_id", GINT_TO_POINTER((int)parent_id));
+      }
+    }
+    
     g_autoptr(FlValue) result = fl_value_new_int(view_id);
     fl_method_call_respond_success(method_call, result, nullptr);
   } else if (strcmp(method, "set_fullscreen") == 0) {
@@ -240,31 +343,16 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
       
       GtkWindow* target_window = get_window_by_view_id(self, target_id);
       if (target_window) {
-        guint32 event_time = gtk_get_current_event_time();
-        if (event_time == 0) {
-          event_time = global_last_user_time;
+        // Ensure the window is visible before presenting
+        gtk_widget_show(GTK_WIDGET(target_window));
+        
+        FlValue* parent_id_val = fl_value_lookup_string(args, "parent_view_id");
+        if (parent_id_val && fl_value_get_type(parent_id_val) == FL_VALUE_TYPE_INT) {
+          int64_t parent_id = fl_value_get_int(parent_id_val);
+          g_object_set_data(G_OBJECT(target_window), "parent_view_id", GINT_TO_POINTER((int)parent_id));
         }
-#ifdef GDK_WINDOWING_X11
-        GdkWindow* gdk_win = gtk_widget_get_window(GTK_WIDGET(target_window));
-        if (gdk_win && GDK_IS_X11_WINDOW(gdk_win)) {
-          if (event_time == 0) {
-            event_time = gdk_x11_get_server_time(gdk_win);
-          }
-          gdk_window_show(gdk_win);
-          gdk_window_raise(gdk_win);
-          gdk_window_focus(gdk_win, event_time != 0 ? event_time : GDK_CURRENT_TIME);
-        }
-#endif
-        if (event_time != 0) {
-          gtk_window_present_with_time(target_window, event_time);
-        } else {
-          gtk_window_present(target_window);
-        }
-        // Also grab focus for the child view if it exists
-        GtkWidget* child = gtk_bin_get_child(GTK_BIN(target_window));
-        if (child && GTK_IS_WIDGET(child)) {
-          gtk_widget_grab_focus(child);
-        }
+        
+        present_gtk_window_cleanly(target_window);
         fl_method_call_respond_success(method_call, nullptr, nullptr);
       } else {
         fl_method_call_respond_error(method_call, "ERROR", "Window not found", nullptr, nullptr);
@@ -298,81 +386,21 @@ static void window_method_call_handler(FlMethodChannel* channel, FlMethodCall* m
       
       GtkWindow* target_window = get_window_by_view_id(self, target_id);
       if (target_window) {
-        // FIX: Hide the window first to stop the Flutter engine from rendering
-        // into this FlView's GL context. Then schedule the actual destruction
-        // on a deferred timer so the engine has time to stop its render loop.
-        // Direct gtk_widget_destroy() was racing with active GL rendering and
-        // causing segfaults on systems with slow GPU teardown (e.g. Linux Mint
-        // with software Mesa / AMD iGPU).
+        // Hide the window and preserve its GtkWidget / FlView hierarchy.
+        // Destroying an FlView while the Flutter engine compositor is running
+        // causes race conditions, cursor assertion failures, and GLib crashes.
+        // By hiding the window and letting PersistentViewerManager manage its state,
+        // we can reuse the same window cleanly when another media item is opened.
         gtk_widget_hide(GTK_WIDGET(target_window));
         
-        // prevent delete-event from firing again during deferred destruction
-        g_signal_handlers_disconnect_by_func(target_window,
-            (gpointer)on_secondary_window_delete, nullptr);
-        
-        // prevent destroy handler from firing during deferred destruction
-        g_signal_handlers_disconnect_by_func(target_window,
-            (gpointer)on_secondary_window_destroy, nullptr);
-        
-        // prevent focus-in handler from firing on a dying window
-        g_signal_handlers_disconnect_matched(target_window,
-            G_SIGNAL_MATCH_FUNC, 0, 0, nullptr,
-            (gpointer)on_secondary_window_focus_in, nullptr);
-        
-        // prevent first-frame handler from firing on a dying view
-        GtkWidget* child_view = gtk_bin_get_child(GTK_BIN(target_window));
-        if (child_view && GTK_IS_WIDGET(child_view)) {
-          g_signal_handlers_disconnect_matched(child_view,
-              G_SIGNAL_MATCH_FUNC, 0, 0, nullptr,
-              (gpointer)secondary_first_frame_cb, nullptr);
-          
-          // FIX: Remove the FlView from its container IMMEDIATELY so the
-          // Flutter compositor stops referencing it during the deferred
-          // destruction window.  Without this, the compositor's render loop
-          // stale pointers, producing:
-          //   GLib-GObject-CRITICAL: invalid unclassed pointer in cast to 'FlView'
-          //   fl_compositor_get_frame_size: assertion 'FL_IS_COMPOSITOR(self)' failed
-          g_object_ref(child_view); // FIX: Keep child_view alive after removal
-          gtk_container_remove(GTK_CONTAINER(target_window), child_view);
+        FlValue* parent_id_val = fl_value_lookup_string(args, "parent_view_id");
+        if (parent_id_val && fl_value_get_type(parent_id_val) == FL_VALUE_TYPE_INT) {
+          int64_t parent_id = fl_value_get_int(parent_id_val);
+          g_object_set_data(G_OBJECT(target_window), "parent_view_id", GINT_TO_POINTER((int)parent_id));
         }
         
-        // prevent focus from going to the dying window
-        GList* windows = gtk_application_get_windows(GTK_APPLICATION(self));
-        if (windows) {
-          for (GList* l = windows; l != nullptr; l = l->next) {
-            GtkWindow* w = GTK_WINDOW(l->data);
-            if (w != target_window && gtk_widget_get_visible(GTK_WIDGET(w))) {
-              gtk_window_present(w);
-              break;
-            }
-          }
-        }
-        
-        // prevent the reference from being freed before deferred destroy
-        g_object_ref(target_window);
-        
-        // Deferred destruction: destroy the empty window shell after 500ms.
-        // The FlView has already been removed above, so this just cleans up
-        // the GtkWindow itself without touching any GL resources.
-        g_timeout_add(500, [](gpointer data) -> gboolean {
-          GtkWidget* widget = GTK_WIDGET(data);
-          if (GTK_IS_WIDGET(widget)) {
-            gtk_widget_destroy(widget);
-          }
-          g_object_unref(data);
-          return G_SOURCE_REMOVE;
-        }, target_window);
-        
-        if (child_view && GTK_IS_WIDGET(child_view)) {
-          g_timeout_add(500, [](gpointer data) -> gboolean {
-            GtkWidget* view = GTK_WIDGET(data);
-            if (GTK_IS_WIDGET(view)) {
-              gtk_widget_destroy(view);
-            }
-            g_object_unref(data);
-            return G_SOURCE_REMOVE;
-          }, child_view);
-        }
+        // Restore focus to the parent or previous window
+        restore_focus_after_secondary_close(self, GTK_WIDGET(target_window));
         
         fl_method_call_respond_success(method_call, nullptr, nullptr);
       } else {
@@ -470,6 +498,7 @@ static void my_application_activate(GApplication* application) {
   g_signal_connect(view, "touch-event", G_CALLBACK(on_app_input_event), NULL);
   
   g_signal_connect(window, "focus-in-event", G_CALLBACK(on_main_window_focus_in), NULL);
+  g_signal_connect(window, "destroy", G_CALLBACK(on_main_window_destroy), self);
   
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
@@ -549,8 +578,10 @@ static void my_application_startup(GApplication* application) {
 // Implements GApplication::shutdown.
 static void my_application_shutdown(GApplication* application) {
   GList* windows = gtk_application_get_windows(GTK_APPLICATION(application));
-  if (windows != nullptr && g_list_length(windows) > 0) {
-    return;
+  while (windows != nullptr) {
+    GtkWindow* w = GTK_WINDOW(windows->data);
+    windows = windows->next;
+    gtk_widget_destroy(GTK_WIDGET(w));
   }
   G_APPLICATION_CLASS(my_application_parent_class)->shutdown(application);
 }
@@ -572,7 +603,13 @@ static void my_application_class_init(MyApplicationClass* klass) {
   G_OBJECT_CLASS(klass)->dispose = my_application_dispose;
 }
 
-static void my_application_init(MyApplication* self) {}
+static void my_application_init(MyApplication* self) {
+  self->main_view = nullptr;
+  self->main_window = nullptr;
+  self->window_channel = nullptr;
+  self->last_focused_view_id = 0;
+  self->previous_focused_view_id = 0;
+}
 
 MyApplication* my_application_new() {
   g_set_prgname(APPLICATION_ID);

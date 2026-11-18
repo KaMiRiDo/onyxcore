@@ -29,6 +29,9 @@ class PersistentViewerManager {
   // Tracks active view IDs by ViewerType to enforce single instance per type
   static final Map<ViewerType, int> _activeWindowsByType = {};
 
+  // Tracks parent window ID by child view ID for focus restoration on close
+  static final Map<int, int> _parentWindowByChildViewId = {};
+
   static final ValueNotifier<int> updates = ValueNotifier(0);
   static final ValueNotifier<int> mainWindowFocusTrigger = ValueNotifier(0);
 
@@ -93,13 +96,19 @@ class PersistentViewerManager {
   /// Checks if a window of the given ViewerType is currently open and active
   static bool isWindowOpen(ViewerType type) {
     _activeWindowsByType.removeWhere((k, v) => !isViewActive(v));
-    return _activeWindowsByType.containsKey(type);
+    final viewId = _activeWindowsByType[type];
+    if (viewId == null) return false;
+    return _viewParams[viewId]?.value != null;
   }
 
   /// Returns the active view ID for a ViewerType if open, or null
   static int? getActiveWindowId(ViewerType type) {
     _activeWindowsByType.removeWhere((k, v) => !isViewActive(v));
-    return _activeWindowsByType[type];
+    final viewId = _activeWindowsByType[type];
+    if (viewId == null || _viewParams[viewId]?.value == null) {
+      return null;
+    }
+    return viewId;
   }
 
   @visibleForTesting
@@ -108,6 +117,7 @@ class PersistentViewerManager {
     _activeWindowsByType.clear();
     _focusTriggers.clear();
     _urlFocusTriggers.clear();
+    _parentWindowByChildViewId.clear();
     mainWindowFocusTrigger.value = 0;
   }
 
@@ -117,6 +127,9 @@ class PersistentViewerManager {
   static Future<void> openMedia(WindowParams params) async {
     try {
       final type = params.viewerType;
+      final parentId = params.parentWindowId != null
+          ? int.tryParse(params.parentWindowId!)
+          : null;
 
       // Cleanup any dead windows from our tracking before checking
       _activeWindowsByType.removeWhere((k, v) => !isViewActive(v));
@@ -124,13 +137,24 @@ class PersistentViewerManager {
       // If we already have a window open for this viewer type, reuse it!
       if (_activeWindowsByType.containsKey(type)) {
         final existingViewId = _activeWindowsByType[type]!;
+        if (parentId != null) {
+          _parentWindowByChildViewId[existingViewId] = parentId;
+        } else {
+          _parentWindowByChildViewId.remove(existingViewId);
+        }
 
         // Update the reactive params. The ValueListenableBuilder in buildView will automatically rebuild.
-        _viewParams[existingViewId]?.value = params;
+        if (_viewParams.containsKey(existingViewId)) {
+          _viewParams[existingViewId]!.value = params;
+        } else {
+          _viewParams[existingViewId] = ValueNotifier(params);
+        }
+        updates.value++;
 
         // Tell the OS to bring the existing window to the front and focus it
         await _channel.invokeMethod('present_window', {
           'view_id': existingViewId,
+          if (parentId != null) 'parent_view_id': parentId,
         });
         return;
       }
@@ -156,8 +180,13 @@ class PersistentViewerManager {
             'width': width,
             'height': height,
             'maximize': maximize,
+            if (parentId != null) 'parent_view_id': parentId,
           })) ??
           0;
+
+      if (parentId != null) {
+        _parentWindowByChildViewId[viewId] = parentId;
+      }
 
       // Notify listeners to build the new window content
       _viewParams[viewId] = ValueNotifier(params);
@@ -184,23 +213,26 @@ class PersistentViewerManager {
   /// Closes a specific view ID window safely by unmounting Flutter widgets first
   static Future<void> closeWindow(int viewId) async {
     try {
+      final parentId = _parentWindowByChildViewId[viewId];
+
       // Hide the window instantly so the user doesn't perceive any lag
-      // while we wait for the background GL teardown
       await _channel.invokeMethod('hide_window', {'view_id': viewId});
 
-      // Remove from tracking so Flutter doesn't try to render it during destruction
-      _viewParams.remove(viewId);
-      _activeWindowsByType.removeWhere((k, v) => v == viewId);
-      _focusTriggers.remove(viewId);
-      _urlFocusTriggers.remove(viewId);
+      // Clear the active params to unmount the viewer widget (releases media player, textures, memory)
+      if (_viewParams.containsKey(viewId)) {
+        _viewParams[viewId]?.value = null;
+      }
       updates.value++;
 
-      // Wait for Flutter to unmount the widget and for media_kit to release GL contexts.
-      // Use a longer delay for systems with slow GPU teardown (e.g. Linux Mint with software Mesa).
-      // Increased to 1500ms to avoid GLib-GObject-CRITICAL crashes during fast open/close.
-      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      // Inform native platform to hide and refocus the parent or previous window
+      await _channel.invokeMethod('close_window', {
+        'view_id': viewId,
+        if (parentId != null) 'parent_view_id': parentId,
+      });
 
-      await _channel.invokeMethod('close_window', {'view_id': viewId});
+      if (parentId != null && parentId != 0) {
+        await presentWindow(parentId);
+      }
     } catch (e) {
       debugPrint('[PersistentViewerManager] Error closing window: $e');
     }

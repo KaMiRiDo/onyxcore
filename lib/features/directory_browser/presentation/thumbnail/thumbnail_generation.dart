@@ -172,6 +172,22 @@ Future<ThumbnailJobOutcome> generateMediaThumbnail({
     final isCommon = isImage && isCommonImageFormat(filePath);
     var generated = false;
 
+    // Fast fail for 0-byte or non-existent files without spawning processes
+    final sourceFile = File(filePath);
+    if (!sourceFile.existsSync() || sourceFile.lengthSync() == 0) {
+      if (!isCancelledOrDisposed()) {
+        await cacheService.markFailed(
+          filePath: filePath,
+          mtime: mtime,
+          sizeBytes: sizeBytes,
+          kind: isImage ? 'image' : 'video',
+        );
+      }
+      return isJobRelevant()
+          ? ThumbnailJobOutcome.failed
+          : ThumbnailJobOutcome.obsolete;
+    }
+
     // ── 1. Dart image package (common image formats ≤ 5 MB) ─────────────────
     if (isCommon &&
         sizeBytes > 0 &&
@@ -195,6 +211,7 @@ Future<ThumbnailJobOutcome> generateMediaThumbnail({
       Process? process;
       var processRegistered = false;
       try {
+        _deleteSilently(File(tempThumbPath));
         process = await Process.start(executable, args);
         // Register immediately — session can now terminate it if needed.
         processController.registerRunningProcess(job.key, process);
@@ -203,18 +220,61 @@ Future<ThumbnailJobOutcome> generateMediaThumbnail({
         unawaited(setLowProcessPriority(process.pid));
         process.stdout.drain<void>().ignore();
         process.stderr.drain<void>().ignore();
-        await process.exitCode;
+        final exitCode = await process.exitCode;
+        if (exitCode == 0) {
+          final file = File(tempThumbPath);
+          generated = file.existsSync() && file.lengthSync() > 0;
+        }
       } finally {
         if (processRegistered) {
           processController.unregisterRunningProcess(job.key);
         }
       }
 
-      final file = File(tempThumbPath);
-      try {
-        generated = file.existsSync() && file.lengthSync() > 0;
-      } catch (_) {
-        generated = false;
+      // Retry videos shorter than 1s by seeking to 00:00:00 before concluding broken
+      if (!generated && !isImage) {
+        _deleteSilently(File(tempThumbPath));
+        final fallbackCommand = [
+          'ffmpeg',
+          '-y',
+          '-ss',
+          '00:00:00',
+          '-i',
+          filePath,
+          '-vframes',
+          '1',
+          '-an',
+          '-vf',
+          'scale=320:-1',
+          '-q:v',
+          '5',
+          '-loglevel',
+          'error',
+          tempThumbPath,
+        ];
+        Process? fallbackProcess;
+        var fallbackRegistered = false;
+        try {
+          fallbackProcess = await Process.start(
+            fallbackCommand.first,
+            fallbackCommand.sublist(1),
+          );
+          processController.registerRunningProcess(job.key, fallbackProcess);
+          fallbackRegistered = true;
+
+          unawaited(setLowProcessPriority(fallbackProcess.pid));
+          fallbackProcess.stdout.drain<void>().ignore();
+          fallbackProcess.stderr.drain<void>().ignore();
+          final fallbackExit = await fallbackProcess.exitCode;
+          if (fallbackExit == 0) {
+            final file = File(tempThumbPath);
+            generated = file.existsSync() && file.lengthSync() > 0;
+          }
+        } finally {
+          if (fallbackRegistered) {
+            processController.unregisterRunningProcess(job.key);
+          }
+        }
       }
     }
 
@@ -253,7 +313,6 @@ Future<ThumbnailJobOutcome> generateMediaThumbnail({
       _deleteSilently(thumbFile);
 
       if (sessionGone) return ThumbnailJobOutcome.cancelled;
-      if (!relevant) return ThumbnailJobOutcome.obsolete;
 
       await cacheService.markFailed(
         filePath: filePath,
@@ -261,13 +320,14 @@ Future<ThumbnailJobOutcome> generateMediaThumbnail({
         sizeBytes: sizeBytes,
         kind: isImage ? 'image' : 'video',
       );
+
+      if (!relevant) return ThumbnailJobOutcome.obsolete;
       return ThumbnailJobOutcome.failed;
     }
   } catch (e) {
     _deleteSilently(File(tempThumbPath));
 
     if (isCancelledOrDisposed()) return ThumbnailJobOutcome.cancelled;
-    if (!isJobRelevant()) return ThumbnailJobOutcome.obsolete;
 
     await cacheService.markFailed(
       filePath: filePath,
@@ -275,6 +335,8 @@ Future<ThumbnailJobOutcome> generateMediaThumbnail({
       sizeBytes: sizeBytes,
       kind: candidate.isImage ? 'image' : 'video',
     );
+
+    if (!isJobRelevant()) return ThumbnailJobOutcome.obsolete;
     return ThumbnailJobOutcome.failed;
   }
 }

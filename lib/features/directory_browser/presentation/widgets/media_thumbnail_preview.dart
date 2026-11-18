@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
+import 'package:onyxcore/core/utils/broken_media_detector.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/data/datasources/media_metadata_datasource.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
@@ -41,6 +42,22 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
   @override
   void initState() {
     super.initState();
+
+    ThumbnailCacheService? cacheService;
+    try {
+      cacheService = ref.read(thumbnailCacheServiceProvider);
+    } catch (_) {}
+
+    if (widget.item.isBroken ||
+        BrokenMediaDetector.isBrokenSync(
+          widget.item.path,
+          type: widget.item.type,
+          sizeBytes: widget.item.sizeBytes,
+          cacheService: cacheService,
+        )) {
+      _isBroken = true;
+      return;
+    }
 
     // Direct display if browsing inside thumbnail cache folder
     if (ThumbnailCacheService.isThumbnailCachePath(widget.item.path)) {
@@ -82,8 +99,23 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
   @override
   void didUpdateWidget(MediaThumbnailPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.item.path != widget.item.path) {
-      _isBroken = false;
+    if (oldWidget.item.path != widget.item.path ||
+        oldWidget.item.isBroken != widget.item.isBroken) {
+      ThumbnailCacheService? cacheService;
+      try {
+        cacheService = ref.read(thumbnailCacheServiceProvider);
+      } catch (_) {}
+
+      _isBroken = widget.item.isBroken ||
+          BrokenMediaDetector.isBrokenSync(
+            widget.item.path,
+            type: widget.item.type,
+            sizeBytes: widget.item.sizeBytes,
+            cacheService: cacheService,
+          );
+      if (_isBroken) {
+        return;
+      }
 
       // Direct display if browsing inside thumbnail cache folder
       if (ThumbnailCacheService.isThumbnailCachePath(widget.item.path)) {
@@ -155,6 +187,21 @@ class _MediaThumbnailPreviewState extends ConsumerState<MediaThumbnailPreview> {
     final session = ref.read(activeThumbnailSessionProvider);
     final mtime = widget.item.modified.millisecondsSinceEpoch;
     final sizeBytes = widget.item.sizeBytes ?? 0;
+
+    if (widget.item.isBroken ||
+        BrokenMediaDetector.isBrokenSync(
+          filePath,
+          type: widget.item.type,
+          sizeBytes: sizeBytes,
+          cacheService: cacheService,
+        )) {
+      if (!_disposed && mounted) {
+        setState(() {
+          _isBroken = true;
+        });
+      }
+      return;
+    }
 
     // 1. Wait for index to load, then check the global cache
     await cacheService.ensureLoaded();

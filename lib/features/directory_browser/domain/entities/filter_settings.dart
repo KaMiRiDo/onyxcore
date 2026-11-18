@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:equatable/equatable.dart';
+import 'package:onyxcore/core/cache/thumbnail_cache_service.dart';
+import 'package:onyxcore/core/utils/broken_media_detector.dart';
 import 'package:onyxcore/core/utils/file_type_classifier.dart';
 import 'package:onyxcore/features/directory_browser/domain/entities/file_item.dart';
 
@@ -8,43 +12,74 @@ class FilterSettings extends Equatable {
     this.foldersOnly,
     this.category,
     this.extensions = const {},
+    this.brokenOnly = false,
   });
   final Set<DateTime>? selectedDates; // null = any
   final bool?
   foldersOnly; // null = both, true = folders only, false = files only
   final FileItemType? category;
   final Set<String> extensions;
+  final bool brokenOnly;
 
   bool get isEmpty =>
       selectedDates == null &&
       foldersOnly == null &&
       category == null &&
-      extensions.isEmpty;
+      extensions.isEmpty &&
+      !brokenOnly;
 
   @override
-  List<Object?> get props => [selectedDates, foldersOnly, category, extensions];
+  List<Object?> get props => [
+    selectedDates,
+    foldersOnly,
+    category,
+    extensions,
+    brokenOnly,
+  ];
 
   FilterSettings copyWith({
     Set<DateTime>? selectedDates,
     bool? foldersOnly,
     FileItemType? category,
     Set<String>? extensions,
+    bool? brokenOnly,
     bool clearDates = false,
     bool clearFoldersOnly = false,
     bool clearCategory = false,
+    bool clearBrokenOnly = false,
   }) {
     return FilterSettings(
       selectedDates: clearDates ? null : (selectedDates ?? this.selectedDates),
       foldersOnly: clearFoldersOnly ? null : (foldersOnly ?? this.foldersOnly),
       category: clearCategory ? null : (category ?? this.category),
       extensions: extensions ?? this.extensions,
+      brokenOnly: !clearBrokenOnly && (brokenOnly ?? this.brokenOnly),
     );
   }
 
-  List<FileItem> apply(List<FileItem> items) {
+  List<FileItem> apply(
+    List<FileItem> items, {
+    ThumbnailCacheService? cacheService,
+  }) {
     if (isEmpty) return items;
 
-    return items.where((item) {
+    final filtered = items.where((item) {
+      // 0. Broken Items Filter
+      if (brokenOnly) {
+        if (!item.isBroken) {
+          final exists = File(item.path).existsSync();
+          if (!exists ||
+              !BrokenMediaDetector.isBrokenSync(
+                item.path,
+                type: item.type,
+                sizeBytes: item.sizeBytes,
+                cacheService: cacheService,
+              )) {
+            return false;
+          }
+        }
+      }
+
       // 1. Date Filter
       if (selectedDates != null && selectedDates!.isNotEmpty) {
         final itemDate = DateTime(
@@ -77,7 +112,14 @@ class FilterSettings extends Equatable {
       }
 
       return true;
-    }).toList();
+    });
+
+    if (brokenOnly) {
+      return filtered
+          .map((item) => item.isBroken ? item : item.copyWith(isBroken: true))
+          .toList();
+    }
+    return filtered.toList();
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>

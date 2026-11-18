@@ -15,6 +15,7 @@ class FileItem extends Equatable {
     this.itemCount,
     this.isExecutable = false,
     this.hasWritePermission = true,
+    this.isBroken = false,
   });
 
   factory FileItem.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,7 @@ class FileItem extends Equatable {
       itemCount: json['itemCount'] as int?,
       isExecutable: json['isExecutable'] as bool? ?? false,
       hasWritePermission: json['hasWritePermission'] as bool? ?? true,
+      isBroken: json['isBroken'] as bool? ?? false,
     );
   }
 
@@ -42,6 +44,7 @@ class FileItem extends Equatable {
   final int? itemCount;
   final bool isExecutable;
   final bool hasWritePermission;
+  final bool isBroken;
 
   /// Creates a copy with optional field overrides.
   FileItem copyWith({
@@ -55,6 +58,7 @@ class FileItem extends Equatable {
     int? itemCount,
     bool? isExecutable,
     bool? hasWritePermission,
+    bool? isBroken,
   }) {
     return FileItem(
       path: path ?? this.path,
@@ -67,6 +71,7 @@ class FileItem extends Equatable {
       itemCount: itemCount ?? this.itemCount,
       isExecutable: isExecutable ?? this.isExecutable,
       hasWritePermission: hasWritePermission ?? this.hasWritePermission,
+      isBroken: isBroken ?? this.isBroken,
     );
   }
 
@@ -82,6 +87,7 @@ class FileItem extends Equatable {
       'itemCount': itemCount,
       'isExecutable': isExecutable,
       'hasWritePermission': hasWritePermission,
+      'isBroken': isBroken,
     };
   }
 
@@ -97,5 +103,6 @@ class FileItem extends Equatable {
     itemCount,
     isExecutable,
     hasWritePermission,
+    isBroken,
   ];
 }

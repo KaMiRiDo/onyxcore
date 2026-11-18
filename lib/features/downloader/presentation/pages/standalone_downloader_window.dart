@@ -3624,6 +3624,7 @@ class _StandaloneDownloaderWindowState
       final windowParams = WindowParams(
         viewerType: ViewerType.image,
         file: fileItem,
+        parentWindowId: widget.windowId.toString(),
         initParams: {
           'width': 600,
           'height': 800,
@@ -3674,6 +3675,7 @@ class _StandaloneDownloaderWindowState
       WindowParams(
         viewerType: ViewerType.audio,
         file: file,
+        parentWindowId: widget.windowId.toString(),
         initParams: const {'is_audio_play_only': true},
       ),
     );
@@ -3750,6 +3752,7 @@ class _StandaloneDownloaderWindowState
       final windowParams = WindowParams(
         viewerType: ViewerType.video,
         file: fileItemForPlayer,
+        parentWindowId: widget.windowId.toString(),
         initParams: {
           'width': 1280,
           'height': 720,

@@ -583,11 +583,14 @@ class _FileComparisonTileContent extends ConsumerWidget {
                             ? ViewerType.image
                             : ViewerType.unsupported)));
 
+      final currentViewId = View.maybeOf(context)?.viewId;
+
       unawaited(
         PersistentViewerManager.openMedia(
           WindowParams(
             viewerType: viewerType,
             file: item,
+            parentWindowId: currentViewId?.toString(),
             initParams: {
               'preloadPaths': [filePath],
               if (type == FileItemType.image || type == FileItemType.video)

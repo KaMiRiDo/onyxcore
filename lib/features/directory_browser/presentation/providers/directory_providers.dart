@@ -371,6 +371,7 @@ class DirectoryItemsNotifier extends AsyncNotifier<List<FileItem>> {
             sizeBytes: items[i].sizeBytes ?? prev.sizeBytes,
             imageAspectRatio:
                 items[i].imageAspectRatio ?? prev.imageAspectRatio,
+            isBroken: items[i].isBroken || prev.isBroken,
           );
         }
       }
@@ -600,7 +601,10 @@ final filteredDirectoryItemsProvider = Provider<AsyncValue<List<FileItem>>>((
 
     // 3. Apply advanced filters
     if (!filter.isEmpty) {
-      filtered = filter.apply(filtered);
+      filtered = filter.apply(
+        filtered,
+        cacheService: ref.read(thumbnailCacheServiceProvider),
+      );
     }
 
     return filtered;

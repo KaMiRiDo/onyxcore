@@ -460,33 +460,49 @@ class _FilterOverlayWidgetState extends State<_FilterOverlayWidget> {
 
   Widget _buildFileTypeDropdown() {
     final cat = _settings.category;
-    final label = cat == null
-        ? 'Any'
-        : (cat.name[0].toUpperCase() + cat.name.substring(1));
+    final isBroken = _settings.brokenOnly;
+    final label = isBroken
+        ? 'Broken Items'
+        : (cat == null
+            ? 'Any'
+            : (cat.name[0].toUpperCase() + cat.name.substring(1)));
     final categories = FileItemType.values
         .where((e) => e != FileItemType.folder)
         .toList();
 
-    return _buildCustomSelector<FileItemType?>(
+    return _buildCustomSelector<String?>(
       sectionId: 'fileType',
       label: label,
-      value: cat,
+      value: isBroken ? 'broken' : cat?.name,
       items: [
         DropdownMenuItemData(label: 'Any', value: null),
+        DropdownMenuItemData(label: 'Broken Items', value: 'broken'),
         ...categories.map(
           (c) => DropdownMenuItemData(
             label: c.name[0].toUpperCase() + c.name.substring(1),
-            value: c,
+            value: c.name,
           ),
         ),
       ],
       onChanged: (newVal) {
         setState(() {
-          _settings = _settings.copyWith(
-            category: newVal,
-            clearCategory: newVal == null,
-            extensions: {}, // Don't check by default
-          );
+          if (newVal == 'broken') {
+            _settings = _settings.copyWith(
+              brokenOnly: true,
+              clearCategory: true,
+              extensions: {},
+            );
+          } else {
+            final parsedCat = newVal == null
+                ? null
+                : FileItemType.values.firstWhere((e) => e.name == newVal);
+            _settings = _settings.copyWith(
+              category: parsedCat,
+              clearCategory: parsedCat == null,
+              clearBrokenOnly: true,
+              extensions: {}, // Don't check by default
+            );
+          }
           _expandedSection = null;
           _errorMessage = null;
           _errorTimer?.cancel();

@@ -512,6 +512,8 @@ class LocalFileDatasource {
         } else if (entity is File) {
           final type = classifyFileType(name);
           final isExec = modeStr.contains('x');
+          final isBroken = stat.size == 0 &&
+              (type == FileItemType.image || type == FileItemType.video);
 
           files.add(
             FileItem(
@@ -522,6 +524,7 @@ class LocalFileDatasource {
               sizeBytes: stat.size,
               isExecutable: isExec,
               hasWritePermission: hasWrite,
+              isBroken: isBroken,
             ),
           );
         }
